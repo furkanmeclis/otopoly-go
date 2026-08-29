@@ -2462,14 +2462,12 @@ components:
           type: string
           enum: [owner, staff]
         logo_url:
-          type: string
-          nullable: true
+          type: [string, "null"]
         status:
           type: string
         access_ends_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
 
     PublicOrganization:
       type: object
@@ -2485,8 +2483,7 @@ components:
         status:
           type: string
         logo_url:
-          type: string
-          nullable: true
+          type: [string, "null"]
         access_ok:
           type: boolean
 
@@ -2512,18 +2509,15 @@ components:
         status:
           type: string
         plan_code:
-          type: string
-          nullable: true
+          type: [string, "null"]
         access_starts_at:
           type: string
           format: date-time
         access_ends_at:
-          type: string
+          type: [string, "null"]
           format: date-time
-          nullable: true
         logo_url:
-          type: string
-          nullable: true
+          type: [string, "null"]
         created_at:
           type: string
           format: date-time

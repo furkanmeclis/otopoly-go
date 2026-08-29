@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -30,9 +30,10 @@ export function TenantRouteGuard({
   const { t } = useLocale();
 
   const membership = user?.organizations.find((org) => org.slug === slug);
+  const [nowMs] = useState(() => Date.now());
   const accessExpired =
     membership?.access_ends_at &&
-    new Date(membership.access_ends_at).getTime() <= Date.now();
+    new Date(membership.access_ends_at).getTime() <= nowMs;
 
   useEffect(() => {
     if (!bootstrapped) return;
