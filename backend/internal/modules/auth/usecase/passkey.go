@@ -40,7 +40,7 @@ func (u *AuthUseCase) IssueSessionForUser(ctx context.Context, userUUID uuid.UUI
 	if err := u.repo.UpdateLastLogin(ctx, user.ID); err != nil {
 		return model.Tokens{}, err
 	}
-	return u.issueTokensForUser(ctx, user, meta)
+	return u.issueTokensForUser(ctx, user, meta, nil)
 }
 
 // GetAdapterUserByEmail returns a NextAuth adapter user by email.

@@ -45,6 +45,8 @@ import (
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
+	orgmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations"
+	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
@@ -222,7 +224,10 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	h := authhandler.New(uc, oauthUC, githubSvc, oauthProvSvc, authSettingsSvc, cfg.Auth.AdapterSecret, stepUpSvc, activityRec)
 	h.SetRateLimiter(ratelimit.New(deps.Redis, cfg.App.Env))
 	loader := identity.Loader{UC: uc}
+	orgSvc := orgusecase.New(deps.DB, deps.Queries)
+	uc.SetOrganizationResolver(orgSvc)
 	authmodule.RegisterRoutes(mux, h, tokens, loader, stepUpSvc)
+	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
 	nh := notifhandler.New(notifSvc)

@@ -1,5 +1,5 @@
 import type { AppLayoutVariant } from "@/components/layout/app-layout";
-import { cmsNav, platformNav } from "@/config/nav";
+import { cmsNav, platformNav, tenantNav } from "@/config/nav";
 import { isNavEntryVisible } from "@/features/nav-engine/lib/access";
 import { resolveSearchIcon } from "@/features/search-engine/lib/icons";
 import type { PaletteItem } from "@/features/search-engine/types";
@@ -15,8 +15,14 @@ export function buildNavPageItems(
   variant: AppLayoutVariant,
   access: AccessFns,
   t: (key: string) => string,
+  tenantSlug?: string,
 ): PaletteItem[] {
-  const catalog: NavCatalog = variant === "cms" ? cmsNav : platformNav;
+  const catalog: NavCatalog =
+    variant === "tenant" && tenantSlug
+      ? tenantNav(tenantSlug)
+      : variant === "cms"
+        ? cmsNav
+        : platformNav;
   const items: PaletteItem[] = [];
 
   for (const group of catalog.groups) {

@@ -2,8 +2,8 @@ package rbac
 
 // Role slugs (seeded).
 const (
-	RoleSuperAdmin = "super_admin"
-	RoleCMSUser    = "cms_user"
+	RoleSuperAdmin       = "super_admin"
+	RoleOrganizationUser = "organization_user"
 )
 
 // Permission slugs (seeded).
@@ -45,6 +45,8 @@ const (
 	PermPlatformIntegrationsAppleWrite = "platform.integrations.apple.write"
 	PermPlatformAuthSettingsRead  = "platform.auth.settings.read"
 	PermPlatformAuthSettingsWrite = "platform.auth.settings.write"
+	PermPlatformOrganizationsRead  = "platform.organizations.read"
+	PermPlatformOrganizationsWrite = "platform.organizations.write"
 	PermAuthSession               = "auth.session"
 	PermNotificationsRead         = "notifications.read"
 	PermNotificationsManage       = "notifications.manage"
@@ -52,5 +54,10 @@ const (
 
 // IsSystemRole reports whether slug is a protected system role.
 func IsSystemRole(slug string) bool {
-	return slug == RoleSuperAdmin
+	switch slug {
+	case RoleSuperAdmin, RoleOrganizationUser:
+		return true
+	default:
+		return false
+	}
 }

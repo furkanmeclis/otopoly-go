@@ -13,6 +13,8 @@ import {
   InvalidMFACodeError,
   MFANotEnrolledError,
   MFARequiredError,
+  NoTenantMembershipError,
+  OrganizationAccessExpiredError,
 } from "@/lib/auth/credentials-errors";
 import { goAdapter } from "@/lib/auth/go-adapter";
 import {
@@ -36,7 +38,16 @@ const GUEST_AUTH_PREFIXES = [
   routes.guest.forgotPassword,
   routes.guest.resetPassword,
   routes.guest.verifyEmail,
+  routes.public.register,
 ];
+
+function isTenantGuestPath(pathname: string) {
+  return /^\/t\/[^/]+\/login\/?$/.test(pathname);
+}
+
+function isTenantPath(pathname: string) {
+  return /^\/t\/[^/]+(\/.*)?$/.test(pathname);
+}
 
 function isGuestAuthPath(pathname: string) {
   return GUEST_AUTH_PREFIXES.some(
@@ -45,7 +56,10 @@ function isGuestAuthPath(pathname: string) {
 }
 
 function isProtectedPath(pathname: string) {
-  if (pathname === routes.cms.root) return true;
+  if (pathname === routes.public.root) return false;
+  if (pathname === routes.public.register) return false;
+  if (isTenantGuestPath(pathname)) return false;
+  if (isTenantPath(pathname)) return true;
   if (pathname.startsWith(`${routes.cms.profile.root}`)) return true;
   if (pathname === routes.platform.root) return true;
   if (pathname.startsWith(`${routes.platform.root}/`) && !isGuestAuthPath(pathname)) {
@@ -93,11 +107,13 @@ async function buildProviders(): Promise<Provider[]> {
           email: { label: "Email", type: "email" },
           password: { label: "Password", type: "password" },
           totp_code: { label: "Authenticator code", type: "text" },
+          organization_slug: { label: "Organization slug", type: "text" },
         },
         async authorize(credentials) {
           const email = String(credentials?.email ?? "").trim();
           const password = String(credentials?.password ?? "");
           const totpCode = String(credentials?.totp_code ?? "").trim();
+          const organizationSlug = String(credentials?.organization_slug ?? "").trim();
           if (!email || !password) return null;
 
           try {
@@ -105,6 +121,7 @@ async function buildProviders(): Promise<Provider[]> {
               email,
               password,
               totpCode || undefined,
+              organizationSlug || undefined,
             );
             const user = await adapterGetUserByEmail(email);
             return {
@@ -125,6 +142,12 @@ async function buildProviders(): Promise<Provider[]> {
             }
             if (code === "MFA_NOT_ENROLLED") {
               throw new MFANotEnrolledError();
+            }
+            if (code === "NO_TENANT_MEMBERSHIP") {
+              throw new NoTenantMembershipError();
+            }
+            if (code === "ORGANIZATION_ACCESS_EXPIRED") {
+              throw new OrganizationAccessExpiredError();
             }
             return null;
           }

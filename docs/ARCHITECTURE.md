@@ -18,10 +18,12 @@ This repo is a two-app monorepo plus Compose files. Dependencies point inward: H
 │   └── docs/openapi.yaml         OpenAPI 3.1 (Scalar at /docs/)
 ├── frontend/                     Next.js BFF
 │   ├── src/app/(platform)        /platform admin
-│   ├── src/app/(cms)             / CMS shell
-│   ├── src/app/(guest)           login, reset, verify
+│   ├── src/app/(public)            / landing + /register
+│   ├── src/app/(tenant)            /t/{slug} business shell
+│   ├── src/app/(cms)               legacy CMS shell (profile aliases)
+│   ├── src/app/(guest)             login, reset, verify
 │   ├── src/app/api/v1            BFF proxy → Go
-│   └── src/features/             users, roles, notifications, io, bulk-engine,
+│   └── src/features/             users, roles, organizations, notifications, io, bulk-engine,
 │                                 storage, logs, nav-engine, step-up-engine,
 │                                 search-engine, access, integrations, account, auth
 ├── compose.local.yml             infra only
@@ -32,11 +34,25 @@ This repo is a two-app monorepo plus Compose files. Dependencies point inward: H
 
 | Surface | Path | Who |
 |---------|------|-----|
+| Public | `/`, `/register` | Signed-out visitors; self-service business registration |
+| Tenant | `/t/{slug}` | Organization owners/staff (`organization_members`) |
 | Platform | `/platform` | `super_admin` or any `platform.*` permission |
-| CMS | `/` | other authenticated users (`cms_user` seed, or any role without platform perms) |
+| CMS | `/profile` (legacy) | Redirects / aliases; tenant users use `/t/{slug}/profile` |
 | Guest | `/platform/login` (aliases also exist at `/login`) | signed-out users |
 
-There is **no** tenant, workspace, or `/business` shell. JWT claims are `sub`, `roles`, `is_super_admin`, `exp`, optional `imp` (impersonator) — no `tid` / `wid`.
+JWT claims are `sub`, `roles`, `is_super_admin`, `exp`, optional `imp` (impersonator), optional `sid` (refresh session), optional `oid` (active organization UUID when logging in with `organization_slug`). No workspace / `wid` claim.
+
+## Tenant model
+
+- **Organizations** are businesses (tenants). Each has a unique `slug`, trial `access_ends_at`, and `status` (`pending`, `active`, `suspended`, `expired`).
+- **Self-register** at `POST /v1/public/organizations/register` creates `users` + `organizations` + `organization_members(role=owner)` in one transaction, then the frontend signs in and redirects to `/t/{slug}/`.
+- **Staff** are assigned only by platform admins (`POST /v1/platform/organizations/{uuid}/members`). Businesses cannot invite staff themselves in this MVP.
+- **Login** accepts optional `organization_slug`. When set, the API validates membership and access before issuing a JWT with `oid`.
+- **`/v1/auth/me`** returns `organizations[]` with `uuid`, `slug`, `name`, `role`, `logo_url`, `status`, `access_ends_at`.
+- **Tenant shell** (`/t/{slug}/*`) loads public branding via `GET /v1/public/organizations/by-slug/{slug}` and guards session + membership + `access_ends_at`.
+- **Platform admin** manages organizations at `/platform/organizations` (`platform.organizations.read` / `.write`).
+
+There is **no** workspace or multi-branch model in this MVP.
 
 ## Request flow
 
@@ -95,6 +111,6 @@ Users are global. Permissions are the union of assigned roles.
 | Seed role | Notes |
 |-----------|--------|
 | `super_admin` | System role (`is_system=true`). Created by `make create-super-admin`, not a user column. |
-| `cms_user` | `auth.session` + `notifications.read` |
+| `organization_user` | System role for business owners/staff (`auth.session`, `notifications.read`) |
 
 Custom roles and permission assignment live under `/v1/platform/roles`. New permission slugs are added only via migrations. Details: [backend/docs/auth.md](../backend/docs/auth.md).

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -102,7 +103,7 @@ func (a *UsersAdapter) ApplyRow(ctx context.Context, row map[string]any, default
 	}
 	if _, err := a.q.GetUserByEmail(ctx, email); err == nil {
 		return ioengine.RowResult{OK: false, Error: "email already exists"}, nil
-	} else if err != nil && err != pgx.ErrNoRows {
+	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return ioengine.RowResult{}, err
 	}
 	pw, err := randomPassword()
@@ -224,7 +225,7 @@ func (a *RolesAdapter) ApplyRow(ctx context.Context, row map[string]any, _ map[s
 	}
 	if _, err := a.q.GetRoleBySlug(ctx, slugVal); err == nil {
 		return ioengine.RowResult{OK: false, Error: "slug already exists"}, nil
-	} else if err != nil && err != pgx.ErrNoRows {
+	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return ioengine.RowResult{}, err
 	}
 	desc := pgtype.Text{}
@@ -386,7 +387,7 @@ func SampleRows(resource string) []map[string]any {
 	switch resource {
 	case ResourceUsers:
 		return []map[string]any{
-			{"email": "import@example.com", "name": "Import", "surname": "User", "status": "pending", "locale": "tr", "role_slugs": "cms_user"},
+			{"email": "import@example.com", "name": "Import", "surname": "User", "status": "pending", "locale": "tr", "role_slugs": "organization_user"},
 		}
 	case ResourceRoles:
 		return []map[string]any{

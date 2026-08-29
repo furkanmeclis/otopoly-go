@@ -93,9 +93,10 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		TOTPCode string `json:"totp_code"`
+		Email            string `json:"email"`
+		Password         string `json:"password"`
+		TOTPCode         string `json:"totp_code"`
+		OrganizationSlug string `json:"organization_slug"`
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return
@@ -106,7 +107,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	tokens, err := h.uc.Login(r.Context(), in.Email, in.Password, in.TOTPCode, sessionMeta(r))
+	tokens, err := h.uc.Login(r.Context(), in.Email, in.Password, in.TOTPCode, in.OrganizationSlug, sessionMeta(r))
 	if err != nil {
 		writeUsecaseError(w, r, err)
 		return
@@ -581,6 +582,12 @@ func writeUsecaseError(w http.ResponseWriter, r *http.Request, err error) {
 		response.Conflict(w, r, response.CodeConflict, "Stop the current impersonation session first")
 	case errors.Is(err, usecase.ErrForbidden):
 		response.Forbidden(w, r, "You do not have access to this resource")
+	case errors.Is(err, usecase.ErrNoTenantMembership):
+		response.Error(w, r, http.StatusForbidden, response.CodeNoTenantMembership, "No membership for this organization")
+	case errors.Is(err, usecase.ErrOrganizationAccessExpired):
+		response.Error(w, r, http.StatusForbidden, response.CodeOrganizationAccessExpired, "Organization access has expired")
+	case errors.Is(err, usecase.ErrOrganizationSuspended):
+		response.Forbidden(w, r, "Organization is suspended")
 	case errors.Is(err, usecase.ErrNotFound):
 		response.NotFound(w, r, "Resource was not found")
 	case errors.Is(err, usecase.ErrConflict):

@@ -74,7 +74,7 @@ make create-super-admin
 | MailHog | http://127.0.0.1:8025 |
 | Meilisearch | http://127.0.0.1:7700 |
 
-Sign-in role: `super_admin` → `/platform`. Roleless / `cms_user` → `/` (CMS).
+Sign-in role: `super_admin` → `/platform`. `organization_user` → `/t/{slug}`.
 
 ## 4. Shells & RBAC
 

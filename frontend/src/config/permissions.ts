@@ -39,6 +39,8 @@ export const Permission = {
   PlatformIntegrationsAppleWrite: "platform.integrations.apple.write",
   PlatformAuthSettingsRead: "platform.auth.settings.read",
   PlatformAuthSettingsWrite: "platform.auth.settings.write",
+  PlatformOrganizationsRead: "platform.organizations.read",
+  PlatformOrganizationsWrite: "platform.organizations.write",
 
   AuthSession: "auth.session",
 
@@ -131,6 +133,10 @@ export const permissions = {
   authSettings: {
     read: Permission.PlatformAuthSettingsRead,
     write: Permission.PlatformAuthSettingsWrite,
+  },
+  organizations: {
+    read: Permission.PlatformOrganizationsRead,
+    write: Permission.PlatformOrganizationsWrite,
   },
   auth: {
     session: Permission.AuthSession,

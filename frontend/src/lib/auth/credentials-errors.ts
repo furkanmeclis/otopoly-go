@@ -4,6 +4,8 @@ export const CREDENTIAL_ERROR_CODES = {
   MFA_REQUIRED: "MFA_REQUIRED",
   INVALID_MFA_CODE: "INVALID_MFA_CODE",
   MFA_NOT_ENROLLED: "MFA_NOT_ENROLLED",
+  NO_TENANT_MEMBERSHIP: "NO_TENANT_MEMBERSHIP",
+  ORGANIZATION_ACCESS_EXPIRED: "ORGANIZATION_ACCESS_EXPIRED",
 } as const;
 
 export type CredentialErrorCode =
@@ -19,6 +21,14 @@ export class InvalidMFACodeError extends CredentialsSignin {
 
 export class MFANotEnrolledError extends CredentialsSignin {
   code = CREDENTIAL_ERROR_CODES.MFA_NOT_ENROLLED;
+}
+
+export class NoTenantMembershipError extends CredentialsSignin {
+  code = CREDENTIAL_ERROR_CODES.NO_TENANT_MEMBERSHIP;
+}
+
+export class OrganizationAccessExpiredError extends CredentialsSignin {
+  code = CREDENTIAL_ERROR_CODES.ORGANIZATION_ACCESS_EXPIRED;
 }
 
 export type CredentialSignInResult = {

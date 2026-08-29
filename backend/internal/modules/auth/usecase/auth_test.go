@@ -36,9 +36,9 @@ func newMemRepo() *memRepo {
 				rbac.PermPlatformRolesRead, rbac.PermPlatformRolesWrite,
 				rbac.PermAuthSession,
 			},
-			rbac.RoleCMSUser: {rbac.PermAuthSession, rbac.PermNotificationsRead},
+			rbac.RoleOrganizationUser: {rbac.PermAuthSession, rbac.PermNotificationsRead},
 		},
-		roles: map[string]int64{rbac.RoleSuperAdmin: 1, rbac.RoleCMSUser: 2},
+		roles: map[string]int64{rbac.RoleSuperAdmin: 1, rbac.RoleOrganizationUser: 2},
 	}
 	return r
 }
@@ -359,10 +359,10 @@ func (r *memRepo) UpdateUserTOTPRecoveryHashes(context.Context, int64, []string)
 func (r *memRepo) DeleteUserTOTP(context.Context, int64) error                         { return nil }
 
 func (r *memRepo) ListRolesFiltered(context.Context, int32, int32, string) ([]model.RoleSummary, int64, error) {
-	return []model.RoleSummary{{UUID: uuid.New(), Name: "CMS User", Slug: rbac.RoleCMSUser}}, 1, nil
+	return []model.RoleSummary{{UUID: uuid.New(), Name: "Organization", Slug: rbac.RoleOrganizationUser}}, 1, nil
 }
 func (r *memRepo) GetRoleByUUID(context.Context, uuid.UUID) (model.RoleSummary, error) {
-	return model.RoleSummary{UUID: uuid.New(), Slug: rbac.RoleCMSUser}, nil
+	return model.RoleSummary{UUID: uuid.New(), Slug: rbac.RoleOrganizationUser}, nil
 }
 func (r *memRepo) ListRolePermissionSlugs(context.Context, uuid.UUID) ([]string, error) {
 	return []string{rbac.PermAuthSession}, nil
@@ -400,7 +400,7 @@ func TestRegisterLoginMeWithoutRoles(t *testing.T) {
 		t.Fatalf("register: %v", err)
 	}
 
-	_, err = uc.Login(context.Background(), "user@example.com", "Password1!", "", model.SessionMeta{})
+	_, err = uc.Login(context.Background(), "user@example.com", "Password1!", "", "", model.SessionMeta{})
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}
@@ -450,7 +450,7 @@ func TestSuperAdminLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tok, err := uc.Login(context.Background(), "admin@example.com", "Password1!", "", model.SessionMeta{})
+	tok, err := uc.Login(context.Background(), "admin@example.com", "Password1!", "", "", model.SessionMeta{})
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}

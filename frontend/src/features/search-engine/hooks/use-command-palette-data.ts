@@ -20,7 +20,10 @@ import type { PaletteItem } from "@/features/search-engine/types";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
 
-export function useCommandPaletteData(variant: AppLayoutVariant) {
+export function useCommandPaletteData(
+  variant: AppLayoutVariant,
+  tenantSlug?: string,
+) {
   const { t } = useLocale();
   const { can, canAny } = usePermission();
   const [query, setQuery] = useState("");
@@ -37,6 +40,7 @@ export function useCommandPaletteData(variant: AppLayoutVariant) {
     queryKey: ["search", "specs"],
     queryFn: fetchSearchSpecs,
     staleTime: 60_000,
+    enabled: variant === "platform",
   });
 
   const remoteSpecs = useMemo(() => {
@@ -71,8 +75,8 @@ export function useCommandPaletteData(variant: AppLayoutVariant) {
   const searchText = parsed.text;
 
   const pageItems = useMemo(
-    () => buildNavPageItems(variant, access, t),
-    [access, t, variant],
+    () => buildNavPageItems(variant, access, t, tenantSlug),
+    [access, t, tenantSlug, variant],
   );
 
   const filteredPages = useMemo(() => {

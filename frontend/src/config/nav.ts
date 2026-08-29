@@ -1,6 +1,7 @@
 import {
   Activity,
   Bell,
+  Building2,
   Download,
   HardDrive,
   KeyRound,
@@ -10,6 +11,7 @@ import {
   Settings2,
   Shield,
   Upload,
+  UserRound,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -45,6 +47,13 @@ export const platformNav = defineNav({
       defaultOpen: true,
       items: [
         usersNavItem,
+        {
+          id: "organizations",
+          titleKey: "layout.nav_organizations",
+          href: routes.platform.organizations.root,
+          icon: Building2,
+          permission: permissions.organizations.read,
+        },
         {
           id: "roles",
           titleKey: "layout.nav_roles",
@@ -184,3 +193,31 @@ export const cmsNav = defineNav({
     },
   ],
 });
+
+export function tenantNav(slug: string) {
+  return defineNav({
+    id: "tenant",
+    groups: [
+      {
+        id: "tenant",
+        labelKey: "layout.section_tenant",
+        icon: Building2,
+        defaultOpen: true,
+        items: [
+          {
+            id: "home",
+            titleKey: "layout.home",
+            href: routes.tenant.home(slug),
+            icon: LayoutDashboard,
+          },
+          {
+            id: "profile",
+            titleKey: "layout.nav_profile",
+            href: routes.tenant.profile.root(slug),
+            icon: UserRound,
+          },
+        ],
+      },
+    ],
+  });
+}

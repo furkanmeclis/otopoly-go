@@ -635,6 +635,145 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/organizations/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register business and owner */
+        post: operations["postPublicOrganizationRegister"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/organizations/by-slug/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public organization branding */
+        get: operations["getPublicOrganizationBySlug"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/organizations/logo/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream organization logo */
+        get: operations["getPublicOrganizationLogo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Organizations list meta */
+        get: operations["getPlatformOrganizationsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organizations */
+        get: operations["getPlatformOrganizations"];
+        put?: never;
+        /** Create organization */
+        post: operations["createPlatformOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get organization */
+        get: operations["getPlatformOrganization"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update organization */
+        patch: operations["patchPlatformOrganization"];
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload organization logo */
+        put: operations["putPlatformOrganizationLogo"];
+        post?: never;
+        /** Delete organization logo */
+        delete: operations["deletePlatformOrganizationLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add organization member */
+        post: operations["postPlatformOrganizationMember"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/users": {
         parameters: {
             query?: never;
@@ -1318,6 +1457,7 @@ export interface components {
             user: components["schemas"]["PublicUser"];
             roles: string[];
             permissions: string[];
+            organizations?: components["schemas"]["OrganizationMembership"][];
             links: components["schemas"]["MeLinks"];
             channels: components["schemas"]["MeChannels"];
             realtime: components["schemas"]["MeRealtime"];
@@ -1325,6 +1465,75 @@ export interface components {
         };
         MeImpersonation: {
             user: components["schemas"]["PublicUser"];
+        };
+        OrganizationMembership: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+            /** @enum {string} */
+            role: "owner" | "staff";
+            logo_url?: string | null;
+            status: string;
+            /** Format: date-time */
+            access_ends_at?: string | null;
+        };
+        PublicOrganization: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+            status: string;
+            logo_url?: string | null;
+            access_ok: boolean;
+        };
+        Organization: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+            city: string;
+            district: string;
+            phone: string;
+            address: string;
+            status: string;
+            plan_code?: string | null;
+            /** Format: date-time */
+            access_starts_at: string;
+            /** Format: date-time */
+            access_ends_at?: string | null;
+            logo_url?: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        OrganizationRegisterRequest: {
+            name: string;
+            surname: string;
+            /** Format: email */
+            email: string;
+            /** Format: password */
+            password: string;
+            organization_name: string;
+            city: string;
+            district: string;
+            phone: string;
+            address: string;
+        };
+        CreatePlatformOrganizationRequest: {
+            name: string;
+            city?: string;
+            district?: string;
+            phone?: string;
+            address?: string;
+            /** Format: uuid */
+            owner_user_uuid: string;
+        };
+        OrganizationRegisterResult: {
+            user: components["schemas"]["PublicUser"];
+            organization: components["schemas"]["Organization"];
+            tokens: components["schemas"]["Tokens"];
         };
         SessionSwitch: {
             /** Format: uuid */
@@ -1355,6 +1564,8 @@ export interface components {
             password: string;
             /** @description Authenticator or recovery code when 2FA is enabled */
             totp_code?: string;
+            /** @description When set, login is scoped to this organization membership */
+            organization_slug?: string;
         };
         TOTPCodeRequest: {
             code: string;
@@ -1756,6 +1967,35 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["RegisterResponse"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeOrganizationRegisterResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OrganizationRegisterResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePublicOrganization: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PublicOrganization"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeOrganizationPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Organization"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeOrganization: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["Organization"];
             meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeTokens: {
@@ -3108,6 +3348,263 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    postPublicOrganizationRegister: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Registered */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationRegisterResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPublicOrganizationBySlug: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization branding */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicOrganization"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPublicOrganizationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logo bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPlatformOrganizationsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+        };
+    };
+    getPlatformOrganizations: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organizations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationPage"];
+                };
+            };
+        };
+    };
+    createPlatformOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlatformOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Created organization */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganization"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPlatformOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    patchPlatformOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: unknown;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    putPlatformOrganizationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deletePlatformOrganizationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    postPlatformOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    user_uuid: string;
+                    role?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Member added */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getPlatformUsers: {

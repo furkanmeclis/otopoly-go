@@ -261,3 +261,33 @@ func PlatformLogRules() ResourceMeta {
 		},
 	}
 }
+
+// PlatformOrganizations returns meta for GET /v1/platform/organizations.
+func PlatformOrganizations() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "platform.organizations",
+		DefaultSort:   "-created_at",
+		DefaultFields: []string{"uuid", "slug", "name", "city", "phone", "status", "plan_code", "access_ends_at"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: false,
+			Search: true, Filter: true, Sort: true, Export: false, Import: false, Bulk: false,
+		},
+		SearchableFields: []string{"name", "slug", "city", "phone"},
+		SortableFields:   []string{"name", "slug", "city", "status", "created_at", "access_ends_at"},
+		FilterableFields: []string{"status"},
+		Columns: []Column{
+			{Key: "uuid", LabelKey: "organizations.uuid", Type: ColumnTypeUUID, DefaultVisible: true},
+			{Key: "slug", LabelKey: "organizations.slug", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "name", LabelKey: "organizations.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "city", LabelKey: "organizations.city", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "phone", LabelKey: "organizations.phone", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "organizations.status", Type: ColumnTypeEnum, Sortable: true, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "plan_code", LabelKey: "organizations.plan_code", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "access_ends_at", LabelKey: "organizations.access_ends_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "organizations.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: false},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "organizations.status", Variant: FilterVariantFaceted},
+		},
+	}
+}

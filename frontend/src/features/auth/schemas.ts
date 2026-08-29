@@ -21,6 +21,35 @@ export function createLoginSchema(t: Translate) {
 
 export type LoginFormValues = z.infer<ReturnType<typeof createLoginSchema>>;
 
+export function createOrganizationRegisterSchema(t: Translate) {
+  return z.object({
+    name: z.string().min(1, t("auth.validation.name_required")),
+    surname: z.string().min(1, t("auth.validation.surname_required")),
+    email: z.email(t("auth.validation.email")),
+    password: passwordPolicySchema(t),
+    organization_name: z.string().min(1, t("register.validation.organization_name_required")),
+    city: z.string().min(1, t("register.validation.city_required")),
+    district: z.string().min(1, t("register.validation.district_required")),
+    phone: z.string().min(1, t("register.validation.phone_required")),
+    address: z.string().min(1, t("register.validation.address_required")),
+  });
+}
+
+export type OrganizationRegisterFormValues = z.infer<
+  ReturnType<typeof createOrganizationRegisterSchema>
+>;
+
+export function createTenantLoginSchema(t: Translate) {
+  return z.object({
+    email: z.email(t("auth.validation.email")),
+    password: z.string().min(1, t("auth.validation.password_required")),
+  });
+}
+
+export type TenantLoginFormValues = z.infer<
+  ReturnType<typeof createTenantLoginSchema>
+>;
+
 export function createRegisterSchema(t: Translate) {
   return z.object({
     email: z.email(t("auth.validation.email")),

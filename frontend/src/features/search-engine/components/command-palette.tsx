@@ -24,11 +24,17 @@ import type { PaletteItem } from "@/features/search-engine/types";
 import { useLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
-export function CommandPalette({ variant }: { variant: AppLayoutVariant }) {
+export function CommandPalette({
+  variant,
+  tenantSlug,
+}: {
+  variant: AppLayoutVariant;
+  tenantSlug?: string;
+}) {
   const { t } = useLocale();
   const router = useRouter();
   const { open, setOpen } = useCommandPalette();
-  const data = useCommandPaletteData(variant);
+  const data = useCommandPaletteData(variant, tenantSlug);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

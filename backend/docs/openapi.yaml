@@ -15,7 +15,7 @@ info:
 
     **Roles:**
     - `super_admin` — system role; assigned via `make create-super-admin`
-    - `cms_user` — seed role for CMS access
+    - `organization_user` — system role for business owners/staff
     - Custom roles via `/v1/platform/roles`
 
     **Auth:** Bearer JWT access tokens + opaque refresh tokens.
@@ -1066,6 +1066,242 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /v1/public/organizations/register:
+    post:
+      tags: [Public]
+      operationId: postPublicOrganizationRegister
+      summary: Register business and owner
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizationRegisterRequest"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOrganizationRegisterResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/public/organizations/by-slug/{slug}:
+    get:
+      tags: [Public]
+      operationId: getPublicOrganizationBySlug
+      summary: Public organization branding
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Organization branding
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicOrganization"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/public/organizations/logo/{uuid}:
+    get:
+      tags: [Public]
+      operationId: getPublicOrganizationLogo
+      summary: Stream organization logo
+      security: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Logo bytes
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/platform/organizations/meta:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOrganizationsMeta
+      summary: Organizations list meta
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+
+  /v1/platform/organizations:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOrganizations
+      summary: List organizations
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Organizations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOrganizationPage"
+    post:
+      tags: [Platform]
+      operationId: createPlatformOrganization
+      summary: Create organization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlatformOrganizationRequest"
+      responses:
+        "201":
+          description: Created organization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOrganization"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /v1/platform/organizations/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOrganization
+      summary: Get organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Organization detail
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformOrganization
+      summary: Update organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated organization
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/platform/organizations/{uuid}/logo:
+    put:
+      tags: [Platform]
+      operationId: putPlatformOrganizationLogo
+      summary: Upload organization logo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Updated organization
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformOrganizationLogo
+      summary: Delete organization logo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Updated organization
+
+  /v1/platform/organizations/{uuid}/members:
+    post:
+      tags: [Platform]
+      operationId: postPlatformOrganizationMember
+      summary: Add organization member
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_uuid]
+              properties:
+                user_uuid:
+                  type: string
+                  format: uuid
+                role:
+                  type: string
+      responses:
+        "201":
+          description: Member added
 
   /v1/platform/users:
     get:
@@ -2191,6 +2427,10 @@ components:
           type: array
           items:
             type: string
+        organizations:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrganizationMembership"
         links:
           $ref: "#/components/schemas/MeLinks"
         channels:
@@ -2206,6 +2446,144 @@ components:
       properties:
         user:
           $ref: "#/components/schemas/PublicUser"
+
+    OrganizationMembership:
+      type: object
+      required: [uuid, slug, name, role, status]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+          enum: [owner, staff]
+        logo_url:
+          type: string
+          nullable: true
+        status:
+          type: string
+        access_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    PublicOrganization:
+      type: object
+      required: [uuid, slug, name, status, access_ok]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        status:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        access_ok:
+          type: boolean
+
+    Organization:
+      type: object
+      required: [uuid, slug, name, city, district, phone, address, status, access_starts_at, created_at, updated_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        name:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        status:
+          type: string
+        plan_code:
+          type: string
+          nullable: true
+        access_starts_at:
+          type: string
+          format: date-time
+        access_ends_at:
+          type: string
+          format: date-time
+          nullable: true
+        logo_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    OrganizationRegisterRequest:
+      type: object
+      required: [name, surname, email, password, organization_name, city, district, phone, address]
+      properties:
+        name:
+          type: string
+        surname:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        organization_name:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+
+    CreatePlatformOrganizationRequest:
+      type: object
+      required: [name, owner_user_uuid]
+      properties:
+        name:
+          type: string
+        city:
+          type: string
+        district:
+          type: string
+        phone:
+          type: string
+        address:
+          type: string
+        owner_user_uuid:
+          type: string
+          format: uuid
+
+    OrganizationRegisterResult:
+      type: object
+      required: [user, organization, tokens]
+      properties:
+        user:
+          $ref: "#/components/schemas/PublicUser"
+        organization:
+          $ref: "#/components/schemas/Organization"
+        tokens:
+          $ref: "#/components/schemas/Tokens"
 
     SessionSwitch:
       type: object
@@ -2266,6 +2644,9 @@ components:
           type: string
           description: Authenticator or recovery code when 2FA is enabled
           maxLength: 32
+        organization_slug:
+          type: string
+          description: When set, login is scoped to this organization membership
 
     TOTPCodeRequest:
       type: object
@@ -2830,6 +3211,48 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/RegisterResponse" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeOrganizationRegisterResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/OrganizationRegisterResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopePublicOrganization:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PublicOrganization" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeOrganizationPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/Organization"
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeOrganization:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/Organization" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeTokens:

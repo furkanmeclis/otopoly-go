@@ -22,6 +22,7 @@
   "fields.uuid": "UUID",
   "columns.actions": "İşlemler",
   "labels.system": "Sistem",
+  "names.organization_user": "Organizasyon",
   "actions.create": "Rol oluştur",
   "actions.edit": "Rolü düzenle",
   "actions.save": "Kaydet",

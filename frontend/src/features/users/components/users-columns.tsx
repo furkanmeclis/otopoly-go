@@ -18,6 +18,7 @@ import {
   type UserRowActionHandlers,
 } from "@/features/users/components/user-row-actions";
 import { userFullName } from "@/features/users/lib/user-display";
+import { roleDisplayName } from "@/features/roles/lib/role-display";
 import type {
   PublicUser,
   UserStatus,
@@ -87,7 +88,7 @@ export function useUsersColumns({
         createColumn<PublicUser>({
           id: "roles",
           accessorFn: (row) =>
-            (row.roles ?? []).map((role) => role.name).join(", "),
+            (row.roles ?? []).map((role) => roleDisplayName(role, t)).join(", "),
           labelKey: "users.columns.roles",
           enableSorting: false,
           filterVariant: "text",
@@ -114,7 +115,7 @@ export function useUsersColumns({
                       className="hover:underline"
                       onClick={(event) => event.stopPropagation()}
                     >
-                      {role.name}
+                      {roleDisplayName(role, t)}
                     </Link>
                   </Badge>
                 ))}

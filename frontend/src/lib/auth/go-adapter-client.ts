@@ -262,6 +262,7 @@ export async function loginWithPassword(
   email: string,
   password: string,
   totpCode?: string,
+  organizationSlug?: string,
 ) {
   const result = await fetchUpstream("auth/login", {
     method: "POST",
@@ -270,6 +271,7 @@ export async function loginWithPassword(
       email,
       password,
       ...(totpCode ? { totp_code: totpCode } : {}),
+      ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
     }),
   });
   return unwrap<GoTokensPayload>(result);

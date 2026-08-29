@@ -30,13 +30,21 @@ import { authService } from "@/services/auth.service";
 import { fetchAppPublicConfig } from "@/services/app-config.service";
 import { cn } from "@/lib/utils";
 
-type AccountShell = "platform" | "cms";
+type AccountShell = "platform" | "cms" | "tenant";
 
-function homeHref(shell: AccountShell) {
-  return shell === "platform" ? routes.platform.home : routes.cms.home;
+function homeHref(shell: AccountShell, tenantSlug?: string) {
+  if (shell === "platform") return routes.platform.home;
+  if (shell === "tenant" && tenantSlug) return routes.tenant.home(tenantSlug);
+  return routes.cms.home;
 }
 
-export function AccountProfilePage({ shell }: { shell: AccountShell }) {
+export function AccountProfilePage({
+  shell,
+  tenantSlug,
+}: {
+  shell: AccountShell;
+  tenantSlug?: string;
+}) {
   const { t, locale } = useLocale();
   const { user, hydrateProfile } = useAuth();
   const { data: appConfig } = useQuery({
@@ -71,7 +79,7 @@ export function AccountProfilePage({ shell }: { shell: AccountShell }) {
         title={t("auth.profile.title")}
         description={t("auth.profile.description")}
         breadcrumbs={[
-          { label: t("layout.breadcrumb_home"), href: homeHref(shell) },
+          { label: t("layout.breadcrumb_home"), href: homeHref(shell, tenantSlug) },
           { label: t("auth.profile") },
         ]}
       />

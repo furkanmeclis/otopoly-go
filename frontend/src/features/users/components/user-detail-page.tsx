@@ -30,6 +30,7 @@ import {
 } from "@/features/users/hooks/use-user-mutations";
 import { useUser } from "@/features/users/hooks/use-users-query";
 import { userFullName, userInitials } from "@/features/users/lib/user-display";
+import { roleDisplayName } from "@/features/roles/lib/role-display";
 import type {
   PlatformUserDetail,
   UserStatus,
@@ -272,7 +273,7 @@ export function UserDetailPage({ uuid }: UserDetailPageProps) {
                           href={routes.platform.roles.detail(role.uuid)}
                           className="text-sm font-medium hover:underline"
                         >
-                          {role.name}
+                          {roleDisplayName(role, t)}
                         </Link>
                         <p className="text-muted-foreground font-mono text-xs">
                           {role.slug}

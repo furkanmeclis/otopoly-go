@@ -85,13 +85,25 @@ type MeImpersonation struct {
 
 // Me is the session hydration payload.
 type Me struct {
-	User          PublicUser       `json:"user"`
-	Roles         []string         `json:"roles"`
-	Permissions   []string         `json:"permissions"`
-	Links         MeLinks          `json:"links"`
-	Channels      MeChannels       `json:"channels"`
-	Realtime      MeRealtime       `json:"realtime"`
-	Impersonation *MeImpersonation `json:"impersonation,omitempty"`
+	User          PublicUser             `json:"user"`
+	Roles         []string               `json:"roles"`
+	Permissions   []string               `json:"permissions"`
+	Organizations []OrganizationSummary  `json:"organizations"`
+	Links         MeLinks                `json:"links"`
+	Channels      MeChannels             `json:"channels"`
+	Realtime      MeRealtime             `json:"realtime"`
+	Impersonation *MeImpersonation       `json:"impersonation,omitempty"`
+}
+
+// OrganizationSummary is a tenant membership on /auth/me.
+type OrganizationSummary struct {
+	UUID         uuid.UUID  `json:"uuid"`
+	Slug         string     `json:"slug"`
+	Name         string     `json:"name"`
+	Role         string     `json:"role"`
+	LogoURL      *string    `json:"logo_url,omitempty"`
+	Status       string     `json:"status"`
+	AccessEndsAt *time.Time `json:"access_ends_at,omitempty"`
 }
 
 // PublicUser is the safe user projection.

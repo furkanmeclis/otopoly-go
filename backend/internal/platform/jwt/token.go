@@ -18,6 +18,7 @@ type Claims struct {
 	IsSuperAdmin   bool     `json:"is_super_admin"`
 	ImpersonatorID *string  `json:"imp,omitempty"`
 	SessionID      string   `json:"sid,omitempty"`
+	OrganizationID *string  `json:"oid,omitempty"`
 	jwtlib.RegisteredClaims
 }
 
@@ -28,6 +29,7 @@ type AccessInput struct {
 	IsSuperAdmin   bool
 	ImpersonatorID *uuid.UUID
 	SessionID      uuid.UUID
+	OrganizationID *uuid.UUID
 }
 
 // Manager issues and validates access JWTs. Refresh tokens are opaque (not JWT).
@@ -80,11 +82,17 @@ func (m *Manager) IssueAccess(in AccessInput) (string, time.Time, error) {
 	if in.SessionID != uuid.Nil {
 		sid = in.SessionID.String()
 	}
+	var oid *string
+	if in.OrganizationID != nil && *in.OrganizationID != uuid.Nil {
+		s := in.OrganizationID.String()
+		oid = &s
+	}
 	claims := Claims{
 		Roles:          roles,
 		IsSuperAdmin:   in.IsSuperAdmin,
 		ImpersonatorID: imp,
 		SessionID:      sid,
+		OrganizationID: oid,
 		RegisteredClaims: jwtlib.RegisteredClaims{
 			Subject:   in.UserID.String(),
 			ExpiresAt: jwtlib.NewNumericDate(expiresAt),
@@ -147,4 +155,16 @@ func (c Claims) SessionUUID() uuid.UUID {
 		return uuid.Nil
 	}
 	return id
+}
+
+// OrganizationUUID returns the optional active organization claim.
+func (c Claims) OrganizationUUID() (*uuid.UUID, error) {
+	if c.OrganizationID == nil || strings.TrimSpace(*c.OrganizationID) == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(*c.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	return &id, nil
 }

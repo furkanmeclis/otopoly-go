@@ -47,7 +47,7 @@ func (u *AuthUseCase) ImpersonatePlatformUser(
 	}
 
 	meta.ImpersonatorUserID = &actor.ID
-	tokens, err := u.issueTokensForUser(ctx, target, meta)
+	tokens, err := u.issueTokensForUser(ctx, target, meta, nil)
 	if err != nil {
 		return model.ImpersonationResult{}, err
 	}
@@ -83,7 +83,7 @@ func (u *AuthUseCase) StopImpersonation(
 	}
 
 	meta.ImpersonatorUserID = nil
-	tokens, err := u.issueTokensForUser(ctx, actor, meta)
+	tokens, err := u.issueTokensForUser(ctx, actor, meta, nil)
 	if err != nil {
 		return model.ImpersonationResult{}, err
 	}

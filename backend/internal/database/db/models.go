@@ -258,6 +258,33 @@ type OauthProviderSetting struct {
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 }
 
+type Organization struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	Slug           string             `json:"slug"`
+	Name           string             `json:"name"`
+	City           string             `json:"city"`
+	District       string             `json:"district"`
+	Phone          string             `json:"phone"`
+	Address        string             `json:"address"`
+	LogoObjectKey  pgtype.Text        `json:"logo_object_key"`
+	Status         string             `json:"status"`
+	PlanCode       pgtype.Text        `json:"plan_code"`
+	AccessStartsAt pgtype.Timestamptz `json:"access_starts_at"`
+	AccessEndsAt   pgtype.Timestamptz `json:"access_ends_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type OrganizationMember struct {
+	ID             int64              `json:"id"`
+	OrganizationID int64              `json:"organization_id"`
+	UserID         int64              `json:"user_id"`
+	Role           string             `json:"role"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
 type OtpCode struct {
 	ID           int64              `json:"id"`
 	Uuid         uuid.UUID          `json:"uuid"`

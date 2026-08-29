@@ -1,6 +1,5 @@
 INSERT INTO roles (name, slug, description, is_system) VALUES
-    ('Platform Admin', 'super_admin', 'Platform-level operator with all permissions', true),
-    ('CMS User', 'cms_user', 'Default CMS access for content users', false);
+    ('Platform Admin', 'super_admin', 'Platform-level operator with all permissions', true);
 
 INSERT INTO permissions (name, slug) VALUES
     ('Auth session', 'auth.session'),
@@ -48,9 +47,3 @@ SELECT r.id, p.id
 FROM roles r
 CROSS JOIN permissions p
 WHERE r.slug = 'super_admin';
-
-INSERT INTO role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM roles r
-JOIN permissions p ON p.slug IN ('auth.session', 'notifications.read')
-WHERE r.slug = 'cms_user';

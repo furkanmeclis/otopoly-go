@@ -1,7 +1,7 @@
 DELETE FROM role_permissions
-WHERE role_id IN (SELECT id FROM roles WHERE slug IN ('super_admin', 'cms_user'));
+WHERE role_id IN (SELECT id FROM roles WHERE slug = 'super_admin');
 
-DELETE FROM roles WHERE slug IN ('super_admin', 'cms_user');
+DELETE FROM roles WHERE slug = 'super_admin';
 
 DELETE FROM permissions
 WHERE slug IN (

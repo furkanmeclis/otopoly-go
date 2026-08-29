@@ -110,6 +110,7 @@ type AuthUseCase struct {
 	accessPolicy AccessPolicyGate
 	box          SecretBox
 	totpIssuer   string
+	orgResolver  OrganizationResolver
 }
 
 // SecretBox encrypts at-rest secrets (TOTP).
@@ -287,7 +288,7 @@ func (u *AuthUseCase) RegisterOAuthUser(ctx context.Context, email, name, surnam
 // Login authenticates and issues tokens for any active user.
 // totpCode is required when the user has authenticator 2FA enabled, or when
 // admin policy requires 2FA for password login.
-func (u *AuthUseCase) Login(ctx context.Context, email, rawPassword, totpCode string, meta model.SessionMeta) (model.Tokens, error) {
+func (u *AuthUseCase) Login(ctx context.Context, email, rawPassword, totpCode, organizationSlug string, meta model.SessionMeta) (model.Tokens, error) {
 	if u.authSettings != nil {
 		ok, err := u.authSettings.CanPasswordLogin(ctx)
 		if err != nil {
@@ -348,7 +349,18 @@ func (u *AuthUseCase) Login(ctx context.Context, email, rawPassword, totpCode st
 	if err := u.repo.UpdateLastLogin(ctx, user.ID); err != nil {
 		return model.Tokens{}, err
 	}
-	return u.issueTokensForUser(ctx, user, meta)
+	var orgUUID *uuid.UUID
+	if strings.TrimSpace(organizationSlug) != "" {
+		if u.orgResolver == nil {
+			return model.Tokens{}, ErrNoTenantMembership
+		}
+		resolved, err := u.orgResolver.ResolveLoginOrganization(ctx, user.ID, organizationSlug)
+		if err != nil {
+			return model.Tokens{}, mapOrganizationError(err)
+		}
+		orgUUID = &resolved
+	}
+	return u.issueTokensForUser(ctx, user, meta, orgUUID)
 }
 
 // Refresh rotates an opaque refresh token.
@@ -369,7 +381,7 @@ func (u *AuthUseCase) Refresh(ctx context.Context, rawToken string, meta model.S
 		return model.Tokens{}, ErrUserDisabled
 	}
 	meta.ImpersonatorUserID = session.ImpersonatorUserID
-	return u.issueTokensForUser(ctx, user, meta)
+	return u.issueTokensForUser(ctx, user, meta, nil)
 }
 
 // Logout revokes a refresh token. An empty token is a no-op so the BFF can
@@ -395,9 +407,17 @@ func (u *AuthUseCase) Me(ctx context.Context, userUUID uuid.UUID, impersonatorUU
 		User:          model.ToPublicUser(user, isSuperAdmin),
 		Roles:         roles,
 		Permissions:   perms,
+		Organizations: []model.OrganizationSummary{},
 		Links:         model.DefaultMeLinks(),
 		Channels:      model.MeChannels{User: "user:" + user.UUID.String()},
 		Realtime:      model.MeRealtime{Enabled: u.realtime.Enabled, WSURL: u.realtime.WSURL, UserChannel: "user:" + user.UUID.String()},
+	}
+	if u.orgResolver != nil {
+		memberships, err := u.orgResolver.ListMembershipsForUser(ctx, user.ID)
+		if err != nil {
+			return model.Me{}, err
+		}
+		out.Organizations = mapOrganizationSummaries(memberships)
 	}
 	if impersonatorUUID != nil {
 		impUser, err := u.repo.FindUserByUUID(ctx, *impersonatorUUID)
@@ -480,7 +500,7 @@ func (u *AuthUseCase) resolveUserAccess(ctx context.Context, userID int64) ([]st
 	return uniqueStrings(roles), isSuperAdmin, perms, nil
 }
 
-func (u *AuthUseCase) issueTokensForUser(ctx context.Context, user model.User, meta model.SessionMeta) (model.Tokens, error) {
+func (u *AuthUseCase) issueTokensForUser(ctx context.Context, user model.User, meta model.SessionMeta, organizationID *uuid.UUID) (model.Tokens, error) {
 	roles, isSuperAdmin, _, err := u.resolveUserAccess(ctx, user.ID)
 	if err != nil {
 		return model.Tokens{}, err
@@ -504,7 +524,7 @@ func (u *AuthUseCase) issueTokensForUser(ctx context.Context, user model.User, m
 	}
 	access, accessExp, err := u.tokens.IssueAccess(jwt.AccessInput{
 		UserID: user.UUID, Roles: roles, IsSuperAdmin: isSuperAdmin,
-		ImpersonatorID: impersonatorUUID, SessionID: sessionID,
+		ImpersonatorID: impersonatorUUID, SessionID: sessionID, OrganizationID: organizationID,
 	})
 	if err != nil {
 		return model.Tokens{}, err

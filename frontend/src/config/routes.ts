@@ -1,10 +1,20 @@
 export const routes = {
   public: {
     root: "/",
+    register: "/register",
     health: "/health",
     share: {
       slug: (slug: string) => `/share/${slug}`,
       signed: (token: string) => `/share/s/${token}`,
+    },
+  },
+  tenant: {
+    home: (slug: string) => `/t/${slug}`,
+    login: (slug: string) => `/t/${slug}/login`,
+    profile: {
+      root: (slug: string) => `/t/${slug}/profile`,
+      password: (slug: string) => `/t/${slug}/profile/password`,
+      preferences: (slug: string) => `/t/${slug}/profile/preferences`,
     },
   },
   guest: {
@@ -64,6 +74,12 @@ export const routes = {
       google: "/platform/integrations/google",
       facebook: "/platform/integrations/facebook",
       apple: "/platform/integrations/apple",
+    },
+    organizations: {
+      root: "/platform/organizations",
+      create: "/platform/organizations/create",
+      detail: (uuid: string) => `/platform/organizations/${uuid}`,
+      edit: (uuid: string) => `/platform/organizations/${uuid}/edit`,
     },
     activity: {
       root: "/platform/activity",

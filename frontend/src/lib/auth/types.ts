@@ -13,6 +13,16 @@ export type RoleSummary = {
   is_system?: boolean;
 };
 
+export type OrganizationSummary = {
+  uuid: string;
+  slug: string;
+  name: string;
+  role: string;
+  logo_url?: string | null;
+  status: string;
+  access_ends_at?: string | null;
+};
+
 /** Client session identity — profile + RBAC. */
 export type AuthUser = {
   uuid: string;
@@ -26,6 +36,7 @@ export type AuthUser = {
   emailVerified: boolean;
   permissions: string[];
   roles: string[];
+  organizations: OrganizationSummary[];
   realtimeUserChannel?: string;
   realtimeEnabled?: boolean;
   impersonation?: {
@@ -38,7 +49,7 @@ export type AuthUser = {
 };
 
 export function mapMeToAuthUser(me: Me): AuthUser {
-  const { user, roles, permissions, realtime, impersonation } = me;
+  const { user, roles, permissions, realtime, impersonation, organizations } = me;
   const locale =
     typeof user.locale === "string" && user.locale ? user.locale : "tr";
   const mapped: AuthUser = {
@@ -53,6 +64,15 @@ export function mapMeToAuthUser(me: Me): AuthUser {
     emailVerified: Boolean(user.email_verified),
     permissions: permissions ?? [],
     roles: roles ?? [],
+    organizations: (organizations ?? []).map((org) => ({
+      uuid: org.uuid,
+      slug: org.slug,
+      name: org.name,
+      role: org.role,
+      logo_url: org.logo_url,
+      status: org.status,
+      access_ends_at: org.access_ends_at,
+    })),
     realtimeUserChannel: realtime?.user_channel,
     realtimeEnabled: realtime?.enabled,
   };
@@ -81,10 +101,19 @@ export function isPlatformUser(user: AuthUser | null | undefined): boolean {
 
 export function isCmsUser(user: AuthUser | null | undefined): boolean {
   if (!user) return false;
-  return !isPlatformUser(user);
+  return !isPlatformUser(user) && user.organizations.length > 0;
+}
+
+export function primaryOrganizationSlug(
+  user: AuthUser | null | undefined,
+): string | null {
+  if (!user?.organizations?.length) return null;
+  return user.organizations[0]?.slug ?? null;
 }
 
 export function defaultHomeForUser(user: AuthUser): string {
   if (isPlatformUser(user)) return "/platform";
-  return "/";
+  const slug = primaryOrganizationSlug(user);
+  if (slug) return `/t/${slug}`;
+  return "/register";
 }

@@ -53,6 +53,8 @@
   "labels.platform.integrations.apple.write": "Apple entegrasyon ayarlarını düzenle",
   "labels.platform.auth.settings.read": "Auth kayıt ayarlarını görüntüle",
   "labels.platform.auth.settings.write": "Auth kayıt ayarlarını düzenle",
+  "labels.platform.organizations.read": "İşletmeleri görüntüle",
+  "labels.platform.organizations.write": "İşletmeleri yönet",
   "labels.auth.session": "Oturum",
   "labels.notifications.read": "Bildirimleri görüntüle",
   "labels.notifications.manage": "Bildirimleri yönet",
