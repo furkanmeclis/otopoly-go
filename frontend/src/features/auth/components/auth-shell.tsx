@@ -13,7 +13,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
   const { t } = useLocale();
 
   return (
-    <div className="bg-muted relative flex min-h-svh flex-col items-center justify-center p-6 md:p-10">
+    <div className="from-background via-muted/70 to-accent/25 relative flex min-h-svh flex-col items-center justify-center bg-gradient-to-br p-6 md:p-10">
       <div className="absolute top-4 right-4 flex items-center gap-1">
         <LocaleSwitch />
         <ThemeSwitch />

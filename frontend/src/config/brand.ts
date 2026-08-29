@@ -1,23 +1,29 @@
 /**
- * App identity tokens. Swap name / colors when you brand the boilerplate.
+ * Otopoly — oto yıkama ve hizmet yönetim yazılımı.
  * Hex aliases for JS (theme-color, icons). CSS tokens live in theme.css.
+ *
+ * Source lockup: terracotta #EA6E43 + white (dark artboard). In light mode
+ * the white glyph maps to `glyph` / `--brand-glyph`.
  */
 export const brand = {
-  name: "App",
-  productName: "Boilerplate",
-  tagline: "Platform & CMS console",
+  name: "Otopoly",
+  productName: "Otopoly",
+  subtitle: "Yıkama Yazılımı",
+  tagline: "Oto yıkama ve hizmet yönetim platformu",
   colors: {
-    /** slate-900 — shadcn slate primary */
-    primary: "#0F172A",
-    primaryForeground: "#F8FAFC",
-    /** slate-950 */
-    ink: "#020617",
-    /** slate-100 */
-    mist: "#F1F5F9",
+    /** Logo terracotta — exact SVG fill */
+    primary: "#EA6E43",
+    primaryForeground: "#FFF8F5",
+    /** Warm espresso — light-mode stand-in for SVG white */
+    glyph: "#241C18",
+    /** Dark canvas behind the lockup */
+    ink: "#1A1412",
+    /** Warm cream surface */
+    mist: "#FBF7F4",
     white: "#FFFFFF",
     /** Compat aliases used by theme-switch / legacy tokens */
-    navy: "#020617",
-    lightGray: "#F1F5F9",
+    navy: "#1A1412",
+    lightGray: "#F3EBE6",
   },
 } as const;
 

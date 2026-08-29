@@ -1,7 +1,7 @@
 {
   "sidebar": "Menu",
   "header": "Header",
-  "footer": "© App",
+  "footer": "© Otopoly",
   "home": "Overview",
   "nav_platform": "General",
   "section_manage": "Manage",
@@ -28,8 +28,8 @@
   "section_account": "Account",
   "nav_profile": "Profile",
   "breadcrumb_home": "Home",
-  "page_ready": "Platform ready",
-  "page_ready_description": "Platform and CMS shells are ready.",
+  "page_ready": "Otopoly is ready",
+  "page_ready_description": "Manage your car wash operations from one console.",
   "collapse_sidebar": "Collapse sidebar",
   "expand_sidebar": "Expand sidebar",
   "nav_item_info": "Details"

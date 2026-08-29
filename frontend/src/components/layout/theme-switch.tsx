@@ -14,7 +14,7 @@ export function ThemeSwitch() {
 
   useEffect(() => {
     const color =
-      resolvedTheme === "dark" ? brand.colors.navy : brand.colors.white;
+      resolvedTheme === "dark" ? brand.colors.ink : brand.colors.mist;
     document
       .querySelector("meta[name='theme-color']")
       ?.setAttribute("content", color);

@@ -1,26 +1,47 @@
+import type { SVGProps } from "react";
+
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
-import { AppMark } from "./app-mark";
+import {
+  wordmarkAccentEvenoddIndex,
+  wordmarkAccentPaths,
+  wordmarkGlyphPaths,
+  wordmarkViewBox,
+} from "./artwork";
 
-type AppWordmarkProps = {
+type AppWordmarkProps = SVGProps<SVGSVGElement> & {
   title?: string;
-  className?: string;
 };
 
-/** Icon tile + product name — shadcn login / sidebar lockup. */
+/** Full OTOPOLY lockup — OTO glyph + POLY terracotta. */
 export function AppWordmark({
   className,
   title = brand.productName,
+  ...props
 }: AppWordmarkProps) {
   return (
-    <span
-      className={cn("inline-flex items-center gap-2 font-medium", className)}
+    <svg
+      viewBox={wordmarkViewBox}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label={title}
+      className={cn("h-9 w-auto", className)}
+      {...props}
     >
-      <span className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-md">
-        <AppMark className="size-3.5" title={title} />
-      </span>
-      <span className="text-sm">{title}</span>
-    </span>
+      <title>{title}</title>
+      {wordmarkGlyphPaths.map((d) => (
+        <path key={d.slice(0, 24)} className="fill-brand-glyph" d={d} />
+      ))}
+      {wordmarkAccentPaths.map((d, i) => (
+        <path
+          key={d.slice(0, 24)}
+          className="fill-brand-accent"
+          fillRule={i === wordmarkAccentEvenoddIndex ? "evenodd" : undefined}
+          d={d}
+        />
+      ))}
+    </svg>
   );
 }

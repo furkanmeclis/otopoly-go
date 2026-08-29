@@ -10,7 +10,7 @@ export const themeConfig = {
     primaryForeground: brand.colors.primaryForeground,
     navy: brand.colors.navy,
     muted: brand.colors.lightGray,
-    accent: brand.colors.lightGray,
-    radius: "0.625rem",
+    accent: brand.colors.primary,
+    radius: "0.875rem",
   },
 } as const;

@@ -14,7 +14,7 @@ type AppLogoProps = {
 };
 
 /**
- * App lockup. `mark` / `icon` → hex glyph; `logo` / `wordmark` → tile + name.
+ * App lockup. `mark` / `icon` → OP glyph; `logo` / `wordmark` → full wordmark.
  */
 export function AppLogo({
   variant = "logo",
@@ -35,7 +35,14 @@ export function AppLogo({
     );
   }
 
-  return <AppWordmark className={className} title={brand.productName} />;
+  return (
+    <AppWordmark
+      width={width}
+      height={height}
+      className={className}
+      title={brand.productName}
+    />
+  );
 }
 
 /** @deprecated Prefer AppLogo — kept for layout import compatibility. */

@@ -1,7 +1,7 @@
 {
   "sidebar": "Menü",
   "header": "Üst bar",
-  "footer": "© App",
+  "footer": "© Otopoly",
   "home": "Genel bakış",
   "nav_platform": "Genel",
   "section_manage": "Yönetim",
@@ -28,8 +28,8 @@
   "section_account": "Hesap",
   "nav_profile": "Profil",
   "breadcrumb_home": "Ana sayfa",
-  "page_ready": "Platform hazır",
-  "page_ready_description": "Platform ve CMS kabukları hazır.",
+  "page_ready": "Otopoly hazır",
+  "page_ready_description": "Oto yıkama operasyonlarınızı tek panelden yönetin.",
   "collapse_sidebar": "Kenar çubuğunu daralt",
   "expand_sidebar": "Kenar çubuğunu genişlet",
   "nav_item_info": "Detaylar"

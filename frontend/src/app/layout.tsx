@@ -1,19 +1,30 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono, Outfit, Plus_Jakarta_Sans } from "next/font/google";
 
 import { brand } from "@/config/brand";
 import { AppProviders } from "@/providers/app-providers";
 
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin", "latin-ext"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains",
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -25,6 +36,13 @@ export const metadata: Metadata = {
   applicationName: brand.productName,
 };
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: brand.colors.mist },
+    { media: "(prefers-color-scheme: dark)", color: brand.colors.ink },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,7 +51,7 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning className="h-full">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-full font-sans antialiased`}
+        className={`${plusJakarta.variable} ${outfit.variable} ${jetbrainsMono.variable} min-h-full font-sans antialiased`}
       >
         <AppProviders>{children}</AppProviders>
       </body>

@@ -7,21 +7,21 @@ type AppSidebarLogoProps = {
   className?: string;
 };
 
-/** Sidebar header lockup — icon tile + product name. */
+/** Sidebar header lockup — OP mark + product name. */
 export function AppSidebarLogo({ className }: AppSidebarLogoProps) {
   return (
     <>
       <span
         className={cn(
-          "bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg",
+          "flex aspect-square size-8 items-center justify-center",
           className,
         )}
       >
-        <AppMark className="size-4" />
+        <AppMark className="size-7" />
       </span>
       <span className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-medium">{brand.productName}</span>
-        <span className="truncate text-xs opacity-70">{brand.name}</span>
+        <span className="truncate text-xs opacity-70">{brand.subtitle}</span>
       </span>
     </>
   );

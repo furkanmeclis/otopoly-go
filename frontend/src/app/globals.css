@@ -17,7 +17,9 @@
   }
 
   body {
-    @apply bg-background text-foreground has-[div[data-variant="inset"]]:bg-sidebar min-h-svh w-full font-sans;
+    @apply bg-background text-foreground has-[div[data-variant="inset"]]:bg-sidebar min-h-svh w-full font-sans leading-relaxed;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
   }
 
   h1,
@@ -25,7 +27,12 @@
   h3,
   h4,
   .font-display {
-    font-family: var(--font-sans);
+    font-family: var(--font-display);
+    @apply tracking-tight;
+  }
+
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 22%, transparent);
   }
 
   body[data-scroll-locked] {
