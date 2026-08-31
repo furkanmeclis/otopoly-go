@@ -256,6 +256,35 @@ export function tenantNav(slug: string) {
           },
         ],
       },
+      {
+        id: "io",
+        labelKey: "layout.section_io",
+        icon: Settings2,
+        defaultOpen: true,
+        items: [
+          {
+            id: "tenant-exports",
+            titleKey: "layout.nav_exports",
+            href: routes.tenant.exports.root(slug),
+            icon: Download,
+            permission: permissions.finance.export,
+          },
+          {
+            id: "tenant-imports",
+            titleKey: "layout.nav_imports",
+            href: routes.tenant.imports.root(slug),
+            icon: Upload,
+            permission: permissions.imports.tenantRead,
+          },
+          {
+            id: "tenant-export-settings",
+            titleKey: "layout.nav_export_settings",
+            href: routes.tenant.settings.root(slug),
+            icon: Settings2,
+            permission: permissions.settings.tenantRead,
+          },
+        ],
+      },
     ],
   });
 }

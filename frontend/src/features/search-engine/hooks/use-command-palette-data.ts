@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { createElement, useMemo, useState } from "react";
+import { createElement, useCallback, useMemo, useState } from "react";
 
 import type { AppLayoutVariant } from "@/components/layout/app-layout";
 import { buildNavPageItems } from "@/features/search-engine/lib/nav-pages";
@@ -16,6 +16,11 @@ import {
   fetchSearchHits,
   fetchSearchSpecs,
 } from "@/features/search-engine/services/search.service";
+import {
+  formatSearchHitLabel,
+  formatSearchHitSubtitle,
+  isFinanceSearchSpec,
+} from "@/features/search-engine/lib/format-finance-hit";
 import type { PaletteItem } from "@/features/search-engine/types";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
@@ -24,10 +29,15 @@ export function useCommandPaletteData(
   variant: AppLayoutVariant,
   tenantSlug?: string,
 ) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { can, canAny } = usePermission();
-  const [query, setQuery] = useState("");
+  const [query, setQueryState] = useState("");
   const [activeSpec, setActiveSpec] = useState<string | undefined>();
+
+  const setQuery = useCallback((next: string) => {
+    setQueryState(next);
+    if (!next.trim()) setActiveSpec(undefined);
+  }, []);
 
   const recentQuery = useQuery({
     queryKey: ["search", "recent-items"],
@@ -37,16 +47,19 @@ export function useCommandPaletteData(
   const access = useMemo(() => ({ can, canAny }), [can, canAny]);
 
   const specsQuery = useQuery({
-    queryKey: ["search", "specs"],
+    queryKey: ["search", "specs", variant, tenantSlug],
     queryFn: fetchSearchSpecs,
     staleTime: 60_000,
-    enabled: variant === "platform",
   });
 
   const remoteSpecs = useMemo(() => {
     const items = specsQuery.data?.items ?? [];
-    return items.filter((spec) => !spec.permission || can(spec.permission));
-  }, [can, specsQuery.data?.items]);
+    return items.filter((spec) => {
+      if (spec.tenant_scoped && variant !== "tenant") return false;
+      if (!spec.tenant_scoped && variant === "tenant") return false;
+      return !spec.permission || can(spec.permission);
+    });
+  }, [can, specsQuery.data?.items, variant]);
 
   const prefixMap = useMemo(() => {
     const entries: SpecPrefixEntry[] = [
@@ -101,13 +114,36 @@ export function useCommandPaletteData(
     return hits.map<PaletteItem>((hit) => ({
       id: `${hit.spec}:${hit.id}`,
       spec: hit.spec,
-      label: hit.title,
-      description: hit.subtitle,
+      label: isFinanceSearchSpec(hit.spec)
+        ? formatSearchHitLabel(hit, t)
+        : hit.title,
+      description: isFinanceSearchSpec(hit.spec)
+        ? formatSearchHitSubtitle(hit, t, locale)
+        : hit.subtitle,
       href: hit.href,
       iconKey: hit.icon,
       group: t(`search.specs_${hit.spec}`),
     }));
-  }, [remoteQuery.data, t]);
+  }, [locale, remoteQuery.data, t]);
+
+  const formatPaletteItem = useCallback(
+    (item: PaletteItem): PaletteItem => {
+      if (!isFinanceSearchSpec(item.spec)) return item;
+      const pseudoHit = {
+        spec: item.spec,
+        id: item.id,
+        title: item.label,
+        subtitle: item.description,
+        href: item.href,
+      };
+      return {
+        ...item,
+        label: formatSearchHitLabel(pseudoHit, t),
+        description: formatSearchHitSubtitle(pseudoHit, t, locale),
+      };
+    },
+    [locale, t],
+  );
 
   const specOptions = useMemo(() => {
     const options = [
@@ -139,7 +175,9 @@ export function useCommandPaletteData(
     const recent = recentQuery.data ?? [];
     if (!searchText && !effectiveSpec && recent.length > 0) {
       push(
-        recent.map((item) => ({ ...item, group: t("search.group_recent") })),
+        recent.map((item) =>
+          formatPaletteItem({ ...item, group: t("search.group_recent") }),
+        ),
       );
     }
     push(filteredPages);
@@ -148,15 +186,12 @@ export function useCommandPaletteData(
   }, [
     effectiveSpec,
     filteredPages,
+    formatPaletteItem,
     recentQuery.data,
     remoteItems,
     searchText,
     t,
   ]);
-
-  if (!query && activeSpec !== undefined) {
-    setActiveSpec(undefined);
-  }
 
   return {
     query,
@@ -172,7 +207,10 @@ export function useCommandPaletteData(
     placeholder: t("search.placeholder"),
     emptyText: t("search.empty"),
     footerHint: t("search.footer_hint", {
-      prefix: t("search.prefix_users"),
+      prefix:
+        variant === "tenant"
+          ? t("search.prefix_tenant_finance_accounts")
+          : t("search.prefix_users"),
       example: t("search.footer_example"),
     }),
     recentEnabled: !searchText && !effectiveSpec,

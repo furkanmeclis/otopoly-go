@@ -5,11 +5,14 @@ import {
   HardDrive,
   KeyRound,
   LayoutDashboard,
+  Receipt,
   ScrollText,
   Settings2,
   Shield,
+  Tags,
   Upload,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +32,12 @@ const ICONS: Record<string, LucideIcon> = {
   settings: Settings2,
   home: LayoutDashboard,
   github: githubNavIcon,
+  wallet: Wallet,
+  tags: Tags,
+  receipt: Receipt,
+  tenant_finance_accounts: Wallet,
+  tenant_finance_categories: Tags,
+  tenant_finance_transactions: Receipt,
 };
 
 export function resolveSearchIcon(name?: string): LucideIcon {

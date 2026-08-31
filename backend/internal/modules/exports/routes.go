@@ -3,6 +3,7 @@ package exports
 import (
 	"net/http"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	exporthandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
@@ -17,6 +18,7 @@ func RegisterRoutes(
 	tokens *jwt.Manager,
 	loader middleware.IdentityLoader,
 	stepUp *stepup.Service,
+	q *db.Queries,
 ) {
 	authn := middleware.Authenticate(tokens, loader)
 	require := func(slug string) func(http.Handler) http.Handler {
@@ -51,4 +53,15 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/platform/activity/export", middleware.Chain(
 		http.HandlerFunc(h.RequestActivityExport), authn, require(rbac.PermPlatformActivityRead), requireStepUp,
 	))
+
+	requireOrg := middleware.RequireOrganization(tokens, q)
+	tenantExport := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantFinanceExport))
+	}
+	mux.Handle("GET /v1/tenant/exports", tenantExport(h.ListTenant))
+	mux.Handle("GET /v1/tenant/exports/{uuid}", tenantExport(h.GetTenant))
+	mux.Handle("GET /v1/tenant/exports/{uuid}/download", tenantExport(h.DownloadTenant))
+	mux.Handle("POST /v1/tenant/finance/accounts/export", tenantExport(h.RequestFinanceAccountsExport))
+	mux.Handle("POST /v1/tenant/finance/categories/export", tenantExport(h.RequestFinanceCategoriesExport))
+	mux.Handle("POST /v1/tenant/finance/transactions/export", tenantExport(h.RequestFinanceTransactionsExport))
 }

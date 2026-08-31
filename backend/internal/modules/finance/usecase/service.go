@@ -26,9 +26,10 @@ var (
 )
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
-	act  *activity.Recorder
+	pool          *pgxpool.Pool
+	q             *db.Queries
+	act           *activity.Recorder
+	searchIndexer SearchIndexer
 }
 
 // TODO(finance): Module backlog (inline TODOs in handler/, usecase/, queries/, resourcemeta):
@@ -287,6 +288,7 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (Acc
 	if err := tx.Commit(ctx); err != nil {
 		return Account{}, err
 	}
+	s.indexAccount(ctx, row.Uuid)
 	return mapAccount(row), nil
 }
 
@@ -335,6 +337,7 @@ func (s *Service) PatchAccount(ctx context.Context, id uuid.UUID, in PatchAccoun
 	if err := tx.Commit(ctx); err != nil {
 		return Account{}, err
 	}
+	s.indexAccount(ctx, row.Uuid)
 	return mapAccount(row), nil
 }
 
@@ -348,6 +351,7 @@ func (s *Service) DeleteAccount(ctx context.Context, id uuid.UUID) error {
 		}
 		return err
 	}
+	s.deleteAccountIndex(ctx, id)
 	return nil
 }
 
@@ -408,6 +412,7 @@ func (s *Service) CreateCategory(ctx context.Context, in CreateCategoryInput) (C
 		}
 		return Category{}, err
 	}
+	s.indexCategory(ctx, row.Uuid)
 	return mapCategory(row, nil), nil
 }
 
@@ -445,6 +450,7 @@ func (s *Service) PatchCategory(ctx context.Context, id uuid.UUID, in PatchCateg
 		}
 		return Category{}, err
 	}
+	s.indexCategory(ctx, row.Uuid)
 	return mapCategory(row, nil), nil
 }
 
@@ -458,6 +464,7 @@ func (s *Service) DeleteCategory(ctx context.Context, id uuid.UUID) error {
 		}
 		return err
 	}
+	s.deleteCategoryIndex(ctx, id)
 	return nil
 }
 
@@ -671,6 +678,8 @@ func (s *Service) CreateTransaction(ctx context.Context, actorID int64, in Creat
 	s.recordActivity(ctx, &actorID, "finance.transaction.create", "finance.transaction", &row.Uuid, map[string]any{
 		"type": in.Type, "amount": numericToString(amount),
 	}, req)
+	s.indexTransaction(ctx, row.Uuid)
+	s.indexAccount(ctx, account.Uuid)
 	return mapTransactionDetail(row, account, nil, nil, catUUID, catName), nil
 }
 
@@ -741,6 +750,8 @@ func (s *Service) CreateTransfer(ctx context.Context, actorID int64, in CreateTr
 	s.recordActivity(ctx, &actorID, "finance.transfer.create", "finance.transaction", &row.Uuid, map[string]any{
 		"amount": numericToString(amount),
 	}, req)
+	s.indexTransaction(ctx, row.Uuid)
+	s.indexAccounts(ctx, from.Uuid, to.Uuid)
 	toName := to.Name
 	return mapTransactionDetail(row, from, &to.Uuid, &toName, nil, nil), nil
 }
@@ -809,6 +820,18 @@ func (s *Service) VoidTransaction(ctx context.Context, actorID int64, id uuid.UU
 	account, _ := s.q.GetFinanceAccountByID(ctx, db.GetFinanceAccountByIDParams{
 		ID: voided.AccountID, OrganizationID: orgID,
 	})
+	s.indexTransaction(ctx, voided.Uuid)
+	if account.Uuid != uuid.Nil {
+		s.indexAccount(ctx, account.Uuid)
+	}
+	if voided.CounterAccountID.Valid {
+		counter, err := s.q.GetFinanceAccountByID(ctx, db.GetFinanceAccountByIDParams{
+			ID: voided.CounterAccountID.Int64, OrganizationID: orgID,
+		})
+		if err == nil {
+			s.indexAccount(ctx, counter.Uuid)
+		}
+	}
 	return mapTransactionDetail(voided, account, nil, nil, nil, nil), nil
 }
 

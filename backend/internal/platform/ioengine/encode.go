@@ -3,9 +3,11 @@ package ioengine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // LetterheadFromSettings builds letterhead from app_settings row.
@@ -23,13 +25,69 @@ func LetterheadFromSettings(s db.AppSetting) Letterhead {
 	}
 }
 
+// LetterheadFromOrganization builds PDF/XLSX branding from the tenant record.
+// Empty org chrome (color, paper size) falls back to platform app_settings.
+func LetterheadFromOrganization(org db.Organization, layout db.AppSetting) Letterhead {
+	color := firstNonEmpty(org.PrimaryColor, layout.PrimaryColor, "#0F172A")
+	paper := firstNonEmpty(org.PaperSize, layout.PaperSize, "A4")
+	return Letterhead{
+		CompanyName:  strings.TrimSpace(org.Name),
+		Tagline:      strings.TrimSpace(org.Tagline),
+		PrimaryColor: color,
+		Address:      organizationAddress(org),
+		Phone:        strings.TrimSpace(org.Phone),
+		Email:        strings.TrimSpace(org.Email),
+		Website:      strings.TrimSpace(org.Website),
+		FooterText:   strings.TrimSpace(org.FooterText),
+		PaperSize:    paper,
+	}
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if s := strings.TrimSpace(v); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+func organizationAddress(org db.Organization) string {
+	parts := make([]string, 0, 3)
+	for _, part := range []string{org.Address, org.District, org.City} {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
 // LoadLetterheadLogo fetches logo bytes when configured.
 func LoadLetterheadLogo(ctx context.Context, driver storage.Driver, s db.AppSetting) (Letterhead, error) {
-	lh := LetterheadFromSettings(s)
-	if !s.LogoObjectKey.Valid || s.LogoObjectKey.String == "" || driver == nil {
+	return attachLetterheadLogo(ctx, driver, LetterheadFromSettings(s), s.LogoObjectKey)
+}
+
+// LoadOrganizationLetterhead fetches tenant logo bytes onto organization branding.
+func LoadOrganizationLetterhead(
+	ctx context.Context,
+	driver storage.Driver,
+	org db.Organization,
+	layout db.AppSetting,
+) (Letterhead, error) {
+	return attachLetterheadLogo(ctx, driver, LetterheadFromOrganization(org, layout), org.LogoObjectKey)
+}
+
+func attachLetterheadLogo(
+	ctx context.Context,
+	driver storage.Driver,
+	lh Letterhead,
+	key pgtype.Text,
+) (Letterhead, error) {
+	if !key.Valid || key.String == "" || driver == nil {
 		return lh, nil
 	}
-	rc, _, err := driver.Download(ctx, s.LogoObjectKey.String)
+	rc, _, err := driver.Download(ctx, key.String)
 	if err != nil {
 		return lh, fmt.Errorf("letterhead logo: %w", err)
 	}
@@ -46,7 +104,7 @@ func LoadLetterheadLogo(ctx context.Context, driver storage.Driver, s db.AppSett
 		}
 	}
 	lh.LogoBytes = buf
-	lh.LogoMIME = storage.MIMEFromLogoKey(s.LogoObjectKey.String)
+	lh.LogoMIME = storage.MIMEFromLogoKey(key.String)
 	return lh, nil
 }
 

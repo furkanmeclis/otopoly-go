@@ -39,5 +39,8 @@
   "resources.platform.integrations.facebook": "Facebook integration",
   "resources.platform.integrations.apple": "Apple integration",
   "resources.auth.step_up": "Step-up verification",
-  "resources.finance.transaction": "Finance transaction"
+  "resources.finance.transaction": "Finance transaction",
+  "resources.tenant.finance.accounts": "Finance accounts",
+  "resources.tenant.finance.categories": "Finance categories",
+  "resources.tenant.finance.transactions": "Finance transactions"
 }

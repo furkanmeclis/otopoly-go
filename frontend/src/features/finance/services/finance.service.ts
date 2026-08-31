@@ -3,7 +3,6 @@ import type { ResourceMeta } from "@/features/io/types";
 import { platformRequest } from "@/lib/api/platform-request";
 
 // TODO(finance): Add patchCategory, deleteCategory, getCategory service methods when edit flows ship.
-// TODO(finance): ResourceIOToolbar integration once io-engine tenant finance adapters exist.
 
 export type FinanceAccount = {
   uuid: string;
@@ -122,6 +121,12 @@ export const financeService = {
     return platformRequest<ResourceMeta>(
       "GET",
       "/v1/tenant/finance/accounts/meta",
+    );
+  },
+  categoriesMeta() {
+    return platformRequest<ResourceMeta>(
+      "GET",
+      "/v1/tenant/finance/categories/meta",
     );
   },
   listAccounts(params?: ServerListParams & { is_active?: string }) {

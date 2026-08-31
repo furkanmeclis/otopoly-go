@@ -14,6 +14,7 @@ import type { LiveNotificationItem } from "@/features/notifications/lib/notifica
 import { notificationActions } from "@/features/notifications/lib/notification-action";
 import { formatNotificationText } from "@/features/notifications/lib/notification-display";
 import { runNotificationAction } from "@/features/notifications/lib/run-notification-action";
+import { useOptionalTenant } from "@/features/organizations/providers/tenant-provider";
 import { cn } from "@/lib/utils";
 import { appToast } from "@/providers/toast-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -69,8 +70,12 @@ export function NotificationLiveCard({
 }: NotificationLiveCardProps) {
   const { t } = useLocale();
   const router = useRouter();
+  const tenant = useOptionalTenant();
   const markRead = useMarkNotificationRead({ silent: true });
-  const actions = notificationActions(item.action_url);
+  const actions = notificationActions(item.action_url, {
+    tenantSlug: tenant?.slug,
+    payload: item.payload,
+  });
   const [entered, setEntered] = useState(false);
   const [progress, setProgress] = useState(100);
   const pausedRef = useRef(false);

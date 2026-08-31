@@ -11,6 +11,7 @@ import { notificationActions } from "@/features/notifications/lib/notification-a
 import { formatNotificationText } from "@/features/notifications/lib/notification-display";
 import { runNotificationAction } from "@/features/notifications/lib/run-notification-action";
 import type { Notification } from "@/features/notifications/services/notifications.service";
+import { useOptionalTenant } from "@/features/organizations/providers/tenant-provider";
 import { datetime } from "@/lib/utils";
 import { appToast } from "@/providers/toast-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -46,7 +47,11 @@ export function NotificationDetailDrawer({
 }: NotificationDetailDrawerProps) {
   const { t, locale } = useLocale();
   const router = useRouter();
-  const actions = notificationActions(notification?.action_url);
+  const tenant = useOptionalTenant();
+  const actions = notificationActions(notification?.action_url, {
+    tenantSlug: tenant?.slug,
+    payload: notification?.payload,
+  });
 
   return (
     <EntityDrawer

@@ -62,10 +62,16 @@ Organization-scoped accounting under `/v1/tenant/finance/*`. Requires JWT `oid` 
 |------------|-----|-------|
 | `tenant.finance.read` | `organization_user` (owners + staff) | Lists, summary, balances |
 | `tenant.finance.write` | `organization_owner` role + owner membership | Create accounts, categories, transactions, transfers, void |
+| `tenant.finance.export` | `organization_user` (owners + staff) | PDF/XLSX/CSV/JSON from finance lists |
+| `tenant.finance.import` | `organization_owner` | Create-only import of accounts and categories (not ledger rows) |
+| `tenant.settings.read` / `.write` | `organization_owner` | Organization letterhead used in PDF/XLSX |
+| `tenant.imports.read` | `organization_owner` | Tenant import job list / mapping / rollback |
 
 **Roles:** `organization_owner` is assigned to `organization_members.role = owner` and grants write. Staff keep read-only via `organization_user` + `.read` only.
 
 **Core tables:** `finance_accounts`, `finance_categories`, `finance_transactions` (all scoped by `organization_id`).
+
+Tenant export (`POST /v1/tenant/finance/{accounts,categories,transactions}/export`) stamps `export_jobs.organization_id`. Tenant import (`POST /v1/tenant/finance/{accounts,categories}/import`) stamps `import_jobs.organization_id`. PDF/XLSX letterhead is built from the organization row (`name`, logo, address, phone, city/district, plus owner-managed tagline/email/website/footer/color/paper size). Empty chrome fields fall back to platform `app_settings`. Job lists: `GET /v1/tenant/exports` and `GET /v1/tenant/imports`. Letterhead UI: `GET/PATCH /v1/tenant/settings` (owner).
 
 **Integration hooks (future modules):** `finance_transactions.source_type` + `source_uuid` link external domain events without duplicating money rows.
 
@@ -78,7 +84,7 @@ Organization-scoped accounting under `/v1/tenant/finance/*`. Requires JWT `oid` 
 
 Optional `metadata` JSONB carries module-specific flags (e.g. `pending_receivable` before cari module exists).
 
-<!-- TODO(finance): ERP backlog — account/category edit UI, io-engine export, search-engine adapters,
+<!-- TODO(finance): ERP backlog — account/category edit UI, search-engine adapters,
      bulk void/export, period-scoped detail stats, created_by on transactions, refresh oid preservation,
      backfill SeedDefaults for legacy orgs, recurring/budget modules. See TODO(finance) in codebase. -->
 

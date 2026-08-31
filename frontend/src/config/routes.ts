@@ -41,6 +41,17 @@ export const routes = {
         new: (slug: string) => `/t/${slug}/finance/transfers/new`,
       },
     },
+    exports: {
+      root: (slug: string) => `/t/${slug}/exports`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/exports/${uuid}`,
+    },
+    imports: {
+      root: (slug: string) => `/t/${slug}/imports`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/imports/${uuid}`,
+    },
+    settings: {
+      root: (slug: string) => `/t/${slug}/settings`,
+    },
   },
   guest: {
     login: "/platform/login",

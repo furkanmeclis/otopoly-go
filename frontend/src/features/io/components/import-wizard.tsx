@@ -34,6 +34,7 @@ import {
 import {
   IMPORT_PATHS,
   IMPORT_SCHEMA,
+  type ExportJobScope,
   type ImportFormat,
   type ImportJob,
   type IoResource,
@@ -48,6 +49,8 @@ type ImportWizardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete?: () => void;
+  jobsHref?: string;
+  scope?: ExportJobScope;
 };
 
 type Step = "upload" | "mapping" | "defaults" | "preview" | "done";
@@ -115,6 +118,8 @@ export function ImportWizard({
   open,
   onOpenChange,
   onComplete,
+  jobsHref,
+  scope = "platform",
 }: ImportWizardProps) {
   const { t, locale } = useLocale();
   const paths = IMPORT_PATHS[resource];
@@ -240,10 +245,14 @@ export function ImportWizard({
     if (!job || !validateMapping()) return;
     setPending(true);
     try {
-      const updated = await importsService.updateMapping(job.uuid, {
-        mapping: uiMappingToApi(mapping),
-        defaults,
-      });
+      const updated = await importsService.updateMapping(
+        job.uuid,
+        {
+          mapping: uiMappingToApi(mapping),
+          defaults,
+        },
+        scope,
+      );
       setJob(updated);
       setStep("defaults");
     } catch {
@@ -257,13 +266,17 @@ export function ImportWizard({
     if (!job) return;
     setPending(true);
     try {
-      const updated = await importsService.updateMapping(job.uuid, {
-        mapping: uiMappingToApi(mapping),
-        defaults,
-      });
+      const updated = await importsService.updateMapping(
+        job.uuid,
+        {
+          mapping: uiMappingToApi(mapping),
+          defaults,
+        },
+        scope,
+      );
       setJob(updated);
       setStep("preview");
-      const previewed = await importsService.preview(updated.uuid);
+      const previewed = await importsService.preview(updated.uuid, scope);
       setJob(previewed);
     } catch {
       appToast.error(t("imports.toast.preview_failed"));
@@ -276,7 +289,7 @@ export function ImportWizard({
     if (!job) return;
     setPending(true);
     try {
-      const confirmed = await importsService.confirm(job.uuid);
+      const confirmed = await importsService.confirm(job.uuid, scope);
       setJob(confirmed);
       setStep("done");
       appToast.success(t("imports.toast.confirmed"));
@@ -566,7 +579,7 @@ export function ImportWizard({
             <p className="font-medium">{t("imports.done_title")}</p>
             <p>{t("imports.done_message")}</p>
             <Button asChild variant="outline" size="sm">
-              <Link href={routes.platform.imports.root}>
+              <Link href={jobsHref ?? routes.platform.imports.root}>
                 {t("imports.view_jobs")}
               </Link>
             </Button>

@@ -5,19 +5,23 @@ import { useState } from "react";
 
 import { ToolbarIconButton } from "@/components/tables/toolbar-icon-button";
 import { ImportWizard } from "@/features/io/components/import-wizard";
-import type { IoResource } from "@/features/io/types";
+import type { ExportJobScope, IoResource } from "@/features/io/types";
 import { useLocale } from "@/providers/locale-provider";
 
 type ImportButtonProps = {
   resource: IoResource;
   onComplete?: () => void;
   disabled?: boolean;
+  jobsHref?: string;
+  scope?: ExportJobScope;
 };
 
 export function ImportButton({
   resource,
   onComplete,
   disabled,
+  jobsHref,
+  scope = "platform",
 }: ImportButtonProps) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
@@ -35,6 +39,8 @@ export function ImportButton({
         resource={resource}
         open={open}
         onOpenChange={setOpen}
+        jobsHref={jobsHref}
+        scope={scope}
         onComplete={() => {
           onComplete?.();
         }}

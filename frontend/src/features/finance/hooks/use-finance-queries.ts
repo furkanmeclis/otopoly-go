@@ -59,6 +59,13 @@ export function useFinanceAccountsMeta() {
   });
 }
 
+export function useFinanceCategoriesMeta() {
+  return useQuery({
+    queryKey: financeQueryKeys.categoriesMeta(),
+    queryFn: () => financeService.categoriesMeta(),
+  });
+}
+
 export function useFinanceCategories(kind?: string) {
   return useQuery({
     queryKey: financeQueryKeys.categories({ kind }),
@@ -98,6 +105,13 @@ export function useFinanceTransactions(
   return useQuery({
     queryKey: financeQueryKeys.transactions(params),
     queryFn: () => financeService.listTransactions(params),
+  });
+}
+
+export function useFinanceTransactionsMeta() {
+  return useQuery({
+    queryKey: financeQueryKeys.transactionsMeta(),
+    queryFn: () => financeService.transactionsMeta(),
   });
 }
 

@@ -38,6 +38,10 @@ Users are global. Permissions come from assigned roles (union). **Organizations*
 | `auth.session` | Sign-in / tenant access |
 | `tenant.finance.read` | Tenant finance read (accounts, categories, transactions, summary) |
 | `tenant.finance.write` | Tenant finance write (owner only at HTTP layer) |
+| `tenant.finance.export` | Tenant finance export (letterhead from organization) |
+| `tenant.finance.import` | Tenant finance import (owner; accounts and categories) |
+| `tenant.settings.read` / `.write` | Tenant export letterhead (owner) |
+| `tenant.imports.read` | Tenant import jobs (owner) |
 | `notifications.read` / `notifications.manage` | User notifications |
 
 Super admin bypasses permission checks in `HasPermission`. Most platform HTTP routes use `RequirePermission` only. Auth settings and OAuth integration routes also use `RequireSuperAdmin`.

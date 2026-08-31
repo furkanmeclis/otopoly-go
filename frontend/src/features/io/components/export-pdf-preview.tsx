@@ -7,23 +7,26 @@ import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { ioKeys } from "@/features/io/hooks/query-keys";
 import { exportsService } from "@/features/io/services/exports.service";
+import type { ExportJobScope } from "@/features/io/types";
 import { useLocale } from "@/providers/locale-provider";
 
 type ExportPdfPreviewProps = {
   uuid: string;
   enabled?: boolean;
+  scope?: ExportJobScope;
 };
 
 export function ExportPdfPreview({
   uuid,
   enabled = true,
+  scope = "platform",
 }: ExportPdfPreviewProps) {
   const { t } = useLocale();
 
   const previewQuery = useQuery({
-    queryKey: [...ioKeys.exports.detail(uuid), "preview", "pdf"] as const,
+    queryKey: [...ioKeys.exports.detail(uuid, scope), "preview", "pdf"] as const,
     queryFn: async () => {
-      const { blob } = await exportsService.fetchFile(uuid);
+      const { blob } = await exportsService.fetchFile(uuid, scope);
       return URL.createObjectURL(blob);
     },
     enabled,

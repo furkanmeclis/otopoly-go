@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useExportPreview } from "@/features/io/hooks/use-export-preview";
 import { EXPORT_PREVIEW_MAX_ROWS } from "@/features/io/lib/parse-export-spreadsheet";
+import type { ExportJobScope } from "@/features/io/types";
 import { useLocale } from "@/providers/locale-provider";
 
 import "./export-spreadsheet-preview.css";
@@ -31,6 +32,7 @@ type ExportSpreadsheetPreviewProps = {
   uuid: string;
   format: "csv" | "xlsx";
   enabled?: boolean;
+  scope?: ExportJobScope;
 };
 
 function blockClipboardEvent(event: ReactClipboardEvent) {
@@ -48,10 +50,11 @@ export function ExportSpreadsheetPreview({
   uuid,
   format,
   enabled = true,
+  scope = "platform",
 }: ExportSpreadsheetPreviewProps) {
   const { t } = useLocale();
   const { resolvedTheme } = useTheme();
-  const previewQuery = useExportPreview(uuid, format, enabled);
+  const previewQuery = useExportPreview(uuid, format, enabled, scope);
   const previewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

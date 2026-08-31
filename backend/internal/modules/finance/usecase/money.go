@@ -46,6 +46,11 @@ func parseNumeric(raw string, allowZero bool) (pgtype.Numeric, error) {
 }
 
 func numericToString(n pgtype.Numeric) string {
+	return NumericToString(n)
+}
+
+// NumericToString formats a pgtype.Numeric as a fixed two-decimal string.
+func NumericToString(n pgtype.Numeric) string {
 	if !n.Valid || n.Int == nil {
 		return "0.00"
 	}

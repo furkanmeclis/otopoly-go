@@ -11,6 +11,7 @@ export function useTenantFinanceAccess(slug: string) {
   const isOwner = membership?.role === "owner";
   const canRead = hasPermission(permissions.finance.read);
   const canWrite = isOwner && hasPermission(permissions.finance.write);
+  const canExport = hasPermission(permissions.finance.export);
 
-  return { membership, isOwner, canRead, canWrite };
+  return { membership, isOwner, canRead, canWrite, canExport };
 }

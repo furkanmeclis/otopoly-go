@@ -7,23 +7,26 @@ import { Loading } from "@/components/common/loading";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { ioKeys } from "@/features/io/hooks/query-keys";
 import { exportsService } from "@/features/io/services/exports.service";
+import type { ExportJobScope } from "@/features/io/types";
 import { useLocale } from "@/providers/locale-provider";
 
 type ExportJsonPreviewProps = {
   uuid: string;
   enabled?: boolean;
+  scope?: ExportJobScope;
 };
 
 export function ExportJsonPreview({
   uuid,
   enabled = true,
+  scope = "platform",
 }: ExportJsonPreviewProps) {
   const { t } = useLocale();
 
   const previewQuery = useQuery({
-    queryKey: [...ioKeys.exports.detail(uuid), "preview", "json"] as const,
+    queryKey: [...ioKeys.exports.detail(uuid, scope), "preview", "json"] as const,
     queryFn: async () => {
-      const { blob } = await exportsService.fetchFile(uuid);
+      const { blob } = await exportsService.fetchFile(uuid, scope);
       const text = await blob.text();
       return JSON.stringify(JSON.parse(text), null, 2);
     },

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { ExportMenu } from "@/features/io/components/export-menu";
 import { ImportButton } from "@/features/io/components/import-button";
-import type { IoResource, ResourceCapabilities } from "@/features/io/types";
+import type { IoResource, ResourceCapabilities, ExportJobScope } from "@/features/io/types";
 import { permissions } from "@/config/permissions";
 import { usePermission } from "@/providers/permission-provider";
 
@@ -13,6 +13,9 @@ type ResourceIOToolbarProps = {
   query?: Record<string, string | undefined>;
   capabilities?: ResourceCapabilities;
   onImportComplete?: () => void;
+  jobsHref?: string;
+  importJobsHref?: string;
+  scope?: ExportJobScope;
 };
 
 const EXPORT_PERM: Partial<Record<IoResource, string>> = {
@@ -20,11 +23,16 @@ const EXPORT_PERM: Partial<Record<IoResource, string>> = {
   "platform.roles": permissions.roles.export,
   "platform.notifications": permissions.notifications.export,
   "platform.activity": permissions.activity.read,
+  "tenant.finance.accounts": permissions.finance.export,
+  "tenant.finance.categories": permissions.finance.export,
+  "tenant.finance.transactions": permissions.finance.export,
 };
 
 const IMPORT_PERM: Partial<Record<IoResource, string>> = {
   "platform.users": permissions.users.import,
   "platform.roles": permissions.roles.import,
+  "tenant.finance.accounts": permissions.finance.import,
+  "tenant.finance.categories": permissions.finance.import,
 };
 
 export function ResourceIOToolbar({
@@ -32,13 +40,23 @@ export function ResourceIOToolbar({
   query,
   capabilities,
   onImportComplete,
+  jobsHref,
+  importJobsHref,
+  scope = "platform",
 }: ResourceIOToolbarProps) {
   const { can } = usePermission();
   const nodes: ReactNode[] = [];
 
   const exportPerm = EXPORT_PERM[resource];
   if (capabilities?.export && exportPerm && can(exportPerm)) {
-    nodes.push(<ExportMenu key="export" resource={resource} query={query} />);
+    nodes.push(
+      <ExportMenu
+        key="export"
+        resource={resource}
+        query={query}
+        jobsHref={jobsHref}
+      />,
+    );
   }
 
   const importPerm = IMPORT_PERM[resource];
@@ -48,6 +66,8 @@ export function ResourceIOToolbar({
         key="import"
         resource={resource}
         onComplete={onImportComplete}
+        jobsHref={importJobsHref}
+        scope={scope}
       />,
     );
   }

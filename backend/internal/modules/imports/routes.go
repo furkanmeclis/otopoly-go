@@ -3,6 +3,7 @@ package imports
 import (
 	"net/http"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	importhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
@@ -14,6 +15,7 @@ func RegisterRoutes(
 	h *importhandler.Handler,
 	tokens *jwt.Manager,
 	loader middleware.IdentityLoader,
+	q *db.Queries,
 ) {
 	authn := middleware.Authenticate(tokens, loader)
 	require := func(slug string) func(http.Handler) http.Handler {
@@ -51,4 +53,23 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/platform/roles/import/sample", middleware.Chain(
 		http.HandlerFunc(h.SampleRoles), authn, require(rbac.PermPlatformRolesImport),
 	))
+
+	requireOrg := middleware.RequireOrganization(tokens, q)
+	requireOwner := middleware.RequireOrgRole("owner")
+	tenantJobs := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireOwner, require(rbac.PermTenantImportsRead))
+	}
+	tenantImport := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireOwner, require(rbac.PermTenantFinanceImport))
+	}
+	mux.Handle("GET /v1/tenant/imports", tenantJobs(h.ListTenant))
+	mux.Handle("GET /v1/tenant/imports/{uuid}", tenantJobs(h.GetTenant))
+	mux.Handle("PATCH /v1/tenant/imports/{uuid}/mapping", tenantJobs(h.UpdateMappingTenant))
+	mux.Handle("POST /v1/tenant/imports/{uuid}/preview", tenantJobs(h.PreviewTenant))
+	mux.Handle("POST /v1/tenant/imports/{uuid}/confirm", tenantJobs(h.ConfirmTenant))
+	mux.Handle("POST /v1/tenant/imports/{uuid}/rollback", tenantJobs(h.RollbackTenant))
+	mux.Handle("POST /v1/tenant/finance/accounts/import", tenantImport(h.UploadFinanceAccounts))
+	mux.Handle("GET /v1/tenant/finance/accounts/import/sample", tenantImport(h.SampleFinanceAccounts))
+	mux.Handle("POST /v1/tenant/finance/categories/import", tenantImport(h.UploadFinanceCategories))
+	mux.Handle("GET /v1/tenant/finance/categories/import/sample", tenantImport(h.SampleFinanceCategories))
 }

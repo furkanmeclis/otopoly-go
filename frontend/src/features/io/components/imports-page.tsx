@@ -16,29 +16,41 @@ import { routes } from "@/config/routes";
 import { useImportsColumns } from "@/features/io/components/imports-columns";
 import { ioKeys } from "@/features/io/hooks/query-keys";
 import { importsService } from "@/features/io/services/imports.service";
+import type { ExportJobScope } from "@/features/io/types";
 import { useAppMutation } from "@/lib/query/mutation";
 import { useLocale } from "@/providers/locale-provider";
 import { appToast } from "@/providers/toast-provider";
 
-export function ImportsPage() {
+type ImportsPageProps = {
+  scope?: ExportJobScope;
+  slug?: string;
+};
+
+export function ImportsPage({ scope = "platform", slug }: ImportsPageProps) {
   const { t } = useLocale();
   const router = useRouter();
   const queryClient = useQueryClient();
   const listState = useServerListState({ initialPageSize: 20 });
+  const tenant = scope === "tenant";
 
   const listQuery = useQuery({
-    queryKey: ioKeys.imports.list(listState.params),
+    queryKey: ioKeys.imports.list(listState.params, scope),
     queryFn: () =>
-      importsService.list({
-        limit: listState.params.limit,
-        offset: listState.params.offset,
-      }),
+      importsService.list(
+        {
+          limit: listState.params.limit,
+          offset: listState.params.offset,
+        },
+        scope,
+      ),
   });
 
   const rollback = useAppMutation({
-    mutationFn: (uuid: string) => importsService.rollback(uuid),
+    mutationFn: (uuid: string) => importsService.rollback(uuid, scope),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ioKeys.imports.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: ioKeys.imports.lists(scope),
+      });
       appToast.success(t("imports.toast.rollback_success"));
     },
   });
@@ -46,6 +58,10 @@ export function ImportsPage() {
   const columns = useImportsColumns({
     onRollback: (uuid) => rollback.mutate(uuid),
     rollbackPending: rollback.isPending,
+    detailHref: (uuid) =>
+      tenant && slug
+        ? routes.tenant.imports.detail(slug, uuid)
+        : routes.platform.imports.detail(uuid),
   });
 
   const pageCount = useMemo(() => {
@@ -54,11 +70,16 @@ export function ImportsPage() {
     return Math.max(1, Math.ceil(total / size));
   }, [listQuery.data?.total, listState.pagination.pageSize]);
 
+  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
+  const persistKey = tenant ? `tenant-imports-v1-${slug}` : "platform-imports-v1";
+
   return (
     <EntityPage
       title={t("imports.title")}
-      description={t("imports.description")}
-      permission={permissions.imports.read}
+      description={
+        tenant ? t("imports.tenant_description") : t("imports.description")
+      }
+      permission={tenant ? permissions.imports.tenantRead : permissions.imports.read}
       forbiddenFallback={
         <ErrorState
           title={t("common.error_forbidden")}
@@ -66,7 +87,7 @@ export function ImportsPage() {
         />
       }
       breadcrumbs={[
-        { label: t("layout.breadcrumb_home"), href: routes.platform.home },
+        { label: t("layout.breadcrumb_home"), href: homeHref },
         { label: t("imports.title") },
       ]}
     >
@@ -75,17 +96,25 @@ export function ImportsPage() {
         data={listQuery.data?.items ?? []}
         getRowId={(row) => row.uuid}
         onRowClick={(job) =>
-          router.push(routes.platform.imports.detail(job.uuid))
+          router.push(
+            tenant && slug
+              ? routes.tenant.imports.detail(slug, job.uuid)
+              : routes.platform.imports.detail(job.uuid),
+          )
         }
         isLoading={listQuery.isLoading}
         isError={listQuery.isError}
         onRetry={() => void listQuery.refetch()}
         emptyTitle={t("imports.empty_title")}
-        emptyDescription={t("imports.empty_description")}
+        emptyDescription={
+          tenant
+            ? t("imports.tenant_empty_description")
+            : t("imports.empty_description")
+        }
         pageCount={pageCount}
         state={listState.tableState}
         features={{
-          persistKey: "platform-imports-v1",
+          persistKey,
           rowSelection: false,
           columnFilters: false,
           globalFilter: false,

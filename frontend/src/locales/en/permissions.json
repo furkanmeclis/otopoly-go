@@ -57,6 +57,11 @@
   "labels.platform.organizations.write": "Write organizations",
   "labels.tenant.finance.read": "Read tenant finance",
   "labels.tenant.finance.write": "Write tenant finance",
+  "labels.tenant.finance.export": "Export tenant finance",
+  "labels.tenant.finance.import": "Import tenant finance",
+  "labels.tenant.settings.read": "Read tenant export settings",
+  "labels.tenant.settings.write": "Write tenant export settings",
+  "labels.tenant.imports.read": "Read tenant import jobs",
   "labels.auth.session": "Auth session",
   "labels.notifications.read": "Read notifications",
   "labels.notifications.manage": "Manage notifications",
@@ -67,5 +72,6 @@
   "groups.roles": "Roles",
   "groups.permissions": "Permissions",
   "groups.system": "System",
+  "groups.tenant": "Business",
   "groups.other": "Other"
 }

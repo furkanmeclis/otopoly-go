@@ -14,8 +14,12 @@ import {
 import { routes } from "@/config/routes";
 import { FinanceCategoryDialog } from "@/features/finance/components/finance-category-dialog";
 import { useFinanceCategoriesColumns } from "@/features/finance/components/finance-categories-columns";
-import { useFinanceCategories } from "@/features/finance/hooks/use-finance-queries";
+import {
+  useFinanceCategories,
+  useFinanceCategoriesMeta,
+} from "@/features/finance/hooks/use-finance-queries";
 import { useTenantFinanceAccess } from "@/features/finance/hooks/use-tenant-finance-access";
+import { ResourceIOToolbar } from "@/features/io";
 import { useLocale } from "@/providers/locale-provider";
 
 export function FinanceCategoriesPage({ slug }: { slug: string }) {
@@ -25,6 +29,7 @@ export function FinanceCategoriesPage({ slug }: { slug: string }) {
   const [createOpen, setCreateOpen] = useState(false);
 
   const listQuery = useFinanceCategories();
+  const metaQuery = useFinanceCategoriesMeta();
   const columns = useFinanceCategoriesColumns();
 
   const items = useMemo(
@@ -76,10 +81,20 @@ export function FinanceCategoriesPage({ slug }: { slug: string }) {
           pagination: false,
         }}
         toolbarExtra={
-          <EntityToolbar
-            onRefresh={() => void listQuery.refetch()}
-            refreshDisabled={listQuery.isFetching}
-          />
+          <>
+            <ResourceIOToolbar
+              resource="tenant.finance.categories"
+              capabilities={metaQuery.data?.capabilities}
+              jobsHref={routes.tenant.exports.root(slug)}
+              importJobsHref={routes.tenant.imports.root(slug)}
+              scope="tenant"
+              onImportComplete={() => void listQuery.refetch()}
+            />
+            <EntityToolbar
+              onRefresh={() => void listQuery.refetch()}
+              refreshDisabled={listQuery.isFetching}
+            />
+          </>
         }
       />
 

@@ -59,16 +59,16 @@ type Filter struct {
 
 // ResourceMeta is the table-metadata contract for a primary list resource.
 type ResourceMeta struct {
-	Resource         string       `json:"resource"`
-	DefaultSort      string       `json:"default_sort"`
-	DefaultFields    []string     `json:"default_fields"`
-	Capabilities     Capabilities `json:"capabilities"`
-	SearchableFields []string     `json:"searchable_fields"`
-	SortableFields   []string     `json:"sortable_fields"`
-	FilterableFields []string     `json:"filterable_fields"`
-	Columns          []Column     `json:"columns"`
-	Filters          []Filter     `json:"filters"`
-	Includes         []string     `json:"includes"`
+	Resource         string                     `json:"resource"`
+	DefaultSort      string                     `json:"default_sort"`
+	DefaultFields    []string                   `json:"default_fields"`
+	Capabilities     Capabilities               `json:"capabilities"`
+	SearchableFields []string                   `json:"searchable_fields"`
+	SortableFields   []string                   `json:"sortable_fields"`
+	FilterableFields []string                   `json:"filterable_fields"`
+	Columns          []Column                   `json:"columns"`
+	Filters          []Filter                   `json:"filters"`
+	Includes         []string                   `json:"includes"`
 	BulkActions      []bulkengine.BulkActionDef `json:"bulk_actions"`
 }
 
@@ -293,8 +293,6 @@ func PlatformOrganizations() ResourceMeta {
 }
 
 // TenantFinanceAccounts returns meta for GET /v1/tenant/finance/accounts.
-// TODO(finance): Enable io-engine export/import and search-engine adapter when tenant finance
-// resources are registered in platform engines (see .agents/skills/io-engine, search-engine).
 func TenantFinanceAccounts() ResourceMeta {
 	return ResourceMeta{
 		Resource:      "tenant.finance.accounts",
@@ -302,6 +300,7 @@ func TenantFinanceAccounts() ResourceMeta {
 		DefaultFields: []string{"uuid", "name", "type", "currency", "current_balance", "is_default", "is_active"},
 		Capabilities: Capabilities{
 			Create: true, Read: true, Update: true, Delete: true, Search: true, Filter: true, Sort: true,
+			Export: true, Import: true,
 		},
 		SearchableFields: []string{"name", "bank_name"},
 		SortableFields:   []string{"name", "currency", "current_balance", "created_at"},
@@ -321,9 +320,32 @@ func TenantFinanceAccounts() ResourceMeta {
 	}
 }
 
+// TenantFinanceCategories returns meta for GET /v1/tenant/finance/categories.
+func TenantFinanceCategories() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.finance.categories",
+		DefaultSort:   "name",
+		DefaultFields: []string{"uuid", "name", "kind", "sort_order", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true, Search: false, Filter: true, Sort: true,
+			Export: true, Import: true,
+		},
+		SortableFields:   []string{"name", "kind", "sort_order"},
+		FilterableFields: []string{"kind", "is_active"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "finance.categories.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "kind", LabelKey: "finance.categories.kind", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "sort_order", LabelKey: "finance.categories.sort_order", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "finance.categories.is_active", Type: ColumnTypeBoolean, Filterable: true, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "kind", LabelKey: "finance.categories.kind", Variant: FilterVariantFaceted},
+			{Key: "is_active", LabelKey: "finance.categories.is_active", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
 // TenantFinanceTransactions returns meta for GET /v1/tenant/finance/transactions.
-// TODO(finance): bulk-engine void/export actions, io-engine CSV/XLSX/PDF export, searchable
-// command-palette entries; add payment_method to filterable fields when UI exposes it.
 func TenantFinanceTransactions() ResourceMeta {
 	return ResourceMeta{
 		Resource:      "tenant.finance.transactions",
@@ -331,6 +353,7 @@ func TenantFinanceTransactions() ResourceMeta {
 		DefaultFields: []string{"uuid", "type", "status", "amount", "currency", "transaction_date", "account_name", "category_name"},
 		Capabilities: Capabilities{
 			Create: true, Read: true, Update: false, Delete: false, Search: true, Filter: true, Sort: true,
+			Export: true,
 		},
 		SearchableFields: []string{"description", "reference_no"},
 		SortableFields:   []string{"transaction_date", "amount", "created_at"},

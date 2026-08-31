@@ -11,6 +11,7 @@ import (
 	authmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/model"
 	authusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
@@ -19,9 +20,9 @@ import (
 )
 
 type Handler struct {
-	svc    *orgusecase.Service
-	auth   *authusecase.AuthUseCase
-	store  storage.Driver
+	svc   *orgusecase.Service
+	auth  *authusecase.AuthUseCase
+	store storage.Driver
 }
 
 func New(svc *orgusecase.Service, auth *authusecase.AuthUseCase, store storage.Driver) *Handler {
@@ -297,6 +298,99 @@ func (h *Handler) PlatformDeleteLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, org)
+}
+
+func (h *Handler) TenantGetSettings(w http.ResponseWriter, r *http.Request) {
+	scope := orgctx.MustScope(r.Context())
+	s, err := h.svc.GetTenantSettings(r.Context(), scope.InternalID)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, s)
+}
+
+func (h *Handler) TenantPatchSettings(w http.ResponseWriter, r *http.Request) {
+	scope := orgctx.MustScope(r.Context())
+	var in orgusecase.LetterheadPatch
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	s, err := h.svc.PatchTenantSettings(r.Context(), scope.InternalID, in)
+	if err != nil {
+		if errors.Is(err, orgusecase.ErrInvalidRequest) {
+			response.BadRequest(w, r, response.CodeValidationError, "invalid letterhead settings")
+			return
+		}
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, s)
+}
+
+func (h *Handler) TenantUploadLogo(w http.ResponseWriter, r *http.Request) {
+	scope := orgctx.MustScope(r.Context())
+	if err := r.ParseMultipartForm(3 << 20); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid multipart form")
+		return
+	}
+	file, header, err := r.FormFile("logo")
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "logo is required")
+		return
+	}
+	defer func() { _ = file.Close() }()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(file, head)
+	mime, err := storage.DetectLogoMIME(header.Header.Get("Content-Type"), head[:n])
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, err.Error())
+		return
+	}
+	if err := storage.ValidateLogoSize(header.Size); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, err.Error())
+		return
+	}
+	ext, err := storage.LogoExtForMIME(mime)
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, err.Error())
+		return
+	}
+	key := storage.TenantLogoObjectKey(scope.UUID, ext)
+	body := io.MultiReader(strings.NewReader(string(head[:n])), file)
+	if err := h.store.Upload(r.Context(), storage.File{
+		Body: body, Size: header.Size, ContentType: mime, Filename: header.Filename,
+	}, key); err != nil {
+		response.InternalErr(w, r, err, "logo upload failed")
+		return
+	}
+	if _, err := h.svc.SetLogo(r.Context(), scope.UUID, key); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	s, err := h.svc.GetTenantSettings(r.Context(), scope.InternalID)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, s)
+}
+
+func (h *Handler) TenantDeleteLogo(w http.ResponseWriter, r *http.Request) {
+	scope := orgctx.MustScope(r.Context())
+	if key, err := h.svc.LogoObjectKey(r.Context(), scope.UUID); err == nil {
+		_ = h.store.Delete(r.Context(), key)
+	}
+	if _, err := h.svc.ClearLogo(r.Context(), scope.UUID); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	s, err := h.svc.GetTenantSettings(r.Context(), scope.InternalID)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, s)
 }
 
 func (h *Handler) PlatformAddMember(w http.ResponseWriter, r *http.Request) {

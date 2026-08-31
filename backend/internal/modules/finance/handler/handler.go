@@ -189,6 +189,10 @@ func (h *Handler) CategoryDetail(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, r, http.StatusOK, item)
 }
 
+func (h *Handler) CategoriesMeta(w http.ResponseWriter, r *http.Request) {
+	response.JSON(w, r, http.StatusOK, resourcemeta.TenantFinanceCategories())
+}
+
 func (h *Handler) ListCategories(w http.ResponseWriter, r *http.Request) {
 	var isActive *bool
 	if v := r.URL.Query().Get("is_active"); v != "" {

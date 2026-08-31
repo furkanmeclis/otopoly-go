@@ -22,6 +22,7 @@ type Principal struct {
 	IsSuperAdmin       bool
 	ImpersonatorUserID *uuid.UUID
 	SessionID          uuid.UUID
+	OrganizationUUID   *uuid.UUID
 }
 
 // WithPrincipal stores the principal on the context.

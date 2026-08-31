@@ -3,6 +3,7 @@ package organizations
 import (
 	"net/http"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	authusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
 	orghandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/handler"
@@ -20,6 +21,7 @@ func RegisterRoutes(
 	store storage.Driver,
 	tokens *jwt.Manager,
 	loader middleware.IdentityLoader,
+	q *db.Queries,
 ) {
 	h := orghandler.New(svc, auth, store)
 	authn := middleware.Authenticate(tokens, loader)
@@ -55,4 +57,17 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/platform/organizations/{uuid}/members", middleware.Chain(
 		http.HandlerFunc(h.PlatformAddMember), authn, require(rbac.PermPlatformOrganizationsWrite),
 	))
+
+	requireOrg := middleware.RequireOrganization(tokens, q)
+	requireOwner := middleware.RequireOrgRole("owner")
+	tenantSettingsRead := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireOwner, require(rbac.PermTenantSettingsRead))
+	}
+	tenantSettingsWrite := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireOwner, require(rbac.PermTenantSettingsWrite))
+	}
+	mux.Handle("GET /v1/tenant/settings", tenantSettingsRead(h.TenantGetSettings))
+	mux.Handle("PATCH /v1/tenant/settings", tenantSettingsWrite(h.TenantPatchSettings))
+	mux.Handle("PUT /v1/tenant/settings/logo", tenantSettingsWrite(h.TenantUploadLogo))
+	mux.Handle("DELETE /v1/tenant/settings/logo", tenantSettingsWrite(h.TenantDeleteLogo))
 }

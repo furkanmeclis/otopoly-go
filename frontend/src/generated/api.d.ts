@@ -1536,6 +1536,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/finance/accounts/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export finance accounts
+         * @description Queues a PDF/XLSX/CSV/JSON export. Letterhead is taken from the organization (name, logo, address, phone).
+         */
+        post: operations["exportTenantFinanceAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/finance/transactions/{uuid}": {
         parameters: {
             query?: never;
@@ -1570,6 +1590,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/finance/transactions/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Export finance transactions
+         * @description Queues a PDF/XLSX/CSV/JSON export scoped to the active organization. Letterhead comes from the organization record.
+         */
+        post: operations["exportTenantFinanceTransactions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/finance/transfers": {
         parameters: {
             query?: never;
@@ -1581,6 +1621,297 @@ export interface paths {
         put?: never;
         /** Transfer between accounts */
         post: operations["createTenantFinanceTransfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/categories/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export finance categories */
+        post: operations["exportTenantFinanceCategories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/accounts/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload finance accounts import */
+        post: operations["importTenantFinanceAccounts"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/accounts/import/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download finance accounts import sample */
+        get: operations["sampleTenantFinanceAccountsImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/categories/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload finance categories import */
+        post: operations["importTenantFinanceCategories"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/categories/import/sample": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download finance categories import sample */
+        get: operations["sampleTenantFinanceCategoriesImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/categories/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Finance categories list meta */
+        get: operations["getTenantFinanceCategoriesMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get organization export letterhead */
+        get: operations["getTenantSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update organization export letterhead */
+        patch: operations["patchTenantSettings"];
+        trace?: never;
+    };
+    "/v1/tenant/settings/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Upload organization letterhead logo */
+        put: operations["putTenantSettingsLogo"];
+        post?: never;
+        /** Remove organization letterhead logo */
+        delete: operations["deleteTenantSettingsLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organization import jobs */
+        get: operations["listTenantImports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/imports/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get organization import job */
+        get: operations["getTenantImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/imports/{uuid}/mapping": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Save import column mapping */
+        patch: operations["patchTenantImportMapping"];
+        trace?: never;
+    };
+    "/v1/tenant/imports/{uuid}/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview import rows */
+        post: operations["previewTenantImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/imports/{uuid}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm and queue import apply */
+        post: operations["confirmTenantImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/imports/{uuid}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Roll back an applied import */
+        post: operations["rollbackTenantImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/exports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organization export jobs */
+        get: operations["listTenantExports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/exports/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get organization export job */
+        get: operations["getTenantExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/exports/{uuid}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download organization export file */
+        get: operations["downloadTenantExport"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1600,6 +1931,7 @@ export interface components {
             icon?: string | null;
             searchable_fields?: string[];
             filterable_fields?: string[];
+            tenant_scoped?: boolean;
         };
         SearchHit: {
             spec: string;
@@ -2616,6 +2948,119 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["FinanceSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        ExportRequest: {
+            /** @enum {string} */
+            format: "pdf" | "xlsx" | "csv" | "json";
+            query?: {
+                [key: string]: string;
+            };
+            /** @enum {string} */
+            locale?: "tr" | "en";
+        };
+        ExportJob: {
+            /** Format: uuid */
+            uuid: string;
+            resource: string;
+            /** @enum {string} */
+            format: "pdf" | "xlsx" | "csv" | "json";
+            /** @enum {string} */
+            status: "queued" | "processing" | "completed" | "failed" | "expired";
+            row_count: number;
+            error?: string | null;
+            download_url?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        EnvelopeExportJob: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ExportJob"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeExportJobPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["ExportJob"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        ImportJob: {
+            /** Format: uuid */
+            uuid: string;
+            resource: string;
+            /** @enum {string} */
+            format: "json" | "xlsx" | "csv" | "tsv";
+            status: string;
+            mapping?: {
+                [key: string]: string;
+            };
+            defaults?: {
+                [key: string]: string;
+            };
+            error?: string | null;
+            /** Format: date-time */
+            rollback_until?: string | null;
+            /** Format: date-time */
+            applied_at?: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        EnvelopeImportJob: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ImportJob"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeImportJobPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["ImportJob"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        TenantSettings: {
+            company_name: string;
+            tagline: string;
+            primary_color: string;
+            address: string;
+            city: string;
+            district: string;
+            phone: string;
+            email: string;
+            website: string;
+            footer_text: string;
+            /** @enum {string} */
+            paper_size: "A4" | "A3" | "Letter" | "Legal";
+            logo_url?: string | null;
+        };
+        PatchTenantSettingsRequest: {
+            company_name?: string;
+            tagline?: string;
+            primary_color?: string;
+            address?: string;
+            city?: string;
+            district?: string;
+            phone?: string;
+            email?: string;
+            website?: string;
+            footer_text?: string;
+            /** @enum {string} */
+            paper_size?: "A4" | "A3" | "Letter" | "Legal";
+        };
+        EnvelopeTenantSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["TenantSettings"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -5269,6 +5714,30 @@ export interface operations {
             };
         };
     };
+    exportTenantFinanceAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Export job queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
+            };
+        };
+    };
     getTenantFinanceTransaction: {
         parameters: {
             query?: never;
@@ -5311,6 +5780,30 @@ export interface operations {
             };
         };
     };
+    exportTenantFinanceTransactions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Export job queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
+            };
+        };
+    };
     createTenantFinanceTransfer: {
         parameters: {
             query?: never;
@@ -5330,6 +5823,418 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    exportTenantFinanceCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExportRequest"];
+            };
+        };
+        responses: {
+            /** @description Export job queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
+            };
+        };
+    };
+    importTenantFinanceAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import job created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJob"];
+                };
+            };
+        };
+    };
+    sampleTenantFinanceAccountsImport: {
+        parameters: {
+            query?: {
+                format?: "json" | "xlsx" | "csv" | "tsv";
+                locale?: "tr" | "en";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sample file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+        };
+    };
+    importTenantFinanceCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import job created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJob"];
+                };
+            };
+        };
+    };
+    sampleTenantFinanceCategoriesImport: {
+        parameters: {
+            query?: {
+                format?: "json" | "xlsx" | "csv" | "tsv";
+                locale?: "tr" | "en";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sample file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+        };
+    };
+    getTenantFinanceCategoriesMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTenantSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Letterhead settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantSettings"];
+                };
+            };
+        };
+    };
+    patchTenantSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchTenantSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated letterhead */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantSettings"];
+                };
+            };
+        };
+    };
+    putTenantSettingsLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated letterhead */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantSettings"];
+                };
+            };
+        };
+    };
+    deleteTenantSettingsLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated letterhead */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantSettings"];
+                };
+            };
+        };
+    };
+    listTenantImports: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import jobs page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJobPage"];
+                };
+            };
+        };
+    };
+    getTenantImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJob"];
+                };
+            };
+        };
+    };
+    patchTenantImportMapping: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJob"];
+                };
+            };
+        };
+    };
+    previewTenantImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJob"];
+                };
+            };
+        };
+    };
+    confirmTenantImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJob"];
+                };
+            };
+        };
+    };
+    rollbackTenantImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import rolled back */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeImportJob"];
+                };
+            };
+        };
+    };
+    listTenantExports: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export jobs page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJobPage"];
+                };
+            };
+        };
+    };
+    getTenantExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Export job */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
+            };
+        };
+    };
+    downloadTenantExport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
             };
         };
     };

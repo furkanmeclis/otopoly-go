@@ -34,5 +34,9 @@ export function pushRecentItem(item: PaletteItem) {
       .map(toStored)
       .filter((entry) => entry.id !== stored.id),
   ].slice(0, MAX_RECENT);
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+  } catch {
+    // Ignore storage quota/security errors
+  }
 }

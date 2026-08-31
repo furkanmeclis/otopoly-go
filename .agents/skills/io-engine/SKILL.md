@@ -37,7 +37,7 @@ Frontend toolbar: `ResourceIOToolbar` from `@/features/io`.
 | Export | `pdf`, `xlsx`, `csv`, `json` |
 | Import | `json`, `xlsx`, `csv`, `tsv` |
 
-Letterhead for PDF/XLSX comes from `app_settings` (`/v1/platform/settings`). Logo bytes come from storage; never from a browser-assembled MinIO URL.
+Letterhead for PDF/XLSX comes from `app_settings` (`/v1/platform/settings`) for platform jobs. Tenant jobs use the organization row (`GET/PATCH /v1/tenant/settings`); empty color/paper size fall back to `app_settings`. Logo bytes come from storage; never from a browser-assembled MinIO URL.
 
 Import source files: MinIO key `imports/{job_uuid}/source.{ext}` (`internal/platform/storage/keys.go`). Rollback rows: `import_changes`.
 
@@ -47,5 +47,9 @@ Import source files: MinIO key `imports/{job_uuid}/source.{ext}` (`internal/plat
 - `POST /v1/platform/users/import` + `GET .../import/sample` (same for roles)
 - `GET /v1/platform/exports` · `GET /v1/platform/exports/{uuid}` · `GET .../download`
 - `GET /v1/platform/imports` · mapping / preview / confirm / rollback on `{uuid}`
+
+- `GET /v1/tenant/exports` · `GET /v1/tenant/imports` · `GET/PATCH /v1/tenant/settings`
+- `POST /v1/tenant/finance/accounts/export` · `/categories/export` · `/transactions/export`
+- `POST /v1/tenant/finance/accounts/import` + sample (same for categories)
 
 Jobs return **202**. Worker processes Asynq queues `exports` / `imports`.

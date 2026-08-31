@@ -62,6 +62,8 @@ export type AppSettings = {
   tagline: string;
   primary_color: string;
   address: string;
+  city?: string;
+  district?: string;
   phone: string;
   email: string;
   website: string;
@@ -80,17 +82,25 @@ export type ActivityEvent = {
   created_at: string;
 };
 
+export type ExportJobScope = "platform" | "tenant";
+
 export type IoResource =
   | "platform.users"
   | "platform.roles"
   | "platform.notifications"
-  | "platform.activity";
+  | "platform.activity"
+  | "tenant.finance.accounts"
+  | "tenant.finance.categories"
+  | "tenant.finance.transactions";
 
 export const EXPORT_PATHS: Record<IoResource, string> = {
   "platform.users": "/v1/platform/users/export",
   "platform.roles": "/v1/platform/roles/export",
   "platform.notifications": "/v1/platform/notifications/export",
   "platform.activity": "/v1/platform/activity/export",
+  "tenant.finance.accounts": "/v1/tenant/finance/accounts/export",
+  "tenant.finance.categories": "/v1/tenant/finance/categories/export",
+  "tenant.finance.transactions": "/v1/tenant/finance/transactions/export",
 };
 
 export const IMPORT_PATHS: Partial<
@@ -103,6 +113,14 @@ export const IMPORT_PATHS: Partial<
   "platform.roles": {
     upload: "/v1/platform/roles/import",
     sample: "/v1/platform/roles/import/sample",
+  },
+  "tenant.finance.accounts": {
+    upload: "/v1/tenant/finance/accounts/import",
+    sample: "/v1/tenant/finance/accounts/import/sample",
+  },
+  "tenant.finance.categories": {
+    upload: "/v1/tenant/finance/categories/import",
+    sample: "/v1/tenant/finance/categories/import/sample",
   },
 };
 
@@ -122,5 +140,22 @@ export const IMPORT_SCHEMA: Partial<
     { key: "slug", labelKey: "roles.fields.slug", required: true },
     { key: "description", labelKey: "roles.fields.description" },
     { key: "permission_slugs", labelKey: "roles.fields.permissions" },
+  ],
+  "tenant.finance.accounts": [
+    { key: "name", labelKey: "finance.accounts.name", required: true },
+    { key: "type", labelKey: "finance.accounts.type", required: true },
+    { key: "currency", labelKey: "finance.accounts.currency" },
+    { key: "opening_balance", labelKey: "finance.accounts.opening_balance" },
+    { key: "is_default", labelKey: "finance.accounts.is_default" },
+    { key: "is_active", labelKey: "finance.accounts.is_active" },
+    { key: "bank_name", labelKey: "finance.accounts.bank_name" },
+    { key: "iban", labelKey: "finance.accounts.iban" },
+    { key: "notes", labelKey: "finance.accounts.notes" },
+  ],
+  "tenant.finance.categories": [
+    { key: "name", labelKey: "finance.categories.name", required: true },
+    { key: "kind", labelKey: "finance.categories.kind", required: true },
+    { key: "sort_order", labelKey: "finance.categories.sort_order" },
+    { key: "is_active", labelKey: "finance.categories.is_active" },
   ],
 };

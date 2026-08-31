@@ -134,6 +134,7 @@ func (q *Queries) CountFinanceTransactions(ctx context.Context, arg CountFinance
 }
 
 const createFinanceAccount = `-- name: CreateFinanceAccount :one
+
 INSERT INTO finance_accounts (
     organization_id, name, type, currency, opening_balance, current_balance,
     is_default, is_active, bank_name, iban, notes
@@ -156,6 +157,9 @@ type CreateFinanceAccountParams struct {
 	Notes          string         `json:"notes"`
 }
 
+// Finance module queries (tenant-scoped via organization_id).
+// TODO(finance): Add GetFinanceCategoryByID and composite indexes if list/filter
+// latency grows (organization_id + transaction_date DESC).
 func (q *Queries) CreateFinanceAccount(ctx context.Context, arg CreateFinanceAccountParams) (FinanceAccount, error) {
 	row := q.db.QueryRow(ctx, createFinanceAccount,
 		arg.OrganizationID,
@@ -341,6 +345,40 @@ func (q *Queries) GetFinanceAccountByID(ctx context.Context, arg GetFinanceAccou
 	return i, err
 }
 
+const getFinanceAccountByName = `-- name: GetFinanceAccountByName :one
+SELECT id, uuid, organization_id, name, type, currency, opening_balance, current_balance, is_default, is_active, bank_name, iban, notes, created_at, updated_at, deleted_at FROM finance_accounts
+WHERE organization_id = $1 AND lower(name) = lower($2) AND deleted_at IS NULL
+`
+
+type GetFinanceAccountByNameParams struct {
+	OrganizationID int64  `json:"organization_id"`
+	Name           string `json:"name"`
+}
+
+func (q *Queries) GetFinanceAccountByName(ctx context.Context, arg GetFinanceAccountByNameParams) (FinanceAccount, error) {
+	row := q.db.QueryRow(ctx, getFinanceAccountByName, arg.OrganizationID, arg.Name)
+	var i FinanceAccount
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.Name,
+		&i.Type,
+		&i.Currency,
+		&i.OpeningBalance,
+		&i.CurrentBalance,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.BankName,
+		&i.Iban,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getFinanceAccountByUUID = `-- name: GetFinanceAccountByUUID :one
 SELECT id, uuid, organization_id, name, type, currency, opening_balance, current_balance, is_default, is_active, bank_name, iban, notes, created_at, updated_at, deleted_at FROM finance_accounts
 WHERE uuid = $1 AND organization_id = $2 AND deleted_at IS NULL
@@ -371,6 +409,65 @@ func (q *Queries) GetFinanceAccountByUUID(ctx context.Context, arg GetFinanceAcc
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getFinanceAccountForSearch = `-- name: GetFinanceAccountForSearch :one
+SELECT a.id, a.uuid, a.organization_id, a.name, a.type, a.currency, a.opening_balance, a.current_balance, a.is_default, a.is_active, a.bank_name, a.iban, a.notes, a.created_at, a.updated_at, a.deleted_at, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_accounts a
+JOIN organizations o ON o.id = a.organization_id
+WHERE a.uuid = $1 AND o.uuid = $2 AND a.deleted_at IS NULL AND o.deleted_at IS NULL
+`
+
+type GetFinanceAccountForSearchParams struct {
+	Uuid   uuid.UUID `json:"uuid"`
+	Uuid_2 uuid.UUID `json:"uuid_2"`
+}
+
+type GetFinanceAccountForSearchRow struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	Name             string             `json:"name"`
+	Type             string             `json:"type"`
+	Currency         string             `json:"currency"`
+	OpeningBalance   pgtype.Numeric     `json:"opening_balance"`
+	CurrentBalance   pgtype.Numeric     `json:"current_balance"`
+	IsDefault        bool               `json:"is_default"`
+	IsActive         bool               `json:"is_active"`
+	BankName         pgtype.Text        `json:"bank_name"`
+	Iban             pgtype.Text        `json:"iban"`
+	Notes            string             `json:"notes"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	OrganizationUuid uuid.UUID          `json:"organization_uuid"`
+	OrganizationSlug string             `json:"organization_slug"`
+}
+
+func (q *Queries) GetFinanceAccountForSearch(ctx context.Context, arg GetFinanceAccountForSearchParams) (GetFinanceAccountForSearchRow, error) {
+	row := q.db.QueryRow(ctx, getFinanceAccountForSearch, arg.Uuid, arg.Uuid_2)
+	var i GetFinanceAccountForSearchRow
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.Name,
+		&i.Type,
+		&i.Currency,
+		&i.OpeningBalance,
+		&i.CurrentBalance,
+		&i.IsDefault,
+		&i.IsActive,
+		&i.BankName,
+		&i.Iban,
+		&i.Notes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.OrganizationUuid,
+		&i.OrganizationSlug,
 	)
 	return i, err
 }
@@ -416,6 +513,39 @@ func (q *Queries) GetFinanceAccountStats(ctx context.Context, arg GetFinanceAcco
 	return i, err
 }
 
+const getFinanceCategoryByName = `-- name: GetFinanceCategoryByName :one
+SELECT id, uuid, organization_id, parent_id, name, kind, sort_order, is_active, created_at, updated_at, deleted_at FROM finance_categories
+WHERE organization_id = $1
+  AND lower(name) = lower($2)
+  AND kind = $3
+  AND deleted_at IS NULL
+`
+
+type GetFinanceCategoryByNameParams struct {
+	OrganizationID int64  `json:"organization_id"`
+	Name           string `json:"name"`
+	Kind           string `json:"kind"`
+}
+
+func (q *Queries) GetFinanceCategoryByName(ctx context.Context, arg GetFinanceCategoryByNameParams) (FinanceCategory, error) {
+	row := q.db.QueryRow(ctx, getFinanceCategoryByName, arg.OrganizationID, arg.Name, arg.Kind)
+	var i FinanceCategory
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.ParentID,
+		&i.Name,
+		&i.Kind,
+		&i.SortOrder,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const getFinanceCategoryByUUID = `-- name: GetFinanceCategoryByUUID :one
 SELECT id, uuid, organization_id, parent_id, name, kind, sort_order, is_active, created_at, updated_at, deleted_at FROM finance_categories
 WHERE uuid = $1 AND organization_id = $2 AND deleted_at IS NULL
@@ -441,6 +571,55 @@ func (q *Queries) GetFinanceCategoryByUUID(ctx context.Context, arg GetFinanceCa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getFinanceCategoryForSearch = `-- name: GetFinanceCategoryForSearch :one
+SELECT c.id, c.uuid, c.organization_id, c.parent_id, c.name, c.kind, c.sort_order, c.is_active, c.created_at, c.updated_at, c.deleted_at, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_categories c
+JOIN organizations o ON o.id = c.organization_id
+WHERE c.uuid = $1 AND o.uuid = $2 AND c.deleted_at IS NULL AND o.deleted_at IS NULL
+`
+
+type GetFinanceCategoryForSearchParams struct {
+	Uuid   uuid.UUID `json:"uuid"`
+	Uuid_2 uuid.UUID `json:"uuid_2"`
+}
+
+type GetFinanceCategoryForSearchRow struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	ParentID         pgtype.Int8        `json:"parent_id"`
+	Name             string             `json:"name"`
+	Kind             string             `json:"kind"`
+	SortOrder        int32              `json:"sort_order"`
+	IsActive         bool               `json:"is_active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	OrganizationUuid uuid.UUID          `json:"organization_uuid"`
+	OrganizationSlug string             `json:"organization_slug"`
+}
+
+func (q *Queries) GetFinanceCategoryForSearch(ctx context.Context, arg GetFinanceCategoryForSearchParams) (GetFinanceCategoryForSearchRow, error) {
+	row := q.db.QueryRow(ctx, getFinanceCategoryForSearch, arg.Uuid, arg.Uuid_2)
+	var i GetFinanceCategoryForSearchRow
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.ParentID,
+		&i.Name,
+		&i.Kind,
+		&i.SortOrder,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.OrganizationUuid,
+		&i.OrganizationSlug,
 	)
 	return i, err
 }
@@ -512,6 +691,81 @@ func (q *Queries) GetFinanceTransactionByUUID(ctx context.Context, arg GetFinanc
 	return i, err
 }
 
+const getFinanceTransactionForSearch = `-- name: GetFinanceTransactionForSearch :one
+SELECT t.id, t.uuid, t.organization_id, t.type, t.status, t.account_id, t.counter_account_id, t.category_id, t.amount, t.currency, t.transaction_date, t.description, t.reference_no, t.payment_method, t.created_by, t.voided_at, t.voided_by, t.source_type, t.source_uuid, t.metadata, t.created_at, t.updated_at, o.uuid AS organization_uuid, o.slug AS organization_slug,
+       a.name AS account_name
+FROM finance_transactions t
+JOIN organizations o ON o.id = t.organization_id
+JOIN finance_accounts a ON a.id = t.account_id
+WHERE t.uuid = $1 AND o.uuid = $2 AND o.deleted_at IS NULL
+`
+
+type GetFinanceTransactionForSearchParams struct {
+	Uuid   uuid.UUID `json:"uuid"`
+	Uuid_2 uuid.UUID `json:"uuid_2"`
+}
+
+type GetFinanceTransactionForSearchRow struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	Type             string             `json:"type"`
+	Status           string             `json:"status"`
+	AccountID        int64              `json:"account_id"`
+	CounterAccountID pgtype.Int8        `json:"counter_account_id"`
+	CategoryID       pgtype.Int8        `json:"category_id"`
+	Amount           pgtype.Numeric     `json:"amount"`
+	Currency         string             `json:"currency"`
+	TransactionDate  pgtype.Date        `json:"transaction_date"`
+	Description      string             `json:"description"`
+	ReferenceNo      pgtype.Text        `json:"reference_no"`
+	PaymentMethod    string             `json:"payment_method"`
+	CreatedBy        int64              `json:"created_by"`
+	VoidedAt         pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy         pgtype.Int8        `json:"voided_by"`
+	SourceType       pgtype.Text        `json:"source_type"`
+	SourceUuid       pgtype.UUID        `json:"source_uuid"`
+	Metadata         []byte             `json:"metadata"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	OrganizationUuid uuid.UUID          `json:"organization_uuid"`
+	OrganizationSlug string             `json:"organization_slug"`
+	AccountName      string             `json:"account_name"`
+}
+
+func (q *Queries) GetFinanceTransactionForSearch(ctx context.Context, arg GetFinanceTransactionForSearchParams) (GetFinanceTransactionForSearchRow, error) {
+	row := q.db.QueryRow(ctx, getFinanceTransactionForSearch, arg.Uuid, arg.Uuid_2)
+	var i GetFinanceTransactionForSearchRow
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.Type,
+		&i.Status,
+		&i.AccountID,
+		&i.CounterAccountID,
+		&i.CategoryID,
+		&i.Amount,
+		&i.Currency,
+		&i.TransactionDate,
+		&i.Description,
+		&i.ReferenceNo,
+		&i.PaymentMethod,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
+		&i.SourceType,
+		&i.SourceUuid,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.OrganizationUuid,
+		&i.OrganizationSlug,
+		&i.AccountName,
+	)
+	return i, err
+}
+
 const listFinanceAccounts = `-- name: ListFinanceAccounts :many
 SELECT id, uuid, organization_id, name, type, currency, opening_balance, current_balance, is_default, is_active, bank_name, iban, notes, created_at, updated_at, deleted_at FROM finance_accounts
 WHERE organization_id = $1 AND deleted_at IS NULL
@@ -576,6 +830,138 @@ func (q *Queries) ListFinanceAccounts(ctx context.Context, arg ListFinanceAccoun
 	return items, nil
 }
 
+const listFinanceAccountsForExport = `-- name: ListFinanceAccountsForExport :many
+SELECT id, uuid, organization_id, name, type, currency, opening_balance, current_balance, is_default, is_active, bank_name, iban, notes, created_at, updated_at, deleted_at FROM finance_accounts
+WHERE organization_id = $1 AND deleted_at IS NULL
+  AND ($2::boolean IS NULL OR is_active = $2)
+  AND ($3::text IS NULL OR type = $3)
+  AND ($4::text IS NULL OR currency = $4)
+  AND (
+    $5::text IS NULL
+    OR name ILIKE '%' || $5 || '%'
+    OR bank_name ILIKE '%' || $5 || '%'
+  )
+ORDER BY is_default DESC, name ASC
+`
+
+type ListFinanceAccountsForExportParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	IsActive       pgtype.Bool `json:"is_active"`
+	Type           pgtype.Text `json:"type"`
+	Currency       pgtype.Text `json:"currency"`
+	Q              pgtype.Text `json:"q"`
+}
+
+func (q *Queries) ListFinanceAccountsForExport(ctx context.Context, arg ListFinanceAccountsForExportParams) ([]FinanceAccount, error) {
+	rows, err := q.db.Query(ctx, listFinanceAccountsForExport,
+		arg.OrganizationID,
+		arg.IsActive,
+		arg.Type,
+		arg.Currency,
+		arg.Q,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FinanceAccount{}
+	for rows.Next() {
+		var i FinanceAccount
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.Name,
+			&i.Type,
+			&i.Currency,
+			&i.OpeningBalance,
+			&i.CurrentBalance,
+			&i.IsDefault,
+			&i.IsActive,
+			&i.BankName,
+			&i.Iban,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFinanceAccountsForSearch = `-- name: ListFinanceAccountsForSearch :many
+SELECT a.id, a.uuid, a.organization_id, a.name, a.type, a.currency, a.opening_balance, a.current_balance, a.is_default, a.is_active, a.bank_name, a.iban, a.notes, a.created_at, a.updated_at, a.deleted_at, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_accounts a
+JOIN organizations o ON o.id = a.organization_id
+WHERE a.deleted_at IS NULL AND o.deleted_at IS NULL
+`
+
+type ListFinanceAccountsForSearchRow struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	Name             string             `json:"name"`
+	Type             string             `json:"type"`
+	Currency         string             `json:"currency"`
+	OpeningBalance   pgtype.Numeric     `json:"opening_balance"`
+	CurrentBalance   pgtype.Numeric     `json:"current_balance"`
+	IsDefault        bool               `json:"is_default"`
+	IsActive         bool               `json:"is_active"`
+	BankName         pgtype.Text        `json:"bank_name"`
+	Iban             pgtype.Text        `json:"iban"`
+	Notes            string             `json:"notes"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	OrganizationUuid uuid.UUID          `json:"organization_uuid"`
+	OrganizationSlug string             `json:"organization_slug"`
+}
+
+func (q *Queries) ListFinanceAccountsForSearch(ctx context.Context) ([]ListFinanceAccountsForSearchRow, error) {
+	rows, err := q.db.Query(ctx, listFinanceAccountsForSearch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFinanceAccountsForSearchRow{}
+	for rows.Next() {
+		var i ListFinanceAccountsForSearchRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.Name,
+			&i.Type,
+			&i.Currency,
+			&i.OpeningBalance,
+			&i.CurrentBalance,
+			&i.IsDefault,
+			&i.IsActive,
+			&i.BankName,
+			&i.Iban,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.OrganizationUuid,
+			&i.OrganizationSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFinanceCategories = `-- name: ListFinanceCategories :many
 SELECT id, uuid, organization_id, parent_id, name, kind, sort_order, is_active, created_at, updated_at, deleted_at FROM finance_categories
 WHERE organization_id = $1 AND deleted_at IS NULL
@@ -611,6 +997,63 @@ func (q *Queries) ListFinanceCategories(ctx context.Context, arg ListFinanceCate
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFinanceCategoriesForSearch = `-- name: ListFinanceCategoriesForSearch :many
+SELECT c.id, c.uuid, c.organization_id, c.parent_id, c.name, c.kind, c.sort_order, c.is_active, c.created_at, c.updated_at, c.deleted_at, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_categories c
+JOIN organizations o ON o.id = c.organization_id
+WHERE c.deleted_at IS NULL AND o.deleted_at IS NULL
+`
+
+type ListFinanceCategoriesForSearchRow struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	ParentID         pgtype.Int8        `json:"parent_id"`
+	Name             string             `json:"name"`
+	Kind             string             `json:"kind"`
+	SortOrder        int32              `json:"sort_order"`
+	IsActive         bool               `json:"is_active"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	OrganizationUuid uuid.UUID          `json:"organization_uuid"`
+	OrganizationSlug string             `json:"organization_slug"`
+}
+
+func (q *Queries) ListFinanceCategoriesForSearch(ctx context.Context) ([]ListFinanceCategoriesForSearchRow, error) {
+	rows, err := q.db.Query(ctx, listFinanceCategoriesForSearch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFinanceCategoriesForSearchRow{}
+	for rows.Next() {
+		var i ListFinanceCategoriesForSearchRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.ParentID,
+			&i.Name,
+			&i.Kind,
+			&i.SortOrder,
+			&i.IsActive,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.OrganizationUuid,
+			&i.OrganizationSlug,
 		); err != nil {
 			return nil, err
 		}
@@ -743,6 +1186,217 @@ func (q *Queries) ListFinanceTransactions(ctx context.Context, arg ListFinanceTr
 			&i.CounterAccountName,
 			&i.CategoryUuid,
 			&i.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFinanceTransactionsForExport = `-- name: ListFinanceTransactionsForExport :many
+SELECT t.id, t.uuid, t.organization_id, t.type, t.status, t.account_id, t.counter_account_id, t.category_id, t.amount, t.currency, t.transaction_date, t.description, t.reference_no, t.payment_method, t.created_by, t.voided_at, t.voided_by, t.source_type, t.source_uuid, t.metadata, t.created_at, t.updated_at,
+       a.uuid AS account_uuid, a.name AS account_name,
+       ca.uuid AS counter_account_uuid, ca.name AS counter_account_name,
+       c.uuid AS category_uuid, c.name AS category_name
+FROM finance_transactions t
+JOIN finance_accounts a ON a.id = t.account_id
+LEFT JOIN finance_accounts ca ON ca.id = t.counter_account_id
+LEFT JOIN finance_categories c ON c.id = t.category_id
+WHERE t.organization_id = $1
+  AND ($2::text IS NULL OR t.type = $2)
+  AND ($3::text IS NULL OR t.status = $3)
+  AND ($4::uuid IS NULL OR a.uuid = $4)
+  AND ($5::uuid IS NULL OR c.uuid = $5)
+  AND ($6::text IS NULL OR t.currency = $6)
+  AND ($7::date IS NULL OR t.transaction_date >= $7)
+  AND ($8::date IS NULL OR t.transaction_date <= $8)
+  AND (
+    $9::text IS NULL
+    OR t.description ILIKE '%' || $9 || '%'
+    OR t.reference_no ILIKE '%' || $9 || '%'
+  )
+ORDER BY t.transaction_date DESC, t.created_at DESC
+LIMIT 10000
+`
+
+type ListFinanceTransactionsForExportParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	Type           pgtype.Text `json:"type"`
+	Status         pgtype.Text `json:"status"`
+	AccountUuid    pgtype.UUID `json:"account_uuid"`
+	CategoryUuid   pgtype.UUID `json:"category_uuid"`
+	Currency       pgtype.Text `json:"currency"`
+	DateFrom       pgtype.Date `json:"date_from"`
+	DateTo         pgtype.Date `json:"date_to"`
+	Q              pgtype.Text `json:"q"`
+}
+
+type ListFinanceTransactionsForExportRow struct {
+	ID                 int64              `json:"id"`
+	Uuid               uuid.UUID          `json:"uuid"`
+	OrganizationID     int64              `json:"organization_id"`
+	Type               string             `json:"type"`
+	Status             string             `json:"status"`
+	AccountID          int64              `json:"account_id"`
+	CounterAccountID   pgtype.Int8        `json:"counter_account_id"`
+	CategoryID         pgtype.Int8        `json:"category_id"`
+	Amount             pgtype.Numeric     `json:"amount"`
+	Currency           string             `json:"currency"`
+	TransactionDate    pgtype.Date        `json:"transaction_date"`
+	Description        string             `json:"description"`
+	ReferenceNo        pgtype.Text        `json:"reference_no"`
+	PaymentMethod      string             `json:"payment_method"`
+	CreatedBy          int64              `json:"created_by"`
+	VoidedAt           pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy           pgtype.Int8        `json:"voided_by"`
+	SourceType         pgtype.Text        `json:"source_type"`
+	SourceUuid         pgtype.UUID        `json:"source_uuid"`
+	Metadata           []byte             `json:"metadata"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	AccountUuid        uuid.UUID          `json:"account_uuid"`
+	AccountName        string             `json:"account_name"`
+	CounterAccountUuid pgtype.UUID        `json:"counter_account_uuid"`
+	CounterAccountName pgtype.Text        `json:"counter_account_name"`
+	CategoryUuid       pgtype.UUID        `json:"category_uuid"`
+	CategoryName       pgtype.Text        `json:"category_name"`
+}
+
+func (q *Queries) ListFinanceTransactionsForExport(ctx context.Context, arg ListFinanceTransactionsForExportParams) ([]ListFinanceTransactionsForExportRow, error) {
+	rows, err := q.db.Query(ctx, listFinanceTransactionsForExport,
+		arg.OrganizationID,
+		arg.Type,
+		arg.Status,
+		arg.AccountUuid,
+		arg.CategoryUuid,
+		arg.Currency,
+		arg.DateFrom,
+		arg.DateTo,
+		arg.Q,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFinanceTransactionsForExportRow{}
+	for rows.Next() {
+		var i ListFinanceTransactionsForExportRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.Type,
+			&i.Status,
+			&i.AccountID,
+			&i.CounterAccountID,
+			&i.CategoryID,
+			&i.Amount,
+			&i.Currency,
+			&i.TransactionDate,
+			&i.Description,
+			&i.ReferenceNo,
+			&i.PaymentMethod,
+			&i.CreatedBy,
+			&i.VoidedAt,
+			&i.VoidedBy,
+			&i.SourceType,
+			&i.SourceUuid,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.AccountUuid,
+			&i.AccountName,
+			&i.CounterAccountUuid,
+			&i.CounterAccountName,
+			&i.CategoryUuid,
+			&i.CategoryName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFinanceTransactionsForSearch = `-- name: ListFinanceTransactionsForSearch :many
+SELECT t.id, t.uuid, t.organization_id, t.type, t.status, t.account_id, t.counter_account_id, t.category_id, t.amount, t.currency, t.transaction_date, t.description, t.reference_no, t.payment_method, t.created_by, t.voided_at, t.voided_by, t.source_type, t.source_uuid, t.metadata, t.created_at, t.updated_at, o.uuid AS organization_uuid, o.slug AS organization_slug,
+       a.name AS account_name
+FROM finance_transactions t
+JOIN organizations o ON o.id = t.organization_id
+JOIN finance_accounts a ON a.id = t.account_id
+WHERE o.deleted_at IS NULL
+`
+
+type ListFinanceTransactionsForSearchRow struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	Type             string             `json:"type"`
+	Status           string             `json:"status"`
+	AccountID        int64              `json:"account_id"`
+	CounterAccountID pgtype.Int8        `json:"counter_account_id"`
+	CategoryID       pgtype.Int8        `json:"category_id"`
+	Amount           pgtype.Numeric     `json:"amount"`
+	Currency         string             `json:"currency"`
+	TransactionDate  pgtype.Date        `json:"transaction_date"`
+	Description      string             `json:"description"`
+	ReferenceNo      pgtype.Text        `json:"reference_no"`
+	PaymentMethod    string             `json:"payment_method"`
+	CreatedBy        int64              `json:"created_by"`
+	VoidedAt         pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy         pgtype.Int8        `json:"voided_by"`
+	SourceType       pgtype.Text        `json:"source_type"`
+	SourceUuid       pgtype.UUID        `json:"source_uuid"`
+	Metadata         []byte             `json:"metadata"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	OrganizationUuid uuid.UUID          `json:"organization_uuid"`
+	OrganizationSlug string             `json:"organization_slug"`
+	AccountName      string             `json:"account_name"`
+}
+
+func (q *Queries) ListFinanceTransactionsForSearch(ctx context.Context) ([]ListFinanceTransactionsForSearchRow, error) {
+	rows, err := q.db.Query(ctx, listFinanceTransactionsForSearch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFinanceTransactionsForSearchRow{}
+	for rows.Next() {
+		var i ListFinanceTransactionsForSearchRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.Type,
+			&i.Status,
+			&i.AccountID,
+			&i.CounterAccountID,
+			&i.CategoryID,
+			&i.Amount,
+			&i.Currency,
+			&i.TransactionDate,
+			&i.Description,
+			&i.ReferenceNo,
+			&i.PaymentMethod,
+			&i.CreatedBy,
+			&i.VoidedAt,
+			&i.VoidedBy,
+			&i.SourceType,
+			&i.SourceUuid,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.OrganizationUuid,
+			&i.OrganizationSlug,
+			&i.AccountName,
 		); err != nil {
 			return nil, err
 		}

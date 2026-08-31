@@ -39,5 +39,8 @@
   "resources.platform.integrations.facebook": "Facebook entegrasyonu",
   "resources.platform.integrations.apple": "Apple entegrasyonu",
   "resources.auth.step_up": "Step-up doğrulama",
-  "resources.finance.transaction": "Finans işlemi"
+  "resources.finance.transaction": "Finans işlemi",
+  "resources.tenant.finance.accounts": "Finans hesapları",
+  "resources.tenant.finance.categories": "Finans kategorileri",
+  "resources.tenant.finance.transactions": "Finans hareketleri"
 }

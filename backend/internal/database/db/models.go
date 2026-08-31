@@ -91,20 +91,21 @@ type BulkJob struct {
 }
 
 type ExportJob struct {
-	ID        int64              `json:"id"`
-	Uuid      uuid.UUID          `json:"uuid"`
-	Resource  string             `json:"resource"`
-	ActorID   int64              `json:"actor_id"`
-	Format    string             `json:"format"`
-	QueryJson []byte             `json:"query_json"`
-	Locale    string             `json:"locale"`
-	Status    string             `json:"status"`
-	FileKey   pgtype.Text        `json:"file_key"`
-	RowCount  int32              `json:"row_count"`
-	Error     pgtype.Text        `json:"error"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	Resource       string             `json:"resource"`
+	ActorID        int64              `json:"actor_id"`
+	Format         string             `json:"format"`
+	QueryJson      []byte             `json:"query_json"`
+	Locale         string             `json:"locale"`
+	Status         string             `json:"status"`
+	FileKey        pgtype.Text        `json:"file_key"`
+	RowCount       int32              `json:"row_count"`
+	Error          pgtype.Text        `json:"error"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
 }
 
 type FinanceAccount struct {
@@ -189,22 +190,23 @@ type ImportChange struct {
 }
 
 type ImportJob struct {
-	ID            int64              `json:"id"`
-	Uuid          uuid.UUID          `json:"uuid"`
-	Resource      string             `json:"resource"`
-	ActorID       int64              `json:"actor_id"`
-	Format        string             `json:"format"`
-	Locale        string             `json:"locale"`
-	Status        string             `json:"status"`
-	FileKey       pgtype.Text        `json:"file_key"`
-	MappingJson   []byte             `json:"mapping_json"`
-	DefaultsJson  []byte             `json:"defaults_json"`
-	PreviewJson   []byte             `json:"preview_json"`
-	Error         pgtype.Text        `json:"error"`
-	RollbackUntil pgtype.Timestamptz `json:"rollback_until"`
-	AppliedAt     pgtype.Timestamptz `json:"applied_at"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	Resource       string             `json:"resource"`
+	ActorID        int64              `json:"actor_id"`
+	Format         string             `json:"format"`
+	Locale         string             `json:"locale"`
+	Status         string             `json:"status"`
+	FileKey        pgtype.Text        `json:"file_key"`
+	MappingJson    []byte             `json:"mapping_json"`
+	DefaultsJson   []byte             `json:"defaults_json"`
+	PreviewJson    []byte             `json:"preview_json"`
+	Error          pgtype.Text        `json:"error"`
+	RollbackUntil  pgtype.Timestamptz `json:"rollback_until"`
+	AppliedAt      pgtype.Timestamptz `json:"applied_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
 }
 
 type LogPurgeRule struct {
@@ -333,6 +335,12 @@ type Organization struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	Email          string             `json:"email"`
+	Website        string             `json:"website"`
+	Tagline        string             `json:"tagline"`
+	FooterText     string             `json:"footer_text"`
+	PaperSize      string             `json:"paper_size"`
+	PrimaryColor   string             `json:"primary_color"`
 }
 
 type OrganizationMember struct {

@@ -32,11 +32,14 @@ import {
 } from "@/features/io/lib/display";
 import { isSpreadsheetExportFormat } from "@/features/io/lib/parse-export-spreadsheet";
 import { exportsService } from "@/features/io/services/exports.service";
+import type { ExportJobScope } from "@/features/io/types";
 import { useLocale } from "@/providers/locale-provider";
 import { appToast } from "@/providers/toast-provider";
 
 type ExportDetailPageProps = {
   uuid: string;
+  scope?: ExportJobScope;
+  slug?: string;
 };
 
 function statusVariant(status: string) {
@@ -46,10 +49,18 @@ function statusVariant(status: string) {
   return "outline" as const;
 }
 
-export function ExportDetailPage({ uuid }: ExportDetailPageProps) {
+export function ExportDetailPage({
+  uuid,
+  scope = "platform",
+  slug,
+}: ExportDetailPageProps) {
   const { t } = useLocale();
-  const jobQuery = useExportJob(uuid);
+  const jobQuery = useExportJob(uuid, true, scope);
   const job = jobQuery.data;
+  const tenant = scope === "tenant";
+  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
+  const listHref =
+    tenant && slug ? routes.tenant.exports.root(slug) : routes.platform.exports.root;
 
   const resourceName = job
     ? (() => {
@@ -69,7 +80,7 @@ export function ExportDetailPage({ uuid }: ExportDetailPageProps) {
     <EntityPage
       title={title}
       description={t("exports.detail.description")}
-      permission={permissions.exports.read}
+      permission={tenant ? permissions.finance.export : permissions.exports.read}
       forbiddenFallback={
         <ErrorState
           title={t("common.error_forbidden")}
@@ -77,8 +88,8 @@ export function ExportDetailPage({ uuid }: ExportDetailPageProps) {
         />
       }
       breadcrumbs={[
-        { label: t("layout.breadcrumb_home"), href: routes.platform.home },
-        { label: t("exports.title"), href: routes.platform.exports.root },
+        { label: t("layout.breadcrumb_home"), href: homeHref },
+        { label: t("exports.title"), href: listHref },
         { label: title },
       ]}
       actions={
@@ -86,7 +97,7 @@ export function ExportDetailPage({ uuid }: ExportDetailPageProps) {
           <Button
             size="sm"
             onClick={() => {
-              void exportsService.download(job).catch(() => {
+              void exportsService.download(job, scope).catch(() => {
                 appToast.error(t("exports.toast.download_failed"));
               });
             }}
@@ -190,6 +201,7 @@ export function ExportDetailPage({ uuid }: ExportDetailPageProps) {
                   <ExportSpreadsheetPreview
                     uuid={job.uuid}
                     format={job.format}
+                    scope={scope}
                   />
                 </>
               ) : isJsonExportFormat(job.format) ? (
@@ -197,14 +209,14 @@ export function ExportDetailPage({ uuid }: ExportDetailPageProps) {
                   <p className="text-muted-foreground mb-4 text-sm">
                     {t("exports.detail.preview_json_hint")}
                   </p>
-                  <ExportJsonPreview uuid={job.uuid} />
+                  <ExportJsonPreview uuid={job.uuid} scope={scope} />
                 </>
               ) : isPdfExportFormat(job.format) ? (
                 <>
                   <p className="text-muted-foreground mb-4 text-sm">
                     {t("exports.detail.preview_pdf_hint")}
                   </p>
-                  <ExportPdfPreview uuid={job.uuid} />
+                  <ExportPdfPreview uuid={job.uuid} scope={scope} />
                 </>
               ) : null}
             </EntitySectionCard>
@@ -218,7 +230,7 @@ export function ExportDetailPage({ uuid }: ExportDetailPageProps) {
               <Button
                 variant="outline"
                 onClick={() => {
-                  void exportsService.download(job).catch(() => {
+                  void exportsService.download(job, scope).catch(() => {
                     appToast.error(t("exports.toast.download_failed"));
                   });
                 }}

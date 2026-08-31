@@ -57,6 +57,11 @@
   "labels.platform.organizations.write": "İşletmeleri yönet",
   "labels.tenant.finance.read": "Finans okuma",
   "labels.tenant.finance.write": "Finans yazma",
+  "labels.tenant.finance.export": "Finans dışa aktarma",
+  "labels.tenant.finance.import": "Finans içe aktarma",
+  "labels.tenant.settings.read": "İşletme dışa aktarım ayarlarını görüntüle",
+  "labels.tenant.settings.write": "İşletme dışa aktarım ayarlarını düzenle",
+  "labels.tenant.imports.read": "İşletme içe aktarma işlerini görüntüle",
   "labels.auth.session": "Oturum",
   "labels.notifications.read": "Bildirimleri görüntüle",
   "labels.notifications.manage": "Bildirimleri yönet",
@@ -67,5 +72,6 @@
   "groups.roles": "Roller",
   "groups.permissions": "İzinler",
   "groups.system": "Sistem",
+  "groups.tenant": "İşletme",
   "groups.other": "Diğer"
 }

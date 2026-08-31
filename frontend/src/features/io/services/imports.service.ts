@@ -1,4 +1,4 @@
-import type { ImportFormat, ImportJob } from "@/features/io/types";
+import type { ImportFormat, ImportJob, ExportJobScope } from "@/features/io/types";
 import {
   platformDownloadRequest,
   platformFormRequest,
@@ -11,6 +11,10 @@ export type ListJobsResult = {
   limit: number;
   offset: number;
 };
+
+function importsBase(scope: ExportJobScope = "platform") {
+  return scope === "tenant" ? "/v1/tenant/imports" : "/v1/platform/imports";
+}
 
 export const importsService = {
   async upload(path: string, file: File, format: ImportFormat, locale: string) {
@@ -31,42 +35,46 @@ export const importsService = {
       mapping: Record<string, string>;
       defaults?: Record<string, string>;
     },
+    scope: ExportJobScope = "platform",
   ) {
     return platformRequest<ImportJob>(
       "PATCH",
-      `/v1/platform/imports/${uuid}/mapping`,
+      `${importsBase(scope)}/${uuid}/mapping`,
       { body },
     );
   },
 
-  async preview(uuid: string) {
+  async preview(uuid: string, scope: ExportJobScope = "platform") {
     return platformRequest<ImportJob>(
       "POST",
-      `/v1/platform/imports/${uuid}/preview`,
+      `${importsBase(scope)}/${uuid}/preview`,
     );
   },
 
-  async confirm(uuid: string) {
+  async confirm(uuid: string, scope: ExportJobScope = "platform") {
     return platformRequest<ImportJob>(
       "POST",
-      `/v1/platform/imports/${uuid}/confirm`,
+      `${importsBase(scope)}/${uuid}/confirm`,
     );
   },
 
-  async rollback(uuid: string) {
+  async rollback(uuid: string, scope: ExportJobScope = "platform") {
     return platformRequest<ImportJob>(
       "POST",
-      `/v1/platform/imports/${uuid}/rollback`,
+      `${importsBase(scope)}/${uuid}/rollback`,
     );
   },
 
-  async list(params: { limit?: number; offset?: number }) {
-    return platformRequest<ListJobsResult>("GET", "/v1/platform/imports", {
+  async list(
+    params: { limit?: number; offset?: number },
+    scope: ExportJobScope = "platform",
+  ) {
+    return platformRequest<ListJobsResult>("GET", importsBase(scope), {
       query: params,
     });
   },
 
-  async get(uuid: string) {
-    return platformRequest<ImportJob>("GET", `/v1/platform/imports/${uuid}`);
+  async get(uuid: string, scope: ExportJobScope = "platform") {
+    return platformRequest<ImportJob>("GET", `${importsBase(scope)}/${uuid}`);
   },
 };

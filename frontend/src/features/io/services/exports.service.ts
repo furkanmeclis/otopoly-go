@@ -1,4 +1,4 @@
-import type { ExportFormat, ExportJob } from "@/features/io/types";
+import type { ExportFormat, ExportJob, ExportJobScope } from "@/features/io/types";
 import {
   platformDownloadFile,
   triggerBrowserDownload,
@@ -13,41 +13,40 @@ export type ListJobsResult = {
   offset: number;
 };
 
+function exportsBase(scope: ExportJobScope = "platform") {
+  return scope === "tenant" ? "/v1/tenant/exports" : "/v1/platform/exports";
+}
+
 export const exportsService = {
   async request(
     path: string,
-    body: {
-      format: ExportFormat;
-      query?: Record<string, string>;
-      locale?: string;
-    },
+    body: { format: ExportFormat; query?: Record<string, string>; locale?: string },
   ) {
     return platformRequest<ExportJob>("POST", path, { body });
   },
 
-  async list(params: { limit?: number; offset?: number }) {
-    return platformRequest<ListJobsResult>("GET", "/v1/platform/exports", {
+  async list(
+    params: { limit?: number; offset?: number },
+    scope: ExportJobScope = "platform",
+  ) {
+    return platformRequest<ListJobsResult>("GET", exportsBase(scope), {
       query: params,
     });
   },
 
-  async get(uuid: string) {
-    return platformRequest<ExportJob>("GET", `/v1/platform/exports/${uuid}`);
+  async get(uuid: string, scope: ExportJobScope = "platform") {
+    return platformRequest<ExportJob>("GET", `${exportsBase(scope)}/${uuid}`);
   },
 
-  async fetchFile(uuid: string) {
-    return platformDownloadFile(`/v1/platform/exports/${uuid}/download`);
+  async fetchFile(uuid: string, scope: ExportJobScope = "platform") {
+    return platformDownloadFile(`${exportsBase(scope)}/${uuid}/download`);
   },
 
-  async download(job: ExportJob) {
-    const { blob, filename } = await this.fetchFile(job.uuid);
+  async download(job: ExportJob, scope: ExportJobScope = "platform") {
+    const { blob, filename } = await this.fetchFile(job.uuid, scope);
     const name =
       filename ??
-      exportDownloadFilename(
-        job.resource,
-        job.format,
-        new Date(job.created_at),
-      );
+      exportDownloadFilename(job.resource, job.format, new Date(job.created_at));
     triggerBrowserDownload(blob, name);
   },
 };

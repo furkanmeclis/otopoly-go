@@ -35,6 +35,7 @@ import { notificationActions } from "@/features/notifications/lib/notification-a
 import { formatNotificationText } from "@/features/notifications/lib/notification-display";
 import { runNotificationAction } from "@/features/notifications/lib/run-notification-action";
 import type { Notification } from "@/features/notifications/services/notifications.service";
+import { useOptionalTenant } from "@/features/organizations/providers/tenant-provider";
 import { cn, relativeDatetime } from "@/lib/utils";
 import { appToast } from "@/providers/toast-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -44,6 +45,7 @@ export function NotificationInbox() {
   const { t, locale } = useLocale();
   const router = useRouter();
   const { can } = usePermission();
+  const tenant = useOptionalTenant();
   const enabled = can(permissions.notifications.read);
 
   useNotificationRealtimeInvalidate(enabled);
@@ -163,7 +165,10 @@ export function NotificationInbox() {
               <ul className="p-1.5">
                 {items.map((item) => {
                   const unread = isUnreadNotification(item);
-                  const actions = notificationActions(item.action_url);
+                  const actions = notificationActions(item.action_url, {
+                    tenantSlug: tenant?.slug,
+                    payload: item.payload,
+                  });
                   return (
                     <li key={item.uuid}>
                       <div

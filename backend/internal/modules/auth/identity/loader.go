@@ -36,6 +36,10 @@ func (l Loader) LoadPrincipal(r *http.Request, claims jwt.Claims) (authctx.Princ
 	if err != nil {
 		return authctx.Principal{}, err
 	}
+	orgUUID, err := claims.OrganizationUUID()
+	if err != nil {
+		return authctx.Principal{}, err
+	}
 	return authctx.Principal{
 		UserID:             user.UUID,
 		UserInternal:       user.ID,
@@ -45,5 +49,6 @@ func (l Loader) LoadPrincipal(r *http.Request, claims jwt.Claims) (authctx.Princ
 		IsSuperAdmin:       isSuperAdmin,
 		ImpersonatorUserID: impersonatorUUID,
 		SessionID:          claims.SessionUUID(),
+		OrganizationUUID:   orgUUID,
 	}, nil
 }

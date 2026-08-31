@@ -44,6 +44,11 @@ export const Permission = {
 
   TenantFinanceRead: "tenant.finance.read",
   TenantFinanceWrite: "tenant.finance.write",
+  TenantFinanceExport: "tenant.finance.export",
+  TenantFinanceImport: "tenant.finance.import",
+  TenantSettingsRead: "tenant.settings.read",
+  TenantSettingsWrite: "tenant.settings.write",
+  TenantImportsRead: "tenant.imports.read",
 
   AuthSession: "auth.session",
 
@@ -90,12 +95,15 @@ export const permissions = {
   settings: {
     read: Permission.PlatformSettingsRead,
     write: Permission.PlatformSettingsWrite,
+    tenantRead: Permission.TenantSettingsRead,
+    tenantWrite: Permission.TenantSettingsWrite,
   },
   activity: {
     read: Permission.PlatformActivityRead,
   },
   imports: {
     read: Permission.PlatformImportsRead,
+    tenantRead: Permission.TenantImportsRead,
   },
   exports: {
     read: Permission.PlatformExportsRead,
@@ -144,6 +152,8 @@ export const permissions = {
   finance: {
     read: Permission.TenantFinanceRead,
     write: Permission.TenantFinanceWrite,
+    export: Permission.TenantFinanceExport,
+    import: Permission.TenantFinanceImport,
   },
   auth: {
     session: Permission.AuthSession,

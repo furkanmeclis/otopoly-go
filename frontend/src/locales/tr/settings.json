@@ -1,6 +1,7 @@
 {
   "title": "Dışa aktarım ayarları",
   "description": "PDF ve Excel dışa aktarmalarında kullanılan antet, logo, kağıt boyutu ve kurumsal iletişim bilgilerini yönetin.",
+  "tenant_description": "Bu işletmenin anteti organizasyon kaydından gelir: ad, logo, adres, ilçe/şehir ve iletişim bilgileri PDF ve Excel dışa aktarmalarında kullanılır.",
   "forbidden": "Dışa aktarım ayarlarını görüntüleme yetkiniz yok.",
   "branding": "Marka ve antet",
   "branding_hint": "Logo ve renkler dışa aktarma dosyalarının üst bilgisinde görünür.",
@@ -17,6 +18,8 @@
   "paper_sizes.letter": "Letter (ABD)",
   "paper_sizes.legal": "Legal (ABD)",
   "address": "Adres",
+  "city": "Şehir",
+  "district": "İlçe",
   "phone": "Telefon",
   "email": "E-posta",
   "website": "Web sitesi",

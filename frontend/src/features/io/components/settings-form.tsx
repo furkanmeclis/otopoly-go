@@ -39,6 +39,7 @@ type SettingsFormProps = {
   isSaving: boolean;
   isLogoUploading: boolean;
   isLogoRemoving: boolean;
+  showLocation?: boolean;
   onSubmit: (payload: ReturnType<typeof toPatchPayload>) => Promise<void>;
   onUploadLogo: (file: File) => void;
   onRemoveLogo: () => void;
@@ -51,6 +52,7 @@ function SettingsFormFields({
   isSaving,
   isLogoUploading,
   isLogoRemoving,
+  showLocation,
   onCancel,
   onUploadLogo,
   onRemoveLogo,
@@ -61,6 +63,7 @@ function SettingsFormFields({
   isSaving: boolean;
   isLogoUploading: boolean;
   isLogoRemoving: boolean;
+  showLocation?: boolean;
   onCancel: () => void;
   onUploadLogo: (file: File) => void;
   onRemoveLogo: () => void;
@@ -199,6 +202,20 @@ function SettingsFormFields({
           disabled={!canWrite}
           className="sm:col-span-2"
         />
+        {showLocation ? (
+          <>
+            <AppInput
+              name="city"
+              label={t("settings.city")}
+              disabled={!canWrite}
+            />
+            <AppInput
+              name="district"
+              label={t("settings.district")}
+              disabled={!canWrite}
+            />
+          </>
+        ) : null}
         <AppInput
           name="phone"
           label={t("settings.phone")}
@@ -298,6 +315,7 @@ export function SettingsForm({
   isSaving,
   isLogoUploading,
   isLogoRemoving,
+  showLocation,
   onSubmit,
   onUploadLogo,
   onRemoveLogo,
@@ -323,6 +341,7 @@ export function SettingsForm({
           isSaving={isSaving}
           isLogoUploading={isLogoUploading}
           isLogoRemoving={isLogoRemoving}
+          showLocation={showLocation}
           onCancel={() => form.reset(defaultValues)}
           onUploadLogo={onUploadLogo}
           onRemoveLogo={onRemoveLogo}

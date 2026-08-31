@@ -96,6 +96,9 @@ func main() {
 		ioadapters.NewRoles(queries),
 		ioadapters.NewNotifications(queries),
 		ioadapters.NewActivity(queries),
+		ioadapters.NewFinanceAccounts(queries),
+		ioadapters.NewFinanceCategories(queries),
+		ioadapters.NewFinanceTransactions(queries),
 	)
 	exportSvc := exportusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
 	importSvc := importusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
@@ -108,6 +111,9 @@ func main() {
 	searchReg := searchengine.NewRegistry(
 		searchadapters.NewUsers(queries),
 		searchadapters.NewRoles(queries),
+		searchadapters.NewFinanceAccounts(queries),
+		searchadapters.NewFinanceCategories(queries),
+		searchadapters.NewFinanceTransactions(queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, nil, log)

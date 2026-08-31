@@ -5,6 +5,7 @@ export const financeQueryKeys = {
   accounts: (params?: Record<string, unknown>) =>
     [...financeQueryKeys.all, "accounts", params] as const,
   accountsMeta: () => [...financeQueryKeys.all, "accounts-meta"] as const,
+  categoriesMeta: () => [...financeQueryKeys.all, "categories-meta"] as const,
   account: (uuid: string) =>
     [...financeQueryKeys.all, "account", uuid] as const,
   accountDetail: (uuid: string, params?: Record<string, unknown>) =>

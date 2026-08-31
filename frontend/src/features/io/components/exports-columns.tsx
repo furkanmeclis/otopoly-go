@@ -15,7 +15,7 @@ import {
   resourceLabelKey,
 } from "@/features/io/lib/display";
 import { exportsService } from "@/features/io/services/exports.service";
-import type { ExportJob } from "@/features/io/types";
+import type { ExportJob, ExportJobScope } from "@/features/io/types";
 import { useLocale } from "@/providers/locale-provider";
 import { appToast } from "@/providers/toast-provider";
 
@@ -26,8 +26,16 @@ function statusVariant(status: string) {
   return "outline" as const;
 }
 
-export function useExportsColumns() {
+type ExportsColumnsOptions = {
+  scope?: ExportJobScope;
+  detailHref?: (uuid: string) => string;
+};
+
+export function useExportsColumns(options: ExportsColumnsOptions = {}) {
   const { t } = useLocale();
+  const scope = options.scope ?? "platform";
+  const detailHref =
+    options.detailHref ?? ((uuid: string) => routes.platform.exports.detail(uuid));
 
   return useMemo<ColumnDef<ExportJob>[]>(
     () => [
@@ -83,7 +91,7 @@ export function useExportsColumns() {
           return (
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" asChild>
-                <Link href={routes.platform.exports.detail(job.uuid)}>
+                <Link href={detailHref(job.uuid)}>
                   <Eye className="size-4" />
                   {t("exports.actions.view")}
                 </Link>
@@ -93,7 +101,7 @@ export function useExportsColumns() {
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    void exportsService.download(job).catch(() => {
+                    void exportsService.download(job, scope).catch(() => {
                       appToast.error(t("exports.toast.download_failed"));
                     });
                   }}
@@ -106,6 +114,6 @@ export function useExportsColumns() {
         },
       }),
     ],
-    [t],
+    [t, scope, detailHref],
   );
 }

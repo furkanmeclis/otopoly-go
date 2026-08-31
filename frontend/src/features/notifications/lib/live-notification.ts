@@ -12,6 +12,7 @@ export type LiveNotification = {
   action_url?: string;
   signed_action_url?: string;
   template_code?: string;
+  payload?: Record<string, unknown>;
 };
 
 function asString(value: unknown) {
@@ -36,6 +37,7 @@ function fromRecord(record: Record<string, unknown>): LiveNotification | null {
     action_url: asString(record.action_url),
     signed_action_url: asString(record.signed_action_url),
     template_code: asString(record.template_code),
+    payload: asRecord(record.payload) ?? undefined,
   };
 }
 
@@ -79,6 +81,9 @@ export async function enrichLiveNotification(
         notification.signed_action_url || full.signed_action_url,
       template_code: notification.template_code || full.template_code,
       channel: notification.channel || full.channel,
+      payload:
+        notification.payload ||
+        (full.payload as Record<string, unknown> | undefined),
     };
   } catch {
     return notification;

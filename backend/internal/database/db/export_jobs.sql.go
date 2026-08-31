@@ -34,25 +34,38 @@ func (q *Queries) CountExportJobsForActor(ctx context.Context, actorID int64) (i
 	return column_1, err
 }
 
+const countExportJobsForOrganization = `-- name: CountExportJobsForOrganization :one
+SELECT COUNT(*)::bigint FROM export_jobs WHERE organization_id = $1
+`
+
+func (q *Queries) CountExportJobsForOrganization(ctx context.Context, organizationID pgtype.Int8) (int64, error) {
+	row := q.db.QueryRow(ctx, countExportJobsForOrganization, organizationID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createExportJob = `-- name: CreateExportJob :one
-INSERT INTO export_jobs (resource, actor_id, format, query_json, locale, status, expires_at)
-VALUES ($1, $2, $3, $4, $5, 'queued', $6)
-RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at
+INSERT INTO export_jobs (resource, actor_id, organization_id, format, query_json, locale, status, expires_at)
+VALUES ($1, $2, $3, $4, $5, $6, 'queued', $7)
+RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id
 `
 
 type CreateExportJobParams struct {
-	Resource  string             `json:"resource"`
-	ActorID   int64              `json:"actor_id"`
-	Format    string             `json:"format"`
-	QueryJson []byte             `json:"query_json"`
-	Locale    string             `json:"locale"`
-	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	Resource       string             `json:"resource"`
+	ActorID        int64              `json:"actor_id"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	Format         string             `json:"format"`
+	QueryJson      []byte             `json:"query_json"`
+	Locale         string             `json:"locale"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
 }
 
 func (q *Queries) CreateExportJob(ctx context.Context, arg CreateExportJobParams) (ExportJob, error) {
 	row := q.db.QueryRow(ctx, createExportJob,
 		arg.Resource,
 		arg.ActorID,
+		arg.OrganizationID,
 		arg.Format,
 		arg.QueryJson,
 		arg.Locale,
@@ -74,12 +87,13 @@ func (q *Queries) CreateExportJob(ctx context.Context, arg CreateExportJobParams
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }
 
 const getExportJobByID = `-- name: GetExportJobByID :one
-SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at FROM export_jobs WHERE id = $1
+SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id FROM export_jobs WHERE id = $1
 `
 
 func (q *Queries) GetExportJobByID(ctx context.Context, id int64) (ExportJob, error) {
@@ -100,12 +114,13 @@ func (q *Queries) GetExportJobByID(ctx context.Context, id int64) (ExportJob, er
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }
 
 const getExportJobByUUID = `-- name: GetExportJobByUUID :one
-SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at FROM export_jobs WHERE uuid = $1
+SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id FROM export_jobs WHERE uuid = $1
 `
 
 func (q *Queries) GetExportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ExportJob, error) {
@@ -126,12 +141,13 @@ func (q *Queries) GetExportJobByUUID(ctx context.Context, argUuid uuid.UUID) (Ex
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }
 
 const listAllExportJobs = `-- name: ListAllExportJobs :many
-SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at FROM export_jobs
+SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id FROM export_jobs
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $1
 `
@@ -165,6 +181,7 @@ func (q *Queries) ListAllExportJobs(ctx context.Context, arg ListAllExportJobsPa
 			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OrganizationID,
 		); err != nil {
 			return nil, err
 		}
@@ -177,7 +194,7 @@ func (q *Queries) ListAllExportJobs(ctx context.Context, arg ListAllExportJobsPa
 }
 
 const listExportJobsForActor = `-- name: ListExportJobsForActor :many
-SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at FROM export_jobs
+SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id FROM export_jobs
 WHERE actor_id = $1
 ORDER BY created_at DESC
 LIMIT $3 OFFSET $2
@@ -213,6 +230,56 @@ func (q *Queries) ListExportJobsForActor(ctx context.Context, arg ListExportJobs
 			&i.ExpiresAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.OrganizationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listExportJobsForOrganization = `-- name: ListExportJobsForOrganization :many
+SELECT id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id FROM export_jobs
+WHERE organization_id = $1
+ORDER BY created_at DESC
+LIMIT $3 OFFSET $2
+`
+
+type ListExportJobsForOrganizationParams struct {
+	OrganizationID pgtype.Int8 `json:"organization_id"`
+	OffsetCount    int32       `json:"offset_count"`
+	LimitCount     int32       `json:"limit_count"`
+}
+
+func (q *Queries) ListExportJobsForOrganization(ctx context.Context, arg ListExportJobsForOrganizationParams) ([]ExportJob, error) {
+	rows, err := q.db.Query(ctx, listExportJobsForOrganization, arg.OrganizationID, arg.OffsetCount, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportJob{}
+	for rows.Next() {
+		var i ExportJob
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.Resource,
+			&i.ActorID,
+			&i.Format,
+			&i.QueryJson,
+			&i.Locale,
+			&i.Status,
+			&i.FileKey,
+			&i.RowCount,
+			&i.Error,
+			&i.ExpiresAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.OrganizationID,
 		); err != nil {
 			return nil, err
 		}
@@ -230,7 +297,7 @@ SET status = 'completed',
     file_key = $2,
     row_count = $3
 WHERE id = $1
-RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at
+RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id
 `
 
 type MarkExportJobCompletedParams struct {
@@ -257,6 +324,7 @@ func (q *Queries) MarkExportJobCompleted(ctx context.Context, arg MarkExportJobC
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }
@@ -266,7 +334,7 @@ UPDATE export_jobs
 SET status = 'failed',
     error = $2
 WHERE id = $1
-RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at
+RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id
 `
 
 type MarkExportJobFailedParams struct {
@@ -292,6 +360,7 @@ func (q *Queries) MarkExportJobFailed(ctx context.Context, arg MarkExportJobFail
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }
@@ -300,7 +369,7 @@ const markExportJobProcessing = `-- name: MarkExportJobProcessing :one
 UPDATE export_jobs
 SET status = 'processing'
 WHERE id = $1 AND status = 'queued'
-RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at
+RETURNING id, uuid, resource, actor_id, format, query_json, locale, status, file_key, row_count, error, expires_at, created_at, updated_at, organization_id
 `
 
 func (q *Queries) MarkExportJobProcessing(ctx context.Context, id int64) (ExportJob, error) {
@@ -321,6 +390,7 @@ func (q *Queries) MarkExportJobProcessing(ctx context.Context, id int64) (Export
 		&i.ExpiresAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }

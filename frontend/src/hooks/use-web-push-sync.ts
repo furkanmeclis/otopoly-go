@@ -16,6 +16,7 @@ export function useWebPushSync(enabled = true) {
     if (!enabled || syncedRef.current) return;
     if (
       typeof window === "undefined" ||
+      typeof Notification === "undefined" ||
       Notification.permission !== "granted"
     ) {
       return;

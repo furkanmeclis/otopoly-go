@@ -66,6 +66,22 @@ SET name = COALESCE(sqlc.narg(name), name),
 WHERE uuid = sqlc.arg(uuid) AND deleted_at IS NULL
 RETURNING *;
 
+-- name: UpdateOrganizationLetterhead :one
+UPDATE organizations
+SET name = COALESCE(sqlc.narg(name), name),
+    city = COALESCE(sqlc.narg(city), city),
+    district = COALESCE(sqlc.narg(district), district),
+    phone = COALESCE(sqlc.narg(phone), phone),
+    address = COALESCE(sqlc.narg(address), address),
+    email = COALESCE(sqlc.narg(email), email),
+    website = COALESCE(sqlc.narg(website), website),
+    tagline = COALESCE(sqlc.narg(tagline), tagline),
+    footer_text = COALESCE(sqlc.narg(footer_text), footer_text),
+    paper_size = COALESCE(sqlc.narg(paper_size), paper_size),
+    primary_color = COALESCE(sqlc.narg(primary_color), primary_color)
+WHERE id = sqlc.arg(id) AND deleted_at IS NULL
+RETURNING *;
+
 -- name: SetOrganizationLogo :one
 UPDATE organizations
 SET logo_object_key = $2

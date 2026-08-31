@@ -16,6 +16,7 @@ export type RemoteSearchSpec = {
   label_key: string;
   permission?: string;
   icon?: string;
+  tenant_scoped?: boolean;
 };
 
 export type SearchHit = {

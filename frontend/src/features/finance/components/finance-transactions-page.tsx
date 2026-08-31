@@ -1,7 +1,5 @@
 "use client";
 
-// TODO(finance): ResourceIOToolbar + bulk void when bulk-engine tenant finance adapter ships.
-
 import { useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
@@ -21,9 +19,11 @@ import {
   useFinanceAccounts,
   useFinanceCategories,
   useFinanceTransactions,
+  useFinanceTransactionsMeta,
 } from "@/features/finance/hooks/use-finance-queries";
 import { useTenantFinanceAccess } from "@/features/finance/hooks/use-tenant-finance-access";
 import type { FinanceTransaction } from "@/features/finance/services/finance.service";
+import { ResourceIOToolbar } from "@/features/io";
 import { useLocale } from "@/providers/locale-provider";
 import type { ColumnFiltersState } from "@tanstack/react-table";
 
@@ -106,6 +106,7 @@ export function FinanceTransactionsPage({ slug }: { slug: string }) {
   }, [listState]);
 
   const listQuery = useFinanceTransactions(listParams);
+  const metaQuery = useFinanceTransactionsMeta();
 
   const handleVoid = useCallback(
     (tx: FinanceTransaction) => {
@@ -194,10 +195,29 @@ export function FinanceTransactionsPage({ slug }: { slug: string }) {
           pagination: true,
         }}
         toolbarExtra={
-          <EntityToolbar
-            onRefresh={() => void listQuery.refetch()}
-            refreshDisabled={listQuery.isFetching}
-          />
+          <>
+            <ResourceIOToolbar
+              resource="tenant.finance.transactions"
+              query={{
+                q: listParams.q,
+                type: listParams.type,
+                status: listParams.status,
+                currency: listParams.currency,
+                date_from: listParams.date_from,
+                date_to: listParams.date_to,
+                account_uuid: listParams.account_uuid,
+                category_uuid: listParams.category_uuid,
+                sort: listParams.sort,
+              }}
+              capabilities={metaQuery.data?.capabilities}
+              jobsHref={routes.tenant.exports.root(slug)}
+              scope="tenant"
+            />
+            <EntityToolbar
+              onRefresh={() => void listQuery.refetch()}
+              refreshDisabled={listQuery.isFetching}
+            />
+          </>
         }
       />
 

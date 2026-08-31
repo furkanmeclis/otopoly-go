@@ -393,6 +393,15 @@ func SampleRows(resource string) []map[string]any {
 		return []map[string]any{
 			{"name": "Import Role", "slug": "import_role", "description": "Sample role", "permission_slugs": "notifications.read"},
 		}
+	case ResourceFinanceAccounts:
+		return []map[string]any{
+			{"name": "Kasa", "type": "cash", "currency": "TRY", "opening_balance": "0.00", "is_default": "true", "is_active": "true"},
+		}
+	case ResourceFinanceCategories:
+		return []map[string]any{
+			{"name": "Yıkama geliri", "kind": "income", "sort_order": "0", "is_active": "true"},
+			{"name": "Malzeme", "kind": "expense", "sort_order": "0", "is_active": "true"},
+		}
 	default:
 		return nil
 	}

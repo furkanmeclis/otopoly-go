@@ -30,11 +30,12 @@ type ExportMenuProps = {
   resource: IoResource;
   query?: Record<string, string | undefined>;
   disabled?: boolean;
+  jobsHref?: string;
 };
 
 const FORMATS: ExportFormat[] = ["pdf", "xlsx", "csv", "json"];
 
-export function ExportMenu({ resource, query, disabled }: ExportMenuProps) {
+export function ExportMenu({ resource, query, disabled, jobsHref }: ExportMenuProps) {
   const { t, locale } = useLocale();
   const [pending, setPending] = useState<ExportFormat | null>(null);
 
@@ -90,7 +91,7 @@ export function ExportMenu({ resource, query, disabled }: ExportMenuProps) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuItem asChild>
-          <Link href={routes.platform.exports.root}>
+          <Link href={jobsHref ?? routes.platform.exports.root}>
             {t("exports.view_jobs")}
           </Link>
         </DropdownMenuItem>

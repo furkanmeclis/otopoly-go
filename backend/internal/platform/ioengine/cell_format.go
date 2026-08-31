@@ -50,6 +50,10 @@ func formatCell(v any, col Column, loc i18n.Locale) string {
 		}
 	case ColumnTypeEnum:
 		s := fmt.Sprint(v)
+		fieldKey := col.LabelKey + "." + s
+		if translated := i18n.Translate(loc, fieldKey); translated != fieldKey {
+			return translated
+		}
 		dot := strings.Index(col.LabelKey, ".")
 		if dot >= 0 {
 			prefix := col.LabelKey[:dot+1]

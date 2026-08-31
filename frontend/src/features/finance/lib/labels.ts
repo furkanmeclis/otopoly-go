@@ -19,7 +19,19 @@ const TRANSACTION_STATUS_HINT_KEYS = {
   void: "finance.transactions.status_void_hint",
 } as const;
 
+const CATEGORY_KIND_KEYS = {
+  income: "finance.categories.kind_income",
+  expense: "finance.categories.kind_expense",
+} as const;
+
 // TODO(finance): paymentMethodLabelKey when payment_method is exposed in forms and transaction report.
+
+export function categoryKindLabelKey(kind: string): string {
+  return (
+    CATEGORY_KIND_KEYS[kind as keyof typeof CATEGORY_KIND_KEYS] ??
+    "finance.categories.kind"
+  );
+}
 
 export function accountTypeLabelKey(type: string): string {
   return (

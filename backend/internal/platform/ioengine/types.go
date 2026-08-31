@@ -55,6 +55,10 @@ const (
 // ExportQuery carries list filters from the client.
 type ExportQuery map[string]string
 
+// QueryOrganizationID is injected by the export worker from export_jobs.organization_id.
+// Clients must not set this key; RequestExport strips it.
+const QueryOrganizationID = "_organization_id"
+
 // ImportField describes an importable schema field.
 type ImportField struct {
 	Key         string     `json:"key"`
@@ -77,9 +81,9 @@ type RowResult struct {
 
 // PreviewSummary aggregates a dry-run.
 type PreviewSummary struct {
-	Total   int         `json:"total"`
-	Valid   int         `json:"valid"`
-	Invalid int         `json:"invalid"`
+	Total   int          `json:"total"`
+	Valid   int          `json:"valid"`
+	Invalid int          `json:"invalid"`
 	Rows    []RowPreview `json:"rows"`
 	Errors  []RowError   `json:"errors"`
 }
@@ -97,17 +101,17 @@ type RowError struct {
 
 // Letterhead branding for PDF/XLSX headers.
 type Letterhead struct {
-	CompanyName   string
-	Tagline       string
-	PrimaryColor  string
-	Address       string
-	Phone         string
-	Email         string
-	Website       string
-	FooterText    string
-	PaperSize     string
-	LogoBytes     []byte
-	LogoMIME      string
+	CompanyName  string
+	Tagline      string
+	PrimaryColor string
+	Address      string
+	Phone        string
+	Email        string
+	Website      string
+	FooterText   string
+	PaperSize    string
+	LogoBytes    []byte
+	LogoMIME     string
 }
 
 // ResourceAdapter connects ioengine to a list resource.

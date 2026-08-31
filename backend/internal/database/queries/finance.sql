@@ -1,6 +1,6 @@
 -- Finance module queries (tenant-scoped via organization_id).
--- TODO(finance): Add GetFinanceCategoryByID, ListFinanceTransactionsForExport (io-engine),
--- and composite indexes if list/filter latency grows (organization_id + transaction_date DESC).
+-- TODO(finance): Add GetFinanceCategoryByID and composite indexes if list/filter
+-- latency grows (organization_id + transaction_date DESC).
 
 -- name: CreateFinanceAccount :one
 INSERT INTO finance_accounts (
@@ -211,6 +211,46 @@ FROM finance_transactions t
 WHERE t.organization_id = sqlc.arg(organization_id)
   AND (t.account_id = sqlc.arg(account_id) OR t.counter_account_id = sqlc.arg(account_id));
 
+-- name: ListFinanceAccountsForSearch :many
+SELECT a.*, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_accounts a
+JOIN organizations o ON o.id = a.organization_id
+WHERE a.deleted_at IS NULL AND o.deleted_at IS NULL;
+
+-- name: ListFinanceCategoriesForSearch :many
+SELECT c.*, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_categories c
+JOIN organizations o ON o.id = c.organization_id
+WHERE c.deleted_at IS NULL AND o.deleted_at IS NULL;
+
+-- name: ListFinanceTransactionsForSearch :many
+SELECT t.*, o.uuid AS organization_uuid, o.slug AS organization_slug,
+       a.name AS account_name
+FROM finance_transactions t
+JOIN organizations o ON o.id = t.organization_id
+JOIN finance_accounts a ON a.id = t.account_id
+WHERE o.deleted_at IS NULL;
+
+-- name: GetFinanceAccountForSearch :one
+SELECT a.*, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_accounts a
+JOIN organizations o ON o.id = a.organization_id
+WHERE a.uuid = $1 AND o.uuid = $2 AND a.deleted_at IS NULL AND o.deleted_at IS NULL;
+
+-- name: GetFinanceCategoryForSearch :one
+SELECT c.*, o.uuid AS organization_uuid, o.slug AS organization_slug
+FROM finance_categories c
+JOIN organizations o ON o.id = c.organization_id
+WHERE c.uuid = $1 AND o.uuid = $2 AND c.deleted_at IS NULL AND o.deleted_at IS NULL;
+
+-- name: GetFinanceTransactionForSearch :one
+SELECT t.*, o.uuid AS organization_uuid, o.slug AS organization_slug,
+       a.name AS account_name
+FROM finance_transactions t
+JOIN organizations o ON o.id = t.organization_id
+JOIN finance_accounts a ON a.id = t.account_id
+WHERE t.uuid = $1 AND o.uuid = $2 AND o.deleted_at IS NULL;
+
 -- name: GetFinanceCategoryStats :one
 SELECT
   COUNT(*) FILTER (WHERE t.status = 'posted')::bigint AS posted_count,
@@ -218,3 +258,52 @@ SELECT
   COALESCE(SUM(t.amount) FILTER (WHERE t.status = 'posted'), 0)::numeric AS total_amount
 FROM finance_transactions t
 WHERE t.organization_id = $1 AND t.category_id = $2;
+
+-- name: GetFinanceAccountByName :one
+SELECT * FROM finance_accounts
+WHERE organization_id = $1 AND lower(name) = lower(sqlc.arg(name)) AND deleted_at IS NULL;
+
+-- name: GetFinanceCategoryByName :one
+SELECT * FROM finance_categories
+WHERE organization_id = $1
+  AND lower(name) = lower(sqlc.arg(name))
+  AND kind = sqlc.arg(kind)
+  AND deleted_at IS NULL;
+
+-- name: ListFinanceAccountsForExport :many
+SELECT * FROM finance_accounts
+WHERE organization_id = $1 AND deleted_at IS NULL
+  AND (sqlc.narg(is_active)::boolean IS NULL OR is_active = sqlc.narg(is_active))
+  AND (sqlc.narg(type)::text IS NULL OR type = sqlc.narg(type))
+  AND (sqlc.narg(currency)::text IS NULL OR currency = sqlc.narg(currency))
+  AND (
+    sqlc.narg(q)::text IS NULL
+    OR name ILIKE '%' || sqlc.narg(q) || '%'
+    OR bank_name ILIKE '%' || sqlc.narg(q) || '%'
+  )
+ORDER BY is_default DESC, name ASC;
+
+-- name: ListFinanceTransactionsForExport :many
+SELECT t.*,
+       a.uuid AS account_uuid, a.name AS account_name,
+       ca.uuid AS counter_account_uuid, ca.name AS counter_account_name,
+       c.uuid AS category_uuid, c.name AS category_name
+FROM finance_transactions t
+JOIN finance_accounts a ON a.id = t.account_id
+LEFT JOIN finance_accounts ca ON ca.id = t.counter_account_id
+LEFT JOIN finance_categories c ON c.id = t.category_id
+WHERE t.organization_id = $1
+  AND (sqlc.narg(type)::text IS NULL OR t.type = sqlc.narg(type))
+  AND (sqlc.narg(status)::text IS NULL OR t.status = sqlc.narg(status))
+  AND (sqlc.narg(account_uuid)::uuid IS NULL OR a.uuid = sqlc.narg(account_uuid))
+  AND (sqlc.narg(category_uuid)::uuid IS NULL OR c.uuid = sqlc.narg(category_uuid))
+  AND (sqlc.narg(currency)::text IS NULL OR t.currency = sqlc.narg(currency))
+  AND (sqlc.narg(date_from)::date IS NULL OR t.transaction_date >= sqlc.narg(date_from))
+  AND (sqlc.narg(date_to)::date IS NULL OR t.transaction_date <= sqlc.narg(date_to))
+  AND (
+    sqlc.narg(q)::text IS NULL
+    OR t.description ILIKE '%' || sqlc.narg(q) || '%'
+    OR t.reference_no ILIKE '%' || sqlc.narg(q) || '%'
+  )
+ORDER BY t.transaction_date DESC, t.created_at DESC
+LIMIT 10000;

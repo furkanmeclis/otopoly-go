@@ -1,18 +1,26 @@
+import type { ExportJobScope } from "@/features/io/types";
+
 export const ioKeys = {
   exports: {
-    all: ["platform", "exports"] as const,
-    lists: () => [...ioKeys.exports.all, "list"] as const,
-    list: (params: object) => [...ioKeys.exports.lists(), params] as const,
-    detail: (uuid: string) => [...ioKeys.exports.all, uuid] as const,
+    all: (scope: ExportJobScope = "platform") => [scope, "exports"] as const,
+    lists: (scope: ExportJobScope = "platform") =>
+      [...ioKeys.exports.all(scope), "list"] as const,
+    list: (params: object, scope: ExportJobScope = "platform") =>
+      [...ioKeys.exports.lists(scope), params] as const,
+    detail: (uuid: string, scope: ExportJobScope = "platform") =>
+      [...ioKeys.exports.all(scope), uuid] as const,
   },
   imports: {
-    all: ["platform", "imports"] as const,
-    lists: () => [...ioKeys.imports.all, "list"] as const,
-    list: (params: object) => [...ioKeys.imports.lists(), params] as const,
-    detail: (uuid: string) => [...ioKeys.imports.all, uuid] as const,
+    all: (scope: ExportJobScope = "platform") => [scope, "imports"] as const,
+    lists: (scope: ExportJobScope = "platform") =>
+      [...ioKeys.imports.all(scope), "list"] as const,
+    list: (params: object, scope: ExportJobScope = "platform") =>
+      [...ioKeys.imports.lists(scope), params] as const,
+    detail: (uuid: string, scope: ExportJobScope = "platform") =>
+      [...ioKeys.imports.all(scope), uuid] as const,
   },
   settings: {
-    all: ["platform", "settings"] as const,
+    all: (scope: ExportJobScope = "platform") => [scope, "settings"] as const,
   },
   activity: {
     all: ["platform", "activity"] as const,

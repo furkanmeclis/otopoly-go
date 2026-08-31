@@ -28,11 +28,13 @@ function statusVariant(status: string) {
 type UseImportsColumnsOptions = {
   onRollback: (uuid: string) => void;
   rollbackPending: boolean;
+  detailHref?: (uuid: string) => string;
 };
 
 export function useImportsColumns({
   onRollback,
   rollbackPending,
+  detailHref,
 }: UseImportsColumnsOptions) {
   const { t } = useLocale();
   const [nowMs] = useState(() => Date.now());
@@ -88,7 +90,13 @@ export function useImportsColumns({
           return (
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" asChild>
-                <Link href={routes.platform.imports.detail(job.uuid)}>
+                <Link
+                  href={
+                    detailHref
+                      ? detailHref(job.uuid)
+                      : routes.platform.imports.detail(job.uuid)
+                  }
+                >
                   <Eye className="size-4" />
                   {t("imports.actions.view")}
                 </Link>
@@ -108,6 +116,6 @@ export function useImportsColumns({
         },
       }),
     ],
-    [nowMs, onRollback, rollbackPending, t],
+    [nowMs, onRollback, rollbackPending, detailHref, t],
   );
 }

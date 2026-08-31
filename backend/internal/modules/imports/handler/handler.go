@@ -10,6 +10,7 @@ import (
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
@@ -28,7 +29,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	p := authctx.MustPrincipal(r.Context())
 	q := apiquery.Parse(r.URL.Query())
 	admin := p.HasPermission(rbac.PermPlatformSettingsWrite)
-	items, total, err := h.svc.ListJobs(r.Context(), p.UserInternal, admin, q.Limit, q.Offset)
+	items, total, err := h.svc.ListJobs(r.Context(), p.UserInternal, admin, nil, q.Limit, q.Offset)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -44,7 +45,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	admin := p.HasPermission(rbac.PermPlatformSettingsWrite)
-	job, err := h.svc.GetJob(r.Context(), id, p.UserInternal, admin)
+	job, err := h.svc.GetJob(r.Context(), id, p.UserInternal, admin, nil)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -80,7 +81,7 @@ func (h *Handler) upload(w http.ResponseWriter, r *http.Request, resource string
 	if locale == "" {
 		locale = "tr"
 	}
-	job, err := h.svc.Upload(r.Context(), p.UserInternal, resource, format, locale, header.Filename, file)
+	job, err := h.svc.Upload(r.Context(), p.UserInternal, nil, resource, format, locale, header.Filename, file)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -129,7 +130,7 @@ func (h *Handler) UpdateMapping(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSON(w, r, &in); err != nil {
 		return
 	}
-	job, err := h.svc.UpdateMapping(r.Context(), id, p.UserInternal, in.Mapping, in.Defaults)
+	job, err := h.svc.UpdateMapping(r.Context(), id, p.UserInternal, nil, in.Mapping, in.Defaults)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -144,7 +145,7 @@ func (h *Handler) Preview(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
 		return
 	}
-	job, err := h.svc.Preview(r.Context(), id, p.UserInternal)
+	job, err := h.svc.Preview(r.Context(), id, p.UserInternal, nil)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -159,7 +160,7 @@ func (h *Handler) Confirm(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
 		return
 	}
-	job, err := h.svc.Confirm(r.Context(), id, p.UserInternal)
+	job, err := h.svc.Confirm(r.Context(), id, p.UserInternal, nil)
 	if err != nil {
 		writeErr(w, r, err)
 		return
@@ -174,7 +175,158 @@ func (h *Handler) Rollback(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
 		return
 	}
-	job, err := h.svc.Rollback(r.Context(), id, p.UserInternal)
+	job, err := h.svc.Rollback(r.Context(), id, p.UserInternal, nil)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, job)
+}
+
+func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	q := apiquery.Parse(r.URL.Query())
+	orgID := scope.InternalID
+	items, total, err := h.svc.ListJobs(r.Context(), p.UserInternal, false, &orgID, q.Limit, q.Offset)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, apiquery.NewPage(items, total, q.Limit, q.Offset))
+}
+
+func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	orgID := scope.InternalID
+	job, err := h.svc.GetJob(r.Context(), id, p.UserInternal, false, &orgID)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, job)
+}
+
+func (h *Handler) UploadFinanceAccounts(w http.ResponseWriter, r *http.Request) {
+	h.uploadTenant(w, r, "tenant.finance.accounts")
+}
+
+func (h *Handler) UploadFinanceCategories(w http.ResponseWriter, r *http.Request) {
+	h.uploadTenant(w, r, "tenant.finance.categories")
+}
+
+func (h *Handler) uploadTenant(w http.ResponseWriter, r *http.Request, resource string) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid multipart form")
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "file is required")
+		return
+	}
+	defer func() { _ = file.Close() }()
+	format := ioengine.ImportFormat(strings.ToLower(strings.TrimSpace(r.FormValue("format"))))
+	if format == "" {
+		format = ioengine.ImportCSV
+	}
+	locale := strings.TrimSpace(r.FormValue("locale"))
+	if locale == "" {
+		locale = "tr"
+	}
+	orgID := scope.InternalID
+	job, err := h.svc.Upload(r.Context(), p.UserInternal, &orgID, resource, format, locale, header.Filename, file)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusCreated, job)
+}
+
+func (h *Handler) SampleFinanceAccounts(w http.ResponseWriter, r *http.Request) {
+	h.sample(w, r, "tenant.finance.accounts")
+}
+
+func (h *Handler) SampleFinanceCategories(w http.ResponseWriter, r *http.Request) {
+	h.sample(w, r, "tenant.finance.categories")
+}
+
+func (h *Handler) UpdateMappingTenant(w http.ResponseWriter, r *http.Request) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	var in struct {
+		Mapping  map[string]string `json:"mapping"`
+		Defaults map[string]string `json:"defaults"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	orgID := scope.InternalID
+	job, err := h.svc.UpdateMapping(r.Context(), id, p.UserInternal, &orgID, in.Mapping, in.Defaults)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, job)
+}
+
+func (h *Handler) PreviewTenant(w http.ResponseWriter, r *http.Request) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	orgID := scope.InternalID
+	job, err := h.svc.Preview(r.Context(), id, p.UserInternal, &orgID)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, job)
+}
+
+func (h *Handler) ConfirmTenant(w http.ResponseWriter, r *http.Request) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	orgID := scope.InternalID
+	job, err := h.svc.Confirm(r.Context(), id, p.UserInternal, &orgID)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusAccepted, job)
+}
+
+func (h *Handler) RollbackTenant(w http.ResponseWriter, r *http.Request) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	orgID := scope.InternalID
+	job, err := h.svc.Rollback(r.Context(), id, p.UserInternal, &orgID)
 	if err != nil {
 		writeErr(w, r, err)
 		return

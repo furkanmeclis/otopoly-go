@@ -1,18 +1,14 @@
 package finance
 
-// TODO(finance): Register bulk-engine routes (async void/export jobs) when adapter exists.
-// TODO(finance): Register io-engine export/import routes for transactions and accounts.
-// TODO(finance): Wire search-engine tenant finance resource specs for Cmd+K palette.
-
 import (
 	"net/http"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	financehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/handler"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 )
 
 func RegisterRoutes(
@@ -44,6 +40,7 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/tenant/finance/accounts/{uuid}/balance", tenantRead(h.AccountBalance))
 	mux.Handle("GET /v1/tenant/finance/accounts/{uuid}/detail", tenantRead(h.AccountDetail))
 
+	mux.Handle("GET /v1/tenant/finance/categories/meta", tenantRead(h.CategoriesMeta))
 	mux.Handle("GET /v1/tenant/finance/categories", tenantRead(h.ListCategories))
 	mux.Handle("POST /v1/tenant/finance/categories", tenantWrite(h.CreateCategory))
 	mux.Handle("GET /v1/tenant/finance/categories/{uuid}", tenantRead(h.GetCategory))

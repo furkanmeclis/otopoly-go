@@ -13,6 +13,8 @@ export const settingsFormSchema = z.object({
     .regex(/^#[0-9A-Fa-f]{6}$/, "Invalid color"),
   paper_size: z.enum(PAPER_SIZES),
   address: z.string().trim(),
+  city: z.string().trim(),
+  district: z.string().trim(),
   phone: z.string().trim(),
   email: z.string().trim(),
   website: z.string().trim(),
@@ -35,6 +37,8 @@ export function toSettingsFormValues(
     primary_color: string;
     paper_size: string;
     address: string;
+    city?: string;
+    district?: string;
     phone: string;
     email: string;
     website: string;
@@ -52,6 +56,8 @@ export function toSettingsFormValues(
     primary_color: normalizeHexColor(data.primary_color, fallbackColor),
     paper_size: paperSize,
     address: data.address,
+    city: data.city ?? "",
+    district: data.district ?? "",
     phone: data.phone,
     email: data.email,
     website: data.website,
@@ -66,6 +72,8 @@ export function toPatchPayload(values: SettingsFormValues) {
     primary_color: values.primary_color,
     paper_size: values.paper_size,
     address: values.address,
+    city: values.city,
+    district: values.district,
     phone: values.phone,
     email: values.email,
     website: values.website,

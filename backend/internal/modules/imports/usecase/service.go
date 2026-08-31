@@ -16,6 +16,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine/adapters"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 	"github.com/google/uuid"
@@ -82,7 +83,7 @@ type ImportJobView struct {
 }
 
 // Upload creates a job from file bytes.
-func (s *Service) Upload(ctx context.Context, actorID int64, resource string, format ioengine.ImportFormat, locale string, filename string, r io.Reader) (ImportJobView, error) {
+func (s *Service) Upload(ctx context.Context, actorID int64, organizationID *int64, resource string, format ioengine.ImportFormat, locale string, filename string, r io.Reader) (ImportJobView, error) {
 	if _, err := s.registry.Get(resource); err != nil {
 		return ImportJobView{}, fmt.Errorf("%w: %v", ErrInvalidRequest, err)
 	}
@@ -92,7 +93,7 @@ func (s *Service) Upload(ctx context.Context, actorID int64, resource string, fo
 	}
 	row, err := s.q.CreateImportJob(ctx, db.CreateImportJobParams{
 		Resource: resource, ActorID: actorID, Format: string(format), Locale: locale,
-		FileKey: pgtype.Text{},
+		FileKey: pgtype.Text{}, OrganizationID: int8Arg(organizationID),
 	})
 	if err != nil {
 		return ImportJobView{}, err
@@ -149,8 +150,8 @@ func (s *Service) Sample(ctx context.Context, resource string, format ioengine.I
 }
 
 // UpdateMapping saves column mapping and defaults.
-func (s *Service) UpdateMapping(ctx context.Context, jobUUID uuid.UUID, actorID int64, mapping, defaults map[string]string) (ImportJobView, error) {
-	job, err := s.getOwned(ctx, jobUUID, actorID)
+func (s *Service) UpdateMapping(ctx context.Context, jobUUID uuid.UUID, actorID int64, orgID *int64, mapping, defaults map[string]string) (ImportJobView, error) {
+	job, err := s.getAccessible(ctx, jobUUID, actorID, orgID)
 	if err != nil {
 		return ImportJobView{}, err
 	}
@@ -167,8 +168,8 @@ func (s *Service) UpdateMapping(ctx context.Context, jobUUID uuid.UUID, actorID 
 }
 
 // Preview dry-runs mapped rows.
-func (s *Service) Preview(ctx context.Context, jobUUID uuid.UUID, actorID int64) (ImportJobView, error) {
-	job, err := s.getOwned(ctx, jobUUID, actorID)
+func (s *Service) Preview(ctx context.Context, jobUUID uuid.UUID, actorID int64, orgID *int64) (ImportJobView, error) {
+	job, err := s.getAccessible(ctx, jobUUID, actorID, orgID)
 	if err != nil {
 		return ImportJobView{}, err
 	}
@@ -185,8 +186,8 @@ func (s *Service) Preview(ctx context.Context, jobUUID uuid.UUID, actorID int64)
 }
 
 // Confirm queues apply task.
-func (s *Service) Confirm(ctx context.Context, jobUUID uuid.UUID, actorID int64) (ImportJobView, error) {
-	if _, err := s.getOwned(ctx, jobUUID, actorID); err != nil {
+func (s *Service) Confirm(ctx context.Context, jobUUID uuid.UUID, actorID int64, orgID *int64) (ImportJobView, error) {
+	if _, err := s.getAccessible(ctx, jobUUID, actorID, orgID); err != nil {
 		return ImportJobView{}, err
 	}
 	row, err := s.q.QueueImportJob(ctx, jobUUID)
@@ -213,6 +214,10 @@ func (s *Service) ProcessImport(ctx context.Context, jobID int64) error {
 	job, err := s.q.MarkImportJobApplying(ctx, jobID)
 	if err != nil {
 		return err
+	}
+	ctx, err = s.withJobOrganization(ctx, job)
+	if err != nil {
+		return s.failImport(ctx, jobID, err.Error())
 	}
 	adapter, err := s.registry.Get(job.Resource)
 	if err != nil {
@@ -257,9 +262,11 @@ func (s *Service) ProcessImport(ctx context.Context, jobID int64) error {
 	if s.notifier != nil {
 		uid := job.ActorID
 		loc := i18n.Normalize(job.Locale)
-		_, _ = s.notifier.Enqueue(ctx, notifmodel.EnqueueInput{
+		actionURL := fmt.Sprintf("/v1/platform/imports/%s", job.Uuid.String())
+		in := notifmodel.EnqueueInput{
 			UserID: &uid, Channels: []string{notifmodel.ChannelInapp},
 			TemplateCode: "imports.applied", Language: job.Locale,
+			ActionURL: &actionURL,
 			TemplateVars: map[string]string{
 				"resource": i18n.ResourceLabel(loc, job.Resource),
 				"created":  fmt.Sprintf("%d", created),
@@ -267,7 +274,15 @@ func (s *Service) ProcessImport(ctx context.Context, jobID int64) error {
 				"failed":   fmt.Sprintf("%d", failed),
 			},
 			SourceEvent: "imports.applied",
-		})
+		}
+		if job.OrganizationID.Valid {
+			actionURL = fmt.Sprintf("/v1/tenant/imports/%s", job.Uuid.String())
+			in.ActionURL = &actionURL
+			if slug := organizationSlug(ctx, s.q, job.OrganizationID); slug != "" {
+				in.Payload = map[string]any{"organization_slug": slug}
+			}
+		}
+		_, _ = s.notifier.Enqueue(ctx, in)
 	}
 	if s.activity != nil {
 		uid := job.ActorID
@@ -281,8 +296,12 @@ func (s *Service) ProcessImport(ctx context.Context, jobID int64) error {
 }
 
 // Rollback reverts an applied import within window.
-func (s *Service) Rollback(ctx context.Context, jobUUID uuid.UUID, actorID int64) (ImportJobView, error) {
-	job, err := s.getOwned(ctx, jobUUID, actorID)
+func (s *Service) Rollback(ctx context.Context, jobUUID uuid.UUID, actorID int64, orgID *int64) (ImportJobView, error) {
+	job, err := s.getAccessible(ctx, jobUUID, actorID, orgID)
+	if err != nil {
+		return ImportJobView{}, err
+	}
+	ctx, err = s.withJobOrganization(ctx, job)
 	if err != nil {
 		return ImportJobView{}, err
 	}
@@ -317,11 +336,16 @@ func (s *Service) Rollback(ctx context.Context, jobUUID uuid.UUID, actorID int64
 	return mapImportJob(row), nil
 }
 
-func (s *Service) ListJobs(ctx context.Context, actorID int64, admin bool, limit, offset int32) ([]ImportJobView, int64, error) {
+func (s *Service) ListJobs(ctx context.Context, actorID int64, admin bool, orgID *int64, limit, offset int32) ([]ImportJobView, int64, error) {
 	var rows []db.ImportJob
 	var total int64
 	var err error
-	if admin {
+	if orgID != nil {
+		rows, err = s.q.ListImportJobsForOrganization(ctx, db.ListImportJobsForOrganizationParams{
+			OrganizationID: *orgID, LimitCount: limit, OffsetCount: offset,
+		})
+		total, _ = s.q.CountImportJobsForOrganization(ctx, *orgID)
+	} else if admin {
 		rows, err = s.q.ListAllImportJobs(ctx, db.ListAllImportJobsParams{LimitCount: limit, OffsetCount: offset})
 		total, _ = s.q.CountAllImportJobs(ctx)
 	} else {
@@ -340,10 +364,19 @@ func (s *Service) ListJobs(ctx context.Context, actorID int64, admin bool, limit
 	return out, total, nil
 }
 
-func (s *Service) GetJob(ctx context.Context, jobUUID uuid.UUID, actorID int64, admin bool) (ImportJobView, error) {
+func (s *Service) GetJob(ctx context.Context, jobUUID uuid.UUID, actorID int64, admin bool, orgID *int64) (ImportJobView, error) {
 	row, err := s.q.GetImportJobByUUID(ctx, jobUUID)
 	if err != nil {
 		return ImportJobView{}, ErrNotFound
+	}
+	if orgID != nil {
+		if !row.OrganizationID.Valid || row.OrganizationID.Int64 != *orgID {
+			return ImportJobView{}, ErrForbidden
+		}
+		return mapImportJob(row), nil
+	}
+	if row.OrganizationID.Valid {
+		return ImportJobView{}, ErrForbidden
 	}
 	if !admin && row.ActorID != actorID {
 		return ImportJobView{}, ErrForbidden
@@ -413,15 +446,55 @@ func (s *Service) loadMappedRows(ctx context.Context, job db.ImportJob) ([]map[s
 	return rows, mapping, defAny, nil
 }
 
-func (s *Service) getOwned(ctx context.Context, jobUUID uuid.UUID, actorID int64) (db.ImportJob, error) {
+func (s *Service) getAccessible(ctx context.Context, jobUUID uuid.UUID, actorID int64, orgID *int64) (db.ImportJob, error) {
 	row, err := s.q.GetImportJobByUUID(ctx, jobUUID)
 	if err != nil {
 		return db.ImportJob{}, ErrNotFound
+	}
+	if orgID != nil {
+		if !row.OrganizationID.Valid || row.OrganizationID.Int64 != *orgID {
+			return db.ImportJob{}, ErrForbidden
+		}
+		return row, nil
+	}
+	if row.OrganizationID.Valid {
+		return db.ImportJob{}, ErrForbidden
 	}
 	if row.ActorID != actorID {
 		return db.ImportJob{}, ErrForbidden
 	}
 	return row, nil
+}
+
+func (s *Service) withJobOrganization(ctx context.Context, job db.ImportJob) (context.Context, error) {
+	if !job.OrganizationID.Valid {
+		return ctx, nil
+	}
+	org, err := s.q.GetOrganizationByID(ctx, job.OrganizationID.Int64)
+	if err != nil {
+		return ctx, err
+	}
+	return orgctx.WithScope(ctx, orgctx.Scope{
+		InternalID: org.ID, UUID: org.Uuid, Slug: org.Slug, Name: org.Name,
+	}), nil
+}
+
+func int8Arg(id *int64) pgtype.Int8 {
+	if id == nil || *id <= 0 {
+		return pgtype.Int8{}
+	}
+	return pgtype.Int8{Int64: *id, Valid: true}
+}
+
+func organizationSlug(ctx context.Context, q *db.Queries, orgID pgtype.Int8) string {
+	if !orgID.Valid {
+		return ""
+	}
+	org, err := q.GetOrganizationByID(ctx, orgID.Int64)
+	if err != nil {
+		return ""
+	}
+	return org.Slug
 }
 
 func (s *Service) failImport(ctx context.Context, jobID int64, msg string) error {

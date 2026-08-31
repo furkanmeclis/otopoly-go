@@ -12,6 +12,7 @@ import (
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
@@ -132,7 +133,99 @@ func (h *Handler) requestExport(w http.ResponseWriter, r *http.Request, resource
 	if resource == "platform.notifications" {
 		constrainNotificationExportQuery(p, query)
 	}
-	job, err := h.svc.RequestExport(r.Context(), p.UserInternal, resource, format, query, in.Locale)
+	job, err := h.svc.RequestExport(r.Context(), p.UserInternal, nil, resource, format, query, in.Locale)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusAccepted, job)
+}
+
+func (h *Handler) ListTenant(w http.ResponseWriter, r *http.Request) {
+	scope := orgctx.MustScope(r.Context())
+	q := apiquery.Parse(r.URL.Query())
+	items, total, err := h.svc.ListOrgJobs(r.Context(), scope.InternalID, q.Limit, q.Offset)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, apiquery.NewPage(items, total, q.Limit, q.Offset))
+}
+
+func (h *Handler) GetTenant(w http.ResponseWriter, r *http.Request) {
+	scope := orgctx.MustScope(r.Context())
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	job, err := h.svc.GetOrgJob(r.Context(), id, scope.InternalID)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, job)
+}
+
+func (h *Handler) DownloadTenant(w http.ResponseWriter, r *http.Request) {
+	scope := orgctx.MustScope(r.Context())
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	file, ct, filename, err := h.svc.DownloadOrg(r.Context(), id, scope.InternalID)
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	defer func() { _ = file.Close() }()
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Content-Disposition", contentDispositionAttachment(filename))
+	_, _ = io.Copy(w, file)
+}
+
+func (h *Handler) RequestFinanceAccountsExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.finance.accounts")
+}
+
+func (h *Handler) RequestFinanceCategoriesExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.finance.categories")
+}
+
+func (h *Handler) RequestFinanceTransactionsExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.finance.transactions")
+}
+
+func (h *Handler) requestTenantExport(w http.ResponseWriter, r *http.Request, resource string) {
+	p := authctx.MustPrincipal(r.Context())
+	scope := orgctx.MustScope(r.Context())
+	var in struct {
+		Format string            `json:"format"`
+		Query  map[string]string `json:"query"`
+		Locale string            `json:"locale"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	format := ioengine.ExportFormat(strings.ToLower(strings.TrimSpace(in.Format)))
+	if in.Locale == "" {
+		in.Locale = "tr"
+	}
+	query := ioengine.ExportQuery(in.Query)
+	if query == nil {
+		query = ioengine.ExportQuery{}
+	}
+	for k, vals := range r.URL.Query() {
+		switch k {
+		case "q", "status", "type", "kind", "currency", "account_uuid", "category_uuid", "date_from", "date_to", "is_active":
+			if len(vals) > 0 {
+				query[k] = vals[0]
+			}
+		}
+	}
+	orgID := scope.InternalID
+	job, err := h.svc.RequestExport(r.Context(), p.UserInternal, &orgID, resource, format, query, in.Locale)
 	if err != nil {
 		writeErr(w, r, err)
 		return

@@ -25,7 +25,7 @@ import {
   rollbackWindowOpen,
 } from "@/features/io/lib/display";
 import { apiMappingToUi } from "@/features/io/lib/suggest-mapping";
-import { IMPORT_SCHEMA } from "@/features/io/types";
+import { IMPORT_SCHEMA, type ExportJobScope } from "@/features/io/types";
 import { importsService } from "@/features/io/services/imports.service";
 import { useAppMutation } from "@/lib/query/mutation";
 import { useLocale } from "@/providers/locale-provider";
@@ -33,6 +33,8 @@ import { appToast } from "@/providers/toast-provider";
 
 type ImportDetailPageProps = {
   uuid: string;
+  scope?: ExportJobScope;
+  slug?: string;
 };
 
 function statusVariant(status: string) {
@@ -42,20 +44,32 @@ function statusVariant(status: string) {
   return "outline" as const;
 }
 
-export function ImportDetailPage({ uuid }: ImportDetailPageProps) {
+export function ImportDetailPage({
+  uuid,
+  scope = "platform",
+  slug,
+}: ImportDetailPageProps) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
   const [nowMs] = useState(() => Date.now());
-  const jobQuery = useImportJob(uuid);
+  const jobQuery = useImportJob(uuid, true, scope);
   const job = jobQuery.data;
+  const tenant = scope === "tenant";
+  const listHref =
+    tenant && slug
+      ? routes.tenant.imports.root(slug)
+      : routes.platform.imports.root;
+  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
 
   const rollback = useAppMutation({
-    mutationFn: () => importsService.rollback(uuid),
+    mutationFn: () => importsService.rollback(uuid, scope),
     onSuccess: () => {
       void queryClient.invalidateQueries({
-        queryKey: ioKeys.imports.detail(uuid),
+        queryKey: ioKeys.imports.detail(uuid, scope),
       });
-      void queryClient.invalidateQueries({ queryKey: ioKeys.imports.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: ioKeys.imports.lists(scope),
+      });
       appToast.success(t("imports.toast.rollback_success"));
     },
   });
@@ -86,7 +100,7 @@ export function ImportDetailPage({ uuid }: ImportDetailPageProps) {
     <EntityPage
       title={title}
       description={t("imports.detail.description")}
-      permission={permissions.imports.read}
+      permission={tenant ? permissions.imports.tenantRead : permissions.imports.read}
       forbiddenFallback={
         <ErrorState
           title={t("common.error_forbidden")}
@@ -94,8 +108,8 @@ export function ImportDetailPage({ uuid }: ImportDetailPageProps) {
         />
       }
       breadcrumbs={[
-        { label: t("layout.breadcrumb_home"), href: routes.platform.home },
-        { label: t("imports.title"), href: routes.platform.imports.root },
+        { label: t("layout.breadcrumb_home"), href: homeHref },
+        { label: t("imports.title"), href: listHref },
         { label: title },
       ]}
       actions={

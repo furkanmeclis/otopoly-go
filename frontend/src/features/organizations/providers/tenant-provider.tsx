@@ -42,8 +42,12 @@ export function TenantProvider({
   );
 }
 
+export function useOptionalTenant() {
+  return useContext(TenantContext);
+}
+
 export function useTenant() {
-  const ctx = useContext(TenantContext);
+  const ctx = useOptionalTenant();
   if (!ctx) {
     throw new Error("useTenant must be used within TenantProvider");
   }

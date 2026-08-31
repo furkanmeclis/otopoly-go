@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
@@ -85,6 +86,7 @@ type ExportJobView struct {
 func (s *Service) RequestExport(
 	ctx context.Context,
 	actorID int64,
+	organizationID *int64,
 	resource string,
 	format ioengine.ExportFormat,
 	query ioengine.ExportQuery,
@@ -98,12 +100,20 @@ func (s *Service) RequestExport(
 	if format != ioengine.ExportPDF && format != ioengine.ExportXLSX && format != ioengine.ExportCSV && format != ioengine.ExportJSON {
 		return ExportJobView{}, fmt.Errorf("%w: invalid format", ErrInvalidRequest)
 	}
+	if query == nil {
+		query = ioengine.ExportQuery{}
+	}
+	delete(query, ioengine.QueryOrganizationID)
 	qb, _ := json.Marshal(query)
 	expires := time.Now().UTC().Add(7 * 24 * time.Hour)
-	row, err := s.q.CreateExportJob(ctx, db.CreateExportJobParams{
+	params := db.CreateExportJobParams{
 		Resource: resource, ActorID: actorID, Format: string(format),
 		QueryJson: qb, Locale: locale, ExpiresAt: pgtype.Timestamptz{Time: expires, Valid: true},
-	})
+	}
+	if organizationID != nil && *organizationID > 0 {
+		params.OrganizationID = pgtype.Int8{Int64: *organizationID, Valid: true}
+	}
+	row, err := s.q.CreateExportJob(ctx, params)
 	if err != nil {
 		return ExportJobView{}, err
 	}
@@ -142,18 +152,20 @@ func (s *Service) ProcessExport(ctx context.Context, jobID int64) error {
 	}
 	var query ioengine.ExportQuery
 	_ = json.Unmarshal(job.QueryJson, &query)
+	if query == nil {
+		query = ioengine.ExportQuery{}
+	}
+	delete(query, ioengine.QueryOrganizationID)
+	if job.OrganizationID.Valid {
+		query[ioengine.QueryOrganizationID] = strconv.FormatInt(job.OrganizationID.Int64, 10)
+	}
 	ds, err := adapter.Export(ctx, query, i18n.Normalize(job.Locale))
 	if err != nil {
 		return s.fail(ctx, jobID, err.Error())
 	}
-	settings, err := s.q.GetAppSettings(ctx)
+	lh, err := s.letterheadForJob(ctx, job)
 	if err != nil {
 		return s.fail(ctx, jobID, err.Error())
-	}
-	lh, err := ioengine.LoadLetterheadLogo(ctx, s.storage, settings)
-	if err != nil {
-		s.log.Warn("export_letterhead_logo_failed", "error", err)
-		lh = ioengine.LetterheadFromSettings(settings)
 	}
 	title := ioengine.ExportTitle(job.Locale, job.Resource)
 	data, err := ioengine.EncodeExport(ioengine.ExportFormat(job.Format), ds, job.Locale, &lh, title)
@@ -177,10 +189,10 @@ func (s *Service) ProcessExport(ctx context.Context, jobID int64) error {
 		return err
 	}
 	if s.notifier != nil {
-		dl := fmt.Sprintf("/v1/platform/exports/%s/download", job.Uuid.String())
+		dl := exportDownloadPath(job)
 		uid := job.ActorID
 		loc := i18n.Normalize(job.Locale)
-		_, _ = s.notifier.Enqueue(ctx, notifmodel.EnqueueInput{
+		in := notifmodel.EnqueueInput{
 			UserID: &uid, Channels: []string{notifmodel.ChannelInapp},
 			TemplateCode: "exports.ready", Language: job.Locale,
 			ActionURL: &dl,
@@ -189,7 +201,11 @@ func (s *Service) ProcessExport(ctx context.Context, jobID int64) error {
 				"format":   i18n.ExportFormatLabel(loc, job.Format),
 			},
 			SourceEvent: "exports.ready",
-		})
+		}
+		if slug := organizationSlug(ctx, s.q, job.OrganizationID); slug != "" {
+			in.Payload = map[string]any{"organization_slug": slug}
+		}
+		_, _ = s.notifier.Enqueue(ctx, in)
 	}
 	_ = completed
 	return nil
@@ -200,6 +216,35 @@ func (s *Service) fail(ctx context.Context, jobID int64, msg string) error {
 	return errors.New(msg)
 }
 
+func (s *Service) letterheadForJob(ctx context.Context, job db.ExportJob) (ioengine.Letterhead, error) {
+	settings, err := s.q.GetAppSettings(ctx)
+	if err != nil {
+		return ioengine.Letterhead{}, err
+	}
+	if job.OrganizationID.Valid {
+		org, err := s.q.GetOrganizationByID(ctx, job.OrganizationID.Int64)
+		if err != nil {
+			return ioengine.Letterhead{}, err
+		}
+		lh, err := ioengine.LoadOrganizationLetterhead(ctx, s.storage, org, settings)
+		if err != nil {
+			s.log.Warn("export_org_letterhead_logo_failed", "error", err)
+			return ioengine.LetterheadFromOrganization(org, settings), nil
+		}
+		return lh, nil
+	}
+	lh, err := ioengine.LoadLetterheadLogo(ctx, s.storage, settings)
+	if err != nil {
+		s.log.Warn("export_letterhead_logo_failed", "error", err)
+		return ioengine.LetterheadFromSettings(settings), nil
+	}
+	return lh, nil
+}
+
+func jobBelongsToOrg(row db.ExportJob, orgID int64) bool {
+	return row.OrganizationID.Valid && row.OrganizationID.Int64 == orgID
+}
+
 // GetJob returns a job if actor may access it.
 func (s *Service) GetJob(ctx context.Context, jobUUID uuid.UUID, actorID int64, admin bool) (ExportJobView, error) {
 	row, err := s.q.GetExportJobByUUID(ctx, jobUUID)
@@ -208,6 +253,18 @@ func (s *Service) GetJob(ctx context.Context, jobUUID uuid.UUID, actorID int64, 
 	}
 	if !admin && row.ActorID != actorID {
 		return ExportJobView{}, ErrForbidden
+	}
+	return mapExportJob(row), nil
+}
+
+// GetOrgJob returns a tenant-scoped job.
+func (s *Service) GetOrgJob(ctx context.Context, jobUUID uuid.UUID, orgID int64) (ExportJobView, error) {
+	row, err := s.q.GetExportJobByUUID(ctx, jobUUID)
+	if err != nil {
+		return ExportJobView{}, ErrNotFound
+	}
+	if !jobBelongsToOrg(row, orgID) {
+		return ExportJobView{}, ErrNotFound
 	}
 	return mapExportJob(row), nil
 }
@@ -236,6 +293,27 @@ func (s *Service) ListJobs(ctx context.Context, actorID int64, admin bool, limit
 	return out, total, nil
 }
 
+// ListOrgJobs lists export jobs for one organization.
+func (s *Service) ListOrgJobs(ctx context.Context, orgID int64, limit, offset int32) ([]ExportJobView, int64, error) {
+	rows, err := s.q.ListExportJobsForOrganization(ctx, db.ListExportJobsForOrganizationParams{
+		OrganizationID: pgtype.Int8{Int64: orgID, Valid: true},
+		LimitCount:     limit,
+		OffsetCount:    offset,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	total, err := s.q.CountExportJobsForOrganization(ctx, pgtype.Int8{Int64: orgID, Valid: true})
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]ExportJobView, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, mapExportJob(r))
+	}
+	return out, total, nil
+}
+
 // Download opens export file stream.
 func (s *Service) Download(ctx context.Context, jobUUID uuid.UUID, actorID int64, admin bool) (io.ReadCloser, string, string, error) {
 	row, err := s.q.GetExportJobByUUID(ctx, jobUUID)
@@ -245,6 +323,22 @@ func (s *Service) Download(ctx context.Context, jobUUID uuid.UUID, actorID int64
 	if !admin && row.ActorID != actorID {
 		return nil, "", "", ErrForbidden
 	}
+	return s.openExportFile(ctx, row)
+}
+
+// DownloadOrg opens a tenant-scoped export file.
+func (s *Service) DownloadOrg(ctx context.Context, jobUUID uuid.UUID, orgID int64) (io.ReadCloser, string, string, error) {
+	row, err := s.q.GetExportJobByUUID(ctx, jobUUID)
+	if err != nil {
+		return nil, "", "", ErrNotFound
+	}
+	if !jobBelongsToOrg(row, orgID) {
+		return nil, "", "", ErrNotFound
+	}
+	return s.openExportFile(ctx, row)
+}
+
+func (s *Service) openExportFile(ctx context.Context, row db.ExportJob) (io.ReadCloser, string, string, error) {
 	if !row.FileKey.Valid || row.Status != "completed" {
 		return nil, "", "", ErrNotFound
 	}
@@ -257,6 +351,24 @@ func (s *Service) Download(ctx context.Context, jobUUID uuid.UUID, actorID int64
 	return rc, ioengine.ContentTypeForExport(format), filename, nil
 }
 
+func exportDownloadPath(row db.ExportJob) string {
+	if row.OrganizationID.Valid {
+		return fmt.Sprintf("/v1/tenant/exports/%s/download", row.Uuid.String())
+	}
+	return fmt.Sprintf("/v1/platform/exports/%s/download", row.Uuid.String())
+}
+
+func organizationSlug(ctx context.Context, q *db.Queries, orgID pgtype.Int8) string {
+	if !orgID.Valid {
+		return ""
+	}
+	org, err := q.GetOrganizationByID(ctx, orgID.Int64)
+	if err != nil {
+		return ""
+	}
+	return org.Slug
+}
+
 func mapExportJob(row db.ExportJob) ExportJobView {
 	var errMsg *string
 	if row.Error.Valid {
@@ -264,7 +376,7 @@ func mapExportJob(row db.ExportJob) ExportJobView {
 	}
 	var dl *string
 	if row.Status == "completed" {
-		u := fmt.Sprintf("/v1/platform/exports/%s/download", row.Uuid.String())
+		u := exportDownloadPath(row)
 		dl = &u
 	}
 	return ExportJobView{

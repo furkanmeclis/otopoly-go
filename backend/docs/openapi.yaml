@@ -2493,6 +2493,28 @@ paths:
         "201":
           description: Created
 
+  /v1/tenant/finance/accounts/export:
+    post:
+      tags: [Tenant]
+      operationId: exportTenantFinanceAccounts
+      summary: Export finance accounts
+      description: Queues a PDF/XLSX/CSV/JSON export. Letterhead is taken from the organization (name, logo, address, phone).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportRequest"
+      responses:
+        "202":
+          description: Export job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+
   /v1/tenant/finance/transactions/{uuid}:
     get:
       tags: [Tenant]
@@ -2529,6 +2551,28 @@ paths:
         "200":
           description: Voided
 
+  /v1/tenant/finance/transactions/export:
+    post:
+      tags: [Tenant]
+      operationId: exportTenantFinanceTransactions
+      summary: Export finance transactions
+      description: Queues a PDF/XLSX/CSV/JSON export scoped to the active organization. Letterhead comes from the organization record.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportRequest"
+      responses:
+        "202":
+          description: Export job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+
   /v1/tenant/finance/transfers:
     post:
       tags: [Tenant]
@@ -2545,6 +2589,349 @@ paths:
       responses:
         "201":
           description: Created
+
+  /v1/tenant/finance/categories/export:
+    post:
+      tags: [Tenant]
+      operationId: exportTenantFinanceCategories
+      summary: Export finance categories
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportRequest"
+      responses:
+        "202":
+          description: Export job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+
+  /v1/tenant/finance/accounts/import:
+    post:
+      tags: [Tenant]
+      operationId: importTenantFinanceAccounts
+      summary: Upload finance accounts import
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Import job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJob"
+
+  /v1/tenant/finance/accounts/import/sample:
+    get:
+      tags: [Tenant]
+      operationId: sampleTenantFinanceAccountsImport
+      summary: Download finance accounts import sample
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [json, xlsx, csv, tsv] }
+        - name: locale
+          in: query
+          schema: { type: string, enum: [tr, en] }
+      responses:
+        "200":
+          description: Sample file
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
+  /v1/tenant/finance/categories/import:
+    post:
+      tags: [Tenant]
+      operationId: importTenantFinanceCategories
+      summary: Upload finance categories import
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Import job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJob"
+
+  /v1/tenant/finance/categories/import/sample:
+    get:
+      tags: [Tenant]
+      operationId: sampleTenantFinanceCategoriesImport
+      summary: Download finance categories import sample
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: format
+          in: query
+          schema: { type: string, enum: [json, xlsx, csv, tsv] }
+        - name: locale
+          in: query
+          schema: { type: string, enum: [tr, en] }
+      responses:
+        "200":
+          description: Sample file
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+
+  /v1/tenant/finance/categories/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceCategoriesMeta
+      summary: Finance categories list meta
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Resource meta
+
+  /v1/tenant/settings:
+    get:
+      tags: [Tenant]
+      operationId: getTenantSettings
+      summary: Get organization export letterhead
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Letterhead settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantSettings"
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantSettings
+      summary: Update organization export letterhead
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchTenantSettingsRequest"
+      responses:
+        "200":
+          description: Updated letterhead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantSettings"
+
+  /v1/tenant/settings/logo:
+    put:
+      tags: [Tenant]
+      operationId: putTenantSettingsLogo
+      summary: Upload organization letterhead logo
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Updated letterhead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantSettings"
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantSettingsLogo
+      summary: Remove organization letterhead logo
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Updated letterhead
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantSettings"
+
+  /v1/tenant/imports:
+    get:
+      tags: [Tenant]
+      operationId: listTenantImports
+      summary: List organization import jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Import jobs page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJobPage"
+
+  /v1/tenant/imports/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantImport
+      summary: Get organization import job
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Import job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJob"
+
+  /v1/tenant/imports/{uuid}/mapping:
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantImportMapping
+      summary: Save import column mapping
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Import job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJob"
+
+  /v1/tenant/imports/{uuid}/preview:
+    post:
+      tags: [Tenant]
+      operationId: previewTenantImport
+      summary: Preview import rows
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Import job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJob"
+
+  /v1/tenant/imports/{uuid}/confirm:
+    post:
+      tags: [Tenant]
+      operationId: confirmTenantImport
+      summary: Confirm and queue import apply
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "202":
+          description: Import queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJob"
+
+  /v1/tenant/imports/{uuid}/rollback:
+    post:
+      tags: [Tenant]
+      operationId: rollbackTenantImport
+      summary: Roll back an applied import
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Import rolled back
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeImportJob"
+
+  /v1/tenant/exports:
+    get:
+      tags: [Tenant]
+      operationId: listTenantExports
+      summary: List organization export jobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Export jobs page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJobPage"
+
+  /v1/tenant/exports/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantExport
+      summary: Get organization export job
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Export job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+
+  /v1/tenant/exports/{uuid}/download:
+    get:
+      tags: [Tenant]
+      operationId: downloadTenantExport
+      summary: Download organization export file
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: File bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
 
 components:
   securitySchemes:
@@ -2641,6 +3028,7 @@ components:
         filterable_fields:
           type: array
           items: { type: string }
+        tenant_scoped: { type: boolean }
 
     SearchHit:
       type: object
@@ -4097,4 +4485,138 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/FinanceSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    ExportRequest:
+      type: object
+      required: [format]
+      properties:
+        format:
+          type: string
+          enum: [pdf, xlsx, csv, json]
+        query:
+          type: object
+          additionalProperties: { type: string }
+        locale:
+          type: string
+          enum: [tr, en]
+
+    ExportJob:
+      type: object
+      required: [uuid, resource, format, status, row_count, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        resource: { type: string }
+        format: { type: string, enum: [pdf, xlsx, csv, json] }
+        status: { type: string, enum: [queued, processing, completed, failed, expired] }
+        row_count: { type: integer }
+        error: { type: string, nullable: true }
+        download_url: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    EnvelopeExportJob:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ExportJob" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeExportJobPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ExportJob" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    ImportJob:
+      type: object
+      required: [uuid, resource, format, status, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        resource: { type: string }
+        format: { type: string, enum: [json, xlsx, csv, tsv] }
+        status: { type: string }
+        mapping:
+          type: object
+          additionalProperties: { type: string }
+        defaults:
+          type: object
+          additionalProperties: { type: string }
+        error: { type: string, nullable: true }
+        rollback_until: { type: string, format: date-time, nullable: true }
+        applied_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    EnvelopeImportJob:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ImportJob" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeImportJobPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ImportJob" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    TenantSettings:
+      type: object
+      required: [company_name, tagline, primary_color, address, city, district, phone, email, website, footer_text, paper_size]
+      properties:
+        company_name: { type: string }
+        tagline: { type: string }
+        primary_color: { type: string }
+        address: { type: string }
+        city: { type: string }
+        district: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        website: { type: string }
+        footer_text: { type: string }
+        paper_size: { type: string, enum: [A4, A3, Letter, Legal] }
+        logo_url: { type: string, nullable: true }
+
+    PatchTenantSettingsRequest:
+      type: object
+      properties:
+        company_name: { type: string }
+        tagline: { type: string }
+        primary_color: { type: string }
+        address: { type: string }
+        city: { type: string }
+        district: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        website: { type: string }
+        footer_text: { type: string }
+        paper_size: { type: string, enum: [A4, A3, Letter, Legal] }
+
+    EnvelopeTenantSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/TenantSettings" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

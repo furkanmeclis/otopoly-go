@@ -73,7 +73,7 @@ func (c *Client) EnsureIndex(ctx context.Context, spec Spec) error {
 	}
 	settings := &meilisearch.Settings{
 		SearchableAttributes: searchable,
-		DisplayedAttributes:  []string{"id", "spec", "title", "subtitle", "keywords", "href", "icon"},
+		DisplayedAttributes:  []string{"id", "spec", "title", "subtitle", "keywords", "href", "icon", "organization_slug"},
 		FilterableAttributes: append([]string{"spec"}, spec.Filterable...),
 	}
 	task, err = c.client.Index(uid).UpdateSettingsWithContext(ctx, settings)
@@ -99,7 +99,7 @@ func (c *Client) UpsertDocuments(ctx context.Context, spec string, docs []Docume
 	if _, err := c.client.WaitForTaskWithContext(ctx, task.TaskUID, 0); err != nil {
 		return fmt.Errorf("searchengine: wait upsert %q: %w", uid, err)
 	}
-	return nil
+	return c.ensureTaskSucceeded(ctx, task.TaskUID, "upsert", uid)
 }
 
 // DeleteDocument removes one document from a spec index.
@@ -115,11 +115,26 @@ func (c *Client) DeleteDocument(ctx context.Context, spec, id string) error {
 	if _, err := c.client.WaitForTaskWithContext(ctx, task.TaskUID, 0); err != nil {
 		return fmt.Errorf("searchengine: wait delete %q/%s: %w", uid, id, err)
 	}
+	return c.ensureTaskSucceeded(ctx, task.TaskUID, "delete", uid)
+}
+
+func (c *Client) ensureTaskSucceeded(ctx context.Context, taskUID int64, op, uid string) error {
+	task, err := c.client.GetTaskWithContext(ctx, taskUID)
+	if err != nil {
+		return fmt.Errorf("searchengine: %s task %q status: %w", op, uid, err)
+	}
+	if task.Status == "failed" {
+		msg := task.Error.Message
+		if msg == "" {
+			msg = "unknown meilisearch task failure"
+		}
+		return fmt.Errorf("searchengine: %s %q: %s", op, uid, msg)
+	}
 	return nil
 }
 
-// Search queries one or more spec indexes.
-func (c *Client) Search(ctx context.Context, specs []string, q string, limit int) ([]Hit, error) {
+// Search queries one or more spec indexes. filters maps spec id to Meilisearch filter expressions.
+func (c *Client) Search(ctx context.Context, specs []string, q string, limit int, filters map[string]string) ([]Hit, error) {
 	if !c.Enabled() {
 		return nil, nil
 	}
@@ -133,18 +148,25 @@ func (c *Client) Search(ctx context.Context, specs []string, q string, limit int
 	if q == "" {
 		return nil, nil
 	}
+	if filters == nil {
+		filters = map[string]string{}
+	}
 
 	if len(specs) == 1 {
-		return c.searchOne(ctx, specs[0], q, limit)
+		return c.searchOne(ctx, specs[0], q, limit, filters[specs[0]])
 	}
 
 	queries := make([]*meilisearch.SearchRequest, 0, len(specs))
 	for _, spec := range specs {
-		queries = append(queries, &meilisearch.SearchRequest{
+		req := &meilisearch.SearchRequest{
 			IndexUID: c.indexUID(spec),
 			Query:    q,
 			Limit:    int64(limit),
-		})
+		}
+		if filter := strings.TrimSpace(filters[spec]); filter != "" {
+			req.Filter = filter
+		}
+		queries = append(queries, req)
 	}
 	resp, err := c.client.MultiSearchWithContext(ctx, &meilisearch.MultiSearchRequest{Queries: queries})
 	if err != nil {
@@ -164,10 +186,14 @@ func (c *Client) Search(ctx context.Context, specs []string, q string, limit int
 	return out, nil
 }
 
-func (c *Client) searchOne(ctx context.Context, spec, q string, limit int) ([]Hit, error) {
-	resp, err := c.client.Index(c.indexUID(spec)).SearchWithContext(ctx, q, &meilisearch.SearchRequest{
+func (c *Client) searchOne(ctx context.Context, spec, q string, limit int, filter string) ([]Hit, error) {
+	req := &meilisearch.SearchRequest{
 		Limit: int64(limit),
-	})
+	}
+	if filter = strings.TrimSpace(filter); filter != "" {
+		req.Filter = filter
+	}
+	resp, err := c.client.Index(c.indexUID(spec)).SearchWithContext(ctx, q, req)
 	if err != nil {
 		return nil, fmt.Errorf("searchengine: search %q: %w", spec, err)
 	}
@@ -197,12 +223,19 @@ func mapHit(spec string, hit interface{}) Hit {
 	}
 	return Hit{
 		Spec:     spec,
-		ID:       getStr("id"),
+		ID:       entityIDFromDoc(getStr("id")),
 		Title:    getStr("title"),
 		Subtitle: getStr("subtitle"),
 		Href:     getStr("href"),
 		Icon:     getStr("icon"),
 	}
+}
+
+func entityIDFromDoc(docID string) string {
+	if i := strings.Index(docID, "_"); i >= 0 && i+1 < len(docID) {
+		return docID[i+1:]
+	}
+	return docID
 }
 
 // Stats returns document count for a spec index (0 when missing).

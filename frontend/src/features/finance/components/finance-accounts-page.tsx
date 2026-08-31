@@ -1,7 +1,5 @@
 "use client";
 
-// TODO(finance): ResourceIOToolbar export, row click already navigates — add edit account row action.
-
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -16,9 +14,13 @@ import { routes } from "@/config/routes";
 import { FinanceAccountDialog } from "@/features/finance/components/finance-account-dialog";
 import { useFinanceAccountsColumns } from "@/features/finance/components/finance-accounts-columns";
 import { useFinanceMutations } from "@/features/finance/hooks/use-finance-mutations";
-import { useFinanceAccounts } from "@/features/finance/hooks/use-finance-queries";
+import {
+  useFinanceAccounts,
+  useFinanceAccountsMeta,
+} from "@/features/finance/hooks/use-finance-queries";
 import { useTenantFinanceAccess } from "@/features/finance/hooks/use-tenant-finance-access";
 import type { FinanceAccount } from "@/features/finance/services/finance.service";
+import { ResourceIOToolbar } from "@/features/io";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -52,6 +54,7 @@ export function FinanceAccountsPage({ slug }: { slug: string }) {
   }, [listState.columnFilters, listState.params]);
 
   const listQuery = useFinanceAccounts(listParams);
+  const metaQuery = useFinanceAccountsMeta();
 
   const handleDelete = useCallback(
     async (account: FinanceAccount) => {
@@ -118,10 +121,25 @@ export function FinanceAccountsPage({ slug }: { slug: string }) {
           rowSelection: false,
         }}
         toolbarExtra={
-          <EntityToolbar
-            onRefresh={() => void listQuery.refetch()}
-            refreshDisabled={listQuery.isFetching}
-          />
+          <>
+            <ResourceIOToolbar
+              resource="tenant.finance.accounts"
+              query={{
+                q: listParams.q,
+                is_active: listParams.is_active,
+                sort: listParams.sort,
+              }}
+              capabilities={metaQuery.data?.capabilities}
+              jobsHref={routes.tenant.exports.root(slug)}
+              importJobsHref={routes.tenant.imports.root(slug)}
+              scope="tenant"
+              onImportComplete={() => void listQuery.refetch()}
+            />
+            <EntityToolbar
+              onRefresh={() => void listQuery.refetch()}
+              refreshDisabled={listQuery.isFetching}
+            />
+          </>
         }
       />
 

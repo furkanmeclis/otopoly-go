@@ -33,6 +33,8 @@ import (
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
 	exporthandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/handler"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
+	financemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance"
+	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	importmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports"
 	importhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/handler"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
@@ -45,14 +47,12 @@ import (
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
-	orgmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations"
-	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
-	financemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance"
-	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
+	orgmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations"
+	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	searchmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search"
 	searchhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/handler"
 	searchusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/usecase"
@@ -172,6 +172,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	searchReg := searchengine.NewRegistry(
 		searchadapters.NewUsers(deps.Queries),
 		searchadapters.NewRoles(deps.Queries),
+		searchadapters.NewFinanceAccounts(deps.Queries),
+		searchadapters.NewFinanceCategories(deps.Queries),
+		searchadapters.NewFinanceTransactions(deps.Queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, deps.Queue, log)
@@ -229,8 +232,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	orgSvc := orgusecase.New(deps.DB, deps.Queries)
 	uc.SetOrganizationResolver(orgSvc)
 	authmodule.RegisterRoutes(mux, h, tokens, loader, stepUpSvc)
-	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader)
+	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader, deps.Queries)
 	financeSvc := financeusecase.New(deps.DB, deps.Queries, activityRec)
+	financeSvc.SetSearchIndexer(searchIndexer)
 	financemodule.RegisterRoutes(mux, financeSvc, tokens, loader, deps.Queries)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
@@ -243,6 +247,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		ioadapters.NewRoles(deps.Queries),
 		ioadapters.NewNotifications(deps.Queries),
 		ioadapters.NewActivity(deps.Queries),
+		ioadapters.NewFinanceAccounts(deps.Queries),
+		ioadapters.NewFinanceCategories(deps.Queries),
+		ioadapters.NewFinanceTransactions(deps.Queries),
 	)
 	exportSvc := exportusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
 	importSvc := importusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
@@ -265,8 +272,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			)
 		}
 	}
-	exportmodule.RegisterRoutes(mux, exporthandler.New(exportSvc), tokens, loader, stepUpSvc)
-	importmodule.RegisterRoutes(mux, importhandler.New(importSvc), tokens, loader)
+	exportmodule.RegisterRoutes(mux, exporthandler.New(exportSvc), tokens, loader, stepUpSvc, deps.Queries)
+	importmodule.RegisterRoutes(mux, importhandler.New(importSvc), tokens, loader, deps.Queries)
 	bulkmodule.RegisterRoutes(mux, bulkhandler.New(bulkSvc), tokens, loader)
 	settingsmodule.RegisterRoutes(mux, settingshandler.New(settingsusecase.New(deps.Queries), deps.Storage), tokens, loader)
 	accessmodule.RegisterRoutes(mux, accesshandler.New(stepUpSvc, activityRec), tokens, loader)
@@ -275,7 +282,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	oauthprovidermodule.RegisterRoutes(mux, oauthproviderhandler.New(oauthProvSvc, activityRec), tokens, loader)
 	activitymodule.RegisterRoutes(mux, activityhandler.New(activityusecase.New(deps.Queries)), tokens, loader)
 	logsmodule.RegisterRoutes(mux, logshandler.New(logsSvc), tokens, loader)
-	searchSvc := searchusecase.New(searchClient, searchReg, log)
+	searchSvc := searchusecase.New(searchClient, searchReg, deps.Queries, log)
 	searchmodule.RegisterRoutes(mux, searchhandler.New(searchSvc), tokens, loader)
 	storagemodule.RegisterRoutes(
 		mux,
