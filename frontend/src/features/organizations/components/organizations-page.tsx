@@ -43,9 +43,7 @@ export function OrganizationsPage() {
     const columnValue = (id: string) =>
       firstString(
         listState.columnFilters.find((filter) => filter.id === id)?.value as
-          | string
-          | string[]
-          | undefined,
+          string | string[] | undefined,
       );
 
     const q =

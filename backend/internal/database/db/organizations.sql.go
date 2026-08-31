@@ -276,6 +276,53 @@ func (q *Queries) GetOrganizationMember(ctx context.Context, arg GetOrganization
 	return i, err
 }
 
+const getOrganizationMemberByUserAndOrgUUID = `-- name: GetOrganizationMemberByUserAndOrgUUID :one
+SELECT om.id, om.organization_id, om.user_id, om.role, om.created_at,
+       o.uuid AS organization_uuid, o.slug AS organization_slug, o.status AS organization_status,
+       o.access_starts_at, o.access_ends_at, o.name AS organization_name
+FROM organization_members om
+JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
+WHERE om.user_id = $1 AND o.uuid = $2
+`
+
+type GetOrganizationMemberByUserAndOrgUUIDParams struct {
+	UserID int64     `json:"user_id"`
+	Uuid   uuid.UUID `json:"uuid"`
+}
+
+type GetOrganizationMemberByUserAndOrgUUIDRow struct {
+	ID                 int64              `json:"id"`
+	OrganizationID     int64              `json:"organization_id"`
+	UserID             int64              `json:"user_id"`
+	Role               string             `json:"role"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	OrganizationUuid   uuid.UUID          `json:"organization_uuid"`
+	OrganizationSlug   string             `json:"organization_slug"`
+	OrganizationStatus string             `json:"organization_status"`
+	AccessStartsAt     pgtype.Timestamptz `json:"access_starts_at"`
+	AccessEndsAt       pgtype.Timestamptz `json:"access_ends_at"`
+	OrganizationName   string             `json:"organization_name"`
+}
+
+func (q *Queries) GetOrganizationMemberByUserAndOrgUUID(ctx context.Context, arg GetOrganizationMemberByUserAndOrgUUIDParams) (GetOrganizationMemberByUserAndOrgUUIDRow, error) {
+	row := q.db.QueryRow(ctx, getOrganizationMemberByUserAndOrgUUID, arg.UserID, arg.Uuid)
+	var i GetOrganizationMemberByUserAndOrgUUIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.Role,
+		&i.CreatedAt,
+		&i.OrganizationUuid,
+		&i.OrganizationSlug,
+		&i.OrganizationStatus,
+		&i.AccessStartsAt,
+		&i.AccessEndsAt,
+		&i.OrganizationName,
+	)
+	return i, err
+}
+
 const getOrganizationMemberByUserAndSlug = `-- name: GetOrganizationMemberByUserAndSlug :one
 SELECT om.id, om.organization_id, om.user_id, om.role, om.created_at, o.uuid AS organization_uuid, o.slug AS organization_slug, o.status AS organization_status,
        o.access_starts_at, o.access_ends_at, o.name AS organization_name, o.logo_object_key

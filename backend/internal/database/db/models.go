@@ -107,6 +107,64 @@ type ExportJob struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
+type FinanceAccount struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Name           string             `json:"name"`
+	Type           string             `json:"type"`
+	Currency       string             `json:"currency"`
+	OpeningBalance pgtype.Numeric     `json:"opening_balance"`
+	CurrentBalance pgtype.Numeric     `json:"current_balance"`
+	IsDefault      bool               `json:"is_default"`
+	IsActive       bool               `json:"is_active"`
+	BankName       pgtype.Text        `json:"bank_name"`
+	Iban           pgtype.Text        `json:"iban"`
+	Notes          string             `json:"notes"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type FinanceCategory struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	ParentID       pgtype.Int8        `json:"parent_id"`
+	Name           string             `json:"name"`
+	Kind           string             `json:"kind"`
+	SortOrder      int32              `json:"sort_order"`
+	IsActive       bool               `json:"is_active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type FinanceTransaction struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	Type             string             `json:"type"`
+	Status           string             `json:"status"`
+	AccountID        int64              `json:"account_id"`
+	CounterAccountID pgtype.Int8        `json:"counter_account_id"`
+	CategoryID       pgtype.Int8        `json:"category_id"`
+	Amount           pgtype.Numeric     `json:"amount"`
+	Currency         string             `json:"currency"`
+	TransactionDate  pgtype.Date        `json:"transaction_date"`
+	Description      string             `json:"description"`
+	ReferenceNo      pgtype.Text        `json:"reference_no"`
+	PaymentMethod    string             `json:"payment_method"`
+	CreatedBy        int64              `json:"created_by"`
+	VoidedAt         pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy         pgtype.Int8        `json:"voided_by"`
+	SourceType       pgtype.Text        `json:"source_type"`
+	SourceUuid       pgtype.UUID        `json:"source_uuid"`
+	Metadata         []byte             `json:"metadata"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
 type GithubAppSetting struct {
 	ID              int16              `json:"id"`
 	Enabled         bool               `json:"enabled"`

@@ -85,6 +85,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/organization-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switch organization context
+         * @description Re-issues access and refresh tokens with the JWT `oid` claim set for the
+         *     given organization. Requires an authenticated session and active membership.
+         */
+        post: operations["postAuthOrganizationContext"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/refresh": {
         parameters: {
             query?: never;
@@ -1323,6 +1344,249 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/finance/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Finance period summary */
+        get: operations["getTenantFinanceSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/accounts/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Finance accounts meta */
+        get: operations["getTenantFinanceAccountsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List finance accounts */
+        get: operations["getTenantFinanceAccounts"];
+        put?: never;
+        /** Create finance account */
+        post: operations["createTenantFinanceAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/accounts/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get finance account */
+        get: operations["getTenantFinanceAccount"];
+        put?: never;
+        post?: never;
+        /** Soft-delete finance account */
+        delete: operations["deleteTenantFinanceAccount"];
+        options?: never;
+        head?: never;
+        /** Update finance account */
+        patch: operations["patchTenantFinanceAccount"];
+        trace?: never;
+    };
+    "/v1/tenant/finance/accounts/{uuid}/balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Account balance with recent transactions */
+        get: operations["getTenantFinanceAccountBalance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/accounts/{uuid}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Account detail with stats and recent transactions */
+        get: operations["getTenantFinanceAccountDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List finance categories */
+        get: operations["getTenantFinanceCategories"];
+        put?: never;
+        /** Create finance category */
+        post: operations["createTenantFinanceCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/categories/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get finance category */
+        get: operations["getTenantFinanceCategory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/categories/{uuid}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Category detail with stats and recent transactions */
+        get: operations["getTenantFinanceCategoryDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/transactions/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Finance transactions meta */
+        get: operations["getTenantFinanceTransactionsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List finance transactions */
+        get: operations["getTenantFinanceTransactions"];
+        put?: never;
+        /** Create income or expense transaction */
+        post: operations["createTenantFinanceTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/transactions/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get finance transaction */
+        get: operations["getTenantFinanceTransaction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/transactions/{uuid}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Void a posted transaction */
+        post: operations["voidTenantFinanceTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/finance/transfers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Transfer between accounts */
+        post: operations["createTenantFinanceTransfer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1566,6 +1830,10 @@ export interface components {
             totp_code?: string;
             /** @description When set, login is scoped to this organization membership */
             organization_slug?: string;
+        };
+        OrganizationContextRequest: {
+            /** @description Organization slug to scope the active session to */
+            organization_slug: string;
         };
         TOTPCodeRequest: {
             code: string;
@@ -2207,6 +2475,149 @@ export interface components {
                 [key: string]: string;
             };
         };
+        FinanceAccount: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            /** @enum {string} */
+            type: "cash" | "bank";
+            currency: string;
+            opening_balance?: string;
+            current_balance: string;
+            is_default?: boolean;
+            is_active?: boolean;
+            bank_name?: string | null;
+            iban?: string | null;
+            notes?: string;
+            negative_balance?: boolean;
+        };
+        FinanceTransaction: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            type: "income" | "expense" | "transfer";
+            /** @enum {string} */
+            status: "posted" | "void";
+            /** Format: uuid */
+            account_uuid?: string;
+            account_name?: string;
+            amount: string;
+            currency: string;
+            /** Format: date */
+            transaction_date: string;
+            description?: string;
+            payment_method?: string;
+        };
+        FinanceSummary: {
+            /** Format: date */
+            date_from?: string;
+            /** Format: date */
+            date_to?: string;
+            total_income?: string;
+            total_expense?: string;
+            net?: string;
+            accounts?: components["schemas"]["FinanceAccount"][];
+        };
+        CreateFinanceAccountRequest: {
+            name: string;
+            type: string;
+            currency: string;
+            opening_balance?: string;
+            is_default?: boolean;
+        };
+        PatchFinanceAccountRequest: {
+            name?: string;
+            is_default?: boolean;
+            is_active?: boolean;
+        };
+        CreateFinanceCategoryRequest: {
+            name: string;
+            /** @enum {string} */
+            kind: "income" | "expense";
+        };
+        FinanceCategory: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            /** @enum {string} */
+            kind: "income" | "expense";
+            /** Format: uuid */
+            parent_uuid?: string | null;
+            sort_order?: number;
+            is_active: boolean;
+        };
+        CreateFinanceTransactionRequest: {
+            /** @enum {string} */
+            type: "income" | "expense";
+            /** Format: uuid */
+            account_uuid: string;
+            /**
+             * Format: uuid
+             * @description Required for expense; optional for income
+             */
+            category_uuid?: string;
+            amount: string;
+            /** Format: date */
+            transaction_date: string;
+            description?: string;
+            payment_method?: string;
+        };
+        CreateFinanceTransferRequest: {
+            /** Format: uuid */
+            from_account_uuid: string;
+            /** Format: uuid */
+            to_account_uuid: string;
+            amount: string;
+            /** Format: date */
+            transaction_date: string;
+            description?: string;
+        };
+        EnvelopeFinanceAccount: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["FinanceAccount"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceAccountPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["FinanceAccount"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceCategory: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["FinanceCategory"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceTransaction: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["FinanceTransaction"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceTransactionPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["FinanceTransaction"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["FinanceSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
     };
     responses: {
         /** @description Validation or malformed request */
@@ -2391,6 +2802,34 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthOrganizationContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationContextRequest"];
+            };
+        };
+        responses: {
+            /** @description Organization context applied */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTokens"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -4465,6 +4904,433 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantFinanceSummary: {
+        parameters: {
+            query?: {
+                date_from?: string;
+                date_to?: string;
+                currency?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceSummary"];
+                };
+            };
+        };
+    };
+    getTenantFinanceAccountsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+        };
+    };
+    getTenantFinanceAccounts: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                is_active?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accounts page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceAccountPage"];
+                };
+            };
+        };
+    };
+    createTenantFinanceAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFinanceAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceAccount"];
+                };
+            };
+        };
+    };
+    getTenantFinanceAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceAccount"];
+                };
+            };
+        };
+    };
+    deleteTenantFinanceAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchTenantFinanceAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchFinanceAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceAccount"];
+                };
+            };
+        };
+    };
+    getTenantFinanceAccountBalance: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Balance snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTenantFinanceAccountDetail: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTenantFinanceCategories: {
+        parameters: {
+            query?: {
+                kind?: "income" | "expense";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Categories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createTenantFinanceCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFinanceCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTenantFinanceCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Category */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceCategory"];
+                };
+            };
+        };
+    };
+    getTenantFinanceCategoryDetail: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Category detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTenantFinanceTransactionsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+        };
+    };
+    getTenantFinanceTransactions: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                type?: string;
+                status?: string;
+                account_uuid?: string;
+                category_uuid?: string;
+                date_from?: string;
+                date_to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transactions page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceTransactionPage"];
+                };
+            };
+        };
+    };
+    createTenantFinanceTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFinanceTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTenantFinanceTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transaction */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceTransaction"];
+                };
+            };
+        };
+    };
+    voidTenantFinanceTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Voided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createTenantFinanceTransfer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateFinanceTransferRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
 }

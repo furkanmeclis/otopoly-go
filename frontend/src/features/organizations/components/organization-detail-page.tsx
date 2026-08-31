@@ -20,14 +20,10 @@ import { Button } from "@/components/ui/button";
 import { apiConfig } from "@/config/api";
 import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
-import {
-  ORGANIZATION_STATUS_TONE,
-} from "@/features/organizations/constants";
+import { ORGANIZATION_STATUS_TONE } from "@/features/organizations/constants";
 import { OrganizationAddMemberDialog } from "@/features/organizations/components/organization-add-member-dialog";
 import { useOrganization } from "@/features/organizations/hooks/use-organizations-query";
-import type {
-  OrganizationStatus,
-} from "@/features/organizations/services/organizations.service";
+import type { OrganizationStatus } from "@/features/organizations/services/organizations.service";
 import { userFullName } from "@/features/users/lib/user-display";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
@@ -79,7 +75,10 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
       }
       breadcrumbs={[
         { label: t("layout.breadcrumb_home"), href: routes.platform.home },
-        { label: t("organizations.title"), href: routes.platform.organizations.root },
+        {
+          label: t("organizations.title"),
+          href: routes.platform.organizations.root,
+        },
         { label: title },
       ]}
       actions={
@@ -90,7 +89,9 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
                 type="button"
                 size="sm"
                 onClick={() =>
-                  router.push(routes.platform.organizations.edit(organization.uuid))
+                  router.push(
+                    routes.platform.organizations.edit(organization.uuid),
+                  )
                 }
               >
                 <Pencil className="size-4" />
@@ -218,7 +219,9 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
                       label: t("organizations.fields.status"),
                       value: (
                         <StatusChip
-                          label={t(`organizations.status.${organization.status}`)}
+                          label={t(
+                            `organizations.status.${organization.status}`,
+                          )}
                           tone={statusTone(organization.status)}
                         />
                       ),

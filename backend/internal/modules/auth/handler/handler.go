@@ -134,6 +134,27 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, r, http.StatusOK, tokens)
 }
 
+func (h *Handler) SwitchOrganizationContext(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		OrganizationSlug string `json:"organization_slug"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	slug := strings.TrimSpace(in.OrganizationSlug)
+	if slug == "" {
+		response.BadRequest(w, r, response.CodeValidationError, "organization_slug is required")
+		return
+	}
+	p := authctx.MustPrincipal(r.Context())
+	tokens, err := h.uc.SwitchOrganizationContext(r.Context(), p.UserID, slug, sessionMeta(r))
+	if err != nil {
+		writeUsecaseError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, tokens)
+}
+
 func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		RefreshToken string `json:"refresh_token"`

@@ -41,9 +41,7 @@ function mergeOrganizationDetail(
   queryClient.setQueryData<OrganizationDetail>(
     organizationsKeys.detail(organization.uuid),
     (prev) =>
-      prev
-        ? { ...prev, organization }
-        : { organization, members: [] },
+      prev ? { ...prev, organization } : { organization, members: [] },
   );
 }
 
@@ -59,7 +57,9 @@ export function useCreateOrganization() {
         organization,
         members: [],
       } satisfies OrganizationDetail);
-      void queryClient.invalidateQueries({ queryKey: organizationsKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: organizationsKeys.lists(),
+      });
       appToast.success(t("organizations.toast.created"));
     },
   });
@@ -86,7 +86,9 @@ export function useUpdateOrganization() {
       void queryClient.invalidateQueries({
         queryKey: organizationsKeys.detail(variables.uuid),
       });
-      void queryClient.invalidateQueries({ queryKey: organizationsKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: organizationsKeys.lists(),
+      });
     },
     onSuccess: (organization) => {
       mergeOrganizationDetail(queryClient, organization);
@@ -97,7 +99,9 @@ export function useUpdateOrganization() {
       void queryClient.invalidateQueries({
         queryKey: organizationsKeys.detail(variables.uuid),
       });
-      void queryClient.invalidateQueries({ queryKey: organizationsKeys.lists() });
+      void queryClient.invalidateQueries({
+        queryKey: organizationsKeys.lists(),
+      });
     },
   });
 }

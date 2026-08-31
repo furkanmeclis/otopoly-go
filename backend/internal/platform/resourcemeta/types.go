@@ -291,3 +291,65 @@ func PlatformOrganizations() ResourceMeta {
 		},
 	}
 }
+
+// TenantFinanceAccounts returns meta for GET /v1/tenant/finance/accounts.
+// TODO(finance): Enable io-engine export/import and search-engine adapter when tenant finance
+// resources are registered in platform engines (see .agents/skills/io-engine, search-engine).
+func TenantFinanceAccounts() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.finance.accounts",
+		DefaultSort:   "name",
+		DefaultFields: []string{"uuid", "name", "type", "currency", "current_balance", "is_default", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true, Search: true, Filter: true, Sort: true,
+		},
+		SearchableFields: []string{"name", "bank_name"},
+		SortableFields:   []string{"name", "currency", "current_balance", "created_at"},
+		FilterableFields: []string{"is_active", "type", "currency"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "finance.accounts.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "type", LabelKey: "finance.accounts.type", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "currency", LabelKey: "finance.accounts.currency", Type: ColumnTypeString, Sortable: true, Filterable: true, DefaultVisible: true},
+			{Key: "current_balance", LabelKey: "finance.accounts.current_balance", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "is_default", LabelKey: "finance.accounts.is_default", Type: ColumnTypeBoolean, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "finance.accounts.is_active", Type: ColumnTypeBoolean, Filterable: true, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "is_active", LabelKey: "finance.accounts.is_active", Variant: FilterVariantFaceted},
+			{Key: "type", LabelKey: "finance.accounts.type", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
+// TenantFinanceTransactions returns meta for GET /v1/tenant/finance/transactions.
+// TODO(finance): bulk-engine void/export actions, io-engine CSV/XLSX/PDF export, searchable
+// command-palette entries; add payment_method to filterable fields when UI exposes it.
+func TenantFinanceTransactions() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.finance.transactions",
+		DefaultSort:   "-transaction_date",
+		DefaultFields: []string{"uuid", "type", "status", "amount", "currency", "transaction_date", "account_name", "category_name"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: false, Delete: false, Search: true, Filter: true, Sort: true,
+		},
+		SearchableFields: []string{"description", "reference_no"},
+		SortableFields:   []string{"transaction_date", "amount", "created_at"},
+		FilterableFields: []string{"type", "status", "account_uuid", "category_uuid", "currency", "date_from", "date_to"},
+		Columns: []Column{
+			{Key: "transaction_date", LabelKey: "finance.transactions.date", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "type", LabelKey: "finance.transactions.type", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "amount", LabelKey: "finance.transactions.amount", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "currency", LabelKey: "finance.transactions.currency", Type: ColumnTypeString, Filterable: true, DefaultVisible: true},
+			{Key: "account_name", LabelKey: "finance.transactions.account", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "category_name", LabelKey: "finance.transactions.category", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "finance.transactions.status", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "description", LabelKey: "finance.transactions.description", Type: ColumnTypeString, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "type", LabelKey: "finance.transactions.type", Variant: FilterVariantFaceted},
+			{Key: "status", LabelKey: "finance.transactions.status", Variant: FilterVariantFaceted},
+			{Key: "date_from", LabelKey: "finance.transactions.date_from", Variant: FilterVariantText},
+			{Key: "date_to", LabelKey: "finance.transactions.date_to", Variant: FilterVariantText},
+		},
+	}
+}

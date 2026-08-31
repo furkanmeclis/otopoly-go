@@ -96,6 +96,14 @@ FROM organization_members om
 JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
 WHERE om.user_id = $1 AND o.slug = $2;
 
+-- name: GetOrganizationMemberByUserAndOrgUUID :one
+SELECT om.id, om.organization_id, om.user_id, om.role, om.created_at,
+       o.uuid AS organization_uuid, o.slug AS organization_slug, o.status AS organization_status,
+       o.access_starts_at, o.access_ends_at, o.name AS organization_name
+FROM organization_members om
+JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
+WHERE om.user_id = $1 AND o.uuid = $2;
+
 -- name: ListOrganizationMembersByUserID :many
 SELECT om.role, o.uuid, o.slug, o.name, o.logo_object_key, o.status, o.access_ends_at
 FROM organization_members om

@@ -62,20 +62,27 @@ function isProtectedPath(pathname: string) {
   if (isTenantPath(pathname)) return true;
   if (pathname.startsWith(`${routes.cms.profile.root}`)) return true;
   if (pathname === routes.platform.root) return true;
-  if (pathname.startsWith(`${routes.platform.root}/`) && !isGuestAuthPath(pathname)) {
+  if (
+    pathname.startsWith(`${routes.platform.root}/`) &&
+    !isGuestAuthPath(pathname)
+  ) {
     return true;
   }
   return false;
 }
 
-function isOAuthProvider(provider: string | undefined): provider is OAuthProviderId {
+function isOAuthProvider(
+  provider: string | undefined,
+): provider is OAuthProviderId {
   return (
     provider !== undefined &&
     (OAUTH_PROVIDERS as readonly string[]).includes(provider)
   );
 }
 
-async function loadOAuthConfig(provider: OAuthProviderId): Promise<OAuthConfigPayload | null> {
+async function loadOAuthConfig(
+  provider: OAuthProviderId,
+): Promise<OAuthConfigPayload | null> {
   try {
     const config = await adapterGetOAuthConfig(provider);
     if (config.enabled && config.client_id && config.client_secret) {
@@ -113,7 +120,9 @@ async function buildProviders(): Promise<Provider[]> {
           const email = String(credentials?.email ?? "").trim();
           const password = String(credentials?.password ?? "");
           const totpCode = String(credentials?.totp_code ?? "").trim();
-          const organizationSlug = String(credentials?.organization_slug ?? "").trim();
+          const organizationSlug = String(
+            credentials?.organization_slug ?? "",
+          ).trim();
           if (!email || !password) return null;
 
           try {
@@ -324,9 +333,7 @@ const authHandlers = NextAuth(async () => ({
         session.user.id = token.sub ?? "";
       }
       (session as { error?: string }).error = token.error as
-        | "PasskeySessionError"
-        | "OAuthSessionError"
-        | undefined;
+        "PasskeySessionError" | "OAuthSessionError" | undefined;
       return session;
     },
   },

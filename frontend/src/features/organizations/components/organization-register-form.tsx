@@ -4,7 +4,12 @@ import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { useMemo, useState } from "react";
 
-import { AppForm, AppInput, AppPassword, AppTextarea } from "@/components/forms";
+import {
+  AppForm,
+  AppInput,
+  AppPassword,
+  AppTextarea,
+} from "@/components/forms";
 import { Button } from "@/components/ui/button";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { routes } from "@/config/routes";
@@ -55,7 +60,9 @@ export function OrganizationRegisterForm() {
         const code = resolveCredentialErrorCode(signInResult);
         if (code === CREDENTIAL_ERROR_CODES.NO_TENANT_MEMBERSHIP) {
           setFormError(t("auth.login.no_tenant_membership"));
-        } else if (code === CREDENTIAL_ERROR_CODES.ORGANIZATION_ACCESS_EXPIRED) {
+        } else if (
+          code === CREDENTIAL_ERROR_CODES.ORGANIZATION_ACCESS_EXPIRED
+        ) {
           setFormError(t("organizations.access.expired_title"));
         } else {
           setFormError(t("register.error_sign_in"));
@@ -110,9 +117,21 @@ export function OrganizationRegisterForm() {
             <AppInput name="city" label={t("register.fields.city")} />
             <AppInput name="district" label={t("register.fields.district")} />
           </div>
-          <AppInput name="phone" label={t("register.fields.phone")} type="tel" />
-          <AppInput name="email" label={t("register.fields.email")} type="email" />
-          <AppTextarea name="address" label={t("register.fields.address")} rows={3} />
+          <AppInput
+            name="phone"
+            label={t("register.fields.phone")}
+            type="tel"
+          />
+          <AppInput
+            name="email"
+            label={t("register.fields.email")}
+            type="email"
+          />
+          <AppTextarea
+            name="address"
+            label={t("register.fields.address")}
+            rows={3}
+          />
           <AppPassword name="password" label={t("register.fields.password")} />
           <Button type="submit" className="w-full" disabled={pending}>
             {pending ? t("register.submitting") : t("register.submit")}

@@ -71,11 +71,15 @@ export function TenantRouteGuard({
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle>{t("organizations.access.denied_title")}</CardTitle>
-            <CardDescription>{t("organizations.access.denied_description")}</CardDescription>
+            <CardDescription>
+              {t("organizations.access.denied_description")}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild>
-              <Link href={routes.public.root}>{t("organizations.access.back_home")}</Link>
+              <Link href={routes.public.root}>
+                {t("organizations.access.back_home")}
+              </Link>
             </Button>
           </CardContent>
         </Card>

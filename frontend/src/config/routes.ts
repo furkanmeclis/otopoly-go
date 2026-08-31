@@ -16,6 +16,31 @@ export const routes = {
       password: (slug: string) => `/t/${slug}/profile/password`,
       preferences: (slug: string) => `/t/${slug}/profile/preferences`,
     },
+    finance: {
+      root: (slug: string) => `/t/${slug}/finance`,
+      accounts: {
+        root: (slug: string) => `/t/${slug}/finance/accounts`,
+        detail: (slug: string, uuid: string) =>
+          `/t/${slug}/finance/accounts/${uuid}`,
+      },
+      categories: {
+        root: (slug: string) => `/t/${slug}/finance/categories`,
+        detail: (slug: string, uuid: string) =>
+          `/t/${slug}/finance/categories/${uuid}`,
+      },
+      transactions: {
+        root: (slug: string) => `/t/${slug}/finance/transactions`,
+        detail: (slug: string, uuid: string) =>
+          `/t/${slug}/finance/transactions/${uuid}`,
+        incomeNew: (slug: string) =>
+          `/t/${slug}/finance/transactions/income/new`,
+        expenseNew: (slug: string) =>
+          `/t/${slug}/finance/transactions/expense/new`,
+      },
+      transfers: {
+        new: (slug: string) => `/t/${slug}/finance/transfers/new`,
+      },
+    },
   },
   guest: {
     login: "/platform/login",

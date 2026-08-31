@@ -107,7 +107,7 @@ function AccessEndsField() {
             label={t("organizations.fields.access_ends_at")}
           >
             <DatePicker
-              value={clearAccess ? "" : field.value?.slice(0, 10) ?? ""}
+              value={clearAccess ? "" : (field.value?.slice(0, 10) ?? "")}
               onChange={(value) =>
                 field.onChange(value ? new Date(value).toISOString() : "")
               }

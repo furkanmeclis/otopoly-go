@@ -55,6 +55,7 @@ func RegisterRoutes(
 	mux.Handle("DELETE /v1/auth/identities/{provider}", middleware.Chain(http.HandlerFunc(h.UnlinkIdentity), authn))
 
 	mux.Handle("POST /v1/auth/logout", middleware.Chain(http.HandlerFunc(h.Logout), authn))
+	mux.Handle("POST /v1/auth/organization-context", middleware.Chain(http.HandlerFunc(h.SwitchOrganizationContext), authn))
 	mux.Handle("GET /v1/auth/me", middleware.Chain(http.HandlerFunc(h.Me), authn))
 	mux.Handle("GET /v1/auth/passkeys", middleware.Chain(http.HandlerFunc(h.ListPasskeys), authn))
 	mux.Handle("PATCH /v1/auth/passkeys/{uuid}", middleware.Chain(http.HandlerFunc(h.PatchPasskey), authn))

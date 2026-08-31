@@ -3,11 +3,7 @@ import { apiConfig } from "@/config/api";
 import { platformFormRequest } from "@/lib/api/platform-form-request";
 import { platformRequest, unwrap } from "@/lib/api";
 
-export type OrganizationStatus =
-  | "pending"
-  | "active"
-  | "suspended"
-  | "expired";
+export type OrganizationStatus = "pending" | "active" | "suspended" | "expired";
 
 export type OrganizationSummary = {
   uuid: string;

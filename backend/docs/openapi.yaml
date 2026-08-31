@@ -152,6 +152,36 @@ paths:
         "429":
           $ref: "#/components/responses/TooManyRequests"
 
+  /v1/auth/organization-context:
+    post:
+      tags: [Auth]
+      operationId: postAuthOrganizationContext
+      summary: Switch organization context
+      description: |
+        Re-issues access and refresh tokens with the JWT `oid` claim set for the
+        given organization. Requires an authenticated session and active membership.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrganizationContextRequest"
+      responses:
+        "200":
+          description: Organization context applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/auth/refresh:
     post:
       tags: [Auth]
@@ -2150,6 +2180,372 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/tenant/finance/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceSummary
+      summary: Finance period summary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date_from
+          in: query
+          schema: { type: string, format: date }
+        - name: date_to
+          in: query
+          schema: { type: string, format: date }
+        - name: currency
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceSummary"
+
+  /v1/tenant/finance/accounts/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceAccountsMeta
+      summary: Finance accounts meta
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+
+  /v1/tenant/finance/accounts:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceAccounts
+      summary: List finance accounts
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Accounts page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceAccountPage"
+    post:
+      tags: [Tenant]
+      operationId: createTenantFinanceAccount
+      summary: Create finance account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFinanceAccountRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceAccount"
+
+  /v1/tenant/finance/accounts/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceAccount
+      summary: Get finance account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceAccount"
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantFinanceAccount
+      summary: Update finance account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFinanceAccountRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceAccount"
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantFinanceAccount
+      summary: Soft-delete finance account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+
+  /v1/tenant/finance/accounts/{uuid}/balance:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceAccountBalance
+      summary: Account balance with recent transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: Balance snapshot
+
+  /v1/tenant/finance/accounts/{uuid}/detail:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceAccountDetail
+      summary: Account detail with stats and recent transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: Account detail
+
+  /v1/tenant/finance/categories:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceCategories
+      summary: List finance categories
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kind
+          in: query
+          schema: { type: string, enum: [income, expense] }
+      responses:
+        "200":
+          description: Categories
+    post:
+      tags: [Tenant]
+      operationId: createTenantFinanceCategory
+      summary: Create finance category
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFinanceCategoryRequest"
+      responses:
+        "201":
+          description: Created
+
+  /v1/tenant/finance/categories/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceCategory
+      summary: Get finance category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceCategory"
+
+  /v1/tenant/finance/categories/{uuid}/detail:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceCategoryDetail
+      summary: Category detail with stats and recent transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50 }
+      responses:
+        "200":
+          description: Category detail
+
+  /v1/tenant/finance/transactions/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceTransactionsMeta
+      summary: Finance transactions meta
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+
+  /v1/tenant/finance/transactions:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceTransactions
+      summary: List finance transactions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: account_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: category_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: date_from
+          in: query
+          schema: { type: string, format: date }
+        - name: date_to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Transactions page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceTransactionPage"
+    post:
+      tags: [Tenant]
+      operationId: createTenantFinanceTransaction
+      summary: Create income or expense transaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFinanceTransactionRequest"
+      responses:
+        "201":
+          description: Created
+
+  /v1/tenant/finance/transactions/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceTransaction
+      summary: Get finance transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Transaction
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceTransaction"
+
+  /v1/tenant/finance/transactions/{uuid}/void:
+    post:
+      tags: [Tenant]
+      operationId: voidTenantFinanceTransaction
+      summary: Void a posted transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Voided
+
+  /v1/tenant/finance/transfers:
+    post:
+      tags: [Tenant]
+      operationId: createTenantFinanceTransfer
+      summary: Transfer between accounts
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateFinanceTransferRequest"
+      responses:
+        "201":
+          description: Created
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2641,6 +3037,14 @@ components:
         organization_slug:
           type: string
           description: When set, login is scoped to this organization membership
+
+    OrganizationContextRequest:
+      type: object
+      required: [organization_slug]
+      properties:
+        organization_slug:
+          type: string
+          description: Organization slug to scope the active session to
 
     TOTPCodeRequest:
       type: object
@@ -3526,3 +3930,171 @@ components:
             redis:
               type: string
               examples: [ok, down]
+
+    FinanceAccount:
+      type: object
+      required: [uuid, name, type, currency, current_balance]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        type: { type: string, enum: [cash, bank] }
+        currency: { type: string }
+        opening_balance: { type: string }
+        current_balance: { type: string }
+        is_default: { type: boolean }
+        is_active: { type: boolean }
+        bank_name: { type: [string, "null"] }
+        iban: { type: [string, "null"] }
+        notes: { type: string }
+        negative_balance: { type: boolean }
+
+    FinanceTransaction:
+      type: object
+      required: [uuid, type, status, amount, currency, transaction_date]
+      properties:
+        uuid: { type: string, format: uuid }
+        type: { type: string, enum: [income, expense, transfer] }
+        status: { type: string, enum: [posted, void] }
+        account_uuid: { type: string, format: uuid }
+        account_name: { type: string }
+        amount: { type: string }
+        currency: { type: string }
+        transaction_date: { type: string, format: date }
+        description: { type: string }
+        payment_method: { type: string }
+
+    FinanceSummary:
+      type: object
+      properties:
+        date_from: { type: string, format: date }
+        date_to: { type: string, format: date }
+        total_income: { type: string }
+        total_expense: { type: string }
+        net: { type: string }
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/FinanceAccount" }
+
+    CreateFinanceAccountRequest:
+      type: object
+      required: [name, type, currency]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        currency: { type: string }
+        opening_balance: { type: string }
+        is_default: { type: boolean }
+
+    PatchFinanceAccountRequest:
+      type: object
+      properties:
+        name: { type: string }
+        is_default: { type: boolean }
+        is_active: { type: boolean }
+
+    CreateFinanceCategoryRequest:
+      type: object
+      required: [name, kind]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [income, expense] }
+
+    FinanceCategory:
+      type: object
+      required: [uuid, name, kind, is_active]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [income, expense] }
+        parent_uuid: { type: [string, "null"], format: uuid }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+
+    CreateFinanceTransactionRequest:
+      type: object
+      required: [type, account_uuid, amount, transaction_date]
+      properties:
+        type: { type: string, enum: [income, expense] }
+        account_uuid: { type: string, format: uuid }
+        category_uuid:
+          type: string
+          format: uuid
+          description: Required for expense; optional for income
+        amount: { type: string }
+        transaction_date: { type: string, format: date }
+        description: { type: string }
+        payment_method: { type: string }
+
+    CreateFinanceTransferRequest:
+      type: object
+      required: [from_account_uuid, to_account_uuid, amount, transaction_date]
+      properties:
+        from_account_uuid: { type: string, format: uuid }
+        to_account_uuid: { type: string, format: uuid }
+        amount: { type: string }
+        transaction_date: { type: string, format: date }
+        description: { type: string }
+
+    EnvelopeFinanceAccount:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/FinanceAccount" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceAccountPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/FinanceAccount" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceCategory:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/FinanceCategory" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceTransaction:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/FinanceTransaction" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceTransactionPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/FinanceTransaction" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/FinanceSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }

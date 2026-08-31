@@ -49,7 +49,8 @@ export type AuthUser = {
 };
 
 export function mapMeToAuthUser(me: Me): AuthUser {
-  const { user, roles, permissions, realtime, impersonation, organizations } = me;
+  const { user, roles, permissions, realtime, impersonation, organizations } =
+    me;
   const locale =
     typeof user.locale === "string" && user.locale ? user.locale : "tr";
   const mapped: AuthUser = {
@@ -89,7 +90,9 @@ export function mapMeToAuthUser(me: Me): AuthUser {
   return mapped;
 }
 
-export function hasPlatformPermission(user: AuthUser | null | undefined): boolean {
+export function hasPlatformPermission(
+  user: AuthUser | null | undefined,
+): boolean {
   if (!user) return false;
   if (user.isSuperAdmin || user.roles.includes("super_admin")) return true;
   return user.permissions.some((p) => p.startsWith("platform."));

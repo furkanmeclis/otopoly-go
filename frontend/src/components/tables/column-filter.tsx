@@ -4,6 +4,7 @@ import type { Column } from "@tanstack/react-table";
 import { X } from "lucide-react";
 
 import type { DataTableColumnMeta } from "@/components/tables/types";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -72,27 +73,6 @@ export function ColumnFilter<TData>({ column }: ColumnFilterProps<TData>) {
     );
   }
 
-  if (variant === "boolean") {
-    return (
-      <Select
-        value={value === true ? "true" : value === false ? "false" : "__all__"}
-        onValueChange={(next) => {
-          if (next === "__all__") column.setFilterValue(undefined);
-          else column.setFilterValue(next === "true");
-        }}
-      >
-        <SelectTrigger className="h-8 w-full min-w-0">
-          <SelectValue placeholder={t("table.filter")} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">{t("table.all")}</SelectItem>
-          <SelectItem value="true">{t("table.true")}</SelectItem>
-          <SelectItem value="false">{t("table.false")}</SelectItem>
-        </SelectContent>
-      </Select>
-    );
-  }
-
   if (variant === "number-range") {
     const range = (value as [number | undefined, number | undefined]) ?? [
       undefined,
@@ -125,6 +105,63 @@ export function ColumnFilter<TData>({ column }: ColumnFilterProps<TData>) {
               max,
             ]);
           }}
+        />
+      </div>
+    );
+  }
+
+  if (variant === "boolean") {
+    return (
+      <Select
+        value={value === true ? "true" : value === false ? "false" : "__all__"}
+        onValueChange={(next) => {
+          if (next === "__all__") column.setFilterValue(undefined);
+          else column.setFilterValue(next === "true");
+        }}
+      >
+        <SelectTrigger className="h-8 w-full min-w-0">
+          <SelectValue placeholder={t("table.filter")} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="__all__">{t("table.all")}</SelectItem>
+          <SelectItem value="true">{t("table.true")}</SelectItem>
+          <SelectItem value="false">{t("table.false")}</SelectItem>
+        </SelectContent>
+      </Select>
+    );
+  }
+
+  if (variant === "date-range") {
+    const range = (value as
+      [string | undefined, string | undefined] | undefined) ?? [
+      undefined,
+      undefined,
+    ];
+    return (
+      <div className="grid min-w-[11rem] grid-cols-1 gap-1 xl:min-w-[14rem] xl:grid-cols-2">
+        <DatePicker
+          value={range[0] ?? ""}
+          onChange={(next) =>
+            column.setFilterValue((old: [string?, string?] | undefined) => [
+              next || undefined,
+              old?.[1],
+            ])
+          }
+          placeholder={t("table.min")}
+          className="h-8 w-full"
+          displayFormat="dd.MM.yy"
+        />
+        <DatePicker
+          value={range[1] ?? ""}
+          onChange={(next) =>
+            column.setFilterValue((old: [string?, string?] | undefined) => [
+              old?.[0],
+              next || undefined,
+            ])
+          }
+          placeholder={t("table.max")}
+          className="h-8 w-full"
+          displayFormat="dd.MM.yy"
         />
       </div>
     );

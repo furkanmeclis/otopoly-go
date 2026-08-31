@@ -74,6 +74,14 @@ export const authService = {
     );
   },
 
+  async switchOrganizationContext(organizationSlug: string) {
+    return unwrap<AuthSessionResult>(
+      await apiClient.POST("/v1/auth/organization-context", {
+        body: { organization_slug: organizationSlug },
+      }),
+    );
+  },
+
   async logout() {
     try {
       await unwrap(
@@ -149,7 +157,9 @@ export const authService = {
   },
 
   async listIdentities() {
-    return unwrap<IdentityListResult>(await apiClient.GET("/v1/auth/identities"));
+    return unwrap<IdentityListResult>(
+      await apiClient.GET("/v1/auth/identities"),
+    );
   },
 
   async stopImpersonation() {

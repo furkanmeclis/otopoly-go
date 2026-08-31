@@ -381,6 +381,8 @@ func (u *AuthUseCase) Refresh(ctx context.Context, rawToken string, meta model.S
 		return model.Tokens{}, ErrUserDisabled
 	}
 	meta.ImpersonatorUserID = session.ImpersonatorUserID
+	// TODO(finance): Preserve JWT `oid` (organization scope) across token refresh so long tenant
+	// sessions do not lose /v1/tenant/finance/* access until layout re-runs organization-context.
 	return u.issueTokensForUser(ctx, user, meta, nil)
 }
 

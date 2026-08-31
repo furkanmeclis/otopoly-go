@@ -54,6 +54,34 @@ JWT claims are `sub`, `roles`, `is_super_admin`, `exp`, optional `imp` (imperson
 
 There is **no** workspace or multi-branch model in this MVP.
 
+## Tenant finance (`/t/{slug}/finance`)
+
+Organization-scoped accounting under `/v1/tenant/finance/*`. Requires JWT `oid` (login with `organization_slug`) plus membership.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.finance.read` | `organization_user` (owners + staff) | Lists, summary, balances |
+| `tenant.finance.write` | `organization_owner` role + owner membership | Create accounts, categories, transactions, transfers, void |
+
+**Roles:** `organization_owner` is assigned to `organization_members.role = owner` and grants write. Staff keep read-only via `organization_user` + `.read` only.
+
+**Core tables:** `finance_accounts`, `finance_categories`, `finance_transactions` (all scoped by `organization_id`).
+
+**Integration hooks (future modules):** `finance_transactions.source_type` + `source_uuid` link external domain events without duplicating money rows.
+
+| `source_type` | Future use |
+|---------------|------------|
+| `manual` | User-entered income/expense/transfer (MVP default) |
+| `service_job` | Car-wash job payment posted on close |
+| `product_sale` | Quick product sale from operations module |
+| `purchase` | Stock purchase / supplier expense |
+
+Optional `metadata` JSONB carries module-specific flags (e.g. `pending_receivable` before cari module exists).
+
+<!-- TODO(finance): ERP backlog — account/category edit UI, io-engine export, search-engine adapters,
+     bulk void/export, period-scoped detail stats, created_by on transactions, refresh oid preservation,
+     backfill SeedDefaults for legacy orgs, recurring/budget modules. See TODO(finance) in codebase. -->
+
 ## Request flow
 
 ```

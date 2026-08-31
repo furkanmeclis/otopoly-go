@@ -34,7 +34,7 @@ import { useNavGroupOpen } from "@/features/nav-engine/hooks/use-nav-group-open"
 import { visibleNavItems } from "@/features/nav-engine/lib/access";
 import {
   formatNavCount,
-  isNavHrefActive,
+  resolveActiveNavHref,
 } from "@/features/nav-engine/lib/active";
 import {
   hasVisibleNavBadge,
@@ -87,9 +87,8 @@ function NavGroupView({
   const pathname = usePathname();
   const { isMobile, state } = useSidebar();
   const collapsible = group.collapsible ?? true;
-  const hasActive = resolved.some(({ item }) =>
-    isNavHrefActive(pathname, item.href, homeHref),
-  );
+  const peerHrefs = resolved.map(({ item }) => item.href);
+  const hasActive = resolveActiveNavHref(pathname, peerHrefs) !== null;
   const [open, onOpenChange] = useNavGroupOpen(
     catalogId,
     group.id,
@@ -123,6 +122,7 @@ function NavGroupView({
         GroupIcon={GroupIcon}
         resolved={resolved}
         homeHref={homeHref}
+        peerHrefs={peerHrefs}
         hasActive={hasActive}
         dir={dir}
         count={collapsedCount}
@@ -140,6 +140,7 @@ function NavGroupView({
             item={item}
             adornment={adornment}
             homeHref={homeHref}
+            peerHrefs={peerHrefs}
           />
         ))}
       </SidebarMenu>
@@ -188,6 +189,7 @@ function CollapsedNavGroup({
   GroupIcon,
   resolved,
   homeHref,
+  peerHrefs,
   hasActive,
   dir,
   count,
@@ -197,6 +199,7 @@ function CollapsedNavGroup({
   GroupIcon?: ResolvedNavItem["item"]["icon"];
   resolved: ResolvedNavItem[];
   homeHref: string;
+  peerHrefs: string[];
   hasActive: boolean;
   dir: "ltr" | "rtl";
   count: number;
@@ -214,6 +217,7 @@ function CollapsedNavGroup({
               item={item}
               adornment={adornment}
               homeHref={homeHref}
+              peerHrefs={peerHrefs}
             />
           </SidebarMenu>
         </SidebarGroupContent>
@@ -255,6 +259,7 @@ function CollapsedNavGroup({
                     item={item}
                     adornment={adornment}
                     homeHref={homeHref}
+                    peerHrefs={peerHrefs}
                   />
                 ))}
               </DropdownMenuContent>

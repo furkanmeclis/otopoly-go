@@ -28,6 +28,7 @@ type SessionSwitchData = {
 /** Paths whose successful response updates the NextAuth JWT token pair. */
 function isAuthTokenPath(path: string) {
   if (path === "auth/refresh") return true;
+  if (path === "auth/organization-context") return true;
   if (path === "auth/impersonation/stop") return true;
   return path.startsWith("platform/users/") && path.endsWith("/impersonate");
 }
@@ -104,7 +105,8 @@ async function persistTokensFromEnvelope(envelope: Envelope | null) {
   const refresh = envelope?.data?.refresh_token;
   if (!access || !refresh) return false;
 
-  const sessionPayload = envelope?.data?.session as SessionSwitchData | undefined;
+  const sessionPayload = envelope?.data?.session as
+    SessionSwitchData | undefined;
   const existing = await getApiTokens();
   const userId = sessionPayload?.user_uuid ?? existing.userId;
   if (!userId) return false;
@@ -181,7 +183,7 @@ function buildUpstreamBody(
 function passthroughHeaders(upstream: Headers): Headers {
   const out = new Headers();
   const allow = [
-	"content-type",
+    "content-type",
     "content-disposition",
     "cache-control",
     "location",

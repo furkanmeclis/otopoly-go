@@ -55,6 +55,8 @@
   "labels.platform.auth.settings.write": "Auth kayıt ayarlarını düzenle",
   "labels.platform.organizations.read": "İşletmeleri görüntüle",
   "labels.platform.organizations.write": "İşletmeleri yönet",
+  "labels.tenant.finance.read": "Finans okuma",
+  "labels.tenant.finance.write": "Finans yazma",
   "labels.auth.session": "Oturum",
   "labels.notifications.read": "Bildirimleri görüntüle",
   "labels.notifications.manage": "Bildirimleri yönet",

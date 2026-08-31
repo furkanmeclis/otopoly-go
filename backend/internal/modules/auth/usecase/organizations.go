@@ -27,6 +27,33 @@ func (u *AuthUseCase) SetOrganizationResolver(resolver OrganizationResolver) {
 	u.orgResolver = resolver
 }
 
+// SwitchOrganizationContext re-issues tokens with organization scope for an authenticated user.
+func (u *AuthUseCase) SwitchOrganizationContext(
+	ctx context.Context,
+	userUUID uuid.UUID,
+	organizationSlug string,
+	meta model.SessionMeta,
+) (model.Tokens, error) {
+	user, err := u.repo.FindUserByUUID(ctx, userUUID)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			return model.Tokens{}, ErrInvalidCredentials
+		}
+		return model.Tokens{}, err
+	}
+	if user.Status != "active" {
+		return model.Tokens{}, ErrUserDisabled
+	}
+	if u.orgResolver == nil {
+		return model.Tokens{}, ErrNoTenantMembership
+	}
+	orgUUID, err := u.orgResolver.ResolveLoginOrganization(ctx, user.ID, organizationSlug)
+	if err != nil {
+		return model.Tokens{}, mapOrganizationError(err)
+	}
+	return u.issueTokensForUser(ctx, user, meta, &orgUUID)
+}
+
 // IssueSessionForOrganization issues tokens scoped to an organization.
 func (u *AuthUseCase) IssueSessionForOrganization(ctx context.Context, userUUID, orgUUID uuid.UUID, meta model.SessionMeta) (model.Tokens, error) {
 	user, err := u.repo.FindUserByUUID(ctx, userUUID)

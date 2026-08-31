@@ -42,6 +42,9 @@ export const Permission = {
   PlatformOrganizationsRead: "platform.organizations.read",
   PlatformOrganizationsWrite: "platform.organizations.write",
 
+  TenantFinanceRead: "tenant.finance.read",
+  TenantFinanceWrite: "tenant.finance.write",
+
   AuthSession: "auth.session",
 
   NotificationsRead: "notifications.read",
@@ -137,6 +140,10 @@ export const permissions = {
   organizations: {
     read: Permission.PlatformOrganizationsRead,
     write: Permission.PlatformOrganizationsWrite,
+  },
+  finance: {
+    read: Permission.TenantFinanceRead,
+    write: Permission.TenantFinanceWrite,
   },
   auth: {
     session: Permission.AuthSession,

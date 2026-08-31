@@ -25,17 +25,19 @@ export function NavSidebarItem({
   item,
   adornment,
   homeHref,
+  peerHrefs,
 }: {
   item: NavItemDef;
   adornment: NavAdornment;
   homeHref: string;
+  peerHrefs?: string[];
 }) {
   const { t } = useLocale();
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
   const merged = mergeNavAdornment(item, adornment, t("common.soon"));
   const title = t(item.titleKey);
-  const active = isNavHrefActive(pathname, item.href, homeHref);
+  const active = isNavHrefActive(pathname, item.href, homeHref, peerHrefs);
   const Icon = item.icon;
   const showInfo = hasNavInfo(merged.info);
   const tooltip = item.soon ? `${title} (${t("common.soon")})` : title;
@@ -77,17 +79,19 @@ export function NavDropdownItem({
   item,
   adornment,
   homeHref,
+  peerHrefs,
 }: {
   item: NavItemDef;
   adornment: NavAdornment;
   homeHref: string;
+  peerHrefs?: string[];
 }) {
   const { t } = useLocale();
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
   const merged = mergeNavAdornment(item, adornment, t("common.soon"));
   const title = t(item.titleKey);
-  const active = isNavHrefActive(pathname, item.href, homeHref);
+  const active = isNavHrefActive(pathname, item.href, homeHref, peerHrefs);
   const Icon = item.icon;
   const showInfo = hasNavInfo(merged.info);
 

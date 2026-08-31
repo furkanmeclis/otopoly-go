@@ -44,7 +44,8 @@ export function OrganizationEditPage({ uuid }: OrganizationEditPageProps) {
     router.push(routes.platform.organizations.detail(uuid));
   };
 
-  const title = organizationQuery.data?.organization.name ?? t("organizations.edit_title");
+  const title =
+    organizationQuery.data?.organization.name ?? t("organizations.edit_title");
 
   return (
     <EntityPage
@@ -59,7 +60,10 @@ export function OrganizationEditPage({ uuid }: OrganizationEditPageProps) {
       }
       breadcrumbs={[
         { label: t("layout.breadcrumb_home"), href: routes.platform.home },
-        { label: t("organizations.title"), href: routes.platform.organizations.root },
+        {
+          label: t("organizations.title"),
+          href: routes.platform.organizations.root,
+        },
         {
           label: title,
           href: routes.platform.organizations.detail(uuid),
@@ -85,7 +89,9 @@ export function OrganizationEditPage({ uuid }: OrganizationEditPageProps) {
             organization={organizationQuery.data.organization}
             isSubmitting={updateOrganization.isPending}
             onSubmit={handleSubmit}
-            onCancel={() => router.push(routes.platform.organizations.detail(uuid))}
+            onCancel={() =>
+              router.push(routes.platform.organizations.detail(uuid))
+            }
           />
         </EntityForm>
       ) : null}

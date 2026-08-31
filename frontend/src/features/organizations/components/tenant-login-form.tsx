@@ -46,7 +46,9 @@ export function TenantLoginForm() {
         const code = resolveCredentialErrorCode(result);
         if (code === CREDENTIAL_ERROR_CODES.NO_TENANT_MEMBERSHIP) {
           setFormError(t("auth.login.no_tenant_membership"));
-        } else if (code === CREDENTIAL_ERROR_CODES.ORGANIZATION_ACCESS_EXPIRED) {
+        } else if (
+          code === CREDENTIAL_ERROR_CODES.ORGANIZATION_ACCESS_EXPIRED
+        ) {
           setFormError(t("organizations.access.expired_title"));
         } else {
           setFormError(t("auth.login.error"));
@@ -80,7 +82,11 @@ export function TenantLoginForm() {
         >
           <FieldGroup>
             {formError ? <FieldError>{formError}</FieldError> : null}
-            <AppInput name="email" label={t("auth.fields.email")} type="email" />
+            <AppInput
+              name="email"
+              label={t("auth.fields.email")}
+              type="email"
+            />
             <AppPassword name="password" label={t("auth.fields.password")} />
             <Button type="submit" className="w-full" disabled={pending}>
               {pending ? t("auth.login.submitting") : t("auth.login.submit")}

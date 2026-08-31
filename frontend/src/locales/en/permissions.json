@@ -55,6 +55,8 @@
   "labels.platform.auth.settings.write": "Write auth registration settings",
   "labels.platform.organizations.read": "Read organizations",
   "labels.platform.organizations.write": "Write organizations",
+  "labels.tenant.finance.read": "Read tenant finance",
+  "labels.tenant.finance.write": "Write tenant finance",
   "labels.auth.session": "Auth session",
   "labels.notifications.read": "Read notifications",
   "labels.notifications.manage": "Manage notifications",

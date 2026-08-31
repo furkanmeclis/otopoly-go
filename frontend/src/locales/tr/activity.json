@@ -24,6 +24,9 @@
   "actions.auth.settings.updated": "Auth kayıt ayarları güncellendi",
   "actions.users.impersonated": "Kullanıcı taklit oturumu başlatıldı",
   "actions.users.impersonation_stopped": "Kullanıcı taklit oturumu sonlandırıldı",
+  "actions.finance.transaction.create": "Finans işlemi oluşturuldu",
+  "actions.finance.transfer.create": "Finans virmanı oluşturuldu",
+  "actions.finance.transaction.void": "Finans işlemi iptal edildi",
   "resources.platform.users": "Kullanıcılar",
   "resources.platform.roles": "Roller",
   "resources.platform.notifications": "Bildirimler",
@@ -35,5 +38,6 @@
   "resources.platform.integrations.google": "Google entegrasyonu",
   "resources.platform.integrations.facebook": "Facebook entegrasyonu",
   "resources.platform.integrations.apple": "Apple entegrasyonu",
-  "resources.auth.step_up": "Step-up doğrulama"
+  "resources.auth.step_up": "Step-up doğrulama",
+  "resources.finance.transaction": "Finans işlemi"
 }

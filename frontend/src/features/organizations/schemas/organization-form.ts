@@ -15,7 +15,10 @@ export function createOrganizationFormSchema(t: Translate) {
       .string()
       .trim()
       .min(1, t("organizations.validation.district_required")),
-    phone: z.string().trim().min(1, t("organizations.validation.phone_required")),
+    phone: z
+      .string()
+      .trim()
+      .min(1, t("organizations.validation.phone_required")),
     address: z
       .string()
       .trim()
@@ -38,7 +41,10 @@ export function updateOrganizationFormSchema(t: Translate) {
       .string()
       .trim()
       .min(1, t("organizations.validation.district_required")),
-    phone: z.string().trim().min(1, t("organizations.validation.phone_required")),
+    phone: z
+      .string()
+      .trim()
+      .min(1, t("organizations.validation.phone_required")),
     address: z
       .string()
       .trim()

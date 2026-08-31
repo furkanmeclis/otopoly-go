@@ -16,10 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { routes } from "@/config/routes";
-import {
-  isPlatformUser,
-  primaryOrganizationSlug,
-} from "@/lib/auth/types";
+import { isPlatformUser, primaryOrganizationSlug } from "@/lib/auth/types";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
 

@@ -47,6 +47,8 @@ import (
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
 	orgmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
+	financemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance"
+	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
@@ -228,6 +230,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	uc.SetOrganizationResolver(orgSvc)
 	authmodule.RegisterRoutes(mux, h, tokens, loader, stepUpSvc)
 	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader)
+	financeSvc := financeusecase.New(deps.DB, deps.Queries, activityRec)
+	financemodule.RegisterRoutes(mux, financeSvc, tokens, loader, deps.Queries)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
 	nh := notifhandler.New(notifSvc)

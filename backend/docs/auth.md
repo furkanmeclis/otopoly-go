@@ -36,6 +36,8 @@ Users are global. Permissions come from assigned roles (union). **Organizations*
 | `platform.integrations.apple.read` / `.write` | Apple OAuth settings (also requires super admin) |
 | `platform.organizations.read` / `.write` | Organization list, access management, logo, staff assignment |
 | `auth.session` | Sign-in / tenant access |
+| `tenant.finance.read` | Tenant finance read (accounts, categories, transactions, summary) |
+| `tenant.finance.write` | Tenant finance write (owner only at HTTP layer) |
 | `notifications.read` / `notifications.manage` | User notifications |
 
 Super admin bypasses permission checks in `HasPermission`. Most platform HTTP routes use `RequirePermission` only. Auth settings and OAuth integration routes also use `RequireSuperAdmin`.
@@ -48,6 +50,7 @@ Super admin bypasses permission checks in `HasPermission`. Most platform HTTP ro
 - Password register assigns the configured **default role** when set; otherwise no roles.
 - **OAuth**: linked accounts can sign in when `login` is enabled. Unlinked accounts may self-register only when register is allowed for that provider.
 - **Tenant login**: `POST /v1/auth/login` accepts optional `organization_slug`. When present, the user must be a member and the organization must not be suspended or past `access_ends_at`. Success adds `oid` (organization UUID) to the access token.
+- **Switch tenant context**: `POST /v1/auth/organization-context` with `{ organization_slug }` re-issues tokens with `oid` for an already authenticated user (e.g. after platform login before visiting `/t/{slug}`).
 - Secrets for OAuth apps are encrypted with `APP_ENCRYPTION_KEY`.
 
 ## Linked identities

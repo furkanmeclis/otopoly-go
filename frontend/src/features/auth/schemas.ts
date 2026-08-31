@@ -27,7 +27,9 @@ export function createOrganizationRegisterSchema(t: Translate) {
     surname: z.string().min(1, t("auth.validation.surname_required")),
     email: z.email(t("auth.validation.email")),
     password: passwordPolicySchema(t),
-    organization_name: z.string().min(1, t("register.validation.organization_name_required")),
+    organization_name: z
+      .string()
+      .min(1, t("register.validation.organization_name_required")),
     city: z.string().min(1, t("register.validation.city_required")),
     district: z.string().min(1, t("register.validation.district_required")),
     phone: z.string().min(1, t("register.validation.phone_required")),

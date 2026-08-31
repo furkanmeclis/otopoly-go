@@ -88,7 +88,9 @@ export function useUsersColumns({
         createColumn<PublicUser>({
           id: "roles",
           accessorFn: (row) =>
-            (row.roles ?? []).map((role) => roleDisplayName(role, t)).join(", "),
+            (row.roles ?? [])
+              .map((role) => roleDisplayName(role, t))
+              .join(", "),
           labelKey: "users.columns.roles",
           enableSorting: false,
           filterVariant: "text",

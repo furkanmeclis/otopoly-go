@@ -12,6 +12,7 @@ import {
   Shield,
   Upload,
   UserRound,
+  Wallet,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -215,6 +216,43 @@ export function tenantNav(slug: string) {
             titleKey: "layout.nav_profile",
             href: routes.tenant.profile.root(slug),
             icon: UserRound,
+          },
+        ],
+      },
+      {
+        id: "finance",
+        labelKey: "layout.section_finance",
+        icon: Wallet,
+        defaultOpen: true,
+        // TODO(finance): Nav badges (pending receivables, negative balance count) via nav-engine when metrics API exists.
+        items: [
+          {
+            id: "finance-summary",
+            titleKey: "layout.nav_finance",
+            href: routes.tenant.finance.root(slug),
+            icon: Wallet,
+            permission: permissions.finance.read,
+          },
+          {
+            id: "finance-accounts",
+            titleKey: "layout.nav_finance_accounts",
+            href: routes.tenant.finance.accounts.root(slug),
+            icon: Wallet,
+            permission: permissions.finance.read,
+          },
+          {
+            id: "finance-transactions",
+            titleKey: "layout.nav_finance_transactions",
+            href: routes.tenant.finance.transactions.root(slug),
+            icon: ScrollText,
+            permission: permissions.finance.read,
+          },
+          {
+            id: "finance-categories",
+            titleKey: "layout.nav_finance_categories",
+            href: routes.tenant.finance.categories.root(slug),
+            icon: Settings2,
+            permission: permissions.finance.read,
           },
         ],
       },

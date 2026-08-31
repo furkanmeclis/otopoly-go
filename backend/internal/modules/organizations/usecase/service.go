@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/password"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/slug"
@@ -241,6 +242,14 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (RegisterResul
 	}); err != nil {
 		return RegisterResult{}, err
 	}
+	if err := qtx.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
+		UserID: user.ID, Slug: rbac.RoleOrganizationOwner,
+	}); err != nil {
+		return RegisterResult{}, err
+	}
+	if err := financeusecase.SeedDefaults(ctx, qtx, org.ID); err != nil {
+		return RegisterResult{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return RegisterResult{}, err
 	}
@@ -288,6 +297,14 @@ func (s *Service) RegisterOrganization(ctx context.Context, in RegisterInput, ow
 	if err := qtx.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
 		UserID: ownerUserID, Slug: rbac.RoleOrganizationUser,
 	}); err != nil {
+		return RegisterResult{}, err
+	}
+	if err := qtx.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
+		UserID: ownerUserID, Slug: rbac.RoleOrganizationOwner,
+	}); err != nil {
+		return RegisterResult{}, err
+	}
+	if err := financeusecase.SeedDefaults(ctx, qtx, org.ID); err != nil {
 		return RegisterResult{}, err
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -514,6 +531,13 @@ func (s *Service) AddMember(ctx context.Context, orgUUID uuid.UUID, in AddMember
 		UserID: user.ID, Slug: rbac.RoleOrganizationUser,
 	}); err != nil {
 		return err
+	}
+	if role == "owner" {
+		if err := s.q.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
+			UserID: user.ID, Slug: rbac.RoleOrganizationOwner,
+		}); err != nil {
+			return err
+		}
 	}
 	return nil
 }

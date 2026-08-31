@@ -19,6 +19,7 @@ import enLogs from "@/locales/en/logs.json";
 import enLayout from "@/locales/en/layout.json";
 import enNotifications from "@/locales/en/notifications.json";
 import enOrganizations from "@/locales/en/organizations.json";
+import enFinance from "@/locales/en/finance.json";
 import enRegister from "@/locales/en/register.json";
 import enPermissions from "@/locales/en/permissions.json";
 import enRoles from "@/locales/en/roles.json";
@@ -49,6 +50,7 @@ import trLogs from "@/locales/tr/logs.json";
 import trLayout from "@/locales/tr/layout.json";
 import trNotifications from "@/locales/tr/notifications.json";
 import trOrganizations from "@/locales/tr/organizations.json";
+import trFinance from "@/locales/tr/finance.json";
 import trRegister from "@/locales/tr/register.json";
 import trPermissions from "@/locales/tr/permissions.json";
 import trRoles from "@/locales/tr/roles.json";
@@ -93,6 +95,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     access: trAccess,
     integrations: trIntegrations,
     organizations: trOrganizations,
+    finance: trFinance,
     register: trRegister,
     stepup: trStepup,
   },
@@ -125,6 +128,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     access: enAccess,
     integrations: enIntegrations,
     organizations: enOrganizations,
+    finance: enFinance,
     register: enRegister,
     stepup: enStepup,
   },

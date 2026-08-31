@@ -14,10 +14,14 @@ export default function PublicHomePage() {
     <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6">
       <div className="flex w-full max-w-xl flex-col items-center gap-6 text-center">
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">{brand.productName}</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            {brand.productName}
+          </h1>
           <p className="text-muted-foreground text-sm">{brand.tagline}</p>
         </div>
-        <p className="text-muted-foreground text-sm">{t("register.landing_description")}</p>
+        <p className="text-muted-foreground text-sm">
+          {t("register.landing_description")}
+        </p>
         <Button asChild size="lg">
           <Link href={routes.public.register}>{t("register.landing_cta")}</Link>
         </Button>
