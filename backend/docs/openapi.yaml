@@ -2694,6 +2694,561 @@ paths:
         "200":
           description: Resource meta
 
+  /v1/tenant/catalog/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogSummary
+      summary: Catalog stats and summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogSummary"
+
+  /v1/tenant/catalog/categories/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogCategoriesMeta
+      summary: Catalog categories meta
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+
+  /v1/tenant/catalog/categories:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCatalogCategories
+      summary: List catalog categories
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: kind
+          in: query
+          schema: { type: string, enum: [product, service] }
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: List categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogCategoryList"
+    post:
+      tags: [Tenant]
+      operationId: createTenantCatalogCategory
+      summary: Create category
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, kind]
+              properties:
+                name: { type: string }
+                kind: { type: string, enum: [product, service] }
+                parent_uuid: { type: string, format: uuid, nullable: true }
+                sort_order: { type: integer, default: 0 }
+                is_active: { type: boolean, default: true }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogCategory"
+
+  /v1/tenant/catalog/categories/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogCategory
+      summary: Get category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogCategory"
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantCatalogCategory
+      summary: Patch category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                kind: { type: string, enum: [product, service] }
+                parent_uuid: { type: string, format: uuid, nullable: true }
+                sort_order: { type: integer }
+                is_active: { type: boolean }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogCategory"
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantCatalogCategory
+      summary: Delete category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+
+  /v1/tenant/catalog/products/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogProductsMeta
+      summary: Catalog products meta
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+
+  /v1/tenant/catalog/products:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCatalogProducts
+      summary: List products
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: stock_status
+          in: query
+          schema: { type: string, enum: [in_stock, low_stock, out_of_stock] }
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+        - name: track_stock
+          in: query
+          schema: { type: boolean }
+        - name: unit
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: sort_by
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogProductPage"
+    post:
+      tags: [Tenant]
+      operationId: createTenantCatalogProduct
+      summary: Create product
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                category_uuid: { type: string, format: uuid, nullable: true }
+                sku: { type: string, nullable: true }
+                barcode: { type: string, nullable: true }
+                unit: { type: string, default: "piece" }
+                cost_price: { type: string, default: "0" }
+                sale_price: { type: string, default: "0" }
+                vat_rate: { type: string, default: "20" }
+                currency: { type: string, default: "TRY" }
+                stock_quantity: { type: string, default: "0" }
+                min_stock_alert: { type: string, default: "0" }
+                track_stock: { type: boolean, default: true }
+                is_active: { type: boolean, default: true }
+                description: { type: string, default: "" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogProduct"
+
+  /v1/tenant/catalog/products/bulk:
+    post:
+      tags: [Tenant]
+      operationId: postTenantCatalogProductsBulk
+      summary: Run a bulk action on catalog products
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkExecuteRequest"
+      responses:
+        "200":
+          description: Sync bulk result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBulkSyncResult"
+        "202":
+          description: Async bulk job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBulkJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/tenant/catalog/products/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogProduct
+      summary: Get product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogProduct"
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantCatalogProduct
+      summary: Patch product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                category_uuid: { type: string, format: uuid, nullable: true }
+                sku: { type: string, nullable: true }
+                barcode: { type: string, nullable: true }
+                unit: { type: string }
+                cost_price: { type: string }
+                sale_price: { type: string }
+                vat_rate: { type: string }
+                currency: { type: string }
+                stock_quantity: { type: string }
+                min_stock_alert: { type: string }
+                track_stock: { type: boolean }
+                is_active: { type: boolean }
+                description: { type: string }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogProduct"
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantCatalogProduct
+      summary: Delete product
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+
+  /v1/tenant/catalog/products/{uuid}/stock-adjustment:
+    post:
+      tags: [Tenant]
+      operationId: adjustTenantCatalogProductStock
+      summary: Adjust product stock quantity delta
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delta]
+              properties:
+                delta: { type: string }
+                reason: { type: string }
+                description: { type: string }
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogProduct"
+
+  /v1/tenant/catalog/services/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogServicesMeta
+      summary: Catalog services meta
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+
+  /v1/tenant/catalog/services:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCatalogServices
+      summary: List services
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+        - name: q
+          in: query
+          schema: { type: string }
+        - name: sort_by
+          in: query
+          schema: { type: string }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogServicePage"
+    post:
+      tags: [Tenant]
+      operationId: createTenantCatalogService
+      summary: Create service
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                category_uuid: { type: string, format: uuid, nullable: true }
+                code: { type: string, nullable: true }
+                duration_minutes: { type: integer, default: 30 }
+                price: { type: string, default: "0" }
+                vat_rate: { type: string, default: "20" }
+                currency: { type: string, default: "TRY" }
+                is_active: { type: boolean, default: true }
+                description: { type: string, default: "" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogService"
+
+  /v1/tenant/catalog/services/bulk:
+    post:
+      tags: [Tenant]
+      operationId: postTenantCatalogServicesBulk
+      summary: Run a bulk action on catalog services
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkExecuteRequest"
+      responses:
+        "200":
+          description: Sync bulk result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBulkSyncResult"
+        "202":
+          description: Async bulk job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBulkJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/tenant/catalog/services/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogService
+      summary: Get service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Service
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogService"
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantCatalogService
+      summary: Patch service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                category_uuid: { type: string, format: uuid, nullable: true }
+                code: { type: string, nullable: true }
+                duration_minutes: { type: integer }
+                price: { type: string }
+                vat_rate: { type: string }
+                currency: { type: string }
+                is_active: { type: boolean }
+                description: { type: string }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCatalogService"
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantCatalogService
+      summary: Delete service
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+
   /v1/tenant/settings:
     get:
       tags: [Tenant]
@@ -4233,6 +4788,9 @@ components:
         query:
           type: object
           additionalProperties: { type: string }
+        params:
+          type: object
+          additionalProperties: { type: string }
 
     BulkExecuteRequest:
       type: object
@@ -4619,4 +5177,152 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/TenantSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    CatalogCategory:
+      type: object
+      required: [uuid, name, kind, sort_order, is_active, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [product, service] }
+        parent_uuid: { type: string, format: uuid, nullable: true }
+        parent_name: { type: string, nullable: true }
+        sort_order: { type: integer }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CatalogProduct:
+      type: object
+      required: [uuid, name, unit, cost_price, sale_price, vat_rate, currency, stock_quantity, min_stock_alert, track_stock, is_active, stock_status, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        category_uuid: { type: string, format: uuid, nullable: true }
+        category_name: { type: string, nullable: true }
+        name: { type: string }
+        sku: { type: string, nullable: true }
+        barcode: { type: string, nullable: true }
+        unit: { type: string }
+        cost_price: { type: string }
+        sale_price: { type: string }
+        vat_rate: { type: string }
+        currency: { type: string }
+        stock_quantity: { type: string }
+        min_stock_alert: { type: string }
+        track_stock: { type: boolean }
+        is_active: { type: boolean }
+        description: { type: string }
+        stock_status: { type: string, enum: [in_stock, low_stock, out_of_stock, untracked] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CatalogService:
+      type: object
+      required: [uuid, name, duration_minutes, price, vat_rate, currency, is_active, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        category_uuid: { type: string, format: uuid, nullable: true }
+        category_name: { type: string, nullable: true }
+        name: { type: string }
+        code: { type: string, nullable: true }
+        duration_minutes: { type: integer }
+        price: { type: string }
+        vat_rate: { type: string }
+        currency: { type: string }
+        is_active: { type: boolean }
+        description: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CatalogSummary:
+      type: object
+      required: [total_products, active_products, low_stock_products, out_of_stock_products, total_stock_cost_value, total_stock_sale_value, total_services, active_services, total_categories]
+      properties:
+        total_products: { type: integer }
+        active_products: { type: integer }
+        low_stock_products: { type: integer }
+        out_of_stock_products: { type: integer }
+        total_stock_cost_value: { type: string }
+        total_stock_sale_value: { type: string }
+        total_services: { type: integer }
+        active_services: { type: integer }
+        total_categories: { type: integer }
+
+    EnvelopeCatalogCategory:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CatalogCategory" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCatalogCategoryList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CatalogCategory" }
+            total: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCatalogProduct:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CatalogProduct" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCatalogProductPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CatalogProduct" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCatalogService:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CatalogService" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCatalogServicePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CatalogService" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCatalogSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CatalogSummary" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

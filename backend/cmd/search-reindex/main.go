@@ -48,6 +48,8 @@ func main() {
 		searchadapters.NewFinanceAccounts(queries),
 		searchadapters.NewFinanceCategories(queries),
 		searchadapters.NewFinanceTransactions(queries),
+		searchadapters.NewCatalogProducts(queries),
+		searchadapters.NewCatalogServices(queries),
 	)
 	indexer := searchengine.NewIndexer(client, reg, nil, log)
 	if err := indexer.ProcessReindex(ctx, ""); err != nil {

@@ -1,4 +1,13 @@
-import { Trash2, UserCheck, UserX, type LucideIcon } from "lucide-react";
+import {
+  ArrowUpDown,
+  BadgePercent,
+  CircleCheck,
+  CircleOff,
+  Trash2,
+  UserCheck,
+  UserX,
+  type LucideIcon,
+} from "lucide-react";
 
 import type {
   BulkActionDef,
@@ -15,6 +24,20 @@ const bulkActionIconCatalog: Record<
     enable: UserCheck,
   },
   "platform.roles": {
+    delete: Trash2,
+  },
+  "tenant.catalog.products": {
+    activate: CircleCheck,
+    deactivate: CircleOff,
+    raise_sale_price: BadgePercent,
+    raise_cost_price: BadgePercent,
+    adjust_stock: ArrowUpDown,
+    delete: Trash2,
+  },
+  "tenant.catalog.services": {
+    activate: CircleCheck,
+    deactivate: CircleOff,
+    raise_price: BadgePercent,
     delete: Trash2,
   },
 };

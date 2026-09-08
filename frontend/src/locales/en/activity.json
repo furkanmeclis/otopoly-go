@@ -42,5 +42,8 @@
   "resources.finance.transaction": "Finance transaction",
   "resources.tenant.finance.accounts": "Finance accounts",
   "resources.tenant.finance.categories": "Finance categories",
-  "resources.tenant.finance.transactions": "Finance transactions"
+  "resources.tenant.finance.transactions": "Finance transactions",
+  "resources.tenant.catalog.products": "Catalog products",
+  "resources.tenant.catalog.services": "Catalog services",
+  "resources.tenant.catalog.categories": "Catalog categories"
 }

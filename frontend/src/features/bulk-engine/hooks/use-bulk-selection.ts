@@ -15,16 +15,20 @@ export function useBulkSelection({
   total,
 }: UseBulkSelectionOptions) {
   const bulkQueryKey = JSON.stringify(bulkQuery);
+  const listQueryKeySerialized = JSON.stringify(listQueryKey);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [allMatching, setAllMatching] = useState<{
     query: Record<string, string>;
     total: number;
   } | null>(null);
-  const [prevListQueryKey, setPrevListQueryKey] = useState(listQueryKey);
+  const [prevListQueryKey, setPrevListQueryKey] = useState(listQueryKeySerialized);
   const [prevBulkQueryKey, setPrevBulkQueryKey] = useState(bulkQueryKey);
 
-  if (listQueryKey !== prevListQueryKey || bulkQueryKey !== prevBulkQueryKey) {
-    setPrevListQueryKey(listQueryKey);
+  if (
+    listQueryKeySerialized !== prevListQueryKey ||
+    bulkQueryKey !== prevBulkQueryKey
+  ) {
+    setPrevListQueryKey(listQueryKeySerialized);
     setPrevBulkQueryKey(bulkQueryKey);
     setRowSelection({});
     setAllMatching(null);
@@ -86,12 +90,16 @@ export function useBulkSelection({
   };
 }
 
-export function buildBulkTarget(scope: SelectionScope) {
+export function buildBulkTarget(
+  scope: SelectionScope,
+  params?: Record<string, string>,
+) {
+  const extra = params && Object.keys(params).length > 0 ? { params } : {};
   if (scope.mode === "page") {
-    return { scope: "ids" as const, ids: scope.ids };
+    return { scope: "ids" as const, ids: scope.ids, ...extra };
   }
   if (scope.mode === "all") {
-    return { scope: "query" as const, query: scope.query };
+    return { scope: "query" as const, query: scope.query, ...extra };
   }
   throw new Error("No rows selected");
 }

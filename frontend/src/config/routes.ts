@@ -41,6 +41,24 @@ export const routes = {
         new: (slug: string) => `/t/${slug}/finance/transfers/new`,
       },
     },
+    catalog: {
+      root: (slug: string) => `/t/${slug}/catalog/products`,
+      products: {
+        root: (slug: string) => `/t/${slug}/catalog/products`,
+        detail: (slug: string, uuid: string) =>
+          `/t/${slug}/catalog/products/${uuid}`,
+      },
+      services: {
+        root: (slug: string) => `/t/${slug}/catalog/services`,
+        detail: (slug: string, uuid: string) =>
+          `/t/${slug}/catalog/services/${uuid}`,
+      },
+      categories: {
+        root: (slug: string) => `/t/${slug}/catalog/categories`,
+        detail: (slug: string, uuid: string) =>
+          `/t/${slug}/catalog/categories/${uuid}`,
+      },
+    },
     exports: {
       root: (slug: string) => `/t/${slug}/exports`,
       detail: (slug: string, uuid: string) => `/t/${slug}/exports/${uuid}`,

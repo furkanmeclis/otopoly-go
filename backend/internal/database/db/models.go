@@ -90,6 +90,20 @@ type BulkJob struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
+type CatalogCategory struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	ParentID       pgtype.Int8        `json:"parent_id"`
+	Name           string             `json:"name"`
+	Kind           string             `json:"kind"`
+	SortOrder      int32              `json:"sort_order"`
+	IsActive       bool               `json:"is_active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type ExportJob struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`
@@ -390,6 +404,29 @@ type PgExtension struct {
 	Extname string `json:"extname"`
 }
 
+type Product struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	CategoryID     pgtype.Int8        `json:"category_id"`
+	Name           string             `json:"name"`
+	Sku            pgtype.Text        `json:"sku"`
+	Barcode        pgtype.Text        `json:"barcode"`
+	Unit           string             `json:"unit"`
+	CostPrice      pgtype.Numeric     `json:"cost_price"`
+	SalePrice      pgtype.Numeric     `json:"sale_price"`
+	VatRate        pgtype.Numeric     `json:"vat_rate"`
+	Currency       string             `json:"currency"`
+	StockQuantity  pgtype.Numeric     `json:"stock_quantity"`
+	MinStockAlert  pgtype.Numeric     `json:"min_stock_alert"`
+	TrackStock     bool               `json:"track_stock"`
+	IsActive       bool               `json:"is_active"`
+	Description    string             `json:"description"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type PushSubscription struct {
 	ID        int64              `json:"id"`
 	Uuid      uuid.UUID          `json:"uuid"`
@@ -428,6 +465,24 @@ type Role struct {
 type RolePermission struct {
 	RoleID       int64 `json:"role_id"`
 	PermissionID int64 `json:"permission_id"`
+}
+
+type Service struct {
+	ID              int64              `json:"id"`
+	Uuid            uuid.UUID          `json:"uuid"`
+	OrganizationID  int64              `json:"organization_id"`
+	CategoryID      pgtype.Int8        `json:"category_id"`
+	Name            string             `json:"name"`
+	Code            pgtype.Text        `json:"code"`
+	DurationMinutes int32              `json:"duration_minutes"`
+	Price           pgtype.Numeric     `json:"price"`
+	VatRate         pgtype.Numeric     `json:"vat_rate"`
+	Currency        string             `json:"currency"`
+	IsActive        bool               `json:"is_active"`
+	Description     string             `json:"description"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type StepupSetting struct {

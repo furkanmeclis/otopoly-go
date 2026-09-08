@@ -50,6 +50,23 @@ export const Permission = {
   TenantSettingsWrite: "tenant.settings.write",
   TenantImportsRead: "tenant.imports.read",
 
+  TenantCatalogRead: "tenant.catalog.read",
+  TenantCatalogWrite: "tenant.catalog.write",
+  TenantCatalogExport: "tenant.catalog.export",
+  TenantCatalogImport: "tenant.catalog.import",
+  TenantCatalogProductsBulkActivate: "tenant.catalog.products.bulk.activate",
+  TenantCatalogProductsBulkDeactivate: "tenant.catalog.products.bulk.deactivate",
+  TenantCatalogProductsBulkDelete: "tenant.catalog.products.bulk.delete",
+  TenantCatalogProductsBulkRaiseSalePrice:
+    "tenant.catalog.products.bulk.raise_sale_price",
+  TenantCatalogProductsBulkRaiseCostPrice:
+    "tenant.catalog.products.bulk.raise_cost_price",
+  TenantCatalogProductsBulkAdjustStock: "tenant.catalog.products.bulk.adjust_stock",
+  TenantCatalogServicesBulkActivate: "tenant.catalog.services.bulk.activate",
+  TenantCatalogServicesBulkDeactivate: "tenant.catalog.services.bulk.deactivate",
+  TenantCatalogServicesBulkDelete: "tenant.catalog.services.bulk.delete",
+  TenantCatalogServicesBulkRaisePrice: "tenant.catalog.services.bulk.raise_price",
+
   AuthSession: "auth.session",
 
   NotificationsRead: "notifications.read",
@@ -154,6 +171,22 @@ export const permissions = {
     write: Permission.TenantFinanceWrite,
     export: Permission.TenantFinanceExport,
     import: Permission.TenantFinanceImport,
+  },
+  catalog: {
+    read: Permission.TenantCatalogRead,
+    write: Permission.TenantCatalogWrite,
+    export: Permission.TenantCatalogExport,
+    import: Permission.TenantCatalogImport,
+    productsBulkActivate: Permission.TenantCatalogProductsBulkActivate,
+    productsBulkDeactivate: Permission.TenantCatalogProductsBulkDeactivate,
+    productsBulkDelete: Permission.TenantCatalogProductsBulkDelete,
+    productsBulkRaiseSalePrice: Permission.TenantCatalogProductsBulkRaiseSalePrice,
+    productsBulkRaiseCostPrice: Permission.TenantCatalogProductsBulkRaiseCostPrice,
+    productsBulkAdjustStock: Permission.TenantCatalogProductsBulkAdjustStock,
+    servicesBulkActivate: Permission.TenantCatalogServicesBulkActivate,
+    servicesBulkDeactivate: Permission.TenantCatalogServicesBulkDeactivate,
+    servicesBulkDelete: Permission.TenantCatalogServicesBulkDelete,
+    servicesBulkRaisePrice: Permission.TenantCatalogServicesBulkRaisePrice,
   },
   auth: {
     session: Permission.AuthSession,

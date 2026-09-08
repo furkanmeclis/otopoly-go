@@ -91,7 +91,10 @@ export type IoResource =
   | "platform.activity"
   | "tenant.finance.accounts"
   | "tenant.finance.categories"
-  | "tenant.finance.transactions";
+  | "tenant.finance.transactions"
+  | "tenant.catalog.products"
+  | "tenant.catalog.services"
+  | "tenant.catalog.categories";
 
 export const EXPORT_PATHS: Record<IoResource, string> = {
   "platform.users": "/v1/platform/users/export",
@@ -101,6 +104,9 @@ export const EXPORT_PATHS: Record<IoResource, string> = {
   "tenant.finance.accounts": "/v1/tenant/finance/accounts/export",
   "tenant.finance.categories": "/v1/tenant/finance/categories/export",
   "tenant.finance.transactions": "/v1/tenant/finance/transactions/export",
+  "tenant.catalog.products": "/v1/tenant/exports",
+  "tenant.catalog.services": "/v1/tenant/exports",
+  "tenant.catalog.categories": "/v1/tenant/exports",
 };
 
 export const IMPORT_PATHS: Partial<
@@ -121,6 +127,18 @@ export const IMPORT_PATHS: Partial<
   "tenant.finance.categories": {
     upload: "/v1/tenant/finance/categories/import",
     sample: "/v1/tenant/finance/categories/import/sample",
+  },
+  "tenant.catalog.products": {
+    upload: "/v1/tenant/imports",
+    sample: "/v1/tenant/imports/sample?resource=tenant.catalog.products",
+  },
+  "tenant.catalog.services": {
+    upload: "/v1/tenant/imports",
+    sample: "/v1/tenant/imports/sample?resource=tenant.catalog.services",
+  },
+  "tenant.catalog.categories": {
+    upload: "/v1/tenant/imports",
+    sample: "/v1/tenant/imports/sample?resource=tenant.catalog.categories",
   },
 };
 
@@ -157,5 +175,38 @@ export const IMPORT_SCHEMA: Partial<
     { key: "kind", labelKey: "finance.categories.kind", required: true },
     { key: "sort_order", labelKey: "finance.categories.sort_order" },
     { key: "is_active", labelKey: "finance.categories.is_active" },
+  ],
+  "tenant.catalog.products": [
+    { key: "name", labelKey: "catalog.products.name", required: true },
+    { key: "category", labelKey: "catalog.products.category" },
+    { key: "sku", labelKey: "catalog.products.sku" },
+    { key: "barcode", labelKey: "catalog.products.barcode" },
+    { key: "unit", labelKey: "catalog.products.unit" },
+    { key: "sale_price", labelKey: "catalog.products.sale_price" },
+    { key: "cost_price", labelKey: "catalog.products.cost_price" },
+    { key: "vat_rate", labelKey: "catalog.products.vat_rate" },
+    { key: "currency", labelKey: "catalog.products.currency" },
+    { key: "stock_quantity", labelKey: "catalog.products.stock_quantity" },
+    { key: "min_stock_alert", labelKey: "catalog.products.min_stock_alert" },
+    { key: "track_stock", labelKey: "catalog.products.track_stock" },
+    { key: "is_active", labelKey: "catalog.products.is_active" },
+    { key: "description", labelKey: "catalog.products.description" },
+  ],
+  "tenant.catalog.services": [
+    { key: "name", labelKey: "catalog.services.name", required: true },
+    { key: "category", labelKey: "catalog.services.category" },
+    { key: "code", labelKey: "catalog.services.code" },
+    { key: "duration_minutes", labelKey: "catalog.services.duration" },
+    { key: "price", labelKey: "catalog.services.price" },
+    { key: "vat_rate", labelKey: "catalog.services.vat_rate" },
+    { key: "currency", labelKey: "catalog.services.currency" },
+    { key: "is_active", labelKey: "catalog.services.is_active" },
+    { key: "description", labelKey: "catalog.services.description" },
+  ],
+  "tenant.catalog.categories": [
+    { key: "name", labelKey: "catalog.categories.name", required: true },
+    { key: "kind", labelKey: "catalog.categories.kind", required: true },
+    { key: "sort_order", labelKey: "catalog.categories.sort_order" },
+    { key: "is_active", labelKey: "catalog.categories.is_active" },
   ],
 };

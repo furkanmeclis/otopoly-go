@@ -115,6 +115,7 @@ func (s *Service) Execute(ctx context.Context, actorID int64, in ExecuteInput) (
 	locale := string(i18n.Normalize(in.Locale))
 	targetJSON, _ := json.Marshal(in.Target)
 	if len(targets) <= s.cfg.SyncMax {
+		ctx = bulkengine.WithRun(ctx, bulkengine.Run{Params: in.Target.Params, Query: in.Target.Query})
 		summary, err := s.applyTargets(ctx, 0, adapter, def, in.Action, targets)
 		if err != nil {
 			return ExecuteResult{}, err
@@ -178,6 +179,7 @@ func (s *Service) ProcessBulk(ctx context.Context, jobID int64) error {
 	if err != nil {
 		return s.failBulk(ctx, jobID, err.Error())
 	}
+	ctx = bulkengine.WithRun(ctx, bulkengine.Run{Params: target.Params, Query: target.Query})
 	summary, err := s.applyTargets(ctx, jobID, adapter, def, job.Action, targets)
 	if err != nil {
 		return s.failBulk(ctx, jobID, err.Error())

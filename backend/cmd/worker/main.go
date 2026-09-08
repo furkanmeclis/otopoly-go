@@ -99,12 +99,19 @@ func main() {
 		ioadapters.NewFinanceAccounts(queries),
 		ioadapters.NewFinanceCategories(queries),
 		ioadapters.NewFinanceTransactions(queries),
+		ioadapters.NewCatalogProducts(queries),
+		ioadapters.NewCatalogServices(queries),
+		ioadapters.NewCatalogCategories(queries),
 	)
 	exportSvc := exportusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
 	importSvc := importusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
+	catalogProductsBulk := bulkadapters.NewCatalogProducts(queries)
+	catalogServicesBulk := bulkadapters.NewCatalogServices(queries)
 	bulkReg := bulkengine.NewRegistry(
 		bulkadapters.NewUsers(queries),
 		bulkadapters.NewRoles(queries),
+		catalogProductsBulk,
+		catalogServicesBulk,
 	)
 	bulkSvc := bulkusecase.New(queries, bulkReg, nil, notifSvc, activityRec, cfg.Bulk, log)
 	logsSvc := logsusecase.New(queries)
@@ -114,9 +121,13 @@ func main() {
 		searchadapters.NewFinanceAccounts(queries),
 		searchadapters.NewFinanceCategories(queries),
 		searchadapters.NewFinanceTransactions(queries),
+		searchadapters.NewCatalogProducts(queries),
+		searchadapters.NewCatalogServices(queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, nil, log)
+	catalogProductsBulk.SetSearchIndexer(searchIndexer)
+	catalogServicesBulk.SetSearchIndexer(searchIndexer)
 	persist := logging.Attach(log, logsSvc)
 	log = persist.Logger()
 	defer persist.Close()

@@ -13,6 +13,9 @@ import {
   Upload,
   UserRound,
   Wallet,
+  Package,
+  Wrench,
+  Layers,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -253,6 +256,35 @@ export function tenantNav(slug: string) {
             href: routes.tenant.finance.categories.root(slug),
             icon: Settings2,
             permission: permissions.finance.read,
+          },
+        ],
+      },
+      {
+        id: "catalog",
+        labelKey: "layout.section_catalog",
+        icon: Package,
+        defaultOpen: true,
+        items: [
+          {
+            id: "catalog-products",
+            titleKey: "layout.nav_catalog_products",
+            href: routes.tenant.catalog.products.root(slug),
+            icon: Package,
+            permission: permissions.catalog.read,
+          },
+          {
+            id: "catalog-services",
+            titleKey: "layout.nav_catalog_services",
+            href: routes.tenant.catalog.services.root(slug),
+            icon: Wrench,
+            permission: permissions.catalog.read,
+          },
+          {
+            id: "catalog-categories",
+            titleKey: "layout.nav_catalog_categories",
+            href: routes.tenant.catalog.categories.root(slug),
+            icon: Layers,
+            permission: permissions.catalog.read,
           },
         ],
       },

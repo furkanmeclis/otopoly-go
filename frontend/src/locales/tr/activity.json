@@ -42,5 +42,8 @@
   "resources.finance.transaction": "Finans işlemi",
   "resources.tenant.finance.accounts": "Finans hesapları",
   "resources.tenant.finance.categories": "Finans kategorileri",
-  "resources.tenant.finance.transactions": "Finans hareketleri"
+  "resources.tenant.finance.transactions": "Finans hareketleri",
+  "resources.tenant.catalog.products": "Katalog ürünleri",
+  "resources.tenant.catalog.services": "Katalog hizmetleri",
+  "resources.tenant.catalog.categories": "Katalog kategorileri"
 }

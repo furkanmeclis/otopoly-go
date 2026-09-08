@@ -376,3 +376,95 @@ func TenantFinanceTransactions() ResourceMeta {
 		},
 	}
 }
+
+// TenantCatalogProducts returns meta for GET /v1/tenant/catalog/products.
+func TenantCatalogProducts() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.catalog.products",
+		DefaultSort:   "name",
+		DefaultFields: []string{"uuid", "name", "category_name", "unit", "sale_price", "cost_price", "stock_quantity", "stock_status", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true, Search: true, Filter: true, Sort: true,
+			Export: true, Import: true, Bulk: true,
+		},
+		SearchableFields: []string{"name", "sku", "barcode"},
+		SortableFields:   []string{"name", "sku", "stock_quantity", "sale_price", "cost_price", "created_at"},
+		FilterableFields: []string{"category_uuid", "stock_status", "is_active", "track_stock"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "catalog.products.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "category_name", LabelKey: "catalog.products.category", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "sku", LabelKey: "catalog.products.sku", Type: ColumnTypeString, Sortable: true, DefaultVisible: false},
+			{Key: "barcode", LabelKey: "catalog.products.barcode", Type: ColumnTypeString, DefaultVisible: false},
+			{Key: "unit", LabelKey: "catalog.products.unit", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "sale_price", LabelKey: "catalog.products.sale_price", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "cost_price", LabelKey: "catalog.products.cost_price", Type: ColumnTypeString, Sortable: true, DefaultVisible: false},
+			{Key: "vat_rate", LabelKey: "catalog.products.vat_rate", Type: ColumnTypeString, DefaultVisible: false},
+			{Key: "stock_quantity", LabelKey: "catalog.products.stock_quantity", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "stock_status", LabelKey: "catalog.products.stock_status", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "category_uuid", LabelKey: "catalog.products.category", Variant: FilterVariantFaceted},
+			{Key: "stock_status", LabelKey: "catalog.products.stock_status", Variant: FilterVariantFaceted},
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+		},
+		BulkActions: adapters.NewCatalogProducts(nil).BulkActions(),
+	}
+}
+
+// TenantCatalogServices returns meta for GET /v1/tenant/catalog/services.
+func TenantCatalogServices() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.catalog.services",
+		DefaultSort:   "name",
+		DefaultFields: []string{"uuid", "name", "category_name", "code", "duration_minutes", "price", "vat_rate", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true, Search: true, Filter: true, Sort: true,
+			Export: true, Import: true, Bulk: true,
+		},
+		SearchableFields: []string{"name", "code"},
+		SortableFields:   []string{"name", "code", "price", "duration_minutes", "created_at"},
+		FilterableFields: []string{"category_uuid", "is_active"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "catalog.services.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "category_name", LabelKey: "catalog.services.category", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "code", LabelKey: "catalog.services.code", Type: ColumnTypeString, Sortable: true, DefaultVisible: false},
+			{Key: "duration_minutes", LabelKey: "catalog.services.duration", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "price", LabelKey: "catalog.services.price", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "vat_rate", LabelKey: "catalog.services.vat_rate", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "category_uuid", LabelKey: "catalog.services.category", Variant: FilterVariantFaceted},
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+		},
+		BulkActions: adapters.NewCatalogServices(nil).BulkActions(),
+	}
+}
+
+// TenantCatalogCategories returns meta for GET /v1/tenant/catalog/categories.
+func TenantCatalogCategories() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.catalog.categories",
+		DefaultSort:   "sort_order",
+		DefaultFields: []string{"uuid", "name", "kind", "sort_order", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true, Search: true, Filter: true, Sort: true,
+			Export: true, Import: true,
+		},
+		SearchableFields: []string{"name"},
+		SortableFields:   []string{"name", "sort_order", "created_at"},
+		FilterableFields: []string{"kind", "is_active"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "catalog.categories.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "kind", LabelKey: "catalog.categories.kind", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "parent_name", LabelKey: "catalog.categories.parent", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "sort_order", LabelKey: "catalog.categories.sort_order", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "kind", LabelKey: "catalog.categories.kind", Variant: FilterVariantFaceted},
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+		},
+	}
+}

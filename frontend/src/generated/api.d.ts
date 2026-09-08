@@ -1729,6 +1729,202 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/catalog/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog stats and summary */
+        get: operations["getTenantCatalogSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/categories/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog categories meta */
+        get: operations["getTenantCatalogCategoriesMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List catalog categories */
+        get: operations["listTenantCatalogCategories"];
+        put?: never;
+        /** Create category */
+        post: operations["createTenantCatalogCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/categories/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get category */
+        get: operations["getTenantCatalogCategory"];
+        put?: never;
+        post?: never;
+        /** Delete category */
+        delete: operations["deleteTenantCatalogCategory"];
+        options?: never;
+        head?: never;
+        /** Patch category */
+        patch: operations["patchTenantCatalogCategory"];
+        trace?: never;
+    };
+    "/v1/tenant/catalog/products/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog products meta */
+        get: operations["getTenantCatalogProductsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List products */
+        get: operations["listTenantCatalogProducts"];
+        put?: never;
+        /** Create product */
+        post: operations["createTenantCatalogProduct"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/products/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get product */
+        get: operations["getTenantCatalogProduct"];
+        put?: never;
+        post?: never;
+        /** Delete product */
+        delete: operations["deleteTenantCatalogProduct"];
+        options?: never;
+        head?: never;
+        /** Patch product */
+        patch: operations["patchTenantCatalogProduct"];
+        trace?: never;
+    };
+    "/v1/tenant/catalog/products/{uuid}/stock-adjustment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Adjust product stock quantity delta */
+        post: operations["adjustTenantCatalogProductStock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog services meta */
+        get: operations["getTenantCatalogServicesMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List services */
+        get: operations["listTenantCatalogServices"];
+        put?: never;
+        /** Create service */
+        post: operations["createTenantCatalogService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get service */
+        get: operations["getTenantCatalogService"];
+        put?: never;
+        post?: never;
+        /** Delete service */
+        delete: operations["deleteTenantCatalogService"];
+        options?: never;
+        head?: never;
+        /** Patch service */
+        patch: operations["patchTenantCatalogService"];
+        trace?: never;
+    };
     "/v1/tenant/settings": {
         parameters: {
             query?: never;
@@ -3061,6 +3257,133 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["TenantSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        CatalogCategory: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            /** @enum {string} */
+            kind: "product" | "service";
+            /** Format: uuid */
+            parent_uuid?: string | null;
+            parent_name?: string | null;
+            sort_order: number;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CatalogProduct: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            category_uuid?: string | null;
+            category_name?: string | null;
+            name: string;
+            sku?: string | null;
+            barcode?: string | null;
+            unit: string;
+            cost_price: string;
+            sale_price: string;
+            vat_rate: string;
+            currency: string;
+            stock_quantity: string;
+            min_stock_alert: string;
+            track_stock: boolean;
+            is_active: boolean;
+            description?: string;
+            /** @enum {string} */
+            stock_status: "in_stock" | "low_stock" | "out_of_stock" | "untracked";
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CatalogService: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            category_uuid?: string | null;
+            category_name?: string | null;
+            name: string;
+            code?: string | null;
+            duration_minutes: number;
+            price: string;
+            vat_rate: string;
+            currency: string;
+            is_active: boolean;
+            description?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CatalogSummary: {
+            total_products: number;
+            active_products: number;
+            low_stock_products: number;
+            out_of_stock_products: number;
+            total_stock_cost_value: string;
+            total_stock_sale_value: string;
+            total_services: number;
+            active_services: number;
+            total_categories: number;
+        };
+        EnvelopeCatalogCategory: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CatalogCategory"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCatalogCategoryList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["CatalogCategory"][];
+                total?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCatalogProduct: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CatalogProduct"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCatalogProductPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["CatalogProduct"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCatalogService: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CatalogService"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCatalogServicePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["CatalogService"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCatalogSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CatalogSummary"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -5951,6 +6274,560 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    getTenantCatalogSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogSummary"];
+                };
+            };
+        };
+    };
+    getTenantCatalogCategoriesMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+        };
+    };
+    listTenantCatalogCategories: {
+        parameters: {
+            query?: {
+                kind?: "product" | "service";
+                is_active?: boolean;
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List categories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogCategoryList"];
+                };
+            };
+        };
+    };
+    createTenantCatalogCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @enum {string} */
+                    kind: "product" | "service";
+                    /** Format: uuid */
+                    parent_uuid?: string | null;
+                    /** @default 0 */
+                    sort_order?: number;
+                    /** @default true */
+                    is_active?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogCategory"];
+                };
+            };
+        };
+    };
+    getTenantCatalogCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Category */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogCategory"];
+                };
+            };
+        };
+    };
+    deleteTenantCatalogCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchTenantCatalogCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** @enum {string} */
+                    kind?: "product" | "service";
+                    /** Format: uuid */
+                    parent_uuid?: string | null;
+                    sort_order?: number;
+                    is_active?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogCategory"];
+                };
+            };
+        };
+    };
+    getTenantCatalogProductsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+        };
+    };
+    listTenantCatalogProducts: {
+        parameters: {
+            query?: {
+                category_uuid?: string;
+                stock_status?: "in_stock" | "low_stock" | "out_of_stock";
+                is_active?: boolean;
+                track_stock?: boolean;
+                q?: string;
+                sort_by?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogProductPage"];
+                };
+            };
+        };
+    };
+    createTenantCatalogProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** Format: uuid */
+                    category_uuid?: string | null;
+                    sku?: string | null;
+                    barcode?: string | null;
+                    /** @default piece */
+                    unit?: string;
+                    /** @default 0 */
+                    cost_price?: string;
+                    /** @default 0 */
+                    sale_price?: string;
+                    /** @default 20 */
+                    vat_rate?: string;
+                    /** @default TRY */
+                    currency?: string;
+                    /** @default 0 */
+                    stock_quantity?: string;
+                    /** @default 0 */
+                    min_stock_alert?: string;
+                    /** @default true */
+                    track_stock?: boolean;
+                    /** @default true */
+                    is_active?: boolean;
+                    /** @default  */
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogProduct"];
+                };
+            };
+        };
+    };
+    getTenantCatalogProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Product */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogProduct"];
+                };
+            };
+        };
+    };
+    deleteTenantCatalogProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchTenantCatalogProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** Format: uuid */
+                    category_uuid?: string | null;
+                    sku?: string | null;
+                    barcode?: string | null;
+                    unit?: string;
+                    cost_price?: string;
+                    sale_price?: string;
+                    vat_rate?: string;
+                    currency?: string;
+                    stock_quantity?: string;
+                    min_stock_alert?: string;
+                    track_stock?: boolean;
+                    is_active?: boolean;
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogProduct"];
+                };
+            };
+        };
+    };
+    adjustTenantCatalogProductStock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    delta: string;
+                    reason?: string;
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated product */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogProduct"];
+                };
+            };
+        };
+    };
+    getTenantCatalogServicesMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+        };
+    };
+    listTenantCatalogServices: {
+        parameters: {
+            query?: {
+                category_uuid?: string;
+                is_active?: boolean;
+                q?: string;
+                sort_by?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogServicePage"];
+                };
+            };
+        };
+    };
+    createTenantCatalogService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** Format: uuid */
+                    category_uuid?: string | null;
+                    code?: string | null;
+                    /** @default 30 */
+                    duration_minutes?: number;
+                    /** @default 0 */
+                    price?: string;
+                    /** @default 20 */
+                    vat_rate?: string;
+                    /** @default TRY */
+                    currency?: string;
+                    /** @default true */
+                    is_active?: boolean;
+                    /** @default  */
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogService"];
+                };
+            };
+        };
+    };
+    getTenantCatalogService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogService"];
+                };
+            };
+        };
+    };
+    deleteTenantCatalogService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchTenantCatalogService: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** Format: uuid */
+                    category_uuid?: string | null;
+                    code?: string | null;
+                    duration_minutes?: number;
+                    price?: string;
+                    vat_rate?: string;
+                    currency?: string;
+                    is_active?: boolean;
+                    description?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCatalogService"];
+                };
             };
         };
     };

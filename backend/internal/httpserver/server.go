@@ -30,6 +30,8 @@ import (
 	bulkmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk"
 	bulkhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/handler"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
+	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
+	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
 	exporthandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/handler"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
@@ -175,6 +177,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		searchadapters.NewFinanceAccounts(deps.Queries),
 		searchadapters.NewFinanceCategories(deps.Queries),
 		searchadapters.NewFinanceTransactions(deps.Queries),
+		searchadapters.NewCatalogProducts(deps.Queries),
+		searchadapters.NewCatalogServices(deps.Queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, deps.Queue, log)
@@ -236,6 +240,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	financeSvc := financeusecase.New(deps.DB, deps.Queries, activityRec)
 	financeSvc.SetSearchIndexer(searchIndexer)
 	financemodule.RegisterRoutes(mux, financeSvc, tokens, loader, deps.Queries)
+	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
 	nh := notifhandler.New(notifSvc)
@@ -250,14 +255,26 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		ioadapters.NewFinanceAccounts(deps.Queries),
 		ioadapters.NewFinanceCategories(deps.Queries),
 		ioadapters.NewFinanceTransactions(deps.Queries),
+		ioadapters.NewCatalogProducts(deps.Queries),
+		ioadapters.NewCatalogServices(deps.Queries),
+		ioadapters.NewCatalogCategories(deps.Queries),
 	)
 	exportSvc := exportusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
 	importSvc := importusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
+	catalogProductsBulk := bulkadapters.NewCatalogProducts(deps.Queries)
+	catalogServicesBulk := bulkadapters.NewCatalogServices(deps.Queries)
+	if searchIndexer != nil {
+		catalogProductsBulk.SetSearchIndexer(searchIndexer)
+		catalogServicesBulk.SetSearchIndexer(searchIndexer)
+	}
 	bulkReg := bulkengine.NewRegistry(
 		bulkadapters.NewUsers(deps.Queries),
 		bulkadapters.NewRoles(deps.Queries),
+		catalogProductsBulk,
+		catalogServicesBulk,
 	)
 	bulkSvc := bulkusecase.New(deps.Queries, bulkReg, deps.Queue, notifSvc, activityRec, cfg.Bulk, log)
+	catalogmodule.RegisterRoutes(mux, catalogSvc, bulkhandler.New(bulkSvc), tokens, loader, deps.Queries)
 	logsSvc := logsusecase.New(deps.Queries)
 	if s.worker != nil {
 		s.worker.WithExport(exportSvc.ProcessExport).

@@ -10,6 +10,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
@@ -38,13 +39,43 @@ func (h *Handler) ExecuteRoles(w http.ResponseWriter, r *http.Request) {
 	h.execute(w, r, adapters.ResourceRoles)
 }
 
-func (h *Handler) execute(w http.ResponseWriter, r *http.Request, resource string) {
-	p := authctx.MustPrincipal(r.Context())
+func (h *Handler) ExecuteCatalogProducts(w http.ResponseWriter, r *http.Request) {
+	h.executeTenant(w, r, adapters.ResourceCatalogProducts)
+}
+
+func (h *Handler) ExecuteCatalogServices(w http.ResponseWriter, r *http.Request) {
+	h.executeTenant(w, r, adapters.ResourceCatalogServices)
+}
+
+func (h *Handler) executeTenant(w http.ResponseWriter, r *http.Request, resource string) {
+	scope, ok := orgctx.ScopeFrom(r.Context())
+	if !ok {
+		response.Forbidden(w, r, "Organization context required")
+		return
+	}
 	var body bulkRequest
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
 		return
 	}
+	if body.Target.Query == nil {
+		body.Target.Query = map[string]string{}
+	}
+	body.Target.Query["organization_uuid"] = scope.UUID.String()
+	h.executeBody(w, r, resource, body)
+}
+
+func (h *Handler) execute(w http.ResponseWriter, r *http.Request, resource string) {
+	var body bulkRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	h.executeBody(w, r, resource, body)
+}
+
+func (h *Handler) executeBody(w http.ResponseWriter, r *http.Request, resource string, body bulkRequest) {
+	p := authctx.MustPrincipal(r.Context())
 	action := strings.TrimSpace(body.Action)
 	if action == "" {
 		response.BadRequest(w, r, response.CodeValidationError, "action is required")
