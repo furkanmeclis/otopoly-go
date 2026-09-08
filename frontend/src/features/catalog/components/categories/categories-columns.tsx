@@ -78,7 +78,7 @@ export function useCategoriesColumns(handlers: CategoryRowHandlers) {
         enableSorting: true,
         gridPrimary: true,
         cell: ({ row }) => (
-          <span className="font-medium text-foreground">
+          <span className="text-foreground font-medium">
             {row.original.name}
           </span>
         ),
@@ -101,7 +101,7 @@ export function useCategoriesColumns(handlers: CategoryRowHandlers) {
         accessorKey: "parent_name",
         labelKey: "catalog.categories.parent",
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             {row.original.parent_name || "—"}
           </span>
         ),
@@ -110,7 +110,7 @@ export function useCategoriesColumns(handlers: CategoryRowHandlers) {
         accessorKey: "sort_order",
         labelKey: "catalog.categories.sort_order",
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             {row.original.sort_order}
           </span>
         ),
@@ -137,7 +137,10 @@ export function useCategoriesColumns(handlers: CategoryRowHandlers) {
         enableHiding: false,
         cell: ({ row }) => (
           <div className="flex justify-end">
-            <CategoryRowActionsMenu category={row.original} handlers={handlers} />
+            <CategoryRowActionsMenu
+              category={row.original}
+              handlers={handlers}
+            />
           </div>
         ),
       }),

@@ -4,7 +4,11 @@ import type { ReactNode } from "react";
 
 import { ExportMenu } from "@/features/io/components/export-menu";
 import { ImportButton } from "@/features/io/components/import-button";
-import type { IoResource, ResourceCapabilities, ExportJobScope } from "@/features/io/types";
+import type {
+  IoResource,
+  ResourceCapabilities,
+  ExportJobScope,
+} from "@/features/io/types";
 import { permissions } from "@/config/permissions";
 import { usePermission } from "@/providers/permission-provider";
 

@@ -16,6 +16,8 @@ import {
   Package,
   Wrench,
   Layers,
+  Car,
+  Users,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -57,6 +59,13 @@ export const platformNav = defineNav({
           href: routes.platform.organizations.root,
           icon: Building2,
           permission: permissions.organizations.read,
+        },
+        {
+          id: "vehicle-brands",
+          titleKey: "layout.nav_vehicle_brands",
+          href: routes.platform.vehicleBrands.root,
+          icon: Car,
+          permission: permissions.vehicleBrands.read,
         },
         {
           id: "roles",
@@ -256,6 +265,21 @@ export function tenantNav(slug: string) {
             href: routes.tenant.finance.categories.root(slug),
             icon: Settings2,
             permission: permissions.finance.read,
+          },
+        ],
+      },
+      {
+        id: "customers",
+        labelKey: "layout.section_customers",
+        icon: Users,
+        defaultOpen: true,
+        items: [
+          {
+            id: "customers",
+            titleKey: "layout.nav_customers",
+            href: routes.tenant.customers.root(slug),
+            icon: Users,
+            permission: permissions.customers.read,
           },
         ],
       },

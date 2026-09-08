@@ -14,8 +14,7 @@ const TX_TYPES = new Set(["income", "expense", "transfer"]);
 const ACCOUNT_TYPES = new Set(["cash", "bank"]);
 const CATEGORY_KINDS = new Set(["income", "expense"]);
 
-const ACCOUNT_SUBTITLE =
-  /^([\d.,]+)\s+([A-Za-z]{3})\s+·\s+(cash|bank)$/;
+const ACCOUNT_SUBTITLE = /^([\d.,]+)\s+([A-Za-z]{3})\s+·\s+(cash|bank)$/;
 const TRANSACTION_SUBTITLE =
   /^([\d.,]+)\s+([A-Za-z]{3})\s+·\s+(income|expense|transfer)\s+·\s+(.+)$/;
 

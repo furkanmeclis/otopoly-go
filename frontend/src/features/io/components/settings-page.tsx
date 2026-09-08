@@ -65,7 +65,8 @@ export function SettingsPage({ scope = "platform", slug }: SettingsPageProps) {
     },
   });
 
-  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
+  const homeHref =
+    tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
   const settingsHref =
     tenant && slug
       ? routes.tenant.settings.root(slug)

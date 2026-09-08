@@ -143,7 +143,11 @@ export function BulkActionMenu({
           ))}
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setPending(null)}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setPending(null)}
+          >
             {t("common.cancel")}
           </Button>
           <Button type="button" onClick={() => void submitParams()}>
@@ -177,39 +181,40 @@ export function BulkActionMenu({
 
   return (
     <>
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={bulkMutation.isPending}
-          className="h-8 gap-1.5"
-        >
-          <Layers className="size-3.5" />
-          {t("table.bulk")}
-          <ChevronDown className="size-3.5 opacity-70" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-44">
-        {allowed.map((action) => {
-          const Icon = action.icon;
-          return (
-            <DropdownMenuItem
-              key={action.id}
-              className={cn(
-                action.destructive && "text-destructive focus:text-destructive",
-              )}
-              onClick={() => void runAction(action)}
-            >
-              <Icon className="size-4" />
-              {t(action.label_key)}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-    {paramsDialog}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={bulkMutation.isPending}
+            className="h-8 gap-1.5"
+          >
+            <Layers className="size-3.5" />
+            {t("table.bulk")}
+            <ChevronDown className="size-3.5 opacity-70" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-44">
+          {allowed.map((action) => {
+            const Icon = action.icon;
+            return (
+              <DropdownMenuItem
+                key={action.id}
+                className={cn(
+                  action.destructive &&
+                    "text-destructive focus:text-destructive",
+                )}
+                onClick={() => void runAction(action)}
+              >
+                <Icon className="size-4" />
+                {t(action.label_key)}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {paramsDialog}
     </>
   );
 }

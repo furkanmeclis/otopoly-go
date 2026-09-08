@@ -81,7 +81,11 @@ export function ServiceDetailPage({
                 {
                   id: "identity",
                   fields: [
-                    { key: "name", label: t("catalog.services.name"), value: service.name },
+                    {
+                      key: "name",
+                      label: t("catalog.services.name"),
+                      value: service.name,
+                    },
                     {
                       key: "category",
                       label: t("catalog.services.category"),
@@ -112,7 +116,9 @@ export function ServiceDetailPage({
                     {
                       key: "vat",
                       label: t("catalog.services.vat_rate"),
-                      value: t("catalog.services.vat_suffix", { rate: service.vat_rate }),
+                      value: t("catalog.services.vat_suffix", {
+                        rate: service.vat_rate,
+                      }),
                     },
                     {
                       key: "currency",
@@ -122,19 +128,29 @@ export function ServiceDetailPage({
                     {
                       key: "created",
                       label: t("catalog.detail.created_at"),
-                      value: datetime(service.created_at, "dd.MM.yyyy HH:mm", locale),
+                      value: datetime(
+                        service.created_at,
+                        "dd.MM.yyyy HH:mm",
+                        locale,
+                      ),
                     },
                     {
                       key: "updated",
                       label: t("catalog.detail.updated_at"),
-                      value: datetime(service.updated_at, "dd.MM.yyyy HH:mm", locale),
+                      value: datetime(
+                        service.updated_at,
+                        "dd.MM.yyyy HH:mm",
+                        locale,
+                      ),
                     },
                   ],
                 },
               ]}
             />
             {service.description ? (
-              <p className="text-muted-foreground mt-4 text-sm">{service.description}</p>
+              <p className="text-muted-foreground mt-4 text-sm">
+                {service.description}
+              </p>
             ) : null}
           </EntitySectionCard>
         </div>

@@ -41,6 +41,10 @@ export const routes = {
         new: (slug: string) => `/t/${slug}/finance/transfers/new`,
       },
     },
+    customers: {
+      root: (slug: string) => `/t/${slug}/customers`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/customers/${uuid}`,
+    },
     catalog: {
       root: (slug: string) => `/t/${slug}/catalog/products`,
       products: {
@@ -134,6 +138,10 @@ export const routes = {
       create: "/platform/organizations/create",
       detail: (uuid: string) => `/platform/organizations/${uuid}`,
       edit: (uuid: string) => `/platform/organizations/${uuid}/edit`,
+    },
+    vehicleBrands: {
+      root: "/platform/vehicle-brands",
+      detail: (uuid: string) => `/platform/vehicle-brands/${uuid}`,
     },
     activity: {
       root: "/platform/activity",

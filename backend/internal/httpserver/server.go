@@ -32,6 +32,8 @@ import (
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
 	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
 	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
+	customersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers"
+	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
 	exporthandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/handler"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
@@ -64,6 +66,9 @@ import (
 	storagemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage"
 	storagehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/handler"
 	storageusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/usecase"
+	vehiclemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog"
+	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
+	vehicleusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
@@ -179,6 +184,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		searchadapters.NewFinanceTransactions(deps.Queries),
 		searchadapters.NewCatalogProducts(deps.Queries),
 		searchadapters.NewCatalogServices(deps.Queries),
+		searchadapters.NewVehicleModelYears(deps.Queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, deps.Queue, log)
@@ -275,6 +281,12 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	)
 	bulkSvc := bulkusecase.New(deps.Queries, bulkReg, deps.Queue, notifSvc, activityRec, cfg.Bulk, log)
 	catalogmodule.RegisterRoutes(mux, catalogSvc, bulkhandler.New(bulkSvc), tokens, loader, deps.Queries)
+	vehicleSvc := vehicleusecase.New(deps.DB, deps.Queries, activityRec)
+	vehicleSvc.SetSearchIndexer(searchIndexer)
+	vehicleSvc.SetSearcher(searchClient)
+	vehiclemodule.RegisterRoutes(mux, vehiclehandler.New(vehicleSvc, deps.Storage), tokens, loader, deps.Queries)
+	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
+	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
 	logsSvc := logsusecase.New(deps.Queries)
 	if s.worker != nil {
 		s.worker.WithExport(exportSvc.ProcessExport).

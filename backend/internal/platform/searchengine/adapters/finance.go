@@ -273,7 +273,8 @@ func (a *FinanceTransactionsAdapter) documentFromRow(row db.ListFinanceTransacti
 	if title == "" {
 		title = row.Type
 	}
-	subtitle := fmt.Sprintf("%s %s · %s · %s",
+	subtitle := fmt.Sprintf(
+		"%s %s · %s · %s",
 		numericToDisplay(row.Amount),
 		row.Currency,
 		row.Type,

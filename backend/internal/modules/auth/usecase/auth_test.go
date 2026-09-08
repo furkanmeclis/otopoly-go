@@ -298,6 +298,7 @@ func (r *memRepo) InvalidateOTPs(context.Context, string, string) error { return
 func (r *memRepo) GetActiveOTP(context.Context, string, string) (int64, string, int32, int32, error) {
 	return 0, "", 0, 0, repository.ErrNotFound
 }
+
 func (r *memRepo) IncrementOTPAttempts(context.Context, int64) (int32, int32, error) {
 	return 0, 0, nil
 }
@@ -315,9 +316,11 @@ func (r *memRepo) SetEmailVerified(_ context.Context, userID int64) (model.User,
 func (r *memRepo) GetPasskeyByCredentialID(context.Context, string) (model.PasskeyRecord, error) {
 	return model.PasskeyRecord{}, repository.ErrNotFound
 }
+
 func (r *memRepo) ListPasskeysByUserID(context.Context, int64) ([]model.PasskeyRecord, error) {
 	return nil, nil
 }
+
 func (r *memRepo) CreatePasskey(context.Context, int64, model.CreateAdapterAuthenticatorInput) (model.PasskeyRecord, error) {
 	return model.PasskeyRecord{}, nil
 }
@@ -331,45 +334,59 @@ func (r *memRepo) DeletePasskeyByUUID(context.Context, uuid.UUID, uuid.UUID) err
 func (r *memRepo) GetOAuthAccountByProviderAccount(context.Context, string, string) (model.OAuthAccountRecord, error) {
 	return model.OAuthAccountRecord{}, repository.ErrNotFound
 }
+
 func (r *memRepo) GetOAuthAccountByUserProvider(context.Context, int64, string) (model.OAuthAccountRecord, error) {
 	return model.OAuthAccountRecord{}, repository.ErrNotFound
 }
+
 func (r *memRepo) ListOAuthAccountsByUserID(context.Context, int64) ([]model.OAuthAccountRecord, error) {
 	return nil, nil
 }
+
 func (r *memRepo) CreateOAuthAccount(context.Context, model.CreateOAuthAccountInput) (model.OAuthAccountRecord, error) {
 	return model.OAuthAccountRecord{}, nil
 }
+
 func (r *memRepo) DeleteOAuthAccountByProviderAccount(context.Context, string, string) error {
 	return nil
 }
+
 func (r *memRepo) DeleteOAuthAccountByUserProvider(context.Context, int64, string) error {
 	return repository.ErrNotFound
 }
+
 func (r *memRepo) GetUserTOTP(context.Context, int64) (model.UserTOTP, error) {
 	return model.UserTOTP{}, repository.ErrNotFound
 }
+
 func (r *memRepo) UpsertUserTOTPSetup(context.Context, int64, string) (model.UserTOTP, error) {
 	return model.UserTOTP{}, nil
 }
+
 func (r *memRepo) ConfirmUserTOTP(context.Context, int64, []string) (model.UserTOTP, error) {
 	return model.UserTOTP{}, nil
 }
+
 func (r *memRepo) UpdateUserTOTPRecoveryHashes(context.Context, int64, []string) error { return nil }
-func (r *memRepo) DeleteUserTOTP(context.Context, int64) error                         { return nil }
+
+func (r *memRepo) DeleteUserTOTP(context.Context, int64) error { return nil }
 
 func (r *memRepo) ListRolesFiltered(context.Context, int32, int32, string) ([]model.RoleSummary, int64, error) {
 	return []model.RoleSummary{{UUID: uuid.New(), Name: "Organization", Slug: rbac.RoleOrganizationUser}}, 1, nil
 }
+
 func (r *memRepo) GetRoleByUUID(context.Context, uuid.UUID) (model.RoleSummary, error) {
 	return model.RoleSummary{UUID: uuid.New(), Slug: rbac.RoleOrganizationUser}, nil
 }
+
 func (r *memRepo) ListRolePermissionSlugs(context.Context, uuid.UUID) ([]string, error) {
 	return []string{rbac.PermAuthSession}, nil
 }
+
 func (r *memRepo) CreateRole(_ context.Context, name, slug string, description *string) (model.RoleSummary, error) {
 	return model.RoleSummary{UUID: uuid.New(), Name: name, Slug: slug}, nil
 }
+
 func (r *memRepo) UpdateRole(context.Context, uuid.UUID, *string, *string) (model.RoleSummary, error) {
 	return model.RoleSummary{}, nil
 }
@@ -425,15 +442,19 @@ type testAuthGate struct {
 func (g testAuthGate) CanPasswordRegister(context.Context) (bool, error) {
 	return g.passwordRegister && g.registration, nil
 }
+
 func (g testAuthGate) CanPasswordLogin(context.Context) (bool, error) {
 	return g.passwordLogin, nil
 }
+
 func (g testAuthGate) CanPasskeyLogin(context.Context) (bool, error) {
 	return g.passkeyLogin, nil
 }
+
 func (g testAuthGate) RegistrationEnabled(context.Context) (bool, error) {
 	return g.registration, nil
 }
+
 func (g testAuthGate) DefaultRoleID(context.Context) (*int64, error) {
 	return g.defaultRoleID, nil
 }

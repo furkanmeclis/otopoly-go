@@ -70,8 +70,11 @@ export function ImportsPage({ scope = "platform", slug }: ImportsPageProps) {
     return Math.max(1, Math.ceil(total / size));
   }, [listQuery.data?.total, listState.pagination.pageSize]);
 
-  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
-  const persistKey = tenant ? `tenant-imports-v1-${slug}` : "platform-imports-v1";
+  const homeHref =
+    tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
+  const persistKey = tenant
+    ? `tenant-imports-v1-${slug}`
+    : "platform-imports-v1";
 
   return (
     <EntityPage
@@ -79,7 +82,9 @@ export function ImportsPage({ scope = "platform", slug }: ImportsPageProps) {
       description={
         tenant ? t("imports.tenant_description") : t("imports.description")
       }
-      permission={tenant ? permissions.imports.tenantRead : permissions.imports.read}
+      permission={
+        tenant ? permissions.imports.tenantRead : permissions.imports.read
+      }
       forbiddenFallback={
         <ErrorState
           title={t("common.error_forbidden")}

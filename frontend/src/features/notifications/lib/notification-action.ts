@@ -13,8 +13,7 @@ export type NotificationActionContext = {
   payload?: unknown;
 };
 
-const UUID =
-  "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const EXPORT_DOWNLOAD = new RegExp(
   `^/v1/(platform|tenant)/exports/(${UUID})/download/?$`,
   "i",

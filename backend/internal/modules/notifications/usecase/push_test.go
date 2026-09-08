@@ -39,57 +39,75 @@ func (m *pushTestQuerier) ListPushSubscriptionsByUser(_ context.Context, _ int64
 func (m *pushTestQuerier) CreateNotification(context.Context, db.CreateNotificationParams) (db.Notification, error) {
 	return db.Notification{}, nil
 }
+
 func (m *pushTestQuerier) GetNotificationByUUID(context.Context, uuid.UUID) (db.Notification, error) {
 	return db.Notification{}, nil
 }
+
 func (m *pushTestQuerier) GetNotificationByID(context.Context, int64) (db.Notification, error) {
 	return db.Notification{}, nil
 }
+
 func (m *pushTestQuerier) ListNotificationsForUser(context.Context, db.ListNotificationsForUserParams) ([]db.Notification, error) {
 	return nil, nil
 }
+
 func (m *pushTestQuerier) CountNotificationsForUser(context.Context, db.CountNotificationsForUserParams) (int64, error) {
 	return 0, nil
 }
+
 func (m *pushTestQuerier) CountUnreadInappForUser(context.Context, pgtype.Int8) (int64, error) {
 	return 0, nil
 }
+
 func (m *pushTestQuerier) ListPlatformNotifications(context.Context, db.ListPlatformNotificationsParams) ([]db.Notification, error) {
 	return nil, nil
 }
+
 func (m *pushTestQuerier) CountPlatformNotifications(context.Context, db.CountPlatformNotificationsParams) (int64, error) {
 	return 0, nil
 }
+
 func (m *pushTestQuerier) MarkNotificationProcessing(context.Context, int64) (db.Notification, error) {
 	return db.Notification{}, nil
 }
+
 func (m *pushTestQuerier) ListStuckProcessingNotificationIDs(context.Context, int32) ([]int64, error) {
 	return nil, nil
 }
+
 func (m *pushTestQuerier) MarkNotificationSent(context.Context, db.MarkNotificationSentParams) (db.Notification, error) {
 	return db.Notification{}, nil
 }
+
 func (m *pushTestQuerier) MarkNotificationFailed(context.Context, db.MarkNotificationFailedParams) (db.Notification, error) {
 	return db.Notification{}, nil
 }
+
 func (m *pushTestQuerier) MarkNotificationRead(context.Context, db.MarkNotificationReadParams) (db.Notification, error) {
 	return db.Notification{}, nil
 }
+
 func (m *pushTestQuerier) MarkAllNotificationsReadForUser(context.Context, pgtype.Int8) (int64, error) {
 	return 0, nil
 }
+
 func (m *pushTestQuerier) InsertNotificationHistory(context.Context, db.InsertNotificationHistoryParams) (db.NotificationHistory, error) {
 	return db.NotificationHistory{}, nil
 }
+
 func (m *pushTestQuerier) GetTemplateByCodeChannelLang(context.Context, db.GetTemplateByCodeChannelLangParams) (db.NotificationTemplate, error) {
 	return db.NotificationTemplate{}, nil
 }
+
 func (m *pushTestQuerier) UpsertNotificationPreferences(context.Context, db.UpsertNotificationPreferencesParams) (db.NotificationPreference, error) {
 	return db.NotificationPreference{}, nil
 }
+
 func (m *pushTestQuerier) GetUserByID(context.Context, int64) (db.User, error) {
 	return db.User{}, nil
 }
+
 func (m *pushTestQuerier) GetUserByUUID(context.Context, uuid.UUID) (db.User, error) {
 	return db.User{}, nil
 }

@@ -37,13 +37,8 @@ export function useCatalogMutations() {
   });
 
   const updateProduct = useMutation({
-    mutationFn: ({
-      uuid,
-      body,
-    }: {
-      uuid: string;
-      body: UpdateProductInput;
-    }) => catalogService.updateProduct(uuid, body),
+    mutationFn: ({ uuid, body }: { uuid: string; body: UpdateProductInput }) =>
+      catalogService.updateProduct(uuid, body),
     onSuccess: () => {
       invalidateCatalog();
       toast.success(t("catalog.products.updated_success"));
@@ -54,13 +49,8 @@ export function useCatalogMutations() {
   });
 
   const adjustStock = useMutation({
-    mutationFn: ({
-      uuid,
-      body,
-    }: {
-      uuid: string;
-      body: AdjustStockInput;
-    }) => catalogService.adjustProductStock(uuid, body),
+    mutationFn: ({ uuid, body }: { uuid: string; body: AdjustStockInput }) =>
+      catalogService.adjustProductStock(uuid, body),
     onSuccess: () => {
       invalidateCatalog();
       toast.success(t("catalog.products.stock_adjusted_success"));
@@ -94,13 +84,8 @@ export function useCatalogMutations() {
   });
 
   const updateService = useMutation({
-    mutationFn: ({
-      uuid,
-      body,
-    }: {
-      uuid: string;
-      body: UpdateServiceInput;
-    }) => catalogService.updateService(uuid, body),
+    mutationFn: ({ uuid, body }: { uuid: string; body: UpdateServiceInput }) =>
+      catalogService.updateService(uuid, body),
     onSuccess: () => {
       invalidateCatalog();
       toast.success(t("catalog.services.updated_success"));
@@ -134,13 +119,8 @@ export function useCatalogMutations() {
   });
 
   const updateCategory = useMutation({
-    mutationFn: ({
-      uuid,
-      body,
-    }: {
-      uuid: string;
-      body: UpdateCategoryInput;
-    }) => catalogService.updateCategory(uuid, body),
+    mutationFn: ({ uuid, body }: { uuid: string; body: UpdateCategoryInput }) =>
+      catalogService.updateCategory(uuid, body),
     onSuccess: () => {
       invalidateCatalog();
       toast.success(t("catalog.categories.updated_success"));

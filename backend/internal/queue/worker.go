@@ -35,17 +35,17 @@ type PurgeLogsFunc func(ctx context.Context) error
 
 // Worker processes Asynq tasks.
 type Worker struct {
-	server        *asynq.Server
-	mux           *asynq.ServeMux
-	log           *slog.Logger
-	deliver       DeliverNotificationFunc
-	processExport ProcessExportFunc
-	processImport ProcessImportFunc
-	processBulk   ProcessBulkFunc
-	processSearchUpsert ProcessSearchUpsertFunc
-	processSearchDelete ProcessSearchDeleteFunc
+	server               *asynq.Server
+	mux                  *asynq.ServeMux
+	log                  *slog.Logger
+	deliver              DeliverNotificationFunc
+	processExport        ProcessExportFunc
+	processImport        ProcessImportFunc
+	processBulk          ProcessBulkFunc
+	processSearchUpsert  ProcessSearchUpsertFunc
+	processSearchDelete  ProcessSearchDeleteFunc
 	processSearchReindex ProcessSearchReindexFunc
-	purgeLogs     PurgeLogsFunc
+	purgeLogs            PurgeLogsFunc
 }
 
 // NewWorker builds a worker that handles known task types.
@@ -235,7 +235,8 @@ func handlePing(log *slog.Logger) asynq.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		log.Info("queue_ping_received",
+		log.Info(
+			"queue_ping_received",
 			"message", payload.Message,
 			"enqueued_at", payload.EnqueuedAt,
 		)

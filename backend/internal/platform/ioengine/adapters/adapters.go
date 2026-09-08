@@ -457,6 +457,7 @@ func (a *ActivityAdapter) ImportSchema() []ioengine.ImportField { return nil }
 func (a *ActivityAdapter) ApplyRow(_ context.Context, _ map[string]any, _ map[string]any) (ioengine.RowResult, error) {
 	return ioengine.RowResult{OK: false, Error: "import not supported"}, nil
 }
+
 func (a *ActivityAdapter) RevertRow(_ context.Context, _, _ string, _ map[string]any) error {
 	return fmt.Errorf("import not supported")
 }

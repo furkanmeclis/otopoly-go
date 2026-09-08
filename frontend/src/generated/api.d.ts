@@ -1835,6 +1835,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/catalog/products/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run a bulk action on catalog products */
+        post: operations["postTenantCatalogProductsBulk"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/catalog/products/{uuid}": {
         parameters: {
             query?: never;
@@ -1900,6 +1917,23 @@ export interface paths {
         put?: never;
         /** Create service */
         post: operations["createTenantCatalogService"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run a bulk action on catalog services */
+        post: operations["postTenantCatalogServicesBulk"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2926,6 +2960,9 @@ export interface components {
             scope: "ids" | "query";
             ids?: string[];
             query?: {
+                [key: string]: string;
+            };
+            params?: {
                 [key: string]: string;
             };
         };
@@ -4645,6 +4682,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeResourceMeta"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getPlatformOrganizations: {
@@ -4670,6 +4710,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeOrganizationPage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createPlatformOrganization: {
@@ -4764,6 +4807,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     deletePlatformOrganizationLogo: {
@@ -4784,6 +4832,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     postPlatformOrganizationMember: {
@@ -4812,6 +4865,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getPlatformUsers: {
@@ -5696,6 +5754,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceSummary"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceAccountsMeta: {
@@ -5716,6 +5777,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeResourceMeta"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceAccounts: {
@@ -5741,6 +5805,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceAccountPage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createTenantFinanceAccount: {
@@ -5765,6 +5832,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceAccount"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceAccount: {
@@ -5787,6 +5858,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceAccount"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     deleteTenantFinanceAccount: {
@@ -5807,6 +5882,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     patchTenantFinanceAccount: {
@@ -5833,6 +5913,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceAccount"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceAccountBalance: {
@@ -5855,6 +5940,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceAccountDetail: {
@@ -5877,6 +5966,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceCategories: {
@@ -5897,6 +5990,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createTenantFinanceCategory: {
@@ -5919,6 +6015,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceCategory: {
@@ -5941,6 +6041,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceCategory"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceCategoryDetail: {
@@ -5963,6 +6067,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceTransactionsMeta: {
@@ -5983,6 +6091,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeResourceMeta"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceTransactions: {
@@ -6013,6 +6124,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceTransactionPage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createTenantFinanceTransaction: {
@@ -6035,6 +6149,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     exportTenantFinanceAccounts: {
@@ -6059,6 +6177,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeExportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceTransaction: {
@@ -6081,6 +6203,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceTransaction"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     voidTenantFinanceTransaction: {
@@ -6101,6 +6227,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     exportTenantFinanceTransactions: {
@@ -6125,6 +6256,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeExportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createTenantFinanceTransfer: {
@@ -6147,6 +6282,10 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     exportTenantFinanceCategories: {
@@ -6171,6 +6310,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeExportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     importTenantFinanceAccounts: {
@@ -6191,6 +6334,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     sampleTenantFinanceAccountsImport: {
@@ -6214,6 +6361,9 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     importTenantFinanceCategories: {
@@ -6234,6 +6384,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     sampleTenantFinanceCategoriesImport: {
@@ -6257,6 +6411,9 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantFinanceCategoriesMeta: {
@@ -6275,6 +6432,9 @@ export interface operations {
                 };
                 content?: never;
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantCatalogSummary: {
@@ -6295,6 +6455,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogSummary"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantCatalogCategoriesMeta: {
@@ -6315,6 +6478,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeResourceMeta"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     listTenantCatalogCategories: {
@@ -6339,6 +6505,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogCategoryList"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createTenantCatalogCategory: {
@@ -6373,6 +6542,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogCategory"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantCatalogCategory: {
@@ -6395,6 +6568,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogCategory"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     deleteTenantCatalogCategory: {
@@ -6415,6 +6592,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     patchTenantCatalogCategory: {
@@ -6449,6 +6631,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogCategory"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantCatalogProductsMeta: {
@@ -6469,6 +6656,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeResourceMeta"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     listTenantCatalogProducts: {
@@ -6478,6 +6668,7 @@ export interface operations {
                 stock_status?: "in_stock" | "low_stock" | "out_of_stock";
                 is_active?: boolean;
                 track_stock?: boolean;
+                unit?: string;
                 q?: string;
                 sort_by?: string;
                 limit?: number;
@@ -6498,6 +6689,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogProductPage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createTenantCatalogProduct: {
@@ -6548,6 +6742,46 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogProduct"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postTenantCatalogProductsBulk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkExecuteRequest"];
+            };
+        };
+        responses: {
+            /** @description Sync bulk result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBulkSyncResult"];
+                };
+            };
+            /** @description Async bulk job queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBulkJob"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getTenantCatalogProduct: {
@@ -6570,6 +6804,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogProduct"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     deleteTenantCatalogProduct: {
@@ -6590,6 +6828,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     patchTenantCatalogProduct: {
@@ -6632,6 +6875,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogProduct"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     adjustTenantCatalogProductStock: {
@@ -6662,6 +6910,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogProduct"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantCatalogServicesMeta: {
@@ -6682,6 +6935,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeResourceMeta"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     listTenantCatalogServices: {
@@ -6709,6 +6965,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogServicePage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     createTenantCatalogService: {
@@ -6750,6 +7009,46 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogService"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postTenantCatalogServicesBulk: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkExecuteRequest"];
+            };
+        };
+        responses: {
+            /** @description Sync bulk result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBulkSyncResult"];
+                };
+            };
+            /** @description Async bulk job queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBulkJob"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getTenantCatalogService: {
@@ -6772,6 +7071,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogService"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     deleteTenantCatalogService: {
@@ -6792,6 +7095,11 @@ export interface operations {
                 };
                 content?: never;
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     patchTenantCatalogService: {
@@ -6829,6 +7137,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeCatalogService"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantSettings: {
@@ -6849,6 +7162,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeTenantSettings"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     patchTenantSettings: {
@@ -6873,6 +7189,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeTenantSettings"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     putTenantSettingsLogo: {
@@ -6893,6 +7213,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeTenantSettings"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     deleteTenantSettingsLogo: {
@@ -6913,6 +7237,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeTenantSettings"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     listTenantImports: {
@@ -6936,6 +7264,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJobPage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantImport: {
@@ -6958,6 +7289,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJob"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     patchTenantImportMapping: {
@@ -6980,6 +7315,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     previewTenantImport: {
@@ -7002,6 +7342,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     confirmTenantImport: {
@@ -7024,6 +7369,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     rollbackTenantImport: {
@@ -7046,6 +7396,11 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeImportJob"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     listTenantExports: {
@@ -7069,6 +7424,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeExportJobPage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     getTenantExport: {
@@ -7091,6 +7449,10 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeExportJob"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     downloadTenantExport: {
@@ -7113,6 +7475,10 @@ export interface operations {
                     "application/octet-stream": string;
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
 }

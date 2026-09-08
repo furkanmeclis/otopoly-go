@@ -122,10 +122,7 @@ export type UpdateServiceInput = Partial<CreateServiceInput>;
 
 export const catalogService = {
   summary() {
-    return platformRequest<CatalogSummary>(
-      "GET",
-      "/v1/tenant/catalog/summary",
-    );
+    return platformRequest<CatalogSummary>("GET", "/v1/tenant/catalog/summary");
   },
 
   // Products
@@ -237,11 +234,7 @@ export const catalogService = {
       "/v1/tenant/catalog/categories/meta",
     );
   },
-  listCategories(params?: {
-    kind?: string;
-    is_active?: string;
-    q?: string;
-  }) {
+  listCategories(params?: { kind?: string; is_active?: string; q?: string }) {
     return platformRequest<{ items: CatalogCategory[] }>(
       "GET",
       "/v1/tenant/catalog/categories",

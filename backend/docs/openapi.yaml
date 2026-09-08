@@ -1176,6 +1176,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/platform/organizations:
     get:
@@ -1199,6 +1205,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeOrganizationPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Platform]
       operationId: createPlatformOrganization
@@ -1285,6 +1297,16 @@ paths:
       responses:
         "200":
           description: Updated organization
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     delete:
       tags: [Platform]
       operationId: deletePlatformOrganizationLogo
@@ -1301,6 +1323,16 @@ paths:
       responses:
         "200":
           description: Updated organization
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/platform/organizations/{uuid}/members:
     post:
@@ -1332,6 +1364,16 @@ paths:
       responses:
         "201":
           description: Member added
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/platform/users:
     get:
@@ -2204,6 +2246,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceSummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts/meta:
     get:
@@ -2219,6 +2267,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts:
     get:
@@ -2241,6 +2295,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceAccountPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Tenant]
       operationId: createTenantFinanceAccount
@@ -2260,6 +2320,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceAccount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts/{uuid}:
     get:
@@ -2280,6 +2348,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceAccount"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     patch:
       tags: [Tenant]
       operationId: patchTenantFinanceAccount
@@ -2304,6 +2380,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceAccount"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     delete:
       tags: [Tenant]
       operationId: deleteTenantFinanceAccount
@@ -2318,6 +2404,16 @@ paths:
       responses:
         "200":
           description: Deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts/{uuid}/balance:
     get:
@@ -2337,6 +2433,14 @@ paths:
       responses:
         "200":
           description: Balance snapshot
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts/{uuid}/detail:
     get:
@@ -2356,6 +2460,14 @@ paths:
       responses:
         "200":
           description: Account detail
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/categories:
     get:
@@ -2371,6 +2483,12 @@ paths:
       responses:
         "200":
           description: Categories
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Tenant]
       operationId: createTenantFinanceCategory
@@ -2386,6 +2504,14 @@ paths:
       responses:
         "201":
           description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/categories/{uuid}:
     get:
@@ -2406,6 +2532,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceCategory"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/categories/{uuid}/detail:
     get:
@@ -2425,6 +2559,14 @@ paths:
       responses:
         "200":
           description: Category detail
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/transactions/meta:
     get:
@@ -2440,6 +2582,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/transactions:
     get:
@@ -2477,6 +2625,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceTransactionPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Tenant]
       operationId: createTenantFinanceTransaction
@@ -2492,6 +2646,14 @@ paths:
       responses:
         "201":
           description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts/export:
     post:
@@ -2514,6 +2676,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeExportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/transactions/{uuid}:
     get:
@@ -2534,6 +2704,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceTransaction"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/transactions/{uuid}/void:
     post:
@@ -2550,6 +2728,16 @@ paths:
       responses:
         "200":
           description: Voided
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/transactions/export:
     post:
@@ -2572,6 +2760,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeExportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/transfers:
     post:
@@ -2589,6 +2785,14 @@ paths:
       responses:
         "201":
           description: Created
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/categories/export:
     post:
@@ -2610,6 +2814,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeExportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts/import:
     post:
@@ -2625,6 +2837,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/accounts/import/sample:
     get:
@@ -2646,6 +2866,12 @@ paths:
           content:
             application/octet-stream:
               schema: { type: string, format: binary }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/categories/import:
     post:
@@ -2661,6 +2887,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/categories/import/sample:
     get:
@@ -2682,6 +2916,12 @@ paths:
           content:
             application/octet-stream:
               schema: { type: string, format: binary }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/finance/categories/meta:
     get:
@@ -2693,6 +2933,12 @@ paths:
       responses:
         "200":
           description: Resource meta
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/summary:
     get:
@@ -2708,6 +2954,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogSummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/categories/meta:
     get:
@@ -2723,6 +2975,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/categories:
     get:
@@ -2748,6 +3006,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogCategoryList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Tenant]
       operationId: createTenantCatalogCategory
@@ -2764,7 +3028,7 @@ paths:
               properties:
                 name: { type: string }
                 kind: { type: string, enum: [product, service] }
-                parent_uuid: { type: string, format: uuid, nullable: true }
+                parent_uuid: { type: [string, "null"], format: uuid }
                 sort_order: { type: integer, default: 0 }
                 is_active: { type: boolean, default: true }
       responses:
@@ -2774,6 +3038,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogCategory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/categories/{uuid}:
     get:
@@ -2794,6 +3066,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogCategory"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     patch:
       tags: [Tenant]
       operationId: patchTenantCatalogCategory
@@ -2814,7 +3094,7 @@ paths:
               properties:
                 name: { type: string }
                 kind: { type: string, enum: [product, service] }
-                parent_uuid: { type: string, format: uuid, nullable: true }
+                parent_uuid: { type: [string, "null"], format: uuid }
                 sort_order: { type: integer }
                 is_active: { type: boolean }
       responses:
@@ -2824,6 +3104,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogCategory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     delete:
       tags: [Tenant]
       operationId: deleteTenantCatalogCategory
@@ -2838,6 +3128,16 @@ paths:
       responses:
         "200":
           description: Deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/products/meta:
     get:
@@ -2853,6 +3153,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/products:
     get:
@@ -2896,6 +3202,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogProductPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Tenant]
       operationId: createTenantCatalogProduct
@@ -2911,9 +3223,9 @@ paths:
               required: [name]
               properties:
                 name: { type: string }
-                category_uuid: { type: string, format: uuid, nullable: true }
-                sku: { type: string, nullable: true }
-                barcode: { type: string, nullable: true }
+                category_uuid: { type: [string, "null"], format: uuid }
+                sku: { type: [string, "null"] }
+                barcode: { type: [string, "null"] }
                 unit: { type: string, default: "piece" }
                 cost_price: { type: string, default: "0" }
                 sale_price: { type: string, default: "0" }
@@ -2931,6 +3243,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogProduct"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/products/bulk:
     post:
@@ -2984,6 +3304,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogProduct"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     patch:
       tags: [Tenant]
       operationId: patchTenantCatalogProduct
@@ -3003,9 +3331,9 @@ paths:
               type: object
               properties:
                 name: { type: string }
-                category_uuid: { type: string, format: uuid, nullable: true }
-                sku: { type: string, nullable: true }
-                barcode: { type: string, nullable: true }
+                category_uuid: { type: [string, "null"], format: uuid }
+                sku: { type: [string, "null"] }
+                barcode: { type: [string, "null"] }
                 unit: { type: string }
                 cost_price: { type: string }
                 sale_price: { type: string }
@@ -3023,6 +3351,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogProduct"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     delete:
       tags: [Tenant]
       operationId: deleteTenantCatalogProduct
@@ -3037,6 +3375,16 @@ paths:
       responses:
         "200":
           description: Deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/products/{uuid}/stock-adjustment:
     post:
@@ -3068,6 +3416,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogProduct"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/services/meta:
     get:
@@ -3083,6 +3441,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/services:
     get:
@@ -3117,6 +3481,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogServicePage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     post:
       tags: [Tenant]
       operationId: createTenantCatalogService
@@ -3132,8 +3502,8 @@ paths:
               required: [name]
               properties:
                 name: { type: string }
-                category_uuid: { type: string, format: uuid, nullable: true }
-                code: { type: string, nullable: true }
+                category_uuid: { type: [string, "null"], format: uuid }
+                code: { type: [string, "null"] }
                 duration_minutes: { type: integer, default: 30 }
                 price: { type: string, default: "0" }
                 vat_rate: { type: string, default: "20" }
@@ -3147,6 +3517,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogService"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/catalog/services/bulk:
     post:
@@ -3200,6 +3578,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogService"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     patch:
       tags: [Tenant]
       operationId: patchTenantCatalogService
@@ -3219,8 +3605,8 @@ paths:
               type: object
               properties:
                 name: { type: string }
-                category_uuid: { type: string, format: uuid, nullable: true }
-                code: { type: string, nullable: true }
+                category_uuid: { type: [string, "null"], format: uuid }
+                code: { type: [string, "null"] }
                 duration_minutes: { type: integer }
                 price: { type: string }
                 vat_rate: { type: string }
@@ -3234,6 +3620,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeCatalogService"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
     delete:
       tags: [Tenant]
       operationId: deleteTenantCatalogService
@@ -3248,6 +3644,16 @@ paths:
       responses:
         "200":
           description: Deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/settings:
     get:
@@ -3263,6 +3669,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeTenantSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     patch:
       tags: [Tenant]
       operationId: patchTenantSettings
@@ -3282,6 +3694,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeTenantSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/settings/logo:
     put:
@@ -3297,6 +3717,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeTenantSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
     delete:
       tags: [Tenant]
       operationId: deleteTenantSettingsLogo
@@ -3310,6 +3738,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeTenantSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/imports:
     get:
@@ -3328,6 +3764,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJobPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/imports/{uuid}:
     get:
@@ -3348,6 +3790,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJob"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/imports/{uuid}/mapping:
     patch:
@@ -3368,6 +3818,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/imports/{uuid}/preview:
     post:
@@ -3388,6 +3848,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/imports/{uuid}/confirm:
     post:
@@ -3408,6 +3878,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/imports/{uuid}/rollback:
     post:
@@ -3428,6 +3908,16 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeImportJob"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/exports:
     get:
@@ -3446,6 +3936,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeExportJobPage"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/exports/{uuid}:
     get:
@@ -3466,6 +3962,14 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeExportJob"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /v1/tenant/exports/{uuid}/download:
     get:
@@ -3487,6 +3991,432 @@ paths:
               schema:
                 type: string
                 format: binary
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/public/vehicle-brands/logo/{uuid}:
+    get:
+      tags: [Public]
+      operationId: getPublicVehicleBrandLogo
+      summary: Stream a vehicle brand logo
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Logo bytes
+          content:
+            image/*:
+              schema: { type: string, format: binary }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/platform/vehicle-brands/meta:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleBrandsMeta
+      summary: Vehicle brand list metadata
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Resource meta }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-brands:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleBrands
+      summary: List vehicle brands
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: sort
+          in: query
+          schema: { type: string }
+        - name: is_active
+          in: query
+          schema: { type: string }
+      responses:
+        "200": { description: Brand page }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Platform]
+      operationId: createPlatformVehicleBrand
+      summary: Create a vehicle brand
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                is_active: { type: boolean }
+      responses:
+        "201": { description: Created brand }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/platform/vehicle-brands/import:
+    post:
+      tags: [Platform]
+      operationId: importPlatformVehicleBrands
+      summary: Import brand, year, and model JSON
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: array
+                  items: { type: string }
+      responses:
+        "200": { description: Import counts }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-brands/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleBrand
+      summary: Get a vehicle brand and its models
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Brand detail }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformVehicleBrand
+      summary: Update a vehicle brand
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                is_active: { type: boolean }
+      responses:
+        "200": { description: Updated brand }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformVehicleBrand
+      summary: Soft-delete a vehicle brand with no models
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/platform/vehicle-brands/{uuid}/logo:
+    put:
+      tags: [Platform]
+      operationId: putPlatformVehicleBrandLogo
+      summary: Upload a vehicle brand logo
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [logo]
+              properties:
+                logo: { type: string, format: binary }
+      responses:
+        "200": { description: Brand with logo }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/vehicle-brands/{uuid}/models:
+    post:
+      tags: [Platform]
+      operationId: createPlatformVehicleModel
+      summary: Add a model to a brand
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                is_active: { type: boolean }
+                years: { type: array, items: { type: integer } }
+      responses:
+        "201": { description: Created model }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/platform/vehicle-models/{uuid}:
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformVehicleModel
+      summary: Soft-delete a vehicle model
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/platform/vehicle-models/{uuid}/years:
+    post:
+      tags: [Platform]
+      operationId: addPlatformVehicleModelYear
+      summary: Add a model year
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [year]
+              properties:
+                year: { type: integer }
+      responses:
+        "200": { description: Year added }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/vehicle-models/{uuid}/years/{year}:
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformVehicleModelYear
+      summary: Remove a model year
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: year
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200": { description: Year removed }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/vehicle-catalog/search:
+    get:
+      tags: [Tenant]
+      operationId: searchTenantVehicleCatalog
+      summary: Search system vehicle catalog for customer vehicles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200": { description: Catalog options }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/customers/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCustomersMeta
+      summary: Customer list metadata
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Resource meta }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/customers:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCustomers
+      summary: List customers
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: sort
+          in: query
+          schema: { type: string }
+        - name: kind
+          in: query
+          schema: { type: string }
+        - name: is_active
+          in: query
+          schema: { type: string }
+      responses:
+        "200": { description: Customer page }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantCustomer
+      summary: Create a customer, optionally with a first vehicle
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                phone: { type: string }
+                email: { type: string }
+                kind: { type: string, enum: [individual, company] }
+                notes: { type: string }
+                is_active: { type: boolean }
+                vehicle:
+                  type: object
+                  required: [plate, model_uuid, year]
+                  properties:
+                    plate: { type: string }
+                    model_uuid: { type: string, format: uuid }
+                    year: { type: integer }
+      responses:
+        "201": { description: Created customer }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/customers/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCustomer
+      summary: Get a customer and vehicles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Customer detail }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantCustomer
+      summary: Update a customer
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Updated customer }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantCustomer
+      summary: Soft-delete a customer and their vehicles
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/customers/{uuid}/vehicles:
+    post:
+      tags: [Tenant]
+      operationId: createTenantCustomerVehicle
+      summary: Attach a vehicle and plate to a customer
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [plate, model_uuid, year]
+              properties:
+                plate: { type: string }
+                model_uuid: { type: string, format: uuid }
+                year: { type: integer }
+      responses:
+        "201": { description: Created vehicle }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/customer-vehicles/{uuid}:
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantCustomerVehicle
+      summary: Remove a customer vehicle
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
 
 components:
   securitySchemes:
@@ -5068,8 +5998,8 @@ components:
         format: { type: string, enum: [pdf, xlsx, csv, json] }
         status: { type: string, enum: [queued, processing, completed, failed, expired] }
         row_count: { type: integer }
-        error: { type: string, nullable: true }
-        download_url: { type: string, nullable: true }
+        error: { type: [string, "null"] }
+        download_url: { type: [string, "null"] }
         created_at: { type: string, format: date-time }
 
     EnvelopeExportJob:
@@ -5110,9 +6040,9 @@ components:
         defaults:
           type: object
           additionalProperties: { type: string }
-        error: { type: string, nullable: true }
-        rollback_until: { type: string, format: date-time, nullable: true }
-        applied_at: { type: string, format: date-time, nullable: true }
+        error: { type: [string, "null"] }
+        rollback_until: { type: [string, "null"], format: date-time }
+        applied_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
 
     EnvelopeImportJob:
@@ -5154,7 +6084,7 @@ components:
         website: { type: string }
         footer_text: { type: string }
         paper_size: { type: string, enum: [A4, A3, Letter, Legal] }
-        logo_url: { type: string, nullable: true }
+        logo_url: { type: [string, "null"] }
 
     PatchTenantSettingsRequest:
       type: object
@@ -5186,8 +6116,8 @@ components:
         uuid: { type: string, format: uuid }
         name: { type: string }
         kind: { type: string, enum: [product, service] }
-        parent_uuid: { type: string, format: uuid, nullable: true }
-        parent_name: { type: string, nullable: true }
+        parent_uuid: { type: [string, "null"], format: uuid }
+        parent_name: { type: [string, "null"] }
         sort_order: { type: integer }
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
@@ -5198,11 +6128,11 @@ components:
       required: [uuid, name, unit, cost_price, sale_price, vat_rate, currency, stock_quantity, min_stock_alert, track_stock, is_active, stock_status, created_at, updated_at]
       properties:
         uuid: { type: string, format: uuid }
-        category_uuid: { type: string, format: uuid, nullable: true }
-        category_name: { type: string, nullable: true }
+        category_uuid: { type: [string, "null"], format: uuid }
+        category_name: { type: [string, "null"] }
         name: { type: string }
-        sku: { type: string, nullable: true }
-        barcode: { type: string, nullable: true }
+        sku: { type: [string, "null"] }
+        barcode: { type: [string, "null"] }
         unit: { type: string }
         cost_price: { type: string }
         sale_price: { type: string }
@@ -5222,10 +6152,10 @@ components:
       required: [uuid, name, duration_minutes, price, vat_rate, currency, is_active, created_at, updated_at]
       properties:
         uuid: { type: string, format: uuid }
-        category_uuid: { type: string, format: uuid, nullable: true }
-        category_name: { type: string, nullable: true }
+        category_uuid: { type: [string, "null"], format: uuid }
+        category_name: { type: [string, "null"] }
         name: { type: string }
-        code: { type: string, nullable: true }
+        code: { type: [string, "null"] }
         duration_minutes: { type: integer }
         price: { type: string }
         vat_rate: { type: string }

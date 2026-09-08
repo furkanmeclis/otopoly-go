@@ -12,6 +12,7 @@ import (
 )
 
 type Querier interface {
+	AddVehicleModelYear(ctx context.Context, arg AddVehicleModelYearParams) error
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
 	AdjustProductStock(ctx context.Context, arg AdjustProductStockParams) (Product, error)
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
@@ -21,6 +22,7 @@ type Querier interface {
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
 	ConfirmUserTOTP(ctx context.Context, arg ConfirmUserTOTPParams) (UserTotp, error)
 	ConsumeOTP(ctx context.Context, id int64) error
+	CountActiveVehicleModelsByBrand(ctx context.Context, brandID int64) (int64, error)
 	CountActivityEvents(ctx context.Context, arg CountActivityEventsParams) (int64, error)
 	CountAllBulkJobs(ctx context.Context) (int64, error)
 	CountAllExportJobs(ctx context.Context) (int64, error)
@@ -29,6 +31,8 @@ type Querier interface {
 	CountAppLogsByLevel(ctx context.Context) ([]CountAppLogsByLevelRow, error)
 	CountBulkJobsForActor(ctx context.Context, actorID int64) (int64, error)
 	CountCatalogCategories(ctx context.Context, arg CountCatalogCategoriesParams) (int64, error)
+	CountCustomerVehiclesByModel(ctx context.Context, modelID int64) (int64, error)
+	CountCustomers(ctx context.Context, arg CountCustomersParams) (int64, error)
 	CountExportJobsForActor(ctx context.Context, actorID int64) (int64, error)
 	CountExportJobsForOrganization(ctx context.Context, organizationID pgtype.Int8) (int64, error)
 	CountFinanceAccounts(ctx context.Context, arg CountFinanceAccountsParams) (int64, error)
@@ -48,12 +52,16 @@ type Querier interface {
 	CountUnreadInappForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountUsersWithRole(ctx context.Context, roleSlug string) (int64, error)
+	CountVehicleBrands(ctx context.Context, arg CountVehicleBrandsParams) (int64, error)
 	CreateBulkJob(ctx context.Context, arg CreateBulkJobParams) (BulkJob, error)
 	// Catalog module queries (tenant-scoped via organization_id).
 	// ============================================================================
 	// Categories
 	// ============================================================================
 	CreateCatalogCategory(ctx context.Context, arg CreateCatalogCategoryParams) (CatalogCategory, error)
+	// Tenant customers and their vehicles.
+	CreateCustomer(ctx context.Context, arg CreateCustomerParams) (Customer, error)
+	CreateCustomerVehicle(ctx context.Context, arg CreateCustomerVehicleParams) (CustomerVehicle, error)
 	CreateExportJob(ctx context.Context, arg CreateExportJobParams) (ExportJob, error)
 	// Finance module queries (tenant-scoped via organization_id).
 	// TODO(finance): Add GetFinanceCategoryByID and composite indexes if list/filter
@@ -79,6 +87,9 @@ type Querier interface {
 	// ============================================================================
 	CreateService(ctx context.Context, arg CreateServiceParams) (Service, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	// System-wide vehicle brand / model / year catalog.
+	CreateVehicleBrand(ctx context.Context, arg CreateVehicleBrandParams) (VehicleBrand, error)
+	CreateVehicleModel(ctx context.Context, arg CreateVehicleModelParams) (VehicleModel, error)
 	CreateWebAuthnCredential(ctx context.Context, arg CreateWebAuthnCredentialParams) (WebauthnCredential, error)
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteAppLogsByUUIDs(ctx context.Context, uuids []uuid.UUID) (int64, error)
@@ -92,6 +103,7 @@ type Querier interface {
 	DeleteStorageStar(ctx context.Context, arg DeleteStorageStarParams) error
 	DeleteStorageTrashByUUID(ctx context.Context, argUuid uuid.UUID) error
 	DeleteUserTOTP(ctx context.Context, userID int64) error
+	DeleteVehicleModelYear(ctx context.Context, arg DeleteVehicleModelYearParams) error
 	DeleteWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) error
 	DeleteWebAuthnCredentialByUUID(ctx context.Context, arg DeleteWebAuthnCredentialByUUIDParams) error
 	ExtensionExists(ctx context.Context, extname string) (bool, error)
@@ -105,6 +117,8 @@ type Querier interface {
 	GetCatalogCategoryByName(ctx context.Context, arg GetCatalogCategoryByNameParams) (CatalogCategory, error)
 	GetCatalogCategoryByUUID(ctx context.Context, arg GetCatalogCategoryByUUIDParams) (CatalogCategory, error)
 	GetCatalogStats(ctx context.Context, id int64) (GetCatalogStatsRow, error)
+	GetCustomerByUUID(ctx context.Context, arg GetCustomerByUUIDParams) (Customer, error)
+	GetCustomerVehicleByUUID(ctx context.Context, arg GetCustomerVehicleByUUIDParams) (CustomerVehicle, error)
 	GetExportJobByID(ctx context.Context, id int64) (ExportJob, error)
 	GetExportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ExportJob, error)
 	GetFinanceAccountByID(ctx context.Context, arg GetFinanceAccountByIDParams) (FinanceAccount, error)
@@ -161,6 +175,12 @@ type Querier interface {
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
 	GetUserTOTPByUserID(ctx context.Context, userID int64) (UserTotp, error)
 	GetValidRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetVehicleBrandByName(ctx context.Context, lower string) (VehicleBrand, error)
+	GetVehicleBrandByUUID(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
+	GetVehicleCatalogOption(ctx context.Context, arg GetVehicleCatalogOptionParams) (GetVehicleCatalogOptionRow, error)
+	GetVehicleModelByBrandAndName(ctx context.Context, arg GetVehicleModelByBrandAndNameParams) (VehicleModel, error)
+	GetVehicleModelByUUID(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
+	GetVehicleModelYearForSearch(ctx context.Context, arg GetVehicleModelYearForSearchParams) (GetVehicleModelYearForSearchRow, error)
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
 	IncrementOTPAttempts(ctx context.Context, id int64) (OtpCode, error)
@@ -191,6 +211,8 @@ type Querier interface {
 	ListBulkChangesForJob(ctx context.Context, jobID int64) ([]BulkChange, error)
 	ListBulkJobsForActor(ctx context.Context, arg ListBulkJobsForActorParams) ([]BulkJob, error)
 	ListCatalogCategories(ctx context.Context, arg ListCatalogCategoriesParams) ([]ListCatalogCategoriesRow, error)
+	ListCustomerVehicles(ctx context.Context, arg ListCustomerVehiclesParams) ([]ListCustomerVehiclesRow, error)
+	ListCustomers(ctx context.Context, arg ListCustomersParams) ([]ListCustomersRow, error)
 	ListEnabledLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
 	ListExportJobsForActor(ctx context.Context, arg ListExportJobsForActorParams) ([]ExportJob, error)
 	ListExportJobsForOrganization(ctx context.Context, arg ListExportJobsForOrganizationParams) ([]ExportJob, error)
@@ -251,6 +273,12 @@ type Querier interface {
 	ListUserUUIDsForBulk(ctx context.Context, arg ListUserUUIDsForBulkParams) ([]uuid.UUID, error)
 	ListUsersFiltered(ctx context.Context, arg ListUsersFilteredParams) ([]User, error)
 	ListUsersForExport(ctx context.Context, arg ListUsersForExportParams) ([]User, error)
+	ListVehicleBrands(ctx context.Context, arg ListVehicleBrandsParams) ([]ListVehicleBrandsRow, error)
+	ListVehicleModelYearIDsByBrand(ctx context.Context, argUuid uuid.UUID) ([]ListVehicleModelYearIDsByBrandRow, error)
+	ListVehicleModelYearIDsByModel(ctx context.Context, argUuid uuid.UUID) ([]ListVehicleModelYearIDsByModelRow, error)
+	ListVehicleModelYears(ctx context.Context, modelID int64) ([]int16, error)
+	ListVehicleModelYearsForSearch(ctx context.Context) ([]ListVehicleModelYearsForSearchRow, error)
+	ListVehicleModelsByBrand(ctx context.Context, brandID int64) ([]VehicleModel, error)
 	ListWebAuthnCredentialsByUserID(ctx context.Context, userID int64) ([]WebauthnCredential, error)
 	ListWebAuthnCredentialsForUserIDs(ctx context.Context, userIds []int64) ([]WebauthnCredential, error)
 	MarkAllNotificationsReadForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
@@ -287,21 +315,28 @@ type Querier interface {
 	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) error
 	RevokeRefreshTokenByUUIDForUser(ctx context.Context, arg RevokeRefreshTokenByUUIDForUserParams) (int64, error)
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
+	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
 	SetRolePermissions(ctx context.Context, roleID int64) error
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteCatalogCategory(ctx context.Context, arg SoftDeleteCatalogCategoryParams) (CatalogCategory, error)
+	SoftDeleteCustomer(ctx context.Context, arg SoftDeleteCustomerParams) (Customer, error)
+	SoftDeleteCustomerVehicle(ctx context.Context, arg SoftDeleteCustomerVehicleParams) (CustomerVehicle, error)
+	SoftDeleteCustomerVehiclesByCustomer(ctx context.Context, arg SoftDeleteCustomerVehiclesByCustomerParams) error
 	SoftDeleteFinanceAccount(ctx context.Context, arg SoftDeleteFinanceAccountParams) (FinanceAccount, error)
 	SoftDeleteFinanceCategory(ctx context.Context, arg SoftDeleteFinanceCategoryParams) (FinanceCategory, error)
 	SoftDeleteProduct(ctx context.Context, arg SoftDeleteProductParams) (Product, error)
 	SoftDeleteService(ctx context.Context, arg SoftDeleteServiceParams) (Service, error)
+	SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
+	SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
 	SumFinanceExpensesByCategory(ctx context.Context, arg SumFinanceExpensesByCategoryParams) ([]SumFinanceExpensesByCategoryRow, error)
 	SumFinanceTransactionsByType(ctx context.Context, arg SumFinanceTransactionsByTypeParams) ([]SumFinanceTransactionsByTypeRow, error)
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
+	UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) (Customer, error)
 	UpdateFinanceAccount(ctx context.Context, arg UpdateFinanceAccountParams) (FinanceAccount, error)
 	UpdateFinanceCategory(ctx context.Context, arg UpdateFinanceCategoryParams) (FinanceCategory, error)
 	UpdateGitHubAppSettings(ctx context.Context, arg UpdateGitHubAppSettingsParams) (GithubAppSetting, error)
@@ -324,12 +359,15 @@ type Querier interface {
 	UpdateUserProfileBasics(ctx context.Context, arg UpdateUserProfileBasicsParams) error
 	UpdateUserProfileByUUID(ctx context.Context, arg UpdateUserProfileByUUIDParams) (User, error)
 	UpdateUserTOTPRecoveryHashes(ctx context.Context, arg UpdateUserTOTPRecoveryHashesParams) error
+	UpdateVehicleBrand(ctx context.Context, arg UpdateVehicleBrandParams) (VehicleBrand, error)
+	UpdateVehicleModel(ctx context.Context, arg UpdateVehicleModelParams) (VehicleModel, error)
 	UpdateWebAuthnCredentialCounter(ctx context.Context, arg UpdateWebAuthnCredentialCounterParams) error
 	UpdateWebAuthnCredentialName(ctx context.Context, arg UpdateWebAuthnCredentialNameParams) (WebauthnCredential, error)
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)
+	VehicleModelYearExists(ctx context.Context, arg VehicleModelYearExistsParams) (bool, error)
 	VoidFinanceTransaction(ctx context.Context, arg VoidFinanceTransactionParams) (FinanceTransaction, error)
 }
 

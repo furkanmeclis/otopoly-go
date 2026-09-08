@@ -7,7 +7,10 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { EntityRowActions, type EntityRowAction } from "@/components/entity";
 import { createColumn } from "@/components/tables";
 import { Badge } from "@/components/ui/badge";
-import { catalogUnitLabel, CATALOG_UNIT_KEYS } from "@/features/catalog/lib/units";
+import {
+  catalogUnitLabel,
+  CATALOG_UNIT_KEYS,
+} from "@/features/catalog/lib/units";
 import type { CatalogProduct } from "@/features/catalog/services/catalog.service";
 import { useLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/utils";
@@ -108,8 +111,8 @@ export function useProductsColumns(
           const p = row.original;
           return (
             <div className="flex flex-col gap-0.5">
-              <span className="font-medium text-foreground">{p.name}</span>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="text-foreground font-medium">{p.name}</span>
+              <div className="text-muted-foreground flex items-center gap-2 text-xs">
                 {p.sku && (
                   <span>
                     {t("catalog.products.sku")}: {p.sku}
@@ -133,7 +136,7 @@ export function useProductsColumns(
         filterVariant: filterOptions?.lockCategory ? undefined : "select",
         filterOptions: filterOptions?.categories ?? [],
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             {row.original.category_name || "—"}
           </span>
         ),
@@ -167,8 +170,9 @@ export function useProductsColumns(
                 {p.sale_price} {p.currency}
               </span>
               {Number(p.cost_price) > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  {t("catalog.products.cost_price")}: {p.cost_price} {p.currency}
+                <span className="text-muted-foreground text-xs">
+                  {t("catalog.products.cost_price")}: {p.cost_price}{" "}
+                  {p.currency}
                 </span>
               )}
             </div>
@@ -190,30 +194,45 @@ export function useProductsColumns(
           const p = row.original;
           if (!p.track_stock) {
             return (
-              <Badge variant="outline" className="text-xs text-muted-foreground">
+              <Badge
+                variant="outline"
+                className="text-muted-foreground text-xs"
+              >
                 {t("catalog.stock_status.untracked")}
               </Badge>
             );
           }
 
           const status = p.stock_status;
-          let badgeVariant: "default" | "secondary" | "danger" | "warning" | "success" | "outline" = "success";
-          let badgeClass = "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30";
+          let badgeVariant:
+            | "default"
+            | "secondary"
+            | "danger"
+            | "warning"
+            | "success"
+            | "outline" = "success";
+          let badgeClass =
+            "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30";
 
           if (status === "low_stock") {
             badgeVariant = "warning";
-            badgeClass = "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
+            badgeClass =
+              "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30";
           } else if (status === "out_of_stock") {
             badgeVariant = "danger";
-            badgeClass = "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30";
+            badgeClass =
+              "bg-rose-500/15 text-rose-700 dark:text-rose-400 border-rose-500/30";
           }
 
           return (
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">
+              <span className="text-sm font-semibold">
                 {p.stock_quantity} {catalogUnitLabel(t, p.unit)}
               </span>
-              <Badge variant={badgeVariant} className={cn("text-xs border", badgeClass)}>
+              <Badge
+                variant={badgeVariant}
+                className={cn("border text-xs", badgeClass)}
+              >
                 {t(`catalog.stock_status.${status}`)}
               </Badge>
             </div>

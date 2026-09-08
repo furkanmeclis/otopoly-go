@@ -85,14 +85,14 @@ type MeImpersonation struct {
 
 // Me is the session hydration payload.
 type Me struct {
-	User          PublicUser             `json:"user"`
-	Roles         []string               `json:"roles"`
-	Permissions   []string               `json:"permissions"`
-	Organizations []OrganizationSummary  `json:"organizations"`
-	Links         MeLinks                `json:"links"`
-	Channels      MeChannels             `json:"channels"`
-	Realtime      MeRealtime             `json:"realtime"`
-	Impersonation *MeImpersonation       `json:"impersonation,omitempty"`
+	User          PublicUser            `json:"user"`
+	Roles         []string              `json:"roles"`
+	Permissions   []string              `json:"permissions"`
+	Organizations []OrganizationSummary `json:"organizations"`
+	Links         MeLinks               `json:"links"`
+	Channels      MeChannels            `json:"channels"`
+	Realtime      MeRealtime            `json:"realtime"`
+	Impersonation *MeImpersonation      `json:"impersonation,omitempty"`
 }
 
 // OrganizationSummary is a tenant membership on /auth/me.
@@ -135,12 +135,12 @@ type RegisterInput struct {
 
 // CreatePlatformUserInput creates a platform-managed user.
 type CreatePlatformUserInput struct {
-	Email      string
-	Password   string
-	Name       string
-	Surname    string
-	Status     string
-	RoleUUIDs  []uuid.UUID
+	Email     string
+	Password  string
+	Name      string
+	Surname   string
+	Status    string
+	RoleUUIDs []uuid.UUID
 }
 
 // PatchPlatformUserInput partially updates a platform user.
@@ -238,7 +238,7 @@ type TOTPStatus struct {
 
 // TOTPSetupResult is returned when starting authenticator enrollment.
 type TOTPSetupResult struct {
-	Secret    string `json:"secret"`
+	Secret     string `json:"secret"`
 	OTPAuthURL string `json:"otpauth_url"`
 }
 

@@ -34,8 +34,13 @@ type ExportsColumnsOptions = {
 export function useExportsColumns(options: ExportsColumnsOptions = {}) {
   const { t } = useLocale();
   const scope = options.scope ?? "platform";
-  const detailHref =
-    options.detailHref ?? ((uuid: string) => routes.platform.exports.detail(uuid));
+  const customDetailHref = options.detailHref;
+  const detailHref = useMemo(
+    () =>
+      customDetailHref ??
+      ((uuid: string) => routes.platform.exports.detail(uuid)),
+    [customDetailHref],
+  );
 
   return useMemo<ColumnDef<ExportJob>[]>(
     () => [

@@ -1,6 +1,9 @@
 import type { ColumnFiltersState } from "@tanstack/react-table";
 
-export function columnSelectValue(columnFilters: ColumnFiltersState, id: string) {
+export function columnSelectValue(
+  columnFilters: ColumnFiltersState,
+  id: string,
+) {
   const raw = columnFilters.find((filter) => filter.id === id)?.value;
   if (Array.isArray(raw)) {
     return typeof raw[0] === "string" && raw[0] ? raw[0] : undefined;

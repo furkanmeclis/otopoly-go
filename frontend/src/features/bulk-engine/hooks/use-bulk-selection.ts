@@ -21,7 +21,9 @@ export function useBulkSelection({
     query: Record<string, string>;
     total: number;
   } | null>(null);
-  const [prevListQueryKey, setPrevListQueryKey] = useState(listQueryKeySerialized);
+  const [prevListQueryKey, setPrevListQueryKey] = useState(
+    listQueryKeySerialized,
+  );
   const [prevBulkQueryKey, setPrevBulkQueryKey] = useState(bulkQueryKey);
 
   if (

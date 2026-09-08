@@ -52,7 +52,9 @@ export function ServicesPage({
   const { deleteService } = useCatalogMutations();
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [editingService, setEditingService] = useState<CatalogService | null>(null);
+  const [editingService, setEditingService] = useState<CatalogService | null>(
+    null,
+  );
 
   const listState = useServerListState({
     initialSort: "name",
@@ -69,20 +71,20 @@ export function ServicesPage({
     [categoriesQuery.data?.items],
   );
 
+  const { columnFilters, params: listQueryParams } = listState;
   const listParams = useMemo(() => {
-    const { columnFilters } = listState;
     const nameQ = columnTextValue(columnFilters, "name");
     const categoryFilter = categoryUuid
       ? categoryUuid
       : columnSelectValue(columnFilters, "category_uuid");
 
     return {
-      ...listState.params,
-      q: listState.params.q?.trim() || nameQ,
+      ...listQueryParams,
+      q: listQueryParams.q?.trim() || nameQ,
       is_active: columnSelectValue(columnFilters, "is_active"),
       category_uuid: categoryFilter,
     };
-  }, [categoryUuid, listState.columnFilters, listState.params]);
+  }, [categoryUuid, columnFilters, listQueryParams]);
 
   const summaryQuery = useCatalogSummary();
   const listQuery = useCatalogServices(listParams);

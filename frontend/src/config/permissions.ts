@@ -41,6 +41,8 @@ export const Permission = {
   PlatformAuthSettingsWrite: "platform.auth.settings.write",
   PlatformOrganizationsRead: "platform.organizations.read",
   PlatformOrganizationsWrite: "platform.organizations.write",
+  PlatformVehicleBrandsRead: "platform.vehicle_brands.read",
+  PlatformVehicleBrandsWrite: "platform.vehicle_brands.write",
 
   TenantFinanceRead: "tenant.finance.read",
   TenantFinanceWrite: "tenant.finance.write",
@@ -50,22 +52,29 @@ export const Permission = {
   TenantSettingsWrite: "tenant.settings.write",
   TenantImportsRead: "tenant.imports.read",
 
+  TenantCustomersRead: "tenant.customers.read",
+  TenantCustomersWrite: "tenant.customers.write",
+
   TenantCatalogRead: "tenant.catalog.read",
   TenantCatalogWrite: "tenant.catalog.write",
   TenantCatalogExport: "tenant.catalog.export",
   TenantCatalogImport: "tenant.catalog.import",
   TenantCatalogProductsBulkActivate: "tenant.catalog.products.bulk.activate",
-  TenantCatalogProductsBulkDeactivate: "tenant.catalog.products.bulk.deactivate",
+  TenantCatalogProductsBulkDeactivate:
+    "tenant.catalog.products.bulk.deactivate",
   TenantCatalogProductsBulkDelete: "tenant.catalog.products.bulk.delete",
   TenantCatalogProductsBulkRaiseSalePrice:
     "tenant.catalog.products.bulk.raise_sale_price",
   TenantCatalogProductsBulkRaiseCostPrice:
     "tenant.catalog.products.bulk.raise_cost_price",
-  TenantCatalogProductsBulkAdjustStock: "tenant.catalog.products.bulk.adjust_stock",
+  TenantCatalogProductsBulkAdjustStock:
+    "tenant.catalog.products.bulk.adjust_stock",
   TenantCatalogServicesBulkActivate: "tenant.catalog.services.bulk.activate",
-  TenantCatalogServicesBulkDeactivate: "tenant.catalog.services.bulk.deactivate",
+  TenantCatalogServicesBulkDeactivate:
+    "tenant.catalog.services.bulk.deactivate",
   TenantCatalogServicesBulkDelete: "tenant.catalog.services.bulk.delete",
-  TenantCatalogServicesBulkRaisePrice: "tenant.catalog.services.bulk.raise_price",
+  TenantCatalogServicesBulkRaisePrice:
+    "tenant.catalog.services.bulk.raise_price",
 
   AuthSession: "auth.session",
 
@@ -166,6 +175,14 @@ export const permissions = {
     read: Permission.PlatformOrganizationsRead,
     write: Permission.PlatformOrganizationsWrite,
   },
+  vehicleBrands: {
+    read: Permission.PlatformVehicleBrandsRead,
+    write: Permission.PlatformVehicleBrandsWrite,
+  },
+  customers: {
+    read: Permission.TenantCustomersRead,
+    write: Permission.TenantCustomersWrite,
+  },
   finance: {
     read: Permission.TenantFinanceRead,
     write: Permission.TenantFinanceWrite,
@@ -180,8 +197,10 @@ export const permissions = {
     productsBulkActivate: Permission.TenantCatalogProductsBulkActivate,
     productsBulkDeactivate: Permission.TenantCatalogProductsBulkDeactivate,
     productsBulkDelete: Permission.TenantCatalogProductsBulkDelete,
-    productsBulkRaiseSalePrice: Permission.TenantCatalogProductsBulkRaiseSalePrice,
-    productsBulkRaiseCostPrice: Permission.TenantCatalogProductsBulkRaiseCostPrice,
+    productsBulkRaiseSalePrice:
+      Permission.TenantCatalogProductsBulkRaiseSalePrice,
+    productsBulkRaiseCostPrice:
+      Permission.TenantCatalogProductsBulkRaiseCostPrice,
     productsBulkAdjustStock: Permission.TenantCatalogProductsBulkAdjustStock,
     servicesBulkActivate: Permission.TenantCatalogServicesBulkActivate,
     servicesBulkDeactivate: Permission.TenantCatalogServicesBulkDeactivate,

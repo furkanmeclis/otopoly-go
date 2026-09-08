@@ -53,8 +53,11 @@ export function ProductsPage({
   const { deleteProduct } = useCatalogMutations();
 
   const [createOpen, setCreateOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<CatalogProduct | null>(null);
-  const [adjustingProduct, setAdjustingProduct] = useState<CatalogProduct | null>(null);
+  const [editingProduct, setEditingProduct] = useState<CatalogProduct | null>(
+    null,
+  );
+  const [adjustingProduct, setAdjustingProduct] =
+    useState<CatalogProduct | null>(null);
 
   const listState = useServerListState({
     initialSort: "name",
@@ -71,8 +74,8 @@ export function ProductsPage({
     [categoriesQuery.data?.items],
   );
 
+  const { columnFilters, params: listQueryParams } = listState;
   const listParams = useMemo(() => {
-    const { columnFilters } = listState;
     const nameQ = columnTextValue(columnFilters, "name");
     const stockStatus = columnSelectValue(columnFilters, "stock_status");
     const categoryFilter = categoryUuid
@@ -80,8 +83,8 @@ export function ProductsPage({
       : columnSelectValue(columnFilters, "category_uuid");
 
     return {
-      ...listState.params,
-      q: listState.params.q?.trim() || nameQ,
+      ...listQueryParams,
+      q: listQueryParams.q?.trim() || nameQ,
       is_active: columnSelectValue(columnFilters, "is_active"),
       unit: columnSelectValue(columnFilters, "unit"),
       category_uuid: categoryFilter,
@@ -93,7 +96,7 @@ export function ProductsPage({
           : "true"
         : undefined,
     };
-  }, [categoryUuid, listState.columnFilters, listState.params]);
+  }, [categoryUuid, columnFilters, listQueryParams]);
 
   const summaryQuery = useCatalogSummary();
   const listQuery = useCatalogProducts(listParams);

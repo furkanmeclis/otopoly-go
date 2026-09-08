@@ -87,11 +87,11 @@ export function StockAdjustmentDialog({
             return (
               <>
                 <FieldGroup className="gap-4">
-                  <div className="rounded-lg bg-muted/40 p-3 flex justify-between items-center text-sm">
+                  <div className="bg-muted/40 flex items-center justify-between rounded-lg p-3 text-sm">
                     <span className="text-muted-foreground">
                       {t("catalog.adjust_dialog.current_stock")}:
                     </span>
-                    <span className="font-semibold text-foreground">
+                    <span className="text-foreground font-semibold">
                       {currentQty} {unitLabel}
                     </span>
                   </div>
@@ -105,7 +105,7 @@ export function StockAdjustmentDialog({
                     required
                   />
 
-                  <div className="rounded-lg border border-dashed p-3 flex justify-between items-center text-sm">
+                  <div className="flex items-center justify-between rounded-lg border border-dashed p-3 text-sm">
                     <span className="text-muted-foreground">
                       {t("catalog.adjust_dialog.new_stock")}:
                     </span>

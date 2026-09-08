@@ -72,6 +72,10 @@ const (
 	PermTenantCatalogServicesBulkDeactivate     = "tenant.catalog.services.bulk.deactivate"
 	PermTenantCatalogServicesBulkDelete         = "tenant.catalog.services.bulk.delete"
 	PermTenantCatalogServicesBulkRaisePrice     = "tenant.catalog.services.bulk.raise_price"
+	PermPlatformVehicleBrandsRead               = "platform.vehicle_brands.read"
+	PermPlatformVehicleBrandsWrite              = "platform.vehicle_brands.write"
+	PermTenantCustomersRead                     = "tenant.customers.read"
+	PermTenantCustomersWrite                    = "tenant.customers.write"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

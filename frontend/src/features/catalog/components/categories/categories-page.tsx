@@ -31,9 +31,12 @@ export function CategoriesPage({ slug }: { slug: string }) {
   const { canWrite } = useTenantCatalogAccess(slug);
   const { deleteCategory } = useCatalogMutations();
 
-  const [activeTab, setActiveTab] = useState<"product" | "service" | "all">("all");
+  const [activeTab, setActiveTab] = useState<"product" | "service" | "all">(
+    "all",
+  );
   const [createOpen, setCreateOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<CatalogCategory | null>(null);
+  const [editingCategory, setEditingCategory] =
+    useState<CatalogCategory | null>(null);
 
   const listState = useServerListState({
     initialSort: "sort_order",
@@ -109,7 +112,9 @@ export function CategoriesPage({ slug }: { slug: string }) {
       <div className="mb-4">
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "product" | "service" | "all")}
+          onValueChange={(v) =>
+            setActiveTab(v as "product" | "service" | "all")
+          }
         >
           <TabsList>
             <TabsTrigger value="all">

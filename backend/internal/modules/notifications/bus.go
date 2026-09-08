@@ -20,7 +20,8 @@ func RegisterEventHandlers(bus events.Bus, svc *notifusecase.Service, log *slog.
 		log = slog.Default()
 	}
 	bus.Subscribe("customers.*", func(_ context.Context, event events.Event) error {
-		log.Info("notifications_bus_observed",
+		log.Info(
+			"notifications_bus_observed",
 			"event", event.Name,
 			"event_id", event.EventID.String(),
 			"entity_type", event.EntityType,

@@ -58,9 +58,12 @@ export function ExportDetailPage({
   const jobQuery = useExportJob(uuid, true, scope);
   const job = jobQuery.data;
   const tenant = scope === "tenant";
-  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
+  const homeHref =
+    tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
   const listHref =
-    tenant && slug ? routes.tenant.exports.root(slug) : routes.platform.exports.root;
+    tenant && slug
+      ? routes.tenant.exports.root(slug)
+      : routes.platform.exports.root;
 
   const resourceName = job
     ? (() => {
@@ -80,7 +83,9 @@ export function ExportDetailPage({
     <EntityPage
       title={title}
       description={t("exports.detail.description")}
-      permission={tenant ? permissions.finance.export : permissions.exports.read}
+      permission={
+        tenant ? permissions.finance.export : permissions.exports.read
+      }
       forbiddenFallback={
         <ErrorState
           title={t("common.error_forbidden")}

@@ -55,8 +55,11 @@ export function ExportsPage({ scope = "platform", slug }: ExportsPageProps) {
     return Math.max(1, Math.ceil(total / size));
   }, [listQuery.data?.total, listState.pagination.pageSize]);
 
-  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
-  const persistKey = tenant ? `tenant-exports-v1-${slug}` : "platform-exports-v1";
+  const homeHref =
+    tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
+  const persistKey = tenant
+    ? `tenant-exports-v1-${slug}`
+    : "platform-exports-v1";
 
   return (
     <EntityPage
@@ -64,7 +67,9 @@ export function ExportsPage({ scope = "platform", slug }: ExportsPageProps) {
       description={
         tenant ? t("exports.tenant_description") : t("exports.description")
       }
-      permission={tenant ? permissions.finance.export : permissions.exports.read}
+      permission={
+        tenant ? permissions.finance.export : permissions.exports.read
+      }
       forbiddenFallback={
         <ErrorState
           title={t("common.error_forbidden")}

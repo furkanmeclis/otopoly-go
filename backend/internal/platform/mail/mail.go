@@ -67,9 +67,15 @@ func (s *SMTPSender) Send(_ context.Context, msg Message) error {
 		fromHeader = fmt.Sprintf("%s <%s>", s.fromName, from)
 	}
 	payload := strings.Builder{}
-	payload.WriteString("From: ");payload.WriteString(fromHeader);payload.WriteString("\r\n")
-	payload.WriteString("To: ");payload.WriteString(strings.Join(msg.To, ", "));payload.WriteString("\r\n")
-	payload.WriteString("Subject: ");payload.WriteString(msg.Subject);payload.WriteString("\r\n")
+	payload.WriteString("From: ")
+	payload.WriteString(fromHeader)
+	payload.WriteString("\r\n")
+	payload.WriteString("To: ")
+	payload.WriteString(strings.Join(msg.To, ", "))
+	payload.WriteString("\r\n")
+	payload.WriteString("Subject: ")
+	payload.WriteString(msg.Subject)
+	payload.WriteString("\r\n")
 	payload.WriteString("MIME-Version: 1.0\r\n")
 	payload.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	payload.WriteString("\r\n")

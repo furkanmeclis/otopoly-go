@@ -96,7 +96,11 @@ export function CategoryDetailPage({
                 {
                   id: "category",
                   fields: [
-                    { key: "name", label: t("catalog.categories.name"), value: category.name },
+                    {
+                      key: "name",
+                      label: t("catalog.categories.name"),
+                      value: category.name,
+                    },
                     {
                       key: "kind",
                       label: t("catalog.categories.kind"),
@@ -117,12 +121,20 @@ export function CategoryDetailPage({
                     {
                       key: "created",
                       label: t("catalog.detail.created_at"),
-                      value: datetime(category.created_at, "dd.MM.yyyy HH:mm", locale),
+                      value: datetime(
+                        category.created_at,
+                        "dd.MM.yyyy HH:mm",
+                        locale,
+                      ),
                     },
                     {
                       key: "updated",
                       label: t("catalog.detail.updated_at"),
-                      value: datetime(category.updated_at, "dd.MM.yyyy HH:mm", locale),
+                      value: datetime(
+                        category.updated_at,
+                        "dd.MM.yyyy HH:mm",
+                        locale,
+                      ),
                     },
                   ],
                 },

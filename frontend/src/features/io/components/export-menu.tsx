@@ -35,7 +35,12 @@ type ExportMenuProps = {
 
 const FORMATS: ExportFormat[] = ["pdf", "xlsx", "csv", "json"];
 
-export function ExportMenu({ resource, query, disabled, jobsHref }: ExportMenuProps) {
+export function ExportMenu({
+  resource,
+  query,
+  disabled,
+  jobsHref,
+}: ExportMenuProps) {
   const { t, locale } = useLocale();
   const [pending, setPending] = useState<ExportFormat | null>(null);
 

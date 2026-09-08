@@ -19,7 +19,11 @@ export function useExportPreview(
   const spreadsheetFormat = isSpreadsheetExportFormat(format) ? format : null;
 
   return useQuery({
-    queryKey: [...ioKeys.exports.detail(uuid, scope), "preview", format] as const,
+    queryKey: [
+      ...ioKeys.exports.detail(uuid, scope),
+      "preview",
+      format,
+    ] as const,
     queryFn: async () => {
       if (!spreadsheetFormat) {
         throw new Error("Preview is not supported for this format.");

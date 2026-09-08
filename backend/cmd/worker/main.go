@@ -123,6 +123,7 @@ func main() {
 		searchadapters.NewFinanceTransactions(queries),
 		searchadapters.NewCatalogProducts(queries),
 		searchadapters.NewCatalogServices(queries),
+		searchadapters.NewVehicleModelYears(queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, nil, log)
@@ -158,7 +159,8 @@ func main() {
 		}
 	}()
 
-	log.Info("worker_started",
+	log.Info(
+		"worker_started",
 		"app", cfg.App.Name,
 		"env", cfg.App.Env,
 		"concurrency", cfg.Queue.Concurrency,

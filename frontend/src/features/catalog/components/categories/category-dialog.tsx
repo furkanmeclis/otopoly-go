@@ -123,7 +123,9 @@ export function CategoryDialog({
           </DialogDescription>
         </DialogHeader>
         <AppForm
-          key={category?.uuid || (open ? `cat-${defaultKind}-open` : "cat-closed")}
+          key={
+            category?.uuid || (open ? `cat-${defaultKind}-open` : "cat-closed")
+          }
           schema={schema}
           defaultValues={defaultValues}
           onSubmit={onSubmit}

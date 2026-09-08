@@ -18,6 +18,7 @@
   "specs_tenant_finance_transactions": "Transactions",
   "specs_tenant_catalog_products": "Products & Stock",
   "specs_tenant_catalog_services": "Services",
+  "specs_vehicle_model_years": "Vehicle models",
   "prefix_pages": "pages",
   "prefix_users": "users",
   "prefix_roles": "roles",
@@ -25,5 +26,6 @@
   "prefix_tenant_finance_categories": "categories",
   "prefix_tenant_finance_transactions": "transactions",
   "prefix_tenant_catalog_products": "products",
-  "prefix_tenant_catalog_services": "services"
+  "prefix_tenant_catalog_services": "services",
+  "prefix_vehicle_model_years": "vehicles"
 }

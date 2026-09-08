@@ -21,7 +21,7 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrInvalidCredentials   = errors.New("invalid credentials")
 	ErrUserDisabled         = errors.New("user is disabled")
 	ErrForbidden            = errors.New("forbidden")
 	ErrNotFound             = errors.New("not found")

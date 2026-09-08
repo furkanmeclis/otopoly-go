@@ -24,7 +24,11 @@ export function ExportJsonPreview({
   const { t } = useLocale();
 
   const previewQuery = useQuery({
-    queryKey: [...ioKeys.exports.detail(uuid, scope), "preview", "json"] as const,
+    queryKey: [
+      ...ioKeys.exports.detail(uuid, scope),
+      "preview",
+      "json",
+    ] as const,
     queryFn: async () => {
       const { blob } = await exportsService.fetchFile(uuid, scope);
       const text = await blob.text();

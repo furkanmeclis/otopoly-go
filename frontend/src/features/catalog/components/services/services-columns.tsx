@@ -90,9 +90,9 @@ export function useServicesColumns(
           const s = row.original;
           return (
             <div className="flex flex-col gap-0.5">
-              <span className="font-medium text-foreground">{s.name}</span>
+              <span className="text-foreground font-medium">{s.name}</span>
               {s.code && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground text-xs">
                   {t("catalog.services.code")}: {s.code}
                 </span>
               )}
@@ -107,7 +107,7 @@ export function useServicesColumns(
         filterVariant: filterOptions?.lockCategory ? undefined : "select",
         filterOptions: filterOptions?.categories ?? [],
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-muted-foreground text-sm">
             {row.original.category_name || "—"}
           </span>
         ),
@@ -117,8 +117,8 @@ export function useServicesColumns(
         labelKey: "catalog.services.duration",
         enableSorting: true,
         cell: ({ row }) => (
-          <div className="flex items-center gap-1.5 text-sm text-foreground">
-            <Clock className="size-3.5 text-muted-foreground" />
+          <div className="text-foreground flex items-center gap-1.5 text-sm">
+            <Clock className="text-muted-foreground size-3.5" />
             <span>
               {t("catalog.services.duration_value", {
                 minutes: row.original.duration_minutes,
@@ -135,10 +135,10 @@ export function useServicesColumns(
           const s = row.original;
           return (
             <div className="flex flex-col">
-              <span className="font-semibold text-foreground">
+              <span className="text-foreground font-semibold">
                 {s.price} {s.currency}
               </span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-muted-foreground text-xs">
                 {t("catalog.services.vat_suffix", { rate: s.vat_rate })}
               </span>
             </div>

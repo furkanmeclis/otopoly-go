@@ -104,6 +104,34 @@ type CatalogCategory struct {
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type Customer struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Name           string             `json:"name"`
+	Phone          string             `json:"phone"`
+	Email          string             `json:"email"`
+	Kind           string             `json:"kind"`
+	Notes          string             `json:"notes"`
+	IsActive       bool               `json:"is_active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type CustomerVehicle struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	CustomerID     int64              `json:"customer_id"`
+	Plate          string             `json:"plate"`
+	ModelID        int64              `json:"model_id"`
+	Year           int16              `json:"year"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type ExportJob struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`
@@ -583,6 +611,33 @@ type UserTotp struct {
 	RecoveryHashes []string           `json:"recovery_hashes"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type VehicleBrand struct {
+	ID            int64              `json:"id"`
+	Uuid          uuid.UUID          `json:"uuid"`
+	Name          string             `json:"name"`
+	LogoObjectKey pgtype.Text        `json:"logo_object_key"`
+	IsActive      bool               `json:"is_active"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type VehicleModel struct {
+	ID        int64              `json:"id"`
+	Uuid      uuid.UUID          `json:"uuid"`
+	BrandID   int64              `json:"brand_id"`
+	Name      string             `json:"name"`
+	IsActive  bool               `json:"is_active"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type VehicleModelYear struct {
+	ModelID int64 `json:"model_id"`
+	Year    int16 `json:"year"`
 }
 
 type WebauthnCredential struct {

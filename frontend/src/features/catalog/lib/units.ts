@@ -1,6 +1,16 @@
-type Translate = (key: string, vars?: Record<string, string | number>) => string;
+type Translate = (
+  key: string,
+  vars?: Record<string, string | number>,
+) => string;
 
-export const CATALOG_UNIT_KEYS = ["piece", "liter", "kg", "meter", "box", "set"] as const;
+export const CATALOG_UNIT_KEYS = [
+  "piece",
+  "liter",
+  "kg",
+  "meter",
+  "box",
+  "set",
+] as const;
 
 const UNIT_KEYS = CATALOG_UNIT_KEYS;
 

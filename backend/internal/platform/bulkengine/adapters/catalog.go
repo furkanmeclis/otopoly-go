@@ -158,17 +158,17 @@ func (a *CatalogProductsAdapter) ApplyItem(ctx context.Context, action, entityUU
 			Uuid: id, OrganizationID: orgID, IsActive: pgtype.Bool{Bool: false, Valid: true},
 		})
 	case "raise_sale_price":
-		next, err := scaleNumeric(row.SalePrice, params["percent"], 2)
-		if err != nil {
-			return failItem(entityUUID, err.Error()), nil
+		next, scaleErr := scaleNumeric(row.SalePrice, params["percent"], 2)
+		if scaleErr != nil {
+			return failItem(entityUUID, scaleErr.Error()), nil
 		}
 		_, err = a.q.UpdateProduct(ctx, db.UpdateProductParams{
 			Uuid: id, OrganizationID: orgID, SalePrice: next,
 		})
 	case "raise_cost_price":
-		next, err := scaleNumeric(row.CostPrice, params["percent"], 2)
-		if err != nil {
-			return failItem(entityUUID, err.Error()), nil
+		next, scaleErr := scaleNumeric(row.CostPrice, params["percent"], 2)
+		if scaleErr != nil {
+			return failItem(entityUUID, scaleErr.Error()), nil
 		}
 		_, err = a.q.UpdateProduct(ctx, db.UpdateProductParams{
 			Uuid: id, OrganizationID: orgID, CostPrice: next,
@@ -177,8 +177,8 @@ func (a *CatalogProductsAdapter) ApplyItem(ctx context.Context, action, entityUU
 		if !row.TrackStock {
 			return failItem(entityUUID, "stock not tracked"), nil
 		}
-		delta, err := parseFloat(params["delta"])
-		if err != nil {
+		delta, parseErr := parseFloat(params["delta"])
+		if parseErr != nil {
 			return failItem(entityUUID, "invalid delta"), nil
 		}
 		var deltaNum pgtype.Numeric
@@ -231,25 +231,25 @@ func (a *CatalogProductsAdapter) RevertItem(ctx context.Context, action, entityU
 			Uuid: id, OrganizationID: orgID, IsActive: pgtype.Bool{Bool: active, Valid: true},
 		})
 	case "raise_sale_price":
-		price, err := numericFromAny(previous["sale_price"])
-		if err != nil {
-			return err
+		price, convErr := numericFromAny(previous["sale_price"])
+		if convErr != nil {
+			return convErr
 		}
 		_, err = a.q.UpdateProduct(ctx, db.UpdateProductParams{
 			Uuid: id, OrganizationID: orgID, SalePrice: price,
 		})
 	case "raise_cost_price":
-		next, err := numericFromAny(previous["cost_price"])
-		if err != nil {
-			return err
+		next, convErr := numericFromAny(previous["cost_price"])
+		if convErr != nil {
+			return convErr
 		}
 		_, err = a.q.UpdateProduct(ctx, db.UpdateProductParams{
 			Uuid: id, OrganizationID: orgID, CostPrice: next,
 		})
 	case "adjust_stock":
-		qty, err := numericFromAny(previous["stock_quantity"])
-		if err != nil {
-			return err
+		qty, convErr := numericFromAny(previous["stock_quantity"])
+		if convErr != nil {
+			return convErr
 		}
 		_, err = a.q.UpdateProduct(ctx, db.UpdateProductParams{
 			Uuid: id, OrganizationID: orgID, StockQuantity: qty,
@@ -373,9 +373,9 @@ func (a *CatalogServicesAdapter) ApplyItem(ctx context.Context, action, entityUU
 			Uuid: id, OrganizationID: orgID, IsActive: pgtype.Bool{Bool: false, Valid: true},
 		})
 	case "raise_price":
-		next, err := scaleNumeric(row.Price, params["percent"], 2)
-		if err != nil {
-			return failItem(entityUUID, err.Error()), nil
+		next, scaleErr := scaleNumeric(row.Price, params["percent"], 2)
+		if scaleErr != nil {
+			return failItem(entityUUID, scaleErr.Error()), nil
 		}
 		_, err = a.q.UpdateService(ctx, db.UpdateServiceParams{
 			Uuid: id, OrganizationID: orgID, Price: next,
@@ -423,9 +423,9 @@ func (a *CatalogServicesAdapter) RevertItem(ctx context.Context, action, entityU
 			Uuid: id, OrganizationID: orgID, IsActive: pgtype.Bool{Bool: active, Valid: true},
 		})
 	case "raise_price":
-		price, err := numericFromAny(previous["price"])
-		if err != nil {
-			return err
+		price, convErr := numericFromAny(previous["price"])
+		if convErr != nil {
+			return convErr
 		}
 		_, err = a.q.UpdateService(ctx, db.UpdateServiceParams{
 			Uuid: id, OrganizationID: orgID, Price: price,

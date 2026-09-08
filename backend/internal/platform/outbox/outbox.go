@@ -354,7 +354,8 @@ func (p *Publisher) Drain(ctx context.Context) (int, error) {
 	published := 0
 	for _, row := range rows {
 		if err := p.publishOne(ctx, row); err != nil {
-			p.log.Error("outbox_publish_failed",
+			p.log.Error(
+				"outbox_publish_failed",
 				"outbox_id", row.ID,
 				"event", row.EventName,
 				"attempts", row.Attempts+1,
@@ -389,7 +390,8 @@ func (p *Publisher) failOrRetry(ctx context.Context, row Row, publishErr error) 
 		if err := p.store.markFailed(ctx, row.ID, attempts, msg); err != nil {
 			return fmt.Errorf("outbox: mark failed: %w", err)
 		}
-		p.log.Error("outbox_event_failed_permanently",
+		p.log.Error(
+			"outbox_event_failed_permanently",
 			"outbox_id", row.ID,
 			"event", row.EventName,
 			"attempts", attempts,

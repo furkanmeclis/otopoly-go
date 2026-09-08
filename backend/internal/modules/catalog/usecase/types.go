@@ -19,25 +19,25 @@ type Category struct {
 }
 
 type Product struct {
-	UUID           uuid.UUID  `json:"uuid"`
-	CategoryUUID   *uuid.UUID `json:"category_uuid,omitempty"`
-	CategoryName   *string    `json:"category_name,omitempty"`
-	Name           string     `json:"name"`
-	SKU            *string    `json:"sku,omitempty"`
-	Barcode        *string    `json:"barcode,omitempty"`
-	Unit           string     `json:"unit"`
-	CostPrice      string     `json:"cost_price"`
-	SalePrice      string     `json:"sale_price"`
-	VATRate        string     `json:"vat_rate"`
-	Currency       string     `json:"currency"`
-	StockQuantity  string     `json:"stock_quantity"`
-	MinStockAlert  string     `json:"min_stock_alert"`
-	TrackStock     bool       `json:"track_stock"`
-	IsActive       bool       `json:"is_active"`
-	Description    string     `json:"description"`
-	StockStatus    string     `json:"stock_status"` // "in_stock", "low_stock", "out_of_stock", "untracked"
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	UUID          uuid.UUID  `json:"uuid"`
+	CategoryUUID  *uuid.UUID `json:"category_uuid,omitempty"`
+	CategoryName  *string    `json:"category_name,omitempty"`
+	Name          string     `json:"name"`
+	SKU           *string    `json:"sku,omitempty"`
+	Barcode       *string    `json:"barcode,omitempty"`
+	Unit          string     `json:"unit"`
+	CostPrice     string     `json:"cost_price"`
+	SalePrice     string     `json:"sale_price"`
+	VATRate       string     `json:"vat_rate"`
+	Currency      string     `json:"currency"`
+	StockQuantity string     `json:"stock_quantity"`
+	MinStockAlert string     `json:"min_stock_alert"`
+	TrackStock    bool       `json:"track_stock"`
+	IsActive      bool       `json:"is_active"`
+	Description   string     `json:"description"`
+	StockStatus   string     `json:"stock_status"` // "in_stock", "low_stock", "out_of_stock", "untracked"
+	CreatedAt     time.Time  `json:"created_at"`
+	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
 type ServiceItem struct {

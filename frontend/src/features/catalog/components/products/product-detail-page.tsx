@@ -109,13 +109,21 @@ export function ProductDetailPage({
                 {
                   id: "identity",
                   fields: [
-                    { key: "name", label: t("catalog.products.name"), value: product.name },
+                    {
+                      key: "name",
+                      label: t("catalog.products.name"),
+                      value: product.name,
+                    },
                     {
                       key: "category",
                       label: t("catalog.products.category"),
                       value: product.category_name || "—",
                     },
-                    { key: "sku", label: t("catalog.products.sku"), value: product.sku || "—" },
+                    {
+                      key: "sku",
+                      label: t("catalog.products.sku"),
+                      value: product.sku || "—",
+                    },
                     {
                       key: "barcode",
                       label: t("catalog.products.barcode"),
@@ -159,7 +167,9 @@ export function ProductDetailPage({
                     {
                       key: "track",
                       label: t("catalog.products.track_stock"),
-                      value: product.track_stock ? t("common.yes") : t("common.no"),
+                      value: product.track_stock
+                        ? t("common.yes")
+                        : t("common.no"),
                     },
                     {
                       key: "qty",
@@ -174,19 +184,29 @@ export function ProductDetailPage({
                     {
                       key: "created",
                       label: t("catalog.detail.created_at"),
-                      value: datetime(product.created_at, "dd.MM.yyyy HH:mm", locale),
+                      value: datetime(
+                        product.created_at,
+                        "dd.MM.yyyy HH:mm",
+                        locale,
+                      ),
                     },
                     {
                       key: "updated",
                       label: t("catalog.detail.updated_at"),
-                      value: datetime(product.updated_at, "dd.MM.yyyy HH:mm", locale),
+                      value: datetime(
+                        product.updated_at,
+                        "dd.MM.yyyy HH:mm",
+                        locale,
+                      ),
                     },
                   ],
                 },
               ]}
             />
             {product.description ? (
-              <p className="text-muted-foreground mt-4 text-sm">{product.description}</p>
+              <p className="text-muted-foreground mt-4 text-sm">
+                {product.description}
+              </p>
             ) : null}
           </EntitySectionCard>
         </div>

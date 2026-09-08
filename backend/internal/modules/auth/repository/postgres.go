@@ -17,8 +17,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var ErrNotFound = errors.New("not found")
-var ErrConflict = errors.New("conflict")
+var (
+	ErrNotFound = errors.New("not found")
+	ErrConflict = errors.New("conflict")
+)
 
 // Postgres implements auth persistence via sqlc.
 type Postgres struct {

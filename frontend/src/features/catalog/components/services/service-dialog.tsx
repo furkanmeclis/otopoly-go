@@ -131,12 +131,10 @@ export function ServiceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit
-              ? t("catalog.services.edit")
-              : t("catalog.services.new")}
+            {isEdit ? t("catalog.services.edit") : t("catalog.services.new")}
           </DialogTitle>
           <DialogDescription>
             {t("catalog.services.description")}

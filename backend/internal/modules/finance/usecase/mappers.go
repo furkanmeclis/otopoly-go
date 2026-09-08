@@ -116,22 +116,22 @@ func mapTransactionDetail(
 	categoryName *string,
 ) Transaction {
 	tx := Transaction{
-		UUID:            row.Uuid,
-		Type:            row.Type,
-		Status:          row.Status,
-		AccountUUID:     account.Uuid,
-		AccountName:     account.Name,
+		UUID:               row.Uuid,
+		Type:               row.Type,
+		Status:             row.Status,
+		AccountUUID:        account.Uuid,
+		AccountName:        account.Name,
 		CounterAccountUUID: counterUUID,
 		CounterAccountName: counterName,
-		CategoryUUID:    categoryUUID,
-		CategoryName:    categoryName,
-		Amount:          numericToString(row.Amount),
-		Currency:        row.Currency,
-		TransactionDate: formatDate(row.TransactionDate),
-		Description:     row.Description,
-		PaymentMethod:   row.PaymentMethod,
-		CreatedAt:       row.CreatedAt.Time,
-		UpdatedAt:       row.UpdatedAt.Time,
+		CategoryUUID:       categoryUUID,
+		CategoryName:       categoryName,
+		Amount:             numericToString(row.Amount),
+		Currency:           row.Currency,
+		TransactionDate:    formatDate(row.TransactionDate),
+		Description:        row.Description,
+		PaymentMethod:      row.PaymentMethod,
+		CreatedAt:          row.CreatedAt.Time,
+		UpdatedAt:          row.UpdatedAt.Time,
 	}
 	if row.ReferenceNo.Valid {
 		tx.ReferenceNo = &row.ReferenceNo.String
@@ -189,8 +189,8 @@ func mapRecentTransaction(row db.ListRecentFinanceTransactionsByAccountRow) Tran
 func buildTransactionListParams(orgID int64, limit, offset int32, filters TransactionFilters) (db.ListFinanceTransactionsParams, db.CountFinanceTransactionsParams) {
 	list := db.ListFinanceTransactionsParams{
 		OrganizationID: orgID,
-		LimitCount:   limit,
-		OffsetCount:  offset,
+		LimitCount:     limit,
+		OffsetCount:    offset,
 	}
 	count := db.CountFinanceTransactionsParams{OrganizationID: orgID}
 	if filters.Type != "" {

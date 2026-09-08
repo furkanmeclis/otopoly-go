@@ -3,13 +3,13 @@ package providers
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/mail"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/realtime"
 	"github.com/google/uuid"
-	"log/slog"
 )
 
 // DeliveryResult is the outcome of a provider send.

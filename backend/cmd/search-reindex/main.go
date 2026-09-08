@@ -50,6 +50,7 @@ func main() {
 		searchadapters.NewFinanceTransactions(queries),
 		searchadapters.NewCatalogProducts(queries),
 		searchadapters.NewCatalogServices(queries),
+		searchadapters.NewVehicleModelYears(queries),
 	)
 	indexer := searchengine.NewIndexer(client, reg, nil, log)
 	if err := indexer.ProcessReindex(ctx, ""); err != nil {

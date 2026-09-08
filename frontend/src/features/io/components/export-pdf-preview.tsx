@@ -24,7 +24,11 @@ export function ExportPdfPreview({
   const { t } = useLocale();
 
   const previewQuery = useQuery({
-    queryKey: [...ioKeys.exports.detail(uuid, scope), "preview", "pdf"] as const,
+    queryKey: [
+      ...ioKeys.exports.detail(uuid, scope),
+      "preview",
+      "pdf",
+    ] as const,
     queryFn: async () => {
       const { blob } = await exportsService.fetchFile(uuid, scope);
       return URL.createObjectURL(blob);

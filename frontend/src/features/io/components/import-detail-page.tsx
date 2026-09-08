@@ -59,7 +59,8 @@ export function ImportDetailPage({
     tenant && slug
       ? routes.tenant.imports.root(slug)
       : routes.platform.imports.root;
-  const homeHref = tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
+  const homeHref =
+    tenant && slug ? routes.tenant.home(slug) : routes.platform.home;
 
   const rollback = useAppMutation({
     mutationFn: () => importsService.rollback(uuid, scope),
@@ -100,7 +101,9 @@ export function ImportDetailPage({
     <EntityPage
       title={title}
       description={t("imports.detail.description")}
-      permission={tenant ? permissions.imports.tenantRead : permissions.imports.read}
+      permission={
+        tenant ? permissions.imports.tenantRead : permissions.imports.read
+      }
       forbiddenFallback={
         <ErrorState
           title={t("common.error_forbidden")}

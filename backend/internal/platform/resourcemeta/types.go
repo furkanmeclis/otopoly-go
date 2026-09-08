@@ -468,3 +468,56 @@ func TenantCatalogCategories() ResourceMeta {
 		},
 	}
 }
+
+// PlatformVehicleBrands returns meta for GET /v1/platform/vehicle-brands.
+func PlatformVehicleBrands() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "platform.vehicle_brands",
+		DefaultSort:   "name",
+		DefaultFields: []string{"uuid", "name", "model_count", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true,
+			Search: true, Filter: true, Sort: true,
+		},
+		SearchableFields: []string{"name"},
+		SortableFields:   []string{"name", "created_at"},
+		FilterableFields: []string{"is_active"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "vehicle_brands.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "model_count", LabelKey: "vehicle_brands.model_count", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "vehicle_brands.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: false},
+		},
+		Filters: []Filter{
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
+// TenantCustomers returns meta for GET /v1/tenant/customers.
+func TenantCustomers() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.customers",
+		DefaultSort:   "name",
+		DefaultFields: []string{"uuid", "name", "phone", "kind", "vehicle_count", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true,
+			Search: true, Filter: true, Sort: true,
+		},
+		SearchableFields: []string{"name", "phone", "email"},
+		SortableFields:   []string{"name", "created_at"},
+		FilterableFields: []string{"kind", "is_active"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "customers.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "phone", LabelKey: "customers.phone", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "kind", LabelKey: "customers.kind", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "vehicle_count", LabelKey: "customers.vehicle_count", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "customers.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: false},
+		},
+		Filters: []Filter{
+			{Key: "kind", LabelKey: "customers.kind", Variant: FilterVariantFaceted},
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+		},
+	}
+}

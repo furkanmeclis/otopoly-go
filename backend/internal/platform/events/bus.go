@@ -90,7 +90,8 @@ func (b *MemoryBus) Publish(ctx context.Context, event Event) error {
 			continue
 		}
 		if err := handler(ctx, normalized); err != nil {
-			b.log.Error("event_handler_failed",
+			b.log.Error(
+				"event_handler_failed",
 				"event", normalized.Name,
 				"event_id", normalized.EventID.String(),
 				"error", err,

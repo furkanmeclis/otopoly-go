@@ -163,12 +163,10 @@ export function ProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEdit
-              ? t("catalog.products.edit")
-              : t("catalog.products.new")}
+            {isEdit ? t("catalog.products.edit") : t("catalog.products.new")}
           </DialogTitle>
           <DialogDescription>
             {t("catalog.products.description")}
@@ -239,7 +237,7 @@ export function ProductDialog({
                     />
                   </div>
 
-                  <div className="rounded-lg border p-4 space-y-4 bg-muted/20">
+                  <div className="bg-muted/20 space-y-4 rounded-lg border p-4">
                     <AppSwitch
                       name="track_stock"
                       label={t("catalog.products.track_stock")}
