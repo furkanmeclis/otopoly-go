@@ -32,6 +32,8 @@ import (
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
 	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
 	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
+	carimodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari"
+	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
 	customersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers"
 	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
@@ -185,6 +187,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		searchadapters.NewCatalogProducts(deps.Queries),
 		searchadapters.NewCatalogServices(deps.Queries),
 		searchadapters.NewVehicleModelYears(deps.Queries),
+		searchadapters.NewCariAccounts(deps.Queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, deps.Queue, log)
@@ -246,6 +249,10 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	financeSvc := financeusecase.New(deps.DB, deps.Queries, activityRec)
 	financeSvc.SetSearchIndexer(searchIndexer)
 	financemodule.RegisterRoutes(mux, financeSvc, tokens, loader, deps.Queries)
+	cariSvc := cariusecase.New(deps.DB, deps.Queries, activityRec, financeSvc)
+	cariSvc.SetSearchIndexer(searchIndexer)
+	cariSvc.SetEventBus(eventBus)
+	carimodule.RegisterRoutes(mux, cariSvc, tokens, loader, deps.Queries)
 	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
@@ -264,6 +271,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		ioadapters.NewCatalogProducts(deps.Queries),
 		ioadapters.NewCatalogServices(deps.Queries),
 		ioadapters.NewCatalogCategories(deps.Queries),
+		ioadapters.NewCariAccounts(deps.Queries),
+		ioadapters.NewCariEntries(deps.Queries),
 	)
 	exportSvc := exportusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
 	importSvc := importusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)

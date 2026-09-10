@@ -8,6 +8,8 @@ import (
 	"unicode"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
+	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
@@ -139,7 +141,9 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters Filters
 	}
 	out := make([]Customer, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.IsActive, row.VehicleCount, row.CreatedAt, row.UpdatedAt))
+		c := mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.IsActive, row.VehicleCount, row.CreatedAt, row.UpdatedAt)
+		s.attachCari(ctx, orgID, row.ID, &c)
+		out = append(out, c)
 	}
 	return out, total, nil
 }
@@ -150,6 +154,19 @@ func mapCustomer(id uuid.UUID, name, phone, email, kind, notes string, active bo
 		IsActive: active, VehicleCount: vehicles,
 		CreatedAt: created.Time, UpdatedAt: updated.Time,
 	}
+}
+
+func (s *Service) attachCari(ctx context.Context, orgID, customerID int64, c *Customer) {
+	acc, err := s.q.GetCariAccountByCustomerID(ctx, db.GetCariAccountByCustomerIDParams{
+		CustomerID: customerID, OrganizationID: orgID,
+	})
+	if err != nil {
+		return
+	}
+	id := acc.Uuid
+	bal := financeusecase.NumericToString(acc.Balance)
+	c.CariAccountUUID = &id
+	c.CariBalance = &bal
 }
 
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (CustomerDetail, error) {
@@ -168,8 +185,10 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (CustomerDetail, error)
 	if err != nil {
 		return CustomerDetail{}, err
 	}
+	c := mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.IsActive, int64(len(vehicles)), row.CreatedAt, row.UpdatedAt)
+	s.attachCari(ctx, orgID, row.ID, &c)
 	return CustomerDetail{
-		Customer: mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.IsActive, int64(len(vehicles)), row.CreatedAt, row.UpdatedAt),
+		Customer: c,
 		Vehicles: vehicles,
 	}, nil
 }
@@ -240,6 +259,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (CustomerDetail, e
 			return CustomerDetail{}, err
 		}
 	}
+	if err := cariusecase.EnsureAccountForCustomer(ctx, q, orgID, row.ID, active); err != nil {
+		return CustomerDetail{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return CustomerDetail{}, err
 	}
@@ -302,15 +324,34 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		}
 		return err
 	}
-	if err := s.q.SoftDeleteCustomerVehiclesByCustomer(ctx, db.SoftDeleteCustomerVehiclesByCustomerParams{
+	if acc, aerr := s.q.GetCariAccountByCustomerID(ctx, db.GetCariAccountByCustomerIDParams{
+		CustomerID: row.ID, OrganizationID: orgID,
+	}); aerr == nil {
+		if acc.Balance.Valid && acc.Balance.Int != nil && acc.Balance.Int.Sign() != 0 {
+			return fmt.Errorf("%w: cannot delete customer with outstanding cari balance", ErrConflict)
+		}
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	q := s.q.WithTx(tx)
+	if err := q.SoftDeleteCustomerVehiclesByCustomer(ctx, db.SoftDeleteCustomerVehiclesByCustomerParams{
 		CustomerID: row.ID, OrganizationID: orgID,
 	}); err != nil {
 		return err
 	}
-	if _, err := s.q.SoftDeleteCustomer(ctx, db.SoftDeleteCustomerParams{Uuid: id, OrganizationID: orgID}); err != nil {
+	_, _ = q.SoftDeleteCariAccountByCustomer(ctx, db.SoftDeleteCariAccountByCustomerParams{
+		CustomerID: row.ID, OrganizationID: orgID,
+	})
+	if _, err := q.SoftDeleteCustomer(ctx, db.SoftDeleteCustomerParams{Uuid: id, OrganizationID: orgID}); err != nil {
 		if err == pgx.ErrNoRows {
 			return ErrNotFound
 		}
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	s.recordActivity(ctx, "tenant.customer.delete", "customer", &id, map[string]any{"name": row.Name})

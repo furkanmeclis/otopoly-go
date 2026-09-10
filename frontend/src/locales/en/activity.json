@@ -60,8 +60,21 @@
   "actions.tenant.customer.delete": "Customer deleted",
   "actions.tenant.customer.vehicle_add": "Customer vehicle added",
   "actions.tenant.customer.vehicle_remove": "Customer vehicle removed",
+  "actions.cari.charge": "Cari charge posted",
+  "actions.cari.payment": "Cari payment recorded",
+  "actions.cari.adjustment": "Cari adjustment posted",
+  "actions.cari.entry_void": "Cari entry voided",
+  "actions.cari.charge": "Cari charge posted",
+  "actions.cari.payment": "Cari payment posted",
+  "actions.cari.adjustment": "Cari adjustment posted",
+  "actions.cari.entry_void": "Cari entry voided",
   "resources.vehicle_brand": "Vehicle brand",
   "resources.vehicle_model": "Vehicle model",
   "resources.customer": "Customer",
-  "resources.customer_vehicle": "Customer vehicle"
+  "resources.customer_vehicle": "Customer vehicle",
+  "resources.cari.entry": "Cari entry",
+  "resources.tenant.cari": "Cari accounts",
+  "resources.tenant.cari.entries": "Cari statement",
+  "resources.cari.entry": "Cari entry",
+  "resources.cari.account": "Cari account"
 }

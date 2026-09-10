@@ -76,6 +76,9 @@ const (
 	PermPlatformVehicleBrandsWrite              = "platform.vehicle_brands.write"
 	PermTenantCustomersRead                     = "tenant.customers.read"
 	PermTenantCustomersWrite                    = "tenant.customers.write"
+	PermTenantCariRead                          = "tenant.cari.read"
+	PermTenantCariWrite                         = "tenant.cari.write"
+	PermTenantCariExport                        = "tenant.cari.export"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

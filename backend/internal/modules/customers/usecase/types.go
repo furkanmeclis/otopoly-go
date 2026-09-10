@@ -7,16 +7,18 @@ import (
 )
 
 type Customer struct {
-	UUID         uuid.UUID `json:"uuid"`
-	Name         string    `json:"name"`
-	Phone        string    `json:"phone"`
-	Email        string    `json:"email"`
-	Kind         string    `json:"kind"`
-	Notes        string    `json:"notes"`
-	IsActive     bool      `json:"is_active"`
-	VehicleCount int64     `json:"vehicle_count"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	UUID             uuid.UUID  `json:"uuid"`
+	Name             string     `json:"name"`
+	Phone            string     `json:"phone"`
+	Email            string     `json:"email"`
+	Kind             string     `json:"kind"`
+	Notes            string     `json:"notes"`
+	IsActive         bool       `json:"is_active"`
+	VehicleCount     int64      `json:"vehicle_count"`
+	CariAccountUUID  *uuid.UUID `json:"cari_account_uuid,omitempty"`
+	CariBalance      *string    `json:"cari_balance,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type Vehicle struct {

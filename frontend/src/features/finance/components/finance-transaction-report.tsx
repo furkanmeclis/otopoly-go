@@ -50,6 +50,16 @@ function typeTone(type: string) {
   return "text-muted-foreground";
 }
 
+function sourceTypeLabel(
+  t: (key: string) => string,
+  sourceType?: string | null,
+) {
+  if (!sourceType) return "—";
+  const key = `finance.detail.source_types.${sourceType}`;
+  const label = t(key);
+  return label === key ? sourceType : label;
+}
+
 function ReportField({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="space-y-1">
@@ -227,18 +237,14 @@ export function FinanceTransactionReport({
             <dl className="grid gap-4 sm:grid-cols-2">
               <ReportField
                 label={t("finance.detail.source_type")}
-                value={tx.source_type ?? "—"}
+                value={sourceTypeLabel(t, tx.source_type)}
               />
-              <ReportField
-                label={t("finance.detail.source_uuid")}
-                value={
-                  tx.source_uuid ? (
-                    <span className="font-mono text-xs">{tx.source_uuid}</span>
-                  ) : (
-                    "—"
-                  )
-                }
-              />
+              {tx.source_type === "cari_payment" ? (
+                <ReportField
+                  label={t("finance.detail.source")}
+                  value={t("finance.detail.source_cari_payment")}
+                />
+              ) : null}
             </dl>
           </>
         )}

@@ -521,3 +521,31 @@ func TenantCustomers() ResourceMeta {
 		},
 	}
 }
+
+// TenantCari returns meta for GET /v1/tenant/cari.
+func TenantCari() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.cari",
+		DefaultSort:   "customer_name",
+		DefaultFields: []string{"uuid", "customer_name", "customer_phone", "balance", "currency", "is_active"},
+		Capabilities: Capabilities{
+			Create: false, Read: true, Update: false, Delete: false,
+			Search: true, Filter: true, Sort: true, Export: true,
+		},
+		SearchableFields: []string{"customer_name", "customer_phone"},
+		SortableFields:   []string{"customer_name", "balance", "created_at"},
+		FilterableFields: []string{"is_active", "has_balance"},
+		Columns: []Column{
+			{Key: "customer_name", LabelKey: "cari.customer_name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "customer_phone", LabelKey: "cari.customer_phone", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "balance", LabelKey: "cari.balance", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "currency", LabelKey: "cari.currency", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "cari.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: false},
+		},
+		Filters: []Filter{
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+			{Key: "has_balance", LabelKey: "cari.has_balance", Variant: FilterVariantFaceted},
+		},
+	}
+}

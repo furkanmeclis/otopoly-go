@@ -31,6 +31,7 @@ type ExportMenuProps = {
   query?: Record<string, string | undefined>;
   disabled?: boolean;
   jobsHref?: string;
+  exportPath?: string;
 };
 
 const FORMATS: ExportFormat[] = ["pdf", "xlsx", "csv", "json"];
@@ -40,6 +41,7 @@ export function ExportMenu({
   query,
   disabled,
   jobsHref,
+  exportPath,
 }: ExportMenuProps) {
   const { t, locale } = useLocale();
   const [pending, setPending] = useState<ExportFormat | null>(null);
@@ -53,7 +55,7 @@ export function ExportMenu({
           if (value) cleaned[key] = value;
         }
       }
-      await exportsService.request(EXPORT_PATHS[resource], {
+      await exportsService.request(exportPath ?? EXPORT_PATHS[resource], {
         format,
         query: cleaned,
         locale,

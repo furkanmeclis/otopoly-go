@@ -161,6 +161,8 @@
   "role_editor_hint": "Değiştirebilir",
   "role_owner_hint": "Tam erişim",
   "user_uuid": "Kullanıcı UUID",
+  "share_user": "Kullanıcı",
+  "share_role": "Rol",
   "add_person": "Paylaş",
   "analytics": "Depolama kullanımı",
   "total_files": "Toplam dosya",

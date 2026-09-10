@@ -197,6 +197,20 @@ func (h *Handler) RequestFinanceTransactionsExport(w http.ResponseWriter, r *htt
 	h.requestTenantExport(w, r, "tenant.finance.transactions")
 }
 
+func (h *Handler) RequestCariExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.cari")
+}
+
+func (h *Handler) RequestCariEntriesExport(w http.ResponseWriter, r *http.Request) {
+	accountUUID := strings.TrimSpace(r.PathValue("uuid"))
+	if accountUUID != "" {
+		q := r.URL.Query()
+		q.Set("account_uuid", accountUUID)
+		r.URL.RawQuery = q.Encode()
+	}
+	h.requestTenantExport(w, r, "tenant.cari.entries")
+}
+
 func (h *Handler) requestTenantExport(w http.ResponseWriter, r *http.Request, resource string) {
 	p := authctx.MustPrincipal(r.Context())
 	scope := orgctx.MustScope(r.Context())
@@ -218,7 +232,7 @@ func (h *Handler) requestTenantExport(w http.ResponseWriter, r *http.Request, re
 	}
 	for k, vals := range r.URL.Query() {
 		switch k {
-		case "q", "status", "type", "kind", "currency", "account_uuid", "category_uuid", "date_from", "date_to", "is_active":
+		case "q", "status", "type", "kind", "currency", "account_uuid", "category_uuid", "date_from", "date_to", "is_active", "has_balance":
 			if len(vals) > 0 {
 				query[k] = vals[0]
 			}

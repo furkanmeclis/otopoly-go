@@ -78,15 +78,31 @@ Tenant export (`POST /v1/tenant/finance/{accounts,categories,transactions}/expor
 | `source_type` | Future use |
 |---------------|------------|
 | `manual` | User-entered income/expense/transfer (MVP default) |
+| `cari_payment` | Cari collection posted from tenant cari module |
 | `service_job` | Car-wash job payment posted on close |
 | `product_sale` | Quick product sale from operations module |
 | `purchase` | Stock purchase / supplier expense |
 
-Optional `metadata` JSONB carries module-specific flags (e.g. `pending_receivable` before cari module exists).
+Optional `metadata` JSONB carries module-specific flags. Open receivable is modeled as a `cari` charge (positive balance); do not use `pending_receivable` once the cari module is active.
 
-<!-- TODO(finance): ERP backlog — account/category edit UI, search-engine adapters,
-     bulk void/export, period-scoped detail stats, created_by on transactions, refresh oid preservation,
-     backfill SeedDefaults for legacy orgs, recurring/budget modules. See TODO(finance) in codebase. -->
+## Tenant cari (`/t/{slug}/cari`)
+
+Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.cari.read` | `organization_user` (+ owner) | Lists, summary, statements |
+| `tenant.cari.write` | `organization_owner` + owner membership | Charge, payment, adjustment, void |
+| `tenant.cari.export` | owners + staff | Account list and statement export |
+
+**Core tables:** `cari_accounts`, `cari_entries` (scoped by `organization_id`).
+
+**Flows:**
+- **Charge** — increases receivable (no cash movement).
+- **Payment (tahsilat)** — decreases receivable and posts `finance_transactions` income with `source_type=cari_payment` and `source_uuid` = cari entry UUID (category **Cari Tahsilat**).
+- **Void** — reverses cari balance; payment voids also void the linked finance row via source.
+
+Customers with non-zero cari balance cannot be soft-deleted.
 
 ## Request flow
 

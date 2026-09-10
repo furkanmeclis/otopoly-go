@@ -60,8 +60,21 @@
   "actions.tenant.customer.delete": "Müşteri silindi",
   "actions.tenant.customer.vehicle_add": "Müşteri aracı eklendi",
   "actions.tenant.customer.vehicle_remove": "Müşteri aracı kaldırıldı",
+  "actions.cari.charge": "Cari borç kaydı",
+  "actions.cari.payment": "Cari tahsilat",
+  "actions.cari.adjustment": "Cari düzeltme",
+  "actions.cari.entry_void": "Cari kayıt iptal edildi",
+  "actions.cari.charge": "Cari borçlandırma",
+  "actions.cari.payment": "Cari tahsilat",
+  "actions.cari.adjustment": "Cari düzeltme",
+  "actions.cari.entry_void": "Cari hareket iptal",
   "resources.vehicle_brand": "Araç markası",
   "resources.vehicle_model": "Araç modeli",
   "resources.customer": "Müşteri",
-  "resources.customer_vehicle": "Müşteri aracı"
+  "resources.customer_vehicle": "Müşteri aracı",
+  "resources.cari.entry": "Cari hareket",
+  "resources.tenant.cari": "Cariler",
+  "resources.tenant.cari.entries": "Cari ekstre",
+  "resources.cari.entry": "Cari hareket",
+  "resources.cari.account": "Cari hesap"
 }

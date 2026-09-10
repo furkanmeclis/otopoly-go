@@ -23,6 +23,8 @@ export type Customer = {
   notes: string;
   is_active: boolean;
   vehicle_count: number;
+  cari_account_uuid?: string | null;
+  cari_balance?: string | null;
   created_at: string;
   updated_at: string;
 };

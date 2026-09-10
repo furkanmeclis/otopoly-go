@@ -161,6 +161,8 @@
   "role_editor_hint": "Can modify",
   "role_owner_hint": "Full access",
   "user_uuid": "User UUID",
+  "share_user": "User",
+  "share_role": "Role",
   "add_person": "Share",
   "analytics": "Storage usage",
   "total_files": "Total files",

@@ -16,6 +16,7 @@
   "specs_tenant_finance_accounts": "Kasalar",
   "specs_tenant_finance_categories": "Kategoriler",
   "specs_tenant_finance_transactions": "İşlemler",
+  "specs_tenant_cari_accounts": "Cariler",
   "specs_tenant_catalog_products": "Ürünler & Stok",
   "specs_tenant_catalog_services": "Hizmetler",
   "specs_vehicle_model_years": "Araç modelleri",
@@ -25,6 +26,7 @@
   "prefix_tenant_finance_accounts": "kasalar",
   "prefix_tenant_finance_categories": "kategoriler",
   "prefix_tenant_finance_transactions": "işlemler",
+  "prefix_tenant_cari_accounts": "cari",
   "prefix_tenant_catalog_products": "ürünler",
   "prefix_tenant_catalog_services": "hizmetler",
   "prefix_vehicle_model_years": "araçlar"

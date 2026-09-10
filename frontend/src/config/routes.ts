@@ -45,6 +45,10 @@ export const routes = {
       root: (slug: string) => `/t/${slug}/customers`,
       detail: (slug: string, uuid: string) => `/t/${slug}/customers/${uuid}`,
     },
+    cari: {
+      root: (slug: string) => `/t/${slug}/cari`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/cari/${uuid}`,
+    },
     catalog: {
       root: (slug: string) => `/t/${slug}/catalog/products`,
       products: {

@@ -10,6 +10,13 @@ import (
 // NamingStandard is the canonical event name pattern: {module}.{action}.
 const NamingStandard = `{module}.{action}` // e.g. customers.created, auth.password_reset
 
+// Cari (accounts receivable) domain events.
+const (
+	CariChargePosted  = "cari.charge_posted"
+	CariPaymentPosted = "cari.payment_posted"
+	CariEntryVoided   = "cari.entry_voided"
+)
+
 // Customer domain events (ADR catalog v1).
 // Archive is the archived flag → customers.flag_added / flag_removed (no customers.archived).
 const (
@@ -209,6 +216,9 @@ func knownEventSet() map[string]struct{} {
 
 func catalogConstants() []string {
 	return []string{
+		CariChargePosted,
+		CariPaymentPosted,
+		CariEntryVoided,
 		CustomersCreated,
 		CustomersUpdated,
 		CustomersDeleted,

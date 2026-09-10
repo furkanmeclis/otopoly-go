@@ -39,7 +39,6 @@ export function UserAsyncPicker({
     const options = result.items.map((user): ComboboxOption => ({
       value: user.uuid,
       label: `${userFullName(user)} · ${user.email}`,
-      description: user.uuid,
     }));
     setOptionCache((prev) => mergeOptions(prev, options));
     return options;

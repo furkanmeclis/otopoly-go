@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
@@ -40,6 +41,8 @@ import {
 import { FieldGroup } from "@/components/ui/field";
 import { apiConfig } from "@/config/api";
 import { routes } from "@/config/routes";
+import { useCariEntries } from "@/features/cari/hooks/use-cari";
+import { useTenantCariAccess } from "@/features/cari/hooks/use-tenant-cari-access";
 import { useTenantCustomersAccess } from "@/features/customers/hooks/use-tenant-customers-access";
 import {
   useCustomer,
@@ -51,6 +54,10 @@ import {
   type Customer,
   type CustomerVehicle,
 } from "@/features/customers/services/customers.service";
+import {
+  formatFinanceAmount,
+  parseFinanceAmount,
+} from "@/features/finance/lib/format";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -66,6 +73,7 @@ export function CustomerDetailPage({
   const router = useRouter();
   const { confirmDelete } = useDialogs();
   const { canRead, canWrite } = useTenantCustomersAccess(slug);
+  const { canRead: canReadCari } = useTenantCariAccess(slug);
   const query = useCustomer(uuid);
   const mutations = useCustomerMutations();
   const [vehicleOpen, setVehicleOpen] = useState(false);
@@ -73,6 +81,11 @@ export function CustomerDetailPage({
   const customer = query.data;
   const vehicles = customer?.vehicles ?? [];
   const title = customer?.name ?? t("customers.title");
+  const cariAccountUuid = customer?.cari_account_uuid ?? null;
+  const recentEntriesQuery = useCariEntries(cariAccountUuid ?? "", {
+    limit: 5,
+    offset: 0,
+  });
 
   const columns = useMemo<ColumnDef<CustomerVehicle>[]>(() => {
     const base: ColumnDef<CustomerVehicle>[] = [
@@ -239,6 +252,27 @@ export function CustomerDetailPage({
                   label={t(`customers.kind.${customer.kind}`)}
                   tone="default"
                 />
+                {cariAccountUuid && customer.cari_balance != null ? (
+                  <Link
+                    href={routes.tenant.cari.detail(slug, cariAccountUuid)}
+                    className="inline-flex"
+                  >
+                    <StatusChip
+                      label={t("customers.detail.cari_balance", {
+                        amount: formatFinanceAmount(
+                          customer.cari_balance,
+                          "TRY",
+                          locale,
+                        ),
+                      })}
+                      tone={
+                        parseFinanceAmount(customer.cari_balance) > 0
+                          ? "warning"
+                          : "default"
+                      }
+                    />
+                  </Link>
+                ) : null}
               </>
             }
           />
@@ -288,6 +322,54 @@ export function CustomerDetailPage({
               ]}
             />
           </EntitySectionCard>
+
+          {cariAccountUuid && canReadCari ? (
+            <EntitySectionCard
+              title={t("customers.detail.recent_cari_entries")}
+              badge={recentEntriesQuery.data?.total}
+            >
+              <div className="mb-3 flex justify-end">
+                <Link
+                  href={routes.tenant.cari.detail(slug, cariAccountUuid)}
+                  className="text-primary text-sm underline-offset-4 hover:underline"
+                >
+                  {t("customers.detail.view_cari")}
+                </Link>
+              </div>
+              {recentEntriesQuery.isLoading ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("common.loading")}
+                </p>
+              ) : (
+                <ul className="divide-border divide-y text-sm">
+                  {(recentEntriesQuery.data?.items ?? []).map((entry) => (
+                    <li
+                      key={entry.uuid}
+                      className="flex items-center justify-between gap-4 py-2"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium tabular-nums">
+                          {entry.entry_date} ·{" "}
+                          {t(`cari.entry_type.${entry.type}`)}
+                        </p>
+                        <p className="text-muted-foreground truncate">
+                          {entry.description || "—"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 tabular-nums">
+                        {formatFinanceAmount(entry.amount, "TRY", locale)}
+                      </span>
+                    </li>
+                  ))}
+                  {!recentEntriesQuery.data?.items?.length ? (
+                    <li className="text-muted-foreground py-2">
+                      {t("customers.detail.no_cari_entries")}
+                    </li>
+                  ) : null}
+                </ul>
+              )}
+            </EntitySectionCard>
+          ) : null}
 
           <EntitySectionCard
             title={t("customers.detail.vehicles")}

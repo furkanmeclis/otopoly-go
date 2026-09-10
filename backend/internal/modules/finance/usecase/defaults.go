@@ -16,6 +16,7 @@ type defaultCategory struct {
 var defaultCategories = []defaultCategory{
 	{Name: "Hizmet Geliri", Kind: "income", Order: 1},
 	{Name: "Ürün Satışı", Kind: "income", Order: 2},
+	{Name: "Cari Tahsilat", Kind: "income", Order: 3},
 	{Name: "Diğer Gelir", Kind: "income", Order: 99},
 	{Name: "Maaş", Kind: "expense", Order: 1},
 	{Name: "Kira", Kind: "expense", Order: 2},
@@ -24,6 +25,9 @@ var defaultCategories = []defaultCategory{
 	{Name: "Genel Gider", Kind: "expense", Order: 5},
 	{Name: "Diğer Gider", Kind: "expense", Order: 99},
 }
+
+// CategoryCariPayment is the seeded income category used for cari collections.
+const CategoryCariPayment = "Cari Tahsilat"
 
 // SeedDefaults creates the default cash account and categories for a new organization.
 // TODO(finance): Add one-off migration/backfill for organizations registered before finance module

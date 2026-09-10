@@ -166,6 +166,13 @@ SET status = 'void', voided_at = NOW(), voided_by = $3
 WHERE uuid = $1 AND organization_id = $2 AND status = 'posted'
 RETURNING *;
 
+-- name: GetFinanceTransactionBySource :one
+SELECT * FROM finance_transactions
+WHERE organization_id = $1
+  AND source_type = $2
+  AND source_uuid = $3
+  AND status = 'posted';
+
 -- name: SumFinanceTransactionsByType :many
 SELECT type, COALESCE(SUM(amount), 0)::numeric AS total
 FROM finance_transactions

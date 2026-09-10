@@ -90,6 +90,44 @@ type BulkJob struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
+type CariAccount struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	CustomerID     int64              `json:"customer_id"`
+	Currency       string             `json:"currency"`
+	Balance        pgtype.Numeric     `json:"balance"`
+	IsActive       bool               `json:"is_active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type CariEntry struct {
+	ID                   int64              `json:"id"`
+	Uuid                 uuid.UUID          `json:"uuid"`
+	OrganizationID       int64              `json:"organization_id"`
+	AccountID            int64              `json:"account_id"`
+	Type                 string             `json:"type"`
+	Status               string             `json:"status"`
+	Amount               pgtype.Numeric     `json:"amount"`
+	BalanceAfter         pgtype.Numeric     `json:"balance_after"`
+	EntryDate            pgtype.Date        `json:"entry_date"`
+	Description          string             `json:"description"`
+	ReferenceNo          pgtype.Text        `json:"reference_no"`
+	PaymentMethod        pgtype.Text        `json:"payment_method"`
+	FinanceAccountID     pgtype.Int8        `json:"finance_account_id"`
+	FinanceTransactionID pgtype.Int8        `json:"finance_transaction_id"`
+	CreatedBy            int64              `json:"created_by"`
+	VoidedAt             pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy             pgtype.Int8        `json:"voided_by"`
+	SourceType           pgtype.Text        `json:"source_type"`
+	SourceUuid           pgtype.UUID        `json:"source_uuid"`
+	Metadata             []byte             `json:"metadata"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
 type CatalogCategory struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`

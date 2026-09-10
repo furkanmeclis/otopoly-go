@@ -58,10 +58,15 @@ func RegisterRoutes(
 	tenantExport := func(handler http.HandlerFunc) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantFinanceExport))
 	}
+	cariExport := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantCariExport))
+	}
 	mux.Handle("GET /v1/tenant/exports", tenantExport(h.ListTenant))
 	mux.Handle("GET /v1/tenant/exports/{uuid}", tenantExport(h.GetTenant))
 	mux.Handle("GET /v1/tenant/exports/{uuid}/download", tenantExport(h.DownloadTenant))
 	mux.Handle("POST /v1/tenant/finance/accounts/export", tenantExport(h.RequestFinanceAccountsExport))
 	mux.Handle("POST /v1/tenant/finance/categories/export", tenantExport(h.RequestFinanceCategoriesExport))
 	mux.Handle("POST /v1/tenant/finance/transactions/export", tenantExport(h.RequestFinanceTransactionsExport))
+	mux.Handle("POST /v1/tenant/cari/export", cariExport(h.RequestCariExport))
+	mux.Handle("POST /v1/tenant/cari/{uuid}/entries/export", cariExport(h.RequestCariEntriesExport))
 }

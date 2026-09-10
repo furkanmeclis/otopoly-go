@@ -20,6 +20,8 @@ type ResourceIOToolbarProps = {
   jobsHref?: string;
   importJobsHref?: string;
   scope?: ExportJobScope;
+  /** Override default EXPORT_PATHS entry (e.g. cari statement per account). */
+  exportPath?: string;
 };
 
 const EXPORT_PERM: Partial<Record<IoResource, string>> = {
@@ -30,6 +32,8 @@ const EXPORT_PERM: Partial<Record<IoResource, string>> = {
   "tenant.finance.accounts": permissions.finance.export,
   "tenant.finance.categories": permissions.finance.export,
   "tenant.finance.transactions": permissions.finance.export,
+  "tenant.cari": permissions.cari.export,
+  "tenant.cari.entries": permissions.cari.export,
   "tenant.catalog.products": permissions.catalog.export,
   "tenant.catalog.services": permissions.catalog.export,
   "tenant.catalog.categories": permissions.catalog.export,
@@ -53,6 +57,7 @@ export function ResourceIOToolbar({
   jobsHref,
   importJobsHref,
   scope = "platform",
+  exportPath,
 }: ResourceIOToolbarProps) {
   const { can } = usePermission();
   const nodes: ReactNode[] = [];
@@ -65,6 +70,7 @@ export function ResourceIOToolbar({
         resource={resource}
         query={query}
         jobsHref={jobsHref}
+        exportPath={exportPath}
       />,
     );
   }

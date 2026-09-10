@@ -61,6 +61,10 @@ export function FinanceTransactionDialog({
 
   const accounts = accountsQuery.data?.items ?? [];
   const categories = categoriesQuery.data?.items ?? [];
+  const defaultAccountUuid =
+    accounts.find((account) => account.is_default)?.uuid ??
+    accounts[0]?.uuid ??
+    "";
 
   async function onSubmit(values: z.infer<typeof schema>) {
     const body: Record<string, unknown> = {
@@ -89,10 +93,10 @@ export function FinanceTransactionDialog({
           </DialogDescription>
         </DialogHeader>
         <AppForm
-          key={`${type}-${open ? "open" : "closed"}`}
+          key={`${type}-${open ? `open-${defaultAccountUuid}` : "closed"}`}
           schema={schema}
           defaultValues={{
-            account_uuid: "",
+            account_uuid: defaultAccountUuid,
             category_uuid: "",
             amount: "",
             transaction_date: today,
@@ -111,17 +115,15 @@ export function FinanceTransactionDialog({
                 label: `${account.name} (${account.currency})`,
               }))}
             />
-            {type === "expense" ? (
-              <AppSelect
-                name="category_uuid"
-                label={t("finance.transactions.category")}
-                placeholder={t("finance.transactions.select_category")}
-                options={categories.map((category) => ({
-                  value: category.uuid,
-                  label: category.name,
-                }))}
-              />
-            ) : null}
+            <AppSelect
+              name="category_uuid"
+              label={t("finance.transactions.category")}
+              placeholder={t("finance.transactions.select_category")}
+              options={categories.map((category) => ({
+                value: category.uuid,
+                label: category.name,
+              }))}
+            />
             <AppInput
               name="amount"
               label={t("finance.transactions.amount")}

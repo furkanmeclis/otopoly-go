@@ -4269,6 +4269,258 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/tenant/cari/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCariMeta
+      summary: Cari account list metadata
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Resource meta }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/cari/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCariSummary
+      summary: Cari receivable summary
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Summary totals }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/cari:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCariAccounts
+      summary: List cari accounts
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: sort
+          in: query
+          schema: { type: string }
+        - name: is_active
+          in: query
+          schema: { type: string }
+        - name: has_balance
+          in: query
+          schema: { type: string }
+      responses:
+        "200": { description: Cari account page }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/cari/export:
+    post:
+      tags: [Tenant]
+      operationId: exportTenantCari
+      summary: Export cari accounts
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format: { type: string }
+                query:
+                  type: object
+                  additionalProperties: { type: string }
+                locale: { type: string }
+      responses:
+        "202": { description: Export job accepted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/cari/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCariAccount
+      summary: Get a cari account
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Cari account detail }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/cari/{uuid}/entries:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCariEntries
+      summary: List cari ledger entries (statement)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: type
+          in: query
+          schema: { type: string, enum: [charge, payment, adjustment, opening] }
+        - name: status
+          in: query
+          schema: { type: string, enum: [posted, void] }
+        - name: date_from
+          in: query
+          schema: { type: string, format: date }
+        - name: date_to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200": { description: Entry page }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/cari/{uuid}/entries/export:
+    post:
+      tags: [Tenant]
+      operationId: exportTenantCariEntries
+      summary: Export cari statement for an account
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format: { type: string }
+                query:
+                  type: object
+                  additionalProperties: { type: string }
+                locale: { type: string }
+      responses:
+        "202": { description: Export job accepted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/cari/{uuid}/charges:
+    post:
+      tags: [Tenant]
+      operationId: createTenantCariCharge
+      summary: Post a manual charge (increases receivable)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, entry_date]
+              properties:
+                amount: { type: string }
+                entry_date: { type: string, format: date }
+                description: { type: string }
+                reference_no: { type: string }
+      responses:
+        "201": { description: Created entry }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/cari/{uuid}/payments:
+    post:
+      tags: [Tenant]
+      operationId: createTenantCariPayment
+      summary: Post a collection (decreases receivable, posts finance income)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, entry_date, finance_account_uuid]
+              properties:
+                amount: { type: string }
+                entry_date: { type: string, format: date }
+                description: { type: string }
+                reference_no: { type: string }
+                payment_method: { type: string, enum: [cash, card, transfer, other] }
+                finance_account_uuid: { type: string, format: uuid }
+      responses:
+        "201": { description: Created entry }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/cari/{uuid}/adjustments:
+    post:
+      tags: [Tenant]
+      operationId: createTenantCariAdjustment
+      summary: Post a balance adjustment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, direction, entry_date]
+              properties:
+                amount: { type: string }
+                direction: { type: string, enum: [increase, decrease] }
+                entry_date: { type: string, format: date }
+                description: { type: string }
+                reference_no: { type: string }
+      responses:
+        "201": { description: Created entry }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/cari/entries/{uuid}/void:
+    post:
+      tags: [Tenant]
+      operationId: voidTenantCariEntry
+      summary: Void a cari ledger entry (and linked finance transaction if payment)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Voided entry }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /v1/tenant/customers/meta:
     get:
       tags: [Tenant]

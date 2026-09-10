@@ -651,6 +651,50 @@ func (q *Queries) GetFinanceCategoryStats(ctx context.Context, arg GetFinanceCat
 	return i, err
 }
 
+const getFinanceTransactionBySource = `-- name: GetFinanceTransactionBySource :one
+SELECT id, uuid, organization_id, type, status, account_id, counter_account_id, category_id, amount, currency, transaction_date, description, reference_no, payment_method, created_by, voided_at, voided_by, source_type, source_uuid, metadata, created_at, updated_at FROM finance_transactions
+WHERE organization_id = $1
+  AND source_type = $2
+  AND source_uuid = $3
+  AND status = 'posted'
+`
+
+type GetFinanceTransactionBySourceParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	SourceType     pgtype.Text `json:"source_type"`
+	SourceUuid     pgtype.UUID `json:"source_uuid"`
+}
+
+func (q *Queries) GetFinanceTransactionBySource(ctx context.Context, arg GetFinanceTransactionBySourceParams) (FinanceTransaction, error) {
+	row := q.db.QueryRow(ctx, getFinanceTransactionBySource, arg.OrganizationID, arg.SourceType, arg.SourceUuid)
+	var i FinanceTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.Type,
+		&i.Status,
+		&i.AccountID,
+		&i.CounterAccountID,
+		&i.CategoryID,
+		&i.Amount,
+		&i.Currency,
+		&i.TransactionDate,
+		&i.Description,
+		&i.ReferenceNo,
+		&i.PaymentMethod,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
+		&i.SourceType,
+		&i.SourceUuid,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getFinanceTransactionByUUID = `-- name: GetFinanceTransactionByUUID :one
 SELECT id, uuid, organization_id, type, status, account_id, counter_account_id, category_id, amount, currency, transaction_date, description, reference_no, payment_method, created_by, voided_at, voided_by, source_type, source_uuid, metadata, created_at, updated_at FROM finance_transactions
 WHERE uuid = $1 AND organization_id = $2

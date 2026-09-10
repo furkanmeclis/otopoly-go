@@ -18,6 +18,7 @@ import {
   Layers,
   Car,
   Users,
+  Receipt,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -265,6 +266,13 @@ export function tenantNav(slug: string) {
             href: routes.tenant.finance.categories.root(slug),
             icon: Settings2,
             permission: permissions.finance.read,
+          },
+          {
+            id: "cari",
+            titleKey: "layout.nav_cari",
+            href: routes.tenant.cari.root(slug),
+            icon: Receipt,
+            permission: permissions.cari.read,
           },
         ],
       },

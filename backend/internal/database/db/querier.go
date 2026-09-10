@@ -13,6 +13,7 @@ import (
 
 type Querier interface {
 	AddVehicleModelYear(ctx context.Context, arg AddVehicleModelYearParams) error
+	AdjustCariAccountBalance(ctx context.Context, arg AdjustCariAccountBalanceParams) (CariAccount, error)
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
 	AdjustProductStock(ctx context.Context, arg AdjustProductStockParams) (Product, error)
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
@@ -30,6 +31,8 @@ type Querier interface {
 	CountAppLogs(ctx context.Context, arg CountAppLogsParams) (int64, error)
 	CountAppLogsByLevel(ctx context.Context) ([]CountAppLogsByLevelRow, error)
 	CountBulkJobsForActor(ctx context.Context, actorID int64) (int64, error)
+	CountCariAccounts(ctx context.Context, arg CountCariAccountsParams) (int64, error)
+	CountCariEntries(ctx context.Context, arg CountCariEntriesParams) (int64, error)
 	CountCatalogCategories(ctx context.Context, arg CountCatalogCategoriesParams) (int64, error)
 	CountCustomerVehiclesByModel(ctx context.Context, modelID int64) (int64, error)
 	CountCustomers(ctx context.Context, arg CountCustomersParams) (int64, error)
@@ -54,6 +57,9 @@ type Querier interface {
 	CountUsersWithRole(ctx context.Context, roleSlug string) (int64, error)
 	CountVehicleBrands(ctx context.Context, arg CountVehicleBrandsParams) (int64, error)
 	CreateBulkJob(ctx context.Context, arg CreateBulkJobParams) (BulkJob, error)
+	// Tenant cari (accounts receivable) accounts and ledger entries.
+	CreateCariAccount(ctx context.Context, arg CreateCariAccountParams) (CariAccount, error)
+	CreateCariEntry(ctx context.Context, arg CreateCariEntryParams) (CariEntry, error)
 	// Catalog module queries (tenant-scoped via organization_id).
 	// ============================================================================
 	// Categories
@@ -113,6 +119,11 @@ type Querier interface {
 	GetAuthSettings(ctx context.Context) (GetAuthSettingsRow, error)
 	GetBulkJobByID(ctx context.Context, id int64) (BulkJob, error)
 	GetBulkJobByUUID(ctx context.Context, argUuid uuid.UUID) (BulkJob, error)
+	GetCariAccountByCustomerID(ctx context.Context, arg GetCariAccountByCustomerIDParams) (CariAccount, error)
+	GetCariAccountByID(ctx context.Context, arg GetCariAccountByIDParams) (CariAccount, error)
+	GetCariAccountByUUID(ctx context.Context, arg GetCariAccountByUUIDParams) (GetCariAccountByUUIDRow, error)
+	GetCariAccountForSearch(ctx context.Context, arg GetCariAccountForSearchParams) (GetCariAccountForSearchRow, error)
+	GetCariEntryByUUID(ctx context.Context, arg GetCariEntryByUUIDParams) (GetCariEntryByUUIDRow, error)
 	GetCatalogCategoryByID(ctx context.Context, arg GetCatalogCategoryByIDParams) (CatalogCategory, error)
 	GetCatalogCategoryByName(ctx context.Context, arg GetCatalogCategoryByNameParams) (CatalogCategory, error)
 	GetCatalogCategoryByUUID(ctx context.Context, arg GetCatalogCategoryByUUIDParams) (CatalogCategory, error)
@@ -130,6 +141,7 @@ type Querier interface {
 	GetFinanceCategoryByUUID(ctx context.Context, arg GetFinanceCategoryByUUIDParams) (FinanceCategory, error)
 	GetFinanceCategoryForSearch(ctx context.Context, arg GetFinanceCategoryForSearchParams) (GetFinanceCategoryForSearchRow, error)
 	GetFinanceCategoryStats(ctx context.Context, arg GetFinanceCategoryStatsParams) (GetFinanceCategoryStatsRow, error)
+	GetFinanceTransactionBySource(ctx context.Context, arg GetFinanceTransactionBySourceParams) (FinanceTransaction, error)
 	GetFinanceTransactionByUUID(ctx context.Context, arg GetFinanceTransactionByUUIDParams) (FinanceTransaction, error)
 	GetFinanceTransactionForSearch(ctx context.Context, arg GetFinanceTransactionForSearchParams) (GetFinanceTransactionForSearchRow, error)
 	GetGitHubAppSettings(ctx context.Context) (GithubAppSetting, error)
@@ -198,6 +210,7 @@ type Querier interface {
 	InsertStorageTrash(ctx context.Context, arg InsertStorageTrashParams) (StorageTrash, error)
 	InsertUserRole(ctx context.Context, arg InsertUserRoleParams) error
 	InvalidateActiveOTPs(ctx context.Context, arg InvalidateActiveOTPsParams) error
+	LinkCariEntryFinanceTransaction(ctx context.Context, arg LinkCariEntryFinanceTransactionParams) (CariEntry, error)
 	ListActivePublicKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActivePublicLinks(ctx context.Context) ([]StorageLink, error)
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID int64) ([]RefreshToken, error)
@@ -210,6 +223,11 @@ type Querier interface {
 	ListAppLogs(ctx context.Context, arg ListAppLogsParams) ([]AppLog, error)
 	ListBulkChangesForJob(ctx context.Context, jobID int64) ([]BulkChange, error)
 	ListBulkJobsForActor(ctx context.Context, arg ListBulkJobsForActorParams) ([]BulkJob, error)
+	ListCariAccounts(ctx context.Context, arg ListCariAccountsParams) ([]ListCariAccountsRow, error)
+	ListCariAccountsForExport(ctx context.Context, arg ListCariAccountsForExportParams) ([]ListCariAccountsForExportRow, error)
+	ListCariAccountsForSearch(ctx context.Context) ([]ListCariAccountsForSearchRow, error)
+	ListCariEntries(ctx context.Context, arg ListCariEntriesParams) ([]ListCariEntriesRow, error)
+	ListCariEntriesForExport(ctx context.Context, arg ListCariEntriesForExportParams) ([]ListCariEntriesForExportRow, error)
 	ListCatalogCategories(ctx context.Context, arg ListCatalogCategoriesParams) ([]ListCatalogCategoriesRow, error)
 	ListCustomerVehicles(ctx context.Context, arg ListCustomerVehiclesParams) ([]ListCustomerVehiclesRow, error)
 	ListCustomers(ctx context.Context, arg ListCustomersParams) ([]ListCustomersRow, error)
@@ -321,6 +339,7 @@ type Querier interface {
 	SetRolePermissions(ctx context.Context, roleID int64) error
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
+	SoftDeleteCariAccountByCustomer(ctx context.Context, arg SoftDeleteCariAccountByCustomerParams) (CariAccount, error)
 	SoftDeleteCatalogCategory(ctx context.Context, arg SoftDeleteCatalogCategoryParams) (CatalogCategory, error)
 	SoftDeleteCustomer(ctx context.Context, arg SoftDeleteCustomerParams) (Customer, error)
 	SoftDeleteCustomerVehicle(ctx context.Context, arg SoftDeleteCustomerVehicleParams) (CustomerVehicle, error)
@@ -331,6 +350,7 @@ type Querier interface {
 	SoftDeleteService(ctx context.Context, arg SoftDeleteServiceParams) (Service, error)
 	SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
 	SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
+	SumCariBalances(ctx context.Context, organizationID int64) (SumCariBalancesRow, error)
 	SumFinanceExpensesByCategory(ctx context.Context, arg SumFinanceExpensesByCategoryParams) ([]SumFinanceExpensesByCategoryRow, error)
 	SumFinanceTransactionsByType(ctx context.Context, arg SumFinanceTransactionsByTypeParams) ([]SumFinanceTransactionsByTypeRow, error)
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
@@ -368,6 +388,7 @@ type Querier interface {
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)
 	VehicleModelYearExists(ctx context.Context, arg VehicleModelYearExistsParams) (bool, error)
+	VoidCariEntry(ctx context.Context, arg VoidCariEntryParams) (CariEntry, error)
 	VoidFinanceTransaction(ctx context.Context, arg VoidFinanceTransactionParams) (FinanceTransaction, error)
 }
 

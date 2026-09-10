@@ -54,7 +54,6 @@ export function NotificationAudienceFilter({
     const options = result.items.map((user): ComboboxOption => ({
       value: user.uuid,
       label: `${userFullName(user)} · ${user.email}`,
-      description: user.uuid,
     }));
     setOptionCache((prev) => {
       const byValue = new Map(prev.map((opt) => [opt.value, opt]));
