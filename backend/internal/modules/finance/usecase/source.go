@@ -17,6 +17,12 @@ import (
 // SourceCariPayment is the finance_transactions.source_type for cari collections.
 const SourceCariPayment = "cari_payment"
 
+// SourceServiceJob is the finance_transactions.source_type for job close payments.
+const SourceServiceJob = "service_job"
+
+// CategoryServiceIncome is the seeded income category for service job cash/card closes.
+const CategoryServiceIncome = "Hizmet Geliri"
+
 // PostFromSourceInput posts an income row linked to an external module event.
 type PostFromSourceInput struct {
 	AccountID       int64
@@ -136,7 +142,9 @@ func (s *Service) VoidBySourceTx(
 	return voided, nil
 }
 
-// ResolveCategoryIDByName returns an active category id by name+kind for the current org.
+// ResolveCategoryIDByName returns a category id by name+kind for the current org.
+// If the seeded category is missing (org created before the seed list grew, or
+// deleted), it is created so jobs/cari closes do not fail with 500.
 func (s *Service) ResolveCategoryIDByName(ctx context.Context, q *db.Queries, name, kind string) (int64, error) {
 	if q == nil {
 		q = s.q
@@ -147,13 +155,41 @@ func (s *Service) ResolveCategoryIDByName(ctx context.Context, q *db.Queries, na
 		Name:           name,
 		Kind:           kind,
 	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return 0, fmt.Errorf("%w: category %q not found", ErrNotFound, name)
-		}
+	if err == nil {
+		return row.ID, nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
 		return 0, err
 	}
-	return row.ID, nil
+
+	sortOrder := int32(99)
+	for _, cat := range defaultCategories {
+		if strings.EqualFold(cat.Name, name) && cat.Kind == kind {
+			sortOrder = cat.Order
+			break
+		}
+	}
+	created, err := q.CreateFinanceCategory(ctx, db.CreateFinanceCategoryParams{
+		OrganizationID: orgID,
+		ParentID:       pgtype.Int8{},
+		Name:           name,
+		Kind:           kind,
+		SortOrder:      sortOrder,
+		IsActive:       true,
+	})
+	if err != nil {
+		// Race: another request created it — re-read.
+		row, getErr := q.GetFinanceCategoryByName(ctx, db.GetFinanceCategoryByNameParams{
+			OrganizationID: orgID,
+			Name:           name,
+			Kind:           kind,
+		})
+		if getErr == nil {
+			return row.ID, nil
+		}
+		return 0, fmt.Errorf("%w: category %q not found", ErrNotFound, name)
+	}
+	return created.ID, nil
 }
 
 // NotifyIndexed after an external module commits a sourced finance change.

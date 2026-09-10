@@ -245,6 +245,12 @@ export function FinanceTransactionReport({
                   value={t("finance.detail.source_cari_payment")}
                 />
               ) : null}
+              {tx.source_type === "service_job" ? (
+                <ReportField
+                  label={t("finance.detail.source")}
+                  value={t("finance.detail.source_service_job")}
+                />
+              ) : null}
             </dl>
           </>
         )}

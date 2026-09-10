@@ -53,6 +53,7 @@
   "resources.tenant.finance.transactions": "Transactions",
   "resources.tenant.cari": "Cari accounts",
   "resources.tenant.cari.entries": "Cari statement",
+  "resources.tenant.jobs": "Service jobs",
   "resources.tenant.catalog.products": "Products",
   "resources.tenant.catalog.services": "Services",
   "resources.tenant.catalog.categories": "Catalog Categories",

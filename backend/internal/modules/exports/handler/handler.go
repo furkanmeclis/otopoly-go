@@ -211,6 +211,10 @@ func (h *Handler) RequestCariEntriesExport(w http.ResponseWriter, r *http.Reques
 	h.requestTenantExport(w, r, "tenant.cari.entries")
 }
 
+func (h *Handler) RequestJobsExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.jobs")
+}
+
 func (h *Handler) requestTenantExport(w http.ResponseWriter, r *http.Request, resource string) {
 	p := authctx.MustPrincipal(r.Context())
 	scope := orgctx.MustScope(r.Context())

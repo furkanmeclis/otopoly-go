@@ -17,6 +17,7 @@
   "specs_tenant_finance_categories": "Categories",
   "specs_tenant_finance_transactions": "Transactions",
   "specs_tenant_cari_accounts": "Cari accounts",
+  "specs_tenant_jobs": "Operations",
   "specs_tenant_catalog_products": "Products & Stock",
   "specs_tenant_catalog_services": "Services",
   "specs_vehicle_model_years": "Vehicle models",
@@ -27,6 +28,7 @@
   "prefix_tenant_finance_categories": "categories",
   "prefix_tenant_finance_transactions": "transactions",
   "prefix_tenant_cari_accounts": "cari",
+  "prefix_tenant_jobs": "jobs",
   "prefix_tenant_catalog_products": "products",
   "prefix_tenant_catalog_services": "services",
   "prefix_vehicle_model_years": "vehicles"

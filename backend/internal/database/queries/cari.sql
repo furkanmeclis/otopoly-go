@@ -222,3 +222,20 @@ UPDATE cari_entries
 SET finance_transaction_id = $3, finance_account_id = $4
 WHERE id = $1 AND organization_id = $2
 RETURNING *;
+
+-- name: GetCariEntryBySource :one
+SELECT * FROM cari_entries
+WHERE organization_id = $1
+  AND source_type = $2
+  AND source_uuid = $3
+  AND status = 'posted'
+LIMIT 1;
+
+-- name: VoidCariEntryBySource :one
+UPDATE cari_entries
+SET status = 'void', voided_at = NOW(), voided_by = $4
+WHERE organization_id = $1
+  AND source_type = $2
+  AND source_uuid = $3
+  AND status = 'posted'
+RETURNING *;

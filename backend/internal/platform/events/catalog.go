@@ -17,6 +17,14 @@ const (
 	CariEntryVoided   = "cari.entry_voided"
 )
 
+// Jobs (operations / service jobs) domain events.
+const (
+	JobsCreated   = "jobs.created"
+	JobsClosed    = "jobs.closed"
+	JobsCancelled = "jobs.cancelled"
+	JobsVoided    = "jobs.voided"
+)
+
 // Customer domain events (ADR catalog v1).
 // Archive is the archived flag → customers.flag_added / flag_removed (no customers.archived).
 const (
@@ -219,6 +227,10 @@ func catalogConstants() []string {
 		CariChargePosted,
 		CariPaymentPosted,
 		CariEntryVoided,
+		JobsCreated,
+		JobsClosed,
+		JobsCancelled,
+		JobsVoided,
 		CustomersCreated,
 		CustomersUpdated,
 		CustomersDeleted,

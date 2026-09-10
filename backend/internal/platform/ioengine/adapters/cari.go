@@ -8,7 +8,6 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -42,7 +41,10 @@ func (a *CariAccountsAdapter) ExportColumns() []ioengine.Column {
 }
 
 func (a *CariAccountsAdapter) Export(ctx context.Context, query ioengine.ExportQuery, _ i18n.Locale) (ioengine.Dataset, error) {
-	orgID := orgctx.MustScope(ctx).InternalID
+	orgID, err := requireOrganizationID(ctx, query)
+	if err != nil {
+		return ioengine.Dataset{}, err
+	}
 	params := db.ListCariAccountsForExportParams{OrganizationID: orgID}
 	if q := strings.TrimSpace(query["q"]); q != "" {
 		params.Q = pgtype.Text{String: q, Valid: true}
@@ -109,7 +111,10 @@ func (a *CariEntriesAdapter) ExportColumns() []ioengine.Column {
 }
 
 func (a *CariEntriesAdapter) Export(ctx context.Context, query ioengine.ExportQuery, _ i18n.Locale) (ioengine.Dataset, error) {
-	orgID := orgctx.MustScope(ctx).InternalID
+	orgID, err := requireOrganizationID(ctx, query)
+	if err != nil {
+		return ioengine.Dataset{}, err
+	}
 	accountUUIDRaw := strings.TrimSpace(query["account_uuid"])
 	if accountUUIDRaw == "" {
 		return ioengine.Dataset{}, fmt.Errorf("account_uuid is required")

@@ -34,6 +34,7 @@ const EXPORT_PERM: Partial<Record<IoResource, string>> = {
   "tenant.finance.transactions": permissions.finance.export,
   "tenant.cari": permissions.cari.export,
   "tenant.cari.entries": permissions.cari.export,
+  "tenant.jobs": permissions.jobs.export,
   "tenant.catalog.products": permissions.catalog.export,
   "tenant.catalog.services": permissions.catalog.export,
   "tenant.catalog.categories": permissions.catalog.export,

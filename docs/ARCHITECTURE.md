@@ -85,6 +85,23 @@ Tenant export (`POST /v1/tenant/finance/{accounts,categories,transactions}/expor
 
 Optional `metadata` JSONB carries module-specific flags. Open receivable is modeled as a `cari` charge (positive balance); do not use `pending_receivable` once the cari module is active.
 
+## Tenant jobs / operations (`/t/{slug}/operations`)
+
+Organization-scoped car-wash service jobs under `/v1/tenant/jobs/*`. UI path is `/operations`. One job = one vehicle; multiple service lines with price snapshots. Status: `in_progress` → `done` → `paid` | `cancelled`; `paid` → `voided`.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.jobs.read` | `organization_user` (+ owner) | Board, summary, detail |
+| `tenant.jobs.write` | `organization_owner` + owner membership | Create, done, close, cancel, void |
+| `tenant.jobs.export` | owners + staff | Job list export |
+
+**Core tables:** `service_jobs`, `service_job_lines`, `service_job_payments`.
+
+**Close flows:**
+- **cash / card** — posts finance income (`source_type=service_job`, `source_uuid` = payment UUID, category **Hizmet Geliri**). No cari charge.
+- **cari (veresiye)** — posts cari charge via `ChargeFromSourceTx` (`source_type=service_job`, `source_uuid` = payment UUID). No finance income. Later collection uses existing cari payment → `cari_payment`.
+- **void** — voids each posted payment; cash/card → `VoidBySourceTx` finance; cari → cari `VoidBySourceTx`.
+
 ## Tenant cari (`/t/{slug}/cari`)
 
 Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.

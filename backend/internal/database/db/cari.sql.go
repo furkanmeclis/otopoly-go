@@ -401,6 +401,51 @@ func (q *Queries) GetCariAccountForSearch(ctx context.Context, arg GetCariAccoun
 	return i, err
 }
 
+const getCariEntryBySource = `-- name: GetCariEntryBySource :one
+SELECT id, uuid, organization_id, account_id, type, status, amount, balance_after, entry_date, description, reference_no, payment_method, finance_account_id, finance_transaction_id, created_by, voided_at, voided_by, source_type, source_uuid, metadata, created_at, updated_at FROM cari_entries
+WHERE organization_id = $1
+  AND source_type = $2
+  AND source_uuid = $3
+  AND status = 'posted'
+LIMIT 1
+`
+
+type GetCariEntryBySourceParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	SourceType     pgtype.Text `json:"source_type"`
+	SourceUuid     pgtype.UUID `json:"source_uuid"`
+}
+
+func (q *Queries) GetCariEntryBySource(ctx context.Context, arg GetCariEntryBySourceParams) (CariEntry, error) {
+	row := q.db.QueryRow(ctx, getCariEntryBySource, arg.OrganizationID, arg.SourceType, arg.SourceUuid)
+	var i CariEntry
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.AccountID,
+		&i.Type,
+		&i.Status,
+		&i.Amount,
+		&i.BalanceAfter,
+		&i.EntryDate,
+		&i.Description,
+		&i.ReferenceNo,
+		&i.PaymentMethod,
+		&i.FinanceAccountID,
+		&i.FinanceTransactionID,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
+		&i.SourceType,
+		&i.SourceUuid,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getCariEntryByUUID = `-- name: GetCariEntryByUUID :one
 SELECT e.id, e.uuid, e.organization_id, e.account_id, e.type, e.status, e.amount, e.balance_after, e.entry_date, e.description, e.reference_no, e.payment_method, e.finance_account_id, e.finance_transaction_id, e.created_by, e.voided_at, e.voided_by, e.source_type, e.source_uuid, e.metadata, e.created_at, e.updated_at,
        a.uuid AS account_uuid,
@@ -1026,6 +1071,58 @@ type VoidCariEntryParams struct {
 
 func (q *Queries) VoidCariEntry(ctx context.Context, arg VoidCariEntryParams) (CariEntry, error) {
 	row := q.db.QueryRow(ctx, voidCariEntry, arg.Uuid, arg.OrganizationID, arg.VoidedBy)
+	var i CariEntry
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.AccountID,
+		&i.Type,
+		&i.Status,
+		&i.Amount,
+		&i.BalanceAfter,
+		&i.EntryDate,
+		&i.Description,
+		&i.ReferenceNo,
+		&i.PaymentMethod,
+		&i.FinanceAccountID,
+		&i.FinanceTransactionID,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
+		&i.SourceType,
+		&i.SourceUuid,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const voidCariEntryBySource = `-- name: VoidCariEntryBySource :one
+UPDATE cari_entries
+SET status = 'void', voided_at = NOW(), voided_by = $4
+WHERE organization_id = $1
+  AND source_type = $2
+  AND source_uuid = $3
+  AND status = 'posted'
+RETURNING id, uuid, organization_id, account_id, type, status, amount, balance_after, entry_date, description, reference_no, payment_method, finance_account_id, finance_transaction_id, created_by, voided_at, voided_by, source_type, source_uuid, metadata, created_at, updated_at
+`
+
+type VoidCariEntryBySourceParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	SourceType     pgtype.Text `json:"source_type"`
+	SourceUuid     pgtype.UUID `json:"source_uuid"`
+	VoidedBy       pgtype.Int8 `json:"voided_by"`
+}
+
+func (q *Queries) VoidCariEntryBySource(ctx context.Context, arg VoidCariEntryBySourceParams) (CariEntry, error) {
+	row := q.db.QueryRow(ctx, voidCariEntryBySource,
+		arg.OrganizationID,
+		arg.SourceType,
+		arg.SourceUuid,
+		arg.VoidedBy,
+	)
 	var i CariEntry
 	err := row.Scan(
 		&i.ID,

@@ -64,10 +64,12 @@
   "actions.cari.payment": "Cari tahsilat",
   "actions.cari.adjustment": "Cari düzeltme",
   "actions.cari.entry_void": "Cari kayıt iptal edildi",
-  "actions.cari.charge": "Cari borçlandırma",
-  "actions.cari.payment": "Cari tahsilat",
-  "actions.cari.adjustment": "Cari düzeltme",
   "actions.cari.entry_void": "Cari hareket iptal",
+  "actions.jobs.create": "İş emri oluşturuldu",
+  "actions.jobs.update": "İş emri güncellendi",
+  "actions.jobs.close": "İş emri kapatıldı",
+  "actions.jobs.cancel": "İş emri iptal edildi",
+  "actions.jobs.void": "İş emri geçersiz kılındı",
   "resources.vehicle_brand": "Araç markası",
   "resources.vehicle_model": "Araç modeli",
   "resources.customer": "Müşteri",
@@ -75,6 +77,7 @@
   "resources.cari.entry": "Cari hareket",
   "resources.tenant.cari": "Cariler",
   "resources.tenant.cari.entries": "Cari ekstre",
-  "resources.cari.entry": "Cari hareket",
-  "resources.cari.account": "Cari hesap"
+  "resources.cari.account": "Cari hesap",
+  "resources.jobs.job": "İş emri",
+  "resources.tenant.jobs": "İş emirleri"
 }

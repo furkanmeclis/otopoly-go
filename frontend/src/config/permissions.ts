@@ -58,6 +58,9 @@ export const Permission = {
   TenantCariRead: "tenant.cari.read",
   TenantCariWrite: "tenant.cari.write",
   TenantCariExport: "tenant.cari.export",
+  TenantJobsRead: "tenant.jobs.read",
+  TenantJobsWrite: "tenant.jobs.write",
+  TenantJobsExport: "tenant.jobs.export",
 
   TenantCatalogRead: "tenant.catalog.read",
   TenantCatalogWrite: "tenant.catalog.write",
@@ -191,6 +194,11 @@ export const permissions = {
     read: Permission.TenantCariRead,
     write: Permission.TenantCariWrite,
     export: Permission.TenantCariExport,
+  },
+  jobs: {
+    read: Permission.TenantJobsRead,
+    write: Permission.TenantJobsWrite,
+    export: Permission.TenantJobsExport,
   },
   finance: {
     read: Permission.TenantFinanceRead,

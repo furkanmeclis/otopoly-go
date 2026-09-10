@@ -17,6 +17,7 @@ import {
   Wrench,
   Layers,
   Car,
+  ClipboardList,
   Users,
   Receipt,
 } from "lucide-react";
@@ -223,6 +224,13 @@ export function tenantNav(slug: string) {
             titleKey: "layout.home",
             href: routes.tenant.home(slug),
             icon: LayoutDashboard,
+          },
+          {
+            id: "operations",
+            titleKey: "layout.nav_operations",
+            href: routes.tenant.operations.root(slug),
+            icon: ClipboardList,
+            permission: permissions.jobs.read,
           },
           {
             id: "profile",

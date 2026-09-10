@@ -58,6 +58,8 @@ import {
   formatFinanceAmount,
   parseFinanceAmount,
 } from "@/features/finance/lib/format";
+import { useCustomerJobs } from "@/features/jobs/hooks/use-jobs";
+import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -74,6 +76,7 @@ export function CustomerDetailPage({
   const { confirmDelete } = useDialogs();
   const { canRead, canWrite } = useTenantCustomersAccess(slug);
   const { canRead: canReadCari } = useTenantCariAccess(slug);
+  const { canRead: canReadJobs } = useTenantJobsAccess(slug);
   const query = useCustomer(uuid);
   const mutations = useCustomerMutations();
   const [vehicleOpen, setVehicleOpen] = useState(false);
@@ -85,6 +88,11 @@ export function CustomerDetailPage({
   const recentEntriesQuery = useCariEntries(cariAccountUuid ?? "", {
     limit: 5,
     offset: 0,
+  });
+  const recentJobsQuery = useCustomerJobs(uuid, {
+    limit: 5,
+    offset: 0,
+    sort: "-started_at",
   });
 
   const columns = useMemo<ColumnDef<CustomerVehicle>[]>(() => {
@@ -364,6 +372,63 @@ export function CustomerDetailPage({
                   {!recentEntriesQuery.data?.items?.length ? (
                     <li className="text-muted-foreground py-2">
                       {t("customers.detail.no_cari_entries")}
+                    </li>
+                  ) : null}
+                </ul>
+              )}
+            </EntitySectionCard>
+          ) : null}
+
+          {canReadJobs ? (
+            <EntitySectionCard
+              title={t("customers.detail.recent_jobs")}
+              badge={recentJobsQuery.data?.total}
+            >
+              <div className="mb-3 flex justify-end">
+                <Link
+                  href={routes.tenant.operations.root(slug)}
+                  className="text-primary text-sm underline-offset-4 hover:underline"
+                >
+                  {t("customers.detail.view_jobs")}
+                </Link>
+              </div>
+              {recentJobsQuery.isLoading ? (
+                <p className="text-muted-foreground text-sm">
+                  {t("common.loading")}
+                </p>
+              ) : (
+                <ul className="divide-border divide-y text-sm">
+                  {(recentJobsQuery.data?.items ?? []).map((job) => (
+                    <li key={job.uuid} className="py-2">
+                      <Link
+                        href={routes.tenant.operations.detail(slug, job.uuid)}
+                        className="flex items-center justify-between gap-4 hover:underline"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium tracking-wide">
+                            {job.plate} · {t(`jobs.status.${job.status}`)}
+                          </p>
+                          <p className="text-muted-foreground truncate">
+                            {datetime(
+                              job.started_at,
+                              "dd.MM.yyyy HH:mm",
+                              locale,
+                            )}
+                          </p>
+                        </div>
+                        <span className="shrink-0 tabular-nums">
+                          {formatFinanceAmount(
+                            job.total_amount,
+                            job.currency,
+                            locale,
+                          )}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                  {!recentJobsQuery.data?.items?.length ? (
+                    <li className="text-muted-foreground py-2">
+                      {t("customers.detail.no_jobs")}
                     </li>
                   ) : null}
                 </ul>

@@ -64,10 +64,11 @@
   "actions.cari.payment": "Cari payment recorded",
   "actions.cari.adjustment": "Cari adjustment posted",
   "actions.cari.entry_void": "Cari entry voided",
-  "actions.cari.charge": "Cari charge posted",
-  "actions.cari.payment": "Cari payment posted",
-  "actions.cari.adjustment": "Cari adjustment posted",
-  "actions.cari.entry_void": "Cari entry voided",
+  "actions.jobs.create": "Service job created",
+  "actions.jobs.update": "Service job updated",
+  "actions.jobs.close": "Service job closed",
+  "actions.jobs.cancel": "Service job cancelled",
+  "actions.jobs.void": "Service job voided",
   "resources.vehicle_brand": "Vehicle brand",
   "resources.vehicle_model": "Vehicle model",
   "resources.customer": "Customer",
@@ -75,6 +76,7 @@
   "resources.cari.entry": "Cari entry",
   "resources.tenant.cari": "Cari accounts",
   "resources.tenant.cari.entries": "Cari statement",
-  "resources.cari.entry": "Cari entry",
-  "resources.cari.account": "Cari account"
+  "resources.cari.account": "Cari account",
+  "resources.jobs.job": "Service job",
+  "resources.tenant.jobs": "Service jobs"
 }

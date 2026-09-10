@@ -94,6 +94,7 @@ export type IoResource =
   | "tenant.finance.transactions"
   | "tenant.cari"
   | "tenant.cari.entries"
+  | "tenant.jobs"
   | "tenant.catalog.products"
   | "tenant.catalog.services"
   | "tenant.catalog.categories";
@@ -108,6 +109,7 @@ export const EXPORT_PATHS: Record<IoResource, string> = {
   "tenant.finance.transactions": "/v1/tenant/finance/transactions/export",
   "tenant.cari": "/v1/tenant/cari/export",
   "tenant.cari.entries": "/v1/tenant/cari/export",
+  "tenant.jobs": "/v1/tenant/jobs/export",
   "tenant.catalog.products": "/v1/tenant/exports",
   "tenant.catalog.services": "/v1/tenant/exports",
   "tenant.catalog.categories": "/v1/tenant/exports",

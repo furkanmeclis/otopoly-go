@@ -155,6 +155,7 @@
   "detail.source_type": "Kaynak türü",
   "detail.source": "Kaynak",
   "detail.source_cari_payment": "Cari tahsilat",
+  "detail.source_service_job": "İş emri",
   "detail.source_types.manual": "Manuel",
   "detail.source_types.cari_payment": "Cari tahsilat",
   "detail.source_types.service_job": "İş emri",

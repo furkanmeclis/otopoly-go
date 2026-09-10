@@ -49,6 +49,8 @@ type Querier interface {
 	CountPlatformNotifications(ctx context.Context, arg CountPlatformNotificationsParams) (int64, error)
 	CountProducts(ctx context.Context, arg CountProductsParams) (int64, error)
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
+	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
+	CountServiceJobsByCustomer(ctx context.Context, arg CountServiceJobsByCustomerParams) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountStorageActivity(ctx context.Context, objectKey string) (int64, error)
 	CountStorageTrash(ctx context.Context) (int64, error)
@@ -92,6 +94,10 @@ type Querier interface {
 	// Services
 	// ============================================================================
 	CreateService(ctx context.Context, arg CreateServiceParams) (Service, error)
+	// Tenant service jobs (operations / iş emri).
+	CreateServiceJob(ctx context.Context, arg CreateServiceJobParams) (ServiceJob, error)
+	CreateServiceJobLine(ctx context.Context, arg CreateServiceJobLineParams) (ServiceJobLine, error)
+	CreateServiceJobPayment(ctx context.Context, arg CreateServiceJobPaymentParams) (ServiceJobPayment, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// System-wide vehicle brand / model / year catalog.
 	CreateVehicleBrand(ctx context.Context, arg CreateVehicleBrandParams) (VehicleBrand, error)
@@ -123,6 +129,7 @@ type Querier interface {
 	GetCariAccountByID(ctx context.Context, arg GetCariAccountByIDParams) (CariAccount, error)
 	GetCariAccountByUUID(ctx context.Context, arg GetCariAccountByUUIDParams) (GetCariAccountByUUIDRow, error)
 	GetCariAccountForSearch(ctx context.Context, arg GetCariAccountForSearchParams) (GetCariAccountForSearchRow, error)
+	GetCariEntryBySource(ctx context.Context, arg GetCariEntryBySourceParams) (CariEntry, error)
 	GetCariEntryByUUID(ctx context.Context, arg GetCariEntryByUUIDParams) (GetCariEntryByUUIDRow, error)
 	GetCatalogCategoryByID(ctx context.Context, arg GetCatalogCategoryByIDParams) (CatalogCategory, error)
 	GetCatalogCategoryByName(ctx context.Context, arg GetCatalogCategoryByNameParams) (CatalogCategory, error)
@@ -130,6 +137,7 @@ type Querier interface {
 	GetCatalogStats(ctx context.Context, id int64) (GetCatalogStatsRow, error)
 	GetCustomerByUUID(ctx context.Context, arg GetCustomerByUUIDParams) (Customer, error)
 	GetCustomerVehicleByUUID(ctx context.Context, arg GetCustomerVehicleByUUIDParams) (CustomerVehicle, error)
+	GetCustomerVehicleDetailByUUID(ctx context.Context, arg GetCustomerVehicleDetailByUUIDParams) (GetCustomerVehicleDetailByUUIDRow, error)
 	GetExportJobByID(ctx context.Context, id int64) (ExportJob, error)
 	GetExportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ExportJob, error)
 	GetFinanceAccountByID(ctx context.Context, arg GetFinanceAccountByIDParams) (FinanceAccount, error)
@@ -175,6 +183,9 @@ type Querier interface {
 	GetServiceByName(ctx context.Context, arg GetServiceByNameParams) (Service, error)
 	GetServiceByUUID(ctx context.Context, arg GetServiceByUUIDParams) (GetServiceByUUIDRow, error)
 	GetServiceForSearch(ctx context.Context, arg GetServiceForSearchParams) (GetServiceForSearchRow, error)
+	GetServiceJobByID(ctx context.Context, arg GetServiceJobByIDParams) (ServiceJob, error)
+	GetServiceJobByUUID(ctx context.Context, arg GetServiceJobByUUIDParams) (GetServiceJobByUUIDRow, error)
+	GetServiceJobForSearch(ctx context.Context, arg GetServiceJobForSearchParams) (GetServiceJobForSearchRow, error)
 	GetStepupSettings(ctx context.Context) (StepupSetting, error)
 	GetStorageLinkBySlug(ctx context.Context, slug pgtype.Text) (StorageLink, error)
 	GetStorageLinkByTokenHash(ctx context.Context, tokenHash pgtype.Text) (StorageLink, error)
@@ -211,6 +222,8 @@ type Querier interface {
 	InsertUserRole(ctx context.Context, arg InsertUserRoleParams) error
 	InvalidateActiveOTPs(ctx context.Context, arg InvalidateActiveOTPsParams) error
 	LinkCariEntryFinanceTransaction(ctx context.Context, arg LinkCariEntryFinanceTransactionParams) (CariEntry, error)
+	LinkServiceJobPaymentCari(ctx context.Context, arg LinkServiceJobPaymentCariParams) (ServiceJobPayment, error)
+	LinkServiceJobPaymentFinance(ctx context.Context, arg LinkServiceJobPaymentFinanceParams) (ServiceJobPayment, error)
 	ListActivePublicKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActivePublicLinks(ctx context.Context) ([]StorageLink, error)
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID int64) ([]RefreshToken, error)
@@ -272,6 +285,12 @@ type Querier interface {
 	ListRolesFiltered(ctx context.Context, arg ListRolesFilteredParams) ([]Role, error)
 	ListRolesForExport(ctx context.Context, q_ pgtype.Text) ([]Role, error)
 	ListRolesForUserIDs(ctx context.Context, userIds []int64) ([]ListRolesForUserIDsRow, error)
+	ListServiceJobLines(ctx context.Context, arg ListServiceJobLinesParams) ([]ListServiceJobLinesRow, error)
+	ListServiceJobPayments(ctx context.Context, arg ListServiceJobPaymentsParams) ([]ListServiceJobPaymentsRow, error)
+	ListServiceJobs(ctx context.Context, arg ListServiceJobsParams) ([]ListServiceJobsRow, error)
+	ListServiceJobsByCustomer(ctx context.Context, arg ListServiceJobsByCustomerParams) ([]ListServiceJobsByCustomerRow, error)
+	ListServiceJobsForExport(ctx context.Context, arg ListServiceJobsForExportParams) ([]ListServiceJobsForExportRow, error)
+	ListServiceJobsForSearch(ctx context.Context) ([]ListServiceJobsForSearchRow, error)
 	ListServiceUUIDsForBulk(ctx context.Context, arg ListServiceUUIDsForBulkParams) ([]uuid.UUID, error)
 	ListServices(ctx context.Context, arg ListServicesParams) ([]ListServicesRow, error)
 	ListServicesForExport(ctx context.Context, arg ListServicesForExportParams) ([]ListServicesForExportRow, error)
@@ -322,6 +341,10 @@ type Querier interface {
 	MarkOutboxFailed(ctx context.Context, arg MarkOutboxFailedParams) error
 	MarkOutboxPublished(ctx context.Context, id int64) error
 	MarkOutboxRetry(ctx context.Context, arg MarkOutboxRetryParams) error
+	MarkServiceJobCancelled(ctx context.Context, arg MarkServiceJobCancelledParams) (ServiceJob, error)
+	MarkServiceJobDone(ctx context.Context, arg MarkServiceJobDoneParams) (ServiceJob, error)
+	MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaidParams) (ServiceJob, error)
+	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
 	PingDB(ctx context.Context) (int32, error)
 	QueueImportJob(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
 	RemoveUserRoleBySlug(ctx context.Context, arg RemoveUserRoleBySlugParams) error
@@ -353,6 +376,7 @@ type Querier interface {
 	SumCariBalances(ctx context.Context, organizationID int64) (SumCariBalancesRow, error)
 	SumFinanceExpensesByCategory(ctx context.Context, arg SumFinanceExpensesByCategoryParams) ([]SumFinanceExpensesByCategoryRow, error)
 	SumFinanceTransactionsByType(ctx context.Context, arg SumFinanceTransactionsByTypeParams) ([]SumFinanceTransactionsByTypeRow, error)
+	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
@@ -370,6 +394,7 @@ type Querier interface {
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
 	UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error)
+	UpdateServiceJobNotes(ctx context.Context, arg UpdateServiceJobNotesParams) (ServiceJob, error)
 	UpdateStepupSettings(ctx context.Context, arg UpdateStepupSettingsParams) (StepupSetting, error)
 	UpdateUserLastLogin(ctx context.Context, id int64) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
@@ -389,7 +414,9 @@ type Querier interface {
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)
 	VehicleModelYearExists(ctx context.Context, arg VehicleModelYearExistsParams) (bool, error)
 	VoidCariEntry(ctx context.Context, arg VoidCariEntryParams) (CariEntry, error)
+	VoidCariEntryBySource(ctx context.Context, arg VoidCariEntryBySourceParams) (CariEntry, error)
 	VoidFinanceTransaction(ctx context.Context, arg VoidFinanceTransactionParams) (FinanceTransaction, error)
+	VoidServiceJobPayment(ctx context.Context, arg VoidServiceJobPaymentParams) (ServiceJobPayment, error)
 }
 
 var _ Querier = (*Queries)(nil)

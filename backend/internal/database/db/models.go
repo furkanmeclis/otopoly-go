@@ -551,6 +551,67 @@ type Service struct {
 	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type ServiceJob struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	CustomerID     int64              `json:"customer_id"`
+	VehicleID      int64              `json:"vehicle_id"`
+	CustomerName   string             `json:"customer_name"`
+	CustomerPhone  string             `json:"customer_phone"`
+	Plate          string             `json:"plate"`
+	VehicleLabel   string             `json:"vehicle_label"`
+	Status         string             `json:"status"`
+	Currency       string             `json:"currency"`
+	Notes          string             `json:"notes"`
+	StartedAt      pgtype.Timestamptz `json:"started_at"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	PaidAt         pgtype.Timestamptz `json:"paid_at"`
+	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
+	TotalAmount    pgtype.Numeric     `json:"total_amount"`
+	CreatedBy      int64              `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ServiceJobLine struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	JobID          int64              `json:"job_id"`
+	LineType       string             `json:"line_type"`
+	ServiceID      pgtype.Int8        `json:"service_id"`
+	ProductID      pgtype.Int8        `json:"product_id"`
+	Name           string             `json:"name"`
+	UnitPrice      pgtype.Numeric     `json:"unit_price"`
+	Qty            pgtype.Numeric     `json:"qty"`
+	VatRate        pgtype.Numeric     `json:"vat_rate"`
+	LineTotal      pgtype.Numeric     `json:"line_total"`
+	Currency       string             `json:"currency"`
+	SortOrder      int32              `json:"sort_order"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ServiceJobPayment struct {
+	ID                   int64              `json:"id"`
+	Uuid                 uuid.UUID          `json:"uuid"`
+	OrganizationID       int64              `json:"organization_id"`
+	JobID                int64              `json:"job_id"`
+	Method               string             `json:"method"`
+	Amount               pgtype.Numeric     `json:"amount"`
+	Currency             string             `json:"currency"`
+	Status               string             `json:"status"`
+	FinanceAccountID     pgtype.Int8        `json:"finance_account_id"`
+	FinanceTransactionID pgtype.Int8        `json:"finance_transaction_id"`
+	CariEntryID          pgtype.Int8        `json:"cari_entry_id"`
+	CreatedBy            int64              `json:"created_by"`
+	VoidedAt             pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy             pgtype.Int8        `json:"voided_by"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
 type StepupSetting struct {
 	ID                        int16              `json:"id"`
 	TtlHours                  int32              `json:"ttl_hours"`

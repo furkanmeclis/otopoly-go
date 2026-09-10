@@ -155,6 +155,7 @@
   "detail.source_type": "Source type",
   "detail.source": "Source",
   "detail.source_cari_payment": "Cari collection",
+  "detail.source_service_job": "Service job",
   "detail.source_types.manual": "Manual",
   "detail.source_types.cari_payment": "Cari collection",
   "detail.source_types.service_job": "Service job",

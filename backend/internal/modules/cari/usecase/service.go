@@ -601,6 +601,143 @@ func (s *Service) VoidEntry(ctx context.Context, entryUUID uuid.UUID) (Entry, er
 	return mapGetEntry(detail), nil
 }
 
+// ChargeFromSourceInput posts a receivable charge linked to an external module event.
+type ChargeFromSourceInput struct {
+	CustomerID  int64
+	Amount      pgtype.Numeric
+	Currency    string
+	EntryDate   pgtype.Date
+	Description string
+	ReferenceNo *string
+	SourceType  string
+	SourceUUID  uuid.UUID
+	Metadata    json.RawMessage
+}
+
+// ChargeFromSourceTx increases cari balance inside an existing DB tx.
+func (s *Service) ChargeFromSourceTx(
+	ctx context.Context,
+	qtx *db.Queries,
+	actorID int64,
+	in ChargeFromSourceInput,
+) (db.CariEntry, error) {
+	if qtx == nil {
+		return db.CariEntry{}, fmt.Errorf("%w: queries required", ErrInvalidRequest)
+	}
+	orgID, err := s.requireOrgID(ctx)
+	if err != nil {
+		return db.CariEntry{}, err
+	}
+	sourceType := strings.TrimSpace(in.SourceType)
+	if sourceType == "" || in.SourceUUID == uuid.Nil {
+		return db.CariEntry{}, fmt.Errorf("%w: source_type and source_uuid are required", ErrInvalidRequest)
+	}
+	if !in.Amount.Valid || in.Amount.Int == nil || in.Amount.Int.Sign() <= 0 {
+		return db.CariEntry{}, fmt.Errorf("%w: amount must be positive", ErrInvalidRequest)
+	}
+	if err := EnsureAccountForCustomer(ctx, qtx, orgID, in.CustomerID, true); err != nil {
+		return db.CariEntry{}, err
+	}
+	account, err := qtx.GetCariAccountByCustomerID(ctx, db.GetCariAccountByCustomerIDParams{
+		CustomerID: in.CustomerID, OrganizationID: orgID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.CariEntry{}, ErrNotFound
+		}
+		return db.CariEntry{}, err
+	}
+	currency := strings.TrimSpace(in.Currency)
+	if currency == "" {
+		currency = account.Currency
+	}
+	if !strings.EqualFold(currency, account.Currency) {
+		return db.CariEntry{}, fmt.Errorf("%w: currency must match cari account", ErrInvalidRequest)
+	}
+	meta := in.Metadata
+	if len(meta) == 0 {
+		meta = []byte("{}")
+	}
+	adjusted, err := qtx.AdjustCariAccountBalance(ctx, db.AdjustCariAccountBalanceParams{
+		ID: account.ID, OrganizationID: orgID, Balance: in.Amount,
+	})
+	if err != nil {
+		return db.CariEntry{}, err
+	}
+	desc := strings.TrimSpace(in.Description)
+	if desc == "" {
+		desc = "İş emri veresiye"
+	}
+	return qtx.CreateCariEntry(ctx, db.CreateCariEntryParams{
+		OrganizationID:       orgID,
+		AccountID:            account.ID,
+		Type:                 "charge",
+		Amount:               in.Amount,
+		BalanceAfter:         adjusted.Balance,
+		EntryDate:            in.EntryDate,
+		Description:          desc,
+		ReferenceNo:          optionalText(in.ReferenceNo),
+		PaymentMethod:        pgtype.Text{},
+		FinanceAccountID:     pgtype.Int8{},
+		FinanceTransactionID: pgtype.Int8{},
+		CreatedBy:            actorID,
+		SourceType:           pgtype.Text{String: sourceType, Valid: true},
+		SourceUuid:           pgtype.UUID{Bytes: in.SourceUUID, Valid: true},
+		Metadata:             meta,
+	})
+}
+
+// VoidBySourceTx voids a posted cari entry matched by source_type + source_uuid and reverses balance.
+func (s *Service) VoidBySourceTx(
+	ctx context.Context,
+	qtx *db.Queries,
+	actorID int64,
+	sourceType string,
+	sourceUUID uuid.UUID,
+) (db.CariEntry, error) {
+	if qtx == nil {
+		return db.CariEntry{}, fmt.Errorf("%w: queries required", ErrInvalidRequest)
+	}
+	orgID, err := s.requireOrgID(ctx)
+	if err != nil {
+		return db.CariEntry{}, err
+	}
+	sourceType = strings.TrimSpace(sourceType)
+	if sourceType == "" || sourceUUID == uuid.Nil {
+		return db.CariEntry{}, fmt.Errorf("%w: source_type and source_uuid are required", ErrInvalidRequest)
+	}
+	row, err := qtx.GetCariEntryBySource(ctx, db.GetCariEntryBySourceParams{
+		OrganizationID: orgID,
+		SourceType:     pgtype.Text{String: sourceType, Valid: true},
+		SourceUuid:     pgtype.UUID{Bytes: sourceUUID, Valid: true},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.CariEntry{}, ErrNotFound
+		}
+		return db.CariEntry{}, err
+	}
+	voided, err := qtx.VoidCariEntry(ctx, db.VoidCariEntryParams{
+		Uuid: row.Uuid, OrganizationID: orgID, VoidedBy: pgtype.Int8{Int64: actorID, Valid: true},
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.CariEntry{}, ErrNotFound
+		}
+		return db.CariEntry{}, err
+	}
+	delta := numericNeg(row.Amount) // charge void decreases receivable
+	if row.Type == "payment" {
+		delta = row.Amount
+	}
+	if _, err := qtx.AdjustCariAccountBalance(ctx, db.AdjustCariAccountBalanceParams{
+		ID: row.AccountID, OrganizationID: orgID, Balance: delta,
+	}); err != nil {
+		return db.CariEntry{}, err
+	}
+	return voided, nil
+}
+
 func directionFromMetadata(raw []byte) string {
 	var m map[string]any
 	if err := json.Unmarshal(raw, &m); err != nil {
@@ -795,16 +932,36 @@ func mapCreatedEntry(row db.CariEntry, accountUUID uuid.UUID) Entry {
 	return e
 }
 
-// EnsureAccountForCustomer creates a TRY cari account for a customer (same tx via q).
+// EnsureAccountForCustomer ensures a TRY cari account exists for a customer (same tx via q).
+// Idempotent: existing accounts are left as-is (customer create + job close both call this).
 func EnsureAccountForCustomer(ctx context.Context, q *db.Queries, orgID, customerID int64, active bool) error {
+	_, err := q.GetCariAccountByCustomerID(ctx, db.GetCariAccountByCustomerIDParams{
+		CustomerID: customerID, OrganizationID: orgID,
+	})
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
 	var zero pgtype.Numeric
 	_ = zero.Scan("0")
-	_, err := q.CreateCariAccount(ctx, db.CreateCariAccountParams{
+	_, err = q.CreateCariAccount(ctx, db.CreateCariAccountParams{
 		OrganizationID: orgID,
 		CustomerID:     customerID,
 		Currency:       "TRY",
 		Balance:        zero,
 		IsActive:       active,
 	})
+	if err == nil {
+		return nil
+	}
+	// Concurrent create or soft-deleted row still holding uq_cari_accounts_customer.
+	_, getErr := q.GetCariAccountByCustomerID(ctx, db.GetCariAccountByCustomerIDParams{
+		CustomerID: customerID, OrganizationID: orgID,
+	})
+	if getErr == nil {
+		return nil
+	}
 	return err
 }

@@ -549,3 +549,30 @@ func TenantCari() ResourceMeta {
 		},
 	}
 }
+
+// TenantJobs returns meta for GET /v1/tenant/jobs.
+func TenantJobs() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.jobs",
+		DefaultSort:   "-started_at",
+		DefaultFields: []string{"uuid", "plate", "customer_name", "vehicle_label", "status", "total_amount", "started_at"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: false,
+			Search: true, Filter: true, Sort: true, Export: true,
+		},
+		SearchableFields: []string{"plate", "customer_name", "vehicle_label"},
+		SortableFields:   []string{"started_at", "total_amount", "plate"},
+		FilterableFields: []string{"status"},
+		Columns: []Column{
+			{Key: "plate", LabelKey: "jobs.plate", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "customer_name", LabelKey: "jobs.customer_name", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "vehicle_label", LabelKey: "jobs.vehicle_label", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "jobs.status", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "total_amount", LabelKey: "jobs.total_amount", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "started_at", LabelKey: "jobs.started_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "jobs.status", Variant: FilterVariantFaceted},
+		},
+	}
+}
