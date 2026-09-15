@@ -137,7 +137,6 @@ export function useCariMutations() {
     voidEntry: useMutation({
       mutationFn: ({
         entryUuid,
-        accountUuid,
       }: {
         entryUuid: string;
         accountUuid: string;

@@ -25,6 +25,25 @@ const (
 	JobsVoided    = "jobs.voided"
 )
 
+// Sales (quick product sales) domain events.
+const (
+	SalesCreated = "sales.created"
+	SalesVoided  = "sales.voided"
+)
+
+// Suppliers domain events.
+const (
+	SuppliersCreated = "suppliers.created"
+	SuppliersUpdated = "suppliers.updated"
+	SuppliersDeleted = "suppliers.deleted"
+)
+
+// Purchases (stock purchase) domain events.
+const (
+	PurchasesCreated = "purchases.created"
+	PurchasesVoided  = "purchases.voided"
+)
+
 // Customer domain events (ADR catalog v1).
 // Archive is the archived flag → customers.flag_added / flag_removed (no customers.archived).
 const (
@@ -231,6 +250,13 @@ func catalogConstants() []string {
 		JobsClosed,
 		JobsCancelled,
 		JobsVoided,
+		SalesCreated,
+		SalesVoided,
+		SuppliersCreated,
+		SuppliersUpdated,
+		SuppliersDeleted,
+		PurchasesCreated,
+		PurchasesVoided,
 		CustomersCreated,
 		CustomersUpdated,
 		CustomersDeleted,

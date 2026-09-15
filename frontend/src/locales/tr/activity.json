@@ -70,6 +70,13 @@
   "actions.jobs.close": "İş emri kapatıldı",
   "actions.jobs.cancel": "İş emri iptal edildi",
   "actions.jobs.void": "İş emri geçersiz kılındı",
+  "actions.tenant.sales.create": "Ürün satışı oluşturuldu",
+  "actions.tenant.sales.void": "Ürün satışı void edildi",
+  "actions.tenant.supplier.create": "Tedarikçi oluşturuldu",
+  "actions.tenant.supplier.update": "Tedarikçi güncellendi",
+  "actions.tenant.supplier.delete": "Tedarikçi silindi",
+  "actions.tenant.purchases.create": "Alış oluşturuldu",
+  "actions.tenant.purchases.void": "Alış void edildi",
   "resources.vehicle_brand": "Araç markası",
   "resources.vehicle_model": "Araç modeli",
   "resources.customer": "Müşteri",
@@ -79,5 +86,11 @@
   "resources.tenant.cari.entries": "Cari ekstre",
   "resources.cari.account": "Cari hesap",
   "resources.jobs.job": "İş emri",
-  "resources.tenant.jobs": "İş emirleri"
+  "resources.tenant.jobs": "İş emirleri",
+  "resources.sale": "Satış",
+  "resources.tenant.sales": "Satışlar",
+  "resources.supplier": "Tedarikçi",
+  "resources.tenant.suppliers": "Tedarikçiler",
+  "resources.purchase": "Alış",
+  "resources.tenant.purchases": "Alışlar"
 }

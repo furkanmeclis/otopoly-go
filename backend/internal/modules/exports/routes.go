@@ -64,6 +64,15 @@ func RegisterRoutes(
 	jobsExport := func(handler http.HandlerFunc) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantJobsExport))
 	}
+	salesExport := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantSalesExport))
+	}
+	suppliersExport := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantSuppliersExport))
+	}
+	purchasesExport := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantPurchasesExport))
+	}
 	mux.Handle("GET /v1/tenant/exports", tenantExport(h.ListTenant))
 	mux.Handle("GET /v1/tenant/exports/{uuid}", tenantExport(h.GetTenant))
 	mux.Handle("GET /v1/tenant/exports/{uuid}/download", tenantExport(h.DownloadTenant))
@@ -73,4 +82,7 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/tenant/cari/export", cariExport(h.RequestCariExport))
 	mux.Handle("POST /v1/tenant/cari/{uuid}/entries/export", cariExport(h.RequestCariEntriesExport))
 	mux.Handle("POST /v1/tenant/jobs/export", jobsExport(h.RequestJobsExport))
+	mux.Handle("POST /v1/tenant/sales/export", salesExport(h.RequestSalesExport))
+	mux.Handle("POST /v1/tenant/suppliers/export", suppliersExport(h.RequestSuppliersExport))
+	mux.Handle("POST /v1/tenant/purchases/export", purchasesExport(h.RequestPurchasesExport))
 }

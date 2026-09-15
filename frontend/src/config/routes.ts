@@ -53,6 +53,18 @@ export const routes = {
       root: (slug: string) => `/t/${slug}/operations`,
       detail: (slug: string, uuid: string) => `/t/${slug}/operations/${uuid}`,
     },
+    sales: {
+      root: (slug: string) => `/t/${slug}/sales`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/sales/${uuid}`,
+    },
+    suppliers: {
+      root: (slug: string) => `/t/${slug}/suppliers`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/suppliers/${uuid}`,
+    },
+    purchases: {
+      root: (slug: string) => `/t/${slug}/purchases`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/purchases/${uuid}`,
+    },
     catalog: {
       root: (slug: string) => `/t/${slug}/catalog/products`,
       products: {

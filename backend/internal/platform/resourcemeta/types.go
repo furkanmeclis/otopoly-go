@@ -576,3 +576,80 @@ func TenantJobs() ResourceMeta {
 		},
 	}
 }
+
+// TenantSales returns meta for GET /v1/tenant/sales.
+func TenantSales() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.sales",
+		DefaultSort:   "-sold_at",
+		DefaultFields: []string{"uuid", "customer_name", "method", "status", "total_amount", "sold_at"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: false, Delete: false,
+			Search: true, Filter: true, Sort: true, Export: true,
+		},
+		SearchableFields: []string{"customer_name", "customer_phone", "notes"},
+		SortableFields:   []string{"sold_at", "total_amount"},
+		FilterableFields: []string{"status"},
+		Columns: []Column{
+			{Key: "customer_name", LabelKey: "sales.customer_name", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "method", LabelKey: "sales.method", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "sales.status", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "total_amount", LabelKey: "sales.total_amount", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "sold_at", LabelKey: "sales.sold_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "sales.status", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
+// TenantSuppliers returns meta for GET /v1/tenant/suppliers.
+func TenantSuppliers() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.suppliers",
+		DefaultSort:   "name",
+		DefaultFields: []string{"uuid", "name", "phone", "email", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true,
+			Search: true, Filter: true, Sort: true, Export: true,
+		},
+		SearchableFields: []string{"name", "phone", "email", "tax_id"},
+		SortableFields:   []string{"name", "created_at"},
+		FilterableFields: []string{"is_active"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "suppliers.name", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "phone", LabelKey: "suppliers.phone", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "email", LabelKey: "suppliers.email", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "suppliers.is_active", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "is_active", LabelKey: "suppliers.is_active", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
+// TenantPurchases returns meta for GET /v1/tenant/purchases.
+func TenantPurchases() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.purchases",
+		DefaultSort:   "-purchased_at",
+		DefaultFields: []string{"uuid", "supplier_name", "method", "status", "total_amount", "purchased_at"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: false, Delete: false,
+			Search: true, Filter: true, Sort: true, Export: true,
+		},
+		SearchableFields: []string{"supplier_name", "notes"},
+		SortableFields:   []string{"purchased_at", "total_amount"},
+		FilterableFields: []string{"status"},
+		Columns: []Column{
+			{Key: "supplier_name", LabelKey: "purchases.supplier_name", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "method", LabelKey: "purchases.method", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "purchases.status", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "total_amount", LabelKey: "purchases.total_amount", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "purchased_at", LabelKey: "purchases.purchased_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "purchases.status", Variant: FilterVariantFaceted},
+		},
+	}
+}

@@ -266,13 +266,13 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 	}
 
 	type preparedLine struct {
-		serviceID  int64
-		name       string
-		unitPrice  pgtype.Numeric
-		qty        pgtype.Numeric
-		vatRate    pgtype.Numeric
-		lineTotal  pgtype.Numeric
-		currency   string
+		serviceID int64
+		name      string
+		unitPrice pgtype.Numeric
+		qty       pgtype.Numeric
+		vatRate   pgtype.Numeric
+		lineTotal pgtype.Numeric
+		currency  string
 	}
 	prepared := make([]preparedLine, 0, len(in.Lines))
 	total := big.NewRat(0, 1)

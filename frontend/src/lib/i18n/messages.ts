@@ -24,6 +24,9 @@ import enCatalog from "@/locales/en/catalog.json";
 import enCustomers from "@/locales/en/customers.json";
 import enCari from "@/locales/en/cari.json";
 import enJobs from "@/locales/en/jobs.json";
+import enSales from "@/locales/en/sales.json";
+import enSuppliers from "@/locales/en/suppliers.json";
+import enPurchases from "@/locales/en/purchases.json";
 import enVehicleBrands from "@/locales/en/vehicle_brands.json";
 import enRegister from "@/locales/en/register.json";
 import enPermissions from "@/locales/en/permissions.json";
@@ -60,6 +63,9 @@ import trCatalog from "@/locales/tr/catalog.json";
 import trCustomers from "@/locales/tr/customers.json";
 import trCari from "@/locales/tr/cari.json";
 import trJobs from "@/locales/tr/jobs.json";
+import trSales from "@/locales/tr/sales.json";
+import trSuppliers from "@/locales/tr/suppliers.json";
+import trPurchases from "@/locales/tr/purchases.json";
 import trVehicleBrands from "@/locales/tr/vehicle_brands.json";
 import trRegister from "@/locales/tr/register.json";
 import trPermissions from "@/locales/tr/permissions.json";
@@ -110,6 +116,9 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     customers: trCustomers,
     cari: trCari,
     jobs: trJobs,
+    sales: trSales,
+    suppliers: trSuppliers,
+    purchases: trPurchases,
     vehicle_brands: trVehicleBrands,
     register: trRegister,
     stepup: trStepup,
@@ -148,6 +157,9 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     customers: enCustomers,
     cari: enCari,
     jobs: enJobs,
+    sales: enSales,
+    suppliers: enSuppliers,
+    purchases: enPurchases,
     vehicle_brands: enVehicleBrands,
     register: enRegister,
     stepup: enStepup,

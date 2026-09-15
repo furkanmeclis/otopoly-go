@@ -493,6 +493,83 @@ type Product struct {
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type ProductSale struct {
+	ID                   int64              `json:"id"`
+	Uuid                 uuid.UUID          `json:"uuid"`
+	OrganizationID       int64              `json:"organization_id"`
+	CustomerID           pgtype.Int8        `json:"customer_id"`
+	CustomerName         string             `json:"customer_name"`
+	CustomerPhone        string             `json:"customer_phone"`
+	Status               string             `json:"status"`
+	Currency             string             `json:"currency"`
+	TotalAmount          pgtype.Numeric     `json:"total_amount"`
+	Method               string             `json:"method"`
+	FinanceAccountID     pgtype.Int8        `json:"finance_account_id"`
+	FinanceTransactionID pgtype.Int8        `json:"finance_transaction_id"`
+	CariEntryID          pgtype.Int8        `json:"cari_entry_id"`
+	Notes                string             `json:"notes"`
+	SoldAt               pgtype.Timestamptz `json:"sold_at"`
+	CreatedBy            int64              `json:"created_by"`
+	VoidedAt             pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy             pgtype.Int8        `json:"voided_by"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ProductSaleLine struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	SaleID         int64              `json:"sale_id"`
+	ProductID      int64              `json:"product_id"`
+	Name           string             `json:"name"`
+	UnitPrice      pgtype.Numeric     `json:"unit_price"`
+	Qty            pgtype.Numeric     `json:"qty"`
+	VatRate        pgtype.Numeric     `json:"vat_rate"`
+	LineTotal      pgtype.Numeric     `json:"line_total"`
+	Currency       string             `json:"currency"`
+	SortOrder      int32              `json:"sort_order"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Purchase struct {
+	ID                   int64              `json:"id"`
+	Uuid                 uuid.UUID          `json:"uuid"`
+	OrganizationID       int64              `json:"organization_id"`
+	SupplierID           int64              `json:"supplier_id"`
+	SupplierName         string             `json:"supplier_name"`
+	Status               string             `json:"status"`
+	Currency             string             `json:"currency"`
+	TotalAmount          pgtype.Numeric     `json:"total_amount"`
+	Method               string             `json:"method"`
+	FinanceAccountID     pgtype.Int8        `json:"finance_account_id"`
+	FinanceTransactionID pgtype.Int8        `json:"finance_transaction_id"`
+	Notes                string             `json:"notes"`
+	PurchasedAt          pgtype.Timestamptz `json:"purchased_at"`
+	CreatedBy            int64              `json:"created_by"`
+	VoidedAt             pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy             pgtype.Int8        `json:"voided_by"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+type PurchaseLine struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	PurchaseID     int64              `json:"purchase_id"`
+	ProductID      int64              `json:"product_id"`
+	Name           string             `json:"name"`
+	UnitCost       pgtype.Numeric     `json:"unit_cost"`
+	Qty            pgtype.Numeric     `json:"qty"`
+	LineTotal      pgtype.Numeric     `json:"line_total"`
+	Currency       string             `json:"currency"`
+	SortOrder      int32              `json:"sort_order"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type PushSubscription struct {
 	ID        int64              `json:"id"`
 	Uuid      uuid.UUID          `json:"uuid"`
@@ -678,6 +755,21 @@ type StorageTrash struct {
 	DeletedBy   pgtype.Int8        `json:"deleted_by"`
 	DeletedAt   pgtype.Timestamptz `json:"deleted_at"`
 	ExpiresAt   pgtype.Timestamptz `json:"expires_at"`
+}
+
+type Supplier struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Name           string             `json:"name"`
+	Phone          string             `json:"phone"`
+	Email          string             `json:"email"`
+	TaxID          string             `json:"tax_id"`
+	Notes          string             `json:"notes"`
+	IsActive       bool               `json:"is_active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 }
 
 type User struct {

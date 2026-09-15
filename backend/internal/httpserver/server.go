@@ -30,12 +30,10 @@ import (
 	bulkmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk"
 	bulkhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/handler"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
-	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
-	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
 	carimodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari"
 	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
-	jobsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs"
-	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
+	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
+	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
 	customersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers"
 	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
@@ -52,6 +50,8 @@ import (
 	oauthprovidermodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider"
 	oauthproviderhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider/handler"
 	oauthproviderusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider/usecase"
+	jobsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs"
+	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
@@ -61,6 +61,10 @@ import (
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
 	orgmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
+	purchasesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases"
+	purchasesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases/usecase"
+	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
+	salesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales/usecase"
 	searchmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search"
 	searchhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/handler"
 	searchusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/usecase"
@@ -70,6 +74,8 @@ import (
 	storagemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage"
 	storagehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/handler"
 	storageusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/usecase"
+	suppliersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/suppliers"
+	suppliersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/suppliers/usecase"
 	vehiclemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog"
 	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
 	vehicleusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
@@ -191,6 +197,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		searchadapters.NewVehicleModelYears(deps.Queries),
 		searchadapters.NewCariAccounts(deps.Queries),
 		searchadapters.NewJobs(deps.Queries),
+		searchadapters.NewSales(deps.Queries),
+		searchadapters.NewSuppliers(deps.Queries),
+		searchadapters.NewPurchases(deps.Queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, deps.Queue, log)
@@ -260,6 +269,18 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	jobsSvc.SetSearchIndexer(searchIndexer)
 	jobsSvc.SetEventBus(eventBus)
 	jobsmodule.RegisterRoutes(mux, jobsSvc, tokens, loader, deps.Queries)
+	salesSvc := salesusecase.New(deps.DB, deps.Queries, activityRec, financeSvc, cariSvc)
+	salesSvc.SetSearchIndexer(searchIndexer)
+	salesSvc.SetEventBus(eventBus)
+	salesmodule.RegisterRoutes(mux, salesSvc, tokens, loader, deps.Queries)
+	suppliersSvc := suppliersusecase.New(deps.DB, deps.Queries, activityRec)
+	suppliersSvc.SetSearchIndexer(searchIndexer)
+	suppliersSvc.SetEventBus(eventBus)
+	suppliersmodule.RegisterRoutes(mux, suppliersSvc, tokens, loader, deps.Queries)
+	purchasesSvc := purchasesusecase.New(deps.DB, deps.Queries, activityRec, financeSvc)
+	purchasesSvc.SetSearchIndexer(searchIndexer)
+	purchasesSvc.SetEventBus(eventBus)
+	purchasesmodule.RegisterRoutes(mux, purchasesSvc, tokens, loader, deps.Queries)
 	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
@@ -281,6 +302,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		ioadapters.NewCariAccounts(deps.Queries),
 		ioadapters.NewCariEntries(deps.Queries),
 		ioadapters.NewJobs(deps.Queries),
+		ioadapters.NewSales(deps.Queries),
+		ioadapters.NewSuppliers(deps.Queries),
+		ioadapters.NewPurchases(deps.Queries),
 	)
 	exportSvc := exportusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
 	importSvc := importusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)

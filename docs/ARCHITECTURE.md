@@ -75,13 +75,13 @@ Tenant export (`POST /v1/tenant/finance/{accounts,categories,transactions}/expor
 
 **Integration hooks (future modules):** `finance_transactions.source_type` + `source_uuid` link external domain events without duplicating money rows.
 
-| `source_type` | Future use |
-|---------------|------------|
+| `source_type` | Use |
+|---------------|-----|
 | `manual` | User-entered income/expense/transfer (MVP default) |
 | `cari_payment` | Cari collection posted from tenant cari module |
 | `service_job` | Car-wash job payment posted on close |
-| `product_sale` | Quick product sale from operations module |
-| `purchase` | Stock purchase / supplier expense |
+| `product_sale` | Quick product sale (`/v1/tenant/sales`) |
+| `purchase` | Stock purchase from supplier (`/v1/tenant/purchases`) |
 
 Optional `metadata` JSONB carries module-specific flags. Open receivable is modeled as a `cari` charge (positive balance); do not use `pending_receivable` once the cari module is active.
 
@@ -101,6 +101,49 @@ Organization-scoped car-wash service jobs under `/v1/tenant/jobs/*`. UI path is 
 - **cash / card** — posts finance income (`source_type=service_job`, `source_uuid` = payment UUID, category **Hizmet Geliri**). No cari charge.
 - **cari (veresiye)** — posts cari charge via `ChargeFromSourceTx` (`source_type=service_job`, `source_uuid` = payment UUID). No finance income. Later collection uses existing cari payment → `cari_payment`.
 - **void** — voids each posted payment; cash/card → `VoidBySourceTx` finance; cari → cari `VoidBySourceTx`.
+
+## Tenant sales (`/t/{slug}/sales`)
+
+One-shot quick product sales under `/v1/tenant/sales/*`. Customer is optional. Create posts stock, finance, and/or cari in one transaction.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.sales.read` | `organization_user` (+ owner) | List, summary, detail |
+| `tenant.sales.write` | `organization_owner` + owner membership | Create, void |
+| `tenant.sales.export` | owners + staff | Sale list export |
+
+**Core tables:** `product_sales`, `product_sale_lines`.
+
+**Create flows:**
+- **cash / card** — income with `source_type=product_sale`, category **Ürün Satışı**; decrements `track_stock` products.
+- **cari** — requires `customer_uuid`; cari charge with `source_type=product_sale`; no finance income.
+- **void** — restores stock; voids linked finance or cari by source.
+
+## Tenant suppliers (`/t/{slug}/suppliers`)
+
+Supplier (firma) cards under `/v1/tenant/suppliers/*`. Separate from customers; no supplier AP/cari in this MVP.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.suppliers.read` | `organization_user` (+ owner) | List, detail |
+| `tenant.suppliers.write` | `organization_owner` + owner membership | Create, update, soft-delete |
+| `tenant.suppliers.export` | owners + staff | Export |
+
+Soft-delete is blocked while the supplier has posted purchases.
+
+## Tenant purchases (`/t/{slug}/purchases`)
+
+Peşin stock purchases under `/v1/tenant/purchases/*`. Always paid at create (`cash` \| `card`).
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.purchases.read` | `organization_user` (+ owner) | List, detail |
+| `tenant.purchases.write` | `organization_owner` + owner membership | Create, void |
+| `tenant.purchases.export` | owners + staff | Export |
+
+**Core tables:** `purchases`, `purchase_lines`.
+
+**Create:** expense with `source_type=purchase`, category **Stok Alımı**; increases `track_stock` products. **Void** reverses stock and expense via `VoidBySourceTx`.
 
 ## Tenant cari (`/t/{slug}/cari`)
 

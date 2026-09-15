@@ -105,6 +105,9 @@ func main() {
 		ioadapters.NewCariAccounts(queries),
 		ioadapters.NewCariEntries(queries),
 		ioadapters.NewJobs(queries),
+		ioadapters.NewSales(queries),
+		ioadapters.NewSuppliers(queries),
+		ioadapters.NewPurchases(queries),
 	)
 	exportSvc := exportusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
 	importSvc := importusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
@@ -129,6 +132,9 @@ func main() {
 		searchadapters.NewVehicleModelYears(queries),
 		searchadapters.NewCariAccounts(queries),
 		searchadapters.NewJobs(queries),
+		searchadapters.NewSales(queries),
+		searchadapters.NewSuppliers(queries),
+		searchadapters.NewPurchases(queries),
 	)
 	searchClient := searchengine.NewClient(cfg.Search, log)
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, nil, log)

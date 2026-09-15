@@ -7,16 +7,16 @@ import (
 )
 
 type Line struct {
-	UUID         uuid.UUID  `json:"uuid"`
-	LineType     string     `json:"line_type"`
-	ServiceUUID  *uuid.UUID `json:"service_uuid,omitempty"`
-	Name         string     `json:"name"`
-	UnitPrice    string     `json:"unit_price"`
-	Qty          string     `json:"qty"`
-	VatRate      string     `json:"vat_rate"`
-	LineTotal    string     `json:"line_total"`
-	Currency     string     `json:"currency"`
-	SortOrder    int32      `json:"sort_order"`
+	UUID        uuid.UUID  `json:"uuid"`
+	LineType    string     `json:"line_type"`
+	ServiceUUID *uuid.UUID `json:"service_uuid,omitempty"`
+	Name        string     `json:"name"`
+	UnitPrice   string     `json:"unit_price"`
+	Qty         string     `json:"qty"`
+	VatRate     string     `json:"vat_rate"`
+	LineTotal   string     `json:"line_total"`
+	Currency    string     `json:"currency"`
+	SortOrder   int32      `json:"sort_order"`
 }
 
 type Payment struct {
@@ -59,12 +59,12 @@ type JobDetail struct {
 }
 
 type Summary struct {
-	JobCount   int64  `json:"job_count"`
-	CardTotal  string `json:"card_total"`
-	CariTotal  string `json:"cari_total"`
-	NetTotal   string `json:"net_total"`
-	PaidTotal  string `json:"paid_total"`
-	Date       string `json:"date"`
+	JobCount  int64  `json:"job_count"`
+	CardTotal string `json:"card_total"`
+	CariTotal string `json:"cari_total"`
+	NetTotal  string `json:"net_total"`
+	PaidTotal string `json:"paid_total"`
+	Date      string `json:"date"`
 }
 
 type ListFilters struct {

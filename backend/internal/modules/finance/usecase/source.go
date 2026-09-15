@@ -20,8 +20,20 @@ const SourceCariPayment = "cari_payment"
 // SourceServiceJob is the finance_transactions.source_type for job close payments.
 const SourceServiceJob = "service_job"
 
+// SourceProductSale is the finance_transactions.source_type for quick product sales.
+const SourceProductSale = "product_sale"
+
+// SourcePurchase is the finance_transactions.source_type for stock purchases.
+const SourcePurchase = "purchase"
+
 // CategoryServiceIncome is the seeded income category for service job cash/card closes.
 const CategoryServiceIncome = "Hizmet Geliri"
+
+// CategoryProductSale is the seeded income category for quick product sales.
+const CategoryProductSale = "Ürün Satışı"
+
+// CategoryStockPurchase is the seeded expense category for stock purchases.
+const CategoryStockPurchase = "Stok Alımı"
 
 // PostFromSourceInput posts an income row linked to an external module event.
 type PostFromSourceInput struct {
@@ -92,6 +104,59 @@ func (s *Service) PostIncomeFromSourceTx(
 	return row, nil
 }
 
+// PostExpenseFromSourceTx creates a posted expense transaction inside an existing DB tx.
+func (s *Service) PostExpenseFromSourceTx(
+	ctx context.Context,
+	qtx *db.Queries,
+	actorID int64,
+	in PostFromSourceInput,
+) (db.FinanceTransaction, error) {
+	if qtx == nil {
+		return db.FinanceTransaction{}, fmt.Errorf("%w: queries required", ErrInvalidRequest)
+	}
+	orgID := orgctx.MustScope(ctx).InternalID
+	sourceType := strings.TrimSpace(in.SourceType)
+	if sourceType == "" || in.SourceUUID == uuid.Nil {
+		return db.FinanceTransaction{}, fmt.Errorf("%w: source_type and source_uuid are required", ErrInvalidRequest)
+	}
+	paymentMethod := strings.TrimSpace(in.PaymentMethod)
+	if paymentMethod == "" {
+		paymentMethod = "cash"
+	}
+	meta := in.Metadata
+	if len(meta) == 0 {
+		meta = []byte("{}")
+	}
+	row, err := qtx.CreateFinanceTransaction(ctx, db.CreateFinanceTransactionParams{
+		OrganizationID:   orgID,
+		Type:             "expense",
+		AccountID:        in.AccountID,
+		CounterAccountID: pgtype.Int8{},
+		CategoryID:       pgtype.Int8{Int64: in.CategoryID, Valid: true},
+		Amount:           in.Amount,
+		Currency:         in.Currency,
+		TransactionDate:  in.TransactionDate,
+		Description:      strings.TrimSpace(in.Description),
+		ReferenceNo:      optionalText(in.ReferenceNo),
+		PaymentMethod:    paymentMethod,
+		CreatedBy:        actorID,
+		SourceType:       pgtype.Text{String: sourceType, Valid: true},
+		SourceUuid:       pgtype.UUID{Bytes: in.SourceUUID, Valid: true},
+		Metadata:         meta,
+	})
+	if err != nil {
+		return db.FinanceTransaction{}, err
+	}
+	if _, err := qtx.AdjustFinanceAccountBalance(ctx, db.AdjustFinanceAccountBalanceParams{
+		ID:             in.AccountID,
+		OrganizationID: orgID,
+		CurrentBalance: numericNeg(in.Amount),
+	}); err != nil {
+		return db.FinanceTransaction{}, err
+	}
+	return row, nil
+}
+
 // VoidBySourceTx voids a posted finance transaction matched by source_type + source_uuid.
 func (s *Service) VoidBySourceTx(
 	ctx context.Context,
@@ -130,11 +195,20 @@ func (s *Service) VoidBySourceTx(
 		}
 		return db.FinanceTransaction{}, err
 	}
-	if row.Type == "income" {
+	switch row.Type {
+	case "income":
 		if _, err := qtx.AdjustFinanceAccountBalance(ctx, db.AdjustFinanceAccountBalanceParams{
 			ID:             row.AccountID,
 			OrganizationID: orgID,
 			CurrentBalance: numericNeg(row.Amount),
+		}); err != nil {
+			return db.FinanceTransaction{}, err
+		}
+	case "expense":
+		if _, err := qtx.AdjustFinanceAccountBalance(ctx, db.AdjustFinanceAccountBalanceParams{
+			ID:             row.AccountID,
+			OrganizationID: orgID,
+			CurrentBalance: row.Amount,
 		}); err != nil {
 			return db.FinanceTransaction{}, err
 		}

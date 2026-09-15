@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, ShoppingBag } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 import { z } from "zod";
 
@@ -66,6 +66,8 @@ import type {
   JobStatus,
 } from "@/features/jobs/services/jobs.service";
 import { DashboardStatCard } from "@/features/platform-overview/components/dashboard-stat-card";
+import { QuickSaleDialog } from "@/features/sales/components/quick-sale-dialog";
+import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { Label } from "@/components/ui/label";
 import { datetime } from "@/lib/utils/format";
@@ -94,6 +96,7 @@ export function JobsPage({ slug }: { slug: string }) {
   const { t, locale } = useLocale();
   const router = useRouter();
   const { canRead, canWrite } = useTenantJobsAccess(slug);
+  const { canWrite: canWriteSales } = useTenantSalesAccess(slug);
   const mutations = useJobsMutations();
 
   const [date, setDate] = useState(() => financeToday());
@@ -102,6 +105,7 @@ export function JobsPage({ slug }: { slug: string }) {
   const [q, setQ] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [quickSaleOpen, setQuickSaleOpen] = useState(false);
 
   const listParams = useMemo(
     () => ({
@@ -146,12 +150,29 @@ export function JobsPage({ slug }: { slug: string }) {
         { label: t("jobs.title") },
       ]}
       actions={
-        canWrite ? (
+        canWrite || canWriteSales ? (
           <EntityActions>
-            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus className="size-4" />
-              {t("jobs.actions.create")}
-            </Button>
+            {canWrite ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="size-4" />
+                {t("jobs.actions.create")}
+              </Button>
+            ) : null}
+            {canWriteSales ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setQuickSaleOpen(true)}
+              >
+                <ShoppingBag className="size-4" />
+                {t("sales.quick.title")}
+              </Button>
+            ) : null}
           </EntityActions>
         ) : null
       }
@@ -277,6 +298,13 @@ export function JobsPage({ slug }: { slug: string }) {
           const created = await mutations.create.mutateAsync(body);
           setCreateOpen(false);
           router.push(routes.tenant.operations.detail(slug, created.uuid));
+        }}
+      />
+      <QuickSaleDialog
+        open={quickSaleOpen}
+        onOpenChange={setQuickSaleOpen}
+        onSuccess={(created) => {
+          router.push(routes.tenant.sales.detail(slug, created.uuid));
         }}
       />
     </EntityPage>
@@ -552,12 +580,12 @@ function CreateJobFields({
   const [quickCatalog, setQuickCatalog] = useState("");
   const [quickError, setQuickError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (watchedCustomer === customerUuid) return;
-    onCustomerChange(watchedCustomer);
+  const handleCustomerValueChange = (uuid: string) => {
+    if (uuid === customerUuid) return;
+    onCustomerChange(uuid);
     form.setValue("vehicle_uuid", "");
     setQuickVehicleOpen(false);
-  }, [watchedCustomer, customerUuid, onCustomerChange, form]);
+  };
 
   const loadCatalog = useCallback(async (query: string) => {
     const result = await customersService.searchCatalog(query.trim());
@@ -670,6 +698,7 @@ function CreateJobFields({
             placeholder={t("jobs.pick_customer")}
             searchPlaceholder={t("jobs.search_customer")}
             emptyText={t("jobs.no_customers")}
+            onValueChange={handleCustomerValueChange}
           />
           {quickCustomerOpen ? (
             <div className="bg-muted/40 space-y-2 rounded-lg border p-3">

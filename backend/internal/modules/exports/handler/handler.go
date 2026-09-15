@@ -215,6 +215,18 @@ func (h *Handler) RequestJobsExport(w http.ResponseWriter, r *http.Request) {
 	h.requestTenantExport(w, r, "tenant.jobs")
 }
 
+func (h *Handler) RequestSalesExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.sales")
+}
+
+func (h *Handler) RequestSuppliersExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.suppliers")
+}
+
+func (h *Handler) RequestPurchasesExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.purchases")
+}
+
 func (h *Handler) requestTenantExport(w http.ResponseWriter, r *http.Request, resource string) {
 	p := authctx.MustPrincipal(r.Context())
 	scope := orgctx.MustScope(r.Context())

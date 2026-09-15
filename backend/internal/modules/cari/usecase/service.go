@@ -109,8 +109,8 @@ func (s *Service) Summary(ctx context.Context) (Summary, error) {
 		return Summary{}, err
 	}
 	return Summary{
-		TotalReceivable: financeusecase.NumericToString(row.TotalReceivable),
-		AccountCount:    row.AccountCount,
+		TotalReceivable:  financeusecase.NumericToString(row.TotalReceivable),
+		AccountCount:     row.AccountCount,
 		WithBalanceCount: row.WithBalanceCount,
 	}, nil
 }
@@ -847,17 +847,17 @@ func mapAccountDetail(row db.GetCariAccountByUUIDRow) AccountDetail {
 
 func mapListEntry(row db.ListCariEntriesRow) Entry {
 	e := Entry{
-		UUID:         row.Uuid,
-		AccountUUID:  row.AccountUuid,
-		Type:         row.Type,
-		Status:       row.Status,
-		Amount:       financeusecase.NumericToString(row.Amount),
-		BalanceAfter: financeusecase.NumericToString(row.BalanceAfter),
-		EntryDate:    formatDate(row.EntryDate),
-		Description:  row.Description,
-		ReferenceNo:  optionalTextPtr(row.ReferenceNo),
+		UUID:          row.Uuid,
+		AccountUUID:   row.AccountUuid,
+		Type:          row.Type,
+		Status:        row.Status,
+		Amount:        financeusecase.NumericToString(row.Amount),
+		BalanceAfter:  financeusecase.NumericToString(row.BalanceAfter),
+		EntryDate:     formatDate(row.EntryDate),
+		Description:   row.Description,
+		ReferenceNo:   optionalTextPtr(row.ReferenceNo),
 		PaymentMethod: optionalTextPtr(row.PaymentMethod),
-		CreatedAt:    row.CreatedAt.Time,
+		CreatedAt:     row.CreatedAt.Time,
 	}
 	if row.FinanceAccountUuid.Valid {
 		id := uuid.UUID(row.FinanceAccountUuid.Bytes)
@@ -880,17 +880,17 @@ func mapListEntry(row db.ListCariEntriesRow) Entry {
 
 func mapGetEntry(row db.GetCariEntryByUUIDRow) Entry {
 	e := Entry{
-		UUID:         row.Uuid,
-		AccountUUID:  row.AccountUuid,
-		Type:         row.Type,
-		Status:       row.Status,
-		Amount:       financeusecase.NumericToString(row.Amount),
-		BalanceAfter: financeusecase.NumericToString(row.BalanceAfter),
-		EntryDate:    formatDate(row.EntryDate),
-		Description:  row.Description,
-		ReferenceNo:  optionalTextPtr(row.ReferenceNo),
+		UUID:          row.Uuid,
+		AccountUUID:   row.AccountUuid,
+		Type:          row.Type,
+		Status:        row.Status,
+		Amount:        financeusecase.NumericToString(row.Amount),
+		BalanceAfter:  financeusecase.NumericToString(row.BalanceAfter),
+		EntryDate:     formatDate(row.EntryDate),
+		Description:   row.Description,
+		ReferenceNo:   optionalTextPtr(row.ReferenceNo),
 		PaymentMethod: optionalTextPtr(row.PaymentMethod),
-		CreatedAt:    row.CreatedAt.Time,
+		CreatedAt:     row.CreatedAt.Time,
 	}
 	if row.FinanceAccountUuid.Valid {
 		id := uuid.UUID(row.FinanceAccountUuid.Bytes)
@@ -913,17 +913,17 @@ func mapGetEntry(row db.GetCariEntryByUUIDRow) Entry {
 
 func mapCreatedEntry(row db.CariEntry, accountUUID uuid.UUID) Entry {
 	e := Entry{
-		UUID:         row.Uuid,
-		AccountUUID:  accountUUID,
-		Type:         row.Type,
-		Status:       row.Status,
-		Amount:       financeusecase.NumericToString(row.Amount),
-		BalanceAfter: financeusecase.NumericToString(row.BalanceAfter),
-		EntryDate:    formatDate(row.EntryDate),
-		Description:  row.Description,
-		ReferenceNo:  optionalTextPtr(row.ReferenceNo),
+		UUID:          row.Uuid,
+		AccountUUID:   accountUUID,
+		Type:          row.Type,
+		Status:        row.Status,
+		Amount:        financeusecase.NumericToString(row.Amount),
+		BalanceAfter:  financeusecase.NumericToString(row.BalanceAfter),
+		EntryDate:     formatDate(row.EntryDate),
+		Description:   row.Description,
+		ReferenceNo:   optionalTextPtr(row.ReferenceNo),
 		PaymentMethod: optionalTextPtr(row.PaymentMethod),
-		CreatedAt:    row.CreatedAt.Time,
+		CreatedAt:     row.CreatedAt.Time,
 	}
 	if row.VoidedAt.Valid {
 		t := row.VoidedAt.Time

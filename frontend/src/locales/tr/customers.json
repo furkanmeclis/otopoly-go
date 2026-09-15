@@ -40,7 +40,7 @@
   "detail.search_placeholder": "Marka, model veya yıl ara",
   "detail.search_empty": "Katalogda eşleşen model yok",
   "detail.no_vehicles": "Henüz araç yok.",
-  "detail.cari_balance": "Cari: {{amount}}",
+  "detail.cari_balance": "Cari bakiye: {{amount}}",
   "detail.recent_cari_entries": "Son cari hareketler",
   "detail.view_cari": "Ekstreyi görüntüle",
   "detail.no_cari_entries": "Henüz cari hareket yok.",

@@ -47,13 +47,17 @@ type Querier interface {
 	CountOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountPermissions(ctx context.Context, q_ pgtype.Text) (int64, error)
 	CountPlatformNotifications(ctx context.Context, arg CountPlatformNotificationsParams) (int64, error)
+	CountPostedPurchasesBySupplier(ctx context.Context, arg CountPostedPurchasesBySupplierParams) (int64, error)
+	CountProductSales(ctx context.Context, arg CountProductSalesParams) (int64, error)
 	CountProducts(ctx context.Context, arg CountProductsParams) (int64, error)
+	CountPurchases(ctx context.Context, arg CountPurchasesParams) (int64, error)
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
 	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
 	CountServiceJobsByCustomer(ctx context.Context, arg CountServiceJobsByCustomerParams) (int64, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountStorageActivity(ctx context.Context, objectKey string) (int64, error)
 	CountStorageTrash(ctx context.Context) (int64, error)
+	CountSuppliers(ctx context.Context, arg CountSuppliersParams) (int64, error)
 	CountUnreadInappForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountUsersWithRole(ctx context.Context, roleSlug string) (int64, error)
@@ -88,6 +92,12 @@ type Querier interface {
 	// Products
 	// ============================================================================
 	CreateProduct(ctx context.Context, arg CreateProductParams) (Product, error)
+	// Tenant quick product sales.
+	CreateProductSale(ctx context.Context, arg CreateProductSaleParams) (ProductSale, error)
+	CreateProductSaleLine(ctx context.Context, arg CreateProductSaleLineParams) (ProductSaleLine, error)
+	// Tenant stock purchases.
+	CreatePurchase(ctx context.Context, arg CreatePurchaseParams) (Purchase, error)
+	CreatePurchaseLine(ctx context.Context, arg CreatePurchaseLineParams) (PurchaseLine, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateRole(ctx context.Context, arg CreateRoleParams) (Role, error)
 	// ============================================================================
@@ -98,6 +108,8 @@ type Querier interface {
 	CreateServiceJob(ctx context.Context, arg CreateServiceJobParams) (ServiceJob, error)
 	CreateServiceJobLine(ctx context.Context, arg CreateServiceJobLineParams) (ServiceJobLine, error)
 	CreateServiceJobPayment(ctx context.Context, arg CreateServiceJobPaymentParams) (ServiceJobPayment, error)
+	// Tenant suppliers (firmalar).
+	CreateSupplier(ctx context.Context, arg CreateSupplierParams) (Supplier, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// System-wide vehicle brand / model / year catalog.
 	CreateVehicleBrand(ctx context.Context, arg CreateVehicleBrandParams) (VehicleBrand, error)
@@ -175,6 +187,10 @@ type Querier interface {
 	GetProductBySKU(ctx context.Context, arg GetProductBySKUParams) (Product, error)
 	GetProductByUUID(ctx context.Context, arg GetProductByUUIDParams) (GetProductByUUIDRow, error)
 	GetProductForSearch(ctx context.Context, arg GetProductForSearchParams) (GetProductForSearchRow, error)
+	GetProductSaleByUUID(ctx context.Context, arg GetProductSaleByUUIDParams) (GetProductSaleByUUIDRow, error)
+	GetProductSaleForSearch(ctx context.Context, arg GetProductSaleForSearchParams) (GetProductSaleForSearchRow, error)
+	GetPurchaseByUUID(ctx context.Context, arg GetPurchaseByUUIDParams) (GetPurchaseByUUIDRow, error)
+	GetPurchaseForSearch(ctx context.Context, arg GetPurchaseForSearchParams) (GetPurchaseForSearchRow, error)
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
@@ -192,6 +208,8 @@ type Querier interface {
 	GetStorageLinkByUUID(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
 	GetStorageTrashByOriginalKey(ctx context.Context, originalKey string) (StorageTrash, error)
 	GetStorageTrashByUUID(ctx context.Context, argUuid uuid.UUID) (StorageTrash, error)
+	GetSupplierByUUID(ctx context.Context, arg GetSupplierByUUIDParams) (Supplier, error)
+	GetSupplierForSearch(ctx context.Context, arg GetSupplierForSearchParams) (GetSupplierForSearchRow, error)
 	GetTemplateByCodeChannelLang(ctx context.Context, arg GetTemplateByCodeChannelLangParams) (NotificationTemplate, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
@@ -222,6 +240,9 @@ type Querier interface {
 	InsertUserRole(ctx context.Context, arg InsertUserRoleParams) error
 	InvalidateActiveOTPs(ctx context.Context, arg InvalidateActiveOTPsParams) error
 	LinkCariEntryFinanceTransaction(ctx context.Context, arg LinkCariEntryFinanceTransactionParams) (CariEntry, error)
+	LinkProductSaleCari(ctx context.Context, arg LinkProductSaleCariParams) (ProductSale, error)
+	LinkProductSaleFinance(ctx context.Context, arg LinkProductSaleFinanceParams) (ProductSale, error)
+	LinkPurchaseFinance(ctx context.Context, arg LinkPurchaseFinanceParams) (Purchase, error)
 	LinkServiceJobPaymentCari(ctx context.Context, arg LinkServiceJobPaymentCariParams) (ServiceJobPayment, error)
 	LinkServiceJobPaymentFinance(ctx context.Context, arg LinkServiceJobPaymentFinanceParams) (ServiceJobPayment, error)
 	ListActivePublicKeys(ctx context.Context, keys []string) ([]string, error)
@@ -271,6 +292,10 @@ type Querier interface {
 	ListPermissionsFiltered(ctx context.Context, arg ListPermissionsFilteredParams) ([]Permission, error)
 	ListPlatformNotifications(ctx context.Context, arg ListPlatformNotificationsParams) ([]Notification, error)
 	ListPlatformNotificationsForExport(ctx context.Context, arg ListPlatformNotificationsForExportParams) ([]Notification, error)
+	ListProductSaleLines(ctx context.Context, arg ListProductSaleLinesParams) ([]ListProductSaleLinesRow, error)
+	ListProductSales(ctx context.Context, arg ListProductSalesParams) ([]ListProductSalesRow, error)
+	ListProductSalesForExport(ctx context.Context, arg ListProductSalesForExportParams) ([]ProductSale, error)
+	ListProductSalesForSearch(ctx context.Context) ([]ListProductSalesForSearchRow, error)
 	ListProductUUIDsForBulk(ctx context.Context, arg ListProductUUIDsForBulkParams) ([]uuid.UUID, error)
 	ListProducts(ctx context.Context, arg ListProductsParams) ([]ListProductsRow, error)
 	ListProductsForExport(ctx context.Context, arg ListProductsForExportParams) ([]ListProductsForExportRow, error)
@@ -278,6 +303,10 @@ type Querier interface {
 	// Catalog Search Queries
 	// ============================================================================
 	ListProductsForSearch(ctx context.Context) ([]ListProductsForSearchRow, error)
+	ListPurchaseLines(ctx context.Context, arg ListPurchaseLinesParams) ([]ListPurchaseLinesRow, error)
+	ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]ListPurchasesRow, error)
+	ListPurchasesForExport(ctx context.Context, arg ListPurchasesForExportParams) ([]Purchase, error)
+	ListPurchasesForSearch(ctx context.Context) ([]ListPurchasesForSearchRow, error)
 	ListPushSubscriptionsByUser(ctx context.Context, userID int64) ([]PushSubscription, error)
 	ListRecentFinanceTransactionsByAccount(ctx context.Context, arg ListRecentFinanceTransactionsByAccountParams) ([]ListRecentFinanceTransactionsByAccountRow, error)
 	ListRolePermissionSlugsByRoleUUID(ctx context.Context, argUuid uuid.UUID) ([]string, error)
@@ -304,6 +333,9 @@ type Querier interface {
 	ListStorageStarsByUser(ctx context.Context, userID int64) ([]StorageStar, error)
 	ListStorageTrash(ctx context.Context, arg ListStorageTrashParams) ([]StorageTrash, error)
 	ListStuckProcessingNotificationIDs(ctx context.Context, staleMinutes int32) ([]int64, error)
+	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
+	ListSuppliersForExport(ctx context.Context, arg ListSuppliersForExportParams) ([]Supplier, error)
+	ListSuppliersForSearch(ctx context.Context) ([]ListSuppliersForSearchRow, error)
 	ListUserRoleSlugs(ctx context.Context, userID int64) ([]string, error)
 	ListUserRolesByUserID(ctx context.Context, userID int64) ([]Role, error)
 	ListUserRolesByUserUUID(ctx context.Context, argUuid uuid.UUID) ([]Role, error)
@@ -371,11 +403,13 @@ type Querier interface {
 	SoftDeleteFinanceCategory(ctx context.Context, arg SoftDeleteFinanceCategoryParams) (FinanceCategory, error)
 	SoftDeleteProduct(ctx context.Context, arg SoftDeleteProductParams) (Product, error)
 	SoftDeleteService(ctx context.Context, arg SoftDeleteServiceParams) (Service, error)
+	SoftDeleteSupplier(ctx context.Context, arg SoftDeleteSupplierParams) (Supplier, error)
 	SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
 	SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
 	SumCariBalances(ctx context.Context, organizationID int64) (SumCariBalancesRow, error)
 	SumFinanceExpensesByCategory(ctx context.Context, arg SumFinanceExpensesByCategoryParams) ([]SumFinanceExpensesByCategoryRow, error)
 	SumFinanceTransactionsByType(ctx context.Context, arg SumFinanceTransactionsByTypeParams) ([]SumFinanceTransactionsByTypeRow, error)
+	SumProductSalesDaily(ctx context.Context, arg SumProductSalesDailyParams) (SumProductSalesDailyRow, error)
 	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
@@ -396,6 +430,7 @@ type Querier interface {
 	UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error)
 	UpdateServiceJobNotes(ctx context.Context, arg UpdateServiceJobNotesParams) (ServiceJob, error)
 	UpdateStepupSettings(ctx context.Context, arg UpdateStepupSettingsParams) (StepupSetting, error)
+	UpdateSupplier(ctx context.Context, arg UpdateSupplierParams) (Supplier, error)
 	UpdateUserLastLogin(ctx context.Context, id int64) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPasswordByID(ctx context.Context, arg UpdateUserPasswordByIDParams) error
@@ -416,6 +451,8 @@ type Querier interface {
 	VoidCariEntry(ctx context.Context, arg VoidCariEntryParams) (CariEntry, error)
 	VoidCariEntryBySource(ctx context.Context, arg VoidCariEntryBySourceParams) (CariEntry, error)
 	VoidFinanceTransaction(ctx context.Context, arg VoidFinanceTransactionParams) (FinanceTransaction, error)
+	VoidProductSale(ctx context.Context, arg VoidProductSaleParams) (ProductSale, error)
+	VoidPurchase(ctx context.Context, arg VoidPurchaseParams) (Purchase, error)
 	VoidServiceJobPayment(ctx context.Context, arg VoidServiceJobPaymentParams) (ServiceJobPayment, error)
 }
 

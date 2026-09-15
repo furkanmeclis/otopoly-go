@@ -14,6 +14,8 @@ type AppComboboxProps = {
   label?: string;
   description?: string;
   className?: string;
+  /** Called after RHF field update (e.g. cascade clears). */
+  onValueChange?: (value: string) => void;
 } & Omit<AsyncComboboxProps, "value" | "onValueChange" | "id" | "aria-invalid">;
 
 /** RHF combobox — static `options` or async `loadOptions` (API). */
@@ -22,6 +24,7 @@ export function AppCombobox({
   label,
   description,
   className,
+  onValueChange,
   ...props
 }: AppComboboxProps) {
   const {
@@ -45,7 +48,10 @@ export function AppCombobox({
           <AsyncCombobox
             id={name}
             value={field.value ?? ""}
-            onValueChange={field.onChange}
+            onValueChange={(value) => {
+              field.onChange(value);
+              onValueChange?.(value);
+            }}
             aria-invalid={Boolean(error)}
             {...props}
           />

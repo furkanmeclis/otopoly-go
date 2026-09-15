@@ -61,6 +61,15 @@ export const Permission = {
   TenantJobsRead: "tenant.jobs.read",
   TenantJobsWrite: "tenant.jobs.write",
   TenantJobsExport: "tenant.jobs.export",
+  TenantSalesRead: "tenant.sales.read",
+  TenantSalesWrite: "tenant.sales.write",
+  TenantSalesExport: "tenant.sales.export",
+  TenantSuppliersRead: "tenant.suppliers.read",
+  TenantSuppliersWrite: "tenant.suppliers.write",
+  TenantSuppliersExport: "tenant.suppliers.export",
+  TenantPurchasesRead: "tenant.purchases.read",
+  TenantPurchasesWrite: "tenant.purchases.write",
+  TenantPurchasesExport: "tenant.purchases.export",
 
   TenantCatalogRead: "tenant.catalog.read",
   TenantCatalogWrite: "tenant.catalog.write",
@@ -199,6 +208,21 @@ export const permissions = {
     read: Permission.TenantJobsRead,
     write: Permission.TenantJobsWrite,
     export: Permission.TenantJobsExport,
+  },
+  sales: {
+    read: Permission.TenantSalesRead,
+    write: Permission.TenantSalesWrite,
+    export: Permission.TenantSalesExport,
+  },
+  suppliers: {
+    read: Permission.TenantSuppliersRead,
+    write: Permission.TenantSuppliersWrite,
+    export: Permission.TenantSuppliersExport,
+  },
+  purchases: {
+    read: Permission.TenantPurchasesRead,
+    write: Permission.TenantPurchasesWrite,
+    export: Permission.TenantPurchasesExport,
   },
   finance: {
     read: Permission.TenantFinanceRead,

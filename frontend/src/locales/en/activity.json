@@ -69,6 +69,13 @@
   "actions.jobs.close": "Service job closed",
   "actions.jobs.cancel": "Service job cancelled",
   "actions.jobs.void": "Service job voided",
+  "actions.tenant.sales.create": "Product sale created",
+  "actions.tenant.sales.void": "Product sale voided",
+  "actions.tenant.supplier.create": "Supplier created",
+  "actions.tenant.supplier.update": "Supplier updated",
+  "actions.tenant.supplier.delete": "Supplier deleted",
+  "actions.tenant.purchases.create": "Purchase created",
+  "actions.tenant.purchases.void": "Purchase voided",
   "resources.vehicle_brand": "Vehicle brand",
   "resources.vehicle_model": "Vehicle model",
   "resources.customer": "Customer",
@@ -78,5 +85,11 @@
   "resources.tenant.cari.entries": "Cari statement",
   "resources.cari.account": "Cari account",
   "resources.jobs.job": "Service job",
-  "resources.tenant.jobs": "Service jobs"
+  "resources.tenant.jobs": "Service jobs",
+  "resources.sale": "Sale",
+  "resources.tenant.sales": "Sales",
+  "resources.supplier": "Supplier",
+  "resources.tenant.suppliers": "Suppliers",
+  "resources.purchase": "Purchase",
+  "resources.tenant.purchases": "Purchases"
 }
