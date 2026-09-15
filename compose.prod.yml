@@ -217,6 +217,28 @@ services:
     networks:
       - app
 
+  # One-shot seed: make prod-create-super-admin (profile seed — not started by prod-up)
+  create-super-admin:
+    <<: *backend-image
+    profiles: ["seed"]
+    container_name: ${NAME_PREFIX:-app}-create-super-admin
+    environment:
+      <<: *backend-environment
+      APP_ROLE: create-super-admin
+      AUTO_MIGRATE: "false"
+      SA_EMAIL: ${SA_EMAIL:-admin@example.com}
+      SA_PASSWORD: ${SA_PASSWORD:-Password1}
+      SA_NAME: ${SA_NAME:-Platform}
+      SA_SURNAME: ${SA_SURNAME:-Admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+    networks:
+      - app
+
   backend:
     <<: *backend-image
     container_name: ${NAME_PREFIX:-app}-backend

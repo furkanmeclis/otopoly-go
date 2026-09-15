@@ -26,6 +26,13 @@ case "${ROLE}" in
     : "${DATABASE_URL:?DATABASE_URL is required}"
     exec migrate -path /app/migrations -database "${DATABASE_URL}" up
     ;;
+  create-super-admin)
+    exec /app/create-super-admin \
+      -email "${SA_EMAIL:-admin@example.com}" \
+      -password "${SA_PASSWORD:-Password1}" \
+      -name "${SA_NAME:-Platform}" \
+      -surname "${SA_SURNAME:-Admin}"
+    ;;
   *)
     exec /app/server
     ;;

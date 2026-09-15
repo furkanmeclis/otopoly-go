@@ -19,7 +19,8 @@ endef
 FRONTEND_PORT ?= 3000
 
 .PHONY: infra infra-down infra-logs infra-ps migrate-up backend-dev frontend-dev local-dev \
-	free-dev-ports prod-config prod-up prod-down tools create-super-admin search-reindex check-i18n
+	free-dev-ports prod-config prod-up prod-down prod-create-super-admin tools create-super-admin \
+	search-reindex check-i18n
 
 infra:
 	@if [ -n "$(ENV_FILE)" ]; then \
@@ -117,6 +118,25 @@ prod-up:
 
 prod-down:
 	docker compose --env-file $(PROD_ENV_FILE) -f compose.prod.yml down
+
+# Runs the create-super-admin binary from BACKEND_IMAGE against prod Postgres.
+# SA_* come from .env.server; override on the CLI if needed.
+prod-create-super-admin:
+	@if [ ! -f "$(PROD_ENV_FILE)" ]; then echo "missing $(PROD_ENV_FILE)"; exit 1; fi
+	@set -a; \
+	while IFS= read -r line || [ -n "$$line" ]; do \
+		case "$$line" in \#*|'') continue ;; esac; \
+		if [[ "$$line" =~ ^([A-Za-z_][A-Za-z0-9_]*)=(.*)$$ ]]; then \
+			export "$${BASH_REMATCH[1]}=$${BASH_REMATCH[2]}"; \
+		fi; \
+	done < "$(PROD_ENV_FILE)"; \
+	set +a; \
+	docker compose --env-file "$(PROD_ENV_FILE)" -f compose.prod.yml --profile seed run --rm \
+		-e SA_EMAIL="$${SA_EMAIL:-$(SA_EMAIL)}" \
+		-e SA_PASSWORD="$${SA_PASSWORD:-$(SA_PASSWORD)}" \
+		-e SA_NAME="$${SA_NAME:-$(SA_NAME)}" \
+		-e SA_SURNAME="$${SA_SURNAME:-$(SA_SURNAME)}" \
+		create-super-admin
 
 tools:
 	@echo "docker:  $$(docker version --format '{{.Server.Version}}' 2>&1)"

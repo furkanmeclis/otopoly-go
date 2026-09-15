@@ -85,6 +85,7 @@ Optional frontend public vars (root `.env`): `NEXT_PUBLIC_BFF_BASE_URL`, `NEXT_P
 1. Create the external network once: `docker network create dokploy-network`
 2. `cp .env.example .env.server` and replace every secret (`${VAR:?…}` is required)
 3. `make prod-config` then `make prod-up`
+4. Seed platform admin: `make prod-create-super-admin` (uses `SA_*` from `.env.server`; backend image includes `create-super-admin`)
 
 Dokploy-attached services: **minio, centrifugo, backend, frontend**. Postgres, Redis, Meilisearch, and the worker stay on the private app network.
 
