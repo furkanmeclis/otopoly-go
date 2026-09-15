@@ -42,7 +42,7 @@ services:
       - app
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: ${NAME_PREFIX:-app}-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -63,7 +63,7 @@ services:
       - app
 
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     container_name: ${NAME_PREFIX:-app}-minio-init
     depends_on:
       minio:
