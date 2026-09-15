@@ -70,6 +70,8 @@ export const Permission = {
   TenantPurchasesRead: "tenant.purchases.read",
   TenantPurchasesWrite: "tenant.purchases.write",
   TenantPurchasesExport: "tenant.purchases.export",
+  TenantReportsRead: "tenant.reports.read",
+  TenantReportsExport: "tenant.reports.export",
 
   TenantCatalogRead: "tenant.catalog.read",
   TenantCatalogWrite: "tenant.catalog.write",
@@ -223,6 +225,10 @@ export const permissions = {
     read: Permission.TenantPurchasesRead,
     write: Permission.TenantPurchasesWrite,
     export: Permission.TenantPurchasesExport,
+  },
+  reports: {
+    read: Permission.TenantReportsRead,
+    export: Permission.TenantReportsExport,
   },
   finance: {
     read: Permission.TenantFinanceRead,

@@ -72,8 +72,7 @@ function columnDateRange(
   id: string,
 ) {
   const raw = columnFilters.find((filter) => filter.id === id)?.value as
-    | [string | undefined, string | undefined]
-    | undefined;
+    [string | undefined, string | undefined] | undefined;
   return {
     from: raw?.[0]?.trim() || undefined,
     to: raw?.[1]?.trim() || undefined,
@@ -181,11 +180,7 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
         accessorKey: "amount",
         labelKey: "cari.amount",
         cell: ({ row }) =>
-          formatFinanceAmount(
-            row.original.amount,
-            account?.currency,
-            locale,
-          ),
+          formatFinanceAmount(row.original.amount, account?.currency, locale),
       }),
       createColumn<CariEntry>({
         accessorKey: "balance_after",
@@ -310,7 +305,9 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
         <div className="space-y-6">
           <EntityHeader
             title={account.customer_name}
-            subtitle={account.customer_phone || account.customer_email || undefined}
+            subtitle={
+              account.customer_phone || account.customer_email || undefined
+            }
             badges={
               <>
                 <StatusChip
@@ -333,9 +330,7 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
           />
 
           <div className="bg-muted/40 border-border rounded-xl border p-6">
-            <p className="text-muted-foreground text-sm">
-              {t("cari.balance")}
-            </p>
+            <p className="text-muted-foreground text-sm">{t("cari.balance")}</p>
             <p
               className={
                 balance > 0
@@ -343,11 +338,7 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                   : "text-3xl font-semibold tracking-tight tabular-nums"
               }
             >
-              {formatFinanceAmount(
-                account.balance,
-                account.currency,
-                locale,
-              )}
+              {formatFinanceAmount(account.balance, account.currency, locale)}
             </p>
             {balance > 0 ? (
               <p className="text-muted-foreground mt-1 text-xs">
@@ -483,10 +474,7 @@ function ChargeDialog({
               required
             />
             <AppDatePicker name="entry_date" label={t("cari.entry_date")} />
-            <AppTextarea
-              name="description"
-              label={t("cari.description")}
-            />
+            <AppTextarea name="description" label={t("cari.description")} />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button
@@ -594,10 +582,7 @@ function PaymentDialog({
                 label: t(`cari.payment_method.${method}`),
               }))}
             />
-            <AppTextarea
-              name="description"
-              label={t("cari.description")}
-            />
+            <AppTextarea name="description" label={t("cari.description")} />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button
@@ -688,10 +673,7 @@ function AdjustmentDialog({
               required
             />
             <AppDatePicker name="entry_date" label={t("cari.entry_date")} />
-            <AppTextarea
-              name="description"
-              label={t("cari.description")}
-            />
+            <AppTextarea name="description" label={t("cari.description")} />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button

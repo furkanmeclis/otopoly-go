@@ -108,6 +108,7 @@ func main() {
 		ioadapters.NewSales(queries),
 		ioadapters.NewSuppliers(queries),
 		ioadapters.NewPurchases(queries),
+		ioadapters.NewReports(queries),
 	)
 	exportSvc := exportusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
 	importSvc := importusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)

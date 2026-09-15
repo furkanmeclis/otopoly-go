@@ -4935,6 +4935,81 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /v1/tenant/reports/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReportsMeta
+      summary: Reports metadata and filterable fields
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Resource meta }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/reports/overview:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReportsOverview
+      summary: Full operational and financial report for a date range
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: date_from
+          in: query
+          schema: { type: string, format: date }
+        - name: date_to
+          in: query
+          schema: { type: string, format: date }
+        - name: currency
+          in: query
+          schema: { type: string }
+        - name: payment_method
+          in: query
+          schema: { type: string, enum: [cash, card, cari, all] }
+        - name: account_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: source_type
+          in: query
+          schema:
+            type: string
+            enum: [manual, cari_payment, service_job, product_sale, purchase, all]
+        - name: granularity
+          in: query
+          schema: { type: string, enum: [day, week, month] }
+      responses:
+        "200":
+          description: Report overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantReportsOverview"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/reports/export:
+    post:
+      tags: [Tenant]
+      operationId: exportTenantReports
+      summary: Export report overview (PDF/XLSX/CSV/JSON)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format: { type: string }
+                query:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: Supports date_from, date_to, currency, payment_method, account_uuid, source_type, granularity, section
+                locale: { type: string }
+      responses:
+        "202": { description: Export job accepted }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /v1/tenant/cari/meta:
     get:
       tags: [Tenant]
@@ -6768,6 +6843,132 @@ components:
         accounts:
           type: array
           items: { $ref: "#/components/schemas/FinanceAccount" }
+
+    TenantReportsNamedTotal:
+      type: object
+      properties:
+        key: { type: string }
+        name: { type: string }
+        total: { type: string }
+        count: { type: integer, format: int64 }
+        qty: { type: string }
+
+    TenantReportsSourceTotal:
+      type: object
+      properties:
+        source_type: { type: string }
+        type: { type: string }
+        total: { type: string }
+        count: { type: integer, format: int64 }
+
+    TenantReportsTimeseriesPoint:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        income: { type: string }
+        expense: { type: string }
+        net: { type: string }
+        job_paid: { type: string }
+        job_count: { type: integer, format: int64 }
+
+    TenantReportsCariReceivable:
+      type: object
+      properties:
+        account_uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        currency: { type: string }
+        balance: { type: string }
+        last_entry_date: { type: [string, "null"], format: date }
+
+    TenantReportsTopCustomer:
+      type: object
+      properties:
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        job_total: { type: string }
+        job_count: { type: integer, format: int64 }
+
+    TenantReportsKPIs:
+      type: object
+      properties:
+        total_income: { type: string }
+        total_expense: { type: string }
+        net_profit: { type: string }
+        income_count: { type: integer, format: int64 }
+        expense_count: { type: integer, format: int64 }
+        job_count: { type: integer, format: int64 }
+        job_paid_count: { type: integer, format: int64 }
+        job_done_count: { type: integer, format: int64 }
+        job_in_progress_count: { type: integer, format: int64 }
+        job_cancelled_count: { type: integer, format: int64 }
+        job_paid_total: { type: string }
+        avg_ticket: { type: string }
+        vehicles_served: { type: integer, format: int64 }
+        sale_count: { type: integer, format: int64 }
+        sale_total: { type: string }
+        purchase_count: { type: integer, format: int64 }
+        purchase_total: { type: string }
+        cari_charged: { type: string }
+        cari_collected: { type: string }
+        cari_outstanding: { type: string }
+        cari_charge_count: { type: integer, format: int64 }
+        cari_payment_count: { type: integer, format: int64 }
+        cash_total: { type: string }
+        card_total: { type: string }
+        cari_payment_total: { type: string }
+
+    TenantReportsOverview:
+      type: object
+      properties:
+        filters:
+          type: object
+          properties:
+            date_from: { type: string, format: date }
+            date_to: { type: string, format: date }
+            currency: { type: [string, "null"] }
+            payment_method: { type: [string, "null"] }
+            account_uuid: { type: [string, "null"] }
+            source_type: { type: [string, "null"] }
+            granularity: { type: string }
+        kpis: { $ref: "#/components/schemas/TenantReportsKPIs" }
+        timeseries:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsTimeseriesPoint" }
+        services:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsNamedTotal" }
+        products:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsNamedTotal" }
+        expenses_by_category:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsNamedTotal" }
+        income_by_category:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsNamedTotal" }
+        payments_by_method:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsNamedTotal" }
+        revenue_by_source:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsSourceTotal" }
+        cari_receivables:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsCariReceivable" }
+        top_customers:
+          type: array
+          items: { $ref: "#/components/schemas/TenantReportsTopCustomer" }
+        generated_at: { type: string, format: date-time }
+
+    EnvelopeTenantReportsOverview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean }
+        data: { $ref: "#/components/schemas/TenantReportsOverview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     CreateFinanceAccountRequest:
       type: object

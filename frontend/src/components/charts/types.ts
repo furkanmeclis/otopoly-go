@@ -58,6 +58,8 @@ export type AppChartProps = {
   showRightYAxis?: boolean;
 
   valueFormatter?: (value: number) => string;
+  /** Axis tick formatter; falls back to valueFormatter when omitted */
+  tickValueFormatter?: (value: number) => string;
   categoryFormatter?: (value: string) => string;
 
   /** Chart plot height (px). Default 280 */

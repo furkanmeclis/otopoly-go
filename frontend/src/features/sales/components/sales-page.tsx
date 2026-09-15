@@ -32,10 +32,7 @@ import {
   useSalesSummary,
 } from "@/features/sales/hooks/use-sales";
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
-import type {
-  Sale,
-  SaleStatus,
-} from "@/features/sales/services/sales.service";
+import type { Sale, SaleStatus } from "@/features/sales/services/sales.service";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -215,7 +212,9 @@ export function SalesPage({ slug }: { slug: string }) {
       ) : null}
 
       {!listQuery.isLoading && !listQuery.isError && items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{t("sales.empty_title")}</p>
+        <p className="text-muted-foreground text-sm">
+          {t("sales.empty_title")}
+        </p>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -241,19 +240,13 @@ export function SalesPage({ slug }: { slug: string }) {
   );
 }
 
-function SaleCard({
-  sale,
-  onOpen,
-}: {
-  sale: Sale;
-  onOpen: () => void;
-}) {
+function SaleCard({ sale, onOpen }: { sale: Sale; onOpen: () => void }) {
   const { t, locale } = useLocale();
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="text-left focus-visible:ring-ring rounded-xl focus-visible:ring-2 focus-visible:outline-none"
+      className="focus-visible:ring-ring rounded-xl text-left focus-visible:ring-2 focus-visible:outline-none"
     >
       <Card className="hover:border-primary/40 hover:bg-muted/20 h-full shadow-none transition-colors">
         <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">

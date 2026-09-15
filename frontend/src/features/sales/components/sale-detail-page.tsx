@@ -35,13 +35,7 @@ function statusTone(status: SaleStatus) {
   }
 }
 
-export function SaleDetailPage({
-  slug,
-  uuid,
-}: {
-  slug: string;
-  uuid: string;
-}) {
+export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const { t, locale } = useLocale();
   const { confirm } = useDialogs();
   const { canRead, canWrite } = useTenantSalesAccess(slug);
@@ -161,21 +155,13 @@ export function SaleDetailPage({
                     {
                       key: "sold_at",
                       label: t("sales.sold_at"),
-                      value: datetime(
-                        sale.sold_at,
-                        "dd.MM.yyyy HH:mm",
-                        locale,
-                      ),
+                      value: datetime(sale.sold_at, "dd.MM.yyyy HH:mm", locale),
                     },
                     {
                       key: "voided_at",
                       label: t("sales.voided_at"),
                       value: sale.voided_at
-                        ? datetime(
-                            sale.voided_at,
-                            "dd.MM.yyyy HH:mm",
-                            locale,
-                          )
+                        ? datetime(sale.voided_at, "dd.MM.yyyy HH:mm", locale)
                         : "—",
                     },
                     {

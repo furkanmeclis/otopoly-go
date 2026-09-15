@@ -40,6 +40,7 @@ import {
   ChartLegendContent,
   ChartTooltip,
   ChartTooltipContent,
+  type ChartConfig,
 } from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocale } from "@/providers/locale-provider";
@@ -142,6 +143,33 @@ function SeriesMarks({
   );
 }
 
+function chartPaletteColor(index: number): string {
+  return `var(--chart-${(index % 5) + 1})`;
+}
+
+/** Stable CSS-safe key for category slice colors (labels may contain spaces). */
+function categorySliceKey(index: number): string {
+  return `slice_${index}`;
+}
+
+function withCategoryColors(
+  config: ChartConfig,
+  data: Record<string, unknown>[],
+  categoryKey: string,
+): ChartConfig {
+  const next: ChartConfig = { ...config };
+  data.forEach((row, index) => {
+    const name = String(row[categoryKey] ?? "").trim();
+    if (!name) return;
+    const key = categorySliceKey(index);
+    next[key] = {
+      label: name,
+      color: chartPaletteColor(index),
+    };
+  });
+  return next;
+}
+
 export function AppChart({
   type,
   data,
@@ -157,6 +185,7 @@ export function AppChart({
   showYAxis = true,
   showRightYAxis,
   valueFormatter,
+  tickValueFormatter,
   categoryFormatter,
   height = 280,
   className,
@@ -172,9 +201,22 @@ export function AppChart({
   margin,
 }: AppChartProps) {
   const { t } = useLocale();
+  const isCategoryChart =
+    type === "pie" || type === "donut" || type === "radial";
+
+  const axisValueFormatter = tickValueFormatter ?? valueFormatter;
+  const axisWidth =
+    type === "bar-horizontal" ? 120 : axisValueFormatter ? 72 : 48;
+
+  const resolvedConfig = useMemo(
+    () =>
+      isCategoryChart ? withCategoryColors(config, data, categoryKey) : config,
+    [isCategoryChart, config, data, categoryKey],
+  );
+
   const series = useMemo(
-    () => normalizeSeries(seriesProp, config, categoryKey, stacked),
-    [seriesProp, config, categoryKey, stacked],
+    () => normalizeSeries(seriesProp, resolvedConfig, categoryKey, stacked),
+    [seriesProp, resolvedConfig, categoryKey, stacked],
   );
 
   const hasRightAxis =
@@ -188,9 +230,6 @@ export function AppChart({
     bottom: 0,
     left: 0,
   };
-
-  const isCategoryChart =
-    type === "pie" || type === "donut" || type === "radial";
 
   const tooltip = showTooltip ? (
     <ChartTooltip
@@ -237,7 +276,8 @@ export function AppChart({
       minTickGap={24}
       tickFormatter={
         type === "bar-horizontal"
-          ? (v) => (valueFormatter ? valueFormatter(Number(v)) : String(v))
+          ? (v) =>
+              axisValueFormatter ? axisValueFormatter(Number(v)) : String(v)
           : categoryFormatter
             ? (v) => categoryFormatter(String(v))
             : undefined
@@ -252,14 +292,14 @@ export function AppChart({
       type={type === "bar-horizontal" ? "category" : "number"}
       tickLine={false}
       axisLine={false}
-      width={type === "bar-horizontal" ? 72 : 48}
+      width={axisWidth}
       tickFormatter={
         type === "bar-horizontal"
           ? categoryFormatter
             ? (v) => categoryFormatter(String(v))
             : undefined
-          : valueFormatter
-            ? (v) => valueFormatter(Number(v))
+          : axisValueFormatter
+            ? (v) => axisValueFormatter(Number(v))
             : undefined
       }
     />
@@ -271,172 +311,178 @@ export function AppChart({
       orientation="right"
       tickLine={false}
       axisLine={false}
-      width={48}
+      width={axisWidth}
       tickFormatter={
-        valueFormatter ? (v) => valueFormatter(Number(v)) : undefined
+        axisValueFormatter ? (v) => axisValueFormatter(Number(v)) : undefined
       }
     />
   ) : null;
 
   let plot: ReactNode = null;
 
-  if (loading) {
-    plot = <Skeleton className="h-full w-full rounded-lg" />;
-  } else if (isEmpty) {
-    plot = (
-      <div className="flex h-full flex-col items-center justify-center gap-1 text-center">
-        <p className="text-sm font-medium">
-          {emptyTitle ?? t("chart.empty_title")}
-        </p>
-        <p className="text-muted-foreground text-xs">
-          {emptyDescription ?? t("chart.empty_description")}
-        </p>
-      </div>
-    );
-  } else if (type === "pie" || type === "donut") {
-    const valueKey = series[0]?.key ?? "value";
-    plot = (
-      <PieChart margin={defaultMargin}>
-        {tooltip}
-        {legend}
-        <Pie
+  if (!loading && !isEmpty) {
+    if (type === "pie" || type === "donut") {
+      const valueKey = series[0]?.key ?? "value";
+      plot = (
+        <PieChart margin={defaultMargin}>
+          {tooltip}
+          {legend}
+          <Pie
+            data={data}
+            dataKey={valueKey}
+            nameKey={categoryKey}
+            innerRadius={
+              type === "donut" ? (innerRadius ?? 55) : (innerRadius ?? 0)
+            }
+            outerRadius={outerRadius ?? 90}
+            strokeWidth={2}
+          >
+            {data.map((row, index) => {
+              const sliceKey = categorySliceKey(index);
+              return (
+                <Cell key={`cell-${index}`} fill={`var(--color-${sliceKey})`} />
+              );
+            })}
+          </Pie>
+        </PieChart>
+      );
+    } else if (type === "radar") {
+      plot = (
+        <RadarChart data={data} margin={defaultMargin}>
+          <PolarGrid />
+          <PolarAngleAxis dataKey={categoryKey} />
+          <PolarRadiusAxis />
+          {tooltip}
+          {legend}
+          {series.map((s) => (
+            <Radar
+              key={s.key}
+              dataKey={s.key}
+              stroke={`var(--color-${s.key})`}
+              fill={`var(--color-${s.key})`}
+              fillOpacity={0.25}
+            />
+          ))}
+        </RadarChart>
+      );
+    } else if (type === "radial") {
+      const valueKey = series[0]?.key ?? "value";
+      const formatCategory = (raw: string) => {
+        if (categoryFormatter) return categoryFormatter(raw);
+        const label = config[raw]?.label;
+        return typeof label === "string" ? label : raw;
+      };
+      plot = (
+        <RadialBarChart
           data={data}
-          dataKey={valueKey}
-          nameKey={categoryKey}
-          innerRadius={
-            type === "donut" ? (innerRadius ?? 55) : (innerRadius ?? 0)
-          }
-          outerRadius={outerRadius ?? 90}
-          strokeWidth={2}
+          innerRadius={innerRadius ?? 30}
+          outerRadius={outerRadius ?? 110}
+          margin={defaultMargin}
         >
-          {data.map((row, index) => {
-            const name = String(row[categoryKey] ?? "");
-            const colorKey = name in config ? name : valueKey;
-            return (
-              <Cell key={`cell-${index}`} fill={`var(--color-${colorKey})`} />
-            );
-          })}
-        </Pie>
-      </PieChart>
-    );
-  } else if (type === "radar") {
-    plot = (
-      <RadarChart data={data} margin={defaultMargin}>
-        <PolarGrid />
-        <PolarAngleAxis dataKey={categoryKey} />
-        <PolarRadiusAxis />
-        {tooltip}
-        {legend}
-        {series.map((s) => (
-          <Radar
-            key={s.key}
-            dataKey={s.key}
-            stroke={`var(--color-${s.key})`}
-            fill={`var(--color-${s.key})`}
-            fillOpacity={0.25}
+          <PolarGrid gridType="circle" />
+          <PolarAngleAxis
+            dataKey={categoryKey}
+            type="category"
+            tickFormatter={formatCategory}
           />
-        ))}
-      </RadarChart>
-    );
-  } else if (type === "radial") {
-    const valueKey = series[0]?.key ?? "value";
-    const formatCategory = (raw: string) => {
-      if (categoryFormatter) return categoryFormatter(raw);
-      const label = config[raw]?.label;
-      return typeof label === "string" ? label : raw;
-    };
-    plot = (
-      <RadialBarChart
-        data={data}
-        innerRadius={innerRadius ?? 30}
-        outerRadius={outerRadius ?? 110}
-        margin={defaultMargin}
-      >
-        <PolarGrid gridType="circle" />
-        <PolarAngleAxis
-          dataKey={categoryKey}
-          type="category"
-          tickFormatter={formatCategory}
-        />
-        {tooltip}
-        {legend}
-        <RadialBar dataKey={valueKey} background>
-          {data.map((row, index) => {
-            const name = String(row[categoryKey] ?? "");
-            const colorKey =
-              name in config
-                ? name
-                : (series[index % series.length]?.key ?? valueKey);
-            return (
-              <Cell key={`radial-${index}`} fill={`var(--color-${colorKey})`} />
-            );
-          })}
-        </RadialBar>
-      </RadialBarChart>
-    );
-  } else if (type === "line") {
-    plot = (
-      <LineChart data={data} margin={defaultMargin}>
-        {grid}
-        {xAxis}
-        {yAxis}
-        {rightAxis}
-        {tooltip}
-        {legend}
-        <SeriesMarks chartType="line" series={series} curved={curved} />
-      </LineChart>
-    );
-  } else if (type === "area") {
-    plot = (
-      <AreaChart data={data} margin={defaultMargin}>
-        {grid}
-        {xAxis}
-        {yAxis}
-        {rightAxis}
-        {tooltip}
-        {legend}
-        <SeriesMarks chartType="area" series={series} curved={curved} />
-      </AreaChart>
-    );
-  } else if (type === "bar" || type === "bar-horizontal") {
-    plot = (
-      <BarChart
-        data={data}
-        layout={type === "bar-horizontal" ? "vertical" : "horizontal"}
-        margin={defaultMargin}
-      >
-        {grid}
-        {xAxis}
-        {yAxis}
-        {rightAxis}
-        {tooltip}
-        {legend}
-        <SeriesMarks chartType={type} series={series} curved={curved} />
-      </BarChart>
-    );
-  } else {
-    plot = (
-      <ComposedChart data={data} margin={defaultMargin}>
-        {grid}
-        {xAxis}
-        {yAxis}
-        {rightAxis}
-        {tooltip}
-        {legend}
-        <SeriesMarks chartType="composed" series={series} curved={curved} />
-      </ComposedChart>
-    );
+          {tooltip}
+          {legend}
+          <RadialBar dataKey={valueKey} background>
+            {data.map((row, index) => {
+              const sliceKey = categorySliceKey(index);
+              return (
+                <Cell
+                  key={`radial-${index}`}
+                  fill={`var(--color-${sliceKey})`}
+                />
+              );
+            })}
+          </RadialBar>
+        </RadialBarChart>
+      );
+    } else if (type === "line") {
+      plot = (
+        <LineChart data={data} margin={defaultMargin}>
+          {grid}
+          {xAxis}
+          {yAxis}
+          {rightAxis}
+          {tooltip}
+          {legend}
+          <SeriesMarks chartType="line" series={series} curved={curved} />
+        </LineChart>
+      );
+    } else if (type === "area") {
+      plot = (
+        <AreaChart data={data} margin={defaultMargin}>
+          {grid}
+          {xAxis}
+          {yAxis}
+          {rightAxis}
+          {tooltip}
+          {legend}
+          <SeriesMarks chartType="area" series={series} curved={curved} />
+        </AreaChart>
+      );
+    } else if (type === "bar" || type === "bar-horizontal") {
+      plot = (
+        <BarChart
+          data={data}
+          layout={type === "bar-horizontal" ? "vertical" : "horizontal"}
+          margin={defaultMargin}
+        >
+          {grid}
+          {xAxis}
+          {yAxis}
+          {rightAxis}
+          {tooltip}
+          {legend}
+          <SeriesMarks chartType={type} series={series} curved={curved} />
+        </BarChart>
+      );
+    } else {
+      plot = (
+        <ComposedChart data={data} margin={defaultMargin}>
+          {grid}
+          {xAxis}
+          {yAxis}
+          {rightAxis}
+          {tooltip}
+          {legend}
+          <SeriesMarks chartType="composed" series={series} curved={curved} />
+        </ComposedChart>
+      );
+    }
   }
 
-  const chartBody = (
-    <ChartContainer
-      config={config}
-      className="aspect-auto w-full"
-      style={{ height }}
-    >
-      {plot}
-    </ChartContainer>
-  );
+  const chartBody =
+    loading || isEmpty ? (
+      <div
+        className="flex w-full flex-col items-center justify-center gap-1 px-4 text-center"
+        style={{ height }}
+      >
+        {loading ? (
+          <Skeleton className="h-full w-full rounded-lg" />
+        ) : (
+          <>
+            <p className="text-sm font-medium">
+              {emptyTitle ?? t("chart.empty_title")}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {emptyDescription ?? t("chart.empty_description")}
+            </p>
+          </>
+        )}
+      </div>
+    ) : (
+      <ChartContainer
+        config={resolvedConfig}
+        className="aspect-auto w-full"
+        style={{ height }}
+      >
+        {plot}
+      </ChartContainer>
+    );
 
   if (!title && !description && !actions && !footer) {
     return <div className={className}>{chartBody}</div>;

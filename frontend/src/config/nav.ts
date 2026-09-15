@@ -22,6 +22,7 @@ import {
   ClipboardList,
   Users,
   Receipt,
+  ChartColumn,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -240,6 +241,13 @@ export function tenantNav(slug: string) {
             href: routes.tenant.sales.root(slug),
             icon: ShoppingBag,
             permission: permissions.sales.read,
+          },
+          {
+            id: "reports",
+            titleKey: "layout.nav_reports",
+            href: routes.tenant.reports.root(slug),
+            icon: ChartColumn,
+            permission: permissions.reports.read,
           },
           {
             id: "profile",

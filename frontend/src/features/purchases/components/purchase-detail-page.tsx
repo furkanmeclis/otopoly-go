@@ -102,9 +102,7 @@ export function PurchaseDetailPage({
         ) : null
       }
     >
-      {purchaseQuery.isLoading ? (
-        <Loading label={t("common.loading")} />
-      ) : null}
+      {purchaseQuery.isLoading ? <Loading label={t("common.loading")} /> : null}
       {purchaseQuery.isError ? (
         <ErrorState
           title={t("common.error_generic")}

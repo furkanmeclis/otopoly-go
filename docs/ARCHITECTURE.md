@@ -145,6 +145,19 @@ Peşin stock purchases under `/v1/tenant/purchases/*`. Always paid at create (`c
 
 **Create:** expense with `source_type=purchase`, category **Stok Alımı**; increases `track_stock` products. **Void** reverses stock and expense via `VoidBySourceTx`.
 
+## Tenant reports (`/t/{slug}/reports`)
+
+Organization-scoped operational and financial analytics under `/v1/tenant/reports/*`.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.reports.read` | `organization_user` (+ owner) | Overview KPIs, charts, breakdowns |
+| `tenant.reports.export` | owners + staff | PDF/XLSX/CSV/JSON of filtered overview |
+
+**Filters:** `date_from`, `date_to`, `currency`, `payment_method`, `account_uuid`, `source_type`, `granularity` (`day` \| `week` \| `month`). Export also accepts `section` to narrow sheets (`kpis`, `timeseries`, `services`, `products`, `expenses`, `income`, `payments`, `sources`, `cari`, `customers`).
+
+**Payload:** KPIs (income/expense/net, jobs, sales, purchases, cari, cash/card), timeseries, service/product mix, expense & income categories, payment methods, finance sources, open cari receivables, top customers.
+
 ## Tenant cari (`/t/{slug}/cari`)
 
 Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.

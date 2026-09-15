@@ -30,10 +30,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { routes } from "@/config/routes";
 import { useFinanceAccounts } from "@/features/finance/hooks/use-finance-queries";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
-import {
-  useJob,
-  useJobsMutations,
-} from "@/features/jobs/hooks/use-jobs";
+import { useJob, useJobsMutations } from "@/features/jobs/hooks/use-jobs";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
 import type {
   CloseJobInput,
@@ -61,13 +58,7 @@ function statusTone(status: JobStatus) {
   }
 }
 
-export function JobDetailPage({
-  slug,
-  uuid,
-}: {
-  slug: string;
-  uuid: string;
-}) {
+export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const { t, locale } = useLocale();
   const { confirm } = useDialogs();
   const { canRead, canWrite } = useTenantJobsAccess(slug);
@@ -258,11 +249,7 @@ export function JobDetailPage({
                       key: "completed",
                       label: t("jobs.completed_at"),
                       value: job.completed_at
-                        ? datetime(
-                            job.completed_at,
-                            "dd.MM.yyyy HH:mm",
-                            locale,
-                          )
+                        ? datetime(job.completed_at, "dd.MM.yyyy HH:mm", locale)
                         : "—",
                     },
                     {

@@ -253,7 +253,7 @@ function PurchaseCard({
     <button
       type="button"
       onClick={onOpen}
-      className="text-left focus-visible:ring-ring rounded-xl focus-visible:ring-2 focus-visible:outline-none"
+      className="focus-visible:ring-ring rounded-xl text-left focus-visible:ring-2 focus-visible:outline-none"
     >
       <Card className="hover:border-primary/40 hover:bg-muted/20 h-full shadow-none transition-colors">
         <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
@@ -507,14 +507,12 @@ function CreatePurchaseFields({
 }: {
   supplierUuid: string;
   onSupplierChange: (uuid: string) => void;
-  loadSuppliers: (query: string) => Promise<
-    { value: string; label: string }[]
-  >;
+  loadSuppliers: (query: string) => Promise<{ value: string; label: string }[]>;
   productPicker: string;
   onProductPickerChange: (value: string) => void;
-  loadProducts: (query: string) => Promise<
-    { value: string; label: string; description?: string }[]
-  >;
+  loadProducts: (
+    query: string,
+  ) => Promise<{ value: string; label: string; description?: string }[]>;
   onAddProduct: (uuid: string) => void;
   lines: PurchaseLineDraft[];
   onUpdateLine: (
@@ -536,7 +534,9 @@ function CreatePurchaseFields({
     <>
       <FieldGroup className="gap-4">
         <div className="space-y-2">
-          <Label className="text-sm font-medium">{t("purchases.supplier")}</Label>
+          <Label className="text-sm font-medium">
+            {t("purchases.supplier")}
+          </Label>
           <AsyncCombobox
             value={supplierUuid}
             onValueChange={onSupplierChange}
@@ -548,7 +548,9 @@ function CreatePurchaseFields({
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm font-medium">{t("purchases.products")}</Label>
+          <Label className="text-sm font-medium">
+            {t("purchases.products")}
+          </Label>
           <AsyncCombobox
             value={productPicker}
             onValueChange={(value) => {

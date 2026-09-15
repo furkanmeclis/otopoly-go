@@ -227,6 +227,10 @@ func (h *Handler) RequestPurchasesExport(w http.ResponseWriter, r *http.Request)
 	h.requestTenantExport(w, r, "tenant.purchases")
 }
 
+func (h *Handler) RequestReportsExport(w http.ResponseWriter, r *http.Request) {
+	h.requestTenantExport(w, r, "tenant.reports")
+}
+
 func (h *Handler) requestTenantExport(w http.ResponseWriter, r *http.Request, resource string) {
 	p := authctx.MustPrincipal(r.Context())
 	scope := orgctx.MustScope(r.Context())
@@ -248,7 +252,7 @@ func (h *Handler) requestTenantExport(w http.ResponseWriter, r *http.Request, re
 	}
 	for k, vals := range r.URL.Query() {
 		switch k {
-		case "q", "status", "type", "kind", "currency", "account_uuid", "category_uuid", "date_from", "date_to", "is_active", "has_balance":
+		case "q", "status", "type", "kind", "currency", "account_uuid", "category_uuid", "date_from", "date_to", "is_active", "has_balance", "payment_method", "source_type", "granularity", "section":
 			if len(vals) > 0 {
 				query[k] = vals[0]
 			}

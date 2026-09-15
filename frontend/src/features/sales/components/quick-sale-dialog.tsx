@@ -130,9 +130,7 @@ export function QuickSaleDialog({
     });
     return result.items.map((product) => ({
       value: product.uuid,
-      label: product.sku
-        ? `${product.name} · ${product.sku}`
-        : product.name,
+      label: product.sku ? `${product.name} · ${product.sku}` : product.name,
       description: `${product.sale_price} ${product.currency}`,
     }));
   }, []);
@@ -282,14 +280,12 @@ function QuickSaleFields({
 }: {
   customerUuid: string;
   onCustomerChange: (uuid: string) => void;
-  loadCustomers: (query: string) => Promise<
-    { value: string; label: string }[]
-  >;
+  loadCustomers: (query: string) => Promise<{ value: string; label: string }[]>;
   productPicker: string;
   onProductPickerChange: (value: string) => void;
-  loadProducts: (query: string) => Promise<
-    { value: string; label: string; description?: string }[]
-  >;
+  loadProducts: (
+    query: string,
+  ) => Promise<{ value: string; label: string; description?: string }[]>;
   onAddProduct: (uuid: string) => void;
   lines: SaleLineDraft[];
   onUpdateLine: (

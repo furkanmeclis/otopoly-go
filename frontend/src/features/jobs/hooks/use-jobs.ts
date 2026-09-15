@@ -56,7 +56,10 @@ export function useJob(uuid: string) {
   });
 }
 
-export function useCustomerJobs(customerUuid: string, params?: ServerListParams) {
+export function useCustomerJobs(
+  customerUuid: string,
+  params?: ServerListParams,
+) {
   return useQuery({
     queryKey: jobsKeys.byCustomer(customerUuid, params),
     queryFn: () => jobsService.listByCustomer(customerUuid, params),

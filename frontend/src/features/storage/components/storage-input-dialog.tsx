@@ -67,12 +67,10 @@ function StorageInputForm({
       q: query.trim() || undefined,
       status: "active",
     });
-    const options = result.items.map(
-      (user): ComboboxOption => ({
-        value: user.uuid,
-        label: `${userFullName(user)} · ${user.email}`,
-      }),
-    );
+    const options = result.items.map((user): ComboboxOption => ({
+      value: user.uuid,
+      label: `${userFullName(user)} · ${user.email}`,
+    }));
     setOptionCache((prev) => {
       const byValue = new Map(prev.map((opt) => [opt.value, opt]));
       for (const opt of options) byValue.set(opt.value, opt);

@@ -3,11 +3,7 @@ import { platformRequest } from "@/lib/api/platform-request";
 import type { ResourceMeta } from "@/features/io/types";
 
 export type JobStatus =
-  | "in_progress"
-  | "done"
-  | "paid"
-  | "cancelled"
-  | "voided";
+  "in_progress" | "done" | "paid" | "cancelled" | "voided";
 
 export type JobLine = {
   uuid: string;

@@ -300,7 +300,19 @@ function ChartLegendContent({
         .filter((item) => item.type !== "none")
         .map((item, index) => {
           const key = `${nameKey ?? item.dataKey ?? "value"}`;
-          const itemConfig = getPayloadConfigFromPayload(config, item, key);
+          const itemConfig =
+            getPayloadConfigFromPayload(config, item, key) ??
+            config[`slice_${index}`];
+          const nested =
+            item.payload &&
+            typeof item.payload === "object" &&
+            item.payload !== null
+              ? (item.payload as Record<string, unknown>)
+              : undefined;
+          const nestedLabel =
+            nameKey && nested && typeof nested[nameKey] === "string"
+              ? (nested[nameKey] as string)
+              : undefined;
 
           return (
             <div
@@ -319,7 +331,14 @@ function ChartLegendContent({
                   }}
                 />
               )}
-              {itemConfig?.label}
+              <span className="text-foreground">
+                {itemConfig?.label ??
+                  nestedLabel ??
+                  (typeof item.value === "string" ? item.value : undefined) ??
+                  String(
+                    (item as { name?: unknown }).name ?? item.dataKey ?? "",
+                  )}
+              </span>
             </div>
           );
         })}

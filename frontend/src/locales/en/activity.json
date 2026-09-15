@@ -91,5 +91,6 @@
   "resources.supplier": "Supplier",
   "resources.tenant.suppliers": "Suppliers",
   "resources.purchase": "Purchase",
-  "resources.tenant.purchases": "Purchases"
+  "resources.tenant.purchases": "Purchases",
+  "resources.tenant.reports": "Reports"
 }

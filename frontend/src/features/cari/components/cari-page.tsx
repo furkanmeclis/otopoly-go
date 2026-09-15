@@ -152,8 +152,7 @@ export function CariPage({ slug }: { slug: string }) {
   );
 
   const summary = summaryQuery.data;
-  const displayCurrency =
-    listQuery.data?.items?.[0]?.currency ?? "TRY";
+  const displayCurrency = listQuery.data?.items?.[0]?.currency ?? "TRY";
 
   return (
     <EntityPage

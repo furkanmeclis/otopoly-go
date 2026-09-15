@@ -14,6 +14,7 @@ const RESOURCE_LABEL_KEYS: Record<IoResource, string> = {
   "tenant.sales": "sales.title",
   "tenant.suppliers": "suppliers.title",
   "tenant.purchases": "purchases.title",
+  "tenant.reports": "reports.title",
   "tenant.catalog.products": "catalog.products.title",
   "tenant.catalog.services": "catalog.services.title",
   "tenant.catalog.categories": "catalog.categories.title",

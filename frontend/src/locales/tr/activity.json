@@ -92,5 +92,6 @@
   "resources.supplier": "Tedarikçi",
   "resources.tenant.suppliers": "Tedarikçiler",
   "resources.purchase": "Alış",
-  "resources.tenant.purchases": "Alışlar"
+  "resources.tenant.purchases": "Alışlar",
+  "resources.tenant.reports": "Raporlar"
 }

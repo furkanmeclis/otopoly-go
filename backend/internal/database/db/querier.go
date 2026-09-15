@@ -156,6 +156,7 @@ type Querier interface {
 	GetFinanceAccountByName(ctx context.Context, arg GetFinanceAccountByNameParams) (FinanceAccount, error)
 	GetFinanceAccountByUUID(ctx context.Context, arg GetFinanceAccountByUUIDParams) (FinanceAccount, error)
 	GetFinanceAccountForSearch(ctx context.Context, arg GetFinanceAccountForSearchParams) (GetFinanceAccountForSearchRow, error)
+	GetFinanceAccountIDByUUIDForReport(ctx context.Context, arg GetFinanceAccountIDByUUIDForReportParams) (int64, error)
 	GetFinanceAccountStats(ctx context.Context, arg GetFinanceAccountStatsParams) (GetFinanceAccountStatsRow, error)
 	GetFinanceCategoryByName(ctx context.Context, arg GetFinanceCategoryByNameParams) (FinanceCategory, error)
 	GetFinanceCategoryByUUID(ctx context.Context, arg GetFinanceCategoryByUUIDParams) (FinanceCategory, error)
@@ -381,6 +382,23 @@ type Querier interface {
 	QueueImportJob(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
 	RemoveUserRoleBySlug(ctx context.Context, arg RemoveUserRoleBySlugParams) error
 	ReplaceUserRoles(ctx context.Context, userID int64) error
+	ReportCariOutstanding(ctx context.Context, arg ReportCariOutstandingParams) ([]ReportCariOutstandingRow, error)
+	ReportCariPeriodTotals(ctx context.Context, arg ReportCariPeriodTotalsParams) (ReportCariPeriodTotalsRow, error)
+	ReportExpensesByCategory(ctx context.Context, arg ReportExpensesByCategoryParams) ([]ReportExpensesByCategoryRow, error)
+	ReportFinanceBySource(ctx context.Context, arg ReportFinanceBySourceParams) ([]ReportFinanceBySourceRow, error)
+	ReportFinanceTimeseries(ctx context.Context, arg ReportFinanceTimeseriesParams) ([]ReportFinanceTimeseriesRow, error)
+	// Tenant operational / financial reports (read-only aggregates).
+	ReportFinanceTotals(ctx context.Context, arg ReportFinanceTotalsParams) (ReportFinanceTotalsRow, error)
+	ReportIncomeByCategory(ctx context.Context, arg ReportIncomeByCategoryParams) ([]ReportIncomeByCategoryRow, error)
+	ReportJobPaymentsByMethod(ctx context.Context, arg ReportJobPaymentsByMethodParams) ([]ReportJobPaymentsByMethodRow, error)
+	ReportJobStats(ctx context.Context, arg ReportJobStatsParams) (ReportJobStatsRow, error)
+	ReportJobsTimeseries(ctx context.Context, arg ReportJobsTimeseriesParams) ([]ReportJobsTimeseriesRow, error)
+	ReportProductSaleStats(ctx context.Context, arg ReportProductSaleStatsParams) (ReportProductSaleStatsRow, error)
+	ReportProductSalesByMethod(ctx context.Context, arg ReportProductSalesByMethodParams) ([]ReportProductSalesByMethodRow, error)
+	ReportProductsDistribution(ctx context.Context, arg ReportProductsDistributionParams) ([]ReportProductsDistributionRow, error)
+	ReportPurchaseStats(ctx context.Context, arg ReportPurchaseStatsParams) (ReportPurchaseStatsRow, error)
+	ReportServicesDistribution(ctx context.Context, arg ReportServicesDistributionParams) ([]ReportServicesDistributionRow, error)
+	ReportTopCustomers(ctx context.Context, arg ReportTopCustomersParams) ([]ReportTopCustomersRow, error)
 	RestoreProduct(ctx context.Context, arg RestoreProductParams) error
 	RestoreService(ctx context.Context, arg RestoreServiceParams) error
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error

@@ -90,10 +90,7 @@ export const cariService = {
     });
   },
   get(uuid: string) {
-    return platformRequest<CariAccountDetail>(
-      "GET",
-      `/v1/tenant/cari/${uuid}`,
-    );
+    return platformRequest<CariAccountDetail>("GET", `/v1/tenant/cari/${uuid}`);
   },
   listEntries(
     accountUuid: string,

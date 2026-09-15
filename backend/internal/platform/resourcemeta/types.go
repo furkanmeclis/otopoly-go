@@ -653,3 +653,36 @@ func TenantPurchases() ResourceMeta {
 		},
 	}
 }
+
+// TenantReports returns meta for GET /v1/tenant/reports.
+func TenantReports() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.reports",
+		DefaultSort:   "-date_to",
+		DefaultFields: []string{"date_from", "date_to", "total_income", "total_expense", "net_profit"},
+		Capabilities: Capabilities{
+			Create: false, Read: true, Update: false, Delete: false,
+			Search: false, Filter: true, Sort: false, Export: true,
+		},
+		FilterableFields: []string{
+			"date_from", "date_to", "currency", "payment_method", "account_uuid", "source_type", "granularity", "section",
+		},
+		Columns: []Column{
+			{Key: "section", LabelKey: "reports.section", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "label", LabelKey: "reports.label", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "metric", LabelKey: "reports.metric", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "count", LabelKey: "reports.count", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "amount", LabelKey: "reports.amount", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "date", LabelKey: "reports.date", Type: ColumnTypeString, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "date_from", LabelKey: "reports.date_from", Variant: FilterVariantText},
+			{Key: "date_to", LabelKey: "reports.date_to", Variant: FilterVariantText},
+			{Key: "currency", LabelKey: "reports.currency", Variant: FilterVariantText},
+			{Key: "payment_method", LabelKey: "reports.payment_method", Variant: FilterVariantFaceted},
+			{Key: "source_type", LabelKey: "reports.source_type", Variant: FilterVariantFaceted},
+			{Key: "granularity", LabelKey: "reports.granularity", Variant: FilterVariantFaceted},
+			{Key: "section", LabelKey: "reports.section", Variant: FilterVariantFaceted},
+		},
+	}
+}

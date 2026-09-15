@@ -63,6 +63,8 @@ import (
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	purchasesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases"
 	purchasesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases/usecase"
+	reportsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports"
+	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
 	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
 	salesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales/usecase"
 	searchmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search"
@@ -281,6 +283,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	purchasesSvc.SetSearchIndexer(searchIndexer)
 	purchasesSvc.SetEventBus(eventBus)
 	purchasesmodule.RegisterRoutes(mux, purchasesSvc, tokens, loader, deps.Queries)
+	reportsSvc := reportsusecase.New(deps.Queries)
+	reportsmodule.RegisterRoutes(mux, reportsSvc, tokens, loader, deps.Queries)
 	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
@@ -305,6 +309,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		ioadapters.NewSales(deps.Queries),
 		ioadapters.NewSuppliers(deps.Queries),
 		ioadapters.NewPurchases(deps.Queries),
+		ioadapters.NewReports(deps.Queries),
 	)
 	exportSvc := exportusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
 	importSvc := importusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)

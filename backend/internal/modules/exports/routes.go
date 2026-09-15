@@ -73,6 +73,9 @@ func RegisterRoutes(
 	purchasesExport := func(handler http.HandlerFunc) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantPurchasesExport))
 	}
+	reportsExport := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantReportsExport))
+	}
 	mux.Handle("GET /v1/tenant/exports", tenantExport(h.ListTenant))
 	mux.Handle("GET /v1/tenant/exports/{uuid}", tenantExport(h.GetTenant))
 	mux.Handle("GET /v1/tenant/exports/{uuid}/download", tenantExport(h.DownloadTenant))
@@ -85,4 +88,5 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/tenant/sales/export", salesExport(h.RequestSalesExport))
 	mux.Handle("POST /v1/tenant/suppliers/export", suppliersExport(h.RequestSuppliersExport))
 	mux.Handle("POST /v1/tenant/purchases/export", purchasesExport(h.RequestPurchasesExport))
+	mux.Handle("POST /v1/tenant/reports/export", reportsExport(h.RequestReportsExport))
 }

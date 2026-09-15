@@ -311,19 +311,13 @@ export function JobsPage({ slug }: { slug: string }) {
   );
 }
 
-function JobCard({
-  job,
-  onOpen,
-}: {
-  job: Job;
-  onOpen: () => void;
-}) {
+function JobCard({ job, onOpen }: { job: Job; onOpen: () => void }) {
   const { t, locale } = useLocale();
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="text-left focus-visible:ring-ring rounded-xl focus-visible:ring-2 focus-visible:outline-none"
+      className="focus-visible:ring-ring rounded-xl text-left focus-visible:ring-2 focus-visible:outline-none"
     >
       <Card className="hover:border-primary/40 hover:bg-muted/20 h-full shadow-none transition-colors">
         <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
@@ -410,14 +404,12 @@ function CreateJobDialog({
       q: query.trim() || undefined,
       is_active: "true",
     });
-    const options = result.items.map(
-      (customer): ComboboxOption => ({
-        value: customer.uuid,
-        label: customer.phone
-          ? `${customer.name} · ${customer.phone}`
-          : customer.name,
-      }),
-    );
+    const options = result.items.map((customer): ComboboxOption => ({
+      value: customer.uuid,
+      label: customer.phone
+        ? `${customer.name} · ${customer.phone}`
+        : customer.name,
+    }));
     setCustomerOptions((prev) => {
       const byValue = new Map(prev.map((opt) => [opt.value, opt]));
       for (const opt of options) byValue.set(opt.value, opt);
@@ -603,9 +595,10 @@ function CreateJobFields({
         ? `${customer.name} · ${customer.phone}`
         : customer.name,
     };
-    onCustomerOptionsChange(
-      [...customerOptions.filter((o) => o.value !== option.value), option],
-    );
+    onCustomerOptionsChange([
+      ...customerOptions.filter((o) => o.value !== option.value),
+      option,
+    ]);
     form.setValue("customer_uuid", customer.uuid, { shouldValidate: true });
     onCustomerChange(customer.uuid);
     form.setValue("vehicle_uuid", "");
@@ -813,7 +806,9 @@ function CreateJobFields({
         <div className="space-y-2">
           <p className="text-sm font-medium">{t("jobs.services")}</p>
           {servicesLoading ? (
-            <p className="text-muted-foreground text-sm">{t("common.loading")}</p>
+            <p className="text-muted-foreground text-sm">
+              {t("common.loading")}
+            </p>
           ) : (
             <ul className="divide-border max-h-48 divide-y overflow-y-auto rounded-md border">
               {services.map((service) => {

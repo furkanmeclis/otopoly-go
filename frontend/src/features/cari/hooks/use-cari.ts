@@ -135,12 +135,8 @@ export function useCariMutations() {
         toast.error(err.message || t("cari.toast.failed")),
     }),
     voidEntry: useMutation({
-      mutationFn: ({
-        entryUuid,
-      }: {
-        entryUuid: string;
-        accountUuid: string;
-      }) => cariService.voidEntry(entryUuid),
+      mutationFn: ({ entryUuid }: { entryUuid: string; accountUuid: string }) =>
+        cariService.voidEntry(entryUuid),
       onSuccess: (_data, vars) => {
         invalidateAll();
         invalidateAccount(vars.accountUuid);

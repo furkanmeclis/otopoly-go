@@ -14,12 +14,7 @@ import {
 } from "@/components/entity";
 import { ErrorState } from "@/components/common/error-state";
 import { StatusChip } from "@/components/common/status-chip";
-import {
-  AppForm,
-  AppInput,
-  AppSwitch,
-  AppTextarea,
-} from "@/components/forms";
+import { AppForm, AppInput, AppSwitch, AppTextarea } from "@/components/forms";
 import { createColumn } from "@/components/tables";
 import {
   columnSelectValue,
@@ -283,10 +278,7 @@ export function SupplierDialog({
               placeholder={t("suppliers.fields.tax_id_placeholder")}
             />
             <AppTextarea name="notes" label={t("suppliers.fields.notes")} />
-            <AppSwitch
-              name="is_active"
-              label={t("suppliers.fields.active")}
-            />
+            <AppSwitch name="is_active" label={t("suppliers.fields.active")} />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button

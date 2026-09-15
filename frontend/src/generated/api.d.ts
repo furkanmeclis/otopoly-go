@@ -2770,6 +2770,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/reports/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reports metadata and filterable fields */
+        get: operations["getTenantReportsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reports/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Full operational and financial report for a date range */
+        get: operations["getTenantReportsOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reports/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Export report overview (PDF/XLSX/CSV/JSON) */
+        post: operations["exportTenantReports"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/cari/meta": {
         parameters: {
             query?: never;
@@ -3979,6 +4030,120 @@ export interface components {
             total_expense?: string;
             net?: string;
             accounts?: components["schemas"]["FinanceAccount"][];
+        };
+        TenantReportsNamedTotal: {
+            key?: string;
+            name?: string;
+            total?: string;
+            /** Format: int64 */
+            count?: number;
+            qty?: string;
+        };
+        TenantReportsSourceTotal: {
+            source_type?: string;
+            type?: string;
+            total?: string;
+            /** Format: int64 */
+            count?: number;
+        };
+        TenantReportsTimeseriesPoint: {
+            /** Format: date */
+            date?: string;
+            income?: string;
+            expense?: string;
+            net?: string;
+            job_paid?: string;
+            /** Format: int64 */
+            job_count?: number;
+        };
+        TenantReportsCariReceivable: {
+            /** Format: uuid */
+            account_uuid?: string;
+            /** Format: uuid */
+            customer_uuid?: string;
+            customer_name?: string;
+            customer_phone?: string;
+            currency?: string;
+            balance?: string;
+            /** Format: date */
+            last_entry_date?: string | null;
+        };
+        TenantReportsTopCustomer: {
+            /** Format: uuid */
+            customer_uuid?: string;
+            customer_name?: string;
+            job_total?: string;
+            /** Format: int64 */
+            job_count?: number;
+        };
+        TenantReportsKPIs: {
+            total_income?: string;
+            total_expense?: string;
+            net_profit?: string;
+            /** Format: int64 */
+            income_count?: number;
+            /** Format: int64 */
+            expense_count?: number;
+            /** Format: int64 */
+            job_count?: number;
+            /** Format: int64 */
+            job_paid_count?: number;
+            /** Format: int64 */
+            job_done_count?: number;
+            /** Format: int64 */
+            job_in_progress_count?: number;
+            /** Format: int64 */
+            job_cancelled_count?: number;
+            job_paid_total?: string;
+            avg_ticket?: string;
+            /** Format: int64 */
+            vehicles_served?: number;
+            /** Format: int64 */
+            sale_count?: number;
+            sale_total?: string;
+            /** Format: int64 */
+            purchase_count?: number;
+            purchase_total?: string;
+            cari_charged?: string;
+            cari_collected?: string;
+            cari_outstanding?: string;
+            /** Format: int64 */
+            cari_charge_count?: number;
+            /** Format: int64 */
+            cari_payment_count?: number;
+            cash_total?: string;
+            card_total?: string;
+            cari_payment_total?: string;
+        };
+        TenantReportsOverview: {
+            filters?: {
+                /** Format: date */
+                date_from?: string;
+                /** Format: date */
+                date_to?: string;
+                currency?: string | null;
+                payment_method?: string | null;
+                account_uuid?: string | null;
+                source_type?: string | null;
+                granularity?: string;
+            };
+            kpis?: components["schemas"]["TenantReportsKPIs"];
+            timeseries?: components["schemas"]["TenantReportsTimeseriesPoint"][];
+            services?: components["schemas"]["TenantReportsNamedTotal"][];
+            products?: components["schemas"]["TenantReportsNamedTotal"][];
+            expenses_by_category?: components["schemas"]["TenantReportsNamedTotal"][];
+            income_by_category?: components["schemas"]["TenantReportsNamedTotal"][];
+            payments_by_method?: components["schemas"]["TenantReportsNamedTotal"][];
+            revenue_by_source?: components["schemas"]["TenantReportsSourceTotal"][];
+            cari_receivables?: components["schemas"]["TenantReportsCariReceivable"][];
+            top_customers?: components["schemas"]["TenantReportsTopCustomer"][];
+            /** Format: date-time */
+            generated_at?: string;
+        };
+        EnvelopeTenantReportsOverview: {
+            success: boolean;
+            data: components["schemas"]["TenantReportsOverview"];
+            meta: components["schemas"]["ResponseMeta"];
         };
         CreateFinanceAccountRequest: {
             name: string;
@@ -9589,6 +9754,88 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantReportsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantReportsOverview: {
+        parameters: {
+            query?: {
+                date_from?: string;
+                date_to?: string;
+                currency?: string;
+                payment_method?: "cash" | "card" | "cari" | "all";
+                account_uuid?: string;
+                source_type?: "manual" | "cari_payment" | "service_job" | "product_sale" | "purchase" | "all";
+                granularity?: "day" | "week" | "month";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantReportsOverview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    exportTenantReports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    format?: string;
+                    /** @description Supports date_from, date_to, currency, payment_method, account_uuid, source_type, granularity, section */
+                    query?: {
+                        [key: string]: string;
+                    };
+                    locale?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Export job accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getTenantCariMeta: {
