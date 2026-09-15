@@ -200,17 +200,32 @@ export function ContractInstanceDetailPage({
         </EntityHeader>
 
         <EntitySectionCard title={t("contracts.instances.preview")}>
-          <div className="border-border bg-card overflow-hidden rounded-xl border shadow-xs">
-            <div className="border-border bg-muted/40 flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
-              <span className="text-primary font-mono text-sm font-semibold">
-                {instance.number_label || "—"}
-              </span>
-              <span className="text-muted-foreground text-xs">
-                {datetime(instance.created_at, "dd.MM.yyyy", locale)}
-              </span>
+          <div className="border-border from-card to-muted/30 overflow-hidden rounded-2xl border bg-gradient-to-b shadow-xs">
+            <div className="from-primary via-primary/70 to-primary/40 h-1.5 bg-gradient-to-r" />
+            <div className="flex flex-wrap items-start justify-between gap-4 px-5 pt-5 pb-3">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-[0.65rem] font-semibold tracking-[0.12em] uppercase">
+                  {t("contracts.instances.preview")}
+                </p>
+                <h2 className="text-foreground mt-1 text-xl font-semibold tracking-tight">
+                  {instance.title}
+                </h2>
+              </div>
+              <div className="bg-primary/8 border-primary/15 rounded-xl border px-3.5 py-2.5 text-right">
+                <p className="text-muted-foreground text-[0.65rem] font-semibold tracking-wider uppercase">
+                  {t("contracts.fields.number")}
+                </p>
+                <p className="text-primary font-mono text-sm font-semibold">
+                  {instance.number_label || "—"}
+                </p>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  {datetime(instance.created_at, "dd.MM.yyyy", locale)}
+                </p>
+              </div>
             </div>
+            <div className="bg-primary mx-5 mb-4 h-0.5 w-14 rounded-full" />
             <div
-              className="contract-preview prose prose-sm dark:prose-invert max-w-none px-5 py-5 prose-headings:text-primary prose-ol:list-decimal prose-ul:list-disc"
+              className="contract-preview prose prose-sm dark:prose-invert max-w-none px-5 pb-6 prose-headings:text-primary prose-headings:tracking-tight prose-ol:list-decimal prose-ul:list-disc prose-strong:text-foreground"
               dangerouslySetInnerHTML={{ __html: instance.content_html }}
             />
           </div>

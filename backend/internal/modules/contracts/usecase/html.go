@@ -3,6 +3,7 @@ package usecase
 import (
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 	"time"
 
@@ -68,10 +69,49 @@ func formatContractNumber(n int32) string {
 	return fmt.Sprintf("SZL-%04d", n)
 }
 
+func brandInitial(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "O"
+	}
+	r := []rune(name)
+	return strings.ToUpper(string(r[0]))
+}
+
+// tintHex blends color toward white by amount in [0,1].
+func tintHex(hex string, amount float64) string {
+	hex = strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(hex)), "#")
+	if len(hex) == 3 {
+		hex = string([]byte{hex[0], hex[0], hex[1], hex[1], hex[2], hex[2]})
+	}
+	if len(hex) != 6 {
+		return "#F8EDE7"
+	}
+	parse := func(s string) int {
+		v, _ := strconv.ParseInt(s, 16, 0)
+		return int(v)
+	}
+	blend := func(c int) int {
+		return int(float64(c)*(1-amount) + 255*amount)
+	}
+	r := blend(parse(hex[0:2]))
+	g := blend(parse(hex[2:4]))
+	b := blend(parse(hex[4:6]))
+	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
+}
+
 func buildContractHTML(opts contractPDFOptions) string {
 	primary := normalizePrimaryColor(opts.PrimaryColor)
+	primarySoft := tintHex(primary, 0.88)
+	primaryWash := tintHex(primary, 0.94)
+	ink := "#2A241F"
+	muted := "#6B635C"
+	subtle := "#8A8178"
+	line := "#E8E0D8"
+	paper := "#FFFcf8"
 	loc := i18n.Normalize(string(opts.Locale))
 	t := func(key string) string { return i18n.Translate(loc, key) }
+	initial := brandInitial(opts.OrgName)
 
 	var b strings.Builder
 	b.WriteString("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
@@ -79,42 +119,165 @@ func buildContractHTML(opts contractPDFOptions) string {
 	b.WriteString(html.EscapeString(opts.Title))
 	b.WriteString("</title>")
 	_, _ = fmt.Fprintf(&b, `<style>
-@page{margin:18mm 16mm}
-body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;font-size:11pt;line-height:1.55;color:#2a241f;margin:0;padding:0;background:#fff}
-.header{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding-bottom:14px;border-bottom:3px solid %s;margin-bottom:22px}
-.brand{min-width:0}
-.brand-name{font-size:16pt;font-weight:700;color:%s;margin:0 0 4px;letter-spacing:-0.02em}
-.brand-meta{font-size:9pt;color:#6b635c;line-height:1.4}
-.meta{text-align:right;font-size:9.5pt;color:#4a433c;white-space:nowrap}
-.meta .label{display:block;font-size:8pt;text-transform:uppercase;letter-spacing:0.06em;color:#8a8178;margin-bottom:2px}
-.meta .value{font-weight:600;color:#2a241f}
-h1{font-size:18pt;margin:0 0 6px;color:#2a241f;letter-spacing:-0.02em}
-.subtitle{font-size:9.5pt;color:#6b635c;margin:0 0 18px}
-.content{margin-bottom:8px}
-.content p{margin:0 0 0.7em}
-.content h2,.content h3{color:%s;margin:1.1em 0 0.45em;font-size:12.5pt}
-.content ul{list-style:disc;padding-left:1.4em;margin:0 0 0.8em}
-.content ol{list-style:decimal;padding-left:1.4em;margin:0 0 0.8em}
-.content li{margin:0.2em 0}
-.content strong{font-weight:650}
-.section{margin-top:26px;page-break-inside:avoid}
-.section h2{font-size:12pt;margin:0 0 12px;padding-bottom:6px;border-bottom:2px solid %s;color:%s}
-.sig-grid{display:flex;flex-wrap:wrap;gap:20px}
-.sig-card{width:240px;border:1px solid #e8e0d8;border-radius:8px;padding:12px;background:#fbf8f5}
-.sig-card img{max-width:100%%;max-height:72px;display:block;margin-bottom:8px}
-.sig-line{height:72px;border-bottom:1px solid #2a241f;margin-bottom:8px}
-.sig-meta{font-size:9.5pt;color:#4a433c}
-.sig-meta strong{display:block;color:#2a241f;margin-bottom:2px}
+@page{margin:14mm 14mm 16mm}
+*{box-sizing:border-box}
+body{
+  font-family:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Roboto,sans-serif;
+  font-size:10.75pt;line-height:1.6;color:%s;margin:0;padding:0;background:%s;
+}
+.sheet{position:relative}
+.accent-bar{
+  height:6px;margin:0 0 22px;
+  background:linear-gradient(90deg,%s 0%%,%s 55%%,%s 100%%);
+  border-radius:999px;
+}
+.header{
+  display:flex;justify-content:space-between;align-items:flex-start;gap:28px;
+  margin-bottom:26px;
+}
+.brand{display:flex;gap:14px;align-items:flex-start;min-width:0;flex:1}
+.mark{
+  width:46px;height:46px;border-radius:14px;flex-shrink:0;
+  background:linear-gradient(145deg,%s,%s);
+  color:#fff;font-size:18pt;font-weight:700;letter-spacing:-0.04em;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 18px %s33;
+}
+.brand-copy{min-width:0;padding-top:1px}
+.brand-name{
+  font-size:15.5pt;font-weight:750;color:%s;margin:0 0 3px;
+  letter-spacing:-0.03em;line-height:1.15;
+}
+.brand-meta{font-size:8.75pt;color:%s;line-height:1.45}
+.meta-card{
+  min-width:148px;text-align:right;padding:12px 14px;
+  background:%s;border:1px solid %s;border-radius:14px;
+}
+.meta-card .label{
+  display:block;font-size:7.5pt;text-transform:uppercase;
+  letter-spacing:0.08em;color:%s;margin-bottom:2px;font-weight:650;
+}
+.meta-card .value{display:block;font-weight:700;color:%s;font-size:10.5pt;margin-bottom:10px}
+.meta-card .value:last-child{margin-bottom:0}
+.hero{
+  position:relative;padding:18px 20px 16px;
+  background:linear-gradient(180deg,%s 0%%,%s 100%%);
+  border:1px solid %s;border-radius:18px;margin-bottom:22px;
+  overflow:hidden;
+}
+.hero:before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:%s;
+}
+.eyebrow{
+  display:inline-block;font-size:7.75pt;font-weight:700;letter-spacing:0.1em;
+  text-transform:uppercase;color:%s;margin:0 0 8px;
+  background:%s;padding:4px 9px;border-radius:999px;
+}
+h1{
+  font-size:20pt;margin:0 0 4px;color:%s;letter-spacing:-0.035em;
+  font-weight:780;line-height:1.2;
+}
+.hero-rule{
+  width:56px;height:3px;background:%s;border-radius:999px;margin:12px 0 0;
+}
+.content{margin:0 0 8px;padding:0 2px}
+.content p{margin:0 0 0.75em}
+.content h2,.content h3{
+  color:%s;margin:1.25em 0 0.4em;font-size:12.25pt;
+  letter-spacing:-0.02em;font-weight:750;
+}
+.content ul,.content ol{padding-left:1.35em;margin:0 0 0.9em}
+.content ul{list-style:none}
+.content ul li{position:relative;padding-left:0.15em;margin:0.28em 0}
+.content ul li:before{
+  content:"";position:absolute;left:-1em;top:0.55em;
+  width:0.42em;height:0.42em;border-radius:50%%;background:%s;
+}
+.content ol{list-style:none;counter-reset:contract-ol}
+.content ol li{
+  position:relative;padding-left:0.15em;margin:0.35em 0;
+  counter-increment:contract-ol;
+}
+.content ol li:before{
+  content:counter(contract-ol);
+  position:absolute;left:-1.55em;top:0.05em;
+  width:1.2em;height:1.2em;border-radius:50%%;
+  background:%s;color:%s;font-size:8pt;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+.content strong{font-weight:700;color:%s}
+.content a{color:%s}
+.section{margin-top:28px;page-break-inside:avoid}
+.section-head{
+  display:flex;align-items:center;gap:10px;margin:0 0 14px;
+}
+.section-head h2{
+  font-size:11.5pt;margin:0;color:%s;letter-spacing:-0.02em;font-weight:750;
+}
+.section-head .rule{
+  flex:1;height:1px;background:linear-gradient(90deg,%s,%s 40%%,transparent);
+}
+.sig-grid{display:flex;flex-wrap:wrap;gap:16px}
+.sig-card{
+  width:236px;border:1px solid %s;border-radius:16px;padding:14px;
+  background:#fff;box-shadow:0 1px 0 %s;
+  position:relative;overflow:hidden;
+}
+.sig-card:before{
+  content:"";position:absolute;left:0;right:0;top:0;height:4px;background:%s;
+}
+.sig-card img{max-width:100%%;max-height:70px;display:block;margin:8px 0 10px}
+.sig-line{
+  height:68px;margin:8px 0 10px;
+  border-bottom:1.5px solid %s;
+  background:repeating-linear-gradient(
+    90deg,transparent,transparent 7px,%s22 7px,%s22 8px
+  );
+}
+.sig-meta{font-size:9pt;color:%s}
+.sig-meta strong{display:block;color:%s;margin-bottom:2px;font-size:10pt}
+.sig-meta .role{color:%s;font-size:8.25pt}
 .media-grid{display:flex;flex-wrap:wrap;gap:14px}
-.media-card{width:220px;border:1px solid #e8e0d8;border-radius:8px;overflow:hidden;background:#fff}
-.media-card img{width:100%%;max-height:150px;object-fit:cover;display:block}
-.media-body{padding:8px 10px}
-.media-cap{font-size:8.5pt;color:#6b635c}
-.footer{margin-top:28px;padding-top:10px;border-top:1px solid #e8e0d8;font-size:8pt;color:#8a8178}
-</style></head><body>`, primary, primary, primary, primary, primary)
+.media-card{
+  width:214px;border:1px solid %s;border-radius:14px;overflow:hidden;
+  background:#fff;
+}
+.media-card img{width:100%%;height:148px;object-fit:cover;display:block}
+.media-body{padding:9px 11px;background:%s}
+.media-name{font-size:8.5pt;font-weight:650;color:%s;word-break:break-word}
+.media-cap{font-size:8pt;color:%s;margin-top:2px}
+.footer{
+  margin-top:32px;padding:12px 14px;border-radius:12px;
+  background:%s;border:1px solid %s;
+  font-size:7.75pt;color:%s;display:flex;justify-content:space-between;gap:16px;
+}
+.footer .mark-mini{
+  color:%s;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;
+}
+</style></head><body><div class="sheet"><div class="accent-bar"></div>`,
+		ink, paper,
+		primary, tintHex(primary, 0.25), tintHex(primary, 0.55),
+		primary, tintHex(primary, 0.18), primary,
+		ink, muted,
+		primaryWash, line, subtle, ink,
+		primaryWash, tintHex(primary, 0.97), line, primary,
+		primary, primarySoft,
+		ink, primary,
+		primary, primary,
+		primarySoft, primary,
+		ink, primary,
+		ink, primary, line,
+		line, primaryWash, primary,
+		ink, primary, primary,
+		muted, ink, subtle,
+		line, primaryWash, ink, muted,
+		primaryWash, line, subtle, primary,
+	)
 
 	b.WriteString(`<div class="header"><div class="brand">`)
-	b.WriteString(`<p class="brand-name">`)
+	b.WriteString(`<div class="mark">`)
+	b.WriteString(html.EscapeString(initial))
+	b.WriteString(`</div><div class="brand-copy"><p class="brand-name">`)
 	b.WriteString(html.EscapeString(opts.OrgName))
 	b.WriteString(`</p><div class="brand-meta">`)
 	if opts.OrgAddress != "" {
@@ -131,13 +294,13 @@ h1{font-size:18pt;margin:0 0 6px;color:#2a241f;letter-spacing:-0.02em}
 	if len(contactParts) > 0 {
 		b.WriteString(html.EscapeString(strings.Join(contactParts, " · ")))
 	}
-	b.WriteString(`</div></div><div class="meta">`)
+	b.WriteString(`</div></div></div><div class="meta-card">`)
 	if opts.NumberLabel != "" {
 		b.WriteString(`<span class="label">`)
 		b.WriteString(html.EscapeString(t("contracts.pdf.number")))
 		b.WriteString(`</span><span class="value">`)
 		b.WriteString(html.EscapeString(opts.NumberLabel))
-		b.WriteString(`</span><br><br>`)
+		b.WriteString(`</span>`)
 	}
 	b.WriteString(`<span class="label">`)
 	b.WriteString(html.EscapeString(t("contracts.pdf.date")))
@@ -145,18 +308,20 @@ h1{font-size:18pt;margin:0 0 6px;color:#2a241f;letter-spacing:-0.02em}
 	b.WriteString(html.EscapeString(opts.CreatedAt.Format("02.01.2006")))
 	b.WriteString(`</span></div></div>`)
 
-	b.WriteString(`<h1>`)
-	b.WriteString(html.EscapeString(opts.Title))
-	b.WriteString(`</h1><p class="subtitle">`)
+	b.WriteString(`<div class="hero"><div class="eyebrow">`)
 	b.WriteString(html.EscapeString(t("contracts.pdf.document")))
-	b.WriteString(`</p><div class="content">`)
+	b.WriteString(`</div><h1>`)
+	b.WriteString(html.EscapeString(opts.Title))
+	b.WriteString(`</h1><div class="hero-rule"></div></div>`)
+
+	b.WriteString(`<div class="content">`)
 	b.WriteString(opts.ContentHTML)
 	b.WriteString(`</div>`)
 
 	if len(opts.Signatures) > 0 {
-		b.WriteString(`<div class="section"><h2>`)
+		b.WriteString(`<div class="section"><div class="section-head"><h2>`)
 		b.WriteString(html.EscapeString(t("contracts.pdf.signatures")))
-		b.WriteString(`</h2><div class="sig-grid">`)
+		b.WriteString(`</h2><div class="rule"></div></div><div class="sig-grid">`)
 		for _, sig := range opts.Signatures {
 			b.WriteString(`<div class="sig-card">`)
 			if sig.PNGBase64 != "" {
@@ -171,7 +336,7 @@ h1{font-size:18pt;margin:0 0 6px;color:#2a241f;letter-spacing:-0.02em}
 			b.WriteString(`</strong>`)
 			b.WriteString(html.EscapeString(sig.DisplayName))
 			if sig.Role != "" {
-				b.WriteString(`<br><span>`)
+				b.WriteString(`<br><span class="role">`)
 				b.WriteString(html.EscapeString(sig.Role))
 				b.WriteString(`</span>`)
 			}
@@ -181,9 +346,9 @@ h1{font-size:18pt;margin:0 0 6px;color:#2a241f;letter-spacing:-0.02em}
 	}
 
 	if len(opts.Media) > 0 {
-		b.WriteString(`<div class="section"><h2>`)
+		b.WriteString(`<div class="section"><div class="section-head"><h2>`)
 		b.WriteString(html.EscapeString(t("contracts.pdf.attachments")))
-		b.WriteString(`</h2><div class="media-grid">`)
+		b.WriteString(`</h2><div class="rule"></div></div><div class="media-grid">`)
 		for _, m := range opts.Media {
 			b.WriteString(`<div class="media-card">`)
 			if m.DataBase64 != "" && strings.HasPrefix(m.ContentType, "image/") {
@@ -194,8 +359,7 @@ h1{font-size:18pt;margin:0 0 6px;color:#2a241f;letter-spacing:-0.02em}
 				_, _ = fmt.Fprintf(&b, `<img alt="%s" src="data:%s;base64,%s">`,
 					html.EscapeString(m.FileName), html.EscapeString(ct), m.DataBase64)
 			}
-			b.WriteString(`<div class="media-body">`)
-			b.WriteString(`<div class="sig-meta">`)
+			b.WriteString(`<div class="media-body"><div class="media-name">`)
 			b.WriteString(html.EscapeString(m.FileName))
 			b.WriteString(`</div>`)
 			if m.Caption != "" {
@@ -208,8 +372,14 @@ h1{font-size:18pt;margin:0 0 6px;color:#2a241f;letter-spacing:-0.02em}
 		b.WriteString(`</div></div>`)
 	}
 
-	b.WriteString(`<div class="footer">`)
+	b.WriteString(`<div class="footer"><span>`)
 	b.WriteString(html.EscapeString(t("contracts.pdf.footer")))
-	b.WriteString(`</div></body></html>`)
+	b.WriteString(`</span><span class="mark-mini">`)
+	b.WriteString(html.EscapeString(opts.OrgName))
+	if opts.NumberLabel != "" {
+		b.WriteString(" · ")
+		b.WriteString(html.EscapeString(opts.NumberLabel))
+	}
+	b.WriteString(`</span></div></div></body></html>`)
 	return b.String()
 }
