@@ -2821,6 +2821,268 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/contract-presets/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Contract presets list metadata */
+        get: operations["getPlatformContractPresetsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/contract-presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List contract presets */
+        get: operations["listPlatformContractPresets"];
+        put?: never;
+        /** Create contract preset */
+        post: operations["createPlatformContractPreset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/contract-presets/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get contract preset */
+        get: operations["getPlatformContractPreset"];
+        put?: never;
+        post?: never;
+        /** Soft-delete contract preset */
+        delete: operations["deletePlatformContractPreset"];
+        options?: never;
+        head?: never;
+        /** Update contract preset */
+        patch: operations["patchPlatformContractPreset"];
+        trace?: never;
+    };
+    "/v1/tenant/contracts/templates/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Contract templates metadata */
+        get: operations["getTenantContractTemplatesMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/presets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active platform presets for cloning */
+        get: operations["listTenantContractPresets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List organization contract templates */
+        get: operations["listTenantContractTemplates"];
+        put?: never;
+        /** Create contract template */
+        post: operations["createTenantContractTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/templates/clone": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Clone a platform preset into a tenant template */
+        post: operations["cloneTenantContractTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/templates/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get contract template */
+        get: operations["getTenantContractTemplate"];
+        put?: never;
+        post?: never;
+        /** Soft-delete contract template */
+        delete: operations["deleteTenantContractTemplate"];
+        options?: never;
+        head?: never;
+        /** Update contract template */
+        patch: operations["patchTenantContractTemplate"];
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List contract instances */
+        get: operations["listTenantContractInstances"];
+        put?: never;
+        /** Create instance from template bound to a subject */
+        post: operations["createTenantContractInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get contract instance with signers, signatures, and media */
+        get: operations["getTenantContractInstance"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances/{uuid}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Void a draft or pending contract instance */
+        post: operations["voidTenantContractInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Capture on-site signature for a signer slot */
+        post: operations["signTenantContractSigner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances/{uuid}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload gallery media onto a draft/pending instance */
+        post: operations["uploadTenantContractMedia"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances/{uuid}/media/{mediaUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete gallery media from a draft/pending instance */
+        delete: operations["deleteTenantContractMedia"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances/{uuid}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download executed contract PDF */
+        get: operations["downloadTenantContractPDF"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/cari/meta": {
         parameters: {
             query?: never;
@@ -4483,6 +4745,179 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["CatalogSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        ContractSignerSlot: {
+            role: string;
+            label: string;
+            required: boolean;
+        };
+        ContractPreset: {
+            /** Format: uuid */
+            uuid?: string;
+            title?: string;
+            description?: string;
+            category?: string;
+            content_json?: unknown;
+            content_html?: string;
+            variables?: string[];
+            signer_slots?: components["schemas"]["ContractSignerSlot"][];
+            signature_required?: boolean;
+            is_active?: boolean;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        ContractPresetWrite: {
+            title?: string;
+            description?: string;
+            category?: string;
+            content_json?: unknown;
+            content_html?: string;
+            variables?: string[];
+            signer_slots?: components["schemas"]["ContractSignerSlot"][];
+            signature_required?: boolean;
+            is_active?: boolean;
+        };
+        ContractTemplate: components["schemas"]["ContractPreset"] & {
+            /** Format: uuid */
+            preset_uuid?: string | null;
+        };
+        ContractTemplateWrite: components["schemas"]["ContractPresetWrite"] & {
+            /** Format: uuid */
+            preset_uuid?: string | null;
+        };
+        ContractSigner: {
+            /** Format: uuid */
+            uuid?: string;
+            role?: string;
+            label?: string;
+            required?: boolean;
+            sort_order?: number;
+            /** @enum {string} */
+            status?: "pending" | "signed";
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        ContractSignature: {
+            /** Format: uuid */
+            uuid?: string;
+            /** Format: uuid */
+            signer_uuid?: string;
+            display_name?: string;
+            object_key?: string;
+            url?: string | null;
+            content_sha256?: string;
+            signed_by_user_id?: number;
+            ip_address?: string;
+            user_agent?: string;
+            /** Format: date-time */
+            signed_at?: string;
+        };
+        ContractMedia: {
+            /** Format: uuid */
+            uuid?: string;
+            object_key?: string;
+            url?: string | null;
+            content_type?: string;
+            file_name?: string;
+            byte_size?: number;
+            caption?: string;
+            sort_order?: number;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        ContractInstance: {
+            /** Format: uuid */
+            uuid?: string;
+            /** Format: uuid */
+            template_uuid?: string | null;
+            title?: string;
+            subject_type?: string;
+            /** Format: uuid */
+            subject_uuid?: string;
+            content_json?: unknown;
+            content_html?: string;
+            variables_resolved?: {
+                [key: string]: string;
+            };
+            signature_required?: boolean;
+            /** @enum {string} */
+            status?: "draft" | "pending" | "executed" | "voided";
+            content_sha256?: string | null;
+            pdf_object_key?: string | null;
+            pdf_url?: string | null;
+            pdf_error?: string;
+            /** Format: date-time */
+            executed_at?: string | null;
+            /** Format: date-time */
+            voided_at?: string | null;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+            signers?: components["schemas"]["ContractSigner"][];
+            signatures?: components["schemas"]["ContractSignature"][];
+            media?: components["schemas"]["ContractMedia"][];
+        };
+        EnvelopeContractPreset: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ContractPreset"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeContractPresetPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["ContractPreset"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeContractTemplate: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ContractTemplate"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeContractTemplatePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["ContractTemplate"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeContractInstance: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ContractInstance"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeContractInstancePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items?: components["schemas"]["ContractInstance"][];
+                total?: number;
+                limit?: number;
+                offset?: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeContractMedia: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ContractMedia"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -9836,6 +10271,561 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformContractPresetsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformContractPresets: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                sort?: string;
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preset page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractPresetPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createPlatformContractPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractPresetWrite"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractPreset"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformContractPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractPreset"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deletePlatformContractPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    patchPlatformContractPreset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContractPresetWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractPreset"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantContractTemplatesMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listTenantContractPresets: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active presets */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractPresetPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listTenantContractTemplates: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                sort?: string;
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractTemplatePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantContractTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ContractTemplateWrite"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractTemplate"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+        };
+    };
+    cloneTenantContractTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    preset_uuid: string;
+                    title?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Cloned */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractTemplate"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantContractTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractTemplate"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantContractTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    patchTenantContractTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ContractTemplateWrite"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractTemplate"];
+                };
+            };
+        };
+    };
+    listTenantContractInstances: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: "draft" | "pending" | "executed" | "voided";
+                subject_type?: "service_job";
+                subject_uuid?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractInstancePage"];
+                };
+            };
+        };
+    };
+    createTenantContractInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    template_uuid: string;
+                    /** @enum {string} */
+                    subject_type: "service_job";
+                    /** Format: uuid */
+                    subject_uuid: string;
+                    title?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractInstance"];
+                };
+            };
+        };
+    };
+    getTenantContractInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractInstance"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    voidTenantContractInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Voided */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractInstance"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    signTenantContractSigner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                signerUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    display_name: string;
+                    /** @description Raw base64 or data URL PNG */
+                    signature_png_base64: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Instance after sign */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractInstance"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    uploadTenantContractMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    caption?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Media created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractMedia"];
+                };
+            };
+        };
+    };
+    deleteTenantContractMedia: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                mediaUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    downloadTenantContractPDF: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description PDF bytes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getTenantCariMeta: {

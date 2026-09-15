@@ -33,6 +33,9 @@ type ProcessSearchReindexFunc func(ctx context.Context, spec string) error
 // PurgeLogsFunc applies due log retention rules.
 type PurgeLogsFunc func(ctx context.Context) error
 
+// ProcessContractExecutePDFFunc renders an executed contract PDF by instance id.
+type ProcessContractExecutePDFFunc func(ctx context.Context, instanceID int64) error
+
 // Worker processes Asynq tasks.
 type Worker struct {
 	server               *asynq.Server
@@ -46,6 +49,7 @@ type Worker struct {
 	processSearchDelete  ProcessSearchDeleteFunc
 	processSearchReindex ProcessSearchReindexFunc
 	purgeLogs            PurgeLogsFunc
+	processContractPDF   ProcessContractExecutePDFFunc
 }
 
 // NewWorker builds a worker that handles known task types.
@@ -67,6 +71,7 @@ func NewWorker(cfg config.Config, log *slog.Logger, deliver DeliverNotificationF
 			QueueBulk:          2,
 			QueueSearch:        2,
 			QueueMaintenance:   1,
+			QueueContracts:     2,
 		},
 		ErrorHandler: asynq.ErrorHandlerFunc(func(_ context.Context, task *asynq.Task, err error) {
 			log.Error("queue_task_failed", "type", task.Type(), "error", err)
@@ -83,6 +88,7 @@ func NewWorker(cfg config.Config, log *slog.Logger, deliver DeliverNotificationF
 	mux.HandleFunc(TaskSearchUpsert, w.handleSearchUpsert)
 	mux.HandleFunc(TaskSearchDelete, w.handleSearchDelete)
 	mux.HandleFunc(TaskSearchReindex, w.handleSearchReindex)
+	mux.HandleFunc(TaskContractExecutePDF, w.handleContractExecutePDF)
 	return w
 }
 
@@ -115,6 +121,12 @@ func (w *Worker) WithSearch(upsert ProcessSearchUpsertFunc, del ProcessSearchDel
 // WithLogPurge registers log retention rule processor.
 func (w *Worker) WithLogPurge(fn PurgeLogsFunc) *Worker {
 	w.purgeLogs = fn
+	return w
+}
+
+// WithContractExecute registers contract PDF execution processor.
+func (w *Worker) WithContractExecute(fn ProcessContractExecutePDFFunc) *Worker {
+	w.processContractPDF = fn
 	return w
 }
 
@@ -227,6 +239,18 @@ func (w *Worker) handleSearchReindex(ctx context.Context, task *asynq.Task) erro
 		return nil
 	}
 	return w.processSearchReindex(ctx, payload.Spec)
+}
+
+func (w *Worker) handleContractExecutePDF(ctx context.Context, task *asynq.Task) error {
+	payload, err := ParseContractExecutePDFPayload(task.Payload())
+	if err != nil {
+		return err
+	}
+	if w.processContractPDF == nil {
+		w.log.Warn("contract_execute_pdf_handler_missing", "id", payload.InstanceID)
+		return nil
+	}
+	return w.processContractPDF(ctx, payload.InstanceID)
 }
 
 func handlePing(log *slog.Logger) asynq.HandlerFunc {

@@ -19,11 +19,13 @@ const (
 	TaskSearchUpsert        = "app:search:upsert"
 	TaskSearchDelete        = "app:search:delete"
 	TaskSearchReindex       = "app:search:reindex"
+	TaskContractExecutePDF  = "app:contract:execute_pdf"
 	QueueNotifications      = "notifications"
 	QueueExports            = "exports"
 	QueueImports            = "imports"
 	QueueBulk               = "bulk"
 	QueueSearch             = "search"
+	QueueContracts          = "contracts"
 	QueueMaintenance        = "maintenance"
 )
 
@@ -221,6 +223,29 @@ func ParseSearchReindexPayload(data []byte) (SearchReindexPayload, error) {
 	var payload SearchReindexPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return SearchReindexPayload{}, fmt.Errorf("queue: unmarshal search reindex: %w", err)
+	}
+	return payload, nil
+}
+
+// ContractExecutePDFPayload identifies a contract instance to render to PDF.
+type ContractExecutePDFPayload struct {
+	InstanceID int64 `json:"instance_id"`
+}
+
+// NewContractExecutePDFTask builds a contract PDF execution task.
+func NewContractExecutePDFTask(instanceID int64) (*asynq.Task, error) {
+	body, err := json.Marshal(ContractExecutePDFPayload{InstanceID: instanceID})
+	if err != nil {
+		return nil, fmt.Errorf("queue: marshal contract execute pdf: %w", err)
+	}
+	return asynq.NewTask(TaskContractExecutePDF, body), nil
+}
+
+// ParseContractExecutePDFPayload decodes contract execute pdf payload.
+func ParseContractExecutePDFPayload(data []byte) (ContractExecutePDFPayload, error) {
+	var payload ContractExecutePDFPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return ContractExecutePDFPayload{}, fmt.Errorf("queue: unmarshal contract execute pdf: %w", err)
 	}
 	return payload, nil
 }

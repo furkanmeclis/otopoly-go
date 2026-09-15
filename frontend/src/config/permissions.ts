@@ -43,6 +43,8 @@ export const Permission = {
   PlatformOrganizationsWrite: "platform.organizations.write",
   PlatformVehicleBrandsRead: "platform.vehicle_brands.read",
   PlatformVehicleBrandsWrite: "platform.vehicle_brands.write",
+  PlatformContractPresetsRead: "platform.contract_presets.read",
+  PlatformContractPresetsWrite: "platform.contract_presets.write",
 
   TenantFinanceRead: "tenant.finance.read",
   TenantFinanceWrite: "tenant.finance.write",
@@ -72,6 +74,8 @@ export const Permission = {
   TenantPurchasesExport: "tenant.purchases.export",
   TenantReportsRead: "tenant.reports.read",
   TenantReportsExport: "tenant.reports.export",
+  TenantContractsRead: "tenant.contracts.read",
+  TenantContractsWrite: "tenant.contracts.write",
 
   TenantCatalogRead: "tenant.catalog.read",
   TenantCatalogWrite: "tenant.catalog.write",
@@ -197,6 +201,10 @@ export const permissions = {
     read: Permission.PlatformVehicleBrandsRead,
     write: Permission.PlatformVehicleBrandsWrite,
   },
+  contractPresets: {
+    read: Permission.PlatformContractPresetsRead,
+    write: Permission.PlatformContractPresetsWrite,
+  },
   customers: {
     read: Permission.TenantCustomersRead,
     write: Permission.TenantCustomersWrite,
@@ -229,6 +237,10 @@ export const permissions = {
   reports: {
     read: Permission.TenantReportsRead,
     export: Permission.TenantReportsExport,
+  },
+  contracts: {
+    read: Permission.TenantContractsRead,
+    write: Permission.TenantContractsWrite,
   },
   finance: {
     read: Permission.TenantFinanceRead,

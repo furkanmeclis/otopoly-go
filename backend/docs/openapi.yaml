@@ -5010,6 +5010,459 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/platform/contract-presets/meta:
+    get:
+      tags: [Platform]
+      operationId: getPlatformContractPresetsMeta
+      summary: Contract presets list metadata
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Resource meta }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/contract-presets:
+    get:
+      tags: [Platform]
+      operationId: listPlatformContractPresets
+      summary: List contract presets
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: sort
+          in: query
+          schema: { type: string }
+        - name: is_active
+          in: query
+          schema: { type: string, enum: ["true", "false"] }
+      responses:
+        "200":
+          description: Preset page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractPresetPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Platform]
+      operationId: createPlatformContractPreset
+      summary: Create contract preset
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContractPresetWrite" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractPreset" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/contract-presets/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformContractPreset
+      summary: Get contract preset
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Preset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractPreset" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformContractPreset
+      summary: Update contract preset
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContractPresetWrite" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractPreset" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformContractPreset
+      summary: Soft-delete contract preset
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/contracts/templates/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantContractTemplatesMeta
+      summary: Contract templates metadata
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Resource meta }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/contracts/presets:
+    get:
+      tags: [Tenant]
+      operationId: listTenantContractPresets
+      summary: List active platform presets for cloning
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+      responses:
+        "200":
+          description: Active presets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractPresetPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/contracts/templates:
+    get:
+      tags: [Tenant]
+      operationId: listTenantContractTemplates
+      summary: List organization contract templates
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: sort
+          in: query
+          schema: { type: string }
+        - name: is_active
+          in: query
+          schema: { type: string, enum: ["true", "false"] }
+      responses:
+        "200":
+          description: Template page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractTemplatePage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantContractTemplate
+      summary: Create contract template
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContractTemplateWrite" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractTemplate" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/tenant/contracts/templates/clone:
+    post:
+      tags: [Tenant]
+      operationId: cloneTenantContractTemplate
+      summary: Clone a platform preset into a tenant template
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preset_uuid]
+              properties:
+                preset_uuid: { type: string, format: uuid }
+                title: { type: string }
+      responses:
+        "201":
+          description: Cloned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractTemplate" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/contracts/templates/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantContractTemplate
+      summary: Get contract template
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Template
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractTemplate" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantContractTemplate
+      summary: Update contract template
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ContractTemplateWrite" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractTemplate" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantContractTemplate
+      summary: Soft-delete contract template
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/contracts/instances:
+    get:
+      tags: [Tenant]
+      operationId: listTenantContractInstances
+      summary: List contract instances
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, pending, executed, voided] }
+        - name: subject_type
+          in: query
+          schema: { type: string, enum: [service_job] }
+        - name: subject_uuid
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Instance page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractInstancePage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantContractInstance
+      summary: Create instance from template bound to a subject
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [template_uuid, subject_type, subject_uuid]
+              properties:
+                template_uuid: { type: string, format: uuid }
+                subject_type: { type: string, enum: [service_job] }
+                subject_uuid: { type: string, format: uuid }
+                title: { type: string }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/contracts/instances/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantContractInstance
+      summary: Get contract instance with signers, signatures, and media
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Instance detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/contracts/instances/{uuid}/void:
+    post:
+      tags: [Tenant]
+      operationId: voidTenantContractInstance
+      summary: Void a draft or pending contract instance
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Voided
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/sign:
+    post:
+      tags: [Tenant]
+      operationId: signTenantContractSigner
+      summary: Capture on-site signature for a signer slot
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: signerUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [display_name, signature_png_base64]
+              properties:
+                display_name: { type: string }
+                signature_png_base64: { type: string, description: Raw base64 or data URL PNG }
+      responses:
+        "200":
+          description: Instance after sign
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/contracts/instances/{uuid}/media:
+    post:
+      tags: [Tenant]
+      operationId: uploadTenantContractMedia
+      summary: Upload gallery media onto a draft/pending instance
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                caption: { type: string }
+      responses:
+        "201":
+          description: Media created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractMedia" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/contracts/instances/{uuid}/media/{mediaUuid}:
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantContractMedia
+      summary: Delete gallery media from a draft/pending instance
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: mediaUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Deleted }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/contracts/instances/{uuid}/pdf:
+    get:
+      tags: [Tenant]
+      operationId: downloadTenantContractPDF
+      summary: Download executed contract PDF
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: PDF bytes
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /v1/tenant/cari/meta:
     get:
       tags: [Tenant]
@@ -7374,4 +7827,218 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/CatalogSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    ContractSignerSlot:
+      type: object
+      required: [role, label, required]
+      properties:
+        role: { type: string }
+        label: { type: string }
+        required: { type: boolean }
+
+    ContractPreset:
+      type: object
+      properties:
+        uuid: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        category: { type: string }
+        content_json: {}
+        content_html: { type: string }
+        variables:
+          type: array
+          items: { type: string }
+        signer_slots:
+          type: array
+          items: { $ref: "#/components/schemas/ContractSignerSlot" }
+        signature_required: { type: boolean }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ContractPresetWrite:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        category: { type: string }
+        content_json: {}
+        content_html: { type: string }
+        variables:
+          type: array
+          items: { type: string }
+        signer_slots:
+          type: array
+          items: { $ref: "#/components/schemas/ContractSignerSlot" }
+        signature_required: { type: boolean }
+        is_active: { type: boolean }
+
+    ContractTemplate:
+      allOf:
+        - $ref: "#/components/schemas/ContractPreset"
+        - type: object
+          properties:
+            preset_uuid: { type: [string, "null"], format: uuid }
+
+    ContractTemplateWrite:
+      allOf:
+        - $ref: "#/components/schemas/ContractPresetWrite"
+        - type: object
+          properties:
+            preset_uuid: { type: [string, "null"], format: uuid }
+
+    ContractSigner:
+      type: object
+      properties:
+        uuid: { type: string, format: uuid }
+        role: { type: string }
+        label: { type: string }
+        required: { type: boolean }
+        sort_order: { type: integer }
+        status: { type: string, enum: [pending, signed] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    ContractSignature:
+      type: object
+      properties:
+        uuid: { type: string, format: uuid }
+        signer_uuid: { type: string, format: uuid }
+        display_name: { type: string }
+        object_key: { type: string }
+        url: { type: [string, "null"] }
+        content_sha256: { type: string }
+        signed_by_user_id: { type: integer }
+        ip_address: { type: string }
+        user_agent: { type: string }
+        signed_at: { type: string, format: date-time }
+
+    ContractMedia:
+      type: object
+      properties:
+        uuid: { type: string, format: uuid }
+        object_key: { type: string }
+        url: { type: [string, "null"] }
+        content_type: { type: string }
+        file_name: { type: string }
+        byte_size: { type: integer }
+        caption: { type: string }
+        sort_order: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    ContractInstance:
+      type: object
+      properties:
+        uuid: { type: string, format: uuid }
+        number: { type: integer }
+        number_label: { type: string }
+        locale: { type: string }
+        template_uuid: { type: [string, "null"], format: uuid }
+        title: { type: string }
+        subject_type: { type: string }
+        subject_uuid: { type: string, format: uuid }
+        content_json: {}
+        content_html: { type: string }
+        variables_resolved:
+          type: object
+          additionalProperties: { type: string }
+        signature_required: { type: boolean }
+        status: { type: string, enum: [draft, pending, executed, voided] }
+        content_sha256: { type: [string, "null"] }
+        pdf_object_key: { type: [string, "null"] }
+        pdf_url: { type: [string, "null"] }
+        pdf_error: { type: string }
+        executed_at: { type: [string, "null"], format: date-time }
+        voided_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        signers:
+          type: array
+          items: { $ref: "#/components/schemas/ContractSigner" }
+        signatures:
+          type: array
+          items: { $ref: "#/components/schemas/ContractSignature" }
+        media:
+          type: array
+          items: { $ref: "#/components/schemas/ContractMedia" }
+
+    EnvelopeContractPreset:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ContractPreset" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeContractPresetPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ContractPreset" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeContractTemplate:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ContractTemplate" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeContractTemplatePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ContractTemplate" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeContractInstance:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ContractInstance" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeContractInstancePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ContractInstance" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeContractMedia:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ContractMedia" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

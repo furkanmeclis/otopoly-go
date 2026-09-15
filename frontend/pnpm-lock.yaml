@@ -50,6 +50,9 @@ importers:
       '@lexical/history':
         specifier: ^0.48.0
         version: 0.48.0(typescript@5.9.3)
+      '@lexical/html':
+        specifier: ^0.48.0
+        version: 0.48.0(typescript@5.9.3)
       '@lexical/link':
         specifier: ^0.48.0
         version: 0.48.0(typescript@5.9.3)

@@ -93,5 +93,20 @@
   "resources.tenant.suppliers": "Tedarikçiler",
   "resources.purchase": "Alış",
   "resources.tenant.purchases": "Alışlar",
-  "resources.tenant.reports": "Raporlar"
+  "resources.tenant.reports": "Raporlar",
+  "actions.platform.contract_preset.create": "Sözleşme hazır şablonu oluşturuldu",
+  "actions.platform.contract_preset.update": "Sözleşme hazır şablonu güncellendi",
+  "actions.platform.contract_preset.delete": "Sözleşme hazır şablonu silindi",
+  "actions.tenant.contract_template.create": "Sözleşme şablonu oluşturuldu",
+  "actions.tenant.contract_template.clone": "Sözleşme şablonu kopyalandı",
+  "actions.tenant.contract_template.update": "Sözleşme şablonu güncellendi",
+  "actions.tenant.contract_template.delete": "Sözleşme şablonu silindi",
+  "actions.tenant.contract_instance.create": "Sözleşme oluşturuldu",
+  "actions.tenant.contract_instance.void": "Sözleşme iptal edildi",
+  "actions.tenant.contract_instance.sign": "Sözleşme imzalandı",
+  "actions.tenant.contract_instance.media_upload": "Sözleşme medyası yüklendi",
+  "actions.tenant.contract_instance.media_delete": "Sözleşme medyası silindi",
+  "resources.contract_preset": "Sözleşme hazır şablonu",
+  "resources.contract_template": "Sözleşme şablonu",
+  "resources.contract_instance": "Sözleşme"
 }

@@ -34,6 +34,9 @@ type Querier interface {
 	CountCariAccounts(ctx context.Context, arg CountCariAccountsParams) (int64, error)
 	CountCariEntries(ctx context.Context, arg CountCariEntriesParams) (int64, error)
 	CountCatalogCategories(ctx context.Context, arg CountCatalogCategoriesParams) (int64, error)
+	CountContractInstances(ctx context.Context, arg CountContractInstancesParams) (int64, error)
+	CountContractPresets(ctx context.Context, arg CountContractPresetsParams) (int64, error)
+	CountContractTemplates(ctx context.Context, arg CountContractTemplatesParams) (int64, error)
 	CountCustomerVehiclesByModel(ctx context.Context, modelID int64) (int64, error)
 	CountCustomers(ctx context.Context, arg CountCustomersParams) (int64, error)
 	CountExportJobsForActor(ctx context.Context, actorID int64) (int64, error)
@@ -45,6 +48,7 @@ type Querier interface {
 	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
 	CountOrganizations(ctx context.Context, arg CountOrganizationsParams) (int64, error)
 	CountOutboxByStatus(ctx context.Context, status string) (int64, error)
+	CountPendingRequiredSigners(ctx context.Context, instanceID int64) (int64, error)
 	CountPermissions(ctx context.Context, q_ pgtype.Text) (int64, error)
 	CountPlatformNotifications(ctx context.Context, arg CountPlatformNotificationsParams) (int64, error)
 	CountPostedPurchasesBySupplier(ctx context.Context, arg CountPostedPurchasesBySupplierParams) (int64, error)
@@ -71,6 +75,12 @@ type Querier interface {
 	// Categories
 	// ============================================================================
 	CreateCatalogCategory(ctx context.Context, arg CreateCatalogCategoryParams) (CatalogCategory, error)
+	CreateContractInstance(ctx context.Context, arg CreateContractInstanceParams) (ContractInstance, error)
+	CreateContractMedia(ctx context.Context, arg CreateContractMediaParams) (ContractMedium, error)
+	CreateContractPreset(ctx context.Context, arg CreateContractPresetParams) (ContractPreset, error)
+	CreateContractSignature(ctx context.Context, arg CreateContractSignatureParams) (ContractSignature, error)
+	CreateContractSigner(ctx context.Context, arg CreateContractSignerParams) (ContractSigner, error)
+	CreateContractTemplate(ctx context.Context, arg CreateContractTemplateParams) (ContractTemplate, error)
 	// Tenant customers and their vehicles.
 	CreateCustomer(ctx context.Context, arg CreateCustomerParams) (Customer, error)
 	CreateCustomerVehicle(ctx context.Context, arg CreateCustomerVehicleParams) (CustomerVehicle, error)
@@ -118,6 +128,7 @@ type Querier interface {
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteAppLogsByUUIDs(ctx context.Context, uuids []uuid.UUID) (int64, error)
 	DeleteAppLogsMatching(ctx context.Context, arg DeleteAppLogsMatchingParams) (int64, error)
+	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
 	DeleteOAuthAccountByUserProvider(ctx context.Context, arg DeleteOAuthAccountByUserProviderParams) error
@@ -147,6 +158,12 @@ type Querier interface {
 	GetCatalogCategoryByName(ctx context.Context, arg GetCatalogCategoryByNameParams) (CatalogCategory, error)
 	GetCatalogCategoryByUUID(ctx context.Context, arg GetCatalogCategoryByUUIDParams) (CatalogCategory, error)
 	GetCatalogStats(ctx context.Context, id int64) (GetCatalogStatsRow, error)
+	GetContractInstanceByID(ctx context.Context, id int64) (ContractInstance, error)
+	GetContractInstanceByUUID(ctx context.Context, arg GetContractInstanceByUUIDParams) (ContractInstance, error)
+	GetContractMediaByUUID(ctx context.Context, arg GetContractMediaByUUIDParams) (ContractMedium, error)
+	GetContractPresetByUUID(ctx context.Context, argUuid uuid.UUID) (ContractPreset, error)
+	GetContractSignerByUUID(ctx context.Context, arg GetContractSignerByUUIDParams) (ContractSigner, error)
+	GetContractTemplateByUUID(ctx context.Context, arg GetContractTemplateByUUIDParams) (ContractTemplate, error)
 	GetCustomerByUUID(ctx context.Context, arg GetCustomerByUUIDParams) (Customer, error)
 	GetCustomerVehicleByUUID(ctx context.Context, arg GetCustomerVehicleByUUIDParams) (CustomerVehicle, error)
 	GetCustomerVehicleDetailByUUID(ctx context.Context, arg GetCustomerVehicleDetailByUUIDParams) (GetCustomerVehicleDetailByUUIDRow, error)
@@ -264,6 +281,12 @@ type Querier interface {
 	ListCariEntries(ctx context.Context, arg ListCariEntriesParams) ([]ListCariEntriesRow, error)
 	ListCariEntriesForExport(ctx context.Context, arg ListCariEntriesForExportParams) ([]ListCariEntriesForExportRow, error)
 	ListCatalogCategories(ctx context.Context, arg ListCatalogCategoriesParams) ([]ListCatalogCategoriesRow, error)
+	ListContractInstances(ctx context.Context, arg ListContractInstancesParams) ([]ContractInstance, error)
+	ListContractMediaByInstance(ctx context.Context, instanceID int64) ([]ContractMedium, error)
+	ListContractPresets(ctx context.Context, arg ListContractPresetsParams) ([]ContractPreset, error)
+	ListContractSignaturesByInstance(ctx context.Context, instanceID int64) ([]ContractSignature, error)
+	ListContractSignersByInstance(ctx context.Context, instanceID int64) ([]ContractSigner, error)
+	ListContractTemplates(ctx context.Context, arg ListContractTemplatesParams) ([]ContractTemplate, error)
 	ListCustomerVehicles(ctx context.Context, arg ListCustomerVehiclesParams) ([]ListCustomerVehiclesRow, error)
 	ListCustomers(ctx context.Context, arg ListCustomersParams) ([]ListCustomersRow, error)
 	ListEnabledLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
@@ -356,6 +379,7 @@ type Querier interface {
 	MarkBulkJobFailed(ctx context.Context, arg MarkBulkJobFailedParams) (BulkJob, error)
 	MarkBulkJobProcessing(ctx context.Context, id int64) (BulkJob, error)
 	MarkBulkJobRolledBack(ctx context.Context, arg MarkBulkJobRolledBackParams) (BulkJob, error)
+	MarkContractSignerSigned(ctx context.Context, id int64) (ContractSigner, error)
 	MarkExportJobCompleted(ctx context.Context, arg MarkExportJobCompletedParams) (ExportJob, error)
 	MarkExportJobFailed(ctx context.Context, arg MarkExportJobFailedParams) (ExportJob, error)
 	MarkExportJobProcessing(ctx context.Context, id int64) (ExportJob, error)
@@ -378,6 +402,7 @@ type Querier interface {
 	MarkServiceJobDone(ctx context.Context, arg MarkServiceJobDoneParams) (ServiceJob, error)
 	MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaidParams) (ServiceJob, error)
 	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
+	NextContractInstanceNumber(ctx context.Context, organizationID int64) (int32, error)
 	PingDB(ctx context.Context) (int32, error)
 	QueueImportJob(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
 	RemoveUserRoleBySlug(ctx context.Context, arg RemoveUserRoleBySlugParams) error
@@ -408,12 +433,15 @@ type Querier interface {
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
+	SetContractInstancePDFError(ctx context.Context, arg SetContractInstancePDFErrorParams) error
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
 	SetRolePermissions(ctx context.Context, roleID int64) error
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteCariAccountByCustomer(ctx context.Context, arg SoftDeleteCariAccountByCustomerParams) (CariAccount, error)
 	SoftDeleteCatalogCategory(ctx context.Context, arg SoftDeleteCatalogCategoryParams) (CatalogCategory, error)
+	SoftDeleteContractPreset(ctx context.Context, argUuid uuid.UUID) error
+	SoftDeleteContractTemplate(ctx context.Context, arg SoftDeleteContractTemplateParams) error
 	SoftDeleteCustomer(ctx context.Context, arg SoftDeleteCustomerParams) (Customer, error)
 	SoftDeleteCustomerVehicle(ctx context.Context, arg SoftDeleteCustomerVehicleParams) (CustomerVehicle, error)
 	SoftDeleteCustomerVehiclesByCustomer(ctx context.Context, arg SoftDeleteCustomerVehiclesByCustomerParams) error
@@ -432,6 +460,9 @@ type Querier interface {
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
+	UpdateContractInstanceStatus(ctx context.Context, arg UpdateContractInstanceStatusParams) (ContractInstance, error)
+	UpdateContractPreset(ctx context.Context, arg UpdateContractPresetParams) (ContractPreset, error)
+	UpdateContractTemplate(ctx context.Context, arg UpdateContractTemplateParams) (ContractTemplate, error)
 	UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) (Customer, error)
 	UpdateFinanceAccount(ctx context.Context, arg UpdateFinanceAccountParams) (FinanceAccount, error)
 	UpdateFinanceCategory(ctx context.Context, arg UpdateFinanceCategoryParams) (FinanceCategory, error)

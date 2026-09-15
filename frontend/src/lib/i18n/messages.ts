@@ -29,6 +29,7 @@ import enSuppliers from "@/locales/en/suppliers.json";
 import enPurchases from "@/locales/en/purchases.json";
 import enReports from "@/locales/en/reports.json";
 import enVehicleBrands from "@/locales/en/vehicle_brands.json";
+import enContracts from "@/locales/en/contracts.json";
 import enRegister from "@/locales/en/register.json";
 import enPermissions from "@/locales/en/permissions.json";
 import enRoles from "@/locales/en/roles.json";
@@ -69,6 +70,7 @@ import trSuppliers from "@/locales/tr/suppliers.json";
 import trPurchases from "@/locales/tr/purchases.json";
 import trReports from "@/locales/tr/reports.json";
 import trVehicleBrands from "@/locales/tr/vehicle_brands.json";
+import trContracts from "@/locales/tr/contracts.json";
 import trRegister from "@/locales/tr/register.json";
 import trPermissions from "@/locales/tr/permissions.json";
 import trRoles from "@/locales/tr/roles.json";
@@ -123,6 +125,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     purchases: trPurchases,
     reports: trReports,
     vehicle_brands: trVehicleBrands,
+    contracts: trContracts,
     register: trRegister,
     stepup: trStepup,
   },
@@ -165,6 +168,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     purchases: enPurchases,
     reports: enReports,
     vehicle_brands: enVehicleBrands,
+    contracts: enContracts,
     register: enRegister,
     stepup: enStepup,
   },

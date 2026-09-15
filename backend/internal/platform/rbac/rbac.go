@@ -74,6 +74,8 @@ const (
 	PermTenantCatalogServicesBulkRaisePrice     = "tenant.catalog.services.bulk.raise_price"
 	PermPlatformVehicleBrandsRead               = "platform.vehicle_brands.read"
 	PermPlatformVehicleBrandsWrite              = "platform.vehicle_brands.write"
+	PermPlatformContractPresetsRead             = "platform.contract_presets.read"
+	PermPlatformContractPresetsWrite            = "platform.contract_presets.write"
 	PermTenantCustomersRead                     = "tenant.customers.read"
 	PermTenantCustomersWrite                    = "tenant.customers.write"
 	PermTenantCariRead                          = "tenant.cari.read"
@@ -93,6 +95,8 @@ const (
 	PermTenantPurchasesExport                   = "tenant.purchases.export"
 	PermTenantReportsRead                       = "tenant.reports.read"
 	PermTenantReportsExport                     = "tenant.reports.export"
+	PermTenantContractsRead                     = "tenant.contracts.read"
+	PermTenantContractsWrite                    = "tenant.contracts.write"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

@@ -28,6 +28,12 @@ type Config struct {
 	Log        LogConfig
 	VAPID      VAPIDConfig
 	Search     SearchConfig
+	Gotenberg  GotenbergConfig
+}
+
+// GotenbergConfig controls HTML→PDF rendering via Gotenberg Chromium.
+type GotenbergConfig struct {
+	URL string
 }
 
 // AuthConfig holds NextAuth adapter integration settings.
@@ -256,6 +262,9 @@ func Load() (Config, error) {
 			MeiliHost:   getEnv("MEILI_HOST", "http://127.0.0.1:7700"),
 			MeiliKey:    getEnv("MEILI_MASTER_KEY", "app-dev-meili-master-key-change-me"),
 			IndexPrefix: getEnv("MEILI_INDEX_PREFIX", "app"),
+		},
+		Gotenberg: GotenbergConfig{
+			URL: getEnv("GOTENBERG_URL", "http://127.0.0.1:3001"),
 		},
 	}
 

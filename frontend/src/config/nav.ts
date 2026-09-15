@@ -23,6 +23,7 @@ import {
   Users,
   Receipt,
   ChartColumn,
+  FileText,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -71,6 +72,13 @@ export const platformNav = defineNav({
           href: routes.platform.vehicleBrands.root,
           icon: Car,
           permission: permissions.vehicleBrands.read,
+        },
+        {
+          id: "contract-presets",
+          titleKey: "layout.nav_contract_presets",
+          href: routes.platform.contractPresets.root,
+          icon: FileText,
+          permission: permissions.contractPresets.read,
         },
         {
           id: "roles",
@@ -236,6 +244,13 @@ export function tenantNav(slug: string) {
             permission: permissions.jobs.read,
           },
           {
+            id: "contracts",
+            titleKey: "layout.nav_contracts",
+            href: routes.tenant.contracts.root(slug),
+            icon: FileText,
+            permission: permissions.contracts.read,
+          },
+          {
             id: "sales",
             titleKey: "layout.nav_sales",
             href: routes.tenant.sales.root(slug),
@@ -385,6 +400,13 @@ export function tenantNav(slug: string) {
             href: routes.tenant.settings.root(slug),
             icon: Settings2,
             permission: permissions.settings.tenantRead,
+          },
+          {
+            id: "contract-templates",
+            titleKey: "layout.nav_contract_templates",
+            href: routes.tenant.contracts.templates(slug),
+            icon: FileText,
+            permission: permissions.contracts.read,
           },
         ],
       },

@@ -68,6 +68,14 @@ export const routes = {
     reports: {
       root: (slug: string) => `/t/${slug}/reports`,
     },
+    contracts: {
+      root: (slug: string) => `/t/${slug}/contracts`,
+      templates: (slug: string) => `/t/${slug}/contracts/templates`,
+      templateDetail: (slug: string, uuid: string) =>
+        `/t/${slug}/contracts/templates/${uuid}`,
+      instanceDetail: (slug: string, uuid: string) =>
+        `/t/${slug}/contracts/instances/${uuid}`,
+    },
     catalog: {
       root: (slug: string) => `/t/${slug}/catalog/products`,
       products: {
@@ -165,6 +173,11 @@ export const routes = {
     vehicleBrands: {
       root: "/platform/vehicle-brands",
       detail: (uuid: string) => `/platform/vehicle-brands/${uuid}`,
+    },
+    contractPresets: {
+      root: "/platform/contract-presets",
+      create: "/platform/contract-presets/create",
+      detail: (uuid: string) => `/platform/contract-presets/${uuid}`,
     },
     activity: {
       root: "/platform/activity",

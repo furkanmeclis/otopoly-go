@@ -4,12 +4,14 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/config"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/logging"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
+	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
@@ -24,6 +26,7 @@ import (
 	ioadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/mail"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/outbox"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
@@ -122,6 +125,12 @@ func main() {
 	)
 	bulkSvc := bulkusecase.New(queries, bulkReg, nil, notifSvc, activityRec, cfg.Bulk, log)
 	logsSvc := logsusecase.New(queries)
+	pdfClient := pdfrender.New(cfg.Gotenberg.URL)
+	contractsPublicURL := cfg.Storage.MinIO.PublicBaseURL
+	if strings.EqualFold(cfg.Storage.Driver, "s3") {
+		contractsPublicURL = cfg.Storage.S3.PublicBaseURL
+	}
+	contractsSvc := contractsusecase.New(pool, queries, activityRec, store, pdfClient, nil, contractsPublicURL)
 	searchReg := searchengine.NewRegistry(
 		searchadapters.NewUsers(queries),
 		searchadapters.NewRoles(queries),
@@ -150,6 +159,7 @@ func main() {
 		WithImport(importSvc.ProcessImport).
 		WithBulk(bulkSvc.ProcessBulk).
 		WithLogPurge(logsSvc.ApplyDueRules).
+		WithContractExecute(contractsSvc.ExecutePDF).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,

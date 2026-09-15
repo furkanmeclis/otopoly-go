@@ -142,6 +142,115 @@ type CatalogCategory struct {
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type ContractInstance struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	OrganizationID    int64              `json:"organization_id"`
+	TemplateID        pgtype.Int8        `json:"template_id"`
+	Title             string             `json:"title"`
+	SubjectType       string             `json:"subject_type"`
+	SubjectUuid       uuid.UUID          `json:"subject_uuid"`
+	ContentJson       []byte             `json:"content_json"`
+	ContentHtml       string             `json:"content_html"`
+	VariablesResolved []byte             `json:"variables_resolved"`
+	SignatureRequired bool               `json:"signature_required"`
+	Status            string             `json:"status"`
+	ContentSha256     pgtype.Text        `json:"content_sha256"`
+	PdfObjectKey      pgtype.Text        `json:"pdf_object_key"`
+	PdfError          string             `json:"pdf_error"`
+	CreatedBy         int64              `json:"created_by"`
+	ExecutedAt        pgtype.Timestamptz `json:"executed_at"`
+	VoidedAt          pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy          pgtype.Int8        `json:"voided_by"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	Number            int32              `json:"number"`
+	Locale            string             `json:"locale"`
+}
+
+type ContractMedium struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	InstanceID     int64              `json:"instance_id"`
+	ObjectKey      string             `json:"object_key"`
+	ContentType    string             `json:"content_type"`
+	FileName       string             `json:"file_name"`
+	ByteSize       int64              `json:"byte_size"`
+	Caption        string             `json:"caption"`
+	SortOrder      int32              `json:"sort_order"`
+	UploadedBy     int64              `json:"uploaded_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type ContractPreset struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	Title             string             `json:"title"`
+	Description       string             `json:"description"`
+	Category          string             `json:"category"`
+	ContentJson       []byte             `json:"content_json"`
+	ContentHtml       string             `json:"content_html"`
+	Variables         []byte             `json:"variables"`
+	SignerSlots       []byte             `json:"signer_slots"`
+	SignatureRequired bool               `json:"signature_required"`
+	IsActive          bool               `json:"is_active"`
+	CreatedBy         pgtype.Int8        `json:"created_by"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type ContractSignature struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	InstanceID     int64              `json:"instance_id"`
+	SignerID       int64              `json:"signer_id"`
+	DisplayName    string             `json:"display_name"`
+	ObjectKey      string             `json:"object_key"`
+	ContentSha256  string             `json:"content_sha256"`
+	SignedByUserID int64              `json:"signed_by_user_id"`
+	IpAddress      string             `json:"ip_address"`
+	UserAgent      string             `json:"user_agent"`
+	SignedAt       pgtype.Timestamptz `json:"signed_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type ContractSigner struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	InstanceID     int64              `json:"instance_id"`
+	Role           string             `json:"role"`
+	Label          string             `json:"label"`
+	Required       bool               `json:"required"`
+	SortOrder      int32              `json:"sort_order"`
+	Status         string             `json:"status"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ContractTemplate struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	OrganizationID    int64              `json:"organization_id"`
+	PresetID          pgtype.Int8        `json:"preset_id"`
+	Title             string             `json:"title"`
+	Description       string             `json:"description"`
+	Category          string             `json:"category"`
+	ContentJson       []byte             `json:"content_json"`
+	ContentHtml       string             `json:"content_html"`
+	Variables         []byte             `json:"variables"`
+	SignerSlots       []byte             `json:"signer_slots"`
+	SignatureRequired bool               `json:"signature_required"`
+	IsActive          bool               `json:"is_active"`
+	CreatedBy         int64              `json:"created_by"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type Customer struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`

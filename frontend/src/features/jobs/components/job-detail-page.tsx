@@ -30,6 +30,7 @@ import { FieldGroup } from "@/components/ui/field";
 import { routes } from "@/config/routes";
 import { useFinanceAccounts } from "@/features/finance/hooks/use-finance-queries";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
+import { JobContractsSection } from "@/features/contracts";
 import { useJob, useJobsMutations } from "@/features/jobs/hooks/use-jobs";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
 import type {
@@ -308,6 +309,8 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
               </ul>
             )}
           </EntitySectionCard>
+
+          <JobContractsSection slug={slug} jobUuid={job.uuid} />
 
           <EntitySectionCard
             title={t("jobs.detail.payments")}

@@ -654,6 +654,60 @@ func TenantPurchases() ResourceMeta {
 	}
 }
 
+// PlatformContractPresets returns meta for GET /v1/platform/contract-presets.
+func PlatformContractPresets() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "platform.contract_presets",
+		DefaultSort:   "-created_at",
+		DefaultFields: []string{"uuid", "title", "category", "signature_required", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true,
+			Search: true, Filter: true, Sort: true,
+		},
+		SearchableFields: []string{"title", "description"},
+		SortableFields:   []string{"title", "created_at"},
+		FilterableFields: []string{"is_active", "category"},
+		Columns: []Column{
+			{Key: "title", LabelKey: "contracts.title", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "category", LabelKey: "contracts.category", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "signature_required", LabelKey: "contracts.signature_required", Type: ColumnTypeBoolean, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "contracts.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: false},
+		},
+		Filters: []Filter{
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+			{Key: "category", LabelKey: "contracts.category", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
+// TenantContracts returns meta for GET /v1/tenant/contracts/templates.
+func TenantContracts() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.contracts",
+		DefaultSort:   "-created_at",
+		DefaultFields: []string{"uuid", "title", "category", "signature_required", "is_active"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true,
+			Search: true, Filter: true, Sort: true,
+		},
+		SearchableFields: []string{"title"},
+		SortableFields:   []string{"title", "created_at"},
+		FilterableFields: []string{"is_active", "category", "status", "subject_type"},
+		Columns: []Column{
+			{Key: "title", LabelKey: "contracts.title", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "category", LabelKey: "contracts.category", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "signature_required", LabelKey: "contracts.signature_required", Type: ColumnTypeBoolean, DefaultVisible: true},
+			{Key: "is_active", LabelKey: "common.status", Type: ColumnTypeBoolean, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "contracts.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: false},
+		},
+		Filters: []Filter{
+			{Key: "is_active", LabelKey: "common.status", Variant: FilterVariantFaceted},
+			{Key: "category", LabelKey: "contracts.category", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
 // TenantReports returns meta for GET /v1/tenant/reports.
 func TenantReports() ResourceMeta {
 	return ResourceMeta{

@@ -34,6 +34,8 @@ import (
 	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
 	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
 	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
+	contractsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts"
+	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
 	customersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers"
 	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
@@ -91,6 +93,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/mail"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/outbox"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
@@ -279,6 +282,17 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	suppliersSvc.SetSearchIndexer(searchIndexer)
 	suppliersSvc.SetEventBus(eventBus)
 	suppliersmodule.RegisterRoutes(mux, suppliersSvc, tokens, loader, deps.Queries)
+	pdfClient := pdfrender.New(cfg.Gotenberg.URL)
+	contractsSvc := contractsusecase.New(
+		deps.DB,
+		deps.Queries,
+		activityRec,
+		deps.Storage,
+		pdfClient,
+		deps.Queue,
+		storagePublicBaseURL(cfg.Storage),
+	)
+	contractsmodule.RegisterRoutes(mux, contractsSvc, tokens, loader, deps.Queries)
 	purchasesSvc := purchasesusecase.New(deps.DB, deps.Queries, activityRec, financeSvc)
 	purchasesSvc.SetSearchIndexer(searchIndexer)
 	purchasesSvc.SetEventBus(eventBus)
@@ -338,7 +352,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		s.worker.WithExport(exportSvc.ProcessExport).
 			WithImport(importSvc.ProcessImport).
 			WithBulk(bulkSvc.ProcessBulk).
-			WithLogPurge(logsSvc.ApplyDueRules)
+			WithLogPurge(logsSvc.ApplyDueRules).
+			WithContractExecute(contractsSvc.ExecutePDF)
 		if searchIndexer != nil {
 			s.worker.WithSearch(
 				searchIndexer.ProcessUpsert,
@@ -529,4 +544,11 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+func storagePublicBaseURL(cfg config.StorageConfig) string {
+	if strings.EqualFold(strings.TrimSpace(cfg.Driver), "s3") {
+		return cfg.S3.PublicBaseURL
+	}
+	return cfg.MinIO.PublicBaseURL
 }

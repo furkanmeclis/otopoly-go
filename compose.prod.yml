@@ -57,6 +57,7 @@ x-backend-environment: &backend-environment
   MEILI_HOST: http://${NAME_PREFIX:-app}-meilisearch:7700
   MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required}
   MEILI_INDEX_PREFIX: ${MEILI_INDEX_PREFIX:-app}
+  GOTENBERG_URL: http://${NAME_PREFIX:-app}-gotenberg:3000
   LOG_LEVEL: ${LOG_LEVEL:-info}
   LOG_FORMAT: ${LOG_FORMAT:-json}
 
@@ -185,6 +186,23 @@ services:
       - app
       - dokploy-network
 
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: ${NAME_PREFIX:-app}-gotenberg
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --api-timeout=60s
+      - --chromium-disable-javascript=true
+      - --chromium-allow-list=^file:///tmp/.*$
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app
+
   migrate:
     <<: *backend-image
     container_name: ${NAME_PREFIX:-app}-migrate
@@ -217,6 +235,8 @@ services:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
+      gotenberg:
+        condition: service_healthy
     expose:
       - "8080"
     healthcheck:
@@ -247,6 +267,8 @@ services:
       centrifugo:
         condition: service_healthy
       meilisearch:
+        condition: service_healthy
+      gotenberg:
         condition: service_healthy
     restart: unless-stopped
     networks:

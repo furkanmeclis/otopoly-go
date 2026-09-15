@@ -32,6 +32,7 @@
     "@lexical/file": "^0.48.0",
     "@lexical/hashtag": "^0.48.0",
     "@lexical/history": "^0.48.0",
+    "@lexical/html": "^0.48.0",
     "@lexical/link": "^0.48.0",
     "@lexical/list": "^0.48.0",
     "@lexical/markdown": "^0.48.0",

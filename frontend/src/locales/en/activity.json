@@ -92,5 +92,20 @@
   "resources.tenant.suppliers": "Suppliers",
   "resources.purchase": "Purchase",
   "resources.tenant.purchases": "Purchases",
-  "resources.tenant.reports": "Reports"
+  "resources.tenant.reports": "Reports",
+  "actions.platform.contract_preset.create": "Contract preset created",
+  "actions.platform.contract_preset.update": "Contract preset updated",
+  "actions.platform.contract_preset.delete": "Contract preset deleted",
+  "actions.tenant.contract_template.create": "Contract template created",
+  "actions.tenant.contract_template.clone": "Contract template cloned",
+  "actions.tenant.contract_template.update": "Contract template updated",
+  "actions.tenant.contract_template.delete": "Contract template deleted",
+  "actions.tenant.contract_instance.create": "Contract created",
+  "actions.tenant.contract_instance.void": "Contract voided",
+  "actions.tenant.contract_instance.sign": "Contract signed",
+  "actions.tenant.contract_instance.media_upload": "Contract media uploaded",
+  "actions.tenant.contract_instance.media_delete": "Contract media deleted",
+  "resources.contract_preset": "Contract preset",
+  "resources.contract_template": "Contract template",
+  "resources.contract_instance": "Contract"
 }

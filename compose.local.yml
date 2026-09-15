@@ -155,6 +155,25 @@ services:
     networks:
       - app
 
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: ${NAME_PREFIX:-app}-gotenberg
+    restart: unless-stopped
+    command:
+      - gotenberg
+      - --api-timeout=60s
+      - --chromium-disable-javascript=true
+      - --chromium-allow-list=^file:///tmp/.*$
+    ports:
+      - "${GOTENBERG_PORT:-3001}:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app
+
 volumes:
   postgres_data:
     name: ${POSTGRES_VOLUME_NAME:-${NAME_PREFIX:-app}-postgres}

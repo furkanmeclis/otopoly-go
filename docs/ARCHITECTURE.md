@@ -158,6 +158,17 @@ Organization-scoped operational and financial analytics under `/v1/tenant/report
 
 **Payload:** KPIs (income/expense/net, jobs, sales, purchases, cari, cash/card), timeseries, service/product mix, expense & income categories, payment methods, finance sources, open cari receivables, top customers.
 
+## Contracts
+
+Platform presets and tenant templates/instances for on-site multi-party signing. PDF via Gotenberg (Chromium); artifacts in MinIO under `contracts/{org}/{instance}/`.
+
+| Surface | Path | Permissions |
+|---------|------|-------------|
+| Platform presets | `/platform/contract-presets` | `platform.contract_presets.read` / `.write` |
+| Tenant templates + instances | `/t/{slug}/contracts` | `tenant.contracts.read` / `.write` (write = owner) |
+
+**Flow:** platform preset → tenant clone/customize → instance bound to `subject_type=service_job` → on-site SignaturePad signers → Asynq HTML→PDF → executed PDF download. Gallery media allowed on draft/pending. Remote/email signing and KEP are out of scope for v1.
+
 ## Tenant cari (`/t/{slug}/cari`)
 
 Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.
