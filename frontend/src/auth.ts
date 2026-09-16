@@ -123,7 +123,13 @@ async function buildProviders(): Promise<Provider[]> {
           const organizationSlug = String(
             credentials?.organization_slug ?? "",
           ).trim();
-          if (!email || !password) return null;
+          if (!email || !password) {
+            console.error("[auth][credentials] missing email/password", {
+              hasEmail: Boolean(email),
+              hasPassword: Boolean(password),
+            });
+            return null;
+          }
 
           try {
             const tokens = await loginWithPassword(
@@ -143,6 +149,12 @@ async function buildProviders(): Promise<Provider[]> {
             };
           } catch (error) {
             const code = (error as Error & { code?: string }).code;
+            console.error("[auth][credentials] authorize failed", {
+              email,
+              code,
+              message: error instanceof Error ? error.message : String(error),
+              status: (error as Error & { status?: number }).status,
+            });
             if (code === "MFA_REQUIRED") {
               throw new MFARequiredError();
             }
