@@ -64,6 +64,8 @@ export type ContractMedia = {
   created_at: string;
 };
 
+export type ContractInstanceStatus = "draft" | "pending" | "executed" | "voided";
+
 export type ContractInstance = {
   uuid: string;
   number: number;
@@ -113,8 +115,8 @@ export type CloneTemplateInput = {
 
 export type CreateInstanceInput = {
   template_uuid: string;
-  subject_type: string;
-  subject_uuid: string;
+  subject_type?: string;
+  subject_uuid?: string;
   title?: string;
 };
 

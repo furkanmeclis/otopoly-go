@@ -417,6 +417,21 @@ type LogPurgeRule struct {
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
+type MessageTemplate struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	EventType      string             `json:"event_type"`
+	Channel        string             `json:"channel"`
+	Locale         string             `json:"locale"`
+	Subject        string             `json:"subject"`
+	Body           string             `json:"body"`
+	Variables      []byte             `json:"variables"`
+	IsActive       bool               `json:"is_active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Notification struct {
 	ID                int64              `json:"id"`
 	Uuid              uuid.UUID          `json:"uuid"`
@@ -465,6 +480,17 @@ type NotificationPreference struct {
 	PushEnabled     bool               `json:"push_enabled"`
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type NotificationRule struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	EventType      string             `json:"event_type"`
+	Channel        string             `json:"channel"`
+	Enabled        bool               `json:"enabled"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type NotificationTemplate struct {
@@ -552,6 +578,24 @@ type OtpCode struct {
 	AttemptCount int32              `json:"attempt_count"`
 	MaxAttempts  int32              `json:"max_attempts"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type OutboundMessage struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	OrganizationID    int64              `json:"organization_id"`
+	EventType         string             `json:"event_type"`
+	Channel           string             `json:"channel"`
+	RecipientPhone    string             `json:"recipient_phone"`
+	Status            string             `json:"status"`
+	ProviderReference string             `json:"provider_reference"`
+	ErrorMessage      string             `json:"error_message"`
+	Payload           []byte             `json:"payload"`
+	SubjectType       string             `json:"subject_type"`
+	SubjectUuid       pgtype.UUID        `json:"subject_uuid"`
+	SentAt            pgtype.Timestamptz `json:"sent_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OutboxEvent struct {
@@ -955,4 +999,19 @@ type WebauthnCredential struct {
 	LastUsedAt        pgtype.Timestamptz `json:"last_used_at"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type WhatsappSession struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Status         string             `json:"status"`
+	Jid            string             `json:"jid"`
+	PhoneNumber    string             `json:"phone_number"`
+	DisplayName    string             `json:"display_name"`
+	EncryptedKeys  []byte             `json:"encrypted_keys"`
+	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
+	ErrorMessage   string             `json:"error_message"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }

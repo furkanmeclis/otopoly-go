@@ -166,6 +166,11 @@ const (
 	TicketsAIAssistGuardFailed          = "tickets.ai.assist_guard_failed"
 )
 
+// Contracts domain events.
+const (
+	ContractsInstanceSigned = "contracts.instance_signed"
+)
+
 // Auth / tenant notification source events (existing Notification Center templates).
 const (
 	AuthWelcome            = "auth.welcome"
@@ -354,6 +359,7 @@ func catalogConstants() []string {
 		TicketsAISuggestionCreated,
 		TicketsAIAssistEscalated,
 		TicketsAIAssistGuardFailed,
+		ContractsInstanceSigned,
 		AuthWelcome,
 		AuthEmailVerification,
 		AuthPasswordReset,

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 
+import { Copy } from "lucide-react";
+
 import { ErrorState } from "@/components/common/error-state";
 import { StatusChip } from "@/components/common/status-chip";
 import {
@@ -134,9 +136,10 @@ export function ContractTemplatesPage({ slug }: { slug: string }) {
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={() => setCloneOpen(true)}
             >
+              <Copy className="size-4" />
               {t("contracts.templates.clone")}
             </Button>
             <EntityCreateButton

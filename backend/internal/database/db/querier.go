@@ -130,6 +130,7 @@ type Querier interface {
 	DeleteAppLogsMatching(ctx context.Context, arg DeleteAppLogsMatchingParams) (int64, error)
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
+	DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
 	DeleteOAuthAccountByUserProvider(ctx context.Context, arg DeleteOAuthAccountByUserProviderParams) error
 	DeletePushSubscription(ctx context.Context, arg DeletePushSubscriptionParams) error
@@ -185,10 +186,14 @@ type Querier interface {
 	GetGitHubAppSettings(ctx context.Context) (GithubAppSetting, error)
 	GetImportJobByID(ctx context.Context, id int64) (ImportJob, error)
 	GetImportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
+	GetJobOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetJobOrgAndPhoneByUUIDRow, error)
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
+	GetMessageTemplate(ctx context.Context, arg GetMessageTemplateParams) (MessageTemplate, error)
+	GetMessageTemplateByKey(ctx context.Context, arg GetMessageTemplateByKeyParams) (MessageTemplate, error)
 	GetNotificationByID(ctx context.Context, id int64) (Notification, error)
 	GetNotificationByUUID(ctx context.Context, argUuid uuid.UUID) (Notification, error)
 	GetNotificationPreferences(ctx context.Context, userID int64) (NotificationPreference, error)
+	GetNotificationRule(ctx context.Context, arg GetNotificationRuleParams) (NotificationRule, error)
 	GetOAuthAccountByProviderAccount(ctx context.Context, arg GetOAuthAccountByProviderAccountParams) (GetOAuthAccountByProviderAccountRow, error)
 	GetOAuthAccountByUserProvider(ctx context.Context, arg GetOAuthAccountByUserProviderParams) (GetOAuthAccountByUserProviderRow, error)
 	GetOAuthProviderSettings(ctx context.Context, provider string) (OauthProviderSetting, error)
@@ -212,6 +217,7 @@ type Querier interface {
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
+	GetSaleOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetSaleOrgAndPhoneByUUIDRow, error)
 	GetServiceByCode(ctx context.Context, arg GetServiceByCodeParams) (Service, error)
 	GetServiceByID(ctx context.Context, arg GetServiceByIDParams) (Service, error)
 	GetServiceByName(ctx context.Context, arg GetServiceByNameParams) (Service, error)
@@ -242,12 +248,14 @@ type Querier interface {
 	GetVehicleModelYearForSearch(ctx context.Context, arg GetVehicleModelYearForSearchParams) (GetVehicleModelYearForSearchRow, error)
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
+	GetWhatsAppSession(ctx context.Context, organizationID int64) (WhatsappSession, error)
 	IncrementOTPAttempts(ctx context.Context, id int64) (OtpCode, error)
 	InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) (ActivityEvent, error)
 	InsertAppLog(ctx context.Context, arg InsertAppLogParams) error
 	InsertBulkChange(ctx context.Context, arg InsertBulkChangeParams) (BulkChange, error)
 	InsertImportChange(ctx context.Context, arg InsertImportChangeParams) (ImportChange, error)
 	InsertNotificationHistory(ctx context.Context, arg InsertNotificationHistoryParams) (NotificationHistory, error)
+	InsertOutboundMessage(ctx context.Context, arg InsertOutboundMessageParams) (OutboundMessage, error)
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) (OutboxEvent, error)
 	InsertRolePermission(ctx context.Context, arg InsertRolePermissionParams) error
 	InsertStorageActivity(ctx context.Context, arg InsertStorageActivityParams) (StorageActivity, error)
@@ -304,6 +312,8 @@ type Querier interface {
 	ListImportJobsForActor(ctx context.Context, arg ListImportJobsForActorParams) ([]ImportJob, error)
 	ListImportJobsForOrganization(ctx context.Context, arg ListImportJobsForOrganizationParams) ([]ImportJob, error)
 	ListLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
+	ListMessageTemplatesByOrg(ctx context.Context, organizationID int64) ([]MessageTemplate, error)
+	ListNotificationRulesByOrg(ctx context.Context, organizationID int64) ([]NotificationRule, error)
 	ListNotificationsForUser(ctx context.Context, arg ListNotificationsForUserParams) ([]Notification, error)
 	ListOAuthAccountsByUserID(ctx context.Context, userID int64) ([]ListOAuthAccountsByUserIDRow, error)
 	ListOAuthAccountsForUserIDs(ctx context.Context, userIds []int64) ([]ListOAuthAccountsForUserIDsRow, error)
@@ -474,6 +484,7 @@ type Querier interface {
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)
 	UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOrganizationLetterheadParams) (Organization, error)
 	UpdateOrganizationPlatform(ctx context.Context, arg UpdateOrganizationPlatformParams) (Organization, error)
+	UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOutboundMessageStatusParams) (OutboundMessage, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
 	UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error)
@@ -492,9 +503,12 @@ type Querier interface {
 	UpdateVehicleModel(ctx context.Context, arg UpdateVehicleModelParams) (VehicleModel, error)
 	UpdateWebAuthnCredentialCounter(ctx context.Context, arg UpdateWebAuthnCredentialCounterParams) error
 	UpdateWebAuthnCredentialName(ctx context.Context, arg UpdateWebAuthnCredentialNameParams) (WebauthnCredential, error)
+	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)
+	UpsertNotificationRule(ctx context.Context, arg UpsertNotificationRuleParams) (NotificationRule, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
+	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)
 	VehicleModelYearExists(ctx context.Context, arg VehicleModelYearExistsParams) (bool, error)
 	VoidCariEntry(ctx context.Context, arg VoidCariEntryParams) (CariEntry, error)

@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
-import { FileStack } from "lucide-react";
+import { FileStack, Plus, Search } from "lucide-react";
 
 import { ErrorState } from "@/components/common/error-state";
 import { StatusChip } from "@/components/common/status-chip";
@@ -17,21 +17,45 @@ import {
 } from "@/components/entity";
 import { createColumn } from "@/components/tables";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { routes } from "@/config/routes";
 import { columnTextValue } from "@/features/catalog/lib/column-filters";
 import {
   useContractInstances,
+  useContractMutations,
+  useContractTemplates,
 } from "@/features/contracts/hooks/use-contracts";
 import { useTenantContractsAccess } from "@/features/contracts/hooks/use-tenant-contracts-access";
-import type { ContractInstance } from "@/features/contracts/services/contracts.service";
+import type {
+  ContractInstance,
+  ContractInstanceStatus,
+} from "@/features/contracts/services/contracts.service";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
-const STATUS_TABS = ["pending", "executed", "voided", "all"] as const;
+const STATUS_TABS = ["all", "draft", "pending", "executed", "voided"] as const;
 
 function statusTone(status: string) {
   switch (status) {
+    case "draft":
+      return "default" as const;
     case "executed":
       return "success" as const;
     case "pending":
@@ -47,22 +71,37 @@ function statusTone(status: string) {
 export function ContractInstancesPage({ slug }: { slug: string }) {
   const { t, locale } = useLocale();
   const router = useRouter();
-  const { canRead } = useTenantContractsAccess(slug);
+  const searchParams = useSearchParams();
+  const { canRead, canWrite } = useTenantContractsAccess(slug);
+
   const [statusTab, setStatusTab] =
-    useState<(typeof STATUS_TABS)[number]>("pending");
+    useState<(typeof STATUS_TABS)[number]>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [q, setQ] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+
+  // Support ?job_uuid=xxx from URL for automatic subject binding
+  const jobUuidFromUrl = searchParams?.get("job_uuid") ?? undefined;
+
   const listState = useServerListState({
     initialSort: "created_at",
     initialPageSize: 20,
   });
+
   const listParams = useMemo(() => {
     const titleQ = columnTextValue(listState.columnFilters, "title");
     return {
       ...listState.params,
-      q: listState.params.q?.trim() || titleQ,
+      q: q.trim() || listState.params.q?.trim() || titleQ || undefined,
       status: statusTab === "all" ? undefined : statusTab,
     };
-  }, [listState.columnFilters, listState.params, statusTab]);
+  }, [listState.columnFilters, listState.params, statusTab, q]);
+
   const listQuery = useContractInstances(listParams, { enabled: canRead });
+
+  const applySearch = useCallback(() => {
+    setQ(searchInput.trim());
+  }, [searchInput]);
 
   const columns = useMemo<ColumnDef<ContractInstance>[]>(
     () => [
@@ -85,9 +124,11 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
         cell: ({ row }) => (
           <div className="flex flex-col gap-0.5">
             <span className="font-medium">{row.original.title}</span>
-            <span className="text-muted-foreground text-xs">
-              {row.original.subject_type}
-            </span>
+            {row.original.subject_type ? (
+              <span className="text-muted-foreground text-xs">
+                {row.original.subject_type}
+              </span>
+            ) : null}
           </div>
         ),
       }),
@@ -99,12 +140,28 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
             label={
               t(`contracts.instances.status.${row.original.status}`) !==
               `contracts.instances.status.${row.original.status}`
-                ? t(`contracts.instances.status.${row.original.status}`)
+                ? t(
+                    `contracts.instances.status.${row.original.status as ContractInstanceStatus}`,
+                  )
                 : row.original.status
             }
             tone={statusTone(row.original.status)}
           />
         ),
+      }),
+      createColumn<ContractInstance>({
+        id: "signers_summary",
+        labelKey: "contracts.fields.signers",
+        cell: ({ row }) => {
+          const signers = row.original.signers ?? [];
+          if (signers.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+          const signed = signers.filter((s) => s.status === "signed").length;
+          return (
+            <span className="text-muted-foreground tabular-nums text-xs">
+              {signed}/{signers.length}
+            </span>
+          );
+        },
       }),
       createColumn<ContractInstance>({
         accessorKey: "created_at",
@@ -140,6 +197,16 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
       ]}
       actions={
         <EntityActions>
+          {canWrite ? (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="size-4" />
+              {t("contracts.instances.create")}
+            </Button>
+          ) : null}
           <Button type="button" size="sm" variant="outline" asChild>
             <Link href={routes.tenant.contracts.templates(slug)}>
               <FileStack className="size-4" />
@@ -149,6 +216,29 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
         </EntityActions>
       }
     >
+      {/* Search + filter toolbar */}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <Input
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") applySearch();
+            }}
+            placeholder={t("contracts.instances.search_placeholder")}
+            className="pl-9"
+          />
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={applySearch}>
+          {t("common.search")}
+        </Button>
+        <EntityToolbar
+          onRefresh={() => void listQuery.refetch()}
+          refreshDisabled={listQuery.isFetching}
+        />
+      </div>
+
       <Tabs
         value={statusTab}
         onValueChange={(value) =>
@@ -185,13 +275,109 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
           persistKey: `tenant-contract-instances-${slug}`,
           columnFilters: true,
         }}
-        toolbarExtra={
-          <EntityToolbar
-            onRefresh={() => void listQuery.refetch()}
-            refreshDisabled={listQuery.isFetching}
-          />
-        }
+      />
+
+      <CreateInstanceDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        slug={slug}
+        defaultJobUuid={jobUuidFromUrl}
       />
     </EntityPage>
+  );
+}
+
+function CreateInstanceDialog({
+  open,
+  onOpenChange,
+  slug,
+  defaultJobUuid,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  slug: string;
+  defaultJobUuid?: string;
+}) {
+  const { t } = useLocale();
+  const router = useRouter();
+  const mutations = useContractMutations();
+  const [templateUuid, setTemplateUuid] = useState("");
+
+  const templatesQuery = useContractTemplates({
+    is_active: "true",
+    limit: 100,
+    offset: 0,
+  });
+
+  const handleCreate = async () => {
+    if (!templateUuid) return;
+    const created = await mutations.createInstance.mutateAsync({
+      template_uuid: templateUuid,
+      ...(defaultJobUuid
+        ? { subject_type: "service_job", subject_uuid: defaultJobUuid }
+        : {}),
+    });
+    onOpenChange(false);
+    setTemplateUuid("");
+    router.push(routes.tenant.contracts.instanceDetail(slug, created.uuid));
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setTemplateUuid("");
+        onOpenChange(next);
+      }}
+    >
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t("contracts.instances.create_title")}</DialogTitle>
+          <DialogDescription>
+            {t("contracts.instances.create_description")}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label>{t("contracts.instances.create_template")}</Label>
+          <Select value={templateUuid} onValueChange={setTemplateUuid}>
+            <SelectTrigger>
+              <SelectValue
+                placeholder={t("contracts.instances.create_template")}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {(templatesQuery.data?.items ?? []).map((tpl) => (
+                <SelectItem key={tpl.uuid} value={tpl.uuid}>
+                  {tpl.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {defaultJobUuid ? (
+            <p className="text-muted-foreground text-xs">
+              {t("contracts.instances.auto_subject_binding")}
+            </p>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="button"
+            disabled={!templateUuid || mutations.createInstance.isPending}
+            onClick={() => void handleCreate()}
+          >
+            {mutations.createInstance.isPending
+              ? t("common.saving")
+              : t("contracts.instances.create")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

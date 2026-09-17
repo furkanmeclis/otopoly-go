@@ -18,6 +18,7 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
@@ -51,6 +52,17 @@ type Service struct {
 	pdf           *pdfrender.Client
 	queue         QueueClient
 	publicBaseURL string
+	bus           events.Bus
+}
+
+// SetEventBus attaches the platform event bus to the contracts service.
+func (s *Service) SetEventBus(bus events.Bus) { s.bus = bus }
+
+func (s *Service) publishIfBus(ctx context.Context, name string, payload map[string]any) {
+	if s.bus == nil {
+		return
+	}
+	_ = s.bus.Publish(ctx, events.New(name).WithPayload(payload))
 }
 
 // New builds a contracts service.
@@ -937,6 +949,16 @@ func (s *Service) Sign(ctx context.Context, instanceUUID, signerUUID uuid.UUID, 
 				ID: inst.ID, PdfError: err.Error(),
 			})
 		}
+		subjectUUIDStr := ""
+		if inst.SubjectUuid != (uuid.UUID{}) {
+			subjectUUIDStr = inst.SubjectUuid.String()
+		}
+		s.publishIfBus(ctx, events.ContractsInstanceSigned, map[string]any{
+			"instance_uuid": inst.Uuid.String(),
+			"subject_type":  inst.SubjectType,
+			"subject_uuid":  subjectUUIDStr,
+			"org_id":        scope.InternalID,
+		})
 	}
 	return s.GetInstance(ctx, instanceUUID)
 }

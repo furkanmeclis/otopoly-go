@@ -36,6 +36,9 @@ import (
 	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
 	contractsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts"
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
+	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
+	messagingproviders "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	customersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers"
 	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
@@ -292,7 +295,17 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		deps.Queue,
 		storagePublicBaseURL(cfg.Storage),
 	)
+	contractsSvc.SetEventBus(eventBus)
 	contractsmodule.RegisterRoutes(mux, contractsSvc, tokens, loader, deps.Queries)
+	waClient := &messagingproviders.StubWhatsAppClient{Log: log}
+	messagingSvc := messagingusecase.New(
+		deps.Queries,
+		messagingproviders.NewWhatsAppProvider(waClient, log),
+		&messagingproviders.NoopSMSProvider{Log: log},
+	)
+	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
+	messagingResolver := messagingmodule.NewDBPhoneResolver(deps.Queries)
+	messagingmodule.RegisterEventHandlers(eventBus, messagingSvc, messagingResolver, log)
 	purchasesSvc := purchasesusecase.New(deps.DB, deps.Queries, activityRec, financeSvc)
 	purchasesSvc.SetSearchIndexer(searchIndexer)
 	purchasesSvc.SetEventBus(eventBus)

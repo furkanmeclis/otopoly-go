@@ -104,6 +104,7 @@ export const routes = {
     },
     settings: {
       root: (slug: string) => `/t/${slug}/settings`,
+      messaging: (slug: string) => `/t/${slug}/settings/messaging`,
     },
   },
   guest: {

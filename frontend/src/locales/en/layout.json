@@ -55,5 +55,6 @@
   "page_ready_description": "Manage your car wash operations from one console.",
   "collapse_sidebar": "Collapse sidebar",
   "expand_sidebar": "Expand sidebar",
-  "nav_item_info": "Details"
+  "nav_item_info": "Details",
+  "nav_messaging": "Messaging"
 }
