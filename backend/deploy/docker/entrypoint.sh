@@ -24,6 +24,13 @@ case "${ROLE}" in
     ;;
   migrate)
     : "${DATABASE_URL:?DATABASE_URL is required}"
+    # If the DB is in a dirty state, force-clear it before running up.
+    DIRTY_VERSION=$(migrate -path /app/migrations -database "${DATABASE_URL}" version 2>&1 | grep -oE '^[0-9]+' || true)
+    IS_DIRTY=$(migrate -path /app/migrations -database "${DATABASE_URL}" version 2>&1 | grep -c 'dirty' || true)
+    if [ "${IS_DIRTY}" -gt 0 ] && [ -n "${DIRTY_VERSION}" ]; then
+      echo "migrate: dirty version ${DIRTY_VERSION} detected, forcing..."
+      migrate -path /app/migrations -database "${DATABASE_URL}" force "${DIRTY_VERSION}"
+    fi
     exec migrate -path /app/migrations -database "${DATABASE_URL}" up
     ;;
   create-super-admin)

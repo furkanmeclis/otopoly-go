@@ -1,7 +1,7 @@
 -- Permissions
-INSERT INTO permissions (slug, description) VALUES
-  ('tenant.messaging.read',  'View messaging settings and session status'),
-  ('tenant.messaging.write', 'Manage WhatsApp session and notification settings')
+INSERT INTO permissions (name, slug) VALUES
+  ('View messaging settings and session status',    'tenant.messaging.read'),
+  ('Manage WhatsApp session and notification settings', 'tenant.messaging.write')
 ON CONFLICT (slug) DO NOTHING;
 
 INSERT INTO role_permissions (role_id, permission_id)
@@ -15,7 +15,7 @@ WHERE r.slug = 'organization_owner' AND p.slug IN ('tenant.messaging.read', 'ten
 ON CONFLICT DO NOTHING;
 
 -- WhatsApp sessions (one per organization)
-CREATE TABLE whatsapp_sessions (
+CREATE TABLE IF NOT EXISTS whatsapp_sessions (
     id              BIGSERIAL PRIMARY KEY,
     uuid            UUID         NOT NULL DEFAULT gen_random_uuid(),
     organization_id BIGINT       NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -31,12 +31,12 @@ CREATE TABLE whatsapp_sessions (
     CONSTRAINT uq_whatsapp_sessions_uuid UNIQUE (uuid),
     CONSTRAINT uq_whatsapp_sessions_org  UNIQUE (organization_id)
 );
-CREATE TRIGGER trg_whatsapp_sessions_set_updated_at
+CREATE OR REPLACE TRIGGER trg_whatsapp_sessions_set_updated_at
     BEFORE UPDATE ON whatsapp_sessions
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Tenant-owned message templates per event+channel+locale
-CREATE TABLE message_templates (
+CREATE TABLE IF NOT EXISTS message_templates (
     id              BIGSERIAL PRIMARY KEY,
     uuid            UUID         NOT NULL DEFAULT gen_random_uuid(),
     organization_id BIGINT       NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -53,13 +53,13 @@ CREATE TABLE message_templates (
     CONSTRAINT uq_message_templates_org_event_channel_locale
         UNIQUE (organization_id, event_type, channel, locale)
 );
-CREATE INDEX idx_message_templates_org ON message_templates(organization_id, event_type, channel);
-CREATE TRIGGER trg_message_templates_set_updated_at
+CREATE INDEX IF NOT EXISTS idx_message_templates_org ON message_templates(organization_id, event_type, channel);
+CREATE OR REPLACE TRIGGER trg_message_templates_set_updated_at
     BEFORE UPDATE ON message_templates
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Per-organization notification rules (which events trigger which channels)
-CREATE TABLE notification_rules (
+CREATE TABLE IF NOT EXISTS notification_rules (
     id              BIGSERIAL PRIMARY KEY,
     uuid            UUID         NOT NULL DEFAULT gen_random_uuid(),
     organization_id BIGINT       NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -71,12 +71,12 @@ CREATE TABLE notification_rules (
     CONSTRAINT uq_notification_rules_uuid UNIQUE (uuid),
     CONSTRAINT uq_notification_rules_org_event_channel UNIQUE (organization_id, event_type, channel)
 );
-CREATE TRIGGER trg_notification_rules_set_updated_at
+CREATE OR REPLACE TRIGGER trg_notification_rules_set_updated_at
     BEFORE UPDATE ON notification_rules
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Outbound message log
-CREATE TABLE outbound_messages (
+CREATE TABLE IF NOT EXISTS outbound_messages (
     id                  BIGSERIAL PRIMARY KEY,
     uuid                UUID         NOT NULL DEFAULT gen_random_uuid(),
     organization_id     BIGINT       NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
@@ -94,7 +94,7 @@ CREATE TABLE outbound_messages (
     updated_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_outbound_messages_uuid UNIQUE (uuid)
 );
-CREATE INDEX idx_outbound_messages_org ON outbound_messages(organization_id, created_at DESC);
-CREATE TRIGGER trg_outbound_messages_set_updated_at
+CREATE INDEX IF NOT EXISTS idx_outbound_messages_org ON outbound_messages(organization_id, created_at DESC);
+CREATE OR REPLACE TRIGGER trg_outbound_messages_set_updated_at
     BEFORE UPDATE ON outbound_messages
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
