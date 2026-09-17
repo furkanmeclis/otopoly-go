@@ -13,7 +13,6 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -70,14 +69,6 @@ func New(q Querier, wp *providers.WhatsAppProvider, sms *providers.NoopSMSProvid
 		s.channels[model.ChannelSMS] = sms
 	}
 	return s
-}
-
-func (s *Service) requireOrgID(ctx context.Context) (int64, error) {
-	scope, ok := orgctx.ScopeFrom(ctx)
-	if !ok || scope.InternalID <= 0 {
-		return 0, fmt.Errorf("organization context required")
-	}
-	return scope.InternalID, nil
 }
 
 // --- WhatsApp Session ---
