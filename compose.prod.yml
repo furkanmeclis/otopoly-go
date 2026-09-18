@@ -9,8 +9,8 @@ x-backend-image: &backend-image
 x-frontend-image: &frontend-image
   image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
   build:
-    context: ./frontend
-    dockerfile: Dockerfile
+    context: .
+    dockerfile: frontend/Dockerfile
 
 x-backend-environment: &backend-environment
   APP_NAME: ${APP_NAME:-api}

@@ -11,7 +11,8 @@ WORKDIR /app
 
 FROM base AS deps
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Build context is the project root; frontend sources are under frontend/
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build
@@ -19,7 +20,7 @@ FROM base AS build
 ENV NEXT_TELEMETRY_DISABLED=1
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY frontend/ .
 
 RUN pnpm build
 
@@ -28,10 +29,15 @@ FROM node:22.22.0-alpine3.23 AS runtime
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
-ENV PORT=3000
+# nginx listens on 3000 (public); Next.js listens on 3001 (internal only)
+ENV PORT=3001
+
+# Install nginx to serve /_next/static/* directly (fast static delivery + gzip)
+RUN apk add --no-cache nginx
 
 RUN addgroup -S -g 10001 app \
-    && adduser -S -D -H -u 10001 -G app app
+    && adduser -S -D -H -u 10001 -G app app \
+    && chown -R app:app /var/lib/nginx /var/log/nginx 2>/dev/null || true
 
 WORKDIR /app
 
@@ -39,11 +45,15 @@ COPY --from=build --chown=app:app /app/public ./public
 COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static
 
+COPY --chown=app:app deploy/nginx/frontend.conf /etc/nginx/frontend.conf
+COPY --chown=app:app deploy/scripts/start-frontend.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
 USER app
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=10 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=10 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
 
-CMD ["node", "server.js"]
+CMD ["/app/start.sh"]
