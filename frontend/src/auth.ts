@@ -80,6 +80,13 @@ function isOAuthProvider(
   );
 }
 
+// Providers are built by making several backend calls. Cache the result for
+// PROVIDERS_CACHE_TTL ms so repeated session/CSRF requests don't re-issue all
+// those HTTP round-trips on every hit.
+const PROVIDERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+let _providersCache: { providers: Provider[]; builtAt: number } | null = null;
+let _providersBuildPromise: Promise<Provider[]> | null = null;
+
 async function loadOAuthConfig(
   provider: OAuthProviderId,
 ): Promise<OAuthConfigPayload | null> {
@@ -94,7 +101,7 @@ async function loadOAuthConfig(
   return null;
 }
 
-async function buildProviders(): Promise<Provider[]> {
+async function _doBuildProviders(): Promise<Provider[]> {
   let passwordLogin = true;
   let passkeyLogin = true;
   try {
@@ -104,6 +111,14 @@ async function buildProviders(): Promise<Provider[]> {
   } catch {
     // Keep defaults when public config is unavailable.
   }
+
+  // Fetch all OAuth configs in parallel instead of sequentially.
+  const [github, google, facebook, apple] = await Promise.all([
+    loadOAuthConfig("github"),
+    loadOAuthConfig("google"),
+    loadOAuthConfig("facebook"),
+    loadOAuthConfig("apple"),
+  ]);
 
   const providers: Provider[] = [];
 
@@ -181,7 +196,6 @@ async function buildProviders(): Promise<Provider[]> {
     providers.push(Passkey({}));
   }
 
-  const github = await loadOAuthConfig("github");
   if (github) {
     providers.push(
       GitHub({
@@ -191,7 +205,6 @@ async function buildProviders(): Promise<Provider[]> {
     );
   }
 
-  const google = await loadOAuthConfig("google");
   if (google) {
     providers.push(
       Google({
@@ -201,7 +214,6 @@ async function buildProviders(): Promise<Provider[]> {
     );
   }
 
-  const facebook = await loadOAuthConfig("facebook");
   if (facebook) {
     providers.push(
       Facebook({
@@ -211,7 +223,6 @@ async function buildProviders(): Promise<Provider[]> {
     );
   }
 
-  const apple = await loadOAuthConfig("apple");
   if (apple) {
     providers.push(
       Apple({
@@ -222,6 +233,25 @@ async function buildProviders(): Promise<Provider[]> {
   }
 
   return providers;
+}
+
+async function buildProviders(): Promise<Provider[]> {
+  const now = Date.now();
+  if (_providersCache && now - _providersCache.builtAt < PROVIDERS_CACHE_TTL) {
+    return _providersCache.providers;
+  }
+  // Deduplicate concurrent calls while the first build is in flight.
+  if (!_providersBuildPromise) {
+    _providersBuildPromise = _doBuildProviders().then((providers) => {
+      _providersCache = { providers, builtAt: Date.now() };
+      _providersBuildPromise = null;
+      return providers;
+    }).catch((err) => {
+      _providersBuildPromise = null;
+      throw err;
+    });
+  }
+  return _providersBuildPromise;
 }
 
 const authHandlers = NextAuth(async () => ({
