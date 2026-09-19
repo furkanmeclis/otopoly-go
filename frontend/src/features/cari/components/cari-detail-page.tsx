@@ -194,7 +194,7 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
       }),
       createColumn<CariEntry>({
         accessorKey: "description",
-        labelKey: "cari.description",
+        labelKey: "cari.entry_description",
         cell: ({ row }) => row.original.description || "—",
       }),
       createColumn<CariEntry>({
@@ -474,7 +474,7 @@ function ChargeDialog({
               required
             />
             <AppDatePicker name="entry_date" label={t("cari.entry_date")} />
-            <AppTextarea name="description" label={t("cari.description")} />
+            <AppTextarea name="description" label={t("cari.entry_description")} />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button
@@ -582,7 +582,7 @@ function PaymentDialog({
                 label: t(`cari.payment_method.${method}`),
               }))}
             />
-            <AppTextarea name="description" label={t("cari.description")} />
+            <AppTextarea name="description" label={t("cari.entry_description")} />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button
@@ -673,7 +673,7 @@ function AdjustmentDialog({
               required
             />
             <AppDatePicker name="entry_date" label={t("cari.entry_date")} />
-            <AppTextarea name="description" label={t("cari.description")} />
+            <AppTextarea name="description" label={t("cari.entry_description")} />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -43,17 +43,9 @@ export function TemplateEditorDialog({
   const upsertMutation = useUpsertTemplate();
   const patchMutation = usePatchTemplate();
 
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [subject, setSubject] = useState(existing?.subject ?? "");
+  const [body, setBody] = useState(existing?.body ?? "");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-
-  // Populate from existing template when dialog opens
-  useEffect(() => {
-    if (open) {
-      setSubject(existing?.subject ?? "");
-      setBody(existing?.body ?? "");
-    }
-  }, [open, existing]);
 
   const variables = EVENT_VARIABLES[eventType] ?? [];
 
@@ -103,8 +95,9 @@ export function TemplateEditorDialog({
             {eventLabel} — {channelLabel} Mesaj Şablonu
           </DialogTitle>
           <DialogDescription>
-            Müşterilere gönderilecek mesaj şablonunu düzenleyin. Dinamik
-            değerleri otomatik doldurmak için değişken chip'lerine tıklayın.
+            {
+              "Müşterilere gönderilecek mesaj şablonunu düzenleyin. Dinamik değerleri otomatik doldurmak için değişken chip'lerine tıklayın."
+            }
           </DialogDescription>
         </DialogHeader>
 

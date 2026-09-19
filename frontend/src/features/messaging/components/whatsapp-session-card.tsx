@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CheckCircle2,
   Loader2,
@@ -47,47 +47,33 @@ export function WhatsAppSessionCard() {
   } | null>(null);
   const [countdown, setCountdown] = useState(QR_TTL_SECONDS);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const session = sessionQuery.data;
   const status = session?.status ?? "disconnected";
 
-  // Start countdown when QR code is active
-  useEffect(() => {
-    if (qrData) {
-      const expiresMs =
-        new Date(qrData.expires_at).getTime() - Date.now();
-      const seconds = Math.max(
-        0,
-        Math.floor(expiresMs / 1000),
-      );
-      setCountdown(seconds > 0 ? seconds : QR_TTL_SECONDS);
+  function applyQr(result: { code: string; expires_at: string }) {
+    const expiresMs = new Date(result.expires_at).getTime() - Date.now();
+    const seconds = Math.max(0, Math.floor(expiresMs / 1000));
+    setQrData(result);
+    setCountdown(seconds > 0 ? seconds : QR_TTL_SECONDS);
+  }
 
-      intervalRef.current = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(intervalRef.current!);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  useEffect(() => {
+    if (!qrData) {
+      return;
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
+    const id = setInterval(() => {
+      setCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(id);
   }, [qrData]);
 
   async function handleConnect() {
-    const result = await connectMutation.mutateAsync();
-    setQrData(result);
-    setCountdown(QR_TTL_SECONDS);
+    applyQr(await connectMutation.mutateAsync());
   }
 
   async function handleRefreshQR() {
-    const result = await connectMutation.mutateAsync();
-    setQrData(result);
-    setCountdown(QR_TTL_SECONDS);
+    applyQr(await connectMutation.mutateAsync());
   }
 
   async function handleDisconnect() {

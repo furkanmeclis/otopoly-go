@@ -409,6 +409,14 @@ export function tenantNav(slug: string) {
             icon: FileText,
             permission: permissions.contracts.read,
           },
+        ],
+      },
+      {
+        id: "settings",
+        labelKey: "layout.section_settings",
+        icon: Settings2,
+        defaultOpen: true,
+        items: [
           {
             id: "messaging",
             titleKey: "layout.nav_messaging",

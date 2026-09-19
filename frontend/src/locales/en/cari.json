@@ -14,7 +14,7 @@
   "entry_status": "Status",
   "amount": "Amount",
   "balance_after": "Balance after",
-  "description": "Description",
+  "entry_description": "Description",
   "reference_no": "Reference",
   "payment_method": "Payment method",
   "finance_account": "Cash account",
