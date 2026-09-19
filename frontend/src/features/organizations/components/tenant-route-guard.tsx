@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/card";
 import { routes } from "@/config/routes";
 import { useTenant } from "@/features/organizations/providers/tenant-provider";
+import { useAuthStore } from "@/lib/auth/session-store";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -28,6 +29,7 @@ export function TenantRouteGuard({
   const { slug, organization } = useTenant();
   const { bootstrapped, isAuthenticated, user } = useAuth();
   const { t } = useLocale();
+  const cachedUser = useAuthStore((s) => s.user);
 
   const membership = user?.organizations.find((org) => org.slug === slug);
   const [nowMs] = useState(() => Date.now());
@@ -53,7 +55,10 @@ export function TenantRouteGuard({
     slug,
   ]);
 
-  if (!bootstrapped) {
+  // Show loading only when there is no cached user to render optimistically.
+  // If cachedUser exists, render children immediately and let session
+  // verification update state in the background.
+  if (!bootstrapped && !cachedUser) {
     return (
       <div className="text-muted-foreground flex min-h-svh items-center justify-center text-sm">
         {t("common.loading")}
