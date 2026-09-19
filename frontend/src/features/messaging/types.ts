@@ -75,3 +75,22 @@ export const EVENT_LABELS: Record<string, string> = {
   "job.paid": "İş Ödendi",
   "sale.created": "Satış Oluşturuldu",
 };
+
+export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }> = {
+  "contract.signed": {
+    subject: "Sözleşmeniz İmzalandı",
+    body: "Sayın {{customer_name}},\n\n"{{contract_title}}" sözleşmeniz başarıyla imzalandı.\n\nİyi günler dileriz.\n{{business_name}}",
+  },
+  "job.completed": {
+    subject: "Aracınız Hazır",
+    body: "Sayın {{customer_name}},\n\nAracınızın yıkama işlemi tamamlandı, teslime hazır. İş No: {{job_id}} | Plaka: {{plate}}\n\nİyi günler dileriz.\n{{business_name}}",
+  },
+  "job.paid": {
+    subject: "Ödemeniz Alındı",
+    body: "Sayın {{customer_name}},\n\nÖdemeniz başarıyla alındı. Tutar: {{amount}} {{currency}}\n\nTeşekkür ederiz.\n{{business_name}}",
+  },
+  "sale.created": {
+    subject: "Satışınız Oluşturuldu",
+    body: "Sayın {{customer_name}},\n\nSatışınız oluşturuldu. Tutar: {{amount}} {{currency}}\n\nTeşekkür ederiz.\n{{business_name}}",
+  },
+};

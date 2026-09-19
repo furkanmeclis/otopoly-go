@@ -21,7 +21,7 @@ import {
   useUpsertTemplate,
 } from "@/features/messaging/hooks/use-messaging";
 import type { MessageTemplate } from "@/features/messaging/types";
-import { EVENT_VARIABLES } from "@/features/messaging/types";
+import { DEFAULT_TEMPLATES, EVENT_VARIABLES } from "@/features/messaging/types";
 
 interface TemplateEditorDialogProps {
   open: boolean;
@@ -43,8 +43,9 @@ export function TemplateEditorDialog({
   const upsertMutation = useUpsertTemplate();
   const patchMutation = usePatchTemplate();
 
-  const [subject, setSubject] = useState(existing?.subject ?? "");
-  const [body, setBody] = useState(existing?.body ?? "");
+  const defaults = DEFAULT_TEMPLATES[eventType];
+  const [subject, setSubject] = useState(existing?.subject ?? defaults?.subject ?? "");
+  const [body, setBody] = useState(existing?.body ?? defaults?.body ?? "");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const variables = EVENT_VARIABLES[eventType] ?? [];

@@ -297,7 +297,14 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	)
 	contractsSvc.SetEventBus(eventBus)
 	contractsmodule.RegisterRoutes(mux, contractsSvc, tokens, loader, deps.Queries)
-	waClient := &messagingproviders.StubWhatsAppClient{Log: log}
+	var waClient messagingproviders.WhatsAppClient
+	waMgr, waErr := messagingproviders.NewRealWhatsAppClientManager(cfg.DB.DSN(), log, nil)
+	if waErr != nil {
+		log.Warn("whatsapp client manager unavailable, falling back to stub", "err", waErr)
+		waClient = &messagingproviders.StubWhatsAppClient{Log: log}
+	} else {
+		waClient = waMgr.AsClient()
+	}
 	messagingSvc := messagingusecase.New(
 		deps.Queries,
 		messagingproviders.NewWhatsAppProvider(waClient, log),

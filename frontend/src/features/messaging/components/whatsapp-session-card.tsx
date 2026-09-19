@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import QRCode from "qrcode";
 import {
   CheckCircle2,
   Loader2,
@@ -45,17 +46,24 @@ export function WhatsAppSessionCard() {
     code: string;
     expires_at: string;
   } | null>(null);
+  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(QR_TTL_SECONDS);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const session = sessionQuery.data;
   const status = session?.status ?? "disconnected";
 
-  function applyQr(result: { code: string; expires_at: string }) {
+  async function applyQr(result: { code: string; expires_at: string }) {
     const expiresMs = new Date(result.expires_at).getTime() - Date.now();
     const seconds = Math.max(0, Math.floor(expiresMs / 1000));
     setQrData(result);
     setCountdown(seconds > 0 ? seconds : QR_TTL_SECONDS);
+    try {
+      const url = await QRCode.toDataURL(result.code, { width: 240, margin: 2 });
+      setQrImageUrl(url);
+    } catch {
+      setQrImageUrl(null);
+    }
   }
 
   useEffect(() => {
@@ -69,16 +77,17 @@ export function WhatsAppSessionCard() {
   }, [qrData]);
 
   async function handleConnect() {
-    applyQr(await connectMutation.mutateAsync());
+    await applyQr(await connectMutation.mutateAsync());
   }
 
   async function handleRefreshQR() {
-    applyQr(await connectMutation.mutateAsync());
+    await applyQr(await connectMutation.mutateAsync());
   }
 
   async function handleDisconnect() {
     await disconnectMutation.mutateAsync();
     setQrData(null);
+    setQrImageUrl(null);
     setDisconnectOpen(false);
   }
 
@@ -130,13 +139,23 @@ export function WhatsAppSessionCard() {
         {/* QR Pending state */}
         {(status === "qr_pending" || qrData) && status !== "connected" ? (
           <div className="space-y-3">
-            <div className="rounded-md border bg-muted p-4">
-              <p className="mb-1 text-xs text-muted-foreground">
-                WhatsApp uygulamanızdan bu kodu okutun:
+            <div className="rounded-md border bg-muted p-4 flex flex-col items-center gap-3">
+              <p className="text-xs text-muted-foreground self-start">
+                WhatsApp uygulamanızdan QR kodu okutun:
               </p>
-              <code className="block break-all text-sm font-mono select-all">
-                {qrData?.code ?? session?.jid ?? "—"}
-              </code>
+              {qrImageUrl ? (
+                <img
+                  src={qrImageUrl}
+                  alt="WhatsApp QR Kodu"
+                  className="rounded-md"
+                  width={240}
+                  height={240}
+                />
+              ) : (
+                <code className="block break-all text-xs font-mono select-all text-muted-foreground">
+                  {qrData?.code ?? session?.jid ?? "—"}
+                </code>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <Badge
