@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -20,6 +20,14 @@ export function TenantOrganizationContext({
 }) {
   const { t } = useLocale();
   const { update } = useSession();
+  // Keep update in a ref so the effect doesn't re-run every time the session
+  // object is refreshed (NextAuth returns a new function reference after each
+  // session update, which would create an infinite loop).
+  const updateRef = useRef(update);
+  useEffect(() => {
+    updateRef.current = update;
+  });
+
   const { bootstrapped, isAuthenticated, user } = useAuth();
   const [ready, setReady] = useState(false);
 
@@ -39,7 +47,7 @@ export function TenantOrganizationContext({
 
       try {
         await authService.switchOrganizationContext(slug);
-        await update();
+        await updateRef.current();
       } catch {
         // TenantRouteGuard / API errors surface access issues.
       } finally {
@@ -50,7 +58,10 @@ export function TenantOrganizationContext({
     return () => {
       cancelled = true;
     };
-  }, [bootstrapped, hasMembership, isAuthenticated, slug, update]);
+  // update intentionally excluded: it's accessed via updateRef to prevent
+  // an infinite re-render loop when NextAuth refreshes the session object.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bootstrapped, hasMembership, isAuthenticated, slug]);
 
   if (!ready) {
     return (
