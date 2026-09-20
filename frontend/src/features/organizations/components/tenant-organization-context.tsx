@@ -9,7 +9,8 @@ import { authService } from "@/services/auth.service";
 
 /**
  * Ensures the BFF session JWT carries organization scope (`oid`) for tenant APIs.
- * TODO(finance): Re-call switch after token refresh (oid is dropped on /v1/auth/refresh today).
+ * Skips the switch when the session already carries this slug's organization UUID
+ * (typical after login-with-slug or oid-preserving refresh).
  */
 export function TenantOrganizationContext({
   slug,
@@ -19,10 +20,7 @@ export function TenantOrganizationContext({
   children: ReactNode;
 }) {
   const { t } = useLocale();
-  const { update } = useSession();
-  // Keep update in a ref so the effect doesn't re-run every time the session
-  // object is refreshed (NextAuth returns a new function reference after each
-  // session update, which would create an infinite loop).
+  const { data: session, update, status: sessionStatus } = useSession();
   const updateRef = useRef(update);
   useEffect(() => {
     updateRef.current = update;
@@ -31,16 +29,29 @@ export function TenantOrganizationContext({
   const { bootstrapped, isAuthenticated, user } = useAuth();
   const [ready, setReady] = useState(false);
 
-  const hasMembership = Boolean(
-    user?.organizations.some((org) => org.slug === slug),
-  );
+  const membership = user?.organizations.find((org) => org.slug === slug);
+  const hasMembership = Boolean(membership);
+  const sessionOrgUuid =
+    (session as { organizationUuid?: string | null } | null)?.organizationUuid ??
+    null;
+  const alreadyScoped =
+    Boolean(membership?.uuid) &&
+    Boolean(sessionOrgUuid) &&
+    membership?.uuid === sessionOrgUuid;
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
       if (!bootstrapped) return;
+      if (sessionStatus === "loading") return;
+
       if (!isAuthenticated || !hasMembership) {
+        if (!cancelled) setReady(true);
+        return;
+      }
+
+      if (alreadyScoped) {
         if (!cancelled) setReady(true);
         return;
       }
@@ -58,10 +69,15 @@ export function TenantOrganizationContext({
     return () => {
       cancelled = true;
     };
-  // update intentionally excluded: it's accessed via updateRef to prevent
-  // an infinite re-render loop when NextAuth refreshes the session object.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bootstrapped, hasMembership, isAuthenticated, slug]);
+  // update intentionally excluded: accessed via updateRef to avoid loops.
+  }, [
+    alreadyScoped,
+    bootstrapped,
+    hasMembership,
+    isAuthenticated,
+    sessionStatus,
+    slug,
+  ]);
 
   if (!ready) {
     return (

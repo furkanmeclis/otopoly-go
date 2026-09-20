@@ -15,6 +15,8 @@ SELECT a.*,
        c.phone AS customer_phone,
        c.email AS customer_email,
        c.kind AS customer_kind,
+       c.tax_id AS customer_tax_id,
+       c.tax_office AS customer_tax_office,
        c.is_active AS customer_is_active
 FROM cari_accounts a
 JOIN customers c ON c.id = a.customer_id

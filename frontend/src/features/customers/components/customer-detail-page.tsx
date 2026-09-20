@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Pencil, Trash2 } from "lucide-react";
+import { useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { ErrorState } from "@/components/common/error-state";
@@ -311,6 +312,20 @@ export function CustomerDetailPage({
                       label: t("customers.fields.kind"),
                       value: t(`customers.kind.${customer.kind}`),
                     },
+                    ...(customer.kind === "company"
+                      ? [
+                          {
+                            key: "tax_id",
+                            label: t("customers.fields.tax_id"),
+                            value: customer.tax_id || "—",
+                          },
+                          {
+                            key: "tax_office",
+                            label: t("customers.fields.tax_office"),
+                            value: customer.tax_office || "—",
+                          },
+                        ]
+                      : []),
                     {
                       key: "notes",
                       label: t("customers.fields.notes"),
@@ -493,6 +508,8 @@ function CustomerEditDialog({
         email: z.string().optional(),
         kind: z.enum(["individual", "company"]),
         notes: z.string().optional(),
+        tax_id: z.string().optional(),
+        tax_office: z.string().optional(),
         is_active: z.boolean(),
       }),
     [t],
@@ -517,10 +534,19 @@ function CustomerEditDialog({
               email: customer.email,
               kind: customer.kind,
               notes: customer.notes,
+              tax_id: customer.tax_id ?? "",
+              tax_office: customer.tax_office ?? "",
               is_active: customer.is_active,
             }}
             onSubmit={async (values) => {
-              await update.mutateAsync({ uuid: customer.uuid, body: values });
+              await update.mutateAsync({
+                uuid: customer.uuid,
+                body: {
+                  ...values,
+                  tax_id: values.kind === "company" ? values.tax_id : "",
+                  tax_office: values.kind === "company" ? values.tax_office : "",
+                },
+              });
               onOpenChange(false);
             }}
           >
@@ -546,6 +572,7 @@ function CustomerEditDialog({
 
 function CustomerFields() {
   const { t } = useLocale();
+  const kind = useWatch({ name: "kind" }) as string | undefined;
   return (
     <FieldGroup className="gap-4">
       <AppInput
@@ -568,6 +595,20 @@ function CustomerFields() {
           { value: "company", label: t("customers.kind.company") },
         ]}
       />
+      {kind === "company" ? (
+        <>
+          <AppInput
+            name="tax_id"
+            label={t("customers.fields.tax_id")}
+            placeholder={t("customers.fields.tax_id_placeholder")}
+          />
+          <AppInput
+            name="tax_office"
+            label={t("customers.fields.tax_office")}
+            placeholder={t("customers.fields.tax_office_placeholder")}
+          />
+        </>
+      ) : null}
       <AppTextarea name="notes" label={t("customers.fields.notes")} />
       <AppSwitch name="is_active" label={t("customers.fields.active")} />
     </FieldGroup>

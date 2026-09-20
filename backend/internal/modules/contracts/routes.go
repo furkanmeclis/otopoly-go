@@ -38,6 +38,9 @@ func RegisterRoutes(
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantRead)
 	}
 	tWrite := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantWrite)
+	}
+	tOwnerWrite := func(handler http.HandlerFunc) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantWrite, requireOwner)
 	}
 
@@ -49,21 +52,21 @@ func RegisterRoutes(
 	mux.Handle("PATCH /v1/platform/contract-presets/{uuid}", pWrite(h.PatchPreset))
 	mux.Handle("DELETE /v1/platform/contract-presets/{uuid}", pWrite(h.DeletePreset))
 
-	// Tenant templates
+	// Tenant templates (owner)
 	mux.Handle("GET /v1/tenant/contracts/templates/meta", tRead(h.TemplateMeta))
 	mux.Handle("GET /v1/tenant/contracts/presets", tRead(h.ListPresetsForTenant))
 	mux.Handle("GET /v1/tenant/contracts/templates", tRead(h.ListTemplates))
-	mux.Handle("POST /v1/tenant/contracts/templates", tWrite(h.CreateTemplate))
-	mux.Handle("POST /v1/tenant/contracts/templates/clone", tWrite(h.CloneTemplate))
+	mux.Handle("POST /v1/tenant/contracts/templates", tOwnerWrite(h.CreateTemplate))
+	mux.Handle("POST /v1/tenant/contracts/templates/clone", tOwnerWrite(h.CloneTemplate))
 	mux.Handle("GET /v1/tenant/contracts/templates/{uuid}", tRead(h.GetTemplate))
-	mux.Handle("PATCH /v1/tenant/contracts/templates/{uuid}", tWrite(h.PatchTemplate))
-	mux.Handle("DELETE /v1/tenant/contracts/templates/{uuid}", tWrite(h.DeleteTemplate))
+	mux.Handle("PATCH /v1/tenant/contracts/templates/{uuid}", tOwnerWrite(h.PatchTemplate))
+	mux.Handle("DELETE /v1/tenant/contracts/templates/{uuid}", tOwnerWrite(h.DeleteTemplate))
 
-	// Tenant instances
+	// Tenant instances — staff may create/sign; void stays owner
 	mux.Handle("GET /v1/tenant/contracts/instances", tRead(h.ListInstances))
 	mux.Handle("POST /v1/tenant/contracts/instances", tWrite(h.CreateInstance))
 	mux.Handle("GET /v1/tenant/contracts/instances/{uuid}", tRead(h.GetInstance))
-	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/void", tWrite(h.VoidInstance))
+	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/void", tOwnerWrite(h.VoidInstance))
 	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/sign", tWrite(h.Sign))
 	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/media", tWrite(h.UploadMedia))
 	mux.Handle("DELETE /v1/tenant/contracts/instances/{uuid}/media/{mediaUuid}", tWrite(h.DeleteMedia))

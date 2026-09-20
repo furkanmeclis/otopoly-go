@@ -10,6 +10,7 @@ type TokensData = {
   refresh_token?: string;
   expires_in?: number;
   access_expires_at?: string;
+  refresh_expires_at?: string;
 };
 
 type Envelope = {
@@ -123,6 +124,10 @@ async function persistTokensFromEnvelope(envelope: Envelope | null) {
     email: sessionPayload?.email ?? existing.email,
     impersonatorUuid,
     expiresIn: resolveAccessMaxAge(envelope?.data),
+    refreshExpiresAt:
+      typeof envelope?.data?.refresh_expires_at === "string"
+        ? envelope.data.refresh_expires_at
+        : null,
   });
   return true;
 }

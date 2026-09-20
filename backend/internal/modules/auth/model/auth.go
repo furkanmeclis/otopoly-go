@@ -171,6 +171,8 @@ type RefreshSession struct {
 	UUID               uuid.UUID
 	UserID             int64
 	ImpersonatorUserID *int64
+	// OrganizationUUID is the tenant scope stamped on the prior access token, if any.
+	OrganizationUUID *uuid.UUID
 }
 
 // DeviceSession is a user-visible refresh session (token never included).
@@ -189,6 +191,8 @@ type SessionMeta struct {
 	UserAgent          string
 	IP                 string
 	ImpersonatorUserID *int64
+	// OrganizationID is the internal organizations.id to persist on the refresh row.
+	OrganizationID *int64
 }
 
 // SessionSwitch tells clients which identity the issued tokens represent.

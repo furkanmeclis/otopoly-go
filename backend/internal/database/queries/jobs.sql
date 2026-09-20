@@ -4,9 +4,9 @@
 INSERT INTO service_jobs (
     organization_id, customer_id, vehicle_id,
     customer_name, customer_phone, plate, vehicle_label,
-    status, currency, notes, started_at, total_amount, created_by
+    status, currency, notes, started_at, total_amount, created_by, assignee_user_id
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
 RETURNING *;
 
@@ -31,10 +31,13 @@ RETURNING *;
 -- name: GetServiceJobByUUID :one
 SELECT j.*,
        c.uuid AS customer_uuid,
-       v.uuid AS vehicle_uuid
+       v.uuid AS vehicle_uuid,
+       au.uuid AS assignee_uuid,
+       CASE WHEN au.id IS NULL THEN '' ELSE trim(both FROM concat(au.name, ' ', au.surname)) END::text AS assignee_name
 FROM service_jobs j
 JOIN customers c ON c.id = j.customer_id
 JOIN customer_vehicles v ON v.id = j.vehicle_id
+LEFT JOIN users au ON au.id = j.assignee_user_id
 WHERE j.uuid = $1 AND j.organization_id = $2;
 
 -- name: GetServiceJobByID :one
@@ -65,10 +68,13 @@ ORDER BY p.created_at ASC;
 -- name: ListServiceJobs :many
 SELECT j.*,
        c.uuid AS customer_uuid,
-       v.uuid AS vehicle_uuid
+       v.uuid AS vehicle_uuid,
+       au.uuid AS assignee_uuid,
+       CASE WHEN au.id IS NULL THEN '' ELSE trim(both FROM concat(au.name, ' ', au.surname)) END::text AS assignee_name
 FROM service_jobs j
 JOIN customers c ON c.id = j.customer_id
 JOIN customer_vehicles v ON v.id = j.vehicle_id
+LEFT JOIN users au ON au.id = j.assignee_user_id
 WHERE j.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR j.status = sqlc.narg(status))
   AND (sqlc.narg(date_from)::timestamptz IS NULL OR j.started_at >= sqlc.narg(date_from))
@@ -123,37 +129,52 @@ WHERE organization_id = $1 AND customer_id = $2;
 UPDATE service_jobs
 SET notes = $3
 WHERE uuid = $1 AND organization_id = $2
-  AND status IN ('in_progress', 'done')
+  AND status IN ('in_progress', 'ready')
+RETURNING *;
+
+-- name: UpdateServiceJobAssignee :one
+UPDATE service_jobs
+SET assignee_user_id = sqlc.narg(assignee_user_id)
+WHERE uuid = sqlc.arg(uuid) AND organization_id = sqlc.arg(organization_id)
+  AND status IN ('in_progress', 'ready', 'delivered')
 RETURNING *;
 
 -- name: MarkServiceJobDone :one
 UPDATE service_jobs
-SET status = 'done', completed_at = COALESCE(completed_at, NOW())
+SET status = 'ready', completed_at = COALESCE(completed_at, NOW())
 WHERE uuid = $1 AND organization_id = $2
   AND status = 'in_progress'
 RETURNING *;
 
+-- name: MarkServiceJobDelivered :one
+UPDATE service_jobs
+SET status = 'delivered'
+WHERE uuid = $1 AND organization_id = $2
+  AND status IN ('ready', 'in_progress')
+RETURNING *;
+
 -- name: MarkServiceJobPaid :one
 UPDATE service_jobs
-SET status = 'paid',
+SET payment_status = 'paid',
     completed_at = COALESCE(completed_at, NOW()),
     paid_at = NOW()
 WHERE uuid = $1 AND organization_id = $2
-  AND status IN ('in_progress', 'done')
+  AND payment_status = 'unpaid'
+  AND status IN ('in_progress', 'ready', 'delivered')
 RETURNING *;
 
 -- name: MarkServiceJobCancelled :one
 UPDATE service_jobs
 SET status = 'cancelled', completed_at = COALESCE(completed_at, NOW())
 WHERE uuid = $1 AND organization_id = $2
-  AND status IN ('in_progress', 'done')
+  AND status IN ('in_progress', 'ready')
 RETURNING *;
 
 -- name: MarkServiceJobVoided :one
 UPDATE service_jobs
 SET status = 'voided'
 WHERE uuid = $1 AND organization_id = $2
-  AND status = 'paid'
+  AND payment_status = 'paid'
 RETURNING *;
 
 -- name: LinkServiceJobPaymentFinance :one
@@ -178,27 +199,27 @@ RETURNING *;
 SELECT
     COUNT(*)::bigint AS job_count,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.status = 'paid'
+        WHERE j.payment_status = 'paid'
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method = 'card'
           )
     ), 0)::numeric AS card_total,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.status = 'paid'
+        WHERE j.payment_status = 'paid'
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method = 'cari'
           )
     ), 0)::numeric AS cari_total,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.status = 'paid'
+        WHERE j.payment_status = 'paid'
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method IN ('cash', 'card')
           )
     ), 0)::numeric AS net_total,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.status = 'paid'), 0)::numeric AS paid_total
+    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS paid_total
 FROM service_jobs j
 WHERE j.organization_id = $1
   AND j.started_at >= $2

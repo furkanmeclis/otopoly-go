@@ -284,11 +284,16 @@ func (r *Postgres) SaveRefresh(ctx context.Context, userID int64, hash string, e
 	if meta.ImpersonatorUserID != nil {
 		impersonator = pgtype.Int8{Int64: *meta.ImpersonatorUserID, Valid: true}
 	}
+	var organizationID pgtype.Int8
+	if meta.OrganizationID != nil {
+		organizationID = pgtype.Int8{Int64: *meta.OrganizationID, Valid: true}
+	}
 	row, err := r.q.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
 		UserID: userID, TokenHash: hash,
 		ExpiresAt: pgtype.Timestamptz{Time: expiresAt.UTC(), Valid: true},
 		UserAgent: ua, IpAddress: ip,
 		ImpersonatorUserID: impersonator,
+		OrganizationID:     organizationID,
 	})
 	if err != nil {
 		return uuid.Nil, err
@@ -309,7 +314,25 @@ func (r *Postgres) GetRefreshSession(ctx context.Context, hash string) (model.Re
 		id := row.ImpersonatorUserID.Int64
 		out.ImpersonatorUserID = &id
 	}
+	if row.OrganizationID.Valid {
+		org, err := r.q.GetOrganizationByID(ctx, row.OrganizationID.Int64)
+		if err == nil {
+			id := org.Uuid
+			out.OrganizationUUID = &id
+		}
+	}
 	return out, nil
+}
+
+func (r *Postgres) ResolveOrganizationInternalID(ctx context.Context, orgUUID uuid.UUID) (int64, error) {
+	org, err := r.q.GetOrganizationByUUID(ctx, orgUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, err
+	}
+	return org.ID, nil
 }
 
 func (r *Postgres) RevokeRefresh(ctx context.Context, hash string) error {

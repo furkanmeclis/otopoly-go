@@ -107,5 +107,9 @@
   "actions.tenant.contract_instance.media_delete": "Contract media deleted",
   "resources.contract_preset": "Contract preset",
   "resources.contract_template": "Contract template",
-  "resources.contract_instance": "Contract"
+  "resources.contract_instance": "Contract",
+  "actions.staff.create": "Staff created",
+  "actions.staff.update": "Staff updated",
+  "actions.staff.reset_password": "Staff password reset",
+  "resources.tenant.staff": "Staff"
 }

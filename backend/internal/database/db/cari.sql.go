@@ -303,6 +303,8 @@ SELECT a.id, a.uuid, a.organization_id, a.customer_id, a.currency, a.balance, a.
        c.phone AS customer_phone,
        c.email AS customer_email,
        c.kind AS customer_kind,
+       c.tax_id AS customer_tax_id,
+       c.tax_office AS customer_tax_office,
        c.is_active AS customer_is_active
 FROM cari_accounts a
 JOIN customers c ON c.id = a.customer_id
@@ -315,22 +317,24 @@ type GetCariAccountByUUIDParams struct {
 }
 
 type GetCariAccountByUUIDRow struct {
-	ID               int64              `json:"id"`
-	Uuid             uuid.UUID          `json:"uuid"`
-	OrganizationID   int64              `json:"organization_id"`
-	CustomerID       int64              `json:"customer_id"`
-	Currency         string             `json:"currency"`
-	Balance          pgtype.Numeric     `json:"balance"`
-	IsActive         bool               `json:"is_active"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
-	CustomerUuid     uuid.UUID          `json:"customer_uuid"`
-	CustomerName     string             `json:"customer_name"`
-	CustomerPhone    string             `json:"customer_phone"`
-	CustomerEmail    string             `json:"customer_email"`
-	CustomerKind     string             `json:"customer_kind"`
-	CustomerIsActive bool               `json:"customer_is_active"`
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	OrganizationID    int64              `json:"organization_id"`
+	CustomerID        int64              `json:"customer_id"`
+	Currency          string             `json:"currency"`
+	Balance           pgtype.Numeric     `json:"balance"`
+	IsActive          bool               `json:"is_active"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+	CustomerUuid      uuid.UUID          `json:"customer_uuid"`
+	CustomerName      string             `json:"customer_name"`
+	CustomerPhone     string             `json:"customer_phone"`
+	CustomerEmail     string             `json:"customer_email"`
+	CustomerKind      string             `json:"customer_kind"`
+	CustomerTaxID     string             `json:"customer_tax_id"`
+	CustomerTaxOffice string             `json:"customer_tax_office"`
+	CustomerIsActive  bool               `json:"customer_is_active"`
 }
 
 func (q *Queries) GetCariAccountByUUID(ctx context.Context, arg GetCariAccountByUUIDParams) (GetCariAccountByUUIDRow, error) {
@@ -352,6 +356,8 @@ func (q *Queries) GetCariAccountByUUID(ctx context.Context, arg GetCariAccountBy
 		&i.CustomerPhone,
 		&i.CustomerEmail,
 		&i.CustomerKind,
+		&i.CustomerTaxID,
+		&i.CustomerTaxOffice,
 		&i.CustomerIsActive,
 	)
 	return i, err

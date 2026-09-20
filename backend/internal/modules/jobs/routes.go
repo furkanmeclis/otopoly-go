@@ -30,6 +30,9 @@ func RegisterRoutes(
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireRead)
 	}
 	write := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireWrite)
+	}
+	ownerWrite := func(handler http.HandlerFunc) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireWrite, requireOwner)
 	}
 	customerJobs := func(handler http.HandlerFunc) http.Handler {
@@ -42,9 +45,11 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/tenant/jobs", write(h.Create))
 	mux.Handle("GET /v1/tenant/jobs/{uuid}", read(h.Get))
 	mux.Handle("PATCH /v1/tenant/jobs/{uuid}", write(h.Patch))
-	mux.Handle("POST /v1/tenant/jobs/{uuid}/done", write(h.Done))
+	mux.Handle("POST /v1/tenant/jobs/{uuid}/ready", write(h.Done))
+	mux.Handle("POST /v1/tenant/jobs/{uuid}/done", write(h.Done)) // alias for ready
+	mux.Handle("POST /v1/tenant/jobs/{uuid}/deliver", write(h.Deliver))
 	mux.Handle("POST /v1/tenant/jobs/{uuid}/close", write(h.Close))
 	mux.Handle("POST /v1/tenant/jobs/{uuid}/cancel", write(h.Cancel))
-	mux.Handle("POST /v1/tenant/jobs/{uuid}/void", write(h.Void))
+	mux.Handle("POST /v1/tenant/jobs/{uuid}/void", ownerWrite(h.Void))
 	mux.Handle("GET /v1/tenant/customers/{uuid}/jobs", customerJobs(h.ListByCustomer))
 }

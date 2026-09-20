@@ -334,6 +334,12 @@ const authHandlers = NextAuth(async () => ({
           token.accessToken = extended.accessToken;
           token.refreshToken = extended.refreshToken;
           token.expiresIn = extended.expiresIn;
+          const { organizationUuidFromAccessToken } = await import(
+            "@/lib/server/auth-tokens"
+          );
+          const oid = organizationUuidFromAccessToken(extended.accessToken);
+          if (oid) token.organizationUuid = oid;
+          else delete token.organizationUuid;
         }
       }
 
@@ -350,6 +356,7 @@ const authHandlers = NextAuth(async () => ({
           token.accessToken = tokens.access_token;
           token.refreshToken = tokens.refresh_token;
           token.expiresIn = tokens.expires_in;
+          delete token.organizationUuid;
         } catch {
           token.error = isOAuthProvider(account.provider)
             ? "OAuthSessionError"
@@ -362,10 +369,26 @@ const authHandlers = NextAuth(async () => ({
           accessToken?: string;
           refreshToken?: string;
           expiresIn?: number;
+          organizationUuid?: string | null;
         };
-        if (patch.accessToken) token.accessToken = patch.accessToken;
+        if (patch.accessToken) {
+          token.accessToken = patch.accessToken;
+          const { organizationUuidFromAccessToken } = await import(
+            "@/lib/server/auth-tokens"
+          );
+          const oid = organizationUuidFromAccessToken(patch.accessToken);
+          if (oid) token.organizationUuid = oid;
+          else delete token.organizationUuid;
+        }
         if (patch.refreshToken) token.refreshToken = patch.refreshToken;
         if (patch.expiresIn) token.expiresIn = patch.expiresIn;
+        if (patch.organizationUuid !== undefined) {
+          if (patch.organizationUuid) {
+            token.organizationUuid = patch.organizationUuid;
+          } else {
+            delete token.organizationUuid;
+          }
+        }
       }
 
       return token;
@@ -374,9 +397,17 @@ const authHandlers = NextAuth(async () => ({
       if (session.user) {
         session.user.id = token.sub ?? "";
       }
-      (session as { error?: string }).error = token.error as
-        "PasskeySessionError" | "OAuthSessionError" | undefined;
-      return session;
+      const nextSession = session as typeof session & {
+        organizationUuid?: string | null;
+        error?: string;
+      };
+      nextSession.organizationUuid =
+        (token.organizationUuid as string | undefined) ?? null;
+      nextSession.error = token.error as
+        | "PasskeySessionError"
+        | "OAuthSessionError"
+        | undefined;
+      return nextSession;
     },
   },
 }));

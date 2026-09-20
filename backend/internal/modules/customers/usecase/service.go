@@ -141,16 +141,17 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters Filters
 	}
 	out := make([]Customer, 0, len(rows))
 	for _, row := range rows {
-		c := mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.IsActive, row.VehicleCount, row.CreatedAt, row.UpdatedAt)
+		c := mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.TaxID, row.TaxOffice, row.IsActive, row.VehicleCount, row.CreatedAt, row.UpdatedAt)
 		s.attachCari(ctx, orgID, row.ID, &c)
 		out = append(out, c)
 	}
 	return out, total, nil
 }
 
-func mapCustomer(id uuid.UUID, name, phone, email, kind, notes string, active bool, vehicles int64, created, updated pgtype.Timestamptz) Customer {
+func mapCustomer(id uuid.UUID, name, phone, email, kind, notes, taxID, taxOffice string, active bool, vehicles int64, created, updated pgtype.Timestamptz) Customer {
 	return Customer{
 		UUID: id, Name: name, Phone: phone, Email: email, Kind: kind, Notes: notes,
+		TaxID: taxID, TaxOffice: taxOffice,
 		IsActive: active, VehicleCount: vehicles,
 		CreatedAt: created.Time, UpdatedAt: updated.Time,
 	}
@@ -185,7 +186,7 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (CustomerDetail, error)
 	if err != nil {
 		return CustomerDetail{}, err
 	}
-	c := mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.IsActive, int64(len(vehicles)), row.CreatedAt, row.UpdatedAt)
+	c := mapCustomer(row.Uuid, row.Name, row.Phone, row.Email, row.Kind, row.Notes, row.TaxID, row.TaxOffice, row.IsActive, int64(len(vehicles)), row.CreatedAt, row.UpdatedAt)
 	s.attachCari(ctx, orgID, row.ID, &c)
 	return CustomerDetail{
 		Customer: c,
@@ -250,6 +251,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (CustomerDetail, e
 		Kind:           kind,
 		Notes:          strings.TrimSpace(in.Notes),
 		IsActive:       active,
+		TaxID:          strings.TrimSpace(in.TaxID),
+		TaxOffice:      strings.TrimSpace(in.TaxOffice),
 	})
 	if err != nil {
 		return CustomerDetail{}, err
@@ -297,6 +300,12 @@ func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (Custo
 	}
 	if in.Notes != nil {
 		params.Notes = pgtype.Text{String: strings.TrimSpace(*in.Notes), Valid: true}
+	}
+	if in.TaxID != nil {
+		params.TaxID = pgtype.Text{String: strings.TrimSpace(*in.TaxID), Valid: true}
+	}
+	if in.TaxOffice != nil {
+		params.TaxOffice = pgtype.Text{String: strings.TrimSpace(*in.TaxOffice), Valid: true}
 	}
 	if in.IsActive != nil {
 		params.IsActive = pgtype.Bool{Bool: *in.IsActive, Valid: true}

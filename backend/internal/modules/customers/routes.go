@@ -23,13 +23,12 @@ func RegisterRoutes(
 	requireOrg := middleware.RequireOrganization(tokens, q)
 	requireRead := middleware.RequirePermission(rbac.PermTenantCustomersRead)
 	requireWrite := middleware.RequirePermission(rbac.PermTenantCustomersWrite)
-	requireOwner := middleware.RequireOrgRole("owner")
 
 	read := func(handler http.HandlerFunc) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireRead)
 	}
 	write := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireWrite, requireOwner)
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireWrite)
 	}
 
 	mux.Handle("GET /v1/tenant/customers/meta", read(h.Meta))

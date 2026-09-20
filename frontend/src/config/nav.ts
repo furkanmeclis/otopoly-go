@@ -22,6 +22,7 @@ import {
   Car,
   ClipboardList,
   Users,
+  UserCog,
   Receipt,
   ChartColumn,
   FileText,
@@ -243,6 +244,13 @@ export function tenantNav(slug: string) {
             href: routes.tenant.operations.root(slug),
             icon: ClipboardList,
             permission: permissions.jobs.read,
+          },
+          {
+            id: "staff",
+            titleKey: "layout.nav_staff",
+            href: routes.tenant.staff.root(slug),
+            icon: UserCog,
+            permission: permissions.staff.read,
           },
           {
             id: "contracts",

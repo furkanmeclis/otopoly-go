@@ -108,14 +108,14 @@ ORDER BY bucket ASC;
 
 -- name: ReportJobStats :one
 SELECT
-    COUNT(*) FILTER (WHERE j.status IN ('paid', 'done', 'in_progress'))::bigint AS job_count,
-    COUNT(*) FILTER (WHERE j.status = 'paid')::bigint AS paid_count,
-    COUNT(*) FILTER (WHERE j.status = 'done')::bigint AS done_count,
+    COUNT(*) FILTER (WHERE j.status IN ('delivered', 'ready', 'in_progress'))::bigint AS job_count,
+    COUNT(*) FILTER (WHERE j.payment_status = 'paid')::bigint AS paid_count,
+    COUNT(*) FILTER (WHERE j.status = 'ready')::bigint AS done_count,
     COUNT(*) FILTER (WHERE j.status = 'in_progress')::bigint AS in_progress_count,
     COUNT(*) FILTER (WHERE j.status = 'cancelled')::bigint AS cancelled_count,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.status = 'paid'), 0)::numeric AS paid_total,
-    COALESCE(AVG(j.total_amount) FILTER (WHERE j.status = 'paid' AND j.total_amount > 0), 0)::numeric AS avg_ticket,
-    COUNT(DISTINCT j.vehicle_id) FILTER (WHERE j.status IN ('paid', 'done', 'in_progress'))::bigint AS vehicles_served
+    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS paid_total,
+    COALESCE(AVG(j.total_amount) FILTER (WHERE j.payment_status = 'paid' AND j.total_amount > 0), 0)::numeric AS avg_ticket,
+    COUNT(DISTINCT j.vehicle_id) FILTER (WHERE j.status IN ('delivered', 'ready', 'in_progress'))::bigint AS vehicles_served
 FROM service_jobs j
 WHERE j.organization_id = sqlc.arg(organization_id)
   AND j.started_at >= sqlc.arg(ts_from)
@@ -159,8 +159,8 @@ LIMIT 50;
 -- name: ReportJobsTimeseries :many
 SELECT
     date_trunc(sqlc.arg(granularity)::text, j.started_at)::date AS bucket,
-    COUNT(*) FILTER (WHERE j.status = 'paid')::bigint AS paid_count,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.status = 'paid'), 0)::numeric AS paid_total
+    COUNT(*) FILTER (WHERE j.payment_status = 'paid')::bigint AS paid_count,
+    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS paid_total
 FROM service_jobs j
 WHERE j.organization_id = sqlc.arg(organization_id)
   AND j.started_at >= sqlc.arg(ts_from)
@@ -269,8 +269,8 @@ LIMIT 50;
 SELECT
     c.uuid AS customer_uuid,
     c.name AS customer_name,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.status = 'paid'), 0)::numeric AS job_total,
-    COUNT(*) FILTER (WHERE j.status = 'paid')::bigint AS job_count
+    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS job_total,
+    COUNT(*) FILTER (WHERE j.payment_status = 'paid')::bigint AS job_count
 FROM service_jobs j
 JOIN customers c ON c.id = j.customer_id
 WHERE j.organization_id = sqlc.arg(organization_id)
@@ -278,7 +278,7 @@ WHERE j.organization_id = sqlc.arg(organization_id)
   AND j.started_at < sqlc.arg(ts_to)
   AND (sqlc.narg(currency)::text IS NULL OR j.currency = sqlc.narg(currency))
 GROUP BY c.uuid, c.name
-HAVING COUNT(*) FILTER (WHERE j.status = 'paid') > 0
+HAVING COUNT(*) FILTER (WHERE j.payment_status = 'paid') > 0
 ORDER BY job_total DESC
 LIMIT 20;
 

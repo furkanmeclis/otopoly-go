@@ -64,7 +64,9 @@ import type {
   CreateJobInput,
   Job,
   JobStatus,
+  PaymentStatus,
 } from "@/features/jobs/services/jobs.service";
+import { useStaffOptions } from "@/features/staff/hooks/use-staff";
 import { DashboardStatCard } from "@/features/platform-overview/components/dashboard-stat-card";
 import { QuickSaleDialog } from "@/features/sales/components/quick-sale-dialog";
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
@@ -74,15 +76,15 @@ import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import { useQueryClient } from "@tanstack/react-query";
 
-const STATUS_TABS = ["all", "in_progress", "done", "paid"] as const;
+const STATUS_TABS = ["all", "in_progress", "ready", "delivered"] as const;
 
 function statusTone(status: JobStatus) {
   switch (status) {
     case "in_progress":
       return "warning" as const;
-    case "done":
+    case "ready":
       return "default" as const;
-    case "paid":
+    case "delivered":
       return "success" as const;
     case "cancelled":
     case "voided":
@@ -90,6 +92,10 @@ function statusTone(status: JobStatus) {
     default:
       return "default" as const;
   }
+}
+
+function paymentTone(status: PaymentStatus) {
+  return status === "paid" ? ("success" as const) : ("warning" as const);
 }
 
 export function JobsPage({ slug }: { slug: string }) {
@@ -278,7 +284,7 @@ export function JobsPage({ slug }: { slug: string }) {
         <p className="text-muted-foreground text-sm">{t("jobs.empty_title")}</p>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {items.map((job) => (
           <JobCard
             key={job.uuid}
@@ -329,16 +335,27 @@ function JobCard({ job, onOpen }: { job: Job; onOpen: () => void }) {
               {job.vehicle_label || "—"}
             </p>
           </div>
-          <StatusChip
-            label={t(`jobs.status.${job.status}`)}
-            tone={statusTone(job.status)}
-          />
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <StatusChip
+              label={t(`jobs.status.${job.status}`)}
+              tone={statusTone(job.status)}
+            />
+            <StatusChip
+              label={t(`jobs.payment.${job.payment_status}`)}
+              tone={paymentTone(job.payment_status)}
+            />
+          </div>
         </CardHeader>
         <CardContent className="space-y-1 pt-0 pb-4">
           <p className="truncate text-sm font-medium">{job.customer_name}</p>
           <p className="text-muted-foreground text-xs">
             {job.customer_phone || "—"}
           </p>
+          {job.assignee_name ? (
+            <p className="text-muted-foreground truncate text-xs">
+              {t("jobs.assignee")}: {job.assignee_name}
+            </p>
+          ) : null}
           <div className="flex items-center justify-between gap-2 pt-2">
             <span className="text-muted-foreground text-xs tabular-nums">
               {datetime(job.started_at, "dd.MM.yyyy HH:mm", locale)}
@@ -392,9 +409,20 @@ function CreateJobDialog({
       z.object({
         customer_uuid: z.string().min(1, t("jobs.validation.customer")),
         vehicle_uuid: z.string().min(1, t("jobs.validation.vehicle")),
+        assignee_uuid: z.string().optional(),
         notes: z.string().optional(),
       }),
     [t],
+  );
+
+  const staffOptionsQuery = useStaffOptions(open);
+  const assigneeOptions = useMemo(
+    () =>
+      (staffOptionsQuery.data?.items ?? []).map((member) => ({
+        value: member.uuid,
+        label: member.label,
+      })),
+    [staffOptionsQuery.data?.items],
   );
 
   const loadCustomers = useCallback(async (query: string) => {
@@ -472,6 +500,7 @@ function CreateJobDialog({
           defaultValues={{
             customer_uuid: "",
             vehicle_uuid: "",
+            assignee_uuid: "",
             notes: "",
           }}
           onSubmit={async (values) => {
@@ -482,6 +511,7 @@ function CreateJobDialog({
             await onSubmit({
               customer_uuid: values.customer_uuid,
               vehicle_uuid: values.vehicle_uuid,
+              assignee_uuid: values.assignee_uuid?.trim() || undefined,
               notes: values.notes?.trim() || undefined,
               lines: selectedLines.map((line) => ({
                 service_uuid: line.service_uuid,
@@ -507,6 +537,7 @@ function CreateJobDialog({
             lineError={lineError}
             onToggleService={toggleService}
             onUpdateLinePrice={updateLinePrice}
+            assigneeOptions={assigneeOptions}
             pending={pending}
             onCancel={() => onOpenChange(false)}
           />
@@ -530,6 +561,7 @@ function CreateJobFields({
   lineError,
   onToggleService,
   onUpdateLinePrice,
+  assigneeOptions,
   pending,
   onCancel,
 }: {
@@ -551,6 +583,7 @@ function CreateJobFields({
   lineError: string | null;
   onToggleService: (serviceUuid: string) => void;
   onUpdateLinePrice: (serviceUuid: string, unitPrice: string) => void;
+  assigneeOptions: ComboboxOption[];
   pending?: boolean;
   onCancel: () => void;
 }) {
@@ -560,6 +593,7 @@ function CreateJobFields({
   const form = useFormContext<{
     customer_uuid: string;
     vehicle_uuid: string;
+    assignee_uuid?: string;
     notes?: string;
   }>();
   const watchedCustomer = form.watch("customer_uuid");
@@ -851,6 +885,15 @@ function CreateJobFields({
           ) : null}
         </div>
         <AppTextarea name="notes" label={t("jobs.notes")} />
+        <AppSelect
+          name="assignee_uuid"
+          label={t("jobs.assignee")}
+          options={[
+            { value: "", label: t("jobs.assignee_none") },
+            ...assigneeOptions,
+          ]}
+          placeholder={t("jobs.pick_assignee")}
+        />
       </FieldGroup>
       <DialogFooter className="mt-6">
         <Button type="button" variant="outline" onClick={onCancel}>

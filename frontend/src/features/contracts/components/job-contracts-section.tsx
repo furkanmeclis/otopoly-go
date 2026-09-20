@@ -1,21 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Download, FilePlus2, Users } from "lucide-react";
 
+import SignaturePad from "@/components/shadix-ui/components/signature-pad";
 import { StatusChip } from "@/components/common/status-chip";
 import { EntitySectionCard } from "@/components/entity";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -24,6 +17,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { routes } from "@/config/routes";
 import {
   useContractInstances,
@@ -31,7 +31,11 @@ import {
   useContractTemplates,
 } from "@/features/contracts/hooks/use-contracts";
 import { useTenantContractsAccess } from "@/features/contracts/hooks/use-tenant-contracts-access";
-import { contractsService } from "@/features/contracts/services/contracts.service";
+import {
+  contractsService,
+  type ContractInstance,
+  type ContractSigner,
+} from "@/features/contracts/services/contracts.service";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -51,6 +55,21 @@ function statusTone(status: string) {
   }
 }
 
+type PadRef = {
+  clear: () => void;
+  toDataURL: () => string | null;
+  isEmpty: () => boolean;
+};
+
+function nextPendingSigner(instance: ContractInstance): ContractSigner | null {
+  const signers = instance.signers ?? [];
+  return (
+    signers.find((s) => s.required && s.status !== "signed") ??
+    signers.find((s) => s.status !== "signed") ??
+    null
+  );
+}
+
 export function JobContractsSection({
   slug,
   jobUuid,
@@ -59,11 +78,14 @@ export function JobContractsSection({
   jobUuid: string;
 }) {
   const { t, locale } = useLocale();
-  const router = useRouter();
   const { canRead, canWrite } = useTenantContractsAccess(slug);
-  const [createOpen, setCreateOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [templateUuid, setTemplateUuid] = useState("");
+  const [created, setCreated] = useState<ContractInstance | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [signature, setSignature] = useState<string | null>(null);
   const [downloadingUuid, setDownloadingUuid] = useState<string | null>(null);
+  const padRef = useRef<PadRef>(null);
   const mutations = useContractMutations();
 
   const listParams = useMemo(
@@ -84,9 +106,18 @@ export function JobContractsSection({
     offset: 0,
   });
 
+  const resetSheet = () => {
+    setTemplateUuid("");
+    setCreated(null);
+    setDisplayName("");
+    setSignature(null);
+    padRef.current?.clear();
+  };
+
   if (!canRead) return null;
 
   const items = instancesQuery.data?.items ?? [];
+  const pendingSigner = created ? nextPendingSigner(created) : null;
 
   return (
     <EntitySectionCard
@@ -97,7 +128,10 @@ export function JobContractsSection({
           <Button
             type="button"
             size="sm"
-            onClick={() => setCreateOpen(true)}
+            onClick={() => {
+              resetSheet();
+              setSheetOpen(true);
+            }}
           >
             <FilePlus2 className="size-4" />
             {t("contracts.job.create")}
@@ -117,7 +151,10 @@ export function JobContractsSection({
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => setCreateOpen(true)}
+              onClick={() => {
+                resetSheet();
+                setSheetOpen(true);
+              }}
             >
               <FilePlus2 className="size-4" />
               {t("contracts.job.create")}
@@ -128,7 +165,9 @@ export function JobContractsSection({
         <ul className="divide-border divide-y text-sm">
           {items.map((item) => {
             const signers = item.signers ?? [];
-            const signedCount = signers.filter((s) => s.status === "signed").length;
+            const signedCount = signers.filter(
+              (s) => s.status === "signed",
+            ).length;
             const hasPdf = item.status === "executed" && item.pdf_url;
 
             return (
@@ -138,7 +177,10 @@ export function JobContractsSection({
               >
                 <div className="min-w-0 flex-1">
                   <Link
-                    href={routes.tenant.contracts.instanceDetail(slug, item.uuid)}
+                    href={routes.tenant.contracts.instanceDetail(
+                      slug,
+                      item.uuid,
+                    )}
                     className="text-primary font-medium hover:underline"
                   >
                     {item.number_label ? `${item.number_label} · ` : ""}
@@ -192,62 +234,178 @@ export function JobContractsSection({
         </ul>
       )}
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("contracts.instances.create_title")}</DialogTitle>
-            <DialogDescription>
-              {t("contracts.instances.create_description")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label>{t("contracts.instances.create_template")}</Label>
-            <Select value={templateUuid} onValueChange={setTemplateUuid}>
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t("contracts.instances.create_template")}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {(templatesQuery.data?.items ?? []).map((tpl) => (
-                  <SelectItem key={tpl.uuid} value={tpl.uuid}>
-                    {tpl.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(next) => {
+          if (!next) resetSheet();
+          setSheetOpen(next);
+        }}
+      >
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>
+              {created
+                ? t("contracts.job.sheet_sign_title")
+                : t("contracts.job.sheet_create_title")}
+            </SheetTitle>
+            <SheetDescription>
+              {created
+                ? t("contracts.job.sheet_sign_description")
+                : t("contracts.job.sheet_create_description")}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-6 space-y-6">
+            {!created ? (
+              <>
+                <div className="space-y-2">
+                  <Label>{t("contracts.instances.create_template")}</Label>
+                  <Select
+                    value={templateUuid}
+                    onValueChange={setTemplateUuid}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={t("contracts.instances.create_template")}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(templatesQuery.data?.items ?? []).map((tpl) => (
+                        <SelectItem key={tpl.uuid} value={tpl.uuid}>
+                          {tpl.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setSheetOpen(false)}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={
+                      !templateUuid || mutations.createInstance.isPending
+                    }
+                    onClick={async () => {
+                      const instance =
+                        await mutations.createInstance.mutateAsync({
+                          template_uuid: templateUuid,
+                          subject_type: "service_job",
+                          subject_uuid: jobUuid,
+                        });
+                      setCreated(instance);
+                    }}
+                  >
+                    {mutations.createInstance.isPending
+                      ? t("common.saving")
+                      : t("contracts.job.sheet_continue")}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="rounded-lg border p-3 text-sm">
+                  <p className="font-medium">{created.title}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {created.number_label}
+                  </p>
+                </div>
+
+                {pendingSigner ? (
+                  <div className="space-y-4">
+                    <p className="text-sm font-medium">
+                      {pendingSigner.label}
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="job-contract-display-name">
+                        {t("contracts.instances.sign_display_name")}
+                      </Label>
+                      <Input
+                        id="job-contract-display-name"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                      />
+                    </div>
+                    <SignaturePad
+                      ref={padRef as never}
+                      showButtons
+                      onChange={setSignature}
+                      className="bg-background"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setSheetOpen(false);
+                          resetSheet();
+                        }}
+                      >
+                        {t("contracts.job.sheet_later")}
+                      </Button>
+                      <Button
+                        type="button"
+                        disabled={
+                          !displayName.trim() ||
+                          !signature ||
+                          mutations.sign.isPending
+                        }
+                        onClick={async () => {
+                          if (!signature || !pendingSigner) return;
+                          const updated = await mutations.sign.mutateAsync({
+                            instanceUuid: created.uuid,
+                            signerUuid: pendingSigner.uuid,
+                            body: {
+                              display_name: displayName.trim(),
+                              signature_png_base64: signature,
+                            },
+                          });
+                          const next = nextPendingSigner(updated);
+                          if (next) {
+                            setCreated(updated);
+                            setDisplayName("");
+                            setSignature(null);
+                            padRef.current?.clear();
+                          } else {
+                            setSheetOpen(false);
+                            resetSheet();
+                          }
+                        }}
+                      >
+                        {mutations.sign.isPending
+                          ? t("common.saving")
+                          : t("contracts.instances.sign_submit")}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground text-sm">
+                      {t("contracts.job.sheet_done")}
+                    </p>
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setSheetOpen(false);
+                          resetSheet();
+                        }}
+                      >
+                        {t("common.close")}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setCreateOpen(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              disabled={!templateUuid || mutations.createInstance.isPending}
-              onClick={async () => {
-                const created = await mutations.createInstance.mutateAsync({
-                  template_uuid: templateUuid,
-                  subject_type: "service_job",
-                  subject_uuid: jobUuid,
-                });
-                setCreateOpen(false);
-                setTemplateUuid("");
-                router.push(
-                  routes.tenant.contracts.instanceDetail(slug, created.uuid),
-                );
-              }}
-            >
-              {mutations.createInstance.isPending
-                ? t("common.saving")
-                : t("contracts.instances.create")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </EntitySectionCard>
   );
 }

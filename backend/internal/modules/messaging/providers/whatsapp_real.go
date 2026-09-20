@@ -11,7 +11,9 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/proto/waCompanionReg"
 	"go.mau.fi/whatsmeow/proto/waE2E"
+	wastore "go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
@@ -22,8 +24,18 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 )
 
+const companionOSName = "Mac OS"
+
+func init() {
+	wastore.SetOSInfo(companionOSName, wastore.GetWAVersion())
+	wastore.DeviceProps.PlatformType = waCompanionReg.DeviceProps_CHROME.Enum()
+}
+
 // SessionCallback is called when a WhatsApp session connects or disconnects.
 type SessionCallback func(orgID int64, jid, phone, displayName string, connected bool)
+
+// QRCallback is called when a new QR code is available for pairing.
+type QRCallback func(orgID int64, code string, expiresAt time.Time)
 
 type orgEntry struct {
 	mu     sync.Mutex
@@ -37,16 +49,25 @@ type RealWhatsAppClientManager struct {
 	container *sqlstore.Container
 	log       *slog.Logger
 	onSession SessionCallback
+	onQR      QRCallback
 }
 
 // NewRealWhatsAppClientManager creates a manager backed by the given Postgres DSN.
-// whatsmeow tables (whatsmeow_*) are auto-created on first use.
-func NewRealWhatsAppClientManager(dsn string, log *slog.Logger, onSession SessionCallback) (*RealWhatsAppClientManager, error) {
+func NewRealWhatsAppClientManager(
+	dsn string,
+	log *slog.Logger,
+	onSession SessionCallback,
+	onQR QRCallback,
+) (*RealWhatsAppClientManager, error) {
 	sqlDB, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("whatsapp sqlstore open: %w", err)
 	}
-	container := sqlstore.NewWithDB(sqlDB, "postgres", waLog.Noop)
+	waLogger := waLog.Stdout("WhatsApp", "INFO", true)
+	if log != nil {
+		waLogger = slogAdapter{log: log}
+	}
+	container := sqlstore.NewWithDB(sqlDB, "postgres", waLogger)
 	if err := container.Upgrade(context.Background()); err != nil {
 		_ = sqlDB.Close()
 		return nil, fmt.Errorf("whatsapp sqlstore upgrade: %w", err)
@@ -56,11 +77,37 @@ func NewRealWhatsAppClientManager(dsn string, log *slog.Logger, onSession Sessio
 		container: container,
 		log:       log,
 		onSession: onSession,
+		onQR:      onQR,
 	}, nil
 }
 
-// AsClient returns an OrgContextClient that satisfies WhatsAppClient using
-// this manager, routing calls by the organisation ID in the request context.
+type slogAdapter struct {
+	log *slog.Logger
+}
+
+func (s slogAdapter) Warnf(msg string, args ...interface{}) {
+	if s.log != nil {
+		s.log.Warn(fmt.Sprintf(msg, args...))
+	}
+}
+func (s slogAdapter) Errorf(msg string, args ...interface{}) {
+	if s.log != nil {
+		s.log.Error(fmt.Sprintf(msg, args...))
+	}
+}
+func (s slogAdapter) Infof(msg string, args ...interface{}) {
+	if s.log != nil {
+		s.log.Info(fmt.Sprintf(msg, args...))
+	}
+}
+func (s slogAdapter) Debugf(msg string, args ...interface{}) {
+	if s.log != nil {
+		s.log.Debug(fmt.Sprintf(msg, args...))
+	}
+}
+func (s slogAdapter) Sub(string) waLog.Logger { return s }
+
+// AsClient returns an OrgContextClient that satisfies WhatsAppClient.
 func (m *RealWhatsAppClientManager) AsClient() *OrgContextClient {
 	return &OrgContextClient{mgr: m}
 }
@@ -76,9 +123,19 @@ func (m *RealWhatsAppClientManager) getOrCreate(orgID int64) *orgEntry {
 	return e
 }
 
-func (m *RealWhatsAppClientManager) buildClient(orgID int64) *whatsmeow.Client {
-	device := m.container.NewDevice()
-	cli := whatsmeow.NewClient(device, waLog.Noop)
+func (m *RealWhatsAppClientManager) buildClient(orgID int64, reuseJID string) *whatsmeow.Client {
+	var device *wastore.Device
+	if strings.TrimSpace(reuseJID) != "" {
+		if jid, err := types.ParseJID(reuseJID); err == nil {
+			if d, err := m.container.GetDevice(context.Background(), jid); err == nil && d != nil {
+				device = d
+			}
+		}
+	}
+	if device == nil {
+		device = m.container.NewDevice()
+	}
+	cli := whatsmeow.NewClient(device, waLog.Stdout("WhatsApp", "INFO", true))
 	cli.AddEventHandler(func(evt interface{}) {
 		switch evt.(type) {
 		case *events.Connected:
@@ -97,66 +154,112 @@ func (m *RealWhatsAppClientManager) buildClient(orgID int64) *whatsmeow.Client {
 	return cli
 }
 
+// RestoreSession reconnects a previously paired org from sqlstore using its JID.
+func (m *RealWhatsAppClientManager) RestoreSession(orgID int64, jid string) error {
+	if strings.TrimSpace(jid) == "" {
+		return fmt.Errorf("empty jid")
+	}
+	entry := m.getOrCreate(orgID)
+	entry.mu.Lock()
+	defer entry.mu.Unlock()
+	if entry.client != nil && entry.client.IsConnected() && entry.client.Store.ID != nil {
+		return nil
+	}
+	if entry.client != nil {
+		entry.client.Disconnect()
+		entry.client = nil
+	}
+	cli := m.buildClient(orgID, jid)
+	if cli.Store.ID == nil {
+		return fmt.Errorf("no stored whatsapp device for org %d jid %s", orgID, jid)
+	}
+	entry.client = cli
+	if err := cli.Connect(); err != nil {
+		return fmt.Errorf("whatsapp restore connect: %w", err)
+	}
+	if m.log != nil {
+		m.log.Info("whatsapp_session_restored", "org_id", orgID, "jid", jid)
+	}
+	return nil
+}
+
 // OrgContextClient implements WhatsAppClient by reading org ID from context.
 type OrgContextClient struct {
 	mgr *RealWhatsAppClientManager
 }
 
-func (c *OrgContextClient) GenerateQR(ctx context.Context) (model.QRCodeResponse, error) {
+// StartPairing begins WhatsMeow connect in the background and returns immediately.
+// QR codes are delivered via the manager's onQR callback.
+func (c *OrgContextClient) StartPairing(ctx context.Context) error {
 	scope, ok := orgctx.ScopeFrom(ctx)
 	if !ok {
-		return model.QRCodeResponse{}, fmt.Errorf("no org scope in context")
+		return fmt.Errorf("no org scope in context")
 	}
 	orgID := scope.InternalID
 
 	entry := c.mgr.getOrCreate(orgID)
 	entry.mu.Lock()
-	defer entry.mu.Unlock()
-
 	if entry.client != nil {
 		entry.client.Disconnect()
 		entry.client = nil
 	}
-
-	cli := c.mgr.buildClient(orgID)
+	cli := c.mgr.buildClient(orgID, "")
 	entry.client = cli
+	entry.mu.Unlock()
 
-	qrChan, err := cli.GetQRChannel(ctx)
+	bg := context.Background()
+	qrChan, err := cli.GetQRChannel(bg)
 	if err != nil {
-		return model.QRCodeResponse{}, fmt.Errorf("GetQRChannel: %w", err)
+		// Already logged in — try connecting the existing device.
+		if strings.Contains(err.Error(), "already logged in") || cli.Store.ID != nil {
+			if err := cli.Connect(); err != nil {
+				return fmt.Errorf("whatsapp connect: %w", err)
+			}
+			return nil
+		}
+		return fmt.Errorf("GetQRChannel: %w", err)
 	}
 	if err := cli.Connect(); err != nil {
-		return model.QRCodeResponse{}, fmt.Errorf("whatsapp connect: %w", err)
+		return fmt.Errorf("whatsapp connect: %w", err)
 	}
 
-	timeout := time.After(60 * time.Second)
-	for {
-		select {
-		case item, ok := <-qrChan:
-			if !ok {
-				return model.QRCodeResponse{}, fmt.Errorf("QR channel closed")
+	go c.consumeQR(orgID, qrChan)
+	return nil
+}
+
+func (c *OrgContextClient) consumeQR(orgID int64, qrChan <-chan whatsmeow.QRChannelItem) {
+	for item := range qrChan {
+		switch item.Event {
+		case "code":
+			expires := time.Now().Add(item.Timeout)
+			if item.Timeout <= 0 {
+				expires = time.Now().Add(60 * time.Second)
 			}
-			switch item.Event {
-			case "code":
-				return model.QRCodeResponse{
-					Code:      item.Code,
-					ExpiresAt: time.Now().Add(item.Timeout),
-				}, nil
-			case "success":
-				return model.QRCodeResponse{}, fmt.Errorf("already paired")
-			case "timeout":
-				return model.QRCodeResponse{}, fmt.Errorf("QR expired before scan")
-			default:
-				if strings.HasPrefix(item.Event, "err-") {
-					return model.QRCodeResponse{}, fmt.Errorf("QR error: %s", item.Event)
-				}
+			if c.mgr.onQR != nil {
+				c.mgr.onQR(orgID, item.Code, expires)
 			}
-		case <-timeout:
-			return model.QRCodeResponse{}, fmt.Errorf("timeout waiting for WhatsApp QR")
-		case <-ctx.Done():
-			return model.QRCodeResponse{}, ctx.Err()
+		case "success":
+			return
+		case "timeout":
+			if c.mgr.log != nil {
+				c.mgr.log.Warn("whatsapp_qr_timeout", "org_id", orgID)
+			}
+			return
+		default:
+			if strings.HasPrefix(item.Event, "err-") && c.mgr.log != nil {
+				c.mgr.log.Error("whatsapp_qr_error", "org_id", orgID, "event", item.Event)
+			}
 		}
 	}
+}
+
+// GenerateQR starts pairing asynchronously and returns an empty QR payload.
+// Callers should poll session status for the actual code.
+func (c *OrgContextClient) GenerateQR(ctx context.Context) (model.QRCodeResponse, error) {
+	if err := c.StartPairing(ctx); err != nil {
+		return model.QRCodeResponse{}, err
+	}
+	return model.QRCodeResponse{}, nil
 }
 
 func (c *OrgContextClient) Send(ctx context.Context, phone, body string) (string, error) {
@@ -167,12 +270,16 @@ func (c *OrgContextClient) Send(ctx context.Context, phone, body string) (string
 
 	c.mgr.mu.RLock()
 	entry, exists := c.mgr.entries[scope.InternalID]
+	connected := exists && entry.client != nil && entry.client.IsConnected()
 	c.mgr.mu.RUnlock()
-	if !exists || entry.client == nil || !entry.client.IsConnected() {
-		return "", fmt.Errorf("whatsapp not connected for org %d", scope.InternalID)
+	if !connected {
+		return "", fmt.Errorf("whatsapp not connected for org %d (reconnect from messaging settings if backend restarted)", scope.InternalID)
 	}
 
-	normalized := strings.TrimPrefix(strings.ReplaceAll(phone, " ", ""), "+")
+	normalized, err := normalizeWhatsAppPhone(phone)
+	if err != nil {
+		return "", err
+	}
 	jid := types.NewJID(normalized, types.DefaultUserServer)
 	msg := &waE2E.Message{Conversation: proto.String(body)}
 	resp, err := entry.client.SendMessage(ctx, jid, msg)
@@ -180,6 +287,26 @@ func (c *OrgContextClient) Send(ctx context.Context, phone, body string) (string
 		return "", fmt.Errorf("whatsapp send: %w", err)
 	}
 	return resp.ID, nil
+}
+
+func normalizeWhatsAppPhone(phone string) (string, error) {
+	digits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, strings.TrimSpace(phone))
+	if digits == "" {
+		return "", fmt.Errorf("empty phone number")
+	}
+	// TR local mobiles: 05XXXXXXXXX → 905XXXXXXXXX
+	if strings.HasPrefix(digits, "0") && len(digits) == 11 {
+		digits = "90" + digits[1:]
+	}
+	if len(digits) < 10 {
+		return "", fmt.Errorf("invalid phone number")
+	}
+	return digits, nil
 }
 
 func (c *OrgContextClient) Disconnect(ctx context.Context) error {
@@ -196,9 +323,34 @@ func (c *OrgContextClient) Disconnect(ctx context.Context) error {
 	c.mgr.mu.Unlock()
 
 	if exists && entry.client != nil {
+		if entry.client.IsConnected() {
+			_ = entry.client.Logout(ctx)
+		}
 		entry.client.Disconnect()
 	}
 	return nil
 }
 
-func (c *OrgContextClient) IsConnected() bool { return false }
+func (c *OrgContextClient) IsConnected() bool {
+	c.mgr.mu.RLock()
+	defer c.mgr.mu.RUnlock()
+	for _, entry := range c.mgr.entries {
+		if entry.client != nil && entry.client.IsConnected() && entry.client.Store.ID != nil {
+			return true
+		}
+	}
+	return false
+}
+
+// IsConnectedForOrg reports whether a specific organization client is live.
+func (c *OrgContextClient) IsConnectedForOrg(orgID int64) bool {
+	c.mgr.mu.RLock()
+	entry, exists := c.mgr.entries[orgID]
+	c.mgr.mu.RUnlock()
+	return exists && entry.client != nil && entry.client.IsConnected() && entry.client.Store.ID != nil
+}
+
+// RestoreSession reconnects a stored device for the organization.
+func (c *OrgContextClient) RestoreSession(orgID int64, jid string) error {
+	return c.mgr.RestoreSession(orgID, jid)
+}

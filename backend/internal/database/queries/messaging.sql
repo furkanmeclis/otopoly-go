@@ -2,22 +2,39 @@
 SELECT * FROM whatsapp_sessions
 WHERE organization_id = $1;
 
+-- name: ListConnectedWhatsAppSessions :many
+SELECT * FROM whatsapp_sessions
+WHERE status = 'connected' AND jid <> ''
+ORDER BY organization_id;
+
+
 -- name: UpsertWhatsAppSession :one
 INSERT INTO whatsapp_sessions (
     organization_id, status, jid, phone_number, display_name,
-    encrypted_keys, last_seen_at, error_message
+    encrypted_keys, last_seen_at, error_message, qr_code, qr_expires_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
 ON CONFLICT (organization_id) DO UPDATE
 SET
-    status        = EXCLUDED.status,
-    jid           = EXCLUDED.jid,
-    phone_number  = EXCLUDED.phone_number,
-    display_name  = EXCLUDED.display_name,
+    status         = EXCLUDED.status,
+    jid            = EXCLUDED.jid,
+    phone_number   = EXCLUDED.phone_number,
+    display_name   = EXCLUDED.display_name,
     encrypted_keys = EXCLUDED.encrypted_keys,
-    last_seen_at  = EXCLUDED.last_seen_at,
-    error_message = EXCLUDED.error_message
+    last_seen_at   = EXCLUDED.last_seen_at,
+    error_message  = EXCLUDED.error_message,
+    qr_code        = EXCLUDED.qr_code,
+    qr_expires_at  = EXCLUDED.qr_expires_at
+RETURNING *;
+
+-- name: UpdateWhatsAppSessionQR :one
+UPDATE whatsapp_sessions
+SET status = 'qr_pending',
+    qr_code = $2,
+    qr_expires_at = $3,
+    error_message = ''
+WHERE organization_id = $1
 RETURNING *;
 
 -- name: UpsertNotificationRule :one

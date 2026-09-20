@@ -21,6 +21,8 @@ export type Customer = {
   email: string;
   kind: "individual" | "company";
   notes: string;
+  tax_id: string;
+  tax_office: string;
   is_active: boolean;
   vehicle_count: number;
   cari_account_uuid?: string | null;
@@ -84,6 +86,8 @@ export const customersService = {
     email?: string;
     kind?: string;
     notes?: string;
+    tax_id?: string;
+    tax_office?: string;
     is_active?: boolean;
     vehicle?: CreateVehicleInput;
   }) {
@@ -99,6 +103,8 @@ export const customersService = {
       email?: string;
       kind?: string;
       notes?: string;
+      tax_id?: string;
+      tax_office?: string;
       is_active?: boolean;
     },
   ) {

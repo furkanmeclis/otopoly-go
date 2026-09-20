@@ -10,6 +10,6 @@ export function useTenantCustomersAccess(slug: string) {
   const membership = user?.organizations.find((org) => org.slug === slug);
   const isOwner = membership?.role === "owner";
   const canRead = hasPermission(permissions.customers.read);
-  const canWrite = isOwner && hasPermission(permissions.customers.write);
+  const canWrite = hasPermission(permissions.customers.write);
   return { membership, isOwner, canRead, canWrite };
 }

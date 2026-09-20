@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import {
@@ -226,6 +227,8 @@ function CustomerDialog({
         email: z.string().optional(),
         kind: z.enum(["individual", "company"]).default("individual"),
         notes: z.string().optional(),
+        tax_id: z.string().optional(),
+        tax_office: z.string().optional(),
         is_active: z.boolean().default(true),
         plate: z.string().optional(),
         catalog: z.string().optional(),
@@ -255,6 +258,8 @@ function CustomerDialog({
             email: "",
             kind: "individual",
             notes: "",
+            tax_id: "",
+            tax_office: "",
             is_active: true,
             plate: "",
             catalog: "",
@@ -278,6 +283,8 @@ function CustomerDialog({
               email: values.email,
               kind: values.kind,
               notes: values.notes,
+              tax_id: values.kind === "company" ? values.tax_id : "",
+              tax_office: values.kind === "company" ? values.tax_office : "",
               is_active: values.is_active,
               vehicle,
             });
@@ -305,6 +312,7 @@ function CustomerDialog({
                 { value: "company", label: t("customers.kind.company") },
               ]}
             />
+            <CompanyTaxFields />
             <AppTextarea name="notes" label={t("customers.fields.notes")} />
             <AppSwitch name="is_active" label={t("customers.fields.active")} />
           </FieldGroup>
@@ -348,5 +356,25 @@ function CustomerDialog({
         </AppForm>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CompanyTaxFields() {
+  const { t } = useLocale();
+  const kind = useWatch({ name: "kind" }) as string | undefined;
+  if (kind !== "company") return null;
+  return (
+    <>
+      <AppInput
+        name="tax_id"
+        label={t("customers.fields.tax_id")}
+        placeholder={t("customers.fields.tax_id_placeholder")}
+      />
+      <AppInput
+        name="tax_office"
+        label={t("customers.fields.tax_office")}
+        placeholder={t("customers.fields.tax_office_placeholder")}
+      />
+    </>
   );
 }

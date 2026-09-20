@@ -11,34 +11,116 @@ import (
 	"github.com/google/uuid"
 )
 
+const getContractInstanceMessagingByUUID = `-- name: GetContractInstanceMessagingByUUID :one
+SELECT ci.organization_id,
+       ci.uuid::text AS instance_uuid,
+       ci.title AS contract_title,
+       ci.subject_type,
+       ci.subject_uuid,
+       o.name AS business_name
+FROM contract_instances ci
+JOIN organizations o ON o.id = ci.organization_id
+WHERE ci.uuid = $1
+`
+
+type GetContractInstanceMessagingByUUIDRow struct {
+	OrganizationID int64     `json:"organization_id"`
+	InstanceUuid   string    `json:"instance_uuid"`
+	ContractTitle  string    `json:"contract_title"`
+	SubjectType    string    `json:"subject_type"`
+	SubjectUuid    uuid.UUID `json:"subject_uuid"`
+	BusinessName   string    `json:"business_name"`
+}
+
+func (q *Queries) GetContractInstanceMessagingByUUID(ctx context.Context, argUuid uuid.UUID) (GetContractInstanceMessagingByUUIDRow, error) {
+	row := q.db.QueryRow(ctx, getContractInstanceMessagingByUUID, argUuid)
+	var i GetContractInstanceMessagingByUUIDRow
+	err := row.Scan(
+		&i.OrganizationID,
+		&i.InstanceUuid,
+		&i.ContractTitle,
+		&i.SubjectType,
+		&i.SubjectUuid,
+		&i.BusinessName,
+	)
+	return i, err
+}
+
 const getJobOrgAndPhoneByUUID = `-- name: GetJobOrgAndPhoneByUUID :one
-SELECT organization_id, customer_phone FROM service_jobs WHERE uuid = $1
+SELECT j.organization_id,
+       j.customer_phone,
+       j.customer_name,
+       j.plate,
+       j.uuid::text AS job_uuid,
+       (j.total_amount)::text AS total_amount,
+       j.currency,
+       o.name AS business_name
+FROM service_jobs j
+JOIN organizations o ON o.id = j.organization_id
+WHERE j.uuid = $1
 `
 
 type GetJobOrgAndPhoneByUUIDRow struct {
 	OrganizationID int64  `json:"organization_id"`
 	CustomerPhone  string `json:"customer_phone"`
+	CustomerName   string `json:"customer_name"`
+	Plate          string `json:"plate"`
+	JobUuid        string `json:"job_uuid"`
+	TotalAmount    string `json:"total_amount"`
+	Currency       string `json:"currency"`
+	BusinessName   string `json:"business_name"`
 }
 
 func (q *Queries) GetJobOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetJobOrgAndPhoneByUUIDRow, error) {
 	row := q.db.QueryRow(ctx, getJobOrgAndPhoneByUUID, argUuid)
 	var i GetJobOrgAndPhoneByUUIDRow
-	err := row.Scan(&i.OrganizationID, &i.CustomerPhone)
+	err := row.Scan(
+		&i.OrganizationID,
+		&i.CustomerPhone,
+		&i.CustomerName,
+		&i.Plate,
+		&i.JobUuid,
+		&i.TotalAmount,
+		&i.Currency,
+		&i.BusinessName,
+	)
 	return i, err
 }
 
 const getSaleOrgAndPhoneByUUID = `-- name: GetSaleOrgAndPhoneByUUID :one
-SELECT organization_id, customer_phone FROM product_sales WHERE uuid = $1
+SELECT s.organization_id,
+       s.customer_phone,
+       COALESCE(s.customer_name, '') AS customer_name,
+       s.uuid::text AS sale_uuid,
+       (s.total_amount)::text AS total_amount,
+       s.currency,
+       o.name AS business_name
+FROM product_sales s
+JOIN organizations o ON o.id = s.organization_id
+WHERE s.uuid = $1
 `
 
 type GetSaleOrgAndPhoneByUUIDRow struct {
 	OrganizationID int64  `json:"organization_id"`
 	CustomerPhone  string `json:"customer_phone"`
+	CustomerName   string `json:"customer_name"`
+	SaleUuid       string `json:"sale_uuid"`
+	TotalAmount    string `json:"total_amount"`
+	Currency       string `json:"currency"`
+	BusinessName   string `json:"business_name"`
 }
 
 func (q *Queries) GetSaleOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetSaleOrgAndPhoneByUUIDRow, error) {
 	row := q.db.QueryRow(ctx, getSaleOrgAndPhoneByUUID, argUuid)
 	var i GetSaleOrgAndPhoneByUUIDRow
-	err := row.Scan(&i.OrganizationID, &i.CustomerPhone)
+	err := row.Scan(
+		&i.OrganizationID,
+		&i.CustomerPhone,
+		&i.CustomerName,
+		&i.SaleUuid,
+		&i.TotalAmount,
+		&i.Currency,
+		&i.BusinessName,
+	)
 	return i, err
 }

@@ -127,6 +127,20 @@ func (h *Handler) Done(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, r, http.StatusOK, item)
 }
 
+func (h *Handler) Deliver(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "job uuid is invalid")
+		return
+	}
+	item, err := h.svc.MarkDelivered(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
 func (h *Handler) Close(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(r.PathValue("uuid"))
 	if err != nil {

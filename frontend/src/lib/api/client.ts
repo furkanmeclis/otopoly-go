@@ -13,7 +13,15 @@ type Envelope<T> = {
 };
 
 let refreshPromise: Promise<boolean> | null = null;
+let orgContextPromise: Promise<boolean> | null = null;
 let onAuthFailure: (() => void | Promise<void>) | null = null;
+
+/** Tenant slug from `/t/{slug}/...` when the SPA is under a tenant shell. */
+function tenantSlugFromLocation(): string | null {
+  if (typeof window === "undefined") return null;
+  const match = window.location.pathname.match(/^\/t\/([^/]+)/);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
+}
 
 export function setAuthFailureHandler(
   handler: (() => void | Promise<void>) | null,
@@ -44,6 +52,31 @@ function enqueueRefresh() {
   return refreshPromise;
 }
 
+async function switchOrganizationContext(slug: string): Promise<boolean> {
+  const response = await fetch(
+    `${apiConfig.baseUrl}/v1/auth/organization-context`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({ organization_slug: slug }),
+    },
+  );
+  return response.ok;
+}
+
+function enqueueOrgContext(slug: string) {
+  if (!orgContextPromise) {
+    orgContextPromise = switchOrganizationContext(slug).finally(() => {
+      orgContextPromise = null;
+    });
+  }
+  return orgContextPromise;
+}
+
 const bffMiddleware: Middleware = {
   async onRequest({ request }) {
     const headers = new Headers(request.headers);
@@ -62,7 +95,8 @@ const bffMiddleware: Middleware = {
         .clone()
         .json()
         .catch(() => null)) as { error?: { code?: string } } | null;
-      if (payload?.error?.code === "STEP_UP_REQUIRED") {
+      const code = payload?.error?.code;
+      if (code === "STEP_UP_REQUIRED") {
         const ok = await runStepUpEnsure();
         if (ok) {
           return fetch(
@@ -71,6 +105,25 @@ const bffMiddleware: Middleware = {
               credentials: "include",
             }),
           );
+        }
+      }
+      if (code === "ORGANIZATION_CONTEXT_REQUIRED") {
+        const slug = tenantSlugFromLocation();
+        const url = new URL(request.url);
+        if (
+          slug &&
+          !url.pathname.endsWith("/auth/organization-context") &&
+          !url.pathname.endsWith("/auth/refresh")
+        ) {
+          const ok = await enqueueOrgContext(slug);
+          if (ok) {
+            return fetch(
+              new Request(request, {
+                headers: request.headers,
+                credentials: "include",
+              }),
+            );
+          }
         }
       }
     }

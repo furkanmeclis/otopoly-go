@@ -58,7 +58,7 @@ export function ContractInstanceDetailPage({
 }) {
   const { t, locale } = useLocale();
   const { confirm } = useDialogs();
-  const { canRead, canWrite } = useTenantContractsAccess(slug);
+  const { canRead, canWrite, canManage } = useTenantContractsAccess(slug);
   const query = useContractInstance(uuid);
   const mutations = useContractMutations();
   const instance = query.data;
@@ -149,7 +149,7 @@ export function ContractInstanceDetailPage({
               {t("contracts.instances.download_pdf")}
             </Button>
           ) : null}
-          {canWrite &&
+          {canManage &&
           instance.status !== "voided" &&
           instance.status !== "executed" ? (
             <Button

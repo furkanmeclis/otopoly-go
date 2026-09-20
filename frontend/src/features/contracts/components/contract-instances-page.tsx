@@ -47,6 +47,7 @@ import type {
   ContractInstance,
   ContractInstanceStatus,
 } from "@/features/contracts/services/contracts.service";
+import { useJobs } from "@/features/jobs/hooks/use-jobs";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -302,23 +303,30 @@ function CreateInstanceDialog({
   const router = useRouter();
   const mutations = useContractMutations();
   const [templateUuid, setTemplateUuid] = useState("");
+  const [jobUuid, setJobUuid] = useState(defaultJobUuid ?? "");
 
   const templatesQuery = useContractTemplates({
     is_active: "true",
     limit: 100,
     offset: 0,
   });
+  const jobsQuery = useJobs({
+    limit: 50,
+    offset: 0,
+    status: "in_progress",
+    sort: "-started_at",
+  });
 
   const handleCreate = async () => {
-    if (!templateUuid) return;
+    if (!templateUuid || !jobUuid) return;
     const created = await mutations.createInstance.mutateAsync({
       template_uuid: templateUuid,
-      ...(defaultJobUuid
-        ? { subject_type: "service_job", subject_uuid: defaultJobUuid }
-        : {}),
+      subject_type: "service_job",
+      subject_uuid: jobUuid,
     });
     onOpenChange(false);
     setTemplateUuid("");
+    setJobUuid(defaultJobUuid ?? "");
     router.push(routes.tenant.contracts.instanceDetail(slug, created.uuid));
   };
 
@@ -326,7 +334,10 @@ function CreateInstanceDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) setTemplateUuid("");
+        if (!next) {
+          setTemplateUuid("");
+          setJobUuid(defaultJobUuid ?? "");
+        }
         onOpenChange(next);
       }}
     >
@@ -337,27 +348,54 @@ function CreateInstanceDialog({
             {t("contracts.instances.create_description")}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-2">
-          <Label>{t("contracts.instances.create_template")}</Label>
-          <Select value={templateUuid} onValueChange={setTemplateUuid}>
-            <SelectTrigger>
-              <SelectValue
-                placeholder={t("contracts.instances.create_template")}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {(templatesQuery.data?.items ?? []).map((tpl) => (
-                <SelectItem key={tpl.uuid} value={tpl.uuid}>
-                  {tpl.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {defaultJobUuid ? (
-            <p className="text-muted-foreground text-xs">
-              {t("contracts.instances.auto_subject_binding")}
-            </p>
-          ) : null}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>{t("contracts.instances.create_template")}</Label>
+            <Select value={templateUuid} onValueChange={setTemplateUuid}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={t("contracts.instances.create_template")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {(templatesQuery.data?.items ?? []).map((tpl) => (
+                  <SelectItem key={tpl.uuid} value={tpl.uuid}>
+                    {tpl.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>{t("contracts.instances.create_job")}</Label>
+            <Select
+              value={jobUuid}
+              onValueChange={setJobUuid}
+              disabled={Boolean(defaultJobUuid)}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={t("contracts.instances.create_job_placeholder")}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {(jobsQuery.data?.items ?? []).map((job) => (
+                  <SelectItem key={job.uuid} value={job.uuid}>
+                    {job.plate} · {job.customer_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!defaultJobUuid ? (
+              <p className="text-muted-foreground text-xs">
+                {t("contracts.instances.create_job_required")}
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-xs">
+                {t("contracts.instances.auto_subject_binding")}
+              </p>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button
@@ -369,7 +407,11 @@ function CreateInstanceDialog({
           </Button>
           <Button
             type="button"
-            disabled={!templateUuid || mutations.createInstance.isPending}
+            disabled={
+              !templateUuid ||
+              !jobUuid ||
+              mutations.createInstance.isPending
+            }
             onClick={() => void handleCreate()}
           >
             {mutations.createInstance.isPending

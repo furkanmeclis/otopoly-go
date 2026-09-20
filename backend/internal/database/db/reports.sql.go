@@ -539,14 +539,14 @@ func (q *Queries) ReportJobPaymentsByMethod(ctx context.Context, arg ReportJobPa
 
 const reportJobStats = `-- name: ReportJobStats :one
 SELECT
-    COUNT(*) FILTER (WHERE j.status IN ('paid', 'done', 'in_progress'))::bigint AS job_count,
-    COUNT(*) FILTER (WHERE j.status = 'paid')::bigint AS paid_count,
-    COUNT(*) FILTER (WHERE j.status = 'done')::bigint AS done_count,
+    COUNT(*) FILTER (WHERE j.status IN ('delivered', 'ready', 'in_progress'))::bigint AS job_count,
+    COUNT(*) FILTER (WHERE j.payment_status = 'paid')::bigint AS paid_count,
+    COUNT(*) FILTER (WHERE j.status = 'ready')::bigint AS done_count,
     COUNT(*) FILTER (WHERE j.status = 'in_progress')::bigint AS in_progress_count,
     COUNT(*) FILTER (WHERE j.status = 'cancelled')::bigint AS cancelled_count,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.status = 'paid'), 0)::numeric AS paid_total,
-    COALESCE(AVG(j.total_amount) FILTER (WHERE j.status = 'paid' AND j.total_amount > 0), 0)::numeric AS avg_ticket,
-    COUNT(DISTINCT j.vehicle_id) FILTER (WHERE j.status IN ('paid', 'done', 'in_progress'))::bigint AS vehicles_served
+    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS paid_total,
+    COALESCE(AVG(j.total_amount) FILTER (WHERE j.payment_status = 'paid' AND j.total_amount > 0), 0)::numeric AS avg_ticket,
+    COUNT(DISTINCT j.vehicle_id) FILTER (WHERE j.status IN ('delivered', 'ready', 'in_progress'))::bigint AS vehicles_served
 FROM service_jobs j
 WHERE j.organization_id = $1
   AND j.started_at >= $2
@@ -596,8 +596,8 @@ func (q *Queries) ReportJobStats(ctx context.Context, arg ReportJobStatsParams) 
 const reportJobsTimeseries = `-- name: ReportJobsTimeseries :many
 SELECT
     date_trunc($1::text, j.started_at)::date AS bucket,
-    COUNT(*) FILTER (WHERE j.status = 'paid')::bigint AS paid_count,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.status = 'paid'), 0)::numeric AS paid_total
+    COUNT(*) FILTER (WHERE j.payment_status = 'paid')::bigint AS paid_count,
+    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS paid_total
 FROM service_jobs j
 WHERE j.organization_id = $2
   AND j.started_at >= $3
@@ -913,8 +913,8 @@ const reportTopCustomers = `-- name: ReportTopCustomers :many
 SELECT
     c.uuid AS customer_uuid,
     c.name AS customer_name,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.status = 'paid'), 0)::numeric AS job_total,
-    COUNT(*) FILTER (WHERE j.status = 'paid')::bigint AS job_count
+    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS job_total,
+    COUNT(*) FILTER (WHERE j.payment_status = 'paid')::bigint AS job_count
 FROM service_jobs j
 JOIN customers c ON c.id = j.customer_id
 WHERE j.organization_id = $1
@@ -922,7 +922,7 @@ WHERE j.organization_id = $1
   AND j.started_at < $3
   AND ($4::text IS NULL OR j.currency = $4)
 GROUP BY c.uuid, c.name
-HAVING COUNT(*) FILTER (WHERE j.status = 'paid') > 0
+HAVING COUNT(*) FILTER (WHERE j.payment_status = 'paid') > 0
 ORDER BY job_total DESC
 LIMIT 20
 `

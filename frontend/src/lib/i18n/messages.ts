@@ -24,6 +24,7 @@ import enCatalog from "@/locales/en/catalog.json";
 import enCustomers from "@/locales/en/customers.json";
 import enCari from "@/locales/en/cari.json";
 import enJobs from "@/locales/en/jobs.json";
+import enStaff from "@/locales/en/staff.json";
 import enSales from "@/locales/en/sales.json";
 import enSuppliers from "@/locales/en/suppliers.json";
 import enPurchases from "@/locales/en/purchases.json";
@@ -65,6 +66,7 @@ import trCatalog from "@/locales/tr/catalog.json";
 import trCustomers from "@/locales/tr/customers.json";
 import trCari from "@/locales/tr/cari.json";
 import trJobs from "@/locales/tr/jobs.json";
+import trStaff from "@/locales/tr/staff.json";
 import trSales from "@/locales/tr/sales.json";
 import trSuppliers from "@/locales/tr/suppliers.json";
 import trPurchases from "@/locales/tr/purchases.json";
@@ -120,6 +122,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     customers: trCustomers,
     cari: trCari,
     jobs: trJobs,
+    staff: trStaff,
     sales: trSales,
     suppliers: trSuppliers,
     purchases: trPurchases,
@@ -163,6 +166,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     customers: enCustomers,
     cari: enCari,
     jobs: enJobs,
+    staff: enStaff,
     sales: enSales,
     suppliers: enSuppliers,
     purchases: enPurchases,

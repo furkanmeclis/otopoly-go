@@ -264,6 +264,8 @@ type Customer struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	TaxID          string             `json:"tax_id"`
+	TaxOffice      string             `json:"tax_office"`
 }
 
 type CustomerVehicle struct {
@@ -745,6 +747,7 @@ type RefreshToken struct {
 	IpAddress          *netip.Addr        `json:"ip_address"`
 	ImpersonatorUserID pgtype.Int8        `json:"impersonator_user_id"`
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	OrganizationID     pgtype.Int8        `json:"organization_id"`
 }
 
 type Role struct {
@@ -802,6 +805,7 @@ type ServiceJob struct {
 	CreatedBy      int64              `json:"created_by"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	PaymentStatus  string             `json:"payment_status"`
 }
 
 type ServiceJobLine struct {
@@ -1014,4 +1018,6 @@ type WhatsappSession struct {
 	ErrorMessage   string             `json:"error_message"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	QrCode         string             `json:"qr_code"`
+	QrExpiresAt    pgtype.Timestamptz `json:"qr_expires_at"`
 }

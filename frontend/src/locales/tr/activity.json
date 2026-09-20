@@ -63,7 +63,6 @@
   "actions.cari.charge": "Cari borç kaydı",
   "actions.cari.payment": "Cari tahsilat",
   "actions.cari.adjustment": "Cari düzeltme",
-  "actions.cari.entry_void": "Cari kayıt iptal edildi",
   "actions.cari.entry_void": "Cari hareket iptal",
   "actions.jobs.create": "İş emri oluşturuldu",
   "actions.jobs.update": "İş emri güncellendi",
@@ -108,5 +107,9 @@
   "actions.tenant.contract_instance.media_delete": "Sözleşme medyası silindi",
   "resources.contract_preset": "Sözleşme hazır şablonu",
   "resources.contract_template": "Sözleşme şablonu",
-  "resources.contract_instance": "Sözleşme"
+  "resources.contract_instance": "Sözleşme",
+  "actions.staff.create": "Personel oluşturuldu",
+  "actions.staff.update": "Personel güncellendi",
+  "actions.staff.reset_password": "Personel şifresi sıfırlandı",
+  "resources.tenant.staff": "Personel"
 }

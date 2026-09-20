@@ -166,5 +166,15 @@
   "job.section": "Sözleşmeler",
   "job.empty": "Bu işe bağlı sözleşme yok.",
   "job.create": "Sözleşme oluştur",
-  "job.open": "Aç"
+  "job.open": "Aç",
+  "job.sheet_create_title": "Sözleşme oluştur",
+  "job.sheet_create_description": "Şablonu seçin, ardından aynı panelde imzalayın.",
+  "job.sheet_sign_title": "Sözleşmeyi imzala",
+  "job.sheet_sign_description": "İmzayı bu ekranda tamamlayın; işlem sayfasından ayrılmanıza gerek yok.",
+  "job.sheet_continue": "Oluştur ve imzala",
+  "job.sheet_later": "Sonra imzala",
+  "job.sheet_done": "Tüm imzalar tamamlandı.",
+  "instances.create_job": "İş emri",
+  "instances.create_job_placeholder": "Plaka veya müşteri seçin",
+  "instances.create_job_required": "İş emri seçimi zorunlu"
 }

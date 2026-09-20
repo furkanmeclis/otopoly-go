@@ -35,61 +35,65 @@ import {
   useWhatsAppSession,
 } from "@/features/messaging/hooks/use-messaging";
 
-const QR_TTL_SECONDS = 30;
+const QR_TTL_SECONDS = 60;
 
 export function WhatsAppSessionCard() {
-  const sessionQuery = useWhatsAppSession();
+  const sessionQuery = useWhatsAppSession({
+    pollWhilePairing: true,
+  });
   const connectMutation = useConnectWhatsApp();
   const disconnectMutation = useDisconnectWhatsApp();
 
-  const [qrData, setQrData] = useState<{
-    code: string;
-    expires_at: string;
-  } | null>(null);
   const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(QR_TTL_SECONDS);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const session = sessionQuery.data;
   const status = session?.status ?? "disconnected";
-
-  async function applyQr(result: { code: string; expires_at: string }) {
-    const expiresMs = new Date(result.expires_at).getTime() - Date.now();
-    const seconds = Math.max(0, Math.floor(expiresMs / 1000));
-    setQrData(result);
-    setCountdown(seconds > 0 ? seconds : QR_TTL_SECONDS);
-    try {
-      const url = await QRCode.toDataURL(result.code, { width: 240, margin: 2 });
-      setQrImageUrl(url);
-    } catch {
-      setQrImageUrl(null);
-    }
-  }
+  const qrCode = session?.qr_code?.trim() || "";
+  const qrExpiresAt = session?.qr_expires_at;
+  const pairing = Boolean(qrCode) && status !== "connected";
+  const displayQrUrl = pairing ? qrImageUrl : null;
+  const countdown =
+    qrExpiresAt && status === "qr_pending"
+      ? Math.max(
+          0,
+          Math.floor((new Date(qrExpiresAt).getTime() - nowMs) / 1000),
+        )
+      : QR_TTL_SECONDS;
 
   useEffect(() => {
-    if (!qrData) {
-      return;
-    }
-    const id = setInterval(() => {
-      setCountdown((prev) => (prev <= 1 ? 0 : prev - 1));
-    }, 1000);
+    if (!pairing) return;
+    let cancelled = false;
+    void QRCode.toDataURL(qrCode, { width: 240, margin: 2 }).then((url) => {
+      if (!cancelled) setQrImageUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pairing, qrCode]);
+
+  useEffect(() => {
+    if (!qrExpiresAt || status !== "qr_pending") return;
+    const id = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [qrData]);
+  }, [qrExpiresAt, status]);
 
   async function handleConnect() {
-    await applyQr(await connectMutation.mutateAsync());
+    await connectMutation.mutateAsync();
   }
 
   async function handleRefreshQR() {
-    await applyQr(await connectMutation.mutateAsync());
+    await connectMutation.mutateAsync();
   }
 
   async function handleDisconnect() {
     await disconnectMutation.mutateAsync();
-    setQrData(null);
-    setQrImageUrl(null);
     setDisconnectOpen(false);
   }
+
+  const showQR =
+    status === "qr_pending" || (Boolean(qrCode) && status !== "connected");
 
   return (
     <Card>
@@ -111,10 +115,9 @@ export function WhatsAppSessionCard() {
           </div>
         ) : null}
 
-        {/* Disconnected / Error state */}
         {!sessionQuery.isLoading &&
         (status === "disconnected" || status === "error") &&
-        !qrData ? (
+        !showQR ? (
           <div className="space-y-3">
             {status === "error" && session?.error_message ? (
               <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -123,7 +126,7 @@ export function WhatsAppSessionCard() {
               </div>
             ) : null}
             <Button
-              onClick={handleConnect}
+              onClick={() => void handleConnect()}
               disabled={connectMutation.isPending}
             >
               {connectMutation.isPending ? (
@@ -136,37 +139,36 @@ export function WhatsAppSessionCard() {
           </div>
         ) : null}
 
-        {/* QR Pending state */}
-        {(status === "qr_pending" || qrData) && status !== "connected" ? (
+        {showQR ? (
           <div className="space-y-3">
             <div className="rounded-md border bg-muted p-4 flex flex-col items-center gap-3">
               <p className="text-xs text-muted-foreground self-start">
                 WhatsApp uygulamanızdan QR kodu okutun:
               </p>
-              {qrImageUrl ? (
+              {displayQrUrl ? (
+                // QR is a data URL from qrcode; next/image is not applicable.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={qrImageUrl}
+                  src={displayQrUrl}
                   alt="WhatsApp QR Kodu"
                   className="rounded-md"
                   width={240}
                   height={240}
                 />
               ) : (
-                <code className="block break-all text-xs font-mono select-all text-muted-foreground">
-                  {qrData?.code ?? session?.jid ?? "—"}
-                </code>
+                <div className="flex h-[240px] w-[240px] items-center justify-center">
+                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                </div>
               )}
             </div>
             <div className="flex items-center gap-3">
-              <Badge
-                variant={countdown > 10 ? "secondary" : "danger"}
-              >
+              <Badge variant={countdown > 10 ? "secondary" : "danger"}>
                 {countdown > 0 ? `${countdown}s kaldı` : "Süresi doldu"}
               </Badge>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleRefreshQR}
+                onClick={() => void handleRefreshQR()}
                 disabled={connectMutation.isPending}
               >
                 {connectMutation.isPending ? (
@@ -180,8 +182,7 @@ export function WhatsAppSessionCard() {
           </div>
         ) : null}
 
-        {/* Connected state */}
-        {status === "connected" && !qrData ? (
+        {status === "connected" ? (
           <div className="flex items-center justify-between rounded-md border px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="inline-block size-2.5 rounded-full bg-green-500" />
@@ -198,6 +199,7 @@ export function WhatsAppSessionCard() {
                   <p className="text-sm text-muted-foreground">Bağlı</p>
                 ) : null}
               </div>
+              <CheckCircle2 className="size-4 text-green-600" />
             </div>
             <Dialog open={disconnectOpen} onOpenChange={setDisconnectOpen}>
               <DialogTrigger asChild>
@@ -223,7 +225,7 @@ export function WhatsAppSessionCard() {
                   </Button>
                   <Button
                     variant="destructive"
-                    onClick={handleDisconnect}
+                    onClick={() => void handleDisconnect()}
                     disabled={disconnectMutation.isPending}
                   >
                     {disconnectMutation.isPending ? (
@@ -234,14 +236,6 @@ export function WhatsAppSessionCard() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
-          </div>
-        ) : null}
-
-        {/* Session reconnected after QR */}
-        {status === "connected" && qrData ? (
-          <div className="flex items-center gap-2 text-green-600 text-sm">
-            <CheckCircle2 className="size-4" />
-            <span>WhatsApp başarıyla bağlandı!</span>
           </div>
         ) : null}
       </CardContent>

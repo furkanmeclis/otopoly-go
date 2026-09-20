@@ -53,11 +53,11 @@ func (q *Queries) CountCustomers(ctx context.Context, arg CountCustomersParams) 
 const createCustomer = `-- name: CreateCustomer :one
 
 INSERT INTO customers (
-    organization_id, name, phone, email, kind, notes, is_active
+    organization_id, name, phone, email, kind, notes, is_active, tax_id, tax_office
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at, tax_id, tax_office
 `
 
 type CreateCustomerParams struct {
@@ -68,6 +68,8 @@ type CreateCustomerParams struct {
 	Kind           string `json:"kind"`
 	Notes          string `json:"notes"`
 	IsActive       bool   `json:"is_active"`
+	TaxID          string `json:"tax_id"`
+	TaxOffice      string `json:"tax_office"`
 }
 
 // Tenant customers and their vehicles.
@@ -80,6 +82,8 @@ func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) 
 		arg.Kind,
 		arg.Notes,
 		arg.IsActive,
+		arg.TaxID,
+		arg.TaxOffice,
 	)
 	var i Customer
 	err := row.Scan(
@@ -95,6 +99,8 @@ func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.TaxID,
+		&i.TaxOffice,
 	)
 	return i, err
 }
@@ -141,7 +147,7 @@ func (q *Queries) CreateCustomerVehicle(ctx context.Context, arg CreateCustomerV
 }
 
 const getCustomerByUUID = `-- name: GetCustomerByUUID :one
-SELECT id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at FROM customers
+SELECT id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at, tax_id, tax_office FROM customers
 WHERE uuid = $1 AND organization_id = $2 AND deleted_at IS NULL
 `
 
@@ -166,6 +172,8 @@ func (q *Queries) GetCustomerByUUID(ctx context.Context, arg GetCustomerByUUIDPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.TaxID,
+		&i.TaxOffice,
 	)
 	return i, err
 }
@@ -274,7 +282,7 @@ func (q *Queries) ListCustomerVehicles(ctx context.Context, arg ListCustomerVehi
 
 const listCustomers = `-- name: ListCustomers :many
 SELECT
-    c.id, c.uuid, c.organization_id, c.name, c.phone, c.email, c.kind, c.notes, c.is_active, c.created_at, c.updated_at, c.deleted_at,
+    c.id, c.uuid, c.organization_id, c.name, c.phone, c.email, c.kind, c.notes, c.is_active, c.created_at, c.updated_at, c.deleted_at, c.tax_id, c.tax_office,
     (
         SELECT COUNT(*)::bigint
         FROM customer_vehicles v
@@ -327,6 +335,8 @@ type ListCustomersRow struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	TaxID          string             `json:"tax_id"`
+	TaxOffice      string             `json:"tax_office"`
 	VehicleCount   int64              `json:"vehicle_count"`
 }
 
@@ -360,6 +370,8 @@ func (q *Queries) ListCustomers(ctx context.Context, arg ListCustomersParams) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.TaxID,
+			&i.TaxOffice,
 			&i.VehicleCount,
 		); err != nil {
 			return nil, err
@@ -376,7 +388,7 @@ const softDeleteCustomer = `-- name: SoftDeleteCustomer :one
 UPDATE customers
 SET deleted_at = NOW(), is_active = false
 WHERE uuid = $1 AND organization_id = $2 AND deleted_at IS NULL
-RETURNING id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at, tax_id, tax_office
 `
 
 type SoftDeleteCustomerParams struct {
@@ -400,6 +412,8 @@ func (q *Queries) SoftDeleteCustomer(ctx context.Context, arg SoftDeleteCustomer
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.TaxID,
+		&i.TaxOffice,
 	)
 	return i, err
 }
@@ -457,9 +471,11 @@ SET name = COALESCE($1, name),
     email = COALESCE($3, email),
     kind = COALESCE($4, kind),
     notes = COALESCE($5, notes),
-    is_active = COALESCE($6, is_active)
-WHERE uuid = $7 AND organization_id = $8 AND deleted_at IS NULL
-RETURNING id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at
+    is_active = COALESCE($6, is_active),
+    tax_id = COALESCE($7, tax_id),
+    tax_office = COALESCE($8, tax_office)
+WHERE uuid = $9 AND organization_id = $10 AND deleted_at IS NULL
+RETURNING id, uuid, organization_id, name, phone, email, kind, notes, is_active, created_at, updated_at, deleted_at, tax_id, tax_office
 `
 
 type UpdateCustomerParams struct {
@@ -469,6 +485,8 @@ type UpdateCustomerParams struct {
 	Kind           pgtype.Text `json:"kind"`
 	Notes          pgtype.Text `json:"notes"`
 	IsActive       pgtype.Bool `json:"is_active"`
+	TaxID          pgtype.Text `json:"tax_id"`
+	TaxOffice      pgtype.Text `json:"tax_office"`
 	Uuid           uuid.UUID   `json:"uuid"`
 	OrganizationID int64       `json:"organization_id"`
 }
@@ -481,6 +499,8 @@ func (q *Queries) UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) 
 		arg.Kind,
 		arg.Notes,
 		arg.IsActive,
+		arg.TaxID,
+		arg.TaxOffice,
 		arg.Uuid,
 		arg.OrganizationID,
 	)
@@ -498,6 +518,8 @@ func (q *Queries) UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.TaxID,
+		&i.TaxOffice,
 	)
 	return i, err
 }

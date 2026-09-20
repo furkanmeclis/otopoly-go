@@ -29,6 +29,9 @@ func RegisterRoutes(
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireRead)
 	}
 	write := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireWrite)
+	}
+	ownerWrite := func(handler http.HandlerFunc) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireWrite, requireOwner)
 	}
 
@@ -37,5 +40,5 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/tenant/sales", read(h.List))
 	mux.Handle("POST /v1/tenant/sales", write(h.Create))
 	mux.Handle("GET /v1/tenant/sales/{uuid}", read(h.Get))
-	mux.Handle("POST /v1/tenant/sales/{uuid}/void", write(h.Void))
+	mux.Handle("POST /v1/tenant/sales/{uuid}/void", ownerWrite(h.Void))
 }

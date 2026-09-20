@@ -13,6 +13,8 @@ type Customer struct {
 	Email           string     `json:"email"`
 	Kind            string     `json:"kind"`
 	Notes           string     `json:"notes"`
+	TaxID           string     `json:"tax_id"`
+	TaxOffice       string     `json:"tax_office"`
 	IsActive        bool       `json:"is_active"`
 	VehicleCount    int64      `json:"vehicle_count"`
 	CariAccountUUID *uuid.UUID `json:"cari_account_uuid,omitempty"`
@@ -46,22 +48,26 @@ type Filters struct {
 }
 
 type CreateInput struct {
-	Name     string              `json:"name"`
-	Phone    string              `json:"phone"`
-	Email    string              `json:"email"`
-	Kind     string              `json:"kind"`
-	Notes    string              `json:"notes"`
-	IsActive *bool               `json:"is_active"`
-	Vehicle  *CreateVehicleInput `json:"vehicle"`
+	Name      string              `json:"name"`
+	Phone     string              `json:"phone"`
+	Email     string              `json:"email"`
+	Kind      string              `json:"kind"`
+	Notes     string              `json:"notes"`
+	TaxID     string              `json:"tax_id"`
+	TaxOffice string              `json:"tax_office"`
+	IsActive  *bool               `json:"is_active"`
+	Vehicle   *CreateVehicleInput `json:"vehicle"`
 }
 
 type PatchInput struct {
-	Name     *string `json:"name"`
-	Phone    *string `json:"phone"`
-	Email    *string `json:"email"`
-	Kind     *string `json:"kind"`
-	Notes    *string `json:"notes"`
-	IsActive *bool   `json:"is_active"`
+	Name      *string `json:"name"`
+	Phone     *string `json:"phone"`
+	Email     *string `json:"email"`
+	Kind      *string `json:"kind"`
+	Notes     *string `json:"notes"`
+	TaxID     *string `json:"tax_id"`
+	TaxOffice *string `json:"tax_office"`
+	IsActive  *bool   `json:"is_active"`
 }
 
 type CreateVehicleInput struct {

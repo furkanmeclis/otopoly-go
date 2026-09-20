@@ -58,6 +58,7 @@ type Repository interface {
 	ResolveRoleIDsByUUIDs(ctx context.Context, roleUUIDs []uuid.UUID) ([]int64, error)
 	SaveRefresh(ctx context.Context, userID int64, hash string, expiresAt time.Time, meta model.SessionMeta) (uuid.UUID, error)
 	GetRefreshSession(ctx context.Context, hash string) (model.RefreshSession, error)
+	ResolveOrganizationInternalID(ctx context.Context, orgUUID uuid.UUID) (int64, error)
 	RevokeRefresh(ctx context.Context, hash string) error
 	RevokeAllRefresh(ctx context.Context, userID int64) error
 	ListActiveSessions(ctx context.Context, userID int64) ([]model.DeviceSession, error)
@@ -381,9 +382,16 @@ func (u *AuthUseCase) Refresh(ctx context.Context, rawToken string, meta model.S
 		return model.Tokens{}, ErrUserDisabled
 	}
 	meta.ImpersonatorUserID = session.ImpersonatorUserID
-	// TODO(finance): Preserve JWT `oid` (organization scope) across token refresh so long tenant
-	// sessions do not lose /v1/tenant/finance/* access until layout re-runs organization-context.
-	return u.issueTokensForUser(ctx, user, meta, nil)
+
+	var orgUUID *uuid.UUID
+	if session.OrganizationUUID != nil && u.orgResolver != nil {
+		// Re-validate membership + access; drop oid quietly if no longer valid.
+		resolved, err := u.orgResolver.ResolveOrganizationUUID(ctx, user.ID, *session.OrganizationUUID)
+		if err == nil {
+			orgUUID = &resolved
+		}
+	}
+	return u.issueTokensForUser(ctx, user, meta, orgUUID)
 }
 
 // Logout revokes a refresh token. An empty token is a no-op so the BFF can
@@ -520,7 +528,13 @@ func (u *AuthUseCase) issueTokensForUser(ctx context.Context, user model.User, m
 		return model.Tokens{}, err
 	}
 	refreshExp := u.now().UTC().Add(u.tokens.RefreshTTL())
-	sessionID, err := u.repo.SaveRefresh(ctx, user.ID, tokenHash(rawRefresh), refreshExp, meta)
+	saveMeta := meta
+	if organizationID != nil && *organizationID != uuid.Nil {
+		if internalID, err := u.repo.ResolveOrganizationInternalID(ctx, *organizationID); err == nil {
+			saveMeta.OrganizationID = &internalID
+		}
+	}
+	sessionID, err := u.repo.SaveRefresh(ctx, user.ID, tokenHash(rawRefresh), refreshExp, saveMeta)
 	if err != nil {
 		return model.Tokens{}, err
 	}

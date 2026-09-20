@@ -555,24 +555,50 @@ func TenantJobs() ResourceMeta {
 	return ResourceMeta{
 		Resource:      "tenant.jobs",
 		DefaultSort:   "-started_at",
-		DefaultFields: []string{"uuid", "plate", "customer_name", "vehicle_label", "status", "total_amount", "started_at"},
+		DefaultFields: []string{"uuid", "plate", "customer_name", "vehicle_label", "status", "payment_status", "total_amount", "started_at"},
 		Capabilities: Capabilities{
 			Create: true, Read: true, Update: true, Delete: false,
 			Search: true, Filter: true, Sort: true, Export: true,
 		},
 		SearchableFields: []string{"plate", "customer_name", "vehicle_label"},
 		SortableFields:   []string{"started_at", "total_amount", "plate"},
-		FilterableFields: []string{"status"},
+		FilterableFields: []string{"status", "payment_status"},
 		Columns: []Column{
 			{Key: "plate", LabelKey: "jobs.plate", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
 			{Key: "customer_name", LabelKey: "jobs.customer_name", Type: ColumnTypeString, DefaultVisible: true},
 			{Key: "vehicle_label", LabelKey: "jobs.vehicle_label", Type: ColumnTypeString, DefaultVisible: true},
 			{Key: "status", LabelKey: "jobs.status", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "payment_status", LabelKey: "jobs.payment_status", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
 			{Key: "total_amount", LabelKey: "jobs.total_amount", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
 			{Key: "started_at", LabelKey: "jobs.started_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: true},
 		},
 		Filters: []Filter{
 			{Key: "status", LabelKey: "jobs.status", Variant: FilterVariantFaceted},
+			{Key: "payment_status", LabelKey: "jobs.payment_status", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
+// TenantStaff returns meta for GET /v1/tenant/staff.
+func TenantStaff() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.staff",
+		DefaultSort:   "created_at",
+		DefaultFields: []string{"uuid", "name", "surname", "email", "status", "role", "created_at"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: false,
+			Search: false, Filter: true, Sort: false, Export: false,
+		},
+		FilterableFields: []string{"status"},
+		Columns: []Column{
+			{Key: "name", LabelKey: "staff.name", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "surname", LabelKey: "staff.surname", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "email", LabelKey: "staff.email", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "staff.status", Type: ColumnTypeString, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "staff.created_at", Type: ColumnTypeDatetime, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "staff.status", Variant: FilterVariantFaceted},
 		},
 	}
 }

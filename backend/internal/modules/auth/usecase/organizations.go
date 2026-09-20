@@ -19,6 +19,7 @@ var (
 // OrganizationResolver resolves tenant membership for auth flows.
 type OrganizationResolver interface {
 	ResolveLoginOrganization(ctx context.Context, userID int64, slug string) (uuid.UUID, error)
+	ResolveOrganizationUUID(ctx context.Context, userID int64, orgUUID uuid.UUID) (uuid.UUID, error)
 	ListMembershipsForUser(ctx context.Context, userID int64) ([]orgusecase.MembershipSummary, error)
 }
 

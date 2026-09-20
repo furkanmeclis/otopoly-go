@@ -840,8 +840,10 @@ func mapAccountDetail(row db.GetCariAccountByUUIDRow) AccountDetail {
 			CreatedAt:     row.CreatedAt.Time,
 			UpdatedAt:     row.UpdatedAt.Time,
 		},
-		CustomerEmail:    row.CustomerEmail,
-		CustomerIsActive: row.CustomerIsActive,
+		CustomerEmail:     row.CustomerEmail,
+		CustomerTaxID:     row.CustomerTaxID,
+		CustomerTaxOffice: row.CustomerTaxOffice,
+		CustomerIsActive:  row.CustomerIsActive,
 	}
 }
 

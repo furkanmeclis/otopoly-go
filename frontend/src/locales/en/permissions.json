@@ -112,5 +112,7 @@
   "groups.permissions": "Permissions",
   "groups.system": "System",
   "groups.tenant": "Business",
-  "groups.other": "Other"
+  "groups.other": "Other",
+  "labels.tenant.staff.read": "Read tenant staff",
+  "labels.tenant.staff.write": "Manage tenant staff"
 }

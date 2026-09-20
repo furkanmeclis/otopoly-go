@@ -166,5 +166,15 @@
   "job.section": "Contracts",
   "job.empty": "No contracts linked to this job.",
   "job.create": "Create contract",
-  "job.open": "Open"
+  "job.open": "Open",
+  "job.sheet_create_title": "Create contract",
+  "job.sheet_create_description": "Pick a template, then sign in the same panel.",
+  "job.sheet_sign_title": "Sign contract",
+  "job.sheet_sign_description": "Complete the signature here without leaving the job page.",
+  "job.sheet_continue": "Create and sign",
+  "job.sheet_later": "Sign later",
+  "job.sheet_done": "All signatures are complete.",
+  "instances.create_job": "Job",
+  "instances.create_job_placeholder": "Select plate or customer",
+  "instances.create_job_required": "A job is required"
 }

@@ -115,8 +115,8 @@ export type CloneTemplateInput = {
 
 export type CreateInstanceInput = {
   template_uuid: string;
-  subject_type?: string;
-  subject_uuid?: string;
+  subject_type: string;
+  subject_uuid: string;
   title?: string;
 };
 

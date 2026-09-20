@@ -42,9 +42,12 @@ type Job struct {
 	Plate         string     `json:"plate"`
 	VehicleLabel  string     `json:"vehicle_label"`
 	Status        string     `json:"status"`
+	PaymentStatus string     `json:"payment_status"`
 	Currency      string     `json:"currency"`
 	Notes         string     `json:"notes"`
 	TotalAmount   string     `json:"total_amount"`
+	AssigneeUUID  *uuid.UUID `json:"assignee_uuid,omitempty"`
+	AssigneeName  string     `json:"assignee_name,omitempty"`
 	StartedAt     time.Time  `json:"started_at"`
 	CompletedAt   *time.Time `json:"completed_at,omitempty"`
 	PaidAt        *time.Time `json:"paid_at,omitempty"`
@@ -84,6 +87,7 @@ type CreateLineInput struct {
 type CreateInput struct {
 	CustomerUUID uuid.UUID         `json:"customer_uuid"`
 	VehicleUUID  uuid.UUID         `json:"vehicle_uuid"`
+	AssigneeUUID *uuid.UUID        `json:"assignee_uuid"`
 	Notes        string            `json:"notes"`
 	StartedAt    *string           `json:"started_at"`
 	Currency     string            `json:"currency"`
@@ -91,7 +95,8 @@ type CreateInput struct {
 }
 
 type PatchInput struct {
-	Notes *string `json:"notes"`
+	Notes        *string    `json:"notes"`
+	AssigneeUUID *uuid.UUID `json:"assignee_uuid"`
 }
 
 type CloseInput struct {

@@ -85,8 +85,15 @@ export function useJobsMutations() {
         toast.error(err.message || t("jobs.toast.failed")),
     }),
     patch: useMutation({
-      mutationFn: ({ uuid, notes }: { uuid: string; notes: string }) =>
-        jobsService.patch(uuid, { notes }),
+      mutationFn: ({
+        uuid,
+        notes,
+        assignee_uuid,
+      }: {
+        uuid: string;
+        notes?: string;
+        assignee_uuid?: string | null;
+      }) => jobsService.patch(uuid, { notes, assignee_uuid }),
       onSuccess: (data) => {
         invalidate();
         void queryClient.invalidateQueries({
@@ -98,13 +105,25 @@ export function useJobsMutations() {
         toast.error(err.message || t("jobs.toast.failed")),
     }),
     done: useMutation({
-      mutationFn: (uuid: string) => jobsService.done(uuid),
+      mutationFn: (uuid: string) => jobsService.ready(uuid),
       onSuccess: (data) => {
         invalidate();
         void queryClient.invalidateQueries({
           queryKey: jobsKeys.detail(data.uuid),
         });
-        toast.success(t("jobs.toast.done"));
+        toast.success(t("jobs.toast.ready"));
+      },
+      onError: (err: Error) =>
+        toast.error(err.message || t("jobs.toast.failed")),
+    }),
+    deliver: useMutation({
+      mutationFn: (uuid: string) => jobsService.deliver(uuid),
+      onSuccess: (data) => {
+        invalidate();
+        void queryClient.invalidateQueries({
+          queryKey: jobsKeys.detail(data.uuid),
+        });
+        toast.success(t("jobs.toast.delivered"));
       },
       onError: (err: Error) =>
         toast.error(err.message || t("jobs.toast.failed")),

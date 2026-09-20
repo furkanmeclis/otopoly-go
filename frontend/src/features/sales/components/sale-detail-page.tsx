@@ -38,7 +38,7 @@ function statusTone(status: SaleStatus) {
 export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const { t, locale } = useLocale();
   const { confirm } = useDialogs();
-  const { canRead, canWrite } = useTenantSalesAccess(slug);
+  const { canRead, canVoid } = useTenantSalesAccess(slug);
   const saleQuery = useSale(uuid);
   const mutations = useSalesMutations();
   const sale = saleQuery.data;
@@ -77,7 +77,7 @@ export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
         { label: title },
       ]}
       actions={
-        sale && canWrite && sale.status === "posted" ? (
+        sale && canVoid && sale.status === "posted" ? (
           <EntityActions>
             <Button
               type="button"

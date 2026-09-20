@@ -72,6 +72,8 @@ import (
 	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
 	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
 	salesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales/usecase"
+	staffmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff"
+	staffusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff/usecase"
 	searchmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search"
 	searchhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/handler"
 	searchusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/usecase"
@@ -277,6 +279,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	jobsSvc.SetSearchIndexer(searchIndexer)
 	jobsSvc.SetEventBus(eventBus)
 	jobsmodule.RegisterRoutes(mux, jobsSvc, tokens, loader, deps.Queries)
+	staffSvc := staffusecase.New(deps.DB, deps.Queries, activityRec)
+	staffmodule.RegisterRoutes(mux, staffSvc, tokens, loader, deps.Queries)
 	salesSvc := salesusecase.New(deps.DB, deps.Queries, activityRec, financeSvc, cariSvc)
 	salesSvc.SetSearchIndexer(searchIndexer)
 	salesSvc.SetEventBus(eventBus)
@@ -298,18 +302,40 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	contractsSvc.SetEventBus(eventBus)
 	contractsmodule.RegisterRoutes(mux, contractsSvc, tokens, loader, deps.Queries)
 	var waClient messagingproviders.WhatsAppClient
-	waMgr, waErr := messagingproviders.NewRealWhatsAppClientManager(cfg.DB.DSN(), log, nil)
+	var messagingSvc *messagingusecase.Service
+	onSession := func(orgID int64, jid, phone, displayName string, connected bool) {
+		if messagingSvc == nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := messagingSvc.UpdateSessionConnected(ctx, orgID, jid, phone, displayName, connected); err != nil {
+			log.Warn("whatsapp session update failed", "org_id", orgID, "err", err)
+		}
+	}
+	onQR := func(orgID int64, code string, expiresAt time.Time) {
+		if messagingSvc == nil {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := messagingSvc.UpdateSessionQR(ctx, orgID, code, expiresAt); err != nil {
+			log.Warn("whatsapp qr update failed", "org_id", orgID, "err", err)
+		}
+	}
+	waMgr, waErr := messagingproviders.NewRealWhatsAppClientManager(cfg.DB.DSN(), log, onSession, onQR)
 	if waErr != nil {
 		log.Warn("whatsapp client manager unavailable, falling back to stub", "err", waErr)
 		waClient = &messagingproviders.StubWhatsAppClient{Log: log}
 	} else {
 		waClient = waMgr.AsClient()
 	}
-	messagingSvc := messagingusecase.New(
+	messagingSvc = messagingusecase.New(
 		deps.Queries,
 		messagingproviders.NewWhatsAppProvider(waClient, log),
 		&messagingproviders.NoopSMSProvider{Log: log},
 	)
+	messagingSvc.RestoreConnectedSessions(context.Background())
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
 	messagingResolver := messagingmodule.NewDBPhoneResolver(deps.Queries)
 	messagingmodule.RegisterEventHandlers(eventBus, messagingSvc, messagingResolver, log)

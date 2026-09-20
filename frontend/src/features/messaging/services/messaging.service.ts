@@ -3,8 +3,9 @@ import type {
   MessageTemplate,
   NotificationRule,
   PatchTemplateInput,
-  QRCodeResponse,
   RuleList,
+  SimulateInput,
+  SimulateResult,
   UpsertTemplateInput,
   WhatsAppSession,
 } from "@/features/messaging/types";
@@ -15,7 +16,7 @@ export const messagingService = {
   },
 
   connectWhatsApp() {
-    return platformRequest<QRCodeResponse>(
+    return platformRequest<WhatsAppSession>(
       "POST",
       "/v1/tenant/messaging/session/connect",
     );
@@ -74,6 +75,14 @@ export const messagingService = {
     return platformRequest<{ deleted: boolean }>(
       "DELETE",
       `/v1/tenant/messaging/templates/${uuid}`,
+    );
+  },
+
+  simulate(body: SimulateInput) {
+    return platformRequest<SimulateResult>(
+      "POST",
+      "/v1/tenant/messaging/simulate",
+      { body },
     );
   },
 };

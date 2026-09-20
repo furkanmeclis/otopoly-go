@@ -3,7 +3,13 @@ import { platformRequest } from "@/lib/api/platform-request";
 import type { ResourceMeta } from "@/features/io/types";
 
 export type JobStatus =
-  "in_progress" | "done" | "paid" | "cancelled" | "voided";
+  | "in_progress"
+  | "ready"
+  | "delivered"
+  | "cancelled"
+  | "voided";
+
+export type PaymentStatus = "unpaid" | "paid";
 
 export type JobLine = {
   uuid: string;
@@ -41,9 +47,12 @@ export type Job = {
   plate: string;
   vehicle_label: string;
   status: JobStatus;
+  payment_status: PaymentStatus;
   currency: string;
   notes: string;
   total_amount: string;
+  assignee_uuid?: string | null;
+  assignee_name?: string;
   started_at: string;
   completed_at?: string | null;
   paid_at?: string | null;
@@ -75,6 +84,7 @@ export type ListPage<T> = {
 export type CreateJobInput = {
   customer_uuid: string;
   vehicle_uuid: string;
+  assignee_uuid?: string;
   notes?: string;
   started_at?: string;
   currency?: string;
@@ -116,13 +126,25 @@ export const jobsService = {
   create(body: CreateJobInput) {
     return platformRequest<JobDetail>("POST", "/v1/tenant/jobs", { body });
   },
-  patch(uuid: string, body: { notes: string }) {
+  patch(
+    uuid: string,
+    body: { notes?: string; assignee_uuid?: string | null },
+  ) {
     return platformRequest<JobDetail>("PATCH", `/v1/tenant/jobs/${uuid}`, {
       body,
     });
   },
+  ready(uuid: string) {
+    return platformRequest<JobDetail>("POST", `/v1/tenant/jobs/${uuid}/ready`);
+  },
   done(uuid: string) {
     return platformRequest<JobDetail>("POST", `/v1/tenant/jobs/${uuid}/done`);
+  },
+  deliver(uuid: string) {
+    return platformRequest<JobDetail>(
+      "POST",
+      `/v1/tenant/jobs/${uuid}/deliver`,
+    );
   },
   close(uuid: string, body: CloseJobInput) {
     return platformRequest<JobDetail>("POST", `/v1/tenant/jobs/${uuid}/close`, {

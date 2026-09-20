@@ -40,7 +40,7 @@ import { useLocale } from "@/providers/locale-provider";
 export function ContractTemplatesPage({ slug }: { slug: string }) {
   const { t, locale } = useLocale();
   const router = useRouter();
-  const { canRead, canWrite } = useTenantContractsAccess(slug);
+  const { canRead, canManage } = useTenantContractsAccess(slug);
   const mutations = useContractMutations();
   const [cloneOpen, setCloneOpen] = useState(false);
   const listState = useServerListState({
@@ -131,7 +131,7 @@ export function ContractTemplatesPage({ slug }: { slug: string }) {
         { label: t("contracts.templates.title") },
       ]}
       actions={
-        canWrite ? (
+        canManage ? (
           <EntityActions>
             <Button
               type="button"

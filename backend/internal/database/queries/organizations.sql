@@ -133,3 +133,17 @@ FROM organization_members om
 JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
 WHERE om.organization_id = $1
 ORDER BY om.created_at ASC;
+
+-- name: GetOrganizationMemberByUserUUID :one
+SELECT om.id, om.organization_id, om.user_id, om.role, om.created_at,
+       u.uuid AS user_uuid, u.email, u.name, u.surname, u.status
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND u.uuid = $2;
+
+-- name: ListOrganizationMemberOptions :many
+SELECT u.uuid, u.email, u.name, u.surname, om.role
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND u.status = 'active'
+ORDER BY u.name ASC, u.surname ASC;

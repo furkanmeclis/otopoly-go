@@ -2425,6 +2425,23 @@ export interface paths {
         patch: operations["patchTenantJob"];
         trace?: never;
     };
+    "/v1/tenant/jobs/{uuid}/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark job ready for delivery */
+        post: operations["markTenantJobReady"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/jobs/{uuid}/done": {
         parameters: {
             query?: never;
@@ -2434,8 +2451,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark job as done (awaiting payment) */
+        /** Alias for mark ready (legacy) */
         post: operations["markTenantJobDone"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/deliver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark job as delivered */
+        post: operations["markTenantJobDelivered"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2451,7 +2485,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Close job with cash, card, or cari payment */
+        /** Record payment without changing operational status */
         post: operations["closeTenantJob"];
         delete?: never;
         options?: never;
@@ -2487,6 +2521,215 @@ export interface paths {
         put?: never;
         /** Void a paid job and reverse finance/cari */
         post: operations["voidTenantJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/staff/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Staff resource meta */
+        get: operations["getTenantStaffMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/staff/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Active organization members for assignee pickers */
+        get: operations["getTenantStaffOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List staff members */
+        get: operations["getTenantStaff"];
+        put?: never;
+        /** Create a staff login account */
+        post: operations["createTenantStaff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/staff/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Activate or deactivate a staff member */
+        patch: operations["patchTenantStaff"];
+        trace?: never;
+    };
+    "/v1/tenant/staff/{uuid}/reset-password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset staff password */
+        post: operations["resetTenantStaffPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** WhatsApp session status */
+        get: operations["getTenantMessagingSession"];
+        put?: never;
+        post?: never;
+        /** Disconnect WhatsApp session */
+        delete: operations["deleteTenantMessagingSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/session/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start WhatsApp QR pairing */
+        post: operations["postTenantMessagingSessionConnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List notification rules by event */
+        get: operations["getTenantMessagingRules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/rules/{event_type}/{channel}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Enable or disable a notification rule */
+        patch: operations["patchTenantMessagingRule"];
+        trace?: never;
+    };
+    "/v1/tenant/messaging/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List message templates */
+        get: operations["getTenantMessagingTemplates"];
+        put?: never;
+        /** Create or upsert a message template */
+        post: operations["postTenantMessagingTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/templates/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get message template */
+        get: operations["getTenantMessagingTemplate"];
+        put?: never;
+        post?: never;
+        /** Delete message template */
+        delete: operations["deleteTenantMessagingTemplate"];
+        options?: never;
+        head?: never;
+        /** Patch message template */
+        patch: operations["patchTenantMessagingTemplate"];
+        trace?: never;
+    };
+    "/v1/tenant/messaging/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a test WhatsApp notification (single event or full job lifecycle) */
+        post: operations["postTenantMessagingSimulate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4833,6 +5076,9 @@ export interface components {
         ContractInstance: {
             /** Format: uuid */
             uuid?: string;
+            number?: number;
+            number_label?: string;
+            locale?: string;
             /** Format: uuid */
             template_uuid?: string | null;
             title?: string;
@@ -9376,7 +9622,8 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
                 sort?: string;
-                status?: "in_progress" | "done" | "paid" | "cancelled" | "voided";
+                status?: "in_progress" | "ready" | "delivered" | "cancelled" | "voided";
+                payment_status?: "unpaid" | "paid";
                 date_from?: string;
                 date_to?: string;
             };
@@ -9411,6 +9658,8 @@ export interface operations {
                     customer_uuid: string;
                     /** Format: uuid */
                     vehicle_uuid: string;
+                    /** Format: uuid */
+                    assignee_uuid?: string;
                     notes?: string;
                     started_at?: string;
                     currency?: string;
@@ -9502,6 +9751,8 @@ export interface operations {
             content: {
                 "application/json": {
                     notes?: string;
+                    /** Format: uuid */
+                    assignee_uuid?: string | null;
                 };
             };
         };
@@ -9520,6 +9771,29 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    markTenantJobReady: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job marked ready */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     markTenantJobDone: {
         parameters: {
             query?: never;
@@ -9531,7 +9805,30 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Job marked done */
+            /** @description Job marked ready */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    markTenantJobDelivered: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job delivered */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9563,7 +9860,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Job closed */
+            /** @description Job payment recorded */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -9620,6 +9917,442 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantStaffMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStaffOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member options */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Staff page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    surname: string;
+                    /** Format: email */
+                    email: string;
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Staff created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    patchTenantStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    status: "active" | "inactive";
+                };
+            };
+        };
+        responses: {
+            /** @description Staff updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    resetTenantStaffPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    password: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Password reset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantMessagingSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    deleteTenantMessagingSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postTenantMessagingSessionConnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Pairing started */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantMessagingRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rule lists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    patchTenantMessagingRule: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_type: string;
+                channel: "whatsapp" | "sms";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Rule updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantMessagingTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Templates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postTenantMessagingTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    event_type: string;
+                    /** @enum {string} */
+                    channel: "whatsapp" | "sms";
+                    locale?: string;
+                    subject?: string;
+                    body: string;
+                    variables?: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Template saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantMessagingTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantMessagingTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    patchTenantMessagingTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    subject?: string;
+                    body?: string;
+                    variables?: string[];
+                    is_active?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Template updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    postTenantMessagingSimulate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @default event
+                     * @enum {string}
+                     */
+                    mode?: "event" | "job_lifecycle";
+                    event_type?: string;
+                    /**
+                     * @default whatsapp
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp";
+                    phone: string;
+                    vars?: {
+                        [key: string]: string;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Simulate result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getTenantCustomerJobs: {
@@ -10588,6 +11321,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: components["responses"]["NotFound"];
         };
     };
     patchTenantContractTemplate: {
@@ -10614,6 +11348,8 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeContractTemplate"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
     listTenantContractInstances: {
@@ -10641,6 +11377,8 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeContractInstancePage"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
         };
     };
     createTenantContractInstance: {
@@ -10673,6 +11411,8 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeContractInstance"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantContractInstance: {
@@ -10781,6 +11521,9 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeContractMedia"];
                 };
             };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     deleteTenantContractMedia: {
@@ -10802,6 +11545,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     downloadTenantContractPDF: {
@@ -11203,6 +11948,8 @@ export interface operations {
                     /** @enum {string} */
                     kind?: "individual" | "company";
                     notes?: string;
+                    tax_id?: string;
+                    tax_office?: string;
                     is_active?: boolean;
                     vehicle?: {
                         plate: string;

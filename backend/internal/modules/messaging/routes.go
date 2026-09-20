@@ -49,4 +49,6 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/tenant/messaging/templates/{uuid}", tRead(h.GetTemplate))
 	mux.Handle("PATCH /v1/tenant/messaging/templates/{uuid}", tWrite(h.PatchTemplate))
 	mux.Handle("DELETE /v1/tenant/messaging/templates/{uuid}", tWrite(h.DeleteTemplate))
+
+	mux.Handle("POST /v1/tenant/messaging/simulate", tWrite(h.Simulate))
 }

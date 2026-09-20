@@ -288,6 +288,10 @@ func (r *memRepo) GetRefreshSession(_ context.Context, _ string) (model.RefreshS
 	return model.RefreshSession{}, repository.ErrNotFound
 }
 
+func (r *memRepo) ResolveOrganizationInternalID(context.Context, uuid.UUID) (int64, error) {
+	return 0, repository.ErrNotFound
+}
+
 func (r *memRepo) RevokeRefresh(context.Context, string) error   { return nil }
 func (r *memRepo) RevokeAllRefresh(context.Context, int64) error { return nil }
 

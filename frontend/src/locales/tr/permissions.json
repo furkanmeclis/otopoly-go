@@ -112,5 +112,7 @@
   "groups.permissions": "İzinler",
   "groups.system": "Sistem",
   "groups.tenant": "İşletme",
-  "groups.other": "Diğer"
+  "groups.other": "Diğer",
+  "labels.tenant.staff.read": "Personel görüntüle",
+  "labels.tenant.staff.write": "Personel yönet"
 }

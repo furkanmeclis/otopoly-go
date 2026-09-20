@@ -53,6 +53,9 @@ export const routes = {
       root: (slug: string) => `/t/${slug}/operations`,
       detail: (slug: string, uuid: string) => `/t/${slug}/operations/${uuid}`,
     },
+    staff: {
+      root: (slug: string) => `/t/${slug}/staff`,
+    },
     sales: {
       root: (slug: string) => `/t/${slug}/sales`,
       detail: (slug: string, uuid: string) => `/t/${slug}/sales/${uuid}`,

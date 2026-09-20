@@ -401,6 +401,92 @@ func (q *Queries) GetOrganizationMemberByUserAndSlug(ctx context.Context, arg Ge
 	return i, err
 }
 
+const getOrganizationMemberByUserUUID = `-- name: GetOrganizationMemberByUserUUID :one
+SELECT om.id, om.organization_id, om.user_id, om.role, om.created_at,
+       u.uuid AS user_uuid, u.email, u.name, u.surname, u.status
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND u.uuid = $2
+`
+
+type GetOrganizationMemberByUserUUIDParams struct {
+	OrganizationID int64     `json:"organization_id"`
+	Uuid           uuid.UUID `json:"uuid"`
+}
+
+type GetOrganizationMemberByUserUUIDRow struct {
+	ID             int64              `json:"id"`
+	OrganizationID int64              `json:"organization_id"`
+	UserID         int64              `json:"user_id"`
+	Role           string             `json:"role"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UserUuid       uuid.UUID          `json:"user_uuid"`
+	Email          string             `json:"email"`
+	Name           string             `json:"name"`
+	Surname        string             `json:"surname"`
+	Status         string             `json:"status"`
+}
+
+func (q *Queries) GetOrganizationMemberByUserUUID(ctx context.Context, arg GetOrganizationMemberByUserUUIDParams) (GetOrganizationMemberByUserUUIDRow, error) {
+	row := q.db.QueryRow(ctx, getOrganizationMemberByUserUUID, arg.OrganizationID, arg.Uuid)
+	var i GetOrganizationMemberByUserUUIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.Role,
+		&i.CreatedAt,
+		&i.UserUuid,
+		&i.Email,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+	)
+	return i, err
+}
+
+const listOrganizationMemberOptions = `-- name: ListOrganizationMemberOptions :many
+SELECT u.uuid, u.email, u.name, u.surname, om.role
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND u.status = 'active'
+ORDER BY u.name ASC, u.surname ASC
+`
+
+type ListOrganizationMemberOptionsRow struct {
+	Uuid    uuid.UUID `json:"uuid"`
+	Email   string    `json:"email"`
+	Name    string    `json:"name"`
+	Surname string    `json:"surname"`
+	Role    string    `json:"role"`
+}
+
+func (q *Queries) ListOrganizationMemberOptions(ctx context.Context, organizationID int64) ([]ListOrganizationMemberOptionsRow, error) {
+	rows, err := q.db.Query(ctx, listOrganizationMemberOptions, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOrganizationMemberOptionsRow{}
+	for rows.Next() {
+		var i ListOrganizationMemberOptionsRow
+		if err := rows.Scan(
+			&i.Uuid,
+			&i.Email,
+			&i.Name,
+			&i.Surname,
+			&i.Role,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrganizationMembers = `-- name: ListOrganizationMembers :many
 SELECT u.uuid, u.email, u.name, u.surname, u.status, om.role, om.created_at
 FROM organization_members om

@@ -21,8 +21,10 @@ type Account struct {
 
 type AccountDetail struct {
 	Account
-	CustomerEmail    string `json:"customer_email"`
-	CustomerIsActive bool   `json:"customer_is_active"`
+	CustomerEmail     string `json:"customer_email"`
+	CustomerTaxID     string `json:"customer_tax_id,omitempty"`
+	CustomerTaxOffice string `json:"customer_tax_office,omitempty"`
+	CustomerIsActive  bool   `json:"customer_is_active"`
 }
 
 type Entry struct {

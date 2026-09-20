@@ -99,6 +99,8 @@ const (
 	PermTenantContractsWrite                    = "tenant.contracts.write"
 	PermTenantMessagingRead                     = "tenant.messaging.read"
 	PermTenantMessagingWrite                    = "tenant.messaging.write"
+	PermTenantStaffRead                         = "tenant.staff.read"
+	PermTenantStaffWrite                        = "tenant.staff.write"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

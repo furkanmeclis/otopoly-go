@@ -354,6 +354,20 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 	defer func() { _ = tx.Rollback(ctx) }()
 	qtx := s.q.WithTx(tx)
 
+	var assignee pgtype.Int8
+	if in.AssigneeUUID != nil && *in.AssigneeUUID != uuid.Nil {
+		user, uerr := s.q.GetUserByUUID(ctx, *in.AssigneeUUID)
+		if uerr != nil {
+			return JobDetail{}, fmt.Errorf("%w: assignee not found", ErrInvalidRequest)
+		}
+		if _, merr := s.q.GetOrganizationMember(ctx, db.GetOrganizationMemberParams{
+			OrganizationID: orgID, UserID: user.ID,
+		}); merr != nil {
+			return JobDetail{}, fmt.Errorf("%w: assignee is not a member", ErrInvalidRequest)
+		}
+		assignee = pgtype.Int8{Int64: user.ID, Valid: true}
+	}
+
 	job, err := qtx.CreateServiceJob(ctx, db.CreateServiceJobParams{
 		OrganizationID: orgID,
 		CustomerID:     vehicle.CustomerID,
@@ -368,6 +382,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 		StartedAt:      pgtype.Timestamptz{Time: startedAt, Valid: true},
 		TotalAmount:    totalAmount,
 		CreatedBy:      actorID,
+		AssigneeUserID: assignee,
 	})
 	if err != nil {
 		return JobDetail{}, err
@@ -411,21 +426,46 @@ func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (JobDe
 	if err != nil {
 		return JobDetail{}, err
 	}
-	if in.Notes == nil {
-		return JobDetail{}, fmt.Errorf("%w: notes required", ErrInvalidRequest)
+	if in.Notes == nil && in.AssigneeUUID == nil {
+		return JobDetail{}, fmt.Errorf("%w: nothing to update", ErrInvalidRequest)
 	}
-	row, err := s.q.UpdateServiceJobNotes(ctx, db.UpdateServiceJobNotesParams{
-		Uuid: id, OrganizationID: orgID, Notes: strings.TrimSpace(*in.Notes),
-	})
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return JobDetail{}, ErrConflict
+	if in.Notes != nil {
+		_, err := s.q.UpdateServiceJobNotes(ctx, db.UpdateServiceJobNotesParams{
+			Uuid: id, OrganizationID: orgID, Notes: strings.TrimSpace(*in.Notes),
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return JobDetail{}, ErrConflict
+			}
+			return JobDetail{}, err
 		}
-		return JobDetail{}, err
 	}
-	s.recordActivity(ctx, "jobs.update", "jobs.job", &row.Uuid, nil)
-	s.indexJob(ctx, row.Uuid)
-	return s.Get(ctx, row.Uuid)
+	if in.AssigneeUUID != nil {
+		var assignee pgtype.Int8
+		if *in.AssigneeUUID != uuid.Nil {
+			user, uerr := s.q.GetUserByUUID(ctx, *in.AssigneeUUID)
+			if uerr != nil {
+				return JobDetail{}, fmt.Errorf("%w: assignee not found", ErrInvalidRequest)
+			}
+			if _, merr := s.q.GetOrganizationMember(ctx, db.GetOrganizationMemberParams{
+				OrganizationID: orgID, UserID: user.ID,
+			}); merr != nil {
+				return JobDetail{}, fmt.Errorf("%w: assignee is not a member", ErrInvalidRequest)
+			}
+			assignee = pgtype.Int8{Int64: user.ID, Valid: true}
+		}
+		if _, err := s.q.UpdateServiceJobAssignee(ctx, db.UpdateServiceJobAssigneeParams{
+			Uuid: id, OrganizationID: orgID, AssigneeUserID: assignee,
+		}); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return JobDetail{}, ErrConflict
+			}
+			return JobDetail{}, err
+		}
+	}
+	s.recordActivity(ctx, "jobs.update", "jobs.job", &id, nil)
+	s.indexJob(ctx, id)
+	return s.Get(ctx, id)
 }
 
 func (s *Service) MarkDone(ctx context.Context, id uuid.UUID) (JobDetail, error) {
@@ -442,7 +482,28 @@ func (s *Service) MarkDone(ctx context.Context, id uuid.UUID) (JobDetail, error)
 		}
 		return JobDetail{}, err
 	}
-	s.recordActivity(ctx, "jobs.update", "jobs.job", &row.Uuid, map[string]any{"status": "done"})
+	s.recordActivity(ctx, "jobs.update", "jobs.job", &row.Uuid, map[string]any{"status": "ready"})
+	s.publish(ctx, events.JobsReady, map[string]any{"job_uuid": row.Uuid.String()})
+	s.indexJob(ctx, row.Uuid)
+	return s.Get(ctx, row.Uuid)
+}
+
+func (s *Service) MarkDelivered(ctx context.Context, id uuid.UUID) (JobDetail, error) {
+	orgID, err := s.requireOrgID(ctx)
+	if err != nil {
+		return JobDetail{}, err
+	}
+	row, err := s.q.MarkServiceJobDelivered(ctx, db.MarkServiceJobDeliveredParams{
+		Uuid: id, OrganizationID: orgID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return JobDetail{}, ErrConflict
+		}
+		return JobDetail{}, err
+	}
+	s.recordActivity(ctx, "jobs.update", "jobs.job", &row.Uuid, map[string]any{"status": "delivered"})
+	s.publish(ctx, events.JobsDelivered, map[string]any{"job_uuid": row.Uuid.String()})
 	s.indexJob(ctx, row.Uuid)
 	return s.Get(ctx, row.Uuid)
 }
@@ -490,7 +551,10 @@ func (s *Service) Close(ctx context.Context, id uuid.UUID, in CloseInput) (JobDe
 		}
 		return JobDetail{}, err
 	}
-	if job.Status != "in_progress" && job.Status != "done" {
+	if job.PaymentStatus == "paid" {
+		return JobDetail{}, fmt.Errorf("%w: job already paid", ErrConflict)
+	}
+	if job.Status != "in_progress" && job.Status != "ready" && job.Status != "delivered" {
 		return JobDetail{}, fmt.Errorf("%w: job cannot be closed", ErrConflict)
 	}
 	if !job.TotalAmount.Valid || job.TotalAmount.Int == nil || job.TotalAmount.Int.Sign() <= 0 {
@@ -642,7 +706,7 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 		}
 		return JobDetail{}, err
 	}
-	if job.Status != "paid" {
+	if job.PaymentStatus != "paid" {
 		return JobDetail{}, fmt.Errorf("%w: only paid jobs can be voided", ErrConflict)
 	}
 

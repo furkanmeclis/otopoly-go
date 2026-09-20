@@ -67,7 +67,7 @@ Organization-scoped accounting under `/v1/tenant/finance/*`. Requires JWT `oid` 
 | `tenant.settings.read` / `.write` | `organization_owner` | Organization letterhead used in PDF/XLSX |
 | `tenant.imports.read` | `organization_owner` | Tenant import job list / mapping / rollback |
 
-**Roles:** `organization_owner` is assigned to `organization_members.role = owner` and grants write. Staff keep read-only via `organization_user` + `.read` only.
+**Roles:** `organization_owner` is assigned to `organization_members.role = owner` and grants owner-only writes (finance, catalog, void, staff admin). Counter staff use `organization_user` with kasa write grants (`jobs` / `customers` / `sales` / `contracts`) created via `/t/{slug}/staff`.
 
 **Core tables:** `finance_accounts`, `finance_categories`, `finance_transactions` (all scoped by `organization_id`).
 
@@ -87,20 +87,38 @@ Optional `metadata` JSONB carries module-specific flags. Open receivable is mode
 
 ## Tenant jobs / operations (`/t/{slug}/operations`)
 
-Organization-scoped car-wash service jobs under `/v1/tenant/jobs/*`. UI path is `/operations`. One job = one vehicle; multiple service lines with price snapshots. Status: `in_progress` → `done` → `paid` | `cancelled`; `paid` → `voided`.
+Organization-scoped car-wash service jobs under `/v1/tenant/jobs/*`. UI path is `/operations`. One job = one vehicle; multiple service lines with price snapshots.
+
+**Operational status:** `in_progress` → `ready` (ready for delivery) → `delivered` | `cancelled`; paid jobs may be `voided`.
+
+**Payment status (independent):** `unpaid` | `paid` (`paid_at` set on close). Close records payment only — it does not force operational status to paid.
 
 | Permission | Who | Notes |
 |------------|-----|-------|
 | `tenant.jobs.read` | `organization_user` (+ owner) | Board, summary, detail |
-| `tenant.jobs.write` | `organization_owner` + owner membership | Create, done, close, cancel, void |
+| `tenant.jobs.write` | owners + staff (`organization_user` with write grant) | Create, ready, deliver, close, cancel |
+| `tenant.jobs.write` + org role `owner` | owners only | Void |
 | `tenant.jobs.export` | owners + staff | Job list export |
 
-**Core tables:** `service_jobs`, `service_job_lines`, `service_job_payments`.
+**Core tables:** `service_jobs` (`assignee_user_id`, `payment_status`), `service_job_lines`, `service_job_payments`.
 
 **Close flows:**
 - **cash / card** — posts finance income (`source_type=service_job`, `source_uuid` = payment UUID, category **Hizmet Geliri**). No cari charge.
 - **cari (veresiye)** — posts cari charge via `ChargeFromSourceTx` (`source_type=service_job`, `source_uuid` = payment UUID). No finance income. Later collection uses existing cari payment → `cari_payment`.
-- **void** — voids each posted payment; cash/card → `VoidBySourceTx` finance; cari → cari `VoidBySourceTx`.
+- **void** — owner only; voids each posted payment; cash/card → `VoidBySourceTx` finance; cari → cari `VoidBySourceTx`.
+
+## Tenant staff (`/t/{slug}/staff`)
+
+Owner self-serve staff accounts (not platform member invite). Creates `users` + `organization_members(role=staff)` + `organization_user` role. No second owner from this screen.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.staff.read` | owners + staff | List staff |
+| `tenant.staff.write` | owners only | Create, activate/deactivate, reset password |
+
+`GET /v1/tenant/staff/options` lists active org members for job assignee pickers (requires `tenant.jobs.read`).
+
+**Kasa write grants on `organization_user`:** `tenant.jobs.write`, `tenant.customers.write`, `tenant.sales.write`, `tenant.contracts.write`. Catalog, finance write, purchases, staff write, messaging settings, and void paths stay owner-gated.
 
 ## Tenant sales (`/t/{slug}/sales`)
 
@@ -109,7 +127,8 @@ One-shot quick product sales under `/v1/tenant/sales/*`. Customer is optional. C
 | Permission | Who | Notes |
 |------------|-----|-------|
 | `tenant.sales.read` | `organization_user` (+ owner) | List, summary, detail |
-| `tenant.sales.write` | `organization_owner` + owner membership | Create, void |
+| `tenant.sales.write` | owners + staff | Create |
+| `tenant.sales.write` + owner | owners only | Void |
 | `tenant.sales.export` | owners + staff | Sale list export |
 
 **Core tables:** `product_sales`, `product_sale_lines`.
@@ -165,7 +184,7 @@ Platform presets and tenant templates/instances for on-site multi-party signing.
 | Surface | Path | Permissions |
 |---------|------|-------------|
 | Platform presets | `/platform/contract-presets` | `platform.contract_presets.read` / `.write` |
-| Tenant templates + instances | `/t/{slug}/contracts` | `tenant.contracts.read` / `.write` (write = owner) |
+| Tenant templates + instances | `/t/{slug}/contracts` | `tenant.contracts.read` / `.write` (create/sign for staff; templates + void owner) |
 
 **Flow:** platform preset → tenant clone/customize → instance bound to `subject_type=service_job` → on-site SignaturePad signers → Asynq HTML→PDF → executed PDF download. Gallery media allowed on draft/pending. Remote/email signing and KEP are out of scope for v1.
 

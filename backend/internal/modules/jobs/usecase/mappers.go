@@ -76,6 +76,14 @@ func tsPtr(v pgtype.Timestamptz) *time.Time {
 	return &t
 }
 
+func uuidPtr(v pgtype.UUID) *uuid.UUID {
+	if !v.Valid {
+		return nil
+	}
+	id := uuid.UUID(v.Bytes)
+	return &id
+}
+
 func mapListJob(row db.ListServiceJobsRow) Job {
 	return Job{
 		UUID:          row.Uuid,
@@ -86,9 +94,12 @@ func mapListJob(row db.ListServiceJobsRow) Job {
 		Plate:         row.Plate,
 		VehicleLabel:  row.VehicleLabel,
 		Status:        row.Status,
+		PaymentStatus: row.PaymentStatus,
 		Currency:      row.Currency,
 		Notes:         row.Notes,
 		TotalAmount:   financeusecase.NumericToString(row.TotalAmount),
+		AssigneeUUID:  uuidPtr(row.AssigneeUuid),
+		AssigneeName:  row.AssigneeName,
 		StartedAt:     row.StartedAt.Time,
 		CompletedAt:   tsPtr(row.CompletedAt),
 		PaidAt:        tsPtr(row.PaidAt),
@@ -107,6 +118,7 @@ func mapCustomerJob(row db.ListServiceJobsByCustomerRow) Job {
 		Plate:         row.Plate,
 		VehicleLabel:  row.VehicleLabel,
 		Status:        row.Status,
+		PaymentStatus: row.PaymentStatus,
 		Currency:      row.Currency,
 		Notes:         row.Notes,
 		TotalAmount:   financeusecase.NumericToString(row.TotalAmount),
@@ -128,9 +140,12 @@ func mapGetJob(row db.GetServiceJobByUUIDRow) Job {
 		Plate:         row.Plate,
 		VehicleLabel:  row.VehicleLabel,
 		Status:        row.Status,
+		PaymentStatus: row.PaymentStatus,
 		Currency:      row.Currency,
 		Notes:         row.Notes,
 		TotalAmount:   financeusecase.NumericToString(row.TotalAmount),
+		AssigneeUUID:  uuidPtr(row.AssigneeUuid),
+		AssigneeName:  row.AssigneeName,
 		StartedAt:     row.StartedAt.Time,
 		CompletedAt:   tsPtr(row.CompletedAt),
 		PaidAt:        tsPtr(row.PaidAt),

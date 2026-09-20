@@ -19,10 +19,12 @@ const (
 
 // Jobs (operations / service jobs) domain events.
 const (
-	JobsCreated   = "jobs.created"
-	JobsClosed    = "jobs.closed"
-	JobsCancelled = "jobs.cancelled"
-	JobsVoided    = "jobs.voided"
+	JobsCreated    = "jobs.created"
+	JobsReady      = "jobs.ready"
+	JobsDelivered  = "jobs.delivered"
+	JobsClosed     = "jobs.closed"
+	JobsCancelled  = "jobs.cancelled"
+	JobsVoided     = "jobs.voided"
 )
 
 // Sales (quick product sales) domain events.
@@ -252,6 +254,8 @@ func catalogConstants() []string {
 		CariPaymentPosted,
 		CariEntryVoided,
 		JobsCreated,
+		JobsReady,
+		JobsDelivered,
 		JobsClosed,
 		JobsCancelled,
 		JobsVoided,

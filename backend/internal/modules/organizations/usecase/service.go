@@ -495,6 +495,30 @@ func (s *Service) ResolveLoginOrganization(ctx context.Context, userID int64, sl
 	return row.OrganizationUuid, nil
 }
 
+// ResolveOrganizationUUID re-validates membership + access for a known organization UUID
+// (used when preserving oid across refresh).
+func (s *Service) ResolveOrganizationUUID(ctx context.Context, userID int64, orgUUID uuid.UUID) (uuid.UUID, error) {
+	row, err := s.q.GetOrganizationMemberByUserAndOrgUUID(ctx, db.GetOrganizationMemberByUserAndOrgUUIDParams{
+		UserID: userID, Uuid: orgUUID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, ErrNoTenantMembership
+		}
+		return uuid.Nil, err
+	}
+	org := db.Organization{
+		Status: row.OrganizationStatus, AccessStartsAt: row.AccessStartsAt, AccessEndsAt: row.AccessEndsAt,
+	}
+	if row.OrganizationStatus == "suspended" {
+		return uuid.Nil, ErrOrganizationSuspended
+	}
+	if !accessAllowed(org) {
+		return uuid.Nil, ErrOrganizationAccessExpired
+	}
+	return row.OrganizationUuid, nil
+}
+
 // AddMember assigns a user to an organization (platform only).
 func (s *Service) AddMember(ctx context.Context, orgUUID uuid.UUID, in AddMemberInput) error {
 	org, err := s.q.GetOrganizationByUUID(ctx, orgUUID)

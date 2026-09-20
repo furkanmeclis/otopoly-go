@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Ban, CheckCircle2, Pencil, Wallet, XCircle } from "lucide-react";
+import { Ban, PackageCheck, Pencil, Truck, Wallet, XCircle } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 import { z } from "zod";
 
@@ -36,7 +36,9 @@ import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-acces
 import type {
   CloseJobInput,
   JobStatus,
+  PaymentStatus,
 } from "@/features/jobs/services/jobs.service";
+import { useStaffOptions } from "@/features/staff/hooks/use-staff";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -47,9 +49,9 @@ function statusTone(status: JobStatus) {
   switch (status) {
     case "in_progress":
       return "warning" as const;
-    case "done":
+    case "ready":
       return "default" as const;
-    case "paid":
+    case "delivered":
       return "success" as const;
     case "cancelled":
     case "voided":
@@ -59,13 +61,18 @@ function statusTone(status: JobStatus) {
   }
 }
 
+function paymentTone(status: PaymentStatus) {
+  return status === "paid" ? ("success" as const) : ("warning" as const);
+}
+
 export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const { t, locale } = useLocale();
   const { confirm } = useDialogs();
-  const { canRead, canWrite } = useTenantJobsAccess(slug);
+  const { canRead, canWrite, canVoid } = useTenantJobsAccess(slug);
   const jobQuery = useJob(uuid);
   const mutations = useJobsMutations();
   const job = jobQuery.data;
+  const staffOptionsQuery = useStaffOptions(canWrite);
 
   const [notesOpen, setNotesOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
@@ -103,6 +110,16 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
 
   const title = job?.plate ?? t("jobs.detail.title");
   const status = job?.status;
+  const paymentStatus = job?.payment_status;
+  const canEdit =
+    canWrite && (status === "in_progress" || status === "ready");
+  const canPay =
+    canWrite &&
+    paymentStatus === "unpaid" &&
+    status !== "cancelled" &&
+    status !== "voided";
+  const canCancel =
+    canWrite && (status === "in_progress" || status === "ready");
 
   return (
     <EntityPage
@@ -119,7 +136,7 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
       actions={
         job && canWrite ? (
           <EntityActions>
-            {status === "in_progress" || status === "done" ? (
+            {canEdit ? (
               <Button
                 type="button"
                 size="sm"
@@ -138,11 +155,23 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                 disabled={mutations.done.isPending}
                 onClick={() => void mutations.done.mutateAsync(uuid)}
               >
-                <CheckCircle2 className="size-4" />
-                {t("jobs.actions.done")}
+                <PackageCheck className="size-4" />
+                {t("jobs.actions.ready")}
               </Button>
             ) : null}
-            {status === "in_progress" || status === "done" ? (
+            {status === "ready" || status === "in_progress" ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={mutations.deliver.isPending}
+                onClick={() => void mutations.deliver.mutateAsync(uuid)}
+              >
+                <Truck className="size-4" />
+                {t("jobs.actions.deliver")}
+              </Button>
+            ) : null}
+            {canPay ? (
               <Button
                 type="button"
                 size="sm"
@@ -152,7 +181,7 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                 {t("jobs.actions.close")}
               </Button>
             ) : null}
-            {status === "in_progress" || status === "done" ? (
+            {canCancel ? (
               <Button
                 type="button"
                 size="sm"
@@ -164,7 +193,7 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                 {t("jobs.actions.cancel")}
               </Button>
             ) : null}
-            {status === "paid" ? (
+            {canVoid && paymentStatus === "paid" ? (
               <Button
                 type="button"
                 size="sm"
@@ -195,10 +224,16 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
             title={job.plate}
             subtitle={job.vehicle_label || undefined}
             badges={
-              <StatusChip
-                label={t(`jobs.status.${job.status}`)}
-                tone={statusTone(job.status)}
-              />
+              <div className="flex flex-wrap gap-2">
+                <StatusChip
+                  label={t(`jobs.status.${job.status}`)}
+                  tone={statusTone(job.status)}
+                />
+                <StatusChip
+                  label={t(`jobs.payment.${job.payment_status}`)}
+                  tone={paymentTone(job.payment_status)}
+                />
+              </div>
             }
           >
             <p className="text-lg font-semibold tabular-nums">
@@ -236,6 +271,11 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                       key: "vehicle",
                       label: t("jobs.vehicle"),
                       value: `${job.plate}${job.vehicle_label ? ` · ${job.vehicle_label}` : ""}`,
+                    },
+                    {
+                      key: "assignee",
+                      label: t("jobs.assignee"),
+                      value: job.assignee_name || "—",
                     },
                     {
                       key: "started",
@@ -359,9 +399,18 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
         open={notesOpen}
         onOpenChange={setNotesOpen}
         initialNotes={job?.notes ?? ""}
+        initialAssigneeUuid={job?.assignee_uuid ?? ""}
+        assigneeOptions={(staffOptionsQuery.data?.items ?? []).map((m) => ({
+          value: m.uuid,
+          label: m.label,
+        }))}
         pending={mutations.patch.isPending}
-        onSubmit={async (notes) => {
-          await mutations.patch.mutateAsync({ uuid, notes });
+        onSubmit={async ({ notes, assignee_uuid }) => {
+          await mutations.patch.mutateAsync({
+            uuid,
+            notes,
+            assignee_uuid: assignee_uuid || null,
+          });
           setNotesOpen(false);
         }}
       />
@@ -383,20 +432,28 @@ function NotesDialog({
   open,
   onOpenChange,
   initialNotes,
+  initialAssigneeUuid,
+  assigneeOptions,
   pending,
   onSubmit,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialNotes: string;
+  initialAssigneeUuid: string;
+  assigneeOptions: { value: string; label: string }[];
   pending?: boolean;
-  onSubmit: (notes: string) => Promise<void>;
+  onSubmit: (values: {
+    notes: string;
+    assignee_uuid: string;
+  }) => Promise<void>;
 }) {
   const { t } = useLocale();
   const schema = useMemo(
     () =>
       z.object({
         notes: z.string().optional(),
+        assignee_uuid: z.string().optional(),
       }),
     [],
   );
@@ -408,14 +465,33 @@ function NotesDialog({
           <DialogTitle>{t("jobs.actions.edit_notes")}</DialogTitle>
         </DialogHeader>
         <AppForm
-          key={open ? `notes-${initialNotes}` : "notes-closed"}
+          key={
+            open
+              ? `notes-${initialNotes}-${initialAssigneeUuid}`
+              : "notes-closed"
+          }
           schema={schema}
-          defaultValues={{ notes: initialNotes }}
+          defaultValues={{
+            notes: initialNotes,
+            assignee_uuid: initialAssigneeUuid,
+          }}
           onSubmit={async (values) => {
-            await onSubmit(values.notes?.trim() ?? "");
+            await onSubmit({
+              notes: values.notes?.trim() ?? "",
+              assignee_uuid: values.assignee_uuid?.trim() ?? "",
+            });
           }}
         >
           <FieldGroup className="gap-4">
+            <AppSelect
+              name="assignee_uuid"
+              label={t("jobs.assignee")}
+              options={[
+                { value: "", label: t("jobs.assignee_none") },
+                ...assigneeOptions,
+              ]}
+              placeholder={t("jobs.pick_assignee")}
+            />
             <AppTextarea name="notes" label={t("jobs.notes")} />
           </FieldGroup>
           <DialogFooter className="mt-6">

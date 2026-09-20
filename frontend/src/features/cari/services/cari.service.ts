@@ -17,6 +17,8 @@ export type CariAccount = {
 
 export type CariAccountDetail = CariAccount & {
   customer_email: string;
+  customer_tax_id?: string;
+  customer_tax_office?: string;
   customer_is_active: boolean;
 };
 

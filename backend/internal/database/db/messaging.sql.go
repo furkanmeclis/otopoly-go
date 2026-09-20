@@ -126,7 +126,7 @@ func (q *Queries) GetNotificationRule(ctx context.Context, arg GetNotificationRu
 }
 
 const getWhatsAppSession = `-- name: GetWhatsAppSession :one
-SELECT id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at FROM whatsapp_sessions
+SELECT id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at FROM whatsapp_sessions
 WHERE organization_id = $1
 `
 
@@ -146,6 +146,8 @@ func (q *Queries) GetWhatsAppSession(ctx context.Context, organizationID int64) 
 		&i.ErrorMessage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.QrCode,
+		&i.QrExpiresAt,
 	)
 	return i, err
 }
@@ -201,6 +203,47 @@ func (q *Queries) InsertOutboundMessage(ctx context.Context, arg InsertOutboundM
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listConnectedWhatsAppSessions = `-- name: ListConnectedWhatsAppSessions :many
+SELECT id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at FROM whatsapp_sessions
+WHERE status = 'connected' AND jid <> ''
+ORDER BY organization_id
+`
+
+func (q *Queries) ListConnectedWhatsAppSessions(ctx context.Context) ([]WhatsappSession, error) {
+	rows, err := q.db.Query(ctx, listConnectedWhatsAppSessions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WhatsappSession{}
+	for rows.Next() {
+		var i WhatsappSession
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.Status,
+			&i.Jid,
+			&i.PhoneNumber,
+			&i.DisplayName,
+			&i.EncryptedKeys,
+			&i.LastSeenAt,
+			&i.ErrorMessage,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.QrCode,
+			&i.QrExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listMessageTemplatesByOrg = `-- name: ListMessageTemplatesByOrg :many
@@ -325,6 +368,44 @@ func (q *Queries) UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOut
 	return i, err
 }
 
+const updateWhatsAppSessionQR = `-- name: UpdateWhatsAppSessionQR :one
+UPDATE whatsapp_sessions
+SET status = 'qr_pending',
+    qr_code = $2,
+    qr_expires_at = $3,
+    error_message = ''
+WHERE organization_id = $1
+RETURNING id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at
+`
+
+type UpdateWhatsAppSessionQRParams struct {
+	OrganizationID int64              `json:"organization_id"`
+	QrCode         string             `json:"qr_code"`
+	QrExpiresAt    pgtype.Timestamptz `json:"qr_expires_at"`
+}
+
+func (q *Queries) UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAppSessionQRParams) (WhatsappSession, error) {
+	row := q.db.QueryRow(ctx, updateWhatsAppSessionQR, arg.OrganizationID, arg.QrCode, arg.QrExpiresAt)
+	var i WhatsappSession
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.Status,
+		&i.Jid,
+		&i.PhoneNumber,
+		&i.DisplayName,
+		&i.EncryptedKeys,
+		&i.LastSeenAt,
+		&i.ErrorMessage,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.QrCode,
+		&i.QrExpiresAt,
+	)
+	return i, err
+}
+
 const upsertMessageTemplate = `-- name: UpsertMessageTemplate :one
 INSERT INTO message_templates (
     organization_id, event_type, channel, locale, subject, body, variables, is_active
@@ -422,20 +503,22 @@ func (q *Queries) UpsertNotificationRule(ctx context.Context, arg UpsertNotifica
 const upsertWhatsAppSession = `-- name: UpsertWhatsAppSession :one
 INSERT INTO whatsapp_sessions (
     organization_id, status, jid, phone_number, display_name,
-    encrypted_keys, last_seen_at, error_message
+    encrypted_keys, last_seen_at, error_message, qr_code, qr_expires_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
 ON CONFLICT (organization_id) DO UPDATE
 SET
-    status        = EXCLUDED.status,
-    jid           = EXCLUDED.jid,
-    phone_number  = EXCLUDED.phone_number,
-    display_name  = EXCLUDED.display_name,
+    status         = EXCLUDED.status,
+    jid            = EXCLUDED.jid,
+    phone_number   = EXCLUDED.phone_number,
+    display_name   = EXCLUDED.display_name,
     encrypted_keys = EXCLUDED.encrypted_keys,
-    last_seen_at  = EXCLUDED.last_seen_at,
-    error_message = EXCLUDED.error_message
-RETURNING id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at
+    last_seen_at   = EXCLUDED.last_seen_at,
+    error_message  = EXCLUDED.error_message,
+    qr_code        = EXCLUDED.qr_code,
+    qr_expires_at  = EXCLUDED.qr_expires_at
+RETURNING id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at
 `
 
 type UpsertWhatsAppSessionParams struct {
@@ -447,6 +530,8 @@ type UpsertWhatsAppSessionParams struct {
 	EncryptedKeys  []byte             `json:"encrypted_keys"`
 	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
 	ErrorMessage   string             `json:"error_message"`
+	QrCode         string             `json:"qr_code"`
+	QrExpiresAt    pgtype.Timestamptz `json:"qr_expires_at"`
 }
 
 func (q *Queries) UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error) {
@@ -459,6 +544,8 @@ func (q *Queries) UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppS
 		arg.EncryptedKeys,
 		arg.LastSeenAt,
 		arg.ErrorMessage,
+		arg.QrCode,
+		arg.QrExpiresAt,
 	)
 	var i WhatsappSession
 	err := row.Scan(
@@ -474,6 +561,8 @@ func (q *Queries) UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppS
 		&i.ErrorMessage,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.QrCode,
+		&i.QrExpiresAt,
 	)
 	return i, err
 }

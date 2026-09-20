@@ -329,6 +329,15 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
             }
           />
 
+          {account.customer_kind === "company" &&
+          (account.customer_tax_id || account.customer_tax_office) ? (
+            <div className="text-muted-foreground text-sm">
+              {[account.customer_tax_id, account.customer_tax_office]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          ) : null}
+
           <div className="bg-muted/40 border-border rounded-xl border p-6">
             <p className="text-muted-foreground text-sm">{t("cari.balance")}</p>
             <p

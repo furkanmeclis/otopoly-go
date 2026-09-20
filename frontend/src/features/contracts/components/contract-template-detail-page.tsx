@@ -261,7 +261,7 @@ export function ContractTemplateDetailPage({
   uuid: string;
 }) {
   const { t } = useLocale();
-  const { canRead, canWrite } = useTenantContractsAccess(slug);
+  const { canRead, canManage } = useTenantContractsAccess(slug);
   const query = useContractTemplate(uuid);
 
   if (!canRead) {
@@ -293,7 +293,7 @@ export function ContractTemplateDetailPage({
       slug={slug}
       uuid={uuid}
       initial={formFromTemplate(query.data)}
-      canWrite={canWrite}
+      canWrite={canManage}
     />
   );
 }

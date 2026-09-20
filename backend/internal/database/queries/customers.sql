@@ -2,9 +2,9 @@
 
 -- name: CreateCustomer :one
 INSERT INTO customers (
-    organization_id, name, phone, email, kind, notes, is_active
+    organization_id, name, phone, email, kind, notes, is_active, tax_id, tax_office
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 RETURNING *;
 
@@ -68,7 +68,9 @@ SET name = COALESCE(sqlc.narg(name), name),
     email = COALESCE(sqlc.narg(email), email),
     kind = COALESCE(sqlc.narg(kind), kind),
     notes = COALESCE(sqlc.narg(notes), notes),
-    is_active = COALESCE(sqlc.narg(is_active), is_active)
+    is_active = COALESCE(sqlc.narg(is_active), is_active),
+    tax_id = COALESCE(sqlc.narg(tax_id), tax_id),
+    tax_office = COALESCE(sqlc.narg(tax_office), tax_office)
 WHERE uuid = sqlc.arg(uuid) AND organization_id = sqlc.arg(organization_id) AND deleted_at IS NULL
 RETURNING *;
 

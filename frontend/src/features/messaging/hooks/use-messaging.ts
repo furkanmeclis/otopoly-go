@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { messagingService } from "@/features/messaging/services/messaging.service";
 import type {
   PatchTemplateInput,
+  SimulateInput,
   UpsertTemplateInput,
 } from "@/features/messaging/types";
 
@@ -17,12 +18,19 @@ export const messagingKeys = {
   template: (uuid: string) => [...messagingKeys.all, "template", uuid] as const,
 };
 
-export function useWhatsAppSession() {
-  return useQuery({
+export function useWhatsAppSession(options?: { pollWhilePairing?: boolean }) {
+  const query = useQuery({
     queryKey: messagingKeys.session(),
     queryFn: () => messagingService.getSession(),
     retry: false,
+    refetchInterval: (q) => {
+      if (!options?.pollWhilePairing) return false;
+      const status = q.state.data?.status;
+      if (status === "qr_pending") return 1500;
+      return false;
+    },
   });
+  return query;
 }
 
 export function useNotificationRules() {
@@ -107,5 +115,22 @@ export function usePatchTemplate() {
     },
     onError: (err: Error) =>
       toast.error(err.message || "Şablon güncellenemedi."),
+  });
+}
+
+export function useSimulateMessaging() {
+  return useMutation({
+    mutationFn: (body: SimulateInput) => messagingService.simulate(body),
+    onSuccess: (result) => {
+      const failed = result.items.filter((i) => i.status !== "sent").length;
+      const sent = result.items.length - failed;
+      if (failed === 0) {
+        toast.success(`${sent} test mesajı gönderildi.`);
+      } else {
+        toast.error(`${sent} başarılı, ${failed} başarısız.`);
+      }
+    },
+    onError: (err: Error) =>
+      toast.error(err.message || "Simülasyon gönderilemedi."),
   });
 }

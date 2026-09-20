@@ -52,12 +52,12 @@ func (h *Handler) GetSession(w http.ResponseWriter, r *http.Request) {
 
 // ConnectWhatsApp initiates a QR-based WhatsApp connection.
 func (h *Handler) ConnectWhatsApp(w http.ResponseWriter, r *http.Request) {
-	qr, err := h.svc.ConnectWhatsApp(r.Context(), orgID(r))
+	sess, err := h.svc.ConnectWhatsApp(r.Context(), orgID(r))
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
-	response.JSON(w, r, http.StatusOK, qr)
+	response.JSON(w, r, http.StatusOK, sess)
 }
 
 // DisconnectWhatsApp disconnects the WhatsApp session.
@@ -174,4 +174,19 @@ func (h *Handler) DeleteTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, map[string]bool{"success": true})
+}
+
+// Simulate sends a test WhatsApp message for one event or the full job lifecycle.
+func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
+	var in model.SimulateInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	result, err := h.svc.Simulate(r.Context(), orgID(r), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, result)
 }

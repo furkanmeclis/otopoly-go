@@ -1,6 +1,8 @@
 import { decode, encode } from "next-auth/jwt";
 import { cookies } from "next/headers";
 
+import { authConfig } from "@/config/auth";
+
 const SESSION_COOKIE_BASES = [
   "authjs.session-token",
   "__Secure-authjs.session-token",
@@ -61,6 +63,24 @@ async function readSessionToken() {
   });
 }
 
+/** Read the Go access JWT `oid` claim without verifying (cookie already trusted). */
+export function organizationUuidFromAccessToken(
+  accessToken: string | null | undefined,
+): string | null {
+  if (!accessToken) return null;
+  try {
+    const parts = accessToken.split(".");
+    if (parts.length < 2 || !parts[1]) return null;
+    const json = Buffer.from(parts[1], "base64url").toString("utf8");
+    const payload = JSON.parse(json) as { oid?: unknown };
+    return typeof payload.oid === "string" && payload.oid.length > 0
+      ? payload.oid
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getApiTokens() {
   const token = await readSessionToken();
   if (!token) {
@@ -70,15 +90,40 @@ export async function getApiTokens() {
       userId: null as string | null,
       email: null as string | null,
       impersonatorUuid: null as string | null,
+      organizationUuid: null as string | null,
     };
   }
+  const accessToken = (token.accessToken as string | undefined) ?? null;
   return {
-    accessToken: (token.accessToken as string | undefined) ?? null,
+    accessToken,
     refreshToken: (token.refreshToken as string | undefined) ?? null,
     userId: (token.sub as string | undefined) ?? null,
     email: (token.email as string | undefined) ?? null,
     impersonatorUuid: (token.impersonatorUuid as string | undefined) ?? null,
+    organizationUuid:
+      (token.organizationUuid as string | undefined) ??
+      organizationUuidFromAccessToken(accessToken),
   };
+}
+
+function resolveSessionMaxAge(input: {
+  expiresIn?: number;
+  refreshExpiresAt?: string | Date | null;
+}): number {
+  if (input.refreshExpiresAt) {
+    const ends =
+      typeof input.refreshExpiresAt === "string"
+        ? Date.parse(input.refreshExpiresAt)
+        : input.refreshExpiresAt.getTime();
+    if (!Number.isNaN(ends)) {
+      const remainingSec = Math.floor((ends - Date.now()) / 1000);
+      if (remainingSec > 60) {
+        return Math.min(remainingSec, authConfig.refreshMaxAgeSec);
+      }
+    }
+  }
+  // Prefer refresh TTL so idle tabs keep the cookie past access expiry.
+  return authConfig.refreshMaxAgeSec;
 }
 
 export async function persistApiTokens(input: {
@@ -88,13 +133,15 @@ export async function persistApiTokens(input: {
   email?: string | null;
   impersonatorUuid?: string | null;
   expiresIn?: number;
+  refreshExpiresAt?: string | null;
 }) {
   if (!process.env.AUTH_SECRET) {
     throw new Error("AUTH_SECRET is not configured");
   }
 
   const existing = await readSessionToken();
-  const maxAge = input.expiresIn ?? 15 * 60;
+  const maxAge = resolveSessionMaxAge(input);
+  const organizationUuid = organizationUuidFromAccessToken(input.accessToken);
   const name = sessionCookieName();
   const payload = await encode({
     token: {
@@ -104,6 +151,9 @@ export async function persistApiTokens(input: {
       accessToken: input.accessToken,
       refreshToken: input.refreshToken,
       impersonatorUuid: input.impersonatorUuid ?? undefined,
+      organizationUuid: organizationUuid ?? undefined,
+      expiresIn: input.expiresIn,
+      refreshExpiresAt: input.refreshExpiresAt ?? undefined,
     },
     secret: process.env.AUTH_SECRET,
     salt: name,
