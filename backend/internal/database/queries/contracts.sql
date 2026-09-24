@@ -41,9 +41,10 @@ WHERE uuid = $1 AND deleted_at IS NULL;
 -- name: CreateContractPreset :one
 INSERT INTO contract_presets (
     title, description, category, content_json, content_html,
-    variables, signer_slots, signature_required, is_active, created_by
+    variables, signer_slots, signature_required, is_active, created_by,
+    otp_required
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
 RETURNING *;
 
@@ -58,6 +59,7 @@ SET
     variables = COALESCE(sqlc.narg('variables'), variables),
     signer_slots = COALESCE(sqlc.narg('signer_slots'), signer_slots),
     signature_required = COALESCE(sqlc.narg('signature_required'), signature_required),
+    otp_required = COALESCE(sqlc.narg('otp_required'), otp_required),
     is_active = COALESCE(sqlc.narg('is_active'), is_active)
 WHERE uuid = sqlc.arg('uuid') AND deleted_at IS NULL
 RETURNING *;
@@ -113,9 +115,9 @@ WHERE uuid = $1
 INSERT INTO contract_templates (
     organization_id, preset_id, title, description, category,
     content_json, content_html, variables, signer_slots,
-    signature_required, is_active, created_by
+    signature_required, is_active, created_by, otp_required
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 )
 RETURNING *;
 
@@ -130,6 +132,7 @@ SET
     variables = COALESCE(sqlc.narg('variables'), variables),
     signer_slots = COALESCE(sqlc.narg('signer_slots'), signer_slots),
     signature_required = COALESCE(sqlc.narg('signature_required'), signature_required),
+    otp_required = COALESCE(sqlc.narg('otp_required'), otp_required),
     is_active = COALESCE(sqlc.narg('is_active'), is_active)
 WHERE uuid = sqlc.arg('uuid')
   AND organization_id = sqlc.arg('organization_id')
@@ -204,9 +207,9 @@ WHERE organization_id = $1;
 INSERT INTO contract_instances (
     organization_id, template_id, title, subject_type, subject_uuid,
     content_json, content_html, variables_resolved, signature_required,
-    status, created_by, number, locale
+    status, created_by, number, locale, otp_required
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
 RETURNING *;
 
@@ -230,9 +233,10 @@ WHERE id = $1;
 
 -- name: CreateContractSigner :one
 INSERT INTO contract_signers (
-    organization_id, instance_id, role, label, required, sort_order, status
+    organization_id, instance_id, role, label, required, sort_order, status,
+    suggested_name, phone
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 RETURNING *;
 
@@ -254,6 +258,53 @@ UPDATE contract_signers
 SET status = 'signed'
 WHERE id = $1
 RETURNING *;
+
+-- name: MarkContractSignerOTPVerified :one
+UPDATE contract_signers
+SET otp_verified_at = $2,
+    otp_channel = $3,
+    otp_phone = $4
+WHERE id = $1
+RETURNING *;
+
+-- name: UpdateContractSignerPhone :exec
+UPDATE contract_signers
+SET phone = $2
+WHERE id = $1;
+
+-- name: CreateContractSignerOTP :one
+INSERT INTO contract_signer_otps (
+    organization_id, instance_id, signer_id, channel, phone, code_hash,
+    message_sha256, provider_reference, max_attempts, expires_at,
+    sent_by_user_id, ip_address, user_agent
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+)
+RETURNING *;
+
+-- name: GetLatestContractSignerOTP :one
+SELECT *
+FROM contract_signer_otps
+WHERE signer_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT 1;
+
+-- name: CountContractSignerOTPsSince :one
+SELECT count(*)::bigint
+FROM contract_signer_otps
+WHERE signer_id = $1
+  AND created_at >= $2;
+
+-- name: IncrementContractSignerOTPAttempts :one
+UPDATE contract_signer_otps
+SET attempts = attempts + 1
+WHERE id = $1
+RETURNING *;
+
+-- name: MarkContractSignerOTPVerifiedAt :exec
+UPDATE contract_signer_otps
+SET verified_at = $2
+WHERE id = $1;
 
 -- name: CountPendingRequiredSigners :one
 SELECT count(*)::bigint

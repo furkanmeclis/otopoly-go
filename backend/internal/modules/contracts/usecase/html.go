@@ -15,6 +15,18 @@ type signatureEmbed struct {
 	DisplayName string
 	Role        string
 	PNGBase64   string
+	SignedAt    time.Time
+	// OTP consent evidence (zero when the signer did not verify an OTP).
+	OTPChannel     string
+	OTPPhoneMasked string
+	OTPVerifiedAt  time.Time
+}
+
+// trTime is Türkiye time (UTC+3, no DST) for evidence timestamps in the PDF.
+var trTime = time.FixedZone("UTC+3", 3*60*60)
+
+func formatEvidenceTime(t time.Time) string {
+	return t.In(trTime).Format("02.01.2006 15:04:05") + " (UTC+3)"
 }
 
 type mediaEmbed struct {
@@ -340,6 +352,18 @@ h1{
 				b.WriteString(html.EscapeString(sig.Role))
 				b.WriteString(`</span>`)
 			}
+			if !sig.SignedAt.IsZero() {
+				b.WriteString(`<br><span class="role">`)
+				b.WriteString(html.EscapeString(t("contracts.pdf.signed_at") + ": " + formatEvidenceTime(sig.SignedAt)))
+				b.WriteString(`</span>`)
+			}
+			if !sig.OTPVerifiedAt.IsZero() {
+				b.WriteString(`<br><span class="role">`)
+				b.WriteString(html.EscapeString(fmt.Sprintf("%s (%s %s): %s",
+					t("contracts.pdf.otp_verified"), otpChannelLabel(sig.OTPChannel), sig.OTPPhoneMasked,
+					formatEvidenceTime(sig.OTPVerifiedAt))))
+				b.WriteString(`</span>`)
+			}
 			b.WriteString(`</div></div>`)
 		}
 		b.WriteString(`</div></div>`)
@@ -382,4 +406,15 @@ h1{
 	}
 	b.WriteString(`</span></div></div></body></html>`)
 	return b.String()
+}
+
+func otpChannelLabel(channel string) string {
+	switch channel {
+	case "whatsapp":
+		return "WhatsApp"
+	case "sms":
+		return "SMS"
+	default:
+		return channel
+	}
 }

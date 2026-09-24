@@ -18,6 +18,7 @@ export type ContractPreset = {
   variables: string[];
   signer_slots: SignerSlot[];
   signature_required: boolean;
+  otp_required: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -39,6 +40,7 @@ export type CreatePresetInput = {
   variables?: string[];
   signer_slots?: SignerSlot[];
   signature_required?: boolean;
+  otp_required?: boolean;
   is_active?: boolean;
 };
 

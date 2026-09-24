@@ -25,6 +25,7 @@ type Preset struct {
 	Variables         []string        `json:"variables"`
 	SignerSlots       []SignerSlot    `json:"signer_slots"`
 	SignatureRequired bool            `json:"signature_required"`
+	OTPRequired       bool            `json:"otp_required"`
 	IsActive          bool            `json:"is_active"`
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
@@ -42,6 +43,7 @@ type Template struct {
 	Variables         []string        `json:"variables"`
 	SignerSlots       []SignerSlot    `json:"signer_slots"`
 	SignatureRequired bool            `json:"signature_required"`
+	OTPRequired       bool            `json:"otp_required"`
 	IsActive          bool            `json:"is_active"`
 	CreatedAt         time.Time       `json:"created_at"`
 	UpdatedAt         time.Time       `json:"updated_at"`
@@ -55,8 +57,17 @@ type Signer struct {
 	Required  bool      `json:"required"`
 	SortOrder int32     `json:"sort_order"`
 	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	// SuggestedName pre-fills the signing form (job customer / assignee / creator).
+	SuggestedName string `json:"suggested_name"`
+	Phone         string `json:"phone"`
+	// OTPRequired is true when this signer must verify a WhatsApp OTP before signing.
+	OTPRequired    bool       `json:"otp_required"`
+	OTPVerified    bool       `json:"otp_verified"`
+	OTPVerifiedAt  *time.Time `json:"otp_verified_at,omitempty"`
+	OTPChannel     string     `json:"otp_channel,omitempty"`
+	OTPPhoneMasked string     `json:"otp_phone_masked,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // Signature is a captured signature for a signer.
@@ -100,6 +111,7 @@ type Instance struct {
 	ContentHTML       string            `json:"content_html"`
 	VariablesResolved map[string]string `json:"variables_resolved"`
 	SignatureRequired bool              `json:"signature_required"`
+	OTPRequired       bool              `json:"otp_required"`
 	Status            string            `json:"status"`
 	ContentSHA256     *string           `json:"content_sha256,omitempty"`
 	PDFObjectKey      *string           `json:"pdf_object_key,omitempty"`
@@ -146,6 +158,7 @@ type CreatePresetInput struct {
 	Variables         []string        `json:"variables"`
 	SignerSlots       []SignerSlot    `json:"signer_slots"`
 	SignatureRequired *bool           `json:"signature_required"`
+	OTPRequired       *bool           `json:"otp_required"`
 	IsActive          *bool           `json:"is_active"`
 }
 
@@ -159,6 +172,7 @@ type PatchPresetInput struct {
 	Variables         *[]string        `json:"variables"`
 	SignerSlots       *[]SignerSlot    `json:"signer_slots"`
 	SignatureRequired *bool            `json:"signature_required"`
+	OTPRequired       *bool            `json:"otp_required"`
 	IsActive          *bool            `json:"is_active"`
 }
 
@@ -173,6 +187,7 @@ type CreateTemplateInput struct {
 	Variables         []string        `json:"variables"`
 	SignerSlots       []SignerSlot    `json:"signer_slots"`
 	SignatureRequired *bool           `json:"signature_required"`
+	OTPRequired       *bool           `json:"otp_required"`
 	IsActive          *bool           `json:"is_active"`
 }
 
@@ -186,6 +201,7 @@ type PatchTemplateInput struct {
 	Variables         *[]string        `json:"variables"`
 	SignerSlots       *[]SignerSlot    `json:"signer_slots"`
 	SignatureRequired *bool            `json:"signature_required"`
+	OTPRequired       *bool            `json:"otp_required"`
 	IsActive          *bool            `json:"is_active"`
 }
 

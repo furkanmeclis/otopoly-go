@@ -12,6 +12,7 @@ import {
   type PatchTemplateInput,
   type SignInput,
 } from "@/features/contracts/services/contracts.service";
+import { ApiError } from "@/lib/api/errors";
 import { useLocale } from "@/providers/locale-provider";
 
 export const contractKeys = {
@@ -155,6 +156,52 @@ export function useContractMutations() {
       },
       onError: (err: Error) =>
         toast.error(err.message || t("contracts.instances.toast.failed")),
+    }),
+    sendSignerOtp: useMutation({
+      mutationFn: ({
+        instanceUuid,
+        signerUuid,
+        phone,
+      }: {
+        instanceUuid: string;
+        signerUuid: string;
+        phone?: string;
+      }) =>
+        contractsService.sendSignerOtp(instanceUuid, signerUuid, {
+          phone: phone?.trim() || undefined,
+        }),
+      onSuccess: (data) =>
+        toast.success(
+          t("contracts.otp.toast.sent", { phone: data.phone_masked }),
+        ),
+      // API errors are toasted (and localized by code) by the global handler.
+      onError: (err: Error) => {
+        if (!(err instanceof ApiError)) {
+          toast.error(err.message || t("contracts.otp.toast.failed"));
+        }
+      },
+    }),
+    verifySignerOtp: useMutation({
+      mutationFn: ({
+        instanceUuid,
+        signerUuid,
+        code,
+      }: {
+        instanceUuid: string;
+        signerUuid: string;
+        code: string;
+      }) => contractsService.verifySignerOtp(instanceUuid, signerUuid, code),
+      onSuccess: (data) => {
+        invalidate();
+        queryClient.setQueryData(contractKeys.instance(data.uuid), data);
+        toast.success(t("contracts.otp.toast.verified"));
+      },
+      // API errors are toasted (and localized by code) by the global handler.
+      onError: (err: Error) => {
+        if (!(err instanceof ApiError)) {
+          toast.error(err.message || t("contracts.otp.toast.failed"));
+        }
+      },
     }),
     uploadMedia: useMutation({
       mutationFn: ({

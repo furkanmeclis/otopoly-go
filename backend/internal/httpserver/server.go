@@ -339,6 +339,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
 	messagingResolver := messagingmodule.NewDBPhoneResolver(deps.Queries)
 	messagingmodule.RegisterEventHandlers(eventBus, messagingSvc, messagingResolver, log)
+	contractsSvc.SetOTPSender(messagingmodule.NewContractOTPSender(messagingSvc))
 	purchasesSvc := purchasesusecase.New(deps.DB, deps.Queries, activityRec, financeSvc)
 	purchasesSvc.SetSearchIndexer(searchIndexer)
 	purchasesSvc.SetEventBus(eventBus)

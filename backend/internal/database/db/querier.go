@@ -36,6 +36,7 @@ type Querier interface {
 	CountCatalogCategories(ctx context.Context, arg CountCatalogCategoriesParams) (int64, error)
 	CountContractInstances(ctx context.Context, arg CountContractInstancesParams) (int64, error)
 	CountContractPresets(ctx context.Context, arg CountContractPresetsParams) (int64, error)
+	CountContractSignerOTPsSince(ctx context.Context, arg CountContractSignerOTPsSinceParams) (int64, error)
 	CountContractTemplates(ctx context.Context, arg CountContractTemplatesParams) (int64, error)
 	CountCustomerVehiclesByModel(ctx context.Context, modelID int64) (int64, error)
 	CountCustomers(ctx context.Context, arg CountCustomersParams) (int64, error)
@@ -80,6 +81,7 @@ type Querier interface {
 	CreateContractPreset(ctx context.Context, arg CreateContractPresetParams) (ContractPreset, error)
 	CreateContractSignature(ctx context.Context, arg CreateContractSignatureParams) (ContractSignature, error)
 	CreateContractSigner(ctx context.Context, arg CreateContractSignerParams) (ContractSigner, error)
+	CreateContractSignerOTP(ctx context.Context, arg CreateContractSignerOTPParams) (ContractSignerOtp, error)
 	CreateContractTemplate(ctx context.Context, arg CreateContractTemplateParams) (ContractTemplate, error)
 	// Tenant customers and their vehicles.
 	CreateCustomer(ctx context.Context, arg CreateCustomerParams) (Customer, error)
@@ -188,6 +190,7 @@ type Querier interface {
 	GetImportJobByID(ctx context.Context, id int64) (ImportJob, error)
 	GetImportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
 	GetJobOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetJobOrgAndPhoneByUUIDRow, error)
+	GetLatestContractSignerOTP(ctx context.Context, signerID int64) (ContractSignerOtp, error)
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
 	GetMessageTemplate(ctx context.Context, arg GetMessageTemplateParams) (MessageTemplate, error)
 	GetMessageTemplateByKey(ctx context.Context, arg GetMessageTemplateByKeyParams) (MessageTemplate, error)
@@ -251,6 +254,7 @@ type Querier interface {
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
 	GetWhatsAppSession(ctx context.Context, organizationID int64) (WhatsappSession, error)
+	IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error)
 	IncrementOTPAttempts(ctx context.Context, id int64) (OtpCode, error)
 	InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) (ActivityEvent, error)
 	InsertAppLog(ctx context.Context, arg InsertAppLogParams) error
@@ -393,6 +397,8 @@ type Querier interface {
 	MarkBulkJobFailed(ctx context.Context, arg MarkBulkJobFailedParams) (BulkJob, error)
 	MarkBulkJobProcessing(ctx context.Context, id int64) (BulkJob, error)
 	MarkBulkJobRolledBack(ctx context.Context, arg MarkBulkJobRolledBackParams) (BulkJob, error)
+	MarkContractSignerOTPVerified(ctx context.Context, arg MarkContractSignerOTPVerifiedParams) (ContractSigner, error)
+	MarkContractSignerOTPVerifiedAt(ctx context.Context, arg MarkContractSignerOTPVerifiedAtParams) error
 	MarkContractSignerSigned(ctx context.Context, id int64) (ContractSigner, error)
 	MarkExportJobCompleted(ctx context.Context, arg MarkExportJobCompletedParams) (ExportJob, error)
 	MarkExportJobFailed(ctx context.Context, arg MarkExportJobFailedParams) (ExportJob, error)
@@ -477,6 +483,7 @@ type Querier interface {
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
 	UpdateContractInstanceStatus(ctx context.Context, arg UpdateContractInstanceStatusParams) (ContractInstance, error)
 	UpdateContractPreset(ctx context.Context, arg UpdateContractPresetParams) (ContractPreset, error)
+	UpdateContractSignerPhone(ctx context.Context, arg UpdateContractSignerPhoneParams) error
 	UpdateContractTemplate(ctx context.Context, arg UpdateContractTemplateParams) (ContractTemplate, error)
 	UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) (Customer, error)
 	UpdateFinanceAccount(ctx context.Context, arg UpdateFinanceAccountParams) (FinanceAccount, error)

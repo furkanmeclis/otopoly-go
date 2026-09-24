@@ -23,9 +23,11 @@ const (
 	EventJobPaid        = "job.paid"
 	EventJobCancelled   = "job.cancelled"
 	EventSaleCreated    = "sale.created"
+	// EventContractOTP is transactional (not rule-driven): contract signing consent code.
+	EventContractOTP = "contract.otp"
 
-	SimulateModeEvent         = "event"
-	SimulateModeJobLifecycle  = "job_lifecycle"
+	SimulateModeEvent        = "event"
+	SimulateModeJobLifecycle = "job_lifecycle"
 
 	OutboundStatusQueued = "queued"
 	OutboundStatusSent   = "sent"

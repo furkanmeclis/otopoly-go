@@ -23,6 +23,7 @@ export type ContractTemplate = {
   variables: string[];
   signer_slots: SignerSlot[];
   signature_required: boolean;
+  otp_required: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -35,8 +36,23 @@ export type ContractSigner = {
   required: boolean;
   sort_order: number;
   status: string;
+  /** Pre-filled name: job customer, job assignee, or the creator. */
+  suggested_name: string;
+  phone: string;
+  otp_required: boolean;
+  otp_verified: boolean;
+  otp_verified_at?: string | null;
+  otp_channel?: string;
+  otp_phone_masked?: string;
   created_at: string;
   updated_at: string;
+};
+
+export type ContractOtpChallenge = {
+  channel: string;
+  phone_masked: string;
+  expires_at: string;
+  resend_at: string;
 };
 
 export type ContractSignature = {
@@ -79,6 +95,7 @@ export type ContractInstance = {
   content_html: string;
   variables_resolved: Record<string, string>;
   signature_required: boolean;
+  otp_required: boolean;
   status: string;
   content_sha256?: string | null;
   pdf_object_key?: string | null;
@@ -103,6 +120,7 @@ export type CreateTemplateInput = {
   variables?: string[];
   signer_slots?: SignerSlot[];
   signature_required?: boolean;
+  otp_required?: boolean;
   is_active?: boolean;
 };
 
@@ -209,6 +227,24 @@ export const contractsService = {
     return platformRequest<ContractInstance>(
       "POST",
       `/v1/tenant/contracts/instances/${uuid}/void`,
+    );
+  },
+  sendSignerOtp(
+    instanceUuid: string,
+    signerUuid: string,
+    body: { phone?: string } = {},
+  ) {
+    return platformRequest<ContractOtpChallenge>(
+      "POST",
+      `/v1/tenant/contracts/instances/${instanceUuid}/signers/${signerUuid}/otp`,
+      { body },
+    );
+  },
+  verifySignerOtp(instanceUuid: string, signerUuid: string, code: string) {
+    return platformRequest<ContractInstance>(
+      "POST",
+      `/v1/tenant/contracts/instances/${instanceUuid}/signers/${signerUuid}/otp/verify`,
+      { body: { code } },
     );
   },
   sign(instanceUuid: string, signerUuid: string, body: SignInput) {

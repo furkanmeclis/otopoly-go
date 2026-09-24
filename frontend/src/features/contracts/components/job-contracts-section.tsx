@@ -1,14 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Download, FilePlus2, Users } from "lucide-react";
 
-import SignaturePad from "@/components/shadix-ui/components/signature-pad";
 import { StatusChip } from "@/components/common/status-chip";
 import { EntitySectionCard } from "@/components/entity";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -25,6 +23,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { routes } from "@/config/routes";
+import { SignerSignForm } from "@/features/contracts/components/signer-sign-form";
 import {
   useContractInstances,
   useContractMutations,
@@ -55,12 +54,6 @@ function statusTone(status: string) {
   }
 }
 
-type PadRef = {
-  clear: () => void;
-  toDataURL: () => string | null;
-  isEmpty: () => boolean;
-};
-
 function nextPendingSigner(instance: ContractInstance): ContractSigner | null {
   const signers = instance.signers ?? [];
   return (
@@ -82,10 +75,7 @@ export function JobContractsSection({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [templateUuid, setTemplateUuid] = useState("");
   const [created, setCreated] = useState<ContractInstance | null>(null);
-  const [displayName, setDisplayName] = useState("");
-  const [signature, setSignature] = useState<string | null>(null);
   const [downloadingUuid, setDownloadingUuid] = useState<string | null>(null);
-  const padRef = useRef<PadRef>(null);
   const mutations = useContractMutations();
 
   const listParams = useMemo(
@@ -109,9 +99,6 @@ export function JobContractsSection({
   const resetSheet = () => {
     setTemplateUuid("");
     setCreated(null);
-    setDisplayName("");
-    setSignature(null);
-    padRef.current?.clear();
   };
 
   if (!canRead) return null;
@@ -321,67 +308,24 @@ export function JobContractsSection({
                     <p className="text-sm font-medium">
                       {pendingSigner.label}
                     </p>
-                    <div className="space-y-2">
-                      <Label htmlFor="job-contract-display-name">
-                        {t("contracts.instances.sign_display_name")}
-                      </Label>
-                      <Input
-                        id="job-contract-display-name"
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                      />
-                    </div>
-                    <SignaturePad
-                      ref={padRef as never}
-                      showButtons
-                      onChange={setSignature}
-                      className="bg-background"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
+                    <SignerSignForm
+                      key={pendingSigner.uuid}
+                      instance={created}
+                      signer={pendingSigner}
+                      cancelLabel={t("contracts.job.sheet_later")}
+                      onCancel={() => {
+                        setSheetOpen(false);
+                        resetSheet();
+                      }}
+                      onSigned={(updated) => {
+                        if (nextPendingSigner(updated)) {
+                          setCreated(updated);
+                        } else {
                           setSheetOpen(false);
                           resetSheet();
-                        }}
-                      >
-                        {t("contracts.job.sheet_later")}
-                      </Button>
-                      <Button
-                        type="button"
-                        disabled={
-                          !displayName.trim() ||
-                          !signature ||
-                          mutations.sign.isPending
                         }
-                        onClick={async () => {
-                          if (!signature || !pendingSigner) return;
-                          const updated = await mutations.sign.mutateAsync({
-                            instanceUuid: created.uuid,
-                            signerUuid: pendingSigner.uuid,
-                            body: {
-                              display_name: displayName.trim(),
-                              signature_png_base64: signature,
-                            },
-                          });
-                          const next = nextPendingSigner(updated);
-                          if (next) {
-                            setCreated(updated);
-                            setDisplayName("");
-                            setSignature(null);
-                            padRef.current?.clear();
-                          } else {
-                            setSheetOpen(false);
-                            resetSheet();
-                          }
-                        }}
-                      >
-                        {mutations.sign.isPending
-                          ? t("common.saving")
-                          : t("contracts.instances.sign_submit")}
-                      </Button>
-                    </div>
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="space-y-4">

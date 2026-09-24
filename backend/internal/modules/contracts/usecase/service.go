@@ -53,6 +53,7 @@ type Service struct {
 	queue         QueueClient
 	publicBaseURL string
 	bus           events.Bus
+	otp           OTPSender
 }
 
 // SetEventBus attaches the platform event bus to the contracts service.
@@ -248,6 +249,7 @@ func (s *Service) CreatePreset(ctx context.Context, in CreatePresetInput) (Prese
 		SignatureRequired: sigReq,
 		IsActive:          active,
 		CreatedBy:         pgtype.Int8{Int64: actor, Valid: actor > 0},
+		OtpRequired:       boolOr(in.OTPRequired, true),
 	})
 	if err != nil {
 		return Preset{}, err
@@ -297,6 +299,9 @@ func (s *Service) PatchPreset(ctx context.Context, id uuid.UUID, in PatchPresetI
 	}
 	if in.SignatureRequired != nil {
 		params.SignatureRequired = pgtype.Bool{Bool: *in.SignatureRequired, Valid: true}
+	}
+	if in.OTPRequired != nil {
+		params.OtpRequired = pgtype.Bool{Bool: *in.OTPRequired, Valid: true}
 	}
 	if in.IsActive != nil {
 		params.IsActive = pgtype.Bool{Bool: *in.IsActive, Valid: true}
@@ -448,6 +453,7 @@ func (s *Service) CreateTemplate(ctx context.Context, in CreateTemplateInput) (T
 		SignatureRequired: sigReq,
 		IsActive:          active,
 		CreatedBy:         actor,
+		OtpRequired:       boolOr(in.OTPRequired, true),
 	})
 	if err != nil {
 		return Template{}, err
@@ -492,6 +498,7 @@ func (s *Service) CloneTemplate(ctx context.Context, in CloneTemplateInput) (Tem
 		SignatureRequired: preset.SignatureRequired,
 		IsActive:          true,
 		CreatedBy:         actor,
+		OtpRequired:       preset.OtpRequired,
 	})
 	if err != nil {
 		return Template{}, err
@@ -547,6 +554,9 @@ func (s *Service) PatchTemplate(ctx context.Context, id uuid.UUID, in PatchTempl
 	}
 	if in.SignatureRequired != nil {
 		params.SignatureRequired = pgtype.Bool{Bool: *in.SignatureRequired, Valid: true}
+	}
+	if in.OTPRequired != nil {
+		params.OtpRequired = pgtype.Bool{Bool: *in.OTPRequired, Valid: true}
 	}
 	if in.IsActive != nil {
 		params.IsActive = pgtype.Bool{Bool: *in.IsActive, Valid: true}
@@ -728,8 +738,10 @@ func (s *Service) CreateInstance(ctx context.Context, in CreateInstanceInput) (I
 	}
 
 	locale := "tr"
+	actorName := ""
 	if user, uerr := s.q.GetUserByID(ctx, actor); uerr == nil {
 		locale = string(i18n.Normalize(user.Locale))
+		actorName = strings.TrimSpace(user.Name + " " + user.Surname)
 	}
 
 	status := "pending"
@@ -759,6 +771,7 @@ func (s *Service) CreateInstance(ctx context.Context, in CreateInstanceInput) (I
 		CreatedBy:         actor,
 		Number:            nextNumber,
 		Locale:            locale,
+		OtpRequired:       tmpl.OtpRequired,
 	})
 	if err != nil {
 		return Instance{}, err
@@ -770,6 +783,7 @@ func (s *Service) CreateInstance(ctx context.Context, in CreateInstanceInput) (I
 		if role == "" || label == "" {
 			continue
 		}
+		suggestedName, phone := suggestSigner(role, job, actorName)
 		if _, err := qtx.CreateContractSigner(ctx, db.CreateContractSignerParams{
 			OrganizationID: scope.InternalID,
 			InstanceID:     row.ID,
@@ -778,6 +792,8 @@ func (s *Service) CreateInstance(ctx context.Context, in CreateInstanceInput) (I
 			Required:       slot.Required,
 			SortOrder:      int32(i),
 			Status:         "pending",
+			SuggestedName:  suggestedName,
+			Phone:          phone,
 		}); err != nil {
 			return Instance{}, err
 		}
@@ -894,6 +910,9 @@ func (s *Service) Sign(ctx context.Context, instanceUUID, signerUUID uuid.UUID, 
 	}
 	if signer.Status == "signed" {
 		return Instance{}, fmt.Errorf("%w: signer already signed", ErrConflict)
+	}
+	if signerRequiresOTP(inst, signer) && !signerOTPFresh(signer, time.Now()) {
+		return Instance{}, fmt.Errorf("%w: verify the WhatsApp code before signing", ErrOTPRequired)
 	}
 
 	objectKey := storage.ContractSignatureObjectKey(scope.UUID, inst.Uuid, signer.Uuid)
@@ -1135,8 +1154,14 @@ func (s *Service) ExecutePDF(ctx context.Context, instanceID int64) error {
 	embeds := make([]signatureEmbed, 0, len(signers))
 	for _, signer := range signers {
 		emb := signatureEmbed{Label: signer.Label, Role: signer.Role}
+		if signer.OtpVerifiedAt.Valid {
+			emb.OTPChannel = signer.OtpChannel
+			emb.OTPPhoneMasked = maskPhone(signer.OtpPhone)
+			emb.OTPVerifiedAt = signer.OtpVerifiedAt.Time
+		}
 		if sig, ok := sigBySigner[signer.ID]; ok {
 			emb.DisplayName = sig.DisplayName
+			emb.SignedAt = sig.SignedAt.Time
 			if data, err := s.downloadBytes(ctx, sig.ObjectKey); err == nil && len(data) > 0 {
 				emb.PNGBase64 = base64.StdEncoding.EncodeToString(data)
 			}
@@ -1232,6 +1257,7 @@ func mapPreset(row db.ContractPreset) Preset {
 		Variables:         mustUnmarshalVariables(row.Variables),
 		SignerSlots:       mustUnmarshalSignerSlots(row.SignerSlots),
 		SignatureRequired: row.SignatureRequired,
+		OTPRequired:       row.OtpRequired,
 		IsActive:          row.IsActive,
 		CreatedAt:         row.CreatedAt.Time,
 		UpdatedAt:         row.UpdatedAt.Time,
@@ -1249,6 +1275,7 @@ func mapTemplate(row db.ContractTemplate) Template {
 		Variables:         mustUnmarshalVariables(row.Variables),
 		SignerSlots:       mustUnmarshalSignerSlots(row.SignerSlots),
 		SignatureRequired: row.SignatureRequired,
+		OTPRequired:       row.OtpRequired,
 		IsActive:          row.IsActive,
 		CreatedAt:         row.CreatedAt.Time,
 		UpdatedAt:         row.UpdatedAt.Time,
@@ -1273,6 +1300,7 @@ func (s *Service) mapInstance(
 		ContentHTML:       row.ContentHtml,
 		VariablesResolved: mustUnmarshalStringMap(row.VariablesResolved),
 		SignatureRequired: row.SignatureRequired,
+		OTPRequired:       row.OtpRequired,
 		Status:            row.Status,
 		PDFError:          row.PdfError,
 		PDFURL:            s.instancePDFURL(row.Uuid, row.PdfObjectKey),
@@ -1296,21 +1324,33 @@ func (s *Service) mapInstance(
 		out.VoidedAt = &t
 	}
 
+	now := time.Now()
 	signerUUIDByID := make(map[int64]uuid.UUID, len(signers))
 	if len(signers) > 0 {
 		out.Signers = make([]Signer, 0, len(signers))
 		for _, sg := range signers {
 			signerUUIDByID[sg.ID] = sg.Uuid
-			out.Signers = append(out.Signers, Signer{
-				UUID:      sg.Uuid,
-				Role:      sg.Role,
-				Label:     sg.Label,
-				Required:  sg.Required,
-				SortOrder: sg.SortOrder,
-				Status:    sg.Status,
-				CreatedAt: sg.CreatedAt.Time,
-				UpdatedAt: sg.UpdatedAt.Time,
-			})
+			item := Signer{
+				UUID:          sg.Uuid,
+				Role:          sg.Role,
+				Label:         sg.Label,
+				Required:      sg.Required,
+				SortOrder:     sg.SortOrder,
+				Status:        sg.Status,
+				SuggestedName: sg.SuggestedName,
+				Phone:         sg.Phone,
+				OTPRequired:   signerRequiresOTP(row, sg),
+				OTPVerified:   signerOTPFresh(sg, now) || (sg.Status == "signed" && sg.OtpVerifiedAt.Valid),
+				OTPChannel:    sg.OtpChannel,
+				CreatedAt:     sg.CreatedAt.Time,
+				UpdatedAt:     sg.UpdatedAt.Time,
+			}
+			if sg.OtpVerifiedAt.Valid {
+				t := sg.OtpVerifiedAt.Time
+				item.OTPVerifiedAt = &t
+				item.OTPPhoneMasked = maskPhone(sg.OtpPhone)
+			}
+			out.Signers = append(out.Signers, item)
 		}
 	}
 	if len(sigs) > 0 {
@@ -1384,6 +1424,28 @@ func resolveContractVariables(
 		"org_website":      org.Website,
 		"today":            time.Now().Format("02.01.2006"),
 	}
+}
+
+// suggestSigner resolves the pre-filled name/phone for a signer slot.
+func suggestSigner(role string, job db.GetServiceJobByUUIDRow, actorName string) (name, phone string) {
+	switch role {
+	case "customer":
+		return strings.TrimSpace(job.CustomerName), strings.TrimSpace(job.CustomerPhone)
+	case "staff":
+		if n := strings.TrimSpace(job.AssigneeName); n != "" {
+			return n, ""
+		}
+		return actorName, ""
+	default:
+		return "", ""
+	}
+}
+
+func boolOr(v *bool, fallback bool) bool {
+	if v == nil {
+		return fallback
+	}
+	return *v
 }
 
 func formatOrgFullAddress(org db.Organization) string {
