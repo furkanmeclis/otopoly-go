@@ -68,6 +68,8 @@ const ERROR_KEYS: Record<string, string> = {
   AI_DISABLED: "ai.unavailable.disabled",
   AI_NOT_CONFIGURED: "ai.unavailable.not_configured",
   AI_ORG_DISABLED: "ai.unavailable.org_disabled",
+  AI_CONVERSATION_LIMIT: "ai.errors.conversation_limit",
+  RATE_LIMITED: "ai.errors.rate_limited",
 };
 
 export function toolLabelKey(name: string) {
@@ -149,6 +151,7 @@ const ACTION_ERROR_KEYS: Record<string, string> = {
   AI_ACTION_NOT_READY: "ai.confirm.errors.not_ready",
   AI_ACTION_FORBIDDEN: "ai.confirm.errors.forbidden",
   VALIDATION_ERROR: "ai.confirm.errors.validation",
+  RATE_LIMITED: "ai.errors.rate_limited",
 };
 
 export function confirmFieldKey(key: string) {

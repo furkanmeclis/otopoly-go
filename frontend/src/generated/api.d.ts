@@ -3728,6 +3728,11 @@ export interface paths {
          *     - `title` `{conversation_uuid, title}` (first exchange only)
          *
          *     Comment lines (`: ping`) are sent as keep-alives.
+         *
+         *     Limits: content at most 8000 characters (400), at most 400 stored messages
+         *     per conversation (409 `AI_CONVERSATION_LIMIT`), and 30 model turns
+         *     (messages + action confirms) per user per 5 minutes (429 `RATE_LIMITED`
+         *     with `Retry-After`).
          */
         post: operations["sendTenantAIMessage"];
         delete?: never;
@@ -3760,6 +3765,11 @@ export interface paths {
          *     - `action` `{action_uuid, status, tool_use_id, block: AIUIBlock}` (confirmed | failed)
          *     - then, when the assistant is available: `message_start` `{conversation_uuid, resumed: true, action_uuid}`
          *       followed by the same events as the messages endpoint.
+         *
+         *     Only the user who received the card can confirm it (other users and
+         *     organizations get 404). Confirms share the per-user model-turn rate
+         *     limit with messages (429 `RATE_LIMITED`). An action left `executing` by a
+         *     server crash is resolved as `failed` ("outcome unknown") after 10 minutes.
          */
         post: operations["confirmTenantAIAction"];
         delete?: never;
@@ -3958,7 +3968,9 @@ export interface paths {
          * Read assistant text aloud (Speaches Piper TTS), streamed as MP3
          * @description Markdown is reduced to speakable text server-side (code, tables and link
          *     targets dropped) and clipped to 2500 characters at a sentence boundary.
-         *     Same gating as transcribe.
+         *     Same gating as transcribe. Voice calls are limited to 60 per user per
+         *     10 minutes (429 `RATE_LIMITED`). Usage is recorded in the AI usage ledger
+         *     (characters for TTS, audio seconds for STT).
          */
         post: operations["synthesizeTenantAIVoice"];
         delete?: never;
@@ -6156,6 +6168,11 @@ export interface components {
         };
         AIUsageModelRow: {
             model: string;
+            /**
+             * @description `chat` = model tokens; `voice` = Speaches speech-to-text (audio_seconds) / text-to-speech (characters).
+             * @enum {string}
+             */
+            kind: "chat" | "voice";
             /** Format: int64 */
             input_tokens: number;
             /** Format: int64 */
@@ -6164,6 +6181,13 @@ export interface components {
             cache_read_tokens: number;
             /** Format: int64 */
             cache_write_tokens: number;
+            /** @description Transcribed audio (voice rows) */
+            audio_seconds: number;
+            /**
+             * Format: int64
+             * @description Synthesized characters (voice rows)
+             */
+            characters: number;
             /** Format: int64 */
             request_count: number;
             estimated_cost_usd: number | null;
@@ -6186,8 +6210,20 @@ export interface components {
              * @description input + output + cache writes
              */
             quota_tokens: number;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @description Model calls + voice calls
+             */
             request_count: number;
+            /** @description Speech-to-text audio seconds */
+            stt_seconds: number;
+            /**
+             * Format: int64
+             * @description Text-to-speech characters
+             */
+            tts_characters: number;
+            /** Format: int64 */
+            voice_request_count: number;
             estimated_cost_usd: number;
             enabled: boolean;
             /** Format: int64 */
@@ -6203,6 +6239,9 @@ export interface components {
             items: components["schemas"]["AIUsageOrgRow"][];
             /** Format: int64 */
             total_tokens: number;
+            stt_seconds: number;
+            /** Format: int64 */
+            tts_characters: number;
             estimated_cost_usd: number;
         };
         EnvelopeAIUsageSummary: {
@@ -13294,6 +13333,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            /** @description `AI_CONVERSATION_LIMIT`: the user already has 500 conversations in this organization. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     getTenantAIConversation: {
@@ -13404,6 +13452,16 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description `AI_CONVERSATION_LIMIT`: the conversation is too long; start a new one. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     confirmTenantAIAction: {
@@ -13435,6 +13493,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     cancelTenantAIAction: {
@@ -13764,6 +13823,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            429: components["responses"]["TooManyRequests"];
             /** @description Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`) */
             502: {
                 headers: {
@@ -13800,6 +13860,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
             /** @description Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`) */
             502: {
                 headers: {

@@ -338,5 +338,11 @@
   "confirm.failed": "The action failed",
   "plan.title": "Plan",
   "plan.progress": "{{done}}/{{total}} done",
-  "form.tool_confirm_badge": "Needs confirmation"
+  "form.tool_confirm_badge": "Needs confirmation",
+  "usage.voice": "Voice",
+  "usage.voice_hint": "Self-hosted Speaches: speech-to-text audio (min:sec) and text-to-speech characters. Not counted against the token quota.",
+  "usage.voice_stt": "STT (speech-to-text) {{duration}}",
+  "usage.voice_tts": "TTS {{characters}} chars",
+  "errors.rate_limited": "Too many messages in a short time. Wait a moment and try again.",
+  "errors.conversation_limit": "This conversation is too long (or you have too many). Start a new conversation or delete old ones."
 }
