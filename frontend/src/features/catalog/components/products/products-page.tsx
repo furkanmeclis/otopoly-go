@@ -37,6 +37,7 @@ import {
 } from "@/features/bulk-engine";
 import { ResourceIOToolbar } from "@/features/io";
 import { useDialogs } from "@/providers/dialog-provider";
+import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
 
 export function ProductsPage({
@@ -46,7 +47,7 @@ export function ProductsPage({
   slug: string;
   categoryUuid?: string;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
   const { confirmDelete } = useDialogs();
   const { canWrite } = useTenantCatalogAccess(slug);
@@ -282,7 +283,7 @@ export function ProductsPage({
       description={t("catalog.products.description")}
       breadcrumbs={[
         {
-          label: t("layout.section_tenant"),
+          label: t("layout.breadcrumb_home"),
           href: routes.tenant.home(slug),
         },
         { label: t("catalog.products.title") },
@@ -317,7 +318,11 @@ export function ProductsPage({
           />
           <StatsCard
             title={t("catalog.summary.total_stock_sale_value")}
-            value={`${summary.total_stock_sale_value} TRY`}
+            value={formatFinanceAmount(
+              summary.total_stock_sale_value,
+              "TRY",
+              locale,
+            )}
           />
         </div>
       ) : null}

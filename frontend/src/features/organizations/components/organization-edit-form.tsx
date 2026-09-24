@@ -30,6 +30,7 @@ import {
   type UpdateOrganizationFormValues,
 } from "@/features/organizations/schemas/organization-form";
 import type { Organization } from "@/features/organizations/services/organizations.service";
+import { FilePickButton } from "@/components/common/file-pick-button";
 import { useLocale } from "@/providers/locale-provider";
 
 type OrganizationEditFormProps = {
@@ -63,18 +64,13 @@ function LogoField({ organization }: { organization: Organization }) {
             {t("organizations.detail.no_logo")}
           </div>
         )}
-        <Input
-          type="file"
+        <FilePickButton
           accept="image/png,image/jpeg,image/webp,image/svg+xml"
-          className="max-w-md"
-          disabled={uploadLogo.isPending}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (file) {
-              uploadLogo.mutate({ uuid: organization.uuid, file });
-            }
-            event.target.value = "";
-          }}
+          hint={t("common.image_formats")}
+          pending={uploadLogo.isPending}
+          onFile={(file) =>
+            uploadLogo.mutate({ uuid: organization.uuid, file })
+          }
         />
         {organization.logo_url ? (
           <Button

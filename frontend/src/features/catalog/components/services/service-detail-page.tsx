@@ -18,6 +18,7 @@ import { ServiceDialog } from "@/features/catalog/components/services/service-di
 import { useCatalogServiceDetail } from "@/features/catalog/hooks/use-catalog-queries";
 import { useTenantCatalogAccess } from "@/features/catalog/hooks/use-tenant-catalog-access";
 import { datetime } from "@/lib/utils/format";
+import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
 
 export function ServiceDetailPage({
@@ -41,7 +42,7 @@ export function ServiceDetailPage({
       description={t("catalog.detail.service_description")}
       breadcrumbs={[
         {
-          label: t("layout.section_tenant"),
+          label: t("layout.breadcrumb_home"),
           href: routes.tenant.home(slug),
         },
         {
@@ -111,7 +112,11 @@ export function ServiceDetailPage({
                     {
                       key: "price",
                       label: t("catalog.services.price"),
-                      value: `${service.price} ${service.currency}`,
+                      value: formatFinanceAmount(
+                        service.price,
+                        service.currency,
+                        locale,
+                      ),
                     },
                     {
                       key: "vat",

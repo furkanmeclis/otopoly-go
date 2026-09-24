@@ -44,7 +44,7 @@ export function CategoryDetailPage({
       description={t("catalog.detail.category_description")}
       breadcrumbs={[
         {
-          label: t("layout.section_tenant"),
+          label: t("layout.breadcrumb_home"),
           href: routes.tenant.home(slug),
         },
         {

@@ -56,5 +56,6 @@
   "validation.cari_customer": "Cari ödeme için müşteri zorunlu",
   "toast.created": "Satış oluşturuldu",
   "toast.voided": "Satış void edildi",
-  "toast.failed": "Satış işlemi başarısız"
+  "toast.failed": "Satış işlemi başarısız",
+  "empty_hint": "Kasada ürün satarken Hızlı satış ile kaydedin; stok ve kasa otomatik güncellenir."
 }

@@ -97,7 +97,8 @@ export function FinanceSummaryPage({ slug }: { slug: string }) {
     flowTotal > 0 ? Math.round((expenseValue / flowTotal) * 100) : 0;
 
   const breadcrumbs = [
-    { label: t("layout.nav_finance"), href: routes.tenant.finance.root(slug) },
+    { label: t("layout.breadcrumb_home"), href: routes.tenant.home(slug) },
+    { label: t("layout.nav_finance") },
   ];
 
   const headerActions = canWrite ? (

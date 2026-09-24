@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { useLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/utils";
+import { foldSearch } from "@/lib/utils/search";
 
 export type ComboboxOption = {
   value: string;
@@ -140,11 +141,11 @@ export function AsyncCombobox({
       ? remote
       : options.filter((opt) => {
           if (!query) return true;
-          const q = query.toLowerCase();
+          const q = foldSearch(query);
           return (
-            opt.label.toLowerCase().includes(q) ||
-            opt.value.toLowerCase().includes(q) ||
-            opt.description?.toLowerCase().includes(q)
+            foldSearch(opt.label).includes(q) ||
+            foldSearch(opt.value).includes(q) ||
+            (opt.description ? foldSearch(opt.description).includes(q) : false)
           );
         });
 

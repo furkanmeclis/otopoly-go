@@ -48,5 +48,8 @@
   "validation.finance_account": "Kasa / hesap zorunlu",
   "toast.created": "Alış oluşturuldu",
   "toast.voided": "Alış void edildi",
-  "toast.failed": "Alış işlemi başarısız"
+  "toast.failed": "Alış işlemi başarısız",
+  "empty_hint": "Tedarikçiden aldığınız ürünleri kaydedin; stok artar, gider kasaya işlenir.",
+  "summary.count": "Alış",
+  "summary.total": "Toplam alış"
 }

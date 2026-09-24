@@ -88,7 +88,8 @@ function NavGroupView({
   const { isMobile, state } = useSidebar();
   const collapsible = group.collapsible ?? true;
   const peerHrefs = resolved.map(({ item }) => item.href);
-  const hasActive = resolveActiveNavHref(pathname, peerHrefs) !== null;
+  const hasActive =
+    resolveActiveNavHref(pathname, peerHrefs, homeHref) !== null;
   const [open, onOpenChange] = useNavGroupOpen(
     catalogId,
     group.id,

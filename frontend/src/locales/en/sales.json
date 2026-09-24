@@ -56,5 +56,6 @@
   "validation.cari_customer": "Customer is required for cari payment",
   "toast.created": "Sale created",
   "toast.voided": "Sale voided",
-  "toast.failed": "Sale action failed"
+  "toast.failed": "Sale action failed",
+  "empty_hint": "Record counter product sales with Quick sale; stock and cash update automatically."
 }

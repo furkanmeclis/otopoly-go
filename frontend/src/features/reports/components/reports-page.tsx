@@ -190,7 +190,8 @@ export function ReportsPage({ slug }: { slug: string }) {
   };
 
   const breadcrumbs = [
-    { label: t("layout.nav_reports"), href: routes.tenant.reports.root(slug) },
+    { label: t("layout.breadcrumb_home"), href: routes.tenant.home(slug) },
+    { label: t("layout.nav_reports") },
   ];
 
   const exportQuery: Record<string, string | undefined> = {
