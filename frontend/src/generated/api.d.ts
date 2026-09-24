@@ -3720,6 +3720,9 @@ export interface paths {
          *     - `tool_start` `{id, name}`
          *     - `tool_result` `{id, name, ok, summary_key, summary_params}`
          *     - `chart` `{id, chart: AIChart}`
+         *     - `plan` `{block: AIUIBlock}` (todo_list checklist; replaces the previous one)
+         *     - `confirm` `{block: AIUIBlock}` (write action proposed; the turn pauses until
+         *       `/v1/tenant/ai/actions/{uuid}/confirm` or `/cancel`, or the next message expires it)
          *     - `error` `{code, message}` (provider_error, quota_exceeded, refusal, max_tokens, internal_error)
          *     - `message_done` `{message_uuid, status, stop_reason, usage}`
          *     - `title` `{conversation_uuid, title}` (first exchange only)
@@ -3727,6 +3730,191 @@ export interface paths {
          *     Comment lines (`: ping`) are sent as keep-alives.
          */
         post: operations["sendTenantAIMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/ai/actions/{uuid}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a pending assistant action and stream the continuation (SSE)
+         * @description Executes a write action the assistant proposed (confirm card) exactly once,
+         *     with the requesting user's identity and permissions, then feeds the result
+         *     back to the model and streams its continuation. Optional `edits` change the
+         *     card's editable fields (re-validated before execution). Checks run before
+         *     the stream starts: 404 (not the user's action), 403 `AI_ACTION_FORBIDDEN`
+         *     (the user lacks the underlying permission or actions were disabled),
+         *     409 `AI_ACTION_RESOLVED` (already confirmed/cancelled; double confirm),
+         *     409 `AI_ACTION_EXPIRED`, 409 `AI_ACTION_NOT_READY` (the proposing turn is
+         *     still streaming), 400 for invalid edits. Stream events (`data` is JSON):
+         *
+         *     - `action` `{action_uuid, status, tool_use_id, block: AIUIBlock}` (confirmed | failed)
+         *     - then, when the assistant is available: `message_start` `{conversation_uuid, resumed: true, action_uuid}`
+         *       followed by the same events as the messages endpoint.
+         */
+        post: operations["confirmTenantAIAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/ai/actions/{uuid}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel a pending assistant action (nothing is executed) */
+        post: operations["cancelTenantAIAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/todos/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Todo list metadata
+         * @description Requires `tenant.todos.read`.
+         */
+        get: operations["getTenantTodosMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/todos/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open / overdue / today / assigned-to-me todo counts
+         * @description Requires `tenant.todos.read`. Dates are Europe/Istanbul.
+         */
+        get: operations["getTenantTodosSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/todos/assignees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Organization members todos can be assigned to */
+        get: operations["getTenantTodoAssignees"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/todos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List todos (open first, by due date)
+         * @description Requires `tenant.todos.read`.
+         */
+        get: operations["getTenantTodos"];
+        put?: never;
+        /**
+         * Create a todo
+         * @description Requires `tenant.todos.write`.
+         */
+        post: operations["createTenantTodo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/todos/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /** Get a todo */
+        get: operations["getTenantTodo"];
+        put?: never;
+        post?: never;
+        /** Delete a todo */
+        delete: operations["deleteTenantTodo"];
+        options?: never;
+        head?: never;
+        /** Update a todo (empty string clears optional fields) */
+        patch: operations["updateTenantTodo"];
+        trace?: never;
+    };
+    "/v1/tenant/todos/{uuid}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a todo done */
+        post: operations["completeTenantTodo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/todos/{uuid}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reopen a done todo */
+        post: operations["reopenTenantTodo"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5571,14 +5759,18 @@ export interface components {
             value_format?: "currency" | "number" | "percent";
             currency?: string;
         };
-        /** @description Chat render block. Phase 2 adds `confirm` and `todo_list` types carrying `data`. */
+        /**
+         * @description Chat render block. `confirm` blocks carry an AIConfirmCard in `data`
+         *     (`id` = action uuid, `status` = pending | executing | confirmed | failed |
+         *     cancelled | expired); `todo_list` blocks carry an AIPlan in `data` (`id` = "plan").
+         */
         AIUIBlock: {
-            /** @description text | tool | chart | error */
+            /** @description text | tool | chart | error | confirm | todo_list */
             type: string;
             text?: string;
             id?: string;
             name?: string;
-            /** @description tool: running | done | error | pending */
+            /** @description tool: running | done | error | pending | cancelled; confirm: action status */
             status?: string;
             summary_key?: string;
             summary_params?: {
@@ -5587,9 +5779,187 @@ export interface components {
             chart?: components["schemas"]["AIChart"];
             code?: string;
             message?: string;
-            data?: {
+            /** @description AIConfirmCard for `confirm`, AIPlan for `todo_list`. */
+            data?: components["schemas"]["AIConfirmCard"] | components["schemas"]["AIPlan"] | {
                 [key: string]: unknown;
             };
+        };
+        AIPreviewField: {
+            /** @description i18n key suffix under ai.confirm.fields */
+            key: string;
+            value?: string;
+            /** @description i18n key for the value (enums) */
+            value_key?: string;
+        };
+        AIEditOption: {
+            value: string;
+            label?: string;
+            label_key?: string;
+        };
+        AIEditField: {
+            key: string;
+            /** @enum {string} */
+            type: "money" | "text" | "textarea" | "select" | "date" | "time";
+            value: string;
+            required?: boolean;
+            options?: components["schemas"]["AIEditOption"][];
+        };
+        AIActionPreview: {
+            /** @description Tool name */
+            action: string;
+            title: string;
+            amount?: string;
+            fields: components["schemas"]["AIPreviewField"][];
+            edit?: components["schemas"]["AIEditField"][];
+            warnings?: string[];
+        };
+        AIActionLink: {
+            /** @enum {string} */
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo";
+            /** Format: uuid */
+            uuid: string;
+        };
+        AIActionResult: {
+            ok: boolean;
+            summary_key?: string;
+            summary_params?: {
+                [key: string]: unknown;
+            };
+            message?: string;
+            link?: components["schemas"]["AIActionLink"];
+        };
+        AIConfirmCard: {
+            preview: components["schemas"]["AIActionPreview"];
+            tool_use_id: string;
+            /** Format: date-time */
+            expires_at: string;
+            result?: components["schemas"]["AIActionResult"];
+        };
+        AIPlanItem: {
+            text: string;
+            /** @enum {string} */
+            status: "pending" | "in_progress" | "done" | "skipped";
+        };
+        AIPlan: {
+            title?: string;
+            items: components["schemas"]["AIPlanItem"][];
+        };
+        AIConfirmActionRequest: {
+            /** @description Editable card fields (by key) with new values; strings are coerced to the field type. */
+            edits?: {
+                [key: string]: unknown;
+            };
+            /** @enum {string} */
+            locale?: "tr" | "en";
+        };
+        EnvelopeAIActionBlock: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                block: components["schemas"]["AIUIBlock"];
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        TodoRef: {
+            /** Format: uuid */
+            uuid: string;
+            label: string;
+        };
+        Todo: {
+            /** Format: uuid */
+            uuid: string;
+            title: string;
+            notes: string;
+            /** Format: date */
+            due_date: string | null;
+            /** @description HH:MM (Europe/Istanbul) */
+            due_time: string | null;
+            /** @enum {string} */
+            status: "open" | "done";
+            overdue: boolean;
+            assignee: components["schemas"]["TodoRef"] | null;
+            customer: components["schemas"]["TodoRef"] | null;
+            job: components["schemas"]["TodoRef"] | null;
+            via_ai: boolean;
+            created_by_name: string;
+            /** Format: date-time */
+            completed_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        TodoSummary: {
+            /** Format: int64 */
+            open: number;
+            /** Format: int64 */
+            overdue: number;
+            /** Format: int64 */
+            today: number;
+            /** Format: int64 */
+            mine: number;
+            /** Format: date */
+            date: string;
+        };
+        TodoAssignee: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            /** @enum {string} */
+            role: "owner" | "staff";
+        };
+        CreateTodoRequest: {
+            title: string;
+            notes?: string;
+            /** Format: date */
+            due_date?: string | null;
+            /** @description HH:MM; requires due_date */
+            due_time?: string | null;
+            /** Format: uuid */
+            assignee_uuid?: string | null;
+            /** Format: uuid */
+            customer_uuid?: string | null;
+            /** Format: uuid */
+            job_uuid?: string | null;
+        };
+        /** @description Missing fields are kept; an empty string clears optional fields. */
+        PatchTodoRequest: {
+            title?: string;
+            notes?: string;
+            due_date?: string;
+            due_time?: string;
+            assignee_uuid?: string;
+            customer_uuid?: string;
+            job_uuid?: string;
+        };
+        EnvelopeTodo: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["Todo"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTodoSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["TodoSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTodoAssignees: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["TodoAssignee"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTodoList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Todo"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
         };
         AIMessage: {
             /** Format: uuid */
@@ -12916,6 +13286,318 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    confirmTenantAIAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AIConfirmActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-sent event stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelTenantAIAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated confirm card */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIActionBlock"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantTodosMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantTodosSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodoSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantTodoAssignees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Members */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodoAssignees"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantTodos: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: "open" | "done";
+                /** @description open_due = overdue + today. */
+                scope?: "overdue" | "today" | "open_due" | "upcoming" | "no_date";
+                /** @description `me` or a user uuid. */
+                assignee?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Todo page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodoList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTodoRequest"];
+            };
+        };
+        responses: {
+            /** @description Created todo */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodo"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Todo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchTodoRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated todo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodo"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    completeTenantTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated todo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    reopenTenantTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated todo */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTodo"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];

@@ -4,6 +4,8 @@ import { AlertCircle } from "lucide-react";
 import type { ComponentType } from "react";
 
 import { ChartBlock } from "@/features/ai/components/chat/chart-block";
+import { ConfirmCard } from "@/features/ai/components/chat/confirm-card";
+import { PlanBlock } from "@/features/ai/components/chat/plan-block";
 import { ToolActivity } from "@/features/ai/components/chat/tool-activity";
 import { errorKey } from "@/features/ai/lib/labels";
 import { Markdown } from "@/features/ai/lib/markdown";
@@ -30,10 +32,7 @@ function ChartRenderer({ block }: BlockRendererProps) {
   return block.chart ? <ChartBlock chart={block.chart} /> : null;
 }
 
-/**
- * Block renderer registry. Phase 2 adds `confirm` (action confirmation card)
- * and `todo_list` (checklist) renderers here; unknown types render nothing.
- */
+/** Block renderer registry; unknown types render nothing. */
 export const blockRenderers: Record<
   string,
   ComponentType<BlockRendererProps>
@@ -42,13 +41,27 @@ export const blockRenderers: Record<
   tool: ToolActivity,
   chart: ChartRenderer,
   error: ErrorBlock,
+  confirm: ConfirmCard,
+  todo_list: PlanBlock,
 };
 
-export function MessageBlocks({ blocks }: { blocks: AIUIBlock[] }) {
+/** Tool indicators that are redundant next to their own block. */
+const HIDDEN_TOOLS = new Set(["update_plan"]);
+
+export function MessageBlocks({
+  blocks,
+  hidePlan = false,
+}: {
+  blocks: AIUIBlock[];
+  /** Hide the plan checklist (a later message carries a newer one). */
+  hidePlan?: boolean;
+}) {
   // Consecutive tool indicators are grouped on one wrapped row.
   const groups: { key: string; tools?: AIUIBlock[]; block?: AIUIBlock }[] = [];
   blocks.forEach((block, index) => {
     const last = groups[groups.length - 1];
+    if (block.type === "tool" && HIDDEN_TOOLS.has(block.name ?? "")) return;
+    if (block.type === "todo_list" && hidePlan) return;
     if (block.type === "tool") {
       if (last?.tools) last.tools.push(block);
       else groups.push({ key: `g${index}`, tools: [block] });

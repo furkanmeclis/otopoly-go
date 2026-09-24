@@ -11,11 +11,25 @@ type StreamOptions = {
   onEvent: (event: AIStreamEvent) => void;
 };
 
+type ConfirmStreamOptions = {
+  actionUuid: string;
+  edits?: Record<string, string>;
+  locale: string;
+  tenantSlug?: string;
+  signal?: AbortSignal;
+  onEvent: (event: AIStreamEvent) => void;
+};
+
 const FRAME_SEPARATOR = /\r?\n\r?\n/;
 
 function messagesUrl(conversationUuid: string) {
   const base = apiConfig.baseUrl.replace(/\/$/, "");
   return `${base}/v1/tenant/ai/conversations/${encodeURIComponent(conversationUuid)}/messages`;
+}
+
+function confirmUrl(actionUuid: string) {
+  const base = apiConfig.baseUrl.replace(/\/$/, "");
+  return `${base}/v1/tenant/ai/actions/${encodeURIComponent(actionUuid)}/confirm`;
 }
 
 async function switchOrganization(slug: string) {
@@ -53,7 +67,7 @@ function parseFrame(frame: string): AIStreamEvent | null {
  * Sends a chat message through the same-origin BFF and dispatches the
  * server-sent events as they arrive (fetch + ReadableStream, so POST works).
  */
-export async function streamAssistantMessage({
+export function streamAssistantMessage({
   conversationUuid,
   content,
   locale,
@@ -61,18 +75,56 @@ export async function streamAssistantMessage({
   signal,
   onEvent,
 }: StreamOptions): Promise<void> {
+  return streamPost(
+    messagesUrl(conversationUuid),
+    { content, locale },
+    { tenantSlug, signal, onEvent },
+  );
+}
+
+/**
+ * Confirms a pending assistant action (optionally with edited fields) and
+ * streams the `action` result followed by the assistant's continuation.
+ */
+export function streamConfirmAction({
+  actionUuid,
+  edits,
+  locale,
+  tenantSlug,
+  signal,
+  onEvent,
+}: ConfirmStreamOptions): Promise<void> {
+  return streamPost(
+    confirmUrl(actionUuid),
+    { locale, ...(edits && Object.keys(edits).length > 0 ? { edits } : {}) },
+    { tenantSlug, signal, onEvent },
+  );
+}
+
+async function streamPost(
+  url: string,
+  body: unknown,
+  {
+    tenantSlug,
+    signal,
+    onEvent,
+  }: {
+    tenantSlug?: string;
+    signal?: AbortSignal;
+    onEvent: (event: AIStreamEvent) => void;
+  },
+): Promise<void> {
   const send = () =>
-    fetch(messagesUrl(conversationUuid), {
+    fetch(url, {
       method: "POST",
       credentials: "include",
       headers: {
         Accept: "text/event-stream",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ content, locale }),
+      body: JSON.stringify(body),
       signal,
     });
-
   let response = await send();
   if (!response.ok) {
     const body = await response.json().catch(() => null);

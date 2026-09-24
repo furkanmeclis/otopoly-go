@@ -6,7 +6,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { aiKeys } from "@/features/ai/hooks/query-keys";
 import { useConversationDetail } from "@/features/ai/hooks/use-conversations";
 import { aiTenantService } from "@/features/ai/services/ai.service";
-import { streamAssistantMessage } from "@/features/ai/services/ai-stream";
+import {
+  streamAssistantMessage,
+  streamConfirmAction,
+} from "@/features/ai/services/ai-stream";
 import type {
   AIConversationDetail,
   AIStreamEvent,
@@ -73,6 +76,24 @@ function applyEvent(message: ChatMessage, ev: AIStreamEvent): ChatMessage {
     case "chart":
       blocks.push({ type: "chart", id: ev.data.id, chart: ev.data.chart });
       return { ...message, blocks };
+    case "confirm": {
+      const card = ev.data.block;
+      const toolUseId = (card.data as { tool_use_id?: string } | undefined)
+        ?.tool_use_id;
+      const next = blocks.map((b) =>
+        b.type === "tool" && b.id === toolUseId
+          ? { ...b, status: "pending" }
+          : b,
+      );
+      next.push(card);
+      return { ...message, blocks: next };
+    }
+    case "plan": {
+      const idx = blocks.findIndex((b) => b.type === "todo_list");
+      if (idx >= 0) blocks[idx] = ev.data.block;
+      else blocks.push(ev.data.block);
+      return { ...message, blocks };
+    }
     case "error":
       blocks.push({
         type: "error",
@@ -90,6 +111,37 @@ function applyEvent(message: ChatMessage, ev: AIStreamEvent): ChatMessage {
     default:
       return message;
   }
+}
+
+/** Replaces a confirm card (and its tool indicator) wherever it is. */
+function replaceCard(
+  messages: ChatMessage[],
+  card: AIUIBlock,
+  toolStatus?: string,
+): ChatMessage[] {
+  const toolUseId = (card.data as { tool_use_id?: string } | undefined)
+    ?.tool_use_id;
+  return messages.map((m) =>
+    m.blocks.some((b) => b.type === "confirm" && b.id === card.id)
+      ? {
+          ...m,
+          blocks: m.blocks.map((b) => {
+            if (b.type === "confirm" && b.id === card.id) return card;
+            if (toolStatus && b.type === "tool" && b.id === toolUseId) {
+              return { ...b, status: toolStatus };
+            }
+            return b;
+          }),
+        }
+      : m,
+  );
+}
+
+function toolStatusFor(status?: string) {
+  if (status === "confirmed") return "done";
+  if (status === "failed") return "error";
+  if (status === "cancelled" || status === "expired") return "cancelled";
+  return undefined;
 }
 
 function toChatMessages(detail?: AIConversationDetail): ChatMessage[] {
@@ -245,6 +297,124 @@ export function useAssistantChat({
     ],
   );
 
+  /** Updates a confirm card locally (optimistic "executing" state, results). */
+  const setCard = useCallback(
+    (convUuid: string, card: AIUIBlock) => {
+      setLive((prev) => ({
+        ...prev,
+        [convUuid]: replaceCard(
+          prev[convUuid] ?? messages,
+          card,
+          toolStatusFor(card.status),
+        ),
+      }));
+    },
+    [messages],
+  );
+
+  const confirmAction = useCallback(
+    async (card: AIUIBlock, edits?: Record<string, string>) => {
+      const uuid = conversationUuid;
+      if (!uuid || !card.id || streamingFor) return;
+      setCard(uuid, { ...card, status: "executing" });
+      setStreamingFor(uuid);
+      const controller = new AbortController();
+      abortRef.current = controller;
+      let currentId: string | null = null;
+      try {
+        await streamConfirmAction({
+          actionUuid: card.id,
+          edits,
+          locale,
+          tenantSlug: slug,
+          signal: controller.signal,
+          onEvent: (ev) => {
+            if (ev.event === "action") {
+              setCard(uuid, ev.data.block);
+              return;
+            }
+            if (ev.event === "message_start") {
+              const id = tempId("assistant");
+              currentId = id;
+              setLive((prev) => ({
+                ...prev,
+                [uuid]: [
+                  ...(prev[uuid] ?? messages),
+                  {
+                    uuid: id,
+                    role: "assistant",
+                    status: "pending",
+                    blocks: [],
+                    streaming: true,
+                  },
+                ],
+              }));
+              return;
+            }
+            if (ev.event === "title" || !currentId) return;
+            const id = currentId;
+            if (ev.event === "message_done") currentId = ev.data.message_uuid;
+            updateAssistant(uuid, id, (m) => applyEvent(m, ev));
+          },
+        });
+      } catch (error) {
+        // The action was not executed (or its state is unknown): reload the
+        // conversation so the card shows the server's status.
+        void qc.invalidateQueries({
+          queryKey: aiKeys.conversation(slug, uuid),
+        });
+        setLive((prev) => {
+          const next = { ...prev };
+          delete next[uuid];
+          return next;
+        });
+        throw error;
+      } finally {
+        if (currentId) {
+          const id = currentId;
+          updateAssistant(uuid, id, (m) =>
+            m.streaming ? { ...m, streaming: false } : m,
+          );
+        }
+        abortRef.current = null;
+        setStreamingFor(null);
+        void qc.invalidateQueries({ queryKey: aiKeys.status(slug) });
+      }
+    },
+    [
+      conversationUuid,
+      locale,
+      messages,
+      qc,
+      setCard,
+      slug,
+      streamingFor,
+      updateAssistant,
+    ],
+  );
+
+  const cancelAction = useCallback(
+    async (card: AIUIBlock) => {
+      const uuid = conversationUuid;
+      if (!uuid || !card.id) return;
+      try {
+        const res = await aiTenantService.cancelAction(card.id);
+        setCard(uuid, res.block);
+      } catch (error) {
+        void qc.invalidateQueries({
+          queryKey: aiKeys.conversation(slug, uuid),
+        });
+        setLive((prev) => {
+          const next = { ...prev };
+          delete next[uuid];
+          return next;
+        });
+        throw error;
+      }
+    },
+    [conversationUuid, qc, setCard, slug],
+  );
+
   const stop = useCallback(() => {
     abortRef.current?.abort();
   }, []);
@@ -253,6 +423,8 @@ export function useAssistantChat({
     messages,
     send,
     stop,
+    confirmAction,
+    cancelAction,
     streaming: streamingFor !== null,
     loading:
       Boolean(conversationUuid) &&

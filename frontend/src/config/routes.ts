@@ -71,6 +71,9 @@ export const routes = {
     reports: {
       root: (slug: string) => `/t/${slug}/reports`,
     },
+    todos: {
+      root: (slug: string) => `/t/${slug}/todos`,
+    },
     assistant: {
       root: (slug: string) => `/t/${slug}/assistant`,
       conversation: (slug: string, uuid: string) =>

@@ -117,5 +117,7 @@
   "labels.tenant.staff.write": "Manage tenant staff",
   "labels.platform.ai.read": "View AI assistant settings",
   "labels.platform.ai.write": "Manage AI assistant settings",
-  "labels.tenant.ai.use": "Use AI assistant"
+  "labels.tenant.ai.use": "Use AI assistant",
+  "labels.tenant.todos.read": "View todos",
+  "labels.tenant.todos.write": "Manage todos"
 }

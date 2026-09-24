@@ -114,5 +114,15 @@
   "resources.tenant.staff": "Staff",
   "actions.ai.settings.updated": "AI assistant settings updated",
   "actions.ai.organization.updated": "Organization AI settings updated",
-  "resources.platform.ai": "AI assistant"
+  "resources.platform.ai": "AI assistant",
+  "actions.todos.create": "Todo created",
+  "actions.todos.update": "Todo updated",
+  "actions.todos.complete": "Todo completed",
+  "actions.todos.reopen": "Todo reopened",
+  "actions.todos.delete": "Todo deleted",
+  "actions.ai.action.confirmed": "AI action confirmed",
+  "actions.ai.action.failed": "AI action failed",
+  "resources.todos.todo": "Todo",
+  "resources.ai.action": "AI action",
+  "via_ai": "via AI"
 }

@@ -5,10 +5,12 @@ type RouteContext = {
 };
 
 /**
- * Long-lived SSE streams need a raised
- * function timeout. Align with API `HTTP_WRITE_TIMEOUT` (e.g. 120s).
+ * Long-lived SSE streams (AI chat and confirmed-action continuations) need a
+ * raised function timeout on serverless hosts. The Go AI stream handlers
+ * extend their own write deadline to 15 minutes (heartbeat every 15s), so
+ * allow the same here; self-hosted `next start` ignores this value.
  */
-export const maxDuration = 120;
+export const maxDuration = 900;
 
 async function handle(request: Request, context: RouteContext) {
   const { path } = await context.params;
@@ -16,10 +18,13 @@ async function handle(request: Request, context: RouteContext) {
     return await proxyToUpstream(path ?? [], request);
   } catch (err) {
     console.error("[api/v1]", (path ?? []).join("/"), err);
-    return new Response(JSON.stringify({ success: false, error: "internal_error" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: "internal_error" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 }
 

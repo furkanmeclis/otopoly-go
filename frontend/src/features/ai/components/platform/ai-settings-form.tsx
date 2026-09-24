@@ -45,6 +45,10 @@ type AISettingsFormProps = {
   onTest: () => void;
 };
 
+function permissionLabelKey(slug: string) {
+  return `permissions.labels.${slug}`;
+}
+
 export function toFormValues(settings: AISettings): AISettingsFormValues {
   return {
     provider: settings.provider,
@@ -315,18 +319,20 @@ export function AISettingsForm({
                 description={t("ai.form.feature_charts_hint")}
                 disabled={disabled}
               />
+              <AppSwitch
+                name="feature_actions"
+                label={t("ai.form.feature_actions")}
+                description={t("ai.form.feature_actions_hint")}
+                disabled={disabled}
+              />
+              <AppSwitch
+                name="feature_todos"
+                label={t("ai.form.feature_todos")}
+                description={t("ai.form.feature_todos_hint")}
+                disabled={disabled}
+              />
               {(
                 [
-                  [
-                    "feature_actions",
-                    "ai.form.feature_actions",
-                    "ai.form.feature_actions_hint",
-                  ],
-                  [
-                    "feature_todos",
-                    "ai.form.feature_todos",
-                    "ai.form.feature_todos_hint",
-                  ],
                   [
                     "feature_voice",
                     "ai.form.feature_voice",
@@ -375,10 +381,20 @@ export function AISettingsForm({
                           {tool.name}
                         </code>
                       </p>
-                      <p className="text-muted-foreground truncate text-xs">
+                      <p className="text-muted-foreground text-xs">
+                        {tool.requires_confirmation ? (
+                          <Badge
+                            variant="outline"
+                            className="mr-1.5 px-1.5 py-0 text-[10px] font-normal"
+                          >
+                            {t("ai.form.tool_confirm_badge")}
+                          </Badge>
+                        ) : null}
                         {tool.permissions.length > 0
                           ? t("ai.form.tool_requires", {
-                              permissions: tool.permissions.join(", "),
+                              permissions: tool.permissions
+                                .map((p) => t(permissionLabelKey(p)))
+                                .join(", "),
                             })
                           : t("ai.form.tool_no_permission")}
                       </p>

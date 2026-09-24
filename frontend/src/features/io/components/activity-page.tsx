@@ -12,6 +12,7 @@ import {
   useServerListState,
 } from "@/components/entity";
 import { createColumn } from "@/components/tables";
+import { Badge } from "@/components/ui/badge";
 import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
 import { ResourceIOToolbar } from "@/features/io/components/resource-io-toolbar";
@@ -58,7 +59,16 @@ export function ActivityPage() {
         cell: ({ row }) => {
           const key = `activity.actions.${row.original.action}`;
           const label = t(key);
-          return label === key ? row.original.action : label;
+          const text = label === key ? row.original.action : label;
+          if (row.original.payload?.via !== "ai") return text;
+          return (
+            <span className="inline-flex items-center gap-1.5">
+              {text}
+              <Badge variant="outline" className="px-1.5 py-0 text-[10px]">
+                {t("activity.via_ai")}
+              </Badge>
+            </span>
+          );
         },
       }),
       createColumn<ActivityEvent>({
