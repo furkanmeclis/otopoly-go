@@ -45,6 +45,8 @@ export const Permission = {
   PlatformVehicleBrandsWrite: "platform.vehicle_brands.write",
   PlatformContractPresetsRead: "platform.contract_presets.read",
   PlatformContractPresetsWrite: "platform.contract_presets.write",
+  PlatformAIRead: "platform.ai.read",
+  PlatformAIWrite: "platform.ai.write",
 
   TenantFinanceRead: "tenant.finance.read",
   TenantFinanceWrite: "tenant.finance.write",
@@ -78,6 +80,7 @@ export const Permission = {
   TenantReportsExport: "tenant.reports.export",
   TenantContractsRead: "tenant.contracts.read",
   TenantContractsWrite: "tenant.contracts.write",
+  TenantAIUse: "tenant.ai.use",
 
   TenantCatalogRead: "tenant.catalog.read",
   TenantCatalogWrite: "tenant.catalog.write",
@@ -271,6 +274,11 @@ export const permissions = {
     servicesBulkDeactivate: Permission.TenantCatalogServicesBulkDeactivate,
     servicesBulkDelete: Permission.TenantCatalogServicesBulkDelete,
     servicesBulkRaisePrice: Permission.TenantCatalogServicesBulkRaisePrice,
+  },
+  ai: {
+    read: Permission.PlatformAIRead,
+    write: Permission.PlatformAIWrite,
+    use: Permission.TenantAIUse,
   },
   auth: {
     session: Permission.AuthSession,
