@@ -174,6 +174,30 @@ services:
     networks:
       - app
 
+  # AI voice (optional, large image): docker compose -f compose.local.yml --profile voice up -d speaches
+  # Admin → /platform/ai → Ses: URL http://127.0.0.1:${SPEACHES_PORT:-8090}
+  speaches:
+    image: ${SPEACHES_IMAGE:-ghcr.io/speaches-ai/speaches:latest-cpu}
+    profiles: ["voice"]
+    container_name: ${NAME_PREFIX:-app}-speaches
+    restart: unless-stopped
+    environment:
+      PRELOAD_MODELS: ${SPEACHES_PRELOAD_MODELS:-["Systran/faster-whisper-small","speaches-ai/piper-tr_TR-fettah-medium"]}
+      WHISPER__COMPUTE_TYPE: ${SPEACHES_WHISPER_COMPUTE_TYPE:-int8}
+      LOG_LEVEL: ${SPEACHES_LOG_LEVEL:-info}
+    ports:
+      - "${SPEACHES_PORT:-8090}:8000"
+    volumes:
+      - speaches_models:/home/ubuntu/.cache/huggingface/hub
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    networks:
+      - app
+
 volumes:
   postgres_data:
     name: ${POSTGRES_VOLUME_NAME:-${NAME_PREFIX:-app}-postgres}
@@ -183,6 +207,8 @@ volumes:
     name: ${MINIO_VOLUME_NAME:-${NAME_PREFIX:-app}-minio}
   meili_data:
     name: ${MEILI_VOLUME_NAME:-${NAME_PREFIX:-app}-meilisearch}
+  speaches_models:
+    name: ${SPEACHES_VOLUME_NAME:-${NAME_PREFIX:-app}-speaches-models}
 
 networks:
   app:
