@@ -25,6 +25,15 @@ import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import Link from "next/link";
 
+/** Formats transcribed audio as m:ss (or s below a minute). */
+function formatAudio(seconds: number, nf: Intl.NumberFormat): string {
+  if (seconds < 60) return nf.format(Math.round(seconds));
+  const total = Math.round(seconds);
+  const m = Math.floor(total / 60);
+  const s = String(total % 60).padStart(2, "0");
+  return `${nf.format(m)}:${s}`;
+}
+
 function lastMonths(count: number): string[] {
   const now = new Date();
   const out: string[] = [];
@@ -116,6 +125,11 @@ export function AIUsageTable() {
                   <th className="px-3 py-2 text-right font-medium">
                     {t("ai.usage.cost")}
                   </th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    <span title={t("ai.usage.voice_hint")}>
+                      {t("ai.usage.voice")}
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -136,7 +150,10 @@ export function AIUsageTable() {
                         </Badge>
                       ) : null}
                       <p className="text-muted-foreground text-xs">
-                        {row.models.map((m) => m.model).join(", ")}
+                        {row.models
+                          .filter((m) => m.kind !== "voice")
+                          .map((m) => m.model)
+                          .join(", ")}
                       </p>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
@@ -165,6 +182,24 @@ export function AIUsageTable() {
                         ? usd.format(row.estimated_cost_usd)
                         : t("ai.usage.cost_unknown")}
                     </td>
+                    <td className="px-3 py-2 text-right text-xs tabular-nums">
+                      {row.voice_request_count > 0 ? (
+                        <>
+                          <div>
+                            {t("ai.usage.voice_stt", {
+                              duration: formatAudio(row.stt_seconds, nf),
+                            })}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {t("ai.usage.voice_tts", {
+                              characters: nf.format(row.tts_characters),
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -182,6 +217,18 @@ export function AIUsageTable() {
                     )
                       ? usd.format(data.estimated_cost_usd)
                       : t("ai.usage.cost_unknown")}
+                  </td>
+                  <td className="px-3 py-2 text-right text-xs tabular-nums">
+                    <div>
+                      {t("ai.usage.voice_stt", {
+                        duration: formatAudio(data.stt_seconds, nf),
+                      })}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {t("ai.usage.voice_tts", {
+                        characters: nf.format(data.tts_characters),
+                      })}
+                    </div>
                   </td>
                 </tr>
               </tfoot>

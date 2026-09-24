@@ -30,7 +30,8 @@ type (
 	}
 	JobsReader interface {
 		List(ctx context.Context, limit, offset int32, filters jobsusecase.ListFilters) ([]jobsusecase.Job, int64, error)
-		Summary(ctx context.Context, dateStr string) (jobsusecase.Summary, error)
+		// SummaryIn takes day boundaries in loc (the assistant passes Europe/Istanbul).
+		SummaryIn(ctx context.Context, dateStr string, loc *time.Location) (jobsusecase.Summary, error)
 	}
 	ReportsReader interface {
 		Overview(ctx context.Context, in reportsusecase.Query) (reportsusecase.Overview, error)
@@ -40,7 +41,7 @@ type (
 	}
 	SalesReader interface {
 		List(ctx context.Context, limit, offset int32, filters salesusecase.ListFilters) ([]salesusecase.Sale, int64, error)
-		Summary(ctx context.Context, dateStr string) (salesusecase.Summary, error)
+		SummaryIn(ctx context.Context, dateStr string, loc *time.Location) (salesusecase.Summary, error)
 	}
 	CatalogReader interface {
 		ListProducts(ctx context.Context, limit, offset int32, filters catalogusecase.ProductFilters) ([]catalogusecase.Product, int64, error)
@@ -233,7 +234,7 @@ func (t SearchCustomers) Run(ctx context.Context, env Env, raw json.RawMessage) 
 	}
 	items := make([]item, 0, len(rows))
 	for _, r := range rows {
-		it := item{UUID: r.Uuid.String(), Name: r.Name, Phone: r.Phone, Kind: r.Kind, Plates: r.Plates, Active: r.IsActive}
+		it := item{UUID: r.Uuid.String(), Name: DataText(r.Name, maxNameChars), Phone: DataText(r.Phone, 32), Kind: r.Kind, Plates: DataText(r.Plates, maxTextChars), Active: r.IsActive}
 		if r.CariAccountUuid.Valid {
 			it.CariAccountUUID = uuid.UUID(r.CariAccountUuid.Bytes).String()
 			cur := "TRY"
@@ -312,7 +313,7 @@ func (t GetCustomerAccount) Run(ctx context.Context, env Env, raw json.RawMessag
 		for _, e := range rows {
 			en := entry{
 				Date: e.EntryDate, Type: e.Type, Amount: FormatMoney(e.Amount, acc.Currency),
-				BalanceAfter: FormatMoney(e.BalanceAfter, acc.Currency), Description: Truncate(e.Description, 80),
+				BalanceAfter: FormatMoney(e.BalanceAfter, acc.Currency), Description: DataText(e.Description, 80),
 			}
 			if e.Status != "posted" && e.Status != "" {
 				en.Status = e.Status
@@ -324,16 +325,16 @@ func (t GetCustomerAccount) Run(ctx context.Context, env Env, raw json.RawMessag
 		}
 	}
 	out := map[string]any{
-		"customer":       acc.CustomerName,
+		"customer":       DataText(acc.CustomerName, maxNameChars),
 		"customer_uuid":  acc.CustomerUUID.String(),
-		"phone":          acc.CustomerPhone,
+		"phone":          DataText(acc.CustomerPhone, 32),
 		"currency":       acc.Currency,
 		"balance":        FormatMoney(acc.Balance, acc.Currency),
 		"balance_number": Number(acc.Balance),
 		"recent_entries": entries,
 	}
 	return JSONResult(out, "ai.tool_summary.account_balance", map[string]any{
-		"name": acc.CustomerName, "balance": FormatMoney(acc.Balance, acc.Currency),
+		"name": DataText(acc.CustomerName, 60), "balance": FormatMoney(acc.Balance, acc.Currency),
 	}), nil
 }
 
@@ -388,6 +389,7 @@ func (t ListJobs) Run(ctx context.Context, env Env, raw json.RawMessage) (Result
 	limit := clampInt(in.Limit, 15, 1, 25)
 	rows, total, err := t.jobs.List(ctx, int32(limit), 0, jobsusecase.ListFilters{
 		Q: strings.TrimSpace(in.Query), Status: in.Status, DateFrom: in.DateFrom, DateTo: in.DateTo, Sort: "-started_at",
+		Location: env.loc(),
 	})
 	if err != nil {
 		return userError(err)
@@ -408,9 +410,10 @@ func (t ListJobs) Run(ctx context.Context, env Env, raw json.RawMessage) (Result
 	for _, j := range rows {
 		byStatus[j.Status]++
 		items = append(items, job{
-			UUID: j.UUID.String(), Plate: j.Plate, Vehicle: j.VehicleLabel, Customer: j.CustomerName, Status: j.Status,
+			UUID: j.UUID.String(), Plate: DataText(j.Plate, 20), Vehicle: DataText(j.VehicleLabel, maxNameChars),
+			Customer: DataText(j.CustomerName, maxNameChars), Status: j.Status,
 			Payment: j.PaymentStatus, Total: FormatMoney(j.TotalAmount, j.Currency),
-			Started: fmtTime(j.StartedAt, env.Location), Assignee: j.AssigneeName,
+			Started: fmtTime(j.StartedAt, env.Location), Assignee: DataText(j.AssigneeName, maxNameChars),
 		})
 	}
 	out := map[string]any{
@@ -426,7 +429,7 @@ func (t ListJobs) Run(ctx context.Context, env Env, raw json.RawMessage) (Result
 		"hint_for_counting": "use status filter + total for exact counts per status",
 	}
 	if in.DateFrom == in.DateTo && in.Status == "" && in.Query == "" {
-		if sum, err := t.jobs.Summary(ctx, in.DateFrom); err == nil {
+		if sum, err := t.jobs.SummaryIn(ctx, in.DateFrom, env.loc()); err == nil {
 			out["day_totals"] = map[string]any{
 				"job_count":  sum.JobCount,
 				"paid_total": FormatMoney(sum.PaidTotal, "TRY"),
@@ -510,7 +513,7 @@ func (t ReportSummary) Run(ctx context.Context, env Env, raw json.RawMessage) (R
 			if i >= n {
 				break
 			}
-			row := map[string]any{"name": it.Name, "total": m(it.Total), "count": it.Count}
+			row := map[string]any{"name": DataText(it.Name, maxNameChars), "total": m(it.Total), "count": it.Count}
 			if it.Qty != "" {
 				row["qty"] = it.Qty
 			}
@@ -587,7 +590,7 @@ func (t FinanceBalances) Run(ctx context.Context, env Env, raw json.RawMessage) 
 	for _, a := range rows {
 		n := Number(a.CurrentBalance)
 		totals[a.Currency] += n
-		items = append(items, acc{Name: a.Name, Type: a.Type, Balance: FormatMoney(a.CurrentBalance, a.Currency), Number: n, Currency: a.Currency, Default: a.IsDefault})
+		items = append(items, acc{Name: DataText(a.Name, maxNameChars), Type: a.Type, Balance: FormatMoney(a.CurrentBalance, a.Currency), Number: n, Currency: a.Currency, Default: a.IsDefault})
 	}
 	totalOut := map[string]string{}
 	for cur, v := range totals {
@@ -633,7 +636,7 @@ func (t SalesSummary) Run(ctx context.Context, env Env, raw json.RawMessage) (Re
 	if in.Date == "" {
 		in.Date = env.Today()
 	}
-	sum, err := t.sales.Summary(ctx, in.Date)
+	sum, err := t.sales.SummaryIn(ctx, in.Date, env.loc())
 	if err != nil {
 		return userError(err)
 	}
@@ -650,12 +653,12 @@ func (t SalesSummary) Run(ctx context.Context, env Env, raw json.RawMessage) (Re
 	}
 	items := []sale{}
 	if limit > 0 {
-		rows, _, err := t.sales.List(ctx, int32(limit), 0, salesusecase.ListFilters{DateFrom: in.Date, DateTo: in.Date})
+		rows, _, err := t.sales.List(ctx, int32(limit), 0, salesusecase.ListFilters{DateFrom: in.Date, DateTo: in.Date, Location: env.loc()})
 		if err != nil {
 			return userError(err)
 		}
 		for _, s := range rows {
-			items = append(items, sale{Customer: s.CustomerName, Total: FormatMoney(s.TotalAmount, s.Currency), Method: s.Method, Status: s.Status, SoldAt: fmtTime(s.SoldAt, env.Location)})
+			items = append(items, sale{Customer: DataText(s.CustomerName, maxNameChars), Total: FormatMoney(s.TotalAmount, s.Currency), Method: s.Method, Status: s.Status, SoldAt: fmtTime(s.SoldAt, env.Location)})
 		}
 	}
 	out := map[string]any{
@@ -724,9 +727,9 @@ func (t SearchProducts) Run(ctx context.Context, env Env, raw json.RawMessage) (
 	}
 	items := make([]product, 0, len(rows))
 	for _, p := range rows {
-		it := product{Name: p.Name, Stock: p.StockQuantity, Unit: p.Unit, Price: FormatMoney(p.SalePrice, p.Currency), Status: p.StockStatus}
+		it := product{Name: DataText(p.Name, maxNameChars), Stock: p.StockQuantity, Unit: p.Unit, Price: FormatMoney(p.SalePrice, p.Currency), Status: p.StockStatus}
 		if p.SKU != nil {
-			it.SKU = *p.SKU
+			it.SKU = DataText(*p.SKU, 64)
 		}
 		if p.TrackStock {
 			it.MinAlert = p.MinStockAlert

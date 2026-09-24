@@ -22,13 +22,23 @@ func normalizeSort(sort string) string {
 	}
 }
 
-func parseDay(raw string) (time.Time, error) {
+// parseDay returns local midnight of a YYYY-MM-DD day in loc (server-local
+// time when loc is nil); an empty string means today.
+func parseDay(raw string, loc *time.Location) (time.Time, error) {
+	if loc == nil {
+		loc = time.Local
+	}
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		now := time.Now()
-		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()), nil
+		now := time.Now().In(loc)
+		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc), nil
 	}
-	return time.ParseInLocation("2006-01-02", raw, time.Local)
+	return time.ParseInLocation("2006-01-02", raw, loc)
+}
+
+// nextDay returns midnight of the following day (calendar-correct across DST).
+func nextDay(day time.Time) time.Time {
+	return time.Date(day.Year(), day.Month(), day.Day()+1, 0, 0, 0, 0, day.Location())
 }
 
 func numericPositive(raw string) (pgtype.Numeric, error) {

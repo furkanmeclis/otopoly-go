@@ -100,9 +100,9 @@ RETURNING *;
 
 -- name: SetTodoStatus :one
 UPDATE todos
-SET status = sqlc.arg(status),
-    completed_at = CASE WHEN sqlc.arg(status) = 'done' THEN now() ELSE NULL END,
-    completed_by = CASE WHEN sqlc.arg(status) = 'done' THEN sqlc.narg(completed_by)::bigint ELSE NULL END
+SET status = sqlc.arg(status)::text,
+    completed_at = CASE WHEN sqlc.arg(status)::text = 'done' THEN now() ELSE NULL END,
+    completed_by = CASE WHEN sqlc.arg(status)::text = 'done' THEN sqlc.narg(completed_by)::bigint ELSE NULL END
 WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id)
 RETURNING *;
 

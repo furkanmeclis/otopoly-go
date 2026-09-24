@@ -41,6 +41,9 @@ func writeVoiceError(w http.ResponseWriter, r *http.Request, err error) {
 
 // Transcribe accepts a multipart upload (field "file") and returns its text.
 func (h *Handler) Transcribe(w http.ResponseWriter, r *http.Request) {
+	if h.rateLimited(w, r, "ai_voice", voiceLimit, voiceWindow) {
+		return
+	}
 	// Multipart framing adds a little on top of the audio itself.
 	r.Body = http.MaxBytesReader(w, r.Body, aiusecase.MaxAudioBytes+64<<10)
 	mr, err := r.MultipartReader()
@@ -101,6 +104,9 @@ func (h *Handler) Transcribe(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Speech(w http.ResponseWriter, r *http.Request) {
 	var in aiusecase.SpeechInput
 	if !decodeJSON(w, r, &in) {
+		return
+	}
+	if h.rateLimited(w, r, "ai_voice", voiceLimit, voiceWindow) {
 		return
 	}
 	sp, err := h.svc.Speak(r.Context(), in)

@@ -215,6 +215,10 @@ Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_acc
 
 Customers with non-zero cari balance cannot be soft-deleted.
 
+## AI assistant
+
+Tenant chat (`/t/{slug}/assistant`, chat sheet on every page) and platform settings (`/platform/ai`) under `/v1/tenant/ai/*` and `/v1/platform/ai/*` (`internal/modules/ai`). The model reads data only through tools that call the module use cases with the user's own permissions and org scope. Tools that change data only propose a confirm card (`ai_pending_actions`), and the change runs after the user confirms it. Answers stream over SSE through the BFF. Providers: Anthropic or any OpenAI-compatible server (Ollama/vLLM); voice via self-hosted Speaches. Details: [AI.md](./AI.md).
+
 ## Request flow
 
 ```

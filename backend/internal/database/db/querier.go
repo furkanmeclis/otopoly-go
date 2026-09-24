@@ -160,6 +160,9 @@ type Querier interface {
 	// or only those past expires_at.
 	ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error)
 	ExtensionExists(ctx context.Context, extname string) (bool, error)
+	// Resolves actions stuck in 'executing' (the server stopped mid-execution) as
+	// failed: for one conversation, or for all conversations when it is NULL.
+	FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error)
 	FinishAIPendingAction(ctx context.Context, arg FinishAIPendingActionParams) (AiPendingAction, error)
 	GetAIConversation(ctx context.Context, arg GetAIConversationParams) (AiConversation, error)
 	GetAIMessageByID(ctx context.Context, id int64) (AiMessage, error)

@@ -338,5 +338,11 @@
   "confirm.failed": "İşlem yapılamadı",
   "plan.title": "Plan",
   "plan.progress": "{{done}}/{{total}} tamamlandı",
-  "form.tool_confirm_badge": "Onaylı"
+  "form.tool_confirm_badge": "Onaylı",
+  "usage.voice": "Ses",
+  "usage.voice_hint": "Kendi sunucunuzdaki Speaches: konuşmadan metne ses süresi (dk:sn) ve metinden sese karakter sayısı. Token kotasına sayılmaz.",
+  "usage.voice_stt": "STT (sesten metne) {{duration}}",
+  "usage.voice_tts": "TTS {{characters}} karakter",
+  "errors.rate_limited": "Kısa sürede çok fazla mesaj gönderildi. Biraz bekleyip tekrar deneyin.",
+  "errors.conversation_limit": "Bu sohbet çok uzadı (ya da çok fazla sohbetiniz var). Yeni bir sohbet başlatın veya eskileri silin."
 }

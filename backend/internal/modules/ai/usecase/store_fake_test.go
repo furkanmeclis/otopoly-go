@@ -23,6 +23,7 @@ type memStore struct {
 	usedExtra int64 // pre-existing monthly tokens
 	nextID    int64
 	actions   []db.AiPendingAction
+	usageRows []db.ListAIUsageByOrganizationRow
 	clock     func() time.Time
 }
 
@@ -134,7 +135,9 @@ func (m *memStore) InsertAIUsage(_ context.Context, p db.InsertAIUsageParams) er
 }
 
 func (m *memStore) ListAIUsageByOrganization(context.Context, db.ListAIUsageByOrganizationParams) ([]db.ListAIUsageByOrganizationRow, error) {
-	return nil, nil
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]db.ListAIUsageByOrganizationRow(nil), m.usageRows...), nil
 }
 
 func (m *memStore) GetAIUserDisplay(context.Context, int64) (db.GetAIUserDisplayRow, error) {
@@ -317,6 +320,7 @@ func (m *memStore) ClaimAIPendingAction(_ context.Context, p db.ClaimAIPendingAc
 		a := &m.actions[i]
 		if a.ID == p.ID && a.Status == "pending" && a.MessageID.Valid && a.ExpiresAt.Time.After(m.nowT()) {
 			a.Status, a.Input, a.Preview = "executing", p.Input, p.Preview
+			a.UpdatedAt = pgtype.Timestamptz{Time: m.nowT(), Valid: true}
 			return *a, nil
 		}
 	}
@@ -357,6 +361,21 @@ func (m *memStore) ExpireAIPendingActions(_ context.Context, p db.ExpireAIPendin
 		a := &m.actions[i]
 		if a.ConversationID == p.ConversationID && a.Status == "pending" && (p.AllPending || !a.ExpiresAt.Time.After(m.nowT())) {
 			a.Status = "expired"
+			out = append(out, *a)
+		}
+	}
+	return out, nil
+}
+
+func (m *memStore) FailStaleAIPendingActions(_ context.Context, p db.FailStaleAIPendingActionsParams) ([]db.AiPendingAction, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []db.AiPendingAction
+	for i := range m.actions {
+		a := &m.actions[i]
+		if a.Status == "executing" && a.UpdatedAt.Time.Before(p.StaleBefore.Time) &&
+			(!p.ConversationID.Valid || a.ConversationID == p.ConversationID.Int64) {
+			a.Status, a.Error = "failed", p.Error
 			out = append(out, *a)
 		}
 	}

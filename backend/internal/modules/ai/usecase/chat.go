@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/provider"
@@ -115,6 +117,9 @@ func (s *Service) PrepareMessage(ctx context.Context, convUUID uuid.UUID, in Sen
 	if err != nil {
 		return nil, err
 	}
+	if conv.MessageCount >= MaxMessagesPerConversation {
+		return nil, fmt.Errorf("%w: this conversation is too long; start a new one", ErrConversationLimit)
+	}
 	settings, err := s.store.GetAISettings(ctx)
 	if err != nil {
 		return nil, err
@@ -190,6 +195,7 @@ func (s *Service) RunTurn(ctx context.Context, t *Turn, emit Emitter) error {
 
 	// A new message resolves any unanswered confirm cards as "not executed".
 	s.expireActions(persistCtx, t.conv, true)
+	s.recoverStaleActions(persistCtx, &convID)
 
 	rows, err := s.store.ListAIMessages(ctx, convID)
 	if err != nil {
@@ -435,13 +441,7 @@ func (s *Service) execTool(ctx context.Context, t *Turn, env tools.Env, byName m
 	}
 	id, name := tu.ID, tu.Name
 	finish := func(res tools.Result) *provider.Block {
-		content := res.Content
-		if len(content) > maxToolResultChars {
-			content = content[:maxToolResultChars] + "…[truncated]"
-		}
-		if content == "" {
-			content = "ok"
-		}
+		content := boundToolResult(res.Content)
 		if b := ts.toolBlock(id); b != nil {
 			b.Status = "done"
 			if res.IsError {
@@ -476,7 +476,9 @@ func (s *Service) execTool(ctx context.Context, t *Turn, env tools.Env, byName m
 	if err := tools.Validate(spec.InputSchema, tu.Input); err != nil {
 		return finish(tools.ErrorResult("Invalid input: " + err.Error() + ". Fix the input and call the tool again.")), false
 	}
-	if spec.RequiresConfirmation {
+	// Anything that can change data goes through the confirmation gate, even
+	// if a tool forgot to set RequiresConfirmation (defense in depth).
+	if requiresConfirmation(tool) {
 		if ts.proposed {
 			return finish(tools.ErrorResult(resultOnePerTurn)), false
 		}
@@ -510,6 +512,43 @@ func (s *Service) execTool(ctx context.Context, t *Turn, env tools.Env, byName m
 		return finish(tools.ErrorResult("The tool failed with an internal error.")), false
 	}
 	return finish(res), false
+}
+
+// requiresConfirmation reports whether a tool call must go through the
+// confirmation gate: write tools, action tools and anything flagged so.
+func requiresConfirmation(tool tools.Tool) bool {
+	spec := tool.Spec()
+	if spec.RequiresConfirmation || spec.Kind == tools.KindWrite {
+		return true
+	}
+	_, isAction := tool.(tools.ActionTool)
+	return isAction
+}
+
+// boundToolResult caps what one tool result feeds back to the model. An
+// oversized JSON result is replaced by a small JSON envelope that carries the
+// clipped text as a string field, so free text from stored records stays
+// delimited data and never spills into the prompt as loose prose.
+func boundToolResult(content string) string {
+	if content == "" {
+		return "ok"
+	}
+	if len(content) <= maxToolResultChars {
+		return content
+	}
+	clipped := content[:maxToolResultChars]
+	for !utf8.ValidString(clipped) && len(clipped) > 0 {
+		clipped = clipped[:len(clipped)-1]
+	}
+	raw, err := json.Marshal(map[string]any{
+		"truncated": true,
+		"note":      "Result too large and was cut off; narrow the query (dates, filters, limit) for complete data.",
+		"partial":   clipped,
+	})
+	if err != nil {
+		return `{"truncated":true}`
+	}
+	return string(raw)
 }
 
 func lastAssistantText(msgs []provider.Message) string {

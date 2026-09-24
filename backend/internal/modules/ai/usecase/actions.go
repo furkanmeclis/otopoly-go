@@ -24,6 +24,11 @@ const PendingActionTTL = 30 * time.Minute
 // actionTimeout bounds the execution of a confirmed action.
 const actionTimeout = 60 * time.Second
 
+// StaleExecutingAfter is how long an action may stay "executing" before it is
+// considered interrupted (the server stopped mid-execution). Well above
+// actionTimeout so a slow but live execution is never swept.
+const StaleExecutingAfter = 10 * time.Minute
+
 // Pending action statuses.
 const (
 	ActionPending   = "pending"
@@ -49,6 +54,9 @@ const (
 	resultMovedOn     = "Not executed: the user sent a new message instead of confirming this action."
 	resultOnePerTurn  = "Only one change can be proposed at a time. Wait for the user's answer to the confirmation card, then propose the next change."
 	resultInternalErr = "The action failed with an internal error; tell the user it may not have been applied and to check the record in the app."
+	resultInterrupted = "Outcome unknown: the server stopped while this action was executing. It may or may not have been applied; tell the user to check the record in the app before trying again."
+	// errInterrupted is stored on the action row and shown on the confirm card.
+	errInterrupted = "interrupted: the server stopped while this action was executing; check the record before retrying"
 )
 
 // ActivityRecorder records audit events (satisfied by *activity.Recorder).
@@ -216,6 +224,40 @@ func (s *Service) expireActions(ctx context.Context, conv db.AiConversation, all
 			s.log.Warn("ai_action_patch_failed", "error", err)
 		}
 	}
+}
+
+// recoverStaleActions resolves actions stuck in "executing" (the server died
+// between claim and finish) as failed with an "outcome unknown" result, for
+// one conversation or, with convID nil, for all of them. It returns how many
+// were recovered.
+func (s *Service) recoverStaleActions(ctx context.Context, convID *int64) int {
+	p := db.FailStaleAIPendingActionsParams{
+		Error:       errInterrupted,
+		StaleBefore: pgtype.Timestamptz{Time: s.now().Add(-StaleExecutingAfter), Valid: true},
+	}
+	if convID != nil {
+		p.ConversationID = pgtype.Int8{Int64: *convID, Valid: true}
+	}
+	rows, err := s.store.FailStaleAIPendingActions(ctx, p)
+	if err != nil {
+		s.log.Warn("ai_actions_recover_failed", "error", err)
+		return 0
+	}
+	for _, row := range rows {
+		s.log.Warn("ai_action_interrupted", "action", row.Uuid, "tool", row.ToolName, "conversation_id", row.ConversationID)
+		block := provider.ToolResultBlock(row.ToolUseID, resultInterrupted, true)
+		result := &ActionResult{OK: false, Message: errInterrupted}
+		if _, err := s.patchActionMessage(ctx, row, &block, result); err != nil {
+			s.log.Warn("ai_action_patch_failed", "error", err)
+		}
+	}
+	return len(rows)
+}
+
+// RecoverInterruptedActions sweeps actions left "executing" by a previous
+// server process (call once on startup; conversations also recover lazily).
+func (s *Service) RecoverInterruptedActions(ctx context.Context) int {
+	return s.recoverStaleActions(ctx, nil)
 }
 
 // ------------------------------------------------------------------ confirm / cancel
@@ -462,14 +504,7 @@ func (s *Service) RunConfirm(ctx context.Context, run *ActionRun, emit Emitter) 
 	if err != nil {
 		return err
 	}
-	content := res.Content
-	if len(content) > maxToolResultChars {
-		content = content[:maxToolResultChars]
-	}
-	if content == "" {
-		content = "ok"
-	}
-	toolResult := provider.ToolResultBlock(row.ToolUseID, content, res.IsError)
+	toolResult := provider.ToolResultBlock(row.ToolUseID, boundToolResult(res.Content), res.IsError)
 	block, err := s.patchActionMessage(persistCtx, finished, &toolResult, result)
 	if err != nil {
 		return err

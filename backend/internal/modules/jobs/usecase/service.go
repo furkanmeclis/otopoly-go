@@ -108,15 +108,22 @@ func (s *Service) indexJob(ctx context.Context, id uuid.UUID) {
 }
 
 func (s *Service) Summary(ctx context.Context, dateStr string) (Summary, error) {
+	return s.SummaryIn(ctx, dateStr, nil)
+}
+
+// SummaryIn is Summary with the day boundaries taken in loc (nil = server
+// local time). The AI assistant passes Europe/Istanbul so "today" is right
+// on servers running in UTC.
+func (s *Service) SummaryIn(ctx context.Context, dateStr string, loc *time.Location) (Summary, error) {
 	orgID, err := s.requireOrgID(ctx)
 	if err != nil {
 		return Summary{}, err
 	}
-	day, err := parseDay(dateStr)
+	day, err := parseDay(dateStr, loc)
 	if err != nil {
 		return Summary{}, fmt.Errorf("%w: invalid date", ErrInvalidRequest)
 	}
-	next := day.Add(24 * time.Hour)
+	next := nextDay(day)
 	row, err := s.q.SumServiceJobsDaily(ctx, db.SumServiceJobsDailyParams{
 		OrganizationID: orgID,
 		StartedAt:      pgtype.Timestamptz{Time: day, Valid: true},
@@ -155,12 +162,12 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		params.Q = pgtype.Text{String: q, Valid: true}
 		countParams.Q = params.Q
 	}
-	if from, err := parseDay(filters.DateFrom); err == nil && filters.DateFrom != "" {
+	if from, err := parseDay(filters.DateFrom, filters.Location); err == nil && filters.DateFrom != "" {
 		params.DateFrom = pgtype.Timestamptz{Time: from, Valid: true}
 		countParams.DateFrom = params.DateFrom
 	}
-	if to, err := parseDay(filters.DateTo); err == nil && filters.DateTo != "" {
-		params.DateTo = pgtype.Timestamptz{Time: to.Add(24 * time.Hour), Valid: true}
+	if to, err := parseDay(filters.DateTo, filters.Location); err == nil && filters.DateTo != "" {
+		params.DateTo = pgtype.Timestamptz{Time: nextDay(to), Valid: true}
 		countParams.DateTo = params.DateTo
 	}
 	rows, err := s.q.ListServiceJobs(ctx, params)

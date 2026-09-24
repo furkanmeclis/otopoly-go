@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
@@ -71,6 +72,15 @@ func (s *Service) CreateConversation(ctx context.Context, title string) (Convers
 	if len([]rune(title)) > 200 {
 		return Conversation{}, invalid("title is too long (max 200)")
 	}
+	count, err := s.store.CountAIConversations(ctx, db.CountAIConversationsParams{
+		OrganizationID: scope.InternalID, UserID: p.UserInternal,
+	})
+	if err != nil {
+		return Conversation{}, err
+	}
+	if count >= MaxConversationsPerUser {
+		return Conversation{}, fmt.Errorf("%w: at most %d conversations; delete old ones first", ErrConversationLimit, MaxConversationsPerUser)
+	}
 	row, err := s.store.CreateAIConversation(ctx, db.CreateAIConversationParams{
 		OrganizationID: scope.InternalID, UserID: p.UserInternal, Title: title,
 	})
@@ -100,8 +110,10 @@ func (s *Service) GetConversation(ctx context.Context, id uuid.UUID) (Conversati
 	if err != nil {
 		return ConversationDetail{}, err
 	}
-	// Confirm cards past their expiry resolve as "not executed".
+	// Confirm cards past their expiry resolve as "not executed"; actions left
+	// "executing" by a crashed server resolve as "outcome unknown".
 	s.expireActions(ctx, conv, false)
+	s.recoverStaleActions(ctx, &conv.ID)
 	msgs, err := s.store.ListAIMessages(ctx, conv.ID)
 	if err != nil {
 		return ConversationDetail{}, err

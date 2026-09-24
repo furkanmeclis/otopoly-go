@@ -20,6 +20,16 @@ var (
 	ErrOrgDisabled    = errors.New("ai assistant is disabled for this organization")
 	ErrQuotaExceeded  = errors.New("monthly ai token quota exceeded")
 	ErrNoContext      = errors.New("organization context required")
+	// ErrConversationLimit: too many conversations, or one conversation too long.
+	ErrConversationLimit = errors.New("conversation limit reached")
+)
+
+// Per-user caps (abuse and cost guards; history is trimmed for the model anyway).
+const (
+	// MaxConversationsPerUser caps a user's live conversations per organization.
+	MaxConversationsPerUser = 500
+	// MaxMessagesPerConversation caps stored messages (user + assistant) per conversation.
+	MaxMessagesPerConversation = 400
 )
 
 // Store is the persistence port (satisfied by *db.Queries).
@@ -52,6 +62,7 @@ type Store interface {
 	FinishAIPendingAction(ctx context.Context, arg db.FinishAIPendingActionParams) (db.AiPendingAction, error)
 	CancelAIPendingAction(ctx context.Context, id int64) (db.AiPendingAction, error)
 	ExpireAIPendingActions(ctx context.Context, arg db.ExpireAIPendingActionsParams) ([]db.AiPendingAction, error)
+	FailStaleAIPendingActions(ctx context.Context, arg db.FailStaleAIPendingActionsParams) ([]db.AiPendingAction, error)
 }
 
 // Encrypter encrypts the provider API key at rest (crypto.SecretBox).
@@ -188,28 +199,36 @@ type PutOrgSettingsInput struct {
 	MonthlyTokenQuota *int64 `json:"monthly_token_quota"`
 }
 
-// UsageModelRow is usage for one model within an organization.
+// UsageModelRow is usage for one model within an organization. Kind is
+// "chat" (model tokens) or "voice" (Speaches STT seconds / TTS characters).
 type UsageModelRow struct {
 	Model            string   `json:"model"`
+	Kind             string   `json:"kind"`
 	InputTokens      int64    `json:"input_tokens"`
 	OutputTokens     int64    `json:"output_tokens"`
 	CacheReadTokens  int64    `json:"cache_read_tokens"`
 	CacheWriteTokens int64    `json:"cache_write_tokens"`
+	AudioSeconds     float64  `json:"audio_seconds"`
+	Characters       int64    `json:"characters"`
 	RequestCount     int64    `json:"request_count"`
 	EstimatedCostUSD *float64 `json:"estimated_cost_usd"`
 }
 
 // UsageOrgRow aggregates usage per organization.
 type UsageOrgRow struct {
-	OrganizationUUID uuid.UUID       `json:"organization_uuid"`
-	OrganizationName string          `json:"organization_name"`
-	OrganizationSlug string          `json:"organization_slug"`
-	InputTokens      int64           `json:"input_tokens"`
-	OutputTokens     int64           `json:"output_tokens"`
-	CacheReadTokens  int64           `json:"cache_read_tokens"`
-	CacheWriteTokens int64           `json:"cache_write_tokens"`
-	QuotaTokens      int64           `json:"quota_tokens"`
-	RequestCount     int64           `json:"request_count"`
+	OrganizationUUID uuid.UUID `json:"organization_uuid"`
+	OrganizationName string    `json:"organization_name"`
+	OrganizationSlug string    `json:"organization_slug"`
+	InputTokens      int64     `json:"input_tokens"`
+	OutputTokens     int64     `json:"output_tokens"`
+	CacheReadTokens  int64     `json:"cache_read_tokens"`
+	CacheWriteTokens int64     `json:"cache_write_tokens"`
+	QuotaTokens      int64     `json:"quota_tokens"`
+	RequestCount     int64     `json:"request_count"`
+	// Voice (Speaches): transcribed audio seconds and synthesized characters.
+	STTSeconds       float64         `json:"stt_seconds"`
+	TTSCharacters    int64           `json:"tts_characters"`
+	VoiceRequests    int64           `json:"voice_request_count"`
 	EstimatedCostUSD float64         `json:"estimated_cost_usd"`
 	Enabled          bool            `json:"enabled"`
 	QuotaLimit       int64           `json:"quota_limit"`
@@ -223,6 +242,8 @@ type UsageSummary struct {
 	PeriodEnd        time.Time     `json:"period_end"`
 	Items            []UsageOrgRow `json:"items"`
 	TotalTokens      int64         `json:"total_tokens"`
+	STTSeconds       float64       `json:"stt_seconds"`
+	TTSCharacters    int64         `json:"tts_characters"`
 	EstimatedCostUSD float64       `json:"estimated_cost_usd"`
 }
 

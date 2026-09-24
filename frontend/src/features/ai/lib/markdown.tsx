@@ -6,8 +6,26 @@ import { cn } from "@/lib/utils";
  * Minimal Markdown renderer for assistant answers. Produces React elements
  * only (never raw HTML), supporting the subset the system prompt asks for:
  * paragraphs, headings, bullet/numbered lists, tables, fenced code, bold,
- * italic, inline code and http(s) links.
+ * italic, inline code and http(s) links. Raw HTML in the text is shown as
+ * text (React escapes it) and only absolute http(s) links become anchors.
  */
+
+/**
+ * Returns a normalized absolute http(s) URL, or null. Assistant text can echo
+ * stored records, so anything else (javascript:, data:, relative or
+ * protocol-relative URLs, credentials in the URL) is rendered as plain text.
+ */
+export function safeHref(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.username || url.password) return null;
+  return url.href;
+}
 
 const INLINE_RE =
   /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\[[^\]]+\]\((https?:\/\/[^\s)]+)\)|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g;
@@ -38,17 +56,22 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       );
     } else if (token.startsWith("[")) {
       const label = token.slice(1, token.indexOf("]("));
-      const href = match[2] ?? "";
+      const href = safeHref(match[2] ?? "");
       out.push(
-        <a
-          key={key}
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-primary underline underline-offset-2"
-        >
-          {label}
-        </a>,
+        href ? (
+          <a
+            key={key}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            referrerPolicy="no-referrer"
+            className="text-primary underline underline-offset-2"
+          >
+            {label}
+          </a>
+        ) : (
+          <Fragment key={key}>{label}</Fragment>
+        ),
       );
     } else {
       out.push(

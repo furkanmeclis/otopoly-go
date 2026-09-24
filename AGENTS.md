@@ -19,6 +19,7 @@ Canonical env is the **repo-root** `.env`. Compose files are `compose.local.yml`
 | [github-integration](./.agents/skills/github-integration/SKILL.md) | GitHub App OAuth, encrypted credentials |
 | [step-up-engine](./.agents/skills/step-up-engine/SKILL.md) | Re-auth gates (password/passkey) on sensitive actions |
 | [admin-date-picker](./.agents/skills/admin-date-picker/SKILL.md) | Any date field in `frontend/` |
+| [ai-assistant](./.agents/skills/ai-assistant/SKILL.md) | New/changed AI assistant tool (read or confirmable write) |
 
 ## Human docs
 
@@ -30,6 +31,7 @@ Canonical env is the **repo-root** `.env`. Compose files are `compose.local.yml`
 | [backend/API_CONVENTIONS.md](./backend/API_CONVENTIONS.md) | Envelope, lists, meta |
 | [backend/DATABASE_RULES.md](./backend/DATABASE_RULES.md) | Migrations + sqlc |
 | [backend/docs/auth.md](./backend/docs/auth.md) | JWT, roles, permissions |
+| [docs/AI.md](./docs/AI.md) | AI assistant: providers, tools, confirmation flow, SSE, quotas, voice, KVKK |
 
 ## Hard rules
 
