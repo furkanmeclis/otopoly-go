@@ -57,6 +57,9 @@ type ListFilters struct {
 	DateFrom string
 	DateTo   string
 	Sort     string
+	// Location sets the day boundaries of DateFrom/DateTo (nil = server local
+	// time, the HTTP API default).
+	Location *time.Location
 }
 
 type CreateLineInput struct {

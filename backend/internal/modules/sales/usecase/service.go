@@ -108,15 +108,22 @@ func (s *Service) indexSale(ctx context.Context, id uuid.UUID) {
 }
 
 func (s *Service) Summary(ctx context.Context, dateStr string) (Summary, error) {
+	return s.SummaryIn(ctx, dateStr, nil)
+}
+
+// SummaryIn is Summary with the day boundaries taken in loc (nil = server
+// local time). The AI assistant passes Europe/Istanbul so "today" is right
+// on servers running in UTC.
+func (s *Service) SummaryIn(ctx context.Context, dateStr string, loc *time.Location) (Summary, error) {
 	orgID, err := s.requireOrgID(ctx)
 	if err != nil {
 		return Summary{}, err
 	}
-	day, err := parseDay(dateStr)
+	day, err := parseDay(dateStr, loc)
 	if err != nil {
 		return Summary{}, fmt.Errorf("%w: invalid date", ErrInvalidRequest)
 	}
-	next := day.Add(24 * time.Hour)
+	next := nextDay(day)
 	row, err := s.q.SumProductSalesDaily(ctx, db.SumProductSalesDailyParams{
 		OrganizationID: orgID,
 		SoldAt:         pgtype.Timestamptz{Time: day, Valid: true},
@@ -156,18 +163,18 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		params.Status = pgtype.Text{String: st, Valid: true}
 	}
 	if from := strings.TrimSpace(filters.DateFrom); from != "" {
-		t, err := time.ParseInLocation("2006-01-02", from, time.Local)
+		t, err := parseDay(from, filters.Location)
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w: invalid date_from", ErrInvalidRequest)
 		}
 		params.DateFrom = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 	if to := strings.TrimSpace(filters.DateTo); to != "" {
-		t, err := time.ParseInLocation("2006-01-02", to, time.Local)
+		t, err := parseDay(to, filters.Location)
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w: invalid date_to", ErrInvalidRequest)
 		}
-		params.DateTo = pgtype.Timestamptz{Time: t.Add(24 * time.Hour), Valid: true}
+		params.DateTo = pgtype.Timestamptz{Time: nextDay(t), Valid: true}
 	}
 	rows, err := s.q.ListProductSales(ctx, params)
 	if err != nil {
