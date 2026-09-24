@@ -454,9 +454,9 @@ func (q *Queries) ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTod
 
 const setTodoStatus = `-- name: SetTodoStatus :one
 UPDATE todos
-SET status = $1,
-    completed_at = CASE WHEN $1 = 'done' THEN now() ELSE NULL END,
-    completed_by = CASE WHEN $1 = 'done' THEN $2::bigint ELSE NULL END
+SET status = $1::text,
+    completed_at = CASE WHEN $1::text = 'done' THEN now() ELSE NULL END,
+    completed_by = CASE WHEN $1::text = 'done' THEN $2::bigint ELSE NULL END
 WHERE id = $3 AND organization_id = $4
 RETURNING id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at
 `
