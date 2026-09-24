@@ -107,7 +107,9 @@ jobs:
           echo "number=$number" >> "$GITHUB_OUTPUT"
       - name: Enable auto-merge
         run: |
-          if ! out="$(gh pr merge "${{ steps.pr.outputs.number }}" --auto --merge 2>&1)"; then
+          # Only merge the commit this run tested: a later push (or a re-run of an
+          # older run) must never merge an untested branch head.
+          if ! out="$(gh pr merge "${{ steps.pr.outputs.number }}" --auto --merge --match-head-commit "$GITHUB_SHA" 2>&1)"; then
             echo "$out"
             echo "::error title=Auto-merge unavailable::Enable Settings → General → 'Allow auto-merge' and protect main with required checks (backend, frontend)."
             exit 1
