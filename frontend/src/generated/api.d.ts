@@ -5609,6 +5609,8 @@ export interface components {
         };
         AIVoiceTestResult: {
             ok: boolean;
+            /** @description The server answered GET /v1/models */
+            reachable: boolean;
             base_url: string;
             /** Format: int64 */
             latency_ms: number;

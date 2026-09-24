@@ -17,6 +17,8 @@ export type AIOrgSettings = Schemas["AIOrgSettings"];
 export type AIOrgSettingsPut = Schemas["PutAIOrgSettingsRequest"];
 export type AIUsageSummary = Schemas["AIUsageSummary"];
 export type AIUsageOrgRow = Schemas["AIUsageOrgRow"];
+export type AITranscription = Schemas["AITranscription"];
+export type AIVoiceTestResult = Schemas["AIVoiceTestResult"];
 
 export type AIConversationPage = {
   items: AIConversation[];

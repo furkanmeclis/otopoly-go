@@ -5,6 +5,12 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 import { Composer } from "@/features/ai/components/chat/composer";
 import { MessageList } from "@/features/ai/components/chat/message-list";
+import { VoiceAutoRead } from "@/features/ai/components/chat/voice/voice-auto-read";
+import { VoiceInput } from "@/features/ai/components/chat/voice/voice-input";
+import {
+  useVoice,
+  VoiceProvider,
+} from "@/features/ai/components/chat/voice/voice-provider";
 import { useAssistantChat } from "@/features/ai/hooks/use-assistant-chat";
 import type { AIStatus } from "@/features/ai/types";
 import { cn } from "@/lib/utils";
@@ -23,12 +29,22 @@ type AssistantChatProps = {
   status: AIStatus | null;
   conversationUuid: string | null;
   onConversationChange: (uuid: string) => void;
-  /** Phase 3: push-to-talk button rendered inside the composer. */
+  /** Extra controls inside the composer (the voice mic is added automatically). */
   composerActions?: ReactNode;
   className?: string;
 };
 
-export function AssistantChat({
+export function AssistantChat(props: AssistantChatProps) {
+  // Voice (push-to-talk + read-aloud) only when the platform enabled it.
+  if (!props.status?.features.voice) return <AssistantChatInner {...props} />;
+  return (
+    <VoiceProvider>
+      <AssistantChatInner {...props} />
+    </VoiceProvider>
+  );
+}
+
+function AssistantChatInner({
   slug,
   status,
   conversationUuid,
@@ -44,6 +60,7 @@ export function AssistantChat({
       onConversationCreated: onConversationChange,
     });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const voice = useVoice();
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -97,8 +114,25 @@ export function AssistantChat({
           onStop={stop}
           streaming={streaming}
           autoFocus
-          actions={composerActions}
+          actions={
+            voice
+              ? (api) => (
+                  <>
+                    {composerActions}
+                    <VoiceInput
+                      onTranscript={(text) => {
+                        if (voice.prefs.autoSend && !streaming) void send(text);
+                        else api.insertText(text);
+                      }}
+                    />
+                  </>
+                )
+              : composerActions
+          }
         />
+        {voice ? (
+          <VoiceAutoRead messages={messages} streaming={streaming} />
+        ) : null}
         <p className="text-muted-foreground flex flex-wrap justify-between gap-x-3 text-[11px]">
           <span>{t("ai.assistant.disclaimer")}</span>
           {showQuota ? (
