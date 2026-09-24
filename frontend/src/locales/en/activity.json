@@ -111,5 +111,8 @@
   "actions.staff.create": "Staff created",
   "actions.staff.update": "Staff updated",
   "actions.staff.reset_password": "Staff password reset",
-  "resources.tenant.staff": "Staff"
+  "resources.tenant.staff": "Staff",
+  "actions.ai.settings.updated": "AI assistant settings updated",
+  "actions.ai.organization.updated": "Organization AI settings updated",
+  "resources.platform.ai": "AI assistant"
 }

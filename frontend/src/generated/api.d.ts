@@ -3640,6 +3640,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/ai/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether the AI assistant is available for the current user
+         * @description Requires `tenant.ai.use`. `reason` is set when unavailable (disabled, not_configured, org_disabled, quota_exceeded).
+         */
+        get: operations["getTenantAIStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/ai/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the current user's assistant conversations */
+        get: operations["getTenantAIConversations"];
+        put?: never;
+        /** Start a conversation */
+        post: operations["createTenantAIConversation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/ai/conversations/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /** Get a conversation with its messages (UI blocks) */
+        get: operations["getTenantAIConversation"];
+        put?: never;
+        post?: never;
+        /** Delete a conversation (soft delete) */
+        delete: operations["deleteTenantAIConversation"];
+        options?: never;
+        head?: never;
+        /** Rename a conversation */
+        patch: operations["renameTenantAIConversation"];
+        trace?: never;
+    };
+    "/v1/tenant/ai/conversations/{uuid}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a message and stream the assistant's answer (SSE)
+         * @description Send with `Accept: text/event-stream`. Availability and quota are checked
+         *     before the stream starts (403 with `AI_DISABLED`, `AI_NOT_CONFIGURED`,
+         *     `AI_ORG_DISABLED` or `AI_QUOTA_EXCEEDED`). The response is a
+         *     server-sent event stream; each event's `data` is JSON:
+         *
+         *     - `message_start` `{conversation_uuid, user_message_uuid}`
+         *     - `text_delta` `{text}`
+         *     - `tool_start` `{id, name}`
+         *     - `tool_result` `{id, name, ok, summary_key, summary_params}`
+         *     - `chart` `{id, chart: AIChart}`
+         *     - `error` `{code, message}` (provider_error, quota_exceeded, refusal, max_tokens, internal_error)
+         *     - `message_done` `{message_uuid, status, stop_reason, usage}`
+         *     - `title` `{conversation_uuid, title}` (first exchange only)
+         *
+         *     Comment lines (`: ping`) are sent as keep-alives.
+         */
+        post: operations["sendTenantAIMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/ai/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read AI assistant settings
+         * @description Requires `platform.ai.read`. The API key is never returned (`has_api_key` + `api_key_hint`).
+         */
+        get: operations["getPlatformAISettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update AI assistant settings
+         * @description Requires `platform.ai.write`. `api_key` sets or replaces the key (stored encrypted); `clear_api_key` removes it.
+         */
+        patch: operations["patchPlatformAISettings"];
+        trace?: never;
+    };
+    "/v1/platform/ai/settings/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test the provider connection with the saved settings */
+        post: operations["testPlatformAISettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/ai/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Token usage and estimated cost per organization for a month */
+        get: operations["getPlatformAIUsage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/ai/organizations/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /** Per-organization AI switch and monthly token quota */
+        get: operations["getPlatformAIOrganizationSettings"];
+        /**
+         * Replace the per-organization AI override
+         * @description `monthly_token_quota`: null inherits the platform default, 0 means unlimited.
+         */
+        put: operations["putPlatformAIOrganizationSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5235,6 +5409,321 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["ContractMedia"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AIFeatures: {
+            chat: boolean;
+            actions: boolean;
+            charts: boolean;
+            voice: boolean;
+            todos: boolean;
+        };
+        AIVoiceSettings: {
+            /** @description Speaches (OpenAI-compatible audio) base URL */
+            base_url: string;
+            stt_model: string;
+            tts_voice: string;
+            language: string;
+        };
+        AIToolInfo: {
+            name: string;
+            /** @enum {string} */
+            kind: "read" | "write" | "ui";
+            /** @enum {string} */
+            feature: "chat" | "charts" | "actions" | "todos";
+            permissions: string[];
+            requires_confirmation: boolean;
+            enabled: boolean;
+        };
+        AISettings: {
+            /** @enum {string} */
+            provider: "anthropic" | "openai_compatible";
+            has_api_key: boolean;
+            /** @description Last 4 characters of the key, prefixed with an ellipsis */
+            api_key_hint?: string;
+            base_url: string;
+            model: string;
+            title_model: string;
+            /** @enum {string} */
+            effort: "low" | "medium" | "high" | "xhigh" | "max";
+            max_tokens: number;
+            features: components["schemas"]["AIFeatures"];
+            tools: components["schemas"]["AIToolInfo"][];
+            extra_instructions: string;
+            /**
+             * Format: int64
+             * @description 0 = unlimited
+             */
+            default_monthly_token_quota: number;
+            voice: components["schemas"]["AIVoiceSettings"];
+            configured: boolean;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        EnvelopeAISettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AISettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PatchAISettingsRequest: {
+            /** @enum {string} */
+            provider?: "anthropic" | "openai_compatible";
+            api_key?: string;
+            clear_api_key?: boolean;
+            base_url?: string;
+            model?: string;
+            title_model?: string;
+            /** @enum {string} */
+            effort?: "low" | "medium" | "high" | "xhigh" | "max";
+            max_tokens?: number;
+            features?: {
+                chat?: boolean;
+                actions?: boolean;
+                charts?: boolean;
+                voice?: boolean;
+                todos?: boolean;
+            };
+            /** @description Tool name → enabled */
+            tools?: {
+                [key: string]: boolean;
+            };
+            extra_instructions?: string;
+            /** Format: int64 */
+            default_monthly_token_quota?: number;
+            voice?: {
+                base_url?: string;
+                stt_model?: string;
+                tts_voice?: string;
+                language?: string;
+            };
+        };
+        AITestResult: {
+            ok: boolean;
+            provider: string;
+            model: string;
+            /** Format: int64 */
+            latency_ms: number;
+            message?: string;
+            reply?: string;
+        };
+        EnvelopeAITestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AITestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AIQuota: {
+            /** Format: int64 */
+            limit: number;
+            /** Format: int64 */
+            used: number;
+            /** Format: int64 */
+            remaining: number;
+            unlimited: boolean;
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+        };
+        AIStatus: {
+            available: boolean;
+            /** @enum {string} */
+            reason?: "disabled" | "not_configured" | "org_disabled" | "quota_exceeded";
+            features: components["schemas"]["AIFeatures"];
+            quota: components["schemas"]["AIQuota"];
+            provider: string;
+            model: string;
+            tools: string[];
+        };
+        EnvelopeAIStatus: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIStatus"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AIConversation: {
+            /** Format: uuid */
+            uuid: string;
+            title: string;
+            message_count: number;
+            /** Format: date-time */
+            last_message_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        AIChartSeries: {
+            key: string;
+            label: string;
+        };
+        AIChart: {
+            /** @enum {string} */
+            type: "line" | "bar" | "area" | "pie";
+            title: string;
+            x_key: string;
+            series: components["schemas"]["AIChartSeries"][];
+            rows: {
+                [key: string]: unknown;
+            }[];
+            /** @enum {string} */
+            value_format?: "currency" | "number" | "percent";
+            currency?: string;
+        };
+        /** @description Chat render block. Phase 2 adds `confirm` and `todo_list` types carrying `data`. */
+        AIUIBlock: {
+            /** @description text | tool | chart | error */
+            type: string;
+            text?: string;
+            id?: string;
+            name?: string;
+            /** @description tool: running | done | error | pending */
+            status?: string;
+            summary_key?: string;
+            summary_params?: {
+                [key: string]: unknown;
+            };
+            chart?: components["schemas"]["AIChart"];
+            code?: string;
+            message?: string;
+            data?: {
+                [key: string]: unknown;
+            };
+        };
+        AIMessage: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            role: "user" | "assistant";
+            /** @enum {string} */
+            status: "complete" | "error" | "cancelled" | "pending";
+            blocks: components["schemas"]["AIUIBlock"][];
+            /** Format: date-time */
+            created_at: string;
+        };
+        AIConversationDetail: components["schemas"]["AIConversation"] & {
+            messages: components["schemas"]["AIMessage"][];
+        };
+        EnvelopeAIConversation: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIConversation"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeAIConversationDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIConversationDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeAIConversationList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["AIConversation"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeAIDeleted: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                deleted: boolean;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AIConversationTitleRequest: {
+            title?: string;
+        };
+        AISendMessageRequest: {
+            content: string;
+            /** @enum {string} */
+            locale?: "tr" | "en";
+        };
+        AIOrgSettings: {
+            /** Format: uuid */
+            organization_uuid: string;
+            organization_name: string;
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description null = inherit platform default; 0 = unlimited
+             */
+            monthly_token_quota: number | null;
+            /** Format: int64 */
+            default_quota: number;
+            quota: components["schemas"]["AIQuota"];
+        };
+        EnvelopeAIOrgSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIOrgSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PutAIOrgSettingsRequest: {
+            enabled: boolean;
+            /** Format: int64 */
+            monthly_token_quota?: number | null;
+        };
+        AIUsageModelRow: {
+            model: string;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            cache_read_tokens: number;
+            /** Format: int64 */
+            cache_write_tokens: number;
+            /** Format: int64 */
+            request_count: number;
+            estimated_cost_usd: number | null;
+        };
+        AIUsageOrgRow: {
+            /** Format: uuid */
+            organization_uuid: string;
+            organization_name: string;
+            organization_slug: string;
+            /** Format: int64 */
+            input_tokens: number;
+            /** Format: int64 */
+            output_tokens: number;
+            /** Format: int64 */
+            cache_read_tokens: number;
+            /** Format: int64 */
+            cache_write_tokens: number;
+            /**
+             * Format: int64
+             * @description input + output + cache writes
+             */
+            quota_tokens: number;
+            /** Format: int64 */
+            request_count: number;
+            estimated_cost_usd: number;
+            enabled: boolean;
+            /** Format: int64 */
+            quota_limit: number;
+            models: components["schemas"]["AIUsageModelRow"][];
+        };
+        AIUsageSummary: {
+            month: string;
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+            items: components["schemas"]["AIUsageOrgRow"][];
+            /** Format: int64 */
+            total_tokens: number;
+            estimated_cost_usd: number;
+        };
+        EnvelopeAIUsageSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIUsageSummary"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -12244,6 +12733,343 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantAIStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assistant status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantAIConversations: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conversation page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIConversationList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantAIConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AIConversationTitleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created conversation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantAIConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Conversation detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIConversationDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantAIConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    renameTenantAIConversation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AIConversationTitleRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated conversation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIConversation"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sendTenantAIMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AISendMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description Server-sent event stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPlatformAISettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description AI settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAISettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    patchPlatformAISettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchAISettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated AI settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAISettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    testPlatformAISettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test result (ok=false carries the provider error message) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAITestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformAIUsage: {
+        parameters: {
+            query?: {
+                /** @description YYYY-MM (Europe/Istanbul). Defaults to the current month. */
+                month?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIUsageSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformAIOrganizationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization AI settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIOrgSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    putPlatformAIOrganizationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutAIOrgSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization AI settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIOrgSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
