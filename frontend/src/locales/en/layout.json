@@ -57,5 +57,7 @@
   "expand_sidebar": "Expand sidebar",
   "nav_item_info": "Details",
   "nav_messaging": "Messaging",
-  "nav_staff": "Staff"
+  "nav_staff": "Staff",
+  "nav_ai": "AI assistant",
+  "nav_assistant": "Assistant"
 }

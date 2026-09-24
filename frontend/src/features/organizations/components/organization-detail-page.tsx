@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { apiConfig } from "@/config/api";
 import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
+import { OrganizationAICard } from "@/features/ai";
 import { ORGANIZATION_STATUS_TONE } from "@/features/organizations/constants";
 import { OrganizationAddMemberDialog } from "@/features/organizations/components/organization-add-member-dialog";
 import { useOrganization } from "@/features/organizations/hooks/use-organizations-query";
@@ -285,6 +286,8 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
               </ul>
             )}
           </EntitySectionCard>
+
+          <OrganizationAICard uuid={organization.uuid} />
         </div>
       ) : null}
 
