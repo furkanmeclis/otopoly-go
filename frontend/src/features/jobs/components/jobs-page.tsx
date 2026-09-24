@@ -1,58 +1,31 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Search, ShoppingBag } from "lucide-react";
-import { useFormContext } from "react-hook-form";
-import { z } from "zod";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Columns3, List, Plus, Search, ShoppingBag, X } from "lucide-react";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/common/card";
+import { DaySummaryBar } from "@/components/common/day-summary-bar";
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
-import { StatusChip } from "@/components/common/status-chip";
 import { EntityActions, EntityPage, EntityToolbar } from "@/components/entity";
-import {
-  AppCombobox,
-  AppForm,
-  AppSelect,
-  AppTextarea,
-  type ComboboxOption,
-} from "@/components/forms";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { DatePicker } from "@/components/ui/date-picker";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { FieldGroup } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { routes } from "@/config/routes";
-import { useCatalogServices } from "@/features/catalog/hooks/use-catalog-queries";
-import {
-  customerKeys,
-  useCustomer,
-  useCustomerMutations,
-} from "@/features/customers/hooks/use-customers";
-import {
-  catalogPickerOptions,
-  customersService,
-} from "@/features/customers/services/customers.service";
-import {
-  financeToday,
-  formatFinanceAmount,
-} from "@/features/finance/lib/format";
+import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { ResourceIOToolbar } from "@/features/io";
+import { CreateJobDialog } from "@/features/jobs/components/create-job-dialog";
+import type { JobQuickAction } from "@/features/jobs/components/job-board-card";
+import { JobsBoard } from "@/features/jobs/components/jobs-board";
+import { JobsTable } from "@/features/jobs/components/jobs-table";
+import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import {
   useJobs,
   useJobsMeta,
@@ -60,42 +33,32 @@ import {
   useJobsSummary,
 } from "@/features/jobs/hooks/use-jobs";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
-import type {
-  CreateJobInput,
-  Job,
-  JobStatus,
-  PaymentStatus,
-} from "@/features/jobs/services/jobs.service";
-import { useStaffOptions } from "@/features/staff/hooks/use-staff";
-import { DashboardStatCard } from "@/features/platform-overview/components/dashboard-stat-card";
+import {
+  BOARD_STATUSES,
+  localToday,
+  matchesJob,
+} from "@/features/jobs/lib/job-ui";
+import type { Job } from "@/features/jobs/services/jobs.service";
 import { QuickSaleDialog } from "@/features/sales/components/quick-sale-dialog";
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
-import { AsyncCombobox } from "@/components/ui/async-combobox";
-import { Label } from "@/components/ui/label";
-import { datetime } from "@/lib/utils/format";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
-import { useQueryClient } from "@tanstack/react-query";
 
-const STATUS_TABS = ["all", "in_progress", "ready", "delivered"] as const;
+type View = "board" | "list";
+type ListFilter = "all" | (typeof BOARD_STATUSES)[number] | "closed";
 
-function statusTone(status: JobStatus) {
-  switch (status) {
-    case "in_progress":
-      return "warning" as const;
-    case "ready":
-      return "default" as const;
-    case "delivered":
-      return "success" as const;
-    case "cancelled":
-    case "voided":
-      return "danger" as const;
-    default:
-      return "default" as const;
-  }
-}
+const ALL_ASSIGNEES = "__all__";
+const LIVE_REFRESH_MS = 30_000;
 
-function paymentTone(status: PaymentStatus) {
-  return status === "paid" ? ("success" as const) : ("warning" as const);
+/** Ticks every 30s so elapsed times and "stale" flags stay current. */
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), LIVE_REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
 }
 
 export function JobsPage({ slug }: { slug: string }) {
@@ -104,35 +67,101 @@ export function JobsPage({ slug }: { slug: string }) {
   const { canRead, canWrite } = useTenantJobsAccess(slug);
   const { canWrite: canWriteSales } = useTenantSalesAccess(slug);
   const mutations = useJobsMutations();
+  const now = useNow();
 
-  const [date, setDate] = useState(() => financeToday());
-  const [statusTab, setStatusTab] =
-    useState<(typeof STATUS_TABS)[number]>("all");
-  const [q, setQ] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [createOpen, setCreateOpen] = useState(false);
+  const [date, setDate] = useState(() => localToday());
+  const [view, setView] = useLocalStorage<View>("otopoly.jobs.view", "board");
+  const [listFilter, setListFilter] = useState<ListFilter>("all");
+  const [search, setSearch] = useState("");
+  const [assignee, setAssignee] = useState(ALL_ASSIGNEES);
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
+  const [pendingUuid, setPendingUuid] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  // `?new=1` (dashboard / setup checklist) opens the create dialog once.
+  const [createOpen, setCreateOpen] = useState(
+    () => searchParams.get("new") === "1",
+  );
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      router.replace(routes.tenant.operations.root(slug), { scroll: false });
+    }
+  }, [router, searchParams, slug]);
   const [quickSaleOpen, setQuickSaleOpen] = useState(false);
 
+  const isToday = date === localToday();
+  // Load the whole day once; status/search/assignee filter client-side so
+  // counts stay visible and filtering is instant.
   const listParams = useMemo(
     () => ({
       limit: 100,
       offset: 0,
       sort: "-started_at",
-      q: q.trim() || undefined,
-      status: statusTab === "all" ? undefined : statusTab,
       date_from: date || undefined,
       date_to: date || undefined,
     }),
-    [date, q, statusTab],
+    [date],
   );
-
-  const listQuery = useJobs(listParams);
+  const listQuery = useJobs(listParams, {
+    refetchInterval: isToday ? LIVE_REFRESH_MS : false,
+  });
   const summaryQuery = useJobsSummary(date);
   const metaQuery = useJobsMeta();
 
-  const applySearch = useCallback(() => {
-    setQ(searchInput.trim());
-  }, [searchInput]);
+  const allJobs = useMemo(() => listQuery.data?.items ?? [], [listQuery.data]);
+  const currency = allJobs[0]?.currency ?? "TRY";
+
+  const assignees = useMemo(() => {
+    const names = new Set<string>();
+    for (const job of allJobs)
+      if (job.assignee_name) names.add(job.assignee_name);
+    return [...names].sort((a, b) => a.localeCompare(b, "tr"));
+  }, [allJobs]);
+
+  const filtered = useMemo(
+    () =>
+      allJobs.filter(
+        (job) =>
+          matchesJob(job, search) &&
+          (assignee === ALL_ASSIGNEES || job.assignee_name === assignee) &&
+          (!unpaidOnly || job.payment_status === "unpaid"),
+      ),
+    [allJobs, search, assignee, unpaidOnly],
+  );
+
+  const isClosed = (job: Job) =>
+    job.status === "cancelled" || job.status === "voided";
+  const openJobs = filtered.filter((job) => !isClosed(job));
+  const closedJobs = filtered.filter(isClosed);
+  const count = (status: ListFilter) =>
+    status === "all"
+      ? filtered.length
+      : status === "closed"
+        ? closedJobs.length
+        : filtered.filter((job) => job.status === status).length;
+  const listJobs =
+    listFilter === "all"
+      ? filtered
+      : listFilter === "closed"
+        ? closedJobs
+        : filtered.filter((job) => job.status === listFilter);
+
+  const hasFilters =
+    Boolean(search) || assignee !== ALL_ASSIGNEES || unpaidOnly;
+  const truncated = (listQuery.data?.total ?? 0) > allJobs.length;
+  const summary = summaryQuery.data;
+
+  const runAction = async (job: Job, action: JobQuickAction) => {
+    setPendingUuid(job.uuid);
+    try {
+      if (action === "ready") await mutations.done.mutateAsync(job.uuid);
+      else await mutations.deliver.mutateAsync(job.uuid);
+    } catch {
+      /* toast from mutation */
+    } finally {
+      setPendingUuid(null);
+    }
+  };
 
   if (!canRead) {
     return (
@@ -143,9 +172,29 @@ export function JobsPage({ slug }: { slug: string }) {
     );
   }
 
-  const summary = summaryQuery.data;
-  const currency = listQuery.data?.items?.[0]?.currency ?? "TRY";
-  const items = listQuery.data?.items ?? [];
+  const stats = [
+    {
+      label: t("jobs.board.cars"),
+      value: String(summary?.job_count ?? allJobs.length),
+    },
+    {
+      label: t("jobs.summary.paid_total"),
+      value: formatFinanceAmount(summary?.paid_total, currency, locale),
+      accent: true,
+    },
+    {
+      label: t("jobs.summary.card_total"),
+      value: formatFinanceAmount(summary?.card_total, currency, locale),
+    },
+    {
+      label: t("jobs.summary.cari_total"),
+      value: formatFinanceAmount(summary?.cari_total, currency, locale),
+    },
+    {
+      label: t("jobs.summary.net_total"),
+      value: formatFinanceAmount(summary?.net_total, currency, locale),
+    },
+  ];
 
   return (
     <EntityPage
@@ -183,93 +232,139 @@ export function JobsPage({ slug }: { slug: string }) {
         ) : null
       }
     >
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <DatePicker
-          value={date}
-          onChange={setDate}
-          className="w-[11rem]"
-          aria-label={t("jobs.summary_date")}
-        />
-        <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
+      <DaySummaryBar
+        date={date}
+        onDateChange={setDate}
+        stats={stats}
+        loading={summaryQuery.isLoading}
+        live
+      />
+
+      {/* Filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[14rem] flex-1 sm:max-w-sm">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") applySearch();
-            }}
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder={t("jobs.search_placeholder")}
-            className="pl-9"
+            className="pr-8 pl-9"
+            aria-label={t("jobs.search_placeholder")}
+          />
+          {search ? (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              aria-label={t("common.clear")}
+              className="text-muted-foreground hover:text-foreground absolute top-1/2 right-2 -translate-y-1/2"
+            >
+              <X className="size-4" />
+            </button>
+          ) : null}
+        </div>
+        {assignees.length > 0 ? (
+          <Select value={assignee} onValueChange={setAssignee}>
+            <SelectTrigger
+              className="w-[11rem]"
+              aria-label={t("jobs.assignee")}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_ASSIGNEES}>
+                {t("jobs.board.all_assignees")}
+              </SelectItem>
+              {assignees.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+        <Button
+          type="button"
+          variant={unpaidOnly ? "secondary" : "outline"}
+          size="sm"
+          aria-pressed={unpaidOnly}
+          onClick={() => setUnpaidOnly((v) => !v)}
+        >
+          {t("jobs.board.unpaid_only")}
+        </Button>
+        {hasFilters ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setSearch("");
+              setAssignee(ALL_ASSIGNEES);
+              setUnpaidOnly(false);
+            }}
+          >
+            {t("jobs.board.clear_filters")}
+          </Button>
+        ) : null}
+
+        <div className="ml-auto flex items-center gap-2">
+          <div
+            className="bg-muted flex rounded-lg p-0.5"
+            role="radiogroup"
+            aria-label={t("jobs.board.view")}
+          >
+            {(["board", "list"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={view === v}
+                onClick={() => setView(v)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  view === v
+                    ? "bg-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {v === "board" ? (
+                  <Columns3 className="size-3.5" />
+                ) : (
+                  <List className="size-3.5" />
+                )}
+                {t(`jobs.board.view_${v}`)}
+              </button>
+            ))}
+          </div>
+          <ResourceIOToolbar
+            resource="tenant.jobs"
+            query={{
+              q: search || undefined,
+              date_from: listParams.date_from,
+              date_to: listParams.date_to,
+              sort: listParams.sort,
+            }}
+            capabilities={metaQuery.data?.capabilities}
+            jobsHref={routes.tenant.exports.root(slug)}
+            scope="tenant"
+          />
+          <EntityToolbar
+            onRefresh={() => {
+              void listQuery.refetch();
+              void summaryQuery.refetch();
+            }}
+            refreshDisabled={listQuery.isFetching || summaryQuery.isFetching}
           />
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={applySearch}>
-          {t("common.search")}
-        </Button>
-        <ResourceIOToolbar
-          resource="tenant.jobs"
-          query={{
-            q: listParams.q,
-            status: listParams.status,
-            date_from: listParams.date_from,
-            date_to: listParams.date_to,
-            sort: listParams.sort,
-          }}
-          capabilities={metaQuery.data?.capabilities}
-          jobsHref={routes.tenant.exports.root(slug)}
-          scope="tenant"
-        />
-        <EntityToolbar
-          onRefresh={() => {
-            void listQuery.refetch();
-            void summaryQuery.refetch();
-          }}
-          refreshDisabled={listQuery.isFetching || summaryQuery.isFetching}
-        />
       </div>
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <DashboardStatCard
-          label={t("jobs.summary.card_total")}
-          value={formatFinanceAmount(summary?.card_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("jobs.summary.cari_total")}
-          value={formatFinanceAmount(summary?.cari_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("jobs.summary.net_total")}
-          value={formatFinanceAmount(summary?.net_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("jobs.summary.paid_total")}
-          value={formatFinanceAmount(summary?.paid_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("jobs.summary.job_count")}
-          value={summary?.job_count ?? 0}
-          loading={summaryQuery.isLoading}
-        />
-      </div>
-
-      <Tabs
-        value={statusTab}
-        onValueChange={(value) =>
-          setStatusTab(value as (typeof STATUS_TABS)[number])
-        }
-        className="mb-4"
-      >
-        <TabsList>
-          {STATUS_TABS.map((tab) => (
-            <TabsTrigger key={tab} value={tab}>
-              {t(`jobs.filter.${tab}`)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
+      {truncated ? (
+        <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
+          {t("jobs.board.truncated", {
+            shown: allJobs.length,
+            total: listQuery.data?.total ?? 0,
+          })}
+        </p>
+      ) : null}
 
       {listQuery.isLoading ? <Loading label={t("common.loading")} /> : null}
       {listQuery.isError ? (
@@ -280,21 +375,107 @@ export function JobsPage({ slug }: { slug: string }) {
         />
       ) : null}
 
-      {!listQuery.isLoading && !listQuery.isError && items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{t("jobs.empty_title")}</p>
+      {!listQuery.isLoading && !listQuery.isError && allJobs.length === 0 ? (
+        <div className="bg-card flex flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-14 text-center">
+          <p className="font-medium">
+            {t(isToday ? "jobs.board.empty_today" : "jobs.empty_title")}
+          </p>
+          <p className="text-muted-foreground max-w-sm text-sm">
+            {t("jobs.board.empty_hint")}
+          </p>
+          {canWrite ? (
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4" />
+              {t("jobs.actions.create")}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {items.map((job) => (
-          <JobCard
-            key={job.uuid}
-            job={job}
-            onOpen={() =>
-              router.push(routes.tenant.operations.detail(slug, job.uuid))
-            }
+      {!listQuery.isLoading && allJobs.length > 0 && filtered.length === 0 ? (
+        <p className="text-muted-foreground py-10 text-center text-sm">
+          {t("jobs.empty_title")}
+        </p>
+      ) : null}
+
+      {filtered.length > 0 && view === "board" ? (
+        <>
+          <JobsBoard
+            slug={slug}
+            jobs={openJobs}
+            now={now}
+            currency={currency}
+            canWrite={canWrite}
+            pendingUuid={pendingUuid}
+            onAction={runAction}
           />
-        ))}
-      </div>
+          {closedJobs.length > 0 ? (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowClosed((v) => !v)}
+                className="text-muted-foreground hover:text-foreground text-xs font-medium"
+              >
+                {t("jobs.board.closed_toggle", { count: closedJobs.length })}
+              </button>
+              {showClosed ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {closedJobs.map((job) => (
+                    <Link
+                      key={job.uuid}
+                      href={routes.tenant.operations.detail(slug, job.uuid)}
+                      className="bg-card hover:bg-muted flex items-center gap-2 rounded-lg border px-2 py-1.5 text-xs"
+                    >
+                      <PlateBadge plate={job.plate} size="sm" />
+                      <span className="text-muted-foreground">
+                        {t(`jobs.status.${job.status}`)}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      ) : null}
+
+      {filtered.length > 0 && view === "list" ? (
+        <>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {(["all", ...BOARD_STATUSES, "closed"] as const).map((status) => (
+              <button
+                key={status}
+                type="button"
+                onClick={() => setListFilter(status)}
+                aria-pressed={listFilter === status}
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+                  listFilter === status
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted",
+                )}
+              >
+                {status === "all"
+                  ? t("jobs.filter.all")
+                  : status === "closed"
+                    ? t("jobs.board.closed")
+                    : t(`jobs.status.${status}`)}
+                <span className="ml-1.5 tabular-nums opacity-70">
+                  {count(status)}
+                </span>
+              </button>
+            ))}
+          </div>
+          <JobsTable
+            slug={slug}
+            jobs={listJobs}
+            now={now}
+            canWrite={canWrite}
+            pendingUuid={pendingUuid}
+            onAction={runAction}
+          />
+        </>
+      ) : null}
 
       <CreateJobDialog
         open={createOpen}
@@ -314,595 +495,5 @@ export function JobsPage({ slug }: { slug: string }) {
         }}
       />
     </EntityPage>
-  );
-}
-
-function JobCard({ job, onOpen }: { job: Job; onOpen: () => void }) {
-  const { t, locale } = useLocale();
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="focus-visible:ring-ring rounded-xl text-left focus-visible:ring-2 focus-visible:outline-none"
-    >
-      <Card className="hover:border-primary/40 hover:bg-muted/20 h-full shadow-none transition-colors">
-        <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-base font-semibold tracking-wide">
-              {job.plate}
-            </CardTitle>
-            <p className="text-muted-foreground truncate text-sm">
-              {job.vehicle_label || "—"}
-            </p>
-          </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <StatusChip
-              label={t(`jobs.status.${job.status}`)}
-              tone={statusTone(job.status)}
-            />
-            <StatusChip
-              label={t(`jobs.payment.${job.payment_status}`)}
-              tone={paymentTone(job.payment_status)}
-            />
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-1 pt-0 pb-4">
-          <p className="truncate text-sm font-medium">{job.customer_name}</p>
-          <p className="text-muted-foreground text-xs">
-            {job.customer_phone || "—"}
-          </p>
-          {job.assignee_name ? (
-            <p className="text-muted-foreground truncate text-xs">
-              {t("jobs.assignee")}: {job.assignee_name}
-            </p>
-          ) : null}
-          <div className="flex items-center justify-between gap-2 pt-2">
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {datetime(job.started_at, "dd.MM.yyyy HH:mm", locale)}
-            </span>
-            <span className="text-sm font-semibold tabular-nums">
-              {formatFinanceAmount(job.total_amount, job.currency, locale)}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </button>
-  );
-}
-
-type SelectedLine = {
-  service_uuid: string;
-  name: string;
-  defaultPrice: string;
-  unit_price: string;
-};
-
-function CreateJobDialog({
-  open,
-  onOpenChange,
-  pending,
-  onSubmit,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  pending?: boolean;
-  onSubmit: (body: CreateJobInput) => Promise<void>;
-}) {
-  const { t } = useLocale();
-  const [customerUuid, setCustomerUuid] = useState("");
-  const [customerOptions, setCustomerOptions] = useState<ComboboxOption[]>([]);
-  const [selectedLines, setSelectedLines] = useState<SelectedLine[]>([]);
-  const [lineError, setLineError] = useState<string | null>(null);
-
-  const customerQuery = useCustomer(customerUuid);
-  const servicesQuery = useCatalogServices({
-    limit: 100,
-    offset: 0,
-    is_active: "true",
-    sort: "name",
-  });
-  const vehicles = customerQuery.data?.vehicles ?? [];
-  const services = servicesQuery.data?.items ?? [];
-
-  const schema = useMemo(
-    () =>
-      z.object({
-        customer_uuid: z.string().min(1, t("jobs.validation.customer")),
-        vehicle_uuid: z.string().min(1, t("jobs.validation.vehicle")),
-        assignee_uuid: z.string().optional(),
-        notes: z.string().optional(),
-      }),
-    [t],
-  );
-
-  const staffOptionsQuery = useStaffOptions(open);
-  const assigneeOptions = useMemo(
-    () =>
-      (staffOptionsQuery.data?.items ?? []).map((member) => ({
-        value: member.uuid,
-        label: member.label,
-      })),
-    [staffOptionsQuery.data?.items],
-  );
-
-  const loadCustomers = useCallback(async (query: string) => {
-    const result = await customersService.list({
-      limit: 20,
-      offset: 0,
-      q: query.trim() || undefined,
-      is_active: "true",
-    });
-    const options = result.items.map((customer): ComboboxOption => ({
-      value: customer.uuid,
-      label: customer.phone
-        ? `${customer.name} · ${customer.phone}`
-        : customer.name,
-    }));
-    setCustomerOptions((prev) => {
-      const byValue = new Map(prev.map((opt) => [opt.value, opt]));
-      for (const opt of options) byValue.set(opt.value, opt);
-      return [...byValue.values()];
-    });
-    return options;
-  }, []);
-
-  const toggleService = (serviceUuid: string) => {
-    setLineError(null);
-    setSelectedLines((prev) => {
-      const existing = prev.find((line) => line.service_uuid === serviceUuid);
-      if (existing) {
-        return prev.filter((line) => line.service_uuid !== serviceUuid);
-      }
-      const service = services.find((item) => item.uuid === serviceUuid);
-      if (!service) return prev;
-      return [
-        ...prev,
-        {
-          service_uuid: service.uuid,
-          name: service.name,
-          defaultPrice: service.price,
-          unit_price: service.price,
-        },
-      ];
-    });
-  };
-
-  const updateLinePrice = (serviceUuid: string, unitPrice: string) => {
-    setSelectedLines((prev) =>
-      prev.map((line) =>
-        line.service_uuid === serviceUuid
-          ? { ...line, unit_price: unitPrice }
-          : line,
-      ),
-    );
-  };
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) {
-          setCustomerUuid("");
-          setSelectedLines([]);
-          setLineError(null);
-        }
-        onOpenChange(next);
-      }}
-    >
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{t("jobs.actions.create")}</DialogTitle>
-          <DialogDescription>{t("jobs.create.description")}</DialogDescription>
-        </DialogHeader>
-        <AppForm
-          key={open ? "create-open" : "create-closed"}
-          schema={schema}
-          defaultValues={{
-            customer_uuid: "",
-            vehicle_uuid: "",
-            assignee_uuid: "",
-            notes: "",
-          }}
-          onSubmit={async (values) => {
-            if (selectedLines.length === 0) {
-              setLineError(t("jobs.validation.services"));
-              return;
-            }
-            await onSubmit({
-              customer_uuid: values.customer_uuid,
-              vehicle_uuid: values.vehicle_uuid,
-              assignee_uuid: values.assignee_uuid?.trim() || undefined,
-              notes: values.notes?.trim() || undefined,
-              lines: selectedLines.map((line) => ({
-                service_uuid: line.service_uuid,
-                unit_price:
-                  line.unit_price && line.unit_price !== line.defaultPrice
-                    ? line.unit_price
-                    : undefined,
-              })),
-            });
-          }}
-        >
-          <CreateJobFields
-            customerUuid={customerUuid}
-            onCustomerChange={setCustomerUuid}
-            customerOptions={customerOptions}
-            onCustomerOptionsChange={setCustomerOptions}
-            loadCustomers={loadCustomers}
-            vehicles={vehicles}
-            customerLoading={customerQuery.isLoading}
-            services={services}
-            servicesLoading={servicesQuery.isLoading}
-            selectedLines={selectedLines}
-            lineError={lineError}
-            onToggleService={toggleService}
-            onUpdateLinePrice={updateLinePrice}
-            assigneeOptions={assigneeOptions}
-            pending={pending}
-            onCancel={() => onOpenChange(false)}
-          />
-        </AppForm>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CreateJobFields({
-  customerUuid,
-  onCustomerChange,
-  customerOptions,
-  onCustomerOptionsChange,
-  loadCustomers,
-  vehicles,
-  customerLoading,
-  services,
-  servicesLoading,
-  selectedLines,
-  lineError,
-  onToggleService,
-  onUpdateLinePrice,
-  assigneeOptions,
-  pending,
-  onCancel,
-}: {
-  customerUuid: string;
-  onCustomerChange: (uuid: string) => void;
-  customerOptions: ComboboxOption[];
-  onCustomerOptionsChange: (options: ComboboxOption[]) => void;
-  loadCustomers: (query: string) => Promise<ComboboxOption[]>;
-  vehicles: {
-    uuid: string;
-    plate: string;
-    brand_name: string;
-    model_name: string;
-  }[];
-  customerLoading: boolean;
-  services: { uuid: string; name: string; price: string; currency: string }[];
-  servicesLoading: boolean;
-  selectedLines: SelectedLine[];
-  lineError: string | null;
-  onToggleService: (serviceUuid: string) => void;
-  onUpdateLinePrice: (serviceUuid: string, unitPrice: string) => void;
-  assigneeOptions: ComboboxOption[];
-  pending?: boolean;
-  onCancel: () => void;
-}) {
-  const { t } = useLocale();
-  const queryClient = useQueryClient();
-  const customerMutations = useCustomerMutations();
-  const form = useFormContext<{
-    customer_uuid: string;
-    vehicle_uuid: string;
-    assignee_uuid?: string;
-    notes?: string;
-  }>();
-  const watchedCustomer = form.watch("customer_uuid");
-
-  const [quickCustomerOpen, setQuickCustomerOpen] = useState(false);
-  const [quickVehicleOpen, setQuickVehicleOpen] = useState(false);
-  const [quickName, setQuickName] = useState("");
-  const [quickPhone, setQuickPhone] = useState("");
-  const [quickPlate, setQuickPlate] = useState("");
-  const [quickCatalog, setQuickCatalog] = useState("");
-  const [quickError, setQuickError] = useState<string | null>(null);
-
-  const handleCustomerValueChange = (uuid: string) => {
-    if (uuid === customerUuid) return;
-    onCustomerChange(uuid);
-    form.setValue("vehicle_uuid", "");
-    setQuickVehicleOpen(false);
-  };
-
-  const loadCatalog = useCallback(async (query: string) => {
-    const result = await customersService.searchCatalog(query.trim());
-    return catalogPickerOptions(result.items ?? []);
-  }, []);
-
-  const selectCustomer = (customer: {
-    uuid: string;
-    name: string;
-    phone?: string;
-  }) => {
-    const option: ComboboxOption = {
-      value: customer.uuid,
-      label: customer.phone
-        ? `${customer.name} · ${customer.phone}`
-        : customer.name,
-    };
-    onCustomerOptionsChange([
-      ...customerOptions.filter((o) => o.value !== option.value),
-      option,
-    ]);
-    form.setValue("customer_uuid", customer.uuid, { shouldValidate: true });
-    onCustomerChange(customer.uuid);
-    form.setValue("vehicle_uuid", "");
-  };
-
-  const handleQuickCustomer = async () => {
-    setQuickError(null);
-    const name = quickName.trim();
-    if (!name) {
-      setQuickError(t("jobs.quick.customer_name_required"));
-      return;
-    }
-    try {
-      const created = await customerMutations.create.mutateAsync({
-        name,
-        phone: quickPhone.trim() || undefined,
-        kind: "individual",
-        is_active: true,
-      });
-      selectCustomer(created);
-      setQuickName("");
-      setQuickPhone("");
-      setQuickCustomerOpen(false);
-      setQuickVehicleOpen(true);
-    } catch {
-      /* toast from mutation */
-    }
-  };
-
-  const handleQuickVehicle = async () => {
-    setQuickError(null);
-    if (!watchedCustomer) {
-      setQuickError(t("jobs.validation.customer"));
-      return;
-    }
-    const plate = quickPlate.trim().toUpperCase();
-    const catalog = quickCatalog.trim();
-    if (!plate || !catalog) {
-      setQuickError(t("jobs.quick.vehicle_required"));
-      return;
-    }
-    const [modelUuid, yearText] = catalog.split(":");
-    const year = Number(yearText);
-    if (!modelUuid || !Number.isFinite(year)) {
-      setQuickError(t("jobs.quick.vehicle_required"));
-      return;
-    }
-    try {
-      const vehicle = await customerMutations.addVehicle.mutateAsync({
-        customerUuid: watchedCustomer,
-        body: { plate, model_uuid: modelUuid, year },
-      });
-      await queryClient.invalidateQueries({
-        queryKey: customerKeys.detail(watchedCustomer),
-      });
-      form.setValue("vehicle_uuid", vehicle.uuid, { shouldValidate: true });
-      setQuickPlate("");
-      setQuickCatalog("");
-      setQuickVehicleOpen(false);
-    } catch {
-      /* toast from mutation */
-    }
-  };
-
-  return (
-    <>
-      <FieldGroup className="gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="text-sm font-medium">{t("jobs.customer")}</Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2"
-              onClick={() => {
-                setQuickError(null);
-                setQuickCustomerOpen((open) => !open);
-                setQuickVehicleOpen(false);
-              }}
-            >
-              <Plus className="size-3.5" />
-              {t("jobs.quick.add_customer")}
-            </Button>
-          </div>
-          <AppCombobox
-            name="customer_uuid"
-            loadOptions={loadCustomers}
-            options={customerOptions}
-            placeholder={t("jobs.pick_customer")}
-            searchPlaceholder={t("jobs.search_customer")}
-            emptyText={t("jobs.no_customers")}
-            onValueChange={handleCustomerValueChange}
-          />
-          {quickCustomerOpen ? (
-            <div className="bg-muted/40 space-y-2 rounded-lg border p-3">
-              <Input
-                value={quickName}
-                onChange={(e) => setQuickName(e.target.value)}
-                placeholder={t("jobs.quick.name_placeholder")}
-                autoFocus
-              />
-              <Input
-                value={quickPhone}
-                onChange={(e) => setQuickPhone(e.target.value)}
-                placeholder={t("jobs.quick.phone_placeholder")}
-                inputMode="tel"
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setQuickCustomerOpen(false)}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={customerMutations.create.isPending}
-                  onClick={() => void handleQuickCustomer()}
-                >
-                  {customerMutations.create.isPending
-                    ? t("common.saving")
-                    : t("jobs.quick.save_customer")}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="text-sm font-medium">{t("jobs.vehicle")}</Label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2"
-              disabled={!watchedCustomer}
-              onClick={() => {
-                setQuickError(null);
-                setQuickVehicleOpen((open) => !open);
-                setQuickCustomerOpen(false);
-              }}
-            >
-              <Plus className="size-3.5" />
-              {t("jobs.quick.add_vehicle")}
-            </Button>
-          </div>
-          <AppSelect
-            name="vehicle_uuid"
-            placeholder={t("jobs.pick_vehicle")}
-            disabled={!watchedCustomer || customerLoading}
-            options={vehicles.map((vehicle) => ({
-              value: vehicle.uuid,
-              label: `${vehicle.plate} · ${vehicle.brand_name} ${vehicle.model_name}`,
-            }))}
-          />
-          {quickVehicleOpen && watchedCustomer ? (
-            <div className="bg-muted/40 space-y-2 rounded-lg border p-3">
-              <Input
-                value={quickPlate}
-                onChange={(e) => setQuickPlate(e.target.value.toUpperCase())}
-                placeholder={t("jobs.quick.plate_placeholder")}
-                autoFocus
-              />
-              <AsyncCombobox
-                value={quickCatalog}
-                onValueChange={setQuickCatalog}
-                loadOptions={loadCatalog}
-                placeholder={t("jobs.quick.catalog_placeholder")}
-                searchPlaceholder={t("jobs.quick.catalog_search")}
-                emptyText={t("jobs.quick.catalog_empty")}
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setQuickVehicleOpen(false)}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={customerMutations.addVehicle.isPending}
-                  onClick={() => void handleQuickVehicle()}
-                >
-                  {customerMutations.addVehicle.isPending
-                    ? t("common.saving")
-                    : t("jobs.quick.save_vehicle")}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        {quickError ? (
-          <p className="text-destructive text-sm">{quickError}</p>
-        ) : null}
-
-        <div className="space-y-2">
-          <p className="text-sm font-medium">{t("jobs.services")}</p>
-          {servicesLoading ? (
-            <p className="text-muted-foreground text-sm">
-              {t("common.loading")}
-            </p>
-          ) : (
-            <ul className="divide-border max-h-48 divide-y overflow-y-auto rounded-md border">
-              {services.map((service) => {
-                const selected = selectedLines.find(
-                  (line) => line.service_uuid === service.uuid,
-                );
-                return (
-                  <li
-                    key={service.uuid}
-                    className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center"
-                  >
-                    <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={Boolean(selected)}
-                        onCheckedChange={() => onToggleService(service.uuid)}
-                      />
-                      <span className="truncate">{service.name}</span>
-                    </label>
-                    {selected ? (
-                      <Input
-                        value={selected.unit_price}
-                        onChange={(event) =>
-                          onUpdateLinePrice(service.uuid, event.target.value)
-                        }
-                        className="h-8 w-28 tabular-nums"
-                        aria-label={t("jobs.unit_price")}
-                      />
-                    ) : (
-                      <span className="text-muted-foreground text-xs tabular-nums">
-                        {service.price} {service.currency}
-                      </span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {lineError ? (
-            <p className="text-destructive text-sm">{lineError}</p>
-          ) : null}
-        </div>
-        <AppTextarea name="notes" label={t("jobs.notes")} />
-        <AppSelect
-          name="assignee_uuid"
-          label={t("jobs.assignee")}
-          options={[
-            { value: "", label: t("jobs.assignee_none") },
-            ...assigneeOptions,
-          ]}
-          placeholder={t("jobs.pick_assignee")}
-        />
-      </FieldGroup>
-      <DialogFooter className="mt-6">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          {t("common.cancel")}
-        </Button>
-        <Button type="submit" disabled={pending}>
-          {pending ? t("common.saving") : t("common.save")}
-        </Button>
-      </DialogFooter>
-    </>
   );
 }
