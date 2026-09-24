@@ -361,6 +361,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		Catalog:   catalogSvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
+	aiSvc.SetVoiceAPIKey(cfg.Speaches.APIKey)
 	aimodule.RegisterRoutes(mux, aihandler.New(aiSvc, activityRec), tokens, loader, deps.Queries)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 

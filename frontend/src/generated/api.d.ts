@@ -3733,6 +3733,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/ai/voice/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcribe a push-to-talk clip (Speaches faster-whisper)
+         * @description Multipart upload with one `file` field (MediaRecorder output: webm/ogg/mp4,
+         *     or wav/mp3/flac), at most 5 MB. Uses the platform STT model and language.
+         *     Requires `tenant.ai.use`, the assistant enabled for the organization and
+         *     the `voice` feature (403 `AI_VOICE_DISABLED`). Clips longer than 120 s are
+         *     rejected (`AUDIO_TOO_LONG`); the UI stops recording at 60 s.
+         */
+        post: operations["transcribeTenantAIVoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/ai/voice/speech": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Read assistant text aloud (Speaches Piper TTS), streamed as MP3
+         * @description Markdown is reduced to speakable text server-side (code, tables and link
+         *     targets dropped) and clipped to 2500 characters at a sentence boundary.
+         *     Same gating as transcribe.
+         */
+        post: operations["synthesizeTenantAIVoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/ai/settings": {
         parameters: {
             query?: never;
@@ -3768,6 +3814,28 @@ export interface paths {
         put?: never;
         /** Test the provider connection with the saved settings */
         post: operations["testPlatformAISettings"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/ai/voice/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check the Speaches server and whether the configured models are installed
+         * @description Lists installed models (`GET /v1/models` on Speaches). Body fields override
+         *     the saved voice settings so unsaved values can be tested. `ok` is true only
+         *     when both the STT model and the TTS model are installed.
+         */
+        post: operations["testPlatformAIVoice"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5421,7 +5489,9 @@ export interface components {
         AIVoiceSettings: {
             /** @description Speaches (OpenAI-compatible audio) base URL */
             base_url: string;
+            /** @description faster-whisper model id; empty = Systran/faster-whisper-small */
             stt_model: string;
+            /** @description TTS model id, optionally `<model>:<voice>`; empty = speaches-ai/piper-tr_TR-fettah-medium */
             tts_voice: string;
             language: string;
         };
@@ -5511,6 +5581,49 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["AITestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AITranscription: {
+            text: string;
+            language?: string;
+            duration_seconds: number;
+        };
+        EnvelopeAITranscription: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AITranscription"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AISpeechRequest: {
+            /** @description Assistant message text (Markdown allowed) */
+            text: string;
+        };
+        AIVoiceTestRequest: {
+            base_url?: string;
+            stt_model?: string;
+            tts_voice?: string;
+        };
+        AIVoiceModel: {
+            id: string;
+            task?: string;
+        };
+        AIVoiceTestResult: {
+            ok: boolean;
+            base_url: string;
+            /** Format: int64 */
+            latency_ms: number;
+            message?: string;
+            stt_model: string;
+            stt_model_installed: boolean;
+            tts_model: string;
+            tts_voice: string;
+            tts_model_installed: boolean;
+            installed_models: components["schemas"]["AIVoiceModel"][];
+        };
+        EnvelopeAIVoiceTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIVoiceTestResult"];
             meta: components["schemas"]["ResponseMeta"];
         };
         AIQuota: {
@@ -12921,6 +13034,99 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    transcribeTenantAIVoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Recognized text */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAITranscription"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Audio larger than 5 MB (`AUDIO_TOO_LARGE`) */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Unsupported audio type (`AUDIO_UNSUPPORTED`) */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    synthesizeTenantAIVoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AISpeechRequest"];
+            };
+        };
+        responses: {
+            /** @description Audio stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mpeg": string;
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            /** @description Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`) */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getPlatformAISettings: {
         parameters: {
             query?: never;
@@ -12988,6 +13194,33 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeAITestResult"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    testPlatformAIVoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["AIVoiceTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Test result (ok=false carries the reason in message) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIVoiceTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
