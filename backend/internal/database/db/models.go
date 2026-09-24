@@ -120,6 +120,8 @@ type AiUsage struct {
 	CacheReadTokens  int64              `json:"cache_read_tokens"`
 	CacheWriteTokens int64              `json:"cache_write_tokens"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	AudioMs          int64              `json:"audio_ms"`
+	Characters       int64              `json:"characters"`
 }
 
 type AppLog struct {

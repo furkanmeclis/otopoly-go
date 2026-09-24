@@ -31,6 +31,7 @@ func (s *voiceStore) GetAISettings(context.Context) (db.AiSetting, error) { retu
 func (s *voiceStore) GetAIOrganizationSettings(context.Context, int64) (db.AiOrganizationSetting, error) {
 	return db.AiOrganizationSetting{}, pgx.ErrNoRows
 }
+func (s *voiceStore) InsertAIUsage(context.Context, db.InsertAIUsageParams) error { return nil }
 func (s *voiceStore) SumAIOrganizationTokensSince(context.Context, db.SumAIOrganizationTokensSinceParams) (int64, error) {
 	return 0, nil
 }

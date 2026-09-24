@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"net/url"
 	"sort"
@@ -659,12 +660,22 @@ func (s *Service) Usage(ctx context.Context, month string) (UsageSummary, error)
 			byOrg[r.OrganizationUuid] = item
 			order = append(order, r.OrganizationUuid)
 		}
+		mr := UsageModelRow{
+			Model: r.Model, Kind: r.Kind, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens,
+			CacheReadTokens: r.CacheReadTokens, CacheWriteTokens: r.CacheWriteTokens, RequestCount: r.RequestCount,
+			AudioSeconds: math.Round(float64(r.AudioMs)/100) / 10, Characters: r.Characters,
+		}
+		if r.Kind == "voice" {
+			// Self-hosted Speaches: no per-unit price and no quota tokens.
+			item.STTSeconds += float64(r.AudioMs) / 1000
+			item.TTSCharacters += r.Characters
+			item.VoiceRequests += r.RequestCount
+			item.RequestCount += r.RequestCount
+			item.Models = append(item.Models, mr)
+			continue
+		}
 		u := provider.Usage{InputTokens: r.InputTokens, OutputTokens: r.OutputTokens, CacheReadTokens: r.CacheReadTokens, CacheWriteTokens: r.CacheWriteTokens}
 		cost, known := EstimateCostUSD(r.Model, u)
-		mr := UsageModelRow{
-			Model: r.Model, InputTokens: r.InputTokens, OutputTokens: r.OutputTokens,
-			CacheReadTokens: r.CacheReadTokens, CacheWriteTokens: r.CacheWriteTokens, RequestCount: r.RequestCount,
-		}
 		if known {
 			c := cost
 			mr.EstimatedCostUSD = &c
@@ -696,12 +707,16 @@ func (s *Service) Usage(ctx context.Context, month string) (UsageSummary, error)
 	for _, id := range order {
 		item := byOrg[id]
 		item.EstimatedCostUSD = roundCost(item.EstimatedCostUSD)
+		item.STTSeconds = math.Round(item.STTSeconds*10) / 10
 		out.Items = append(out.Items, *item)
 		out.TotalTokens += item.QuotaTokens
+		out.STTSeconds += item.STTSeconds
+		out.TTSCharacters += item.TTSCharacters
 		out.EstimatedCostUSD += item.EstimatedCostUSD
 	}
 	sort.SliceStable(out.Items, func(i, j int) bool { return out.Items[i].QuotaTokens > out.Items[j].QuotaTokens })
 	out.EstimatedCostUSD = roundCost(out.EstimatedCostUSD)
+	out.STTSeconds = math.Round(out.STTSeconds*10) / 10
 	return out, nil
 }
 

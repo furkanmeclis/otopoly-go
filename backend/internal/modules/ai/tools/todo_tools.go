@@ -216,7 +216,7 @@ func (t CreateTodo) Run(ctx context.Context, _ Env, raw json.RawMessage) (Result
 	if err != nil {
 		return execError(err)
 	}
-	res := JSONResult(map[string]any{"done": true, "todo_uuid": todo.UUID.String(), "title": todo.Title, "due": dueLabel(todo.DueDate, todo.DueTime)},
+	res := JSONResult(map[string]any{"done": true, "todo_uuid": todo.UUID.String(), "title": DataText(todo.Title, maxTextChars), "due": dueLabel(todo.DueDate, todo.DueTime)},
 		"ai.tool_summary.todo_created", map[string]any{"title": Truncate(todo.Title, 40)})
 	res.Link = &Link{Kind: "todo", UUID: todo.UUID.String()}
 	return res, nil
@@ -283,12 +283,12 @@ func (t ListTodos) Run(ctx context.Context, _ Env, raw json.RawMessage) (Result,
 	}
 	items := make([]item, 0, len(rows))
 	for _, r := range rows {
-		it := item{UUID: r.UUID.String(), Title: r.Title, Due: dueLabel(r.DueDate, r.DueTime), Overdue: r.Overdue, Status: r.Status}
+		it := item{UUID: r.UUID.String(), Title: DataText(r.Title, maxTextChars), Due: dueLabel(r.DueDate, r.DueTime), Overdue: r.Overdue, Status: r.Status}
 		if r.Assignee != nil {
-			it.Assignee = r.Assignee.Label
+			it.Assignee = DataText(r.Assignee.Label, maxNameChars)
 		}
 		if r.Customer != nil {
-			it.Customer = r.Customer.Label
+			it.Customer = DataText(r.Customer.Label, maxNameChars)
 		}
 		items = append(items, it)
 	}
@@ -336,7 +336,7 @@ func (t CompleteTodo) Propose(ctx context.Context, _ Env, raw json.RawMessage) (
 		return Proposal{}, proposalError(err)
 	}
 	if todo.Status == "done" {
-		return Proposal{}, inputErr("todo %q is already done", todo.Title)
+		return Proposal{}, inputErr("todo %q is already done", DataText(todo.Title, 60))
 	}
 	fields := []Field{}
 	if d := dueLabel(todo.DueDate, todo.DueTime); d != "" {
@@ -361,7 +361,7 @@ func (t CompleteTodo) Run(ctx context.Context, _ Env, raw json.RawMessage) (Resu
 	if err != nil {
 		return execError(err)
 	}
-	res := JSONResult(map[string]any{"done": true, "title": todo.Title, "status": todo.Status},
+	res := JSONResult(map[string]any{"done": true, "title": DataText(todo.Title, maxTextChars), "status": todo.Status},
 		"ai.tool_summary.todo_completed", map[string]any{"title": Truncate(todo.Title, 40)})
 	res.Link = &Link{Kind: "todo", UUID: todo.UUID.String()}
 	return res, nil

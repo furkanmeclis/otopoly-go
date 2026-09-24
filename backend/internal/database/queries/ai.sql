@@ -50,11 +50,12 @@ WHERE organization_id = sqlc.arg(organization_id)
 -- name: InsertAIUsage :exec
 INSERT INTO ai_usage (
     organization_id, user_id, conversation_id, provider, model, purpose,
-    input_tokens, output_tokens, cache_read_tokens, cache_write_tokens
+    input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, audio_ms, characters
 ) VALUES (
     sqlc.narg(organization_id), sqlc.narg(user_id), sqlc.narg(conversation_id),
     sqlc.arg(provider), sqlc.arg(model), sqlc.arg(purpose),
-    sqlc.arg(input_tokens), sqlc.arg(output_tokens), sqlc.arg(cache_read_tokens), sqlc.arg(cache_write_tokens)
+    sqlc.arg(input_tokens), sqlc.arg(output_tokens), sqlc.arg(cache_read_tokens), sqlc.arg(cache_write_tokens),
+    sqlc.arg(audio_ms), sqlc.arg(characters)
 );
 
 -- name: ListAIUsageByOrganization :many
@@ -63,17 +64,21 @@ SELECT
     o.name AS organization_name,
     o.slug AS organization_slug,
     u.model,
+    -- 'voice' groups speech-to-text / text-to-speech rows, 'chat' everything else.
+    (CASE WHEN u.purpose IN ('stt', 'tts') THEN 'voice' ELSE 'chat' END)::text AS kind,
     COALESCE(SUM(u.input_tokens), 0)::bigint AS input_tokens,
     COALESCE(SUM(u.output_tokens), 0)::bigint AS output_tokens,
     COALESCE(SUM(u.cache_read_tokens), 0)::bigint AS cache_read_tokens,
     COALESCE(SUM(u.cache_write_tokens), 0)::bigint AS cache_write_tokens,
+    COALESCE(SUM(u.audio_ms), 0)::bigint AS audio_ms,
+    COALESCE(SUM(u.characters), 0)::bigint AS characters,
     COUNT(*)::bigint AS request_count
 FROM ai_usage u
 JOIN organizations o ON o.id = u.organization_id
 WHERE u.created_at >= sqlc.arg(date_from)
   AND u.created_at < sqlc.arg(date_to)
-GROUP BY o.uuid, o.name, o.slug, u.model
-ORDER BY o.name ASC, u.model ASC;
+GROUP BY o.uuid, o.name, o.slug, u.model, 5
+ORDER BY o.name ASC, 5 ASC, u.model ASC;
 
 -- name: ListAIOrganizationSettingsByOrgIDs :many
 SELECT s.*, o.uuid AS organization_uuid
@@ -247,4 +252,16 @@ SET status = 'expired', resolved_at = now()
 WHERE conversation_id = sqlc.arg(conversation_id)
   AND status = 'pending'
   AND (sqlc.arg(all_pending)::boolean OR expires_at <= now())
+RETURNING *;
+
+-- name: FailStaleAIPendingActions :many
+-- Resolves actions stuck in 'executing' (the server stopped mid-execution) as
+-- failed: for one conversation, or for all conversations when it is NULL.
+UPDATE ai_pending_actions
+SET status = 'failed',
+    error = sqlc.arg(error),
+    resolved_at = now()
+WHERE status = 'executing'
+  AND updated_at < sqlc.arg(stale_before)
+  AND (sqlc.narg(conversation_id)::bigint IS NULL OR conversation_id = sqlc.narg(conversation_id))
 RETURNING *;

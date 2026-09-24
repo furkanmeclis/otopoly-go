@@ -424,7 +424,14 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	aiSvc.SetActivityRecorder(activityRec)
 	aiSvc.EnableActions()
 	aiSvc.SetVoiceAPIKey(cfg.Speaches.APIKey)
-	aimodule.RegisterRoutes(mux, aihandler.New(aiSvc, activityRec), tokens, loader, deps.Queries)
+	recoverCtx, cancelRecover := context.WithTimeout(context.Background(), 15*time.Second)
+	if n := aiSvc.RecoverInterruptedActions(recoverCtx); n > 0 {
+		log.Warn("ai_interrupted_actions_recovered", "count", n)
+	}
+	cancelRecover()
+	aiHandler := aihandler.New(aiSvc, activityRec)
+	aiHandler.SetRateLimiter(ratelimit.New(deps.Redis, cfg.App.Env))
+	aimodule.RegisterRoutes(mux, aiHandler, tokens, loader, deps.Queries)
 	logsSvc := logsusecase.New(deps.Queries)
 	if s.worker != nil {
 		s.worker.WithExport(exportSvc.ProcessExport).

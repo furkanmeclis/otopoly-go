@@ -303,6 +303,64 @@ func (q *Queries) ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendin
 	return items, nil
 }
 
+const failStaleAIPendingActions = `-- name: FailStaleAIPendingActions :many
+UPDATE ai_pending_actions
+SET status = 'failed',
+    error = $1,
+    resolved_at = now()
+WHERE status = 'executing'
+  AND updated_at < $2
+  AND ($3::bigint IS NULL OR conversation_id = $3)
+RETURNING id, uuid, organization_id, user_id, conversation_id, message_id, tool_use_id, tool_name, input, preview, status, result, error, idempotency_key, expires_at, resolved_at, created_at, updated_at
+`
+
+type FailStaleAIPendingActionsParams struct {
+	Error          string             `json:"error"`
+	StaleBefore    pgtype.Timestamptz `json:"stale_before"`
+	ConversationID pgtype.Int8        `json:"conversation_id"`
+}
+
+// Resolves actions stuck in 'executing' (the server stopped mid-execution) as
+// failed: for one conversation, or for all conversations when it is NULL.
+func (q *Queries) FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error) {
+	rows, err := q.db.Query(ctx, failStaleAIPendingActions, arg.Error, arg.StaleBefore, arg.ConversationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AiPendingAction{}
+	for rows.Next() {
+		var i AiPendingAction
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.UserID,
+			&i.ConversationID,
+			&i.MessageID,
+			&i.ToolUseID,
+			&i.ToolName,
+			&i.Input,
+			&i.Preview,
+			&i.Status,
+			&i.Result,
+			&i.Error,
+			&i.IdempotencyKey,
+			&i.ExpiresAt,
+			&i.ResolvedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const finishAIPendingAction = `-- name: FinishAIPendingAction :one
 UPDATE ai_pending_actions
 SET status = $1,
@@ -684,11 +742,12 @@ func (q *Queries) InsertAIPendingAction(ctx context.Context, arg InsertAIPending
 const insertAIUsage = `-- name: InsertAIUsage :exec
 INSERT INTO ai_usage (
     organization_id, user_id, conversation_id, provider, model, purpose,
-    input_tokens, output_tokens, cache_read_tokens, cache_write_tokens
+    input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, audio_ms, characters
 ) VALUES (
     $1, $2, $3,
     $4, $5, $6,
-    $7, $8, $9, $10
+    $7, $8, $9, $10,
+    $11, $12
 )
 `
 
@@ -703,6 +762,8 @@ type InsertAIUsageParams struct {
 	OutputTokens     int64       `json:"output_tokens"`
 	CacheReadTokens  int64       `json:"cache_read_tokens"`
 	CacheWriteTokens int64       `json:"cache_write_tokens"`
+	AudioMs          int64       `json:"audio_ms"`
+	Characters       int64       `json:"characters"`
 }
 
 func (q *Queries) InsertAIUsage(ctx context.Context, arg InsertAIUsageParams) error {
@@ -717,6 +778,8 @@ func (q *Queries) InsertAIUsage(ctx context.Context, arg InsertAIUsageParams) er
 		arg.OutputTokens,
 		arg.CacheReadTokens,
 		arg.CacheWriteTokens,
+		arg.AudioMs,
+		arg.Characters,
 	)
 	return err
 }
@@ -864,17 +927,21 @@ SELECT
     o.name AS organization_name,
     o.slug AS organization_slug,
     u.model,
+    -- 'voice' groups speech-to-text / text-to-speech rows, 'chat' everything else.
+    (CASE WHEN u.purpose IN ('stt', 'tts') THEN 'voice' ELSE 'chat' END)::text AS kind,
     COALESCE(SUM(u.input_tokens), 0)::bigint AS input_tokens,
     COALESCE(SUM(u.output_tokens), 0)::bigint AS output_tokens,
     COALESCE(SUM(u.cache_read_tokens), 0)::bigint AS cache_read_tokens,
     COALESCE(SUM(u.cache_write_tokens), 0)::bigint AS cache_write_tokens,
+    COALESCE(SUM(u.audio_ms), 0)::bigint AS audio_ms,
+    COALESCE(SUM(u.characters), 0)::bigint AS characters,
     COUNT(*)::bigint AS request_count
 FROM ai_usage u
 JOIN organizations o ON o.id = u.organization_id
 WHERE u.created_at >= $1
   AND u.created_at < $2
-GROUP BY o.uuid, o.name, o.slug, u.model
-ORDER BY o.name ASC, u.model ASC
+GROUP BY o.uuid, o.name, o.slug, u.model, 5
+ORDER BY o.name ASC, 5 ASC, u.model ASC
 `
 
 type ListAIUsageByOrganizationParams struct {
@@ -887,10 +954,13 @@ type ListAIUsageByOrganizationRow struct {
 	OrganizationName string    `json:"organization_name"`
 	OrganizationSlug string    `json:"organization_slug"`
 	Model            string    `json:"model"`
+	Kind             string    `json:"kind"`
 	InputTokens      int64     `json:"input_tokens"`
 	OutputTokens     int64     `json:"output_tokens"`
 	CacheReadTokens  int64     `json:"cache_read_tokens"`
 	CacheWriteTokens int64     `json:"cache_write_tokens"`
+	AudioMs          int64     `json:"audio_ms"`
+	Characters       int64     `json:"characters"`
 	RequestCount     int64     `json:"request_count"`
 }
 
@@ -908,10 +978,13 @@ func (q *Queries) ListAIUsageByOrganization(ctx context.Context, arg ListAIUsage
 			&i.OrganizationName,
 			&i.OrganizationSlug,
 			&i.Model,
+			&i.Kind,
 			&i.InputTokens,
 			&i.OutputTokens,
 			&i.CacheReadTokens,
 			&i.CacheWriteTokens,
+			&i.AudioMs,
+			&i.Characters,
 			&i.RequestCount,
 		); err != nil {
 			return nil, err

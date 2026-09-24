@@ -100,3 +100,33 @@ func Truncate(s string, n int) string {
 	}
 	return strings.TrimSpace(string(rs[:n])) + "…"
 }
+
+// Field length caps for free text that comes from stored records (typed by
+// staff or customers) and is fed back to the model.
+const (
+	maxNameChars = 120
+	maxTextChars = 160
+)
+
+// DataText prepares untrusted free text from stored records for a tool
+// result: control characters and line breaks become spaces (so a note cannot
+// fake message structure), whitespace is collapsed and the text is clipped to
+// max runes. The value is then JSON-encoded as a field, never concatenated
+// into prose.
+func DataText(s string, max int) string {
+	var sb strings.Builder
+	sb.Grow(len(s))
+	space := false
+	for _, r := range s {
+		if unicode.IsControl(r) || unicode.IsSpace(r) || r == ' ' || r == ' ' {
+			if !space {
+				sb.WriteByte(' ')
+				space = true
+			}
+			continue
+		}
+		space = false
+		sb.WriteRune(r)
+	}
+	return Truncate(sb.String(), max)
+}

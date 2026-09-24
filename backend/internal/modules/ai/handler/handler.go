@@ -2,11 +2,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,12 +31,28 @@ const (
 	CodeActionExpired   = "AI_ACTION_EXPIRED"
 	CodeActionNotReady  = "AI_ACTION_NOT_READY"
 	CodeActionForbidden = "AI_ACTION_FORBIDDEN"
+	CodeConversationCap = "AI_CONVERSATION_LIMIT"
 )
+
+// Per-user rate limits (fixed windows). Message sends and action confirms
+// share a bucket: each one starts a model turn.
+const (
+	messageLimit  = 30
+	messageWindow = 5 * time.Minute
+	voiceLimit    = 60
+	voiceWindow   = 10 * time.Minute
+)
+
+// RateLimiter is a fixed-window limiter (satisfied by *ratelimit.Limiter).
+type RateLimiter interface {
+	Allow(ctx context.Context, action, subject string, limit int, window time.Duration) (bool, time.Duration)
+}
 
 // Handler serves AI endpoints.
 type Handler struct {
 	svc      *aiusecase.Service
 	activity *activity.Recorder
+	limiter  RateLimiter
 	// heartbeat is the SSE keep-alive interval.
 	heartbeat time.Duration
 }
@@ -42,6 +60,30 @@ type Handler struct {
 // New creates the handler.
 func New(svc *aiusecase.Service, rec *activity.Recorder) *Handler {
 	return &Handler{svc: svc, activity: rec, heartbeat: 15 * time.Second}
+}
+
+// SetRateLimiter enables per-user rate limits on model turns and voice calls.
+func (h *Handler) SetRateLimiter(l RateLimiter) { h.limiter = l }
+
+// rateLimited enforces a per-user limit and writes 429 RATE_LIMITED (with
+// Retry-After) when it is exceeded.
+func (h *Handler) rateLimited(w http.ResponseWriter, r *http.Request, action string, limit int, window time.Duration) bool {
+	if h.limiter == nil {
+		return false
+	}
+	p, ok := authctx.PrincipalFrom(r.Context())
+	if !ok || p.UserInternal <= 0 {
+		return false
+	}
+	allowed, retry := h.limiter.Allow(r.Context(), action, strconv.FormatInt(p.UserInternal, 10), limit, window)
+	if allowed {
+		return false
+	}
+	if retry > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+	}
+	response.TooManyRequests(w, r, "Too many assistant requests. Try again in a moment.")
+	return true
 }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
@@ -66,6 +108,8 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		response.Error(w, r, http.StatusConflict, CodeActionExpired, err.Error())
 	case errors.Is(err, aiusecase.ErrActionNotReady):
 		response.Error(w, r, http.StatusConflict, CodeActionNotReady, err.Error())
+	case errors.Is(err, aiusecase.ErrConversationLimit):
+		response.Error(w, r, http.StatusConflict, CodeConversationCap, err.Error())
 	case errors.Is(err, aiusecase.ErrActionForbidden):
 		response.Error(w, r, http.StatusForbidden, CodeActionForbidden, err.Error())
 	default:
@@ -235,6 +279,9 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
+	if h.rateLimited(w, r, "ai_msg", messageLimit, messageWindow) {
+		return
+	}
 	in.Locale = requestLocale(r, in.Locale)
 	turn, err := h.svc.PrepareMessage(r.Context(), id, in)
 	if err != nil {
@@ -307,6 +354,9 @@ func (h *Handler) ConfirmAction(w http.ResponseWriter, r *http.Request) {
 		if !decodeJSON(w, r, &in) {
 			return
 		}
+	}
+	if h.rateLimited(w, r, "ai_msg", messageLimit, messageWindow) {
+		return
 	}
 	in.Locale = requestLocale(r, in.Locale)
 	run, err := h.svc.PrepareConfirm(r.Context(), id, in)

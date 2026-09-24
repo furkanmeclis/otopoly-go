@@ -6361,6 +6361,11 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "409":
+          description: "`AI_CONVERSATION_LIMIT`: the user already has 500 conversations in this organization."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/tenant/ai/conversations/{uuid}:
     parameters:
@@ -6445,6 +6450,11 @@ paths:
         - `title` `{conversation_uuid, title}` (first exchange only)
 
         Comment lines (`: ping`) are sent as keep-alives.
+
+        Limits: content at most 8000 characters (400), at most 400 stored messages
+        per conversation (409 `AI_CONVERSATION_LIMIT`), and 30 model turns
+        (messages + action confirms) per user per 5 minutes (429 `RATE_LIMITED`
+        with `Retry-After`).
       security: [{ bearerAuth: [] }]
       parameters:
         - name: uuid
@@ -6467,6 +6477,12 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`AI_CONVERSATION_LIMIT`: the conversation is too long; start a new one."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /v1/tenant/ai/actions/{uuid}/confirm:
     post:
@@ -6487,6 +6503,11 @@ paths:
         - `action` `{action_uuid, status, tool_use_id, block: AIUIBlock}` (confirmed | failed)
         - then, when the assistant is available: `message_start` `{conversation_uuid, resumed: true, action_uuid}`
           followed by the same events as the messages endpoint.
+
+        Only the user who received the card can confirm it (other users and
+        organizations get 404). Confirms share the per-user model-turn rate
+        limit with messages (429 `RATE_LIMITED`). An action left `executing` by a
+        server crash is resolved as `failed` ("outcome unknown") after 10 minutes.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: uuid
@@ -6510,6 +6531,7 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
 
   /v1/tenant/ai/actions/{uuid}/cancel:
     post:
@@ -6783,6 +6805,7 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
         "502":
           description: Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`)
           content:
@@ -6797,7 +6820,9 @@ paths:
       description: |
         Markdown is reduced to speakable text server-side (code, tables and link
         targets dropped) and clipped to 2500 characters at a sentence boundary.
-        Same gating as transcribe.
+        Same gating as transcribe. Voice calls are limited to 60 per user per
+        10 minutes (429 `RATE_LIMITED`). Usage is recorded in the AI usage ledger
+        (characters for TTS, audio seconds for STT).
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -6814,6 +6839,7 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
         "502":
           description: Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`)
           content:
@@ -9801,13 +9827,21 @@ components:
 
     AIUsageModelRow:
       type: object
-      required: [model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, request_count, estimated_cost_usd]
+      required:
+        [model, kind, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, audio_seconds, characters,
+         request_count, estimated_cost_usd]
       properties:
         model: { type: string }
+        kind:
+          type: string
+          enum: [chat, voice]
+          description: "`chat` = model tokens; `voice` = Speaches speech-to-text (audio_seconds) / text-to-speech (characters)."
         input_tokens: { type: integer, format: int64 }
         output_tokens: { type: integer, format: int64 }
         cache_read_tokens: { type: integer, format: int64 }
         cache_write_tokens: { type: integer, format: int64 }
+        audio_seconds: { type: number, description: Transcribed audio (voice rows) }
+        characters: { type: integer, format: int64, description: Synthesized characters (voice rows) }
         request_count: { type: integer, format: int64 }
         estimated_cost_usd: { type: [number, "null"] }
 
@@ -9815,7 +9849,8 @@ components:
       type: object
       required:
         [organization_uuid, organization_name, organization_slug, input_tokens, output_tokens, cache_read_tokens,
-         cache_write_tokens, quota_tokens, request_count, estimated_cost_usd, enabled, quota_limit, models]
+         cache_write_tokens, quota_tokens, request_count, stt_seconds, tts_characters, voice_request_count,
+         estimated_cost_usd, enabled, quota_limit, models]
       properties:
         organization_uuid: { type: string, format: uuid }
         organization_name: { type: string }
@@ -9825,7 +9860,10 @@ components:
         cache_read_tokens: { type: integer, format: int64 }
         cache_write_tokens: { type: integer, format: int64 }
         quota_tokens: { type: integer, format: int64, description: input + output + cache writes }
-        request_count: { type: integer, format: int64 }
+        request_count: { type: integer, format: int64, description: Model calls + voice calls }
+        stt_seconds: { type: number, description: Speech-to-text audio seconds }
+        tts_characters: { type: integer, format: int64, description: Text-to-speech characters }
+        voice_request_count: { type: integer, format: int64 }
         estimated_cost_usd: { type: number }
         enabled: { type: boolean }
         quota_limit: { type: integer, format: int64 }
@@ -9835,7 +9873,7 @@ components:
 
     AIUsageSummary:
       type: object
-      required: [month, period_start, period_end, items, total_tokens, estimated_cost_usd]
+      required: [month, period_start, period_end, items, total_tokens, stt_seconds, tts_characters, estimated_cost_usd]
       properties:
         month: { type: string }
         period_start: { type: string, format: date-time }
@@ -9844,6 +9882,8 @@ components:
           type: array
           items: { $ref: "#/components/schemas/AIUsageOrgRow" }
         total_tokens: { type: integer, format: int64 }
+        stt_seconds: { type: number }
+        tts_characters: { type: integer, format: int64 }
         estimated_cost_usd: { type: number }
 
     EnvelopeAIUsageSummary:

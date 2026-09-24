@@ -12,7 +12,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/voice"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // Voice defaults used when the platform settings leave a field empty.
@@ -155,7 +157,7 @@ func (s *Service) Transcribe(ctx context.Context, in TranscribeInput) (Transcrib
 	if err != nil {
 		return TranscribeResult{}, voiceUpstreamErr(err)
 	}
-	s.logVoiceUsage(ctx, vs, "stt", model, "seconds", tr.Duration, s.now().Sub(started))
+	s.logVoiceUsage(ctx, vs, "stt", model, voiceUnitSeconds, tr.Duration, s.now().Sub(started))
 	if tr.Duration > MaxAudioSeconds {
 		return TranscribeResult{}, ErrAudioTooLong
 	}
@@ -189,18 +191,40 @@ func (s *Service) Speak(ctx context.Context, in SpeechInput) (*voice.Speech, err
 	if err != nil {
 		return nil, voiceUpstreamErr(err)
 	}
-	s.logVoiceUsage(ctx, vs, "tts", model, "characters", float64(utf8.RuneCountInString(text)), s.now().Sub(started))
+	s.logVoiceUsage(ctx, vs, "tts", model, voiceUnitCharacters, float64(utf8.RuneCountInString(text)), s.now().Sub(started))
 	return sp, nil
 }
 
-// logVoiceUsage records voice metering. ai_usage only stores tokens (and
-// its purpose check constraint has no voice purposes), so voice usage is
-// emitted as a structured log line for now.
+// Voice usage units written to the ai_usage ledger.
+const (
+	voiceUnitSeconds    = "seconds"
+	voiceUnitCharacters = "characters"
+)
+
+// logVoiceUsage records voice metering in the ai_usage ledger (purpose
+// stt/tts with zero tokens, so it never counts against the token quota) and
+// emits a structured log line with the latency.
 func (s *Service) logVoiceUsage(ctx context.Context, vs voiceScope, kind, model, unit string, amount float64, latency time.Duration) {
 	s.log.InfoContext(ctx, "ai_voice_usage",
 		"kind", kind, "organization_id", vs.orgID, "user_id", vs.userID,
 		"model", model, "unit", unit, "amount", math.Round(amount*10)/10,
 		"latency_ms", latency.Milliseconds())
+	p := db.InsertAIUsageParams{
+		OrganizationID: pgtype.Int8{Int64: vs.orgID, Valid: vs.orgID > 0},
+		UserID:         pgtype.Int8{Int64: vs.userID, Valid: vs.userID > 0},
+		Provider:       "speaches",
+		Model:          tools.Truncate(model, 128),
+		Purpose:        kind,
+	}
+	switch unit {
+	case voiceUnitSeconds:
+		p.AudioMs = int64(math.Round(math.Max(amount, 0) * 1000))
+	case voiceUnitCharacters:
+		p.Characters = int64(math.Max(amount, 0))
+	}
+	if err := s.store.InsertAIUsage(context.WithoutCancel(ctx), p); err != nil {
+		s.log.Warn("ai_voice_usage_record_failed", "error", err)
+	}
 }
 
 // ------------------------------------------------------------------ platform test

@@ -63,6 +63,14 @@ func TestTranscribeUsesSettingsAndDefaults(t *testing.T) {
 	if got.Model != DefaultSTTModel || got.Language != "tr" || got.ContentType != "audio/webm" {
 		t.Fatalf("upstream = %+v", got)
 	}
+	// Voice usage lands in the ledger with zero tokens (never counts against the quota).
+	if n := len(h.store.usage); n != 1 {
+		t.Fatalf("usage rows = %d", n)
+	}
+	if u := h.store.usage[0]; u.Purpose != "stt" || u.AudioMs != 2500 || u.Model != DefaultSTTModel ||
+		u.InputTokens+u.OutputTokens != 0 || u.OrganizationID.Int64 != 7 || !u.UserID.Valid {
+		t.Fatalf("stt usage = %+v", u)
+	}
 
 	h.store.settings.VoiceSttModel = "Systran/faster-whisper-medium"
 	h.store.settings.VoiceLanguage = "en"
@@ -114,6 +122,12 @@ func TestSpeakCleansAndClipsText(t *testing.T) {
 	_, got := fake.Last()
 	if got.Model != DefaultTTSVoice || got.Voice != "fettah" || got.Input != "Toplam tahsilat 20.000 TL." || got.ResponseFormat != "mp3" {
 		t.Fatalf("upstream = %+v", got)
+	}
+	if n := len(h.store.usage); n != 1 {
+		t.Fatalf("usage rows = %d", n)
+	}
+	if u := h.store.usage[0]; u.Purpose != "tts" || u.Characters != int64(len([]rune(got.Input))) || u.AudioMs != 0 {
+		t.Fatalf("tts usage = %+v", u)
 	}
 
 	h.store.settings.VoiceTtsVoice = "speaches-ai/Kokoro-82M-v1.0-ONNX:af_heart"
