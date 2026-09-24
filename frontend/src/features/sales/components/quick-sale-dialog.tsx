@@ -131,9 +131,13 @@ export function QuickSaleDialog({
     return result.items.map((product) => ({
       value: product.uuid,
       label: product.sku ? `${product.name} · ${product.sku}` : product.name,
-      description: `${product.sale_price} ${product.currency}`,
+      description: formatFinanceAmount(
+        product.sale_price,
+        product.currency,
+        locale,
+      ),
     }));
-  }, []);
+  }, [locale]);
 
   const addProduct = useCallback(
     async (productUuid: string) => {

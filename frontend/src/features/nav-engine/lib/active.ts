@@ -12,14 +12,19 @@ function normalizePath(path: string): string {
 export function resolveActiveNavHref(
   pathname: string,
   hrefs: string[],
+  homeHref?: string,
 ): string | null {
   const current = normalizePath(pathname);
+  const home = homeHref ? normalizePath(homeHref) : null;
   let best: string | null = null;
   let bestLen = -1;
 
   for (const href of hrefs) {
     const target = normalizePath(href);
-    if (current === target || current.startsWith(`${target}/`)) {
+    // The shell home (e.g. /t/{slug}) prefixes every page; it is only active
+    // on an exact match, never as a fallback for pages in other groups.
+    const prefixMatch = target !== home && current.startsWith(`${target}/`);
+    if (current === target || prefixMatch) {
       if (target.length > bestLen) {
         best = href;
         bestLen = target.length;
@@ -37,7 +42,7 @@ export function isNavHrefActive(
   peerHrefs?: string[],
 ): boolean {
   if (peerHrefs?.length) {
-    return resolveActiveNavHref(pathname, peerHrefs) === href;
+    return resolveActiveNavHref(pathname, peerHrefs, homeHref) === href;
   }
 
   const current = normalizePath(pathname);

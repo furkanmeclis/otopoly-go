@@ -48,5 +48,8 @@
   "validation.finance_account": "Finance account is required",
   "toast.created": "Purchase created",
   "toast.voided": "Purchase voided",
-  "toast.failed": "Purchase action failed"
+  "toast.failed": "Purchase action failed",
+  "empty_hint": "Record products bought from suppliers; stock goes up and the expense is posted.",
+  "summary.count": "Purchases",
+  "summary.total": "Total purchased"
 }

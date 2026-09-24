@@ -12,6 +12,7 @@ import {
   CATALOG_UNIT_KEYS,
 } from "@/features/catalog/lib/units";
 import type { CatalogProduct } from "@/features/catalog/services/catalog.service";
+import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
@@ -97,7 +98,7 @@ export function useProductsColumns(
   handlers: ProductRowHandlers,
   filterOptions?: ProductColumnFilterOptions,
 ) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   return useMemo<ColumnDef<CatalogProduct>[]>(
     () => [
@@ -167,7 +168,7 @@ export function useProductsColumns(
           return (
             <div className="flex flex-col">
               <span className="font-medium">
-                {p.sale_price} {p.currency}
+                {formatFinanceAmount(p.sale_price, p.currency, locale)}
               </span>
               {Number(p.cost_price) > 0 && (
                 <span className="text-muted-foreground text-xs">
@@ -271,6 +272,6 @@ export function useProductsColumns(
         ),
       }),
     ],
-    [filterOptions?.categories, filterOptions?.lockCategory, handlers, t],
+    [filterOptions?.categories, filterOptions?.lockCategory, handlers, locale, t],
   );
 }

@@ -257,7 +257,7 @@ export function ServicesPage({
       description={t("catalog.services.description")}
       breadcrumbs={[
         {
-          label: t("layout.section_tenant"),
+          label: t("layout.breadcrumb_home"),
           href: routes.tenant.home(slug),
         },
         { label: t("catalog.services.title") },

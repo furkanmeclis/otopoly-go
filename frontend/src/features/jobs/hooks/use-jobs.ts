@@ -41,10 +41,12 @@ export function useJobs(
     date_from?: string;
     date_to?: string;
   },
+  options?: { refetchInterval?: number | false },
 ) {
   return useQuery({
     queryKey: jobsKeys.list(params),
     queryFn: () => jobsService.list(params),
+    refetchInterval: options?.refetchInterval,
   });
 }
 

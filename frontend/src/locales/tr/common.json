@@ -37,5 +37,13 @@
   "theme": "Tema",
   "theme_light": "Açık",
   "theme_dark": "Koyu",
-  "theme_system": "Sistem"
+  "theme_system": "Sistem",
+  "clear": "Temizle",
+  "day.prev": "Önceki gün",
+  "day.next": "Sonraki gün",
+  "day.today": "Bugün",
+  "day.live": "Canlı",
+  "day.pick": "Gün seçin",
+  "choose_file": "Dosya seç",
+  "image_formats": "PNG, JPG, WEBP veya SVG"
 }

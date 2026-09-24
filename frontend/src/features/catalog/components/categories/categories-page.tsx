@@ -95,7 +95,7 @@ export function CategoriesPage({ slug }: { slug: string }) {
       description={t("catalog.categories.description")}
       breadcrumbs={[
         {
-          label: t("layout.section_tenant"),
+          label: t("layout.breadcrumb_home"),
           href: routes.tenant.home(slug),
         },
         { label: t("catalog.categories.title") },

@@ -8,6 +8,7 @@ import { EntityRowActions, type EntityRowAction } from "@/components/entity";
 import { createColumn } from "@/components/tables";
 import { Badge } from "@/components/ui/badge";
 import type { CatalogService } from "@/features/catalog/services/catalog.service";
+import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
@@ -76,7 +77,7 @@ export function useServicesColumns(
   handlers: ServiceRowHandlers,
   filterOptions?: ServiceColumnFilterOptions,
 ) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
 
   return useMemo<ColumnDef<CatalogService>[]>(
     () => [
@@ -136,7 +137,7 @@ export function useServicesColumns(
           return (
             <div className="flex flex-col">
               <span className="text-foreground font-semibold">
-                {s.price} {s.currency}
+                {formatFinanceAmount(s.price, s.currency, locale)}
               </span>
               <span className="text-muted-foreground text-xs">
                 {t("catalog.services.vat_suffix", { rate: s.vat_rate })}
@@ -177,6 +178,6 @@ export function useServicesColumns(
         ),
       }),
     ],
-    [filterOptions?.categories, filterOptions?.lockCategory, handlers, t],
+    [filterOptions?.categories, filterOptions?.lockCategory, handlers, locale, t],
   );
 }

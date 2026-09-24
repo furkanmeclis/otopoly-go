@@ -11,6 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/common/card";
+import { DaySummaryBar } from "@/components/common/day-summary-bar";
+import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { StatusChip } from "@/components/common/status-chip";
@@ -18,7 +20,6 @@ import { EntityActions, EntityPage, EntityToolbar } from "@/components/entity";
 import { AppForm, AppSelect, AppTextarea } from "@/components/forms";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +37,6 @@ import { routes } from "@/config/routes";
 import { catalogService } from "@/features/catalog/services/catalog.service";
 import { useFinanceAccounts } from "@/features/finance/hooks/use-finance-queries";
 import {
-  financeToday,
   formatFinanceAmount,
   parseFinanceAmount,
 } from "@/features/finance/lib/format";
@@ -55,6 +55,7 @@ import type {
 } from "@/features/purchases/services/purchases.service";
 import { suppliersService } from "@/features/suppliers/services/suppliers.service";
 import { datetime } from "@/lib/utils/format";
+import { localToday } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
 
 const STATUS_TABS = ["all", "posted", "voided"] as const;
@@ -81,12 +82,12 @@ type PurchaseLineDraft = {
 };
 
 export function PurchasesPage({ slug }: { slug: string }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
   const { canRead, canWrite } = useTenantPurchasesAccess(slug);
   const mutations = usePurchasesMutations();
 
-  const [date, setDate] = useState(() => financeToday());
+  const [date, setDate] = useState(() => localToday());
   const [statusTab, setStatusTab] =
     useState<(typeof STATUS_TABS)[number]>("all");
   const [q, setQ] = useState("");
@@ -123,6 +124,15 @@ export function PurchasesPage({ slug }: { slug: string }) {
   }
 
   const items = listQuery.data?.items ?? [];
+  // No summary endpoint for purchases: totals from the day's posted rows.
+  const posted = items.filter((p) => p.status === "posted");
+  const dayCurrency = items[0]?.currency ?? "TRY";
+  const sumBy = (method?: string) =>
+    posted
+      .filter((p) => !method || p.method === method)
+      .reduce((total, p) => total + parseFinanceAmount(p.total_amount), 0);
+  const money = (value: number) =>
+    formatFinanceAmount(value, dayCurrency, locale);
 
   return (
     <EntityPage
@@ -143,13 +153,29 @@ export function PurchasesPage({ slug }: { slug: string }) {
         ) : null
       }
     >
+      <DaySummaryBar
+        date={date}
+        onDateChange={setDate}
+        loading={listQuery.isLoading}
+        stats={[
+          { label: t("purchases.summary.count"), value: String(posted.length) },
+          {
+            label: t("purchases.summary.total"),
+            value: money(sumBy()),
+            accent: true,
+          },
+          {
+            label: t("purchases.payment_method.cash"),
+            value: money(sumBy("cash")),
+          },
+          {
+            label: t("purchases.payment_method.card"),
+            value: money(sumBy("card")),
+          },
+        ]}
+      />
+
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <DatePicker
-          value={date}
-          onChange={setDate}
-          className="w-[11rem]"
-          aria-label={t("purchases.filter_date")}
-        />
         <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
@@ -210,9 +236,22 @@ export function PurchasesPage({ slug }: { slug: string }) {
       ) : null}
 
       {!listQuery.isLoading && !listQuery.isError && items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          {t("purchases.empty_title")}
-        </p>
+        <EmptyState
+          title={t("purchases.empty_title")}
+          description={t("purchases.empty_hint")}
+          action={
+            canWrite ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setCreateOpen(true)}
+              >
+                <Plus className="size-4" />
+                {t("purchases.actions.create")}
+              </Button>
+            ) : null
+          }
+        />
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -362,9 +401,13 @@ function CreatePurchaseDialog({
     return result.items.map((product) => ({
       value: product.uuid,
       label: product.sku ? `${product.name} · ${product.sku}` : product.name,
-      description: `${product.cost_price} ${product.currency}`,
+      description: formatFinanceAmount(
+        product.cost_price,
+        product.currency,
+        locale,
+      ),
     }));
-  }, []);
+  }, [locale]);
 
   const addProduct = useCallback(
     async (productUuid: string) => {

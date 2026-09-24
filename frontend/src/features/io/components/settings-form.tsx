@@ -31,6 +31,7 @@ import {
   type SettingsFormValues,
 } from "@/features/io/schemas/settings-form";
 import type { AppSettings } from "@/features/io/types";
+import { FilePickButton } from "@/components/common/file-pick-button";
 import { useLocale } from "@/providers/locale-provider";
 
 type SettingsFormProps = {
@@ -164,17 +165,13 @@ function SettingsFormFields({
 
         <div className="flex flex-wrap items-end gap-2 sm:col-span-2">
           <FormFieldShell name="logo" label={t("settings.upload_logo")}>
-            <Input
+            <FilePickButton
               id="logo"
-              type="file"
               accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              className="max-w-md"
-              disabled={!canWrite || isLogoUploading}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) onUploadLogo(file);
-                event.target.value = "";
-              }}
+              hint={t("common.image_formats")}
+              disabled={!canWrite}
+              pending={isLogoUploading}
+              onFile={onUploadLogo}
             />
           </FormFieldShell>
           {settings.logo_url && canWrite ? (

@@ -1,12 +1,14 @@
-"use client";
+import type { Metadata } from "next";
 
-import { PublicAuthShell } from "@/features/auth/components/public-auth-shell";
-import { OrganizationRegisterForm } from "@/features/organizations/components/organization-register-form";
+import { OnboardingWizard } from "@/features/onboarding/components/onboarding-wizard";
+
+export const metadata: Metadata = {
+  title: "Ücretsiz işletme hesabı oluştur",
+  description:
+    "Otopoly'de oto yıkama veya detailing işletmenizi 3 adımda kaydedin: işletme bilgileri, hizmetler ve hesap. 14 gün ücretsiz, kredi kartı gerekmez.",
+  alternates: { canonical: "/register" },
+};
 
 export default function RegisterPage() {
-  return (
-    <PublicAuthShell>
-      <OrganizationRegisterForm />
-    </PublicAuthShell>
-  );
+  return <OnboardingWizard />;
 }

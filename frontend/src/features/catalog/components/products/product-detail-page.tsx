@@ -20,6 +20,7 @@ import { useCatalogProduct } from "@/features/catalog/hooks/use-catalog-queries"
 import { useTenantCatalogAccess } from "@/features/catalog/hooks/use-tenant-catalog-access";
 import { catalogUnitLabel } from "@/features/catalog/lib/units";
 import { datetime } from "@/lib/utils/format";
+import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
 
 export function ProductDetailPage({
@@ -44,7 +45,7 @@ export function ProductDetailPage({
       description={t("catalog.detail.product_description")}
       breadcrumbs={[
         {
-          label: t("layout.section_tenant"),
+          label: t("layout.breadcrumb_home"),
           href: routes.tenant.home(slug),
         },
         {
@@ -142,12 +143,20 @@ export function ProductDetailPage({
                     {
                       key: "cost",
                       label: t("catalog.products.cost_price"),
-                      value: `${product.cost_price} ${product.currency}`,
+                      value: formatFinanceAmount(
+                        product.cost_price,
+                        product.currency,
+                        locale,
+                      ),
                     },
                     {
                       key: "sale",
                       label: t("catalog.products.sale_price"),
-                      value: `${product.sale_price} ${product.currency}`,
+                      value: formatFinanceAmount(
+                        product.sale_price,
+                        product.currency,
+                        locale,
+                      ),
                     },
                     {
                       key: "vat",

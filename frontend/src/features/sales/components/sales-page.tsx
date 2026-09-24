@@ -10,21 +10,18 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/common/card";
+import { DaySummaryBar } from "@/components/common/day-summary-bar";
+import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { StatusChip } from "@/components/common/status-chip";
 import { EntityActions, EntityPage, EntityToolbar } from "@/components/entity";
 import { Button } from "@/components/ui/button";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { routes } from "@/config/routes";
-import {
-  financeToday,
-  formatFinanceAmount,
-} from "@/features/finance/lib/format";
+import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { ResourceIOToolbar } from "@/features/io";
-import { DashboardStatCard } from "@/features/platform-overview/components/dashboard-stat-card";
 import { QuickSaleDialog } from "@/features/sales/components/quick-sale-dialog";
 import {
   useSales,
@@ -34,6 +31,7 @@ import {
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
 import type { Sale, SaleStatus } from "@/features/sales/services/sales.service";
 import { datetime } from "@/lib/utils/format";
+import { localToday } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
 
 const STATUS_TABS = ["all", "posted", "voided"] as const;
@@ -54,7 +52,7 @@ export function SalesPage({ slug }: { slug: string }) {
   const router = useRouter();
   const { canRead, canWrite } = useTenantSalesAccess(slug);
 
-  const [date, setDate] = useState(() => financeToday());
+  const [date, setDate] = useState(() => localToday());
   const [statusTab, setStatusTab] =
     useState<(typeof STATUS_TABS)[number]>("all");
   const [q, setQ] = useState("");
@@ -114,13 +112,36 @@ export function SalesPage({ slug }: { slug: string }) {
         ) : null
       }
     >
+      <DaySummaryBar
+        date={date}
+        onDateChange={setDate}
+        loading={summaryQuery.isLoading}
+        stats={[
+          {
+            label: t("sales.summary.sale_count"),
+            value: String(summary?.sale_count ?? 0),
+          },
+          {
+            label: t("sales.summary.paid_total"),
+            value: formatFinanceAmount(summary?.paid_total, currency, locale),
+            accent: true,
+          },
+          {
+            label: t("sales.summary.card_total"),
+            value: formatFinanceAmount(summary?.card_total, currency, locale),
+          },
+          {
+            label: t("sales.summary.cari_total"),
+            value: formatFinanceAmount(summary?.cari_total, currency, locale),
+          },
+          {
+            label: t("sales.summary.net_total"),
+            value: formatFinanceAmount(summary?.net_total, currency, locale),
+          },
+        ]}
+      />
+
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <DatePicker
-          value={date}
-          onChange={setDate}
-          className="w-[11rem]"
-          aria-label={t("sales.summary_date")}
-        />
         <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
           <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
@@ -158,34 +179,6 @@ export function SalesPage({ slug }: { slug: string }) {
         />
       </div>
 
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <DashboardStatCard
-          label={t("sales.summary.card_total")}
-          value={formatFinanceAmount(summary?.card_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("sales.summary.cari_total")}
-          value={formatFinanceAmount(summary?.cari_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("sales.summary.net_total")}
-          value={formatFinanceAmount(summary?.net_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("sales.summary.paid_total")}
-          value={formatFinanceAmount(summary?.paid_total, currency, locale)}
-          loading={summaryQuery.isLoading}
-        />
-        <DashboardStatCard
-          label={t("sales.summary.sale_count")}
-          value={summary?.sale_count ?? 0}
-          loading={summaryQuery.isLoading}
-        />
-      </div>
-
       <Tabs
         value={statusTab}
         onValueChange={(value) =>
@@ -212,9 +205,22 @@ export function SalesPage({ slug }: { slug: string }) {
       ) : null}
 
       {!listQuery.isLoading && !listQuery.isError && items.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          {t("sales.empty_title")}
-        </p>
+        <EmptyState
+          title={t("sales.empty_title")}
+          description={t("sales.empty_hint")}
+          action={
+            canWrite ? (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setCreateOpen(true)}
+              >
+                <ShoppingBag className="size-4" />
+                {t("sales.quick.title")}
+              </Button>
+            ) : null
+          }
+        />
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
