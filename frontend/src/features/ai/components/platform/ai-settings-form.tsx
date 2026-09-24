@@ -381,7 +381,7 @@ export function AISettingsForm({
                           {tool.name}
                         </code>
                       </p>
-                      <p className="text-muted-foreground text-xs">
+                      <div className="text-muted-foreground text-xs">
                         {tool.requires_confirmation ? (
                           <Badge
                             variant="outline"
@@ -397,7 +397,7 @@ export function AISettingsForm({
                                 .join(", "),
                             })
                           : t("ai.form.tool_no_permission")}
-                      </p>
+                      </div>
                     </div>
                     <Switch
                       checked={form.watch(`tools.${tool.name}`) ?? true}

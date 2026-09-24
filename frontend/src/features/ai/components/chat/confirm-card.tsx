@@ -48,6 +48,7 @@ import type {
 } from "@/features/ai/types";
 import { isApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
 const NONE = "__none__";
@@ -185,7 +186,7 @@ function EditInput({
  * changed until the user confirms; key fields can be edited inline first.
  */
 export function ConfirmCard({ block }: { block: AIUIBlock }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const actions = useChatActions();
   const card = block.data as AIConfirmCard | undefined;
   const status = (block.status ?? "pending") as AIActionStatus;
@@ -289,7 +290,9 @@ export function ConfirmCard({ block }: { block: AIUIBlock }) {
               <dd className="min-w-0 break-words">
                 {f.value_key && isConfirmValueKey(f.value_key)
                   ? t(f.value_key)
-                  : f.value}
+                  : f.value && /^\d{4}-\d{2}-\d{2}$/.test(f.value)
+                    ? datetime(`${f.value}T00:00:00`, "d MMMM yyyy", locale)
+                    : f.value}
               </dd>
             </div>
           ))}
