@@ -57,7 +57,9 @@ function wantsBinaryStream(path: string) {
   return (
     path.includes("platform/storage/objects/download") ||
     path.includes("platform/storage/objects/preview") ||
-    path.startsWith("public/storage/")
+    path.startsWith("public/storage/") ||
+    // AI read-aloud: stream MP3 as Speaches produces it.
+    path === "tenant/ai/voice/speech"
   );
 }
 

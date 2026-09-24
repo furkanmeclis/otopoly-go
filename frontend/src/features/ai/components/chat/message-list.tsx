@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 
 import { MessageBlocks } from "@/features/ai/components/chat/message-blocks";
+import { ReadAloudButton } from "@/features/ai/components/chat/voice/read-aloud-button";
 import type { ChatMessage } from "@/features/ai/types";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
@@ -48,6 +49,7 @@ function AssistantMessage({
             {t("ai.assistant.cancelled")}
           </p>
         ) : null}
+        <ReadAloudButton message={message} />
       </div>
     </div>
   );

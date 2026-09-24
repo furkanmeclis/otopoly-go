@@ -1,11 +1,30 @@
 "use client";
 
 import { ArrowUp, Square } from "lucide-react";
-import { useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+
+/** Handle given to composer actions (e.g. the push-to-talk mic). */
+export type ComposerApi = {
+  /** Appends text to the draft and focuses the textarea. */
+  insertText: (text: string) => void;
+};
+
+function autoSize(el: HTMLTextAreaElement | null) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+}
 
 type ComposerProps = {
   onSend: (text: string) => void;
@@ -14,10 +33,10 @@ type ComposerProps = {
   disabled?: boolean;
   autoFocus?: boolean;
   /**
-   * Extra controls left of the send button. Phase 3 mounts the push-to-talk
-   * mic button here (it should call `onTranscript`-style APIs and then onSend).
+   * Extra controls left of the send button (the push-to-talk mic). A render
+   * function receives a {@link ComposerApi} to write into the draft.
    */
-  actions?: ReactNode;
+  actions?: ReactNode | ((api: ComposerApi) => ReactNode);
   className?: string;
 };
 
@@ -33,6 +52,25 @@ export function Composer({
   const { t } = useLocale();
   const [value, setValue] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
+
+  // Bumped by insertText; the effect resizes and focuses after the update.
+  const [inserted, setInserted] = useState(0);
+
+  const insertText = useCallback((text: string) => {
+    setValue((prev) => {
+      const base = prev.trimEnd();
+      return base ? `${base} ${text}` : text;
+    });
+    setInserted((n) => n + 1);
+  }, []);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!inserted || !el) return;
+    autoSize(el);
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, [inserted]);
 
   const submit = () => {
     const text = value.trim();
@@ -70,14 +108,12 @@ export function Composer({
         aria-label={t("ai.assistant.placeholder")}
         onChange={(event) => {
           setValue(event.target.value);
-          const el = event.target;
-          el.style.height = "auto";
-          el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+          autoSize(event.target);
         }}
         onKeyDown={onKeyDown}
         className="placeholder:text-muted-foreground max-h-[180px] min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none disabled:opacity-50"
       />
-      {actions}
+      {typeof actions === "function" ? actions({ insertText }) : actions}
       {streaming ? (
         <Button
           type="button"

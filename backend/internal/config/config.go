@@ -29,6 +29,14 @@ type Config struct {
 	VAPID      VAPIDConfig
 	Search     SearchConfig
 	Gotenberg  GotenbergConfig
+	Speaches   SpeachesConfig
+}
+
+// SpeachesConfig holds the AI voice server credentials (the URL itself is a
+// platform AI setting managed in the admin panel).
+type SpeachesConfig struct {
+	// APIKey is sent as a Bearer token when Speaches runs with API_KEY set.
+	APIKey string
 }
 
 // GotenbergConfig controls HTML→PDF rendering via Gotenberg Chromium.
@@ -265,6 +273,9 @@ func Load() (Config, error) {
 		},
 		Gotenberg: GotenbergConfig{
 			URL: getEnv("GOTENBERG_URL", "http://127.0.0.1:3001"),
+		},
+		Speaches: SpeachesConfig{
+			APIKey: getEnv("SPEACHES_API_KEY", ""),
 		},
 	}
 

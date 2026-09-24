@@ -6742,6 +6742,84 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/tenant/ai/voice/transcribe:
+    post:
+      tags: [Tenant]
+      operationId: transcribeTenantAIVoice
+      summary: Transcribe a push-to-talk clip (Speaches faster-whisper)
+      description: |
+        Multipart upload with one `file` field (MediaRecorder output: webm/ogg/mp4,
+        or wav/mp3/flac), at most 5 MB. Uses the platform STT model and language.
+        Requires `tenant.ai.use`, the assistant enabled for the organization and
+        the `voice` feature (403 `AI_VOICE_DISABLED`). Clips longer than 120 s are
+        rejected (`AUDIO_TOO_LONG`); the UI stops recording at 60 s.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: Recognized text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAITranscription"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413":
+          description: Audio larger than 5 MB (`AUDIO_TOO_LARGE`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "415":
+          description: Unsupported audio type (`AUDIO_UNSUPPORTED`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502":
+          description: Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/tenant/ai/voice/speech:
+    post:
+      tags: [Tenant]
+      operationId: synthesizeTenantAIVoice
+      summary: Read assistant text aloud (Speaches Piper TTS), streamed as MP3
+      description: |
+        Markdown is reduced to speakable text server-side (code, tables and link
+        targets dropped) and clipped to 2500 characters at a sentence boundary.
+        Same gating as transcribe.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AISpeechRequest"
+      responses:
+        "200":
+          description: Audio stream
+          content:
+            audio/mpeg:
+              schema: { type: string, format: binary }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "502":
+          description: Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
   /v1/platform/ai/settings:
     get:
       tags: [Platform]
@@ -6794,6 +6872,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeAITestResult"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/ai/voice/test:
+    post:
+      tags: [Platform]
+      operationId: testPlatformAIVoice
+      summary: Check the Speaches server and whether the configured models are installed
+      description: |
+        Lists installed models (`GET /v1/models` on Speaches). Body fields override
+        the saved voice settings so unsaved values can be tested. `ok` is true only
+        when both the STT model and the TTS model are installed.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIVoiceTestRequest"
+      responses:
+        "200":
+          description: Test result (ok=false carries the reason in message)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIVoiceTestResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -9090,8 +9195,10 @@ components:
       required: [base_url, stt_model, tts_voice, language]
       properties:
         base_url: { type: string, description: Speaches (OpenAI-compatible audio) base URL }
-        stt_model: { type: string }
-        tts_voice: { type: string }
+        stt_model: { type: string, description: "faster-whisper model id; empty = Systran/faster-whisper-small" }
+        tts_voice:
+          type: string
+          description: "TTS model id, optionally `<model>:<voice>`; empty = speaches-ai/piper-tr_TR-fettah-medium"
         language: { type: string }
 
     AIToolInfo:
@@ -9189,6 +9296,68 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/AITestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AITranscription:
+      type: object
+      required: [text, duration_seconds]
+      properties:
+        text: { type: string }
+        language: { type: string }
+        duration_seconds: { type: number }
+
+    EnvelopeAITranscription:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AITranscription" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AISpeechRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, maxLength: 20000, description: Assistant message text (Markdown allowed) }
+
+    AIVoiceTestRequest:
+      type: object
+      properties:
+        base_url: { type: string }
+        stt_model: { type: string }
+        tts_voice: { type: string }
+
+    AIVoiceModel:
+      type: object
+      required: [id]
+      properties:
+        id: { type: string }
+        task: { type: string }
+
+    AIVoiceTestResult:
+      type: object
+      required: [ok, reachable, base_url, latency_ms, stt_model, stt_model_installed, tts_model, tts_voice, tts_model_installed, installed_models]
+      properties:
+        ok: { type: boolean }
+        reachable: { type: boolean, description: The server answered GET /v1/models }
+        base_url: { type: string }
+        latency_ms: { type: integer, format: int64 }
+        message: { type: string }
+        stt_model: { type: string }
+        stt_model_installed: { type: boolean }
+        tts_model: { type: string }
+        tts_voice: { type: string }
+        tts_model_installed: { type: boolean }
+        installed_models:
+          type: array
+          items: { $ref: "#/components/schemas/AIVoiceModel" }
+
+    EnvelopeAIVoiceTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIVoiceTestResult" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     AIQuota:

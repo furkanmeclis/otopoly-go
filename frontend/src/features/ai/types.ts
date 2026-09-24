@@ -27,6 +27,8 @@ export type AIPlan = Schemas["AIPlan"];
 /** Confirm card status (the pending action's lifecycle). */
 export type AIActionStatus =
   "pending" | "executing" | "confirmed" | "failed" | "cancelled" | "expired";
+export type AITranscription = Schemas["AITranscription"];
+export type AIVoiceTestResult = Schemas["AIVoiceTestResult"];
 
 export type AIConversationPage = {
   items: AIConversation[];

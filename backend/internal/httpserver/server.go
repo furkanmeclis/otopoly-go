@@ -423,6 +423,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
 	aiSvc.SetActivityRecorder(activityRec)
 	aiSvc.EnableActions()
+	aiSvc.SetVoiceAPIKey(cfg.Speaches.APIKey)
 	aimodule.RegisterRoutes(mux, aihandler.New(aiSvc, activityRec), tokens, loader, deps.Queries)
 	logsSvc := logsusecase.New(deps.Queries)
 	if s.worker != nil {

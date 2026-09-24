@@ -91,6 +91,16 @@ Dokploy-attached services: **minio, centrifugo, backend, frontend**. Postgres, R
 
 `APP_ENCRYPTION_KEY` (32-byte, raw or base64) encrypts GitHub App secrets at rest. Generate: `openssl rand -base64 32`. Replace the example key in production.
 
+## AI voice (Speaches, optional)
+
+Push-to-talk and read-aloud use [Speaches](https://speaches.ai) (faster-whisper STT, Piper TTS). The browser only calls `/api/v1/tenant/ai/voice/*`; Go forwards to Speaches.
+
+- **Prod:** `compose.prod.yml` runs `speaches` (`ghcr.io/speaches-ai/speaches:latest-cpu`, override with `SPEACHES_IMAGE`) on the private network. `PRELOAD_MODELS` downloads `Systran/faster-whisper-small` and `speaches-ai/piper-tr_TR-fettah-medium` into the `speaches_models` volume on first start (needs Hugging Face access; takes a few minutes, ~1 GB RAM on CPU).
+- **Local:** `docker compose -f compose.local.yml --profile voice up -d speaches` (published on `SPEACHES_PORT`, default 8090).
+- Other models, once, on a running server: `curl -X POST http://<speaches>:8000/v1/models/Systran/faster-whisper-medium` (list with `GET /v1/models`; Turkish Piper voices: `speaches-ai/piper-tr_TR-{fettah,dfki,fahrettin}-medium`).
+- Admin → `/platform/ai` → **Ses**: URL `http://<NAME_PREFIX>-speaches:8000` (local: `http://127.0.0.1:8090`), turn on **Ses**, then **Ses sunucusunu test et** shows which models are installed. Empty model fields use the defaults above; a non-Piper TTS model is written `model:voice`.
+- `SPEACHES_API_KEY` is only for an external Speaches started with `API_KEY`.
+
 ## Super admin
 
 From the repo root (loads `.env`):

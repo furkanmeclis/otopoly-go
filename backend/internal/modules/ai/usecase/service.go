@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"sort"
 	"strings"
@@ -43,6 +44,8 @@ type Service struct {
 	loc           *time.Location
 	maxIterations int
 	toolTimeout   time.Duration
+	voiceAPIKey   string
+	voiceHTTP     *http.Client
 }
 
 // New creates the service.
