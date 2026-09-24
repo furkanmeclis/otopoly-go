@@ -82,6 +82,25 @@ func (q *Queries) CountContractPresets(ctx context.Context, arg CountContractPre
 	return column_1, err
 }
 
+const countContractSignerOTPsSince = `-- name: CountContractSignerOTPsSince :one
+SELECT count(*)::bigint
+FROM contract_signer_otps
+WHERE signer_id = $1
+  AND created_at >= $2
+`
+
+type CountContractSignerOTPsSinceParams struct {
+	SignerID  int64              `json:"signer_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) CountContractSignerOTPsSince(ctx context.Context, arg CountContractSignerOTPsSinceParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countContractSignerOTPsSince, arg.SignerID, arg.CreatedAt)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countContractTemplates = `-- name: CountContractTemplates :one
 SELECT count(*)::bigint
 FROM contract_templates
@@ -129,11 +148,11 @@ const createContractInstance = `-- name: CreateContractInstance :one
 INSERT INTO contract_instances (
     organization_id, template_id, title, subject_type, subject_uuid,
     content_json, content_html, variables_resolved, signature_required,
-    status, created_by, number, locale
+    status, created_by, number, locale, otp_required
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
-RETURNING id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale
+RETURNING id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale, otp_required
 `
 
 type CreateContractInstanceParams struct {
@@ -150,6 +169,7 @@ type CreateContractInstanceParams struct {
 	CreatedBy         int64       `json:"created_by"`
 	Number            int32       `json:"number"`
 	Locale            string      `json:"locale"`
+	OtpRequired       bool        `json:"otp_required"`
 }
 
 func (q *Queries) CreateContractInstance(ctx context.Context, arg CreateContractInstanceParams) (ContractInstance, error) {
@@ -167,6 +187,7 @@ func (q *Queries) CreateContractInstance(ctx context.Context, arg CreateContract
 		arg.CreatedBy,
 		arg.Number,
 		arg.Locale,
+		arg.OtpRequired,
 	)
 	var i ContractInstance
 	err := row.Scan(
@@ -193,6 +214,7 @@ func (q *Queries) CreateContractInstance(ctx context.Context, arg CreateContract
 		&i.UpdatedAt,
 		&i.Number,
 		&i.Locale,
+		&i.OtpRequired,
 	)
 	return i, err
 }
@@ -252,11 +274,12 @@ func (q *Queries) CreateContractMedia(ctx context.Context, arg CreateContractMed
 const createContractPreset = `-- name: CreateContractPreset :one
 INSERT INTO contract_presets (
     title, description, category, content_json, content_html,
-    variables, signer_slots, signature_required, is_active, created_by
+    variables, signer_slots, signature_required, is_active, created_by,
+    otp_required
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+RETURNING id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 `
 
 type CreateContractPresetParams struct {
@@ -270,6 +293,7 @@ type CreateContractPresetParams struct {
 	SignatureRequired bool        `json:"signature_required"`
 	IsActive          bool        `json:"is_active"`
 	CreatedBy         pgtype.Int8 `json:"created_by"`
+	OtpRequired       bool        `json:"otp_required"`
 }
 
 func (q *Queries) CreateContractPreset(ctx context.Context, arg CreateContractPresetParams) (ContractPreset, error) {
@@ -284,6 +308,7 @@ func (q *Queries) CreateContractPreset(ctx context.Context, arg CreateContractPr
 		arg.SignatureRequired,
 		arg.IsActive,
 		arg.CreatedBy,
+		arg.OtpRequired,
 	)
 	var i ContractPreset
 	err := row.Scan(
@@ -302,6 +327,7 @@ func (q *Queries) CreateContractPreset(ctx context.Context, arg CreateContractPr
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.OtpRequired,
 	)
 	return i, err
 }
@@ -361,11 +387,12 @@ func (q *Queries) CreateContractSignature(ctx context.Context, arg CreateContrac
 
 const createContractSigner = `-- name: CreateContractSigner :one
 INSERT INTO contract_signers (
-    organization_id, instance_id, role, label, required, sort_order, status
+    organization_id, instance_id, role, label, required, sort_order, status,
+    suggested_name, phone
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
-RETURNING id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at
+RETURNING id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at, suggested_name, phone, otp_verified_at, otp_channel, otp_phone
 `
 
 type CreateContractSignerParams struct {
@@ -376,6 +403,8 @@ type CreateContractSignerParams struct {
 	Required       bool   `json:"required"`
 	SortOrder      int32  `json:"sort_order"`
 	Status         string `json:"status"`
+	SuggestedName  string `json:"suggested_name"`
+	Phone          string `json:"phone"`
 }
 
 func (q *Queries) CreateContractSigner(ctx context.Context, arg CreateContractSignerParams) (ContractSigner, error) {
@@ -387,6 +416,8 @@ func (q *Queries) CreateContractSigner(ctx context.Context, arg CreateContractSi
 		arg.Required,
 		arg.SortOrder,
 		arg.Status,
+		arg.SuggestedName,
+		arg.Phone,
 	)
 	var i ContractSigner
 	err := row.Scan(
@@ -401,6 +432,78 @@ func (q *Queries) CreateContractSigner(ctx context.Context, arg CreateContractSi
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SuggestedName,
+		&i.Phone,
+		&i.OtpVerifiedAt,
+		&i.OtpChannel,
+		&i.OtpPhone,
+	)
+	return i, err
+}
+
+const createContractSignerOTP = `-- name: CreateContractSignerOTP :one
+INSERT INTO contract_signer_otps (
+    organization_id, instance_id, signer_id, channel, phone, code_hash,
+    message_sha256, provider_reference, max_attempts, expires_at,
+    sent_by_user_id, ip_address, user_agent
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+)
+RETURNING id, uuid, organization_id, instance_id, signer_id, channel, phone, code_hash, message_sha256, provider_reference, attempts, max_attempts, expires_at, verified_at, sent_by_user_id, ip_address, user_agent, created_at
+`
+
+type CreateContractSignerOTPParams struct {
+	OrganizationID    int64              `json:"organization_id"`
+	InstanceID        int64              `json:"instance_id"`
+	SignerID          int64              `json:"signer_id"`
+	Channel           string             `json:"channel"`
+	Phone             string             `json:"phone"`
+	CodeHash          string             `json:"code_hash"`
+	MessageSha256     string             `json:"message_sha256"`
+	ProviderReference string             `json:"provider_reference"`
+	MaxAttempts       int32              `json:"max_attempts"`
+	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
+	SentByUserID      int64              `json:"sent_by_user_id"`
+	IpAddress         string             `json:"ip_address"`
+	UserAgent         string             `json:"user_agent"`
+}
+
+func (q *Queries) CreateContractSignerOTP(ctx context.Context, arg CreateContractSignerOTPParams) (ContractSignerOtp, error) {
+	row := q.db.QueryRow(ctx, createContractSignerOTP,
+		arg.OrganizationID,
+		arg.InstanceID,
+		arg.SignerID,
+		arg.Channel,
+		arg.Phone,
+		arg.CodeHash,
+		arg.MessageSha256,
+		arg.ProviderReference,
+		arg.MaxAttempts,
+		arg.ExpiresAt,
+		arg.SentByUserID,
+		arg.IpAddress,
+		arg.UserAgent,
+	)
+	var i ContractSignerOtp
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.InstanceID,
+		&i.SignerID,
+		&i.Channel,
+		&i.Phone,
+		&i.CodeHash,
+		&i.MessageSha256,
+		&i.ProviderReference,
+		&i.Attempts,
+		&i.MaxAttempts,
+		&i.ExpiresAt,
+		&i.VerifiedAt,
+		&i.SentByUserID,
+		&i.IpAddress,
+		&i.UserAgent,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -409,11 +512,11 @@ const createContractTemplate = `-- name: CreateContractTemplate :one
 INSERT INTO contract_templates (
     organization_id, preset_id, title, description, category,
     content_json, content_html, variables, signer_slots,
-    signature_required, is_active, created_by
+    signature_required, is_active, created_by, otp_required
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
 )
-RETURNING id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 `
 
 type CreateContractTemplateParams struct {
@@ -429,6 +532,7 @@ type CreateContractTemplateParams struct {
 	SignatureRequired bool        `json:"signature_required"`
 	IsActive          bool        `json:"is_active"`
 	CreatedBy         int64       `json:"created_by"`
+	OtpRequired       bool        `json:"otp_required"`
 }
 
 func (q *Queries) CreateContractTemplate(ctx context.Context, arg CreateContractTemplateParams) (ContractTemplate, error) {
@@ -445,6 +549,7 @@ func (q *Queries) CreateContractTemplate(ctx context.Context, arg CreateContract
 		arg.SignatureRequired,
 		arg.IsActive,
 		arg.CreatedBy,
+		arg.OtpRequired,
 	)
 	var i ContractTemplate
 	err := row.Scan(
@@ -465,6 +570,7 @@ func (q *Queries) CreateContractTemplate(ctx context.Context, arg CreateContract
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.OtpRequired,
 	)
 	return i, err
 }
@@ -486,7 +592,7 @@ func (q *Queries) DeleteContractMedia(ctx context.Context, arg DeleteContractMed
 }
 
 const getContractInstanceByID = `-- name: GetContractInstanceByID :one
-SELECT id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale
+SELECT id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale, otp_required
 FROM contract_instances
 WHERE id = $1
 `
@@ -518,12 +624,13 @@ func (q *Queries) GetContractInstanceByID(ctx context.Context, id int64) (Contra
 		&i.UpdatedAt,
 		&i.Number,
 		&i.Locale,
+		&i.OtpRequired,
 	)
 	return i, err
 }
 
 const getContractInstanceByUUID = `-- name: GetContractInstanceByUUID :one
-SELECT id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale
+SELECT id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale, otp_required
 FROM contract_instances
 WHERE uuid = $1 AND organization_id = $2
 `
@@ -560,6 +667,7 @@ func (q *Queries) GetContractInstanceByUUID(ctx context.Context, arg GetContract
 		&i.UpdatedAt,
 		&i.Number,
 		&i.Locale,
+		&i.OtpRequired,
 	)
 	return i, err
 }
@@ -597,7 +705,7 @@ func (q *Queries) GetContractMediaByUUID(ctx context.Context, arg GetContractMed
 }
 
 const getContractPresetByUUID = `-- name: GetContractPresetByUUID :one
-SELECT id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+SELECT id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 FROM contract_presets
 WHERE uuid = $1 AND deleted_at IS NULL
 `
@@ -621,12 +729,13 @@ func (q *Queries) GetContractPresetByUUID(ctx context.Context, argUuid uuid.UUID
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.OtpRequired,
 	)
 	return i, err
 }
 
 const getContractSignerByUUID = `-- name: GetContractSignerByUUID :one
-SELECT id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at
+SELECT id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at, suggested_name, phone, otp_verified_at, otp_channel, otp_phone
 FROM contract_signers
 WHERE uuid = $1
   AND organization_id = $2
@@ -654,12 +763,17 @@ func (q *Queries) GetContractSignerByUUID(ctx context.Context, arg GetContractSi
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SuggestedName,
+		&i.Phone,
+		&i.OtpVerifiedAt,
+		&i.OtpChannel,
+		&i.OtpPhone,
 	)
 	return i, err
 }
 
 const getContractTemplateByUUID = `-- name: GetContractTemplateByUUID :one
-SELECT id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+SELECT id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 FROM contract_templates
 WHERE uuid = $1
   AND organization_id = $2
@@ -692,12 +806,80 @@ func (q *Queries) GetContractTemplateByUUID(ctx context.Context, arg GetContract
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.OtpRequired,
+	)
+	return i, err
+}
+
+const getLatestContractSignerOTP = `-- name: GetLatestContractSignerOTP :one
+SELECT id, uuid, organization_id, instance_id, signer_id, channel, phone, code_hash, message_sha256, provider_reference, attempts, max_attempts, expires_at, verified_at, sent_by_user_id, ip_address, user_agent, created_at
+FROM contract_signer_otps
+WHERE signer_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLatestContractSignerOTP(ctx context.Context, signerID int64) (ContractSignerOtp, error) {
+	row := q.db.QueryRow(ctx, getLatestContractSignerOTP, signerID)
+	var i ContractSignerOtp
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.InstanceID,
+		&i.SignerID,
+		&i.Channel,
+		&i.Phone,
+		&i.CodeHash,
+		&i.MessageSha256,
+		&i.ProviderReference,
+		&i.Attempts,
+		&i.MaxAttempts,
+		&i.ExpiresAt,
+		&i.VerifiedAt,
+		&i.SentByUserID,
+		&i.IpAddress,
+		&i.UserAgent,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const incrementContractSignerOTPAttempts = `-- name: IncrementContractSignerOTPAttempts :one
+UPDATE contract_signer_otps
+SET attempts = attempts + 1
+WHERE id = $1
+RETURNING id, uuid, organization_id, instance_id, signer_id, channel, phone, code_hash, message_sha256, provider_reference, attempts, max_attempts, expires_at, verified_at, sent_by_user_id, ip_address, user_agent, created_at
+`
+
+func (q *Queries) IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error) {
+	row := q.db.QueryRow(ctx, incrementContractSignerOTPAttempts, id)
+	var i ContractSignerOtp
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.InstanceID,
+		&i.SignerID,
+		&i.Channel,
+		&i.Phone,
+		&i.CodeHash,
+		&i.MessageSha256,
+		&i.ProviderReference,
+		&i.Attempts,
+		&i.MaxAttempts,
+		&i.ExpiresAt,
+		&i.VerifiedAt,
+		&i.SentByUserID,
+		&i.IpAddress,
+		&i.UserAgent,
+		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listContractInstances = `-- name: ListContractInstances :many
-SELECT id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale
+SELECT id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale, otp_required
 FROM contract_instances
 WHERE organization_id = $1
   AND (
@@ -771,6 +953,7 @@ func (q *Queries) ListContractInstances(ctx context.Context, arg ListContractIns
 			&i.UpdatedAt,
 			&i.Number,
 			&i.Locale,
+			&i.OtpRequired,
 		); err != nil {
 			return nil, err
 		}
@@ -823,7 +1006,7 @@ func (q *Queries) ListContractMediaByInstance(ctx context.Context, instanceID in
 }
 
 const listContractPresets = `-- name: ListContractPresets :many
-SELECT id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+SELECT id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 FROM contract_presets
 WHERE deleted_at IS NULL
   AND (
@@ -883,6 +1066,7 @@ func (q *Queries) ListContractPresets(ctx context.Context, arg ListContractPrese
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.OtpRequired,
 		); err != nil {
 			return nil, err
 		}
@@ -936,7 +1120,7 @@ func (q *Queries) ListContractSignaturesByInstance(ctx context.Context, instance
 }
 
 const listContractSignersByInstance = `-- name: ListContractSignersByInstance :many
-SELECT id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at
+SELECT id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at, suggested_name, phone, otp_verified_at, otp_channel, otp_phone
 FROM contract_signers
 WHERE instance_id = $1
 ORDER BY sort_order ASC, id ASC
@@ -963,6 +1147,11 @@ func (q *Queries) ListContractSignersByInstance(ctx context.Context, instanceID 
 			&i.Status,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.SuggestedName,
+			&i.Phone,
+			&i.OtpVerifiedAt,
+			&i.OtpChannel,
+			&i.OtpPhone,
 		); err != nil {
 			return nil, err
 		}
@@ -975,7 +1164,7 @@ func (q *Queries) ListContractSignersByInstance(ctx context.Context, instanceID 
 }
 
 const listContractTemplates = `-- name: ListContractTemplates :many
-SELECT id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+SELECT id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 FROM contract_templates
 WHERE organization_id = $1
   AND deleted_at IS NULL
@@ -1039,6 +1228,7 @@ func (q *Queries) ListContractTemplates(ctx context.Context, arg ListContractTem
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.OtpRequired,
 		); err != nil {
 			return nil, err
 		}
@@ -1050,11 +1240,72 @@ func (q *Queries) ListContractTemplates(ctx context.Context, arg ListContractTem
 	return items, nil
 }
 
+const markContractSignerOTPVerified = `-- name: MarkContractSignerOTPVerified :one
+UPDATE contract_signers
+SET otp_verified_at = $2,
+    otp_channel = $3,
+    otp_phone = $4
+WHERE id = $1
+RETURNING id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at, suggested_name, phone, otp_verified_at, otp_channel, otp_phone
+`
+
+type MarkContractSignerOTPVerifiedParams struct {
+	ID            int64              `json:"id"`
+	OtpVerifiedAt pgtype.Timestamptz `json:"otp_verified_at"`
+	OtpChannel    string             `json:"otp_channel"`
+	OtpPhone      string             `json:"otp_phone"`
+}
+
+func (q *Queries) MarkContractSignerOTPVerified(ctx context.Context, arg MarkContractSignerOTPVerifiedParams) (ContractSigner, error) {
+	row := q.db.QueryRow(ctx, markContractSignerOTPVerified,
+		arg.ID,
+		arg.OtpVerifiedAt,
+		arg.OtpChannel,
+		arg.OtpPhone,
+	)
+	var i ContractSigner
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.InstanceID,
+		&i.Role,
+		&i.Label,
+		&i.Required,
+		&i.SortOrder,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SuggestedName,
+		&i.Phone,
+		&i.OtpVerifiedAt,
+		&i.OtpChannel,
+		&i.OtpPhone,
+	)
+	return i, err
+}
+
+const markContractSignerOTPVerifiedAt = `-- name: MarkContractSignerOTPVerifiedAt :exec
+UPDATE contract_signer_otps
+SET verified_at = $2
+WHERE id = $1
+`
+
+type MarkContractSignerOTPVerifiedAtParams struct {
+	ID         int64              `json:"id"`
+	VerifiedAt pgtype.Timestamptz `json:"verified_at"`
+}
+
+func (q *Queries) MarkContractSignerOTPVerifiedAt(ctx context.Context, arg MarkContractSignerOTPVerifiedAtParams) error {
+	_, err := q.db.Exec(ctx, markContractSignerOTPVerifiedAt, arg.ID, arg.VerifiedAt)
+	return err
+}
+
 const markContractSignerSigned = `-- name: MarkContractSignerSigned :one
 UPDATE contract_signers
 SET status = 'signed'
 WHERE id = $1
-RETURNING id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at
+RETURNING id, uuid, organization_id, instance_id, role, label, required, sort_order, status, created_at, updated_at, suggested_name, phone, otp_verified_at, otp_channel, otp_phone
 `
 
 func (q *Queries) MarkContractSignerSigned(ctx context.Context, id int64) (ContractSigner, error) {
@@ -1072,6 +1323,11 @@ func (q *Queries) MarkContractSignerSigned(ctx context.Context, id int64) (Contr
 		&i.Status,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.SuggestedName,
+		&i.Phone,
+		&i.OtpVerifiedAt,
+		&i.OtpChannel,
+		&i.OtpPhone,
 	)
 	return i, err
 }
@@ -1143,7 +1399,7 @@ SET
     voided_at = COALESCE($8, voided_at),
     voided_by = COALESCE($9, voided_by)
 WHERE id = $1 AND organization_id = $2
-RETURNING id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale
+RETURNING id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale, otp_required
 `
 
 type UpdateContractInstanceStatusParams struct {
@@ -1195,6 +1451,7 @@ func (q *Queries) UpdateContractInstanceStatus(ctx context.Context, arg UpdateCo
 		&i.UpdatedAt,
 		&i.Number,
 		&i.Locale,
+		&i.OtpRequired,
 	)
 	return i, err
 }
@@ -1210,9 +1467,10 @@ SET
     variables = COALESCE($6, variables),
     signer_slots = COALESCE($7, signer_slots),
     signature_required = COALESCE($8, signature_required),
-    is_active = COALESCE($9, is_active)
-WHERE uuid = $10 AND deleted_at IS NULL
-RETURNING id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+    otp_required = COALESCE($9, otp_required),
+    is_active = COALESCE($10, is_active)
+WHERE uuid = $11 AND deleted_at IS NULL
+RETURNING id, uuid, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 `
 
 type UpdateContractPresetParams struct {
@@ -1224,6 +1482,7 @@ type UpdateContractPresetParams struct {
 	Variables         []byte      `json:"variables"`
 	SignerSlots       []byte      `json:"signer_slots"`
 	SignatureRequired pgtype.Bool `json:"signature_required"`
+	OtpRequired       pgtype.Bool `json:"otp_required"`
 	IsActive          pgtype.Bool `json:"is_active"`
 	Uuid              uuid.UUID   `json:"uuid"`
 }
@@ -1238,6 +1497,7 @@ func (q *Queries) UpdateContractPreset(ctx context.Context, arg UpdateContractPr
 		arg.Variables,
 		arg.SignerSlots,
 		arg.SignatureRequired,
+		arg.OtpRequired,
 		arg.IsActive,
 		arg.Uuid,
 	)
@@ -1258,8 +1518,25 @@ func (q *Queries) UpdateContractPreset(ctx context.Context, arg UpdateContractPr
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.OtpRequired,
 	)
 	return i, err
+}
+
+const updateContractSignerPhone = `-- name: UpdateContractSignerPhone :exec
+UPDATE contract_signers
+SET phone = $2
+WHERE id = $1
+`
+
+type UpdateContractSignerPhoneParams struct {
+	ID    int64  `json:"id"`
+	Phone string `json:"phone"`
+}
+
+func (q *Queries) UpdateContractSignerPhone(ctx context.Context, arg UpdateContractSignerPhoneParams) error {
+	_, err := q.db.Exec(ctx, updateContractSignerPhone, arg.ID, arg.Phone)
+	return err
 }
 
 const updateContractTemplate = `-- name: UpdateContractTemplate :one
@@ -1273,11 +1550,12 @@ SET
     variables = COALESCE($6, variables),
     signer_slots = COALESCE($7, signer_slots),
     signature_required = COALESCE($8, signature_required),
-    is_active = COALESCE($9, is_active)
-WHERE uuid = $10
-  AND organization_id = $11
+    otp_required = COALESCE($9, otp_required),
+    is_active = COALESCE($10, is_active)
+WHERE uuid = $11
+  AND organization_id = $12
   AND deleted_at IS NULL
-RETURNING id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, preset_id, title, description, category, content_json, content_html, variables, signer_slots, signature_required, is_active, created_by, created_at, updated_at, deleted_at, otp_required
 `
 
 type UpdateContractTemplateParams struct {
@@ -1289,6 +1567,7 @@ type UpdateContractTemplateParams struct {
 	Variables         []byte      `json:"variables"`
 	SignerSlots       []byte      `json:"signer_slots"`
 	SignatureRequired pgtype.Bool `json:"signature_required"`
+	OtpRequired       pgtype.Bool `json:"otp_required"`
 	IsActive          pgtype.Bool `json:"is_active"`
 	Uuid              uuid.UUID   `json:"uuid"`
 	OrganizationID    int64       `json:"organization_id"`
@@ -1304,6 +1583,7 @@ func (q *Queries) UpdateContractTemplate(ctx context.Context, arg UpdateContract
 		arg.Variables,
 		arg.SignerSlots,
 		arg.SignatureRequired,
+		arg.OtpRequired,
 		arg.IsActive,
 		arg.Uuid,
 		arg.OrganizationID,
@@ -1327,6 +1607,7 @@ func (q *Queries) UpdateContractTemplate(ctx context.Context, arg UpdateContract
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.OtpRequired,
 	)
 	return i, err
 }

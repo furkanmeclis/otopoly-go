@@ -23,7 +23,6 @@ import {
   useContractMutations,
 } from "@/features/contracts/hooks/use-contracts";
 import { useTenantContractsAccess } from "@/features/contracts/hooks/use-tenant-contracts-access";
-import type { ContractSigner } from "@/features/contracts/services/contracts.service";
 import { contractsService } from "@/features/contracts/services/contracts.service";
 import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
@@ -62,7 +61,7 @@ export function ContractInstanceDetailPage({
   const query = useContractInstance(uuid);
   const mutations = useContractMutations();
   const instance = query.data;
-  const [signing, setSigning] = useState<ContractSigner | null>(null);
+  const [signing, setSigning] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -242,10 +241,27 @@ export function ContractInstanceDetailPage({
                 className="flex flex-wrap items-center justify-between gap-3 py-3"
               >
                 <div>
-                  <p className="font-medium">{signer.label}</p>
+                  <p className="font-medium">
+                    {signer.label}
+                    {signer.suggested_name ? (
+                      <span className="text-muted-foreground font-normal">
+                        {" "}
+                        · {signer.suggested_name}
+                      </span>
+                    ) : null}
+                  </p>
                   <p className="text-muted-foreground text-xs">
                     {signer.role}
                     {signer.required ? ` · ${t("contracts.fields.required")}` : ""}
+                    {signer.otp_required
+                      ? ` · ${
+                          signer.otp_verified_at
+                            ? t("contracts.otp.verified_short", {
+                                phone: signer.otp_phone_masked ?? "",
+                              })
+                            : t("contracts.otp.required_short")
+                        }`
+                      : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -266,7 +282,7 @@ export function ContractInstanceDetailPage({
                     <Button
                       type="button"
                       size="sm"
-                      onClick={() => setSigning(signer)}
+                      onClick={() => setSigning(signer.uuid)}
                     >
                       {t("contracts.instances.sign")}
                     </Button>
@@ -428,8 +444,8 @@ export function ContractInstanceDetailPage({
         onOpenChange={(open) => {
           if (!open) setSigning(null);
         }}
-        instanceUuid={uuid}
-        signer={signing}
+        instance={instance}
+        signerUuid={signing}
       />
     </EntityPage>
   );

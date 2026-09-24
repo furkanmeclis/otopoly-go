@@ -166,6 +166,7 @@ type ContractInstance struct {
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 	Number            int32              `json:"number"`
 	Locale            string             `json:"locale"`
+	OtpRequired       bool               `json:"otp_required"`
 }
 
 type ContractMedium struct {
@@ -199,6 +200,7 @@ type ContractPreset struct {
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+	OtpRequired       bool               `json:"otp_required"`
 }
 
 type ContractSignature struct {
@@ -229,6 +231,32 @@ type ContractSigner struct {
 	Status         string             `json:"status"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	SuggestedName  string             `json:"suggested_name"`
+	Phone          string             `json:"phone"`
+	OtpVerifiedAt  pgtype.Timestamptz `json:"otp_verified_at"`
+	OtpChannel     string             `json:"otp_channel"`
+	OtpPhone       string             `json:"otp_phone"`
+}
+
+type ContractSignerOtp struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	OrganizationID    int64              `json:"organization_id"`
+	InstanceID        int64              `json:"instance_id"`
+	SignerID          int64              `json:"signer_id"`
+	Channel           string             `json:"channel"`
+	Phone             string             `json:"phone"`
+	CodeHash          string             `json:"code_hash"`
+	MessageSha256     string             `json:"message_sha256"`
+	ProviderReference string             `json:"provider_reference"`
+	Attempts          int32              `json:"attempts"`
+	MaxAttempts       int32              `json:"max_attempts"`
+	ExpiresAt         pgtype.Timestamptz `json:"expires_at"`
+	VerifiedAt        pgtype.Timestamptz `json:"verified_at"`
+	SentByUserID      int64              `json:"sent_by_user_id"`
+	IpAddress         string             `json:"ip_address"`
+	UserAgent         string             `json:"user_agent"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 }
 
 type ContractTemplate struct {
@@ -249,6 +277,7 @@ type ContractTemplate struct {
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt         pgtype.Timestamptz `json:"deleted_at"`
+	OtpRequired       bool               `json:"otp_required"`
 }
 
 type Customer struct {

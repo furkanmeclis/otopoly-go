@@ -235,6 +235,8 @@ var trCatalog = map[string]string{
 	"contracts.pdf.number":                     "Sözleşme no",
 	"contracts.pdf.date":                       "Tarih",
 	"contracts.pdf.signatures":                 "İmzalar",
+	"contracts.pdf.signed_at":                  "İmza zamanı",
+	"contracts.pdf.otp_verified":               "OTP ile doğrulandı",
 	"contracts.pdf.attachments":                "Ekler",
 	"contracts.pdf.footer":                     "Bu belge basit elektronik imza ile oluşturulmuştur.",
 }
@@ -436,6 +438,8 @@ var enCatalog = map[string]string{
 	"contracts.pdf.number":                     "Contract no",
 	"contracts.pdf.date":                       "Date",
 	"contracts.pdf.signatures":                 "Signatures",
+	"contracts.pdf.signed_at":                  "Signed at",
+	"contracts.pdf.otp_verified":               "Verified by OTP",
 	"contracts.pdf.attachments":                "Attachments",
 	"contracts.pdf.footer":                     "This document was created with a simple electronic signature.",
 }

@@ -242,7 +242,7 @@ function CustomerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("customers.dialog.create_title")}</DialogTitle>
           <DialogDescription>
@@ -291,7 +291,7 @@ function CustomerDialog({
             onOpenChange(false);
           }}
         >
-          <FieldGroup className="gap-4">
+          <FieldGroup className="grid gap-4 sm:grid-cols-2">
             <AppInput
               name="name"
               label={t("customers.fields.name")}
@@ -313,8 +313,16 @@ function CustomerDialog({
               ]}
             />
             <CompanyTaxFields />
-            <AppTextarea name="notes" label={t("customers.fields.notes")} />
-            <AppSwitch name="is_active" label={t("customers.fields.active")} />
+            <AppTextarea
+              name="notes"
+              label={t("customers.fields.notes")}
+              className="sm:col-span-2"
+            />
+            <AppSwitch
+              name="is_active"
+              label={t("customers.fields.active")}
+              className="sm:col-span-2"
+            />
           </FieldGroup>
           <div className="border-border mt-6 space-y-3 rounded-lg border p-4">
             <div className="space-y-1">
@@ -325,7 +333,7 @@ function CustomerDialog({
                 {t("customers.dialog.vehicle_section_hint")}
               </p>
             </div>
-            <FieldGroup className="gap-4">
+            <FieldGroup className="grid gap-4 sm:grid-cols-2">
               <AppInput
                 name="plate"
                 label={t("customers.detail.plate")}

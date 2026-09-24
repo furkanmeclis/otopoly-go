@@ -11,6 +11,9 @@ x-frontend-image: &frontend-image
   build:
     context: .
     dockerfile: frontend/Dockerfile
+    args:
+      # Landing SEO/OG URLs are baked at build time; defaults to AUTH_URL.
+      SITE_URL: ${SITE_URL:-${AUTH_URL:-}}
 
 x-backend-environment: &backend-environment
   APP_NAME: ${APP_NAME:-api}

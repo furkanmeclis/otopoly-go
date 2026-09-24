@@ -1,31 +1,97 @@
-"use client";
+import type { Metadata } from "next";
 
-import Link from "next/link";
+import { site } from "@/config/site";
+import { LandingPage } from "@/features/landing";
+import { faqs } from "@/features/landing/content";
+import { ogAlt, ogSize } from "@/features/landing/og/meta";
 
-import { Button } from "@/components/ui/button";
-import { routes } from "@/config/routes";
-import { brand } from "@/config/brand";
-import { useLocale } from "@/providers/locale-provider";
+// Page-level openGraph replaces the root one, so reference the generated
+// (build-time) share images explicitly.
+const ogImage = { url: "/opengraph-image", ...ogSize, alt: ogAlt };
+
+export const metadata: Metadata = {
+  title: { absolute: site.title },
+  description: site.description,
+  keywords: [...site.keywords],
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: site.name,
+    locale: site.locale,
+    title: site.title,
+    description: site.description,
+    images: [ogImage],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: site.title,
+    description: site.description,
+    images: [{ ...ogImage, url: "/twitter-image" }],
+  },
+  robots: { index: true, follow: true },
+};
+
+function structuredData() {
+  const orgId = `${site.url}/#organization`;
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": orgId,
+        name: site.name,
+        url: site.url,
+        logo: `${site.url}/icon.svg`,
+      },
+      {
+        "@type": "WebSite",
+        "@id": `${site.url}/#website`,
+        url: site.url,
+        name: site.name,
+        inLanguage: "tr-TR",
+        publisher: { "@id": orgId },
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: site.name,
+        applicationCategory: "BusinessApplication",
+        applicationSubCategory: "Oto yıkama ve detailing işletme yönetimi",
+        operatingSystem: "Web, iOS, Android",
+        url: site.url,
+        description: site.description,
+        inLanguage: "tr-TR",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "TRY",
+          description: "14 gün ücretsiz deneme",
+        },
+        publisher: { "@id": orgId },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: faqs.map((item) => ({
+          "@type": "Question",
+          name: item.q,
+          acceptedAnswer: { "@type": "Answer", text: item.a },
+        })),
+      },
+    ],
+  };
+}
 
 export default function PublicHomePage() {
-  const { t } = useLocale();
-
   return (
-    <div className="bg-muted flex min-h-svh flex-col items-center justify-center p-6">
-      <div className="flex w-full max-w-xl flex-col items-center gap-6 text-center">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {brand.productName}
-          </h1>
-          <p className="text-muted-foreground text-sm">{brand.tagline}</p>
-        </div>
-        <p className="text-muted-foreground text-sm">
-          {t("register.landing_description")}
-        </p>
-        <Button asChild size="lg">
-          <Link href={routes.public.register}>{t("register.landing_cta")}</Link>
-        </Button>
-      </div>
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        // Escape "<" so the JSON cannot close the script tag.
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(structuredData()).replace(/</g, "\\u003c"),
+        }}
+      />
+      <LandingPage />
+    </>
   );
 }

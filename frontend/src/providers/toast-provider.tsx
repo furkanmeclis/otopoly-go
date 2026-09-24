@@ -7,12 +7,24 @@ import { Toaster, toast } from "sonner";
 import { ApiError, setGlobalApiErrorHandler } from "@/lib/api";
 import { useLocale } from "@/providers/locale-provider";
 
+// Error codes whose server message is technical; show a localized text instead.
+const LOCALIZED_ERROR_CODES: Record<string, string> = {
+  OTP_CHANNEL_UNAVAILABLE: "contracts.otp.errors.channel_unavailable",
+  INVALID_OTP_CODE: "contracts.otp.errors.invalid_code",
+  OTP_REQUIRED: "contracts.otp.errors.required",
+};
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { theme } = useTheme();
   const { t } = useLocale();
 
   useEffect(() => {
     setGlobalApiErrorHandler((error: ApiError) => {
+      const localizedKey = LOCALIZED_ERROR_CODES[error.code];
+      if (localizedKey) {
+        toast.error(t(localizedKey));
+        return;
+      }
       if (error.isUnauthorized) {
         toast.error(t("auth.session_expired"));
         return;

@@ -449,6 +449,82 @@ func (s *Service) Dispatch(ctx context.Context, in model.DispatchInput) error {
 	return nil
 }
 
+// ErrChannelUnavailable is returned when a transactional send cannot use the org channel.
+var ErrChannelUnavailable = errors.New("messaging channel unavailable")
+
+// SendDirectInput is a transactional message that bypasses notification rules
+// and templates (e.g. contract OTP codes).
+type SendDirectInput struct {
+	OrgID          int64
+	EventType      string
+	Channel        string
+	RecipientPhone string
+	Body           string
+	SubjectType    string
+	SubjectUUID    *uuid.UUID
+}
+
+// SendDirect delivers a pre-rendered body over the organization's own channel and
+// logs the outbound row. The body is not persisted (it may carry secrets like OTPs).
+func (s *Service) SendDirect(ctx context.Context, in SendDirectInput) (string, error) {
+	channel := strings.TrimSpace(in.Channel)
+	if channel == "" {
+		channel = model.ChannelWhatsApp
+	}
+	sender, ok := s.channels[channel]
+	if !ok {
+		return "", fmt.Errorf("%w: %s", ErrChannelUnavailable, channel)
+	}
+	if strings.TrimSpace(in.RecipientPhone) == "" {
+		return "", fmt.Errorf("%w: phone is required", ErrInvalidRequest)
+	}
+	if _, ok := orgctx.ScopeFrom(ctx); !ok && in.OrgID > 0 {
+		ctx = orgctx.WithScope(ctx, orgctx.Scope{InternalID: in.OrgID})
+	}
+	if channel == model.ChannelWhatsApp {
+		session, err := s.q.GetWhatsAppSession(ctx, in.OrgID)
+		if err != nil || session.Status != model.StatusConnected {
+			return "", fmt.Errorf("%w: whatsapp session is not connected", ErrChannelUnavailable)
+		}
+		_ = s.EnsureWhatsAppConnected(ctx, in.OrgID)
+	}
+
+	ref, sendErr := sender.Send(ctx, in.RecipientPhone, in.Body)
+	status := model.OutboundStatusSent
+	errMsg := ""
+	var sentAt pgtype.Timestamptz
+	if sendErr != nil {
+		status = model.OutboundStatusFailed
+		errMsg = sendErr.Error()
+		ref = ""
+	} else {
+		_ = sentAt.Scan(time.Now())
+	}
+	outMsg, dbErr := s.q.InsertOutboundMessage(ctx, db.InsertOutboundMessageParams{
+		OrganizationID: in.OrgID,
+		EventType:      in.EventType,
+		Channel:        channel,
+		RecipientPhone: in.RecipientPhone,
+		Status:         model.OutboundStatusQueued,
+		Payload:        []byte(`{}`),
+		SubjectType:    in.SubjectType,
+		SubjectUuid:    toPgtypeUUID(in.SubjectUUID),
+	})
+	if dbErr == nil {
+		_, _ = s.q.UpdateOutboundMessageStatus(ctx, db.UpdateOutboundMessageStatusParams{
+			ID:                outMsg.ID,
+			Status:            status,
+			ProviderReference: ref,
+			ErrorMessage:      errMsg,
+			SentAt:            sentAt,
+		})
+	}
+	if sendErr != nil {
+		return "", fmt.Errorf("%w: %v", ErrChannelUnavailable, sendErr)
+	}
+	return ref, nil
+}
+
 // Simulate sends test messages (rules ignored) for one event or the full job lifecycle.
 func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateInput) (model.SimulateResult, error) {
 	phone := strings.TrimSpace(in.Phone)

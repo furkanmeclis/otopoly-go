@@ -5746,6 +5746,88 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
+        "409":
+          description: Conflict (`CONFLICT`), or `OTP_REQUIRED` when the customer signer has no fresh verified OTP.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/otp:
+    post:
+      tags: [Tenant]
+      operationId: sendTenantContractSignerOtp
+      summary: Send a WhatsApp OTP (contract heading + KVKK notice) to a customer signer
+      description: |
+        Sends a 6-digit code over the organization's connected WhatsApp session. The message carries the
+        contract title/number, plate and the KVKK (6698) disclosure. Codes expire after 5 minutes, allow
+        5 attempts, can be resent after 60 seconds, and at most 5 codes per signer per hour.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: signerUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone: { type: string, description: Override recipient; defaults to the signer phone. }
+      responses:
+        "200":
+          description: OTP sent
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractOtpChallenge" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409":
+          description: "`OTP_CHANNEL_UNAVAILABLE` (WhatsApp not connected) or contract/signer not open"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/otp/verify:
+    post:
+      tags: [Tenant]
+      operationId: verifyTenantContractSignerOtp
+      summary: Verify the customer's OTP; unlocks signing for 30 minutes
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: signerUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        "200":
+          description: Instance after verification
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
+        "400":
+          description: "`INVALID_OTP_CODE` (wrong, expired, used, or too many attempts)"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/contracts/instances/{uuid}/media:
@@ -8211,6 +8293,9 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ContractSignerSlot" }
         signature_required: { type: boolean }
+        otp_required:
+          type: boolean
+          description: Customer signers must verify a WhatsApp OTP (sent over the organization's own session) before signing.
         is_active: { type: boolean }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
@@ -8230,6 +8315,9 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ContractSignerSlot" }
         signature_required: { type: boolean }
+        otp_required:
+          type: boolean
+          description: Customer signers must verify a WhatsApp OTP (sent over the organization's own session) before signing.
         is_active: { type: boolean }
 
     ContractTemplate:
@@ -8255,6 +8343,15 @@ components:
         required: { type: boolean }
         sort_order: { type: integer }
         status: { type: string, enum: [pending, signed] }
+        suggested_name:
+          type: string
+          description: Pre-filled signer name (customer → job customer; staff → job assignee or creator).
+        phone: { type: string, description: Default OTP recipient (customer phone for customer signers). }
+        otp_required: { type: boolean }
+        otp_verified: { type: boolean, description: True while a verified OTP authorizes signing (or after signing with a verified OTP). }
+        otp_verified_at: { type: [string, "null"], format: date-time }
+        otp_channel: { type: string, enum: [whatsapp, sms] }
+        otp_phone_masked: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
@@ -8302,6 +8399,7 @@ components:
           type: object
           additionalProperties: { type: string }
         signature_required: { type: boolean }
+        otp_required: { type: boolean }
         status: { type: string, enum: [draft, pending, executed, voided] }
         content_sha256: { type: [string, "null"] }
         pdf_object_key: { type: [string, "null"] }
@@ -8320,6 +8418,22 @@ components:
         media:
           type: array
           items: { $ref: "#/components/schemas/ContractMedia" }
+
+    ContractOtpChallenge:
+      type: object
+      properties:
+        channel: { type: string, enum: [whatsapp] }
+        phone_masked: { type: string }
+        expires_at: { type: string, format: date-time }
+        resend_at: { type: string, format: date-time }
+
+    EnvelopeContractOtpChallenge:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ContractOtpChallenge" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeContractPreset:
       type: object

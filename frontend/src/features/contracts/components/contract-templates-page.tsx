@@ -154,6 +154,7 @@ export function ContractTemplatesPage({ slug }: { slug: string }) {
                     variables: [...CONTRACT_VARIABLES],
                     signer_slots: DEFAULT_SIGNER_SLOTS,
                     signature_required: true,
+                    otp_required: true,
                     is_active: true,
                   })
                   .then((created) => {

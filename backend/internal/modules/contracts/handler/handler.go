@@ -26,6 +26,14 @@ func New(svc *contractsusecase.Service) *Handler {
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, contractsusecase.ErrOTPRateLimited):
+		response.TooManyRequests(w, r, err.Error())
+	case errors.Is(err, contractsusecase.ErrOTPRequired):
+		response.Conflict(w, r, "OTP_REQUIRED", err.Error())
+	case errors.Is(err, contractsusecase.ErrOTPInvalid):
+		response.BadRequest(w, r, "INVALID_OTP_CODE", err.Error())
+	case errors.Is(err, contractsusecase.ErrOTPChannelUnavailable):
+		response.Conflict(w, r, "OTP_CHANNEL_UNAVAILABLE", err.Error())
 	case errors.Is(err, contractsusecase.ErrNotFound):
 		response.NotFound(w, r, "not found")
 	case errors.Is(err, contractsusecase.ErrConflict):
@@ -360,6 +368,60 @@ func (h *Handler) Sign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, item)
+}
+
+func (h *Handler) SendSignerOTP(w http.ResponseWriter, r *http.Request) {
+	instanceID, signerID, ok := parseInstanceSigner(w, r)
+	if !ok {
+		return
+	}
+	var in contractsusecase.SendOTPInput
+	if r.ContentLength != 0 {
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil && !errors.Is(err, io.EOF) {
+			response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+			return
+		}
+	}
+	in.IPAddress = clientIP(r)
+	in.UserAgent = r.UserAgent()
+	item, err := h.svc.SendSignerOTP(r.Context(), instanceID, signerID, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
+func (h *Handler) VerifySignerOTP(w http.ResponseWriter, r *http.Request) {
+	instanceID, signerID, ok := parseInstanceSigner(w, r)
+	if !ok {
+		return
+	}
+	var in contractsusecase.VerifyOTPInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	item, err := h.svc.VerifySignerOTP(r.Context(), instanceID, signerID, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
+func parseInstanceSigner(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.UUID, bool) {
+	instanceID, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "instance uuid is invalid")
+		return uuid.Nil, uuid.Nil, false
+	}
+	signerID, err := uuid.Parse(r.PathValue("signerUuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "signer uuid is invalid")
+		return uuid.Nil, uuid.Nil, false
+	}
+	return instanceID, signerID, true
 }
 
 func (h *Handler) UploadMedia(w http.ResponseWriter, r *http.Request) {

@@ -3275,6 +3275,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/otp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a WhatsApp OTP (contract heading + KVKK notice) to a customer signer
+         * @description Sends a 6-digit code over the organization's connected WhatsApp session. The message carries the
+         *     contract title/number, plate and the KVKK (6698) disclosure. Codes expire after 5 minutes, allow
+         *     5 attempts, can be resent after 60 seconds, and at most 5 codes per signer per hour.
+         */
+        post: operations["sendTenantContractSignerOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/otp/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Verify the customer's OTP; unlocks signing for 30 minutes */
+        post: operations["verifyTenantContractSignerOtp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/contracts/instances/{uuid}/media": {
         parameters: {
             query?: never;
@@ -5006,6 +5045,8 @@ export interface components {
             variables?: string[];
             signer_slots?: components["schemas"]["ContractSignerSlot"][];
             signature_required?: boolean;
+            /** @description Customer signers must verify a WhatsApp OTP (sent over the organization's own session) before signing. */
+            otp_required?: boolean;
             is_active?: boolean;
             /** Format: date-time */
             created_at?: string;
@@ -5021,6 +5062,8 @@ export interface components {
             variables?: string[];
             signer_slots?: components["schemas"]["ContractSignerSlot"][];
             signature_required?: boolean;
+            /** @description Customer signers must verify a WhatsApp OTP (sent over the organization's own session) before signing. */
+            otp_required?: boolean;
             is_active?: boolean;
         };
         ContractTemplate: components["schemas"]["ContractPreset"] & {
@@ -5040,6 +5083,18 @@ export interface components {
             sort_order?: number;
             /** @enum {string} */
             status?: "pending" | "signed";
+            /** @description Pre-filled signer name (customer → job customer; staff → job assignee or creator). */
+            suggested_name?: string;
+            /** @description Default OTP recipient (customer phone for customer signers). */
+            phone?: string;
+            otp_required?: boolean;
+            /** @description True while a verified OTP authorizes signing (or after signing with a verified OTP). */
+            otp_verified?: boolean;
+            /** Format: date-time */
+            otp_verified_at?: string | null;
+            /** @enum {string} */
+            otp_channel?: "whatsapp" | "sms";
+            otp_phone_masked?: string;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -5091,6 +5146,7 @@ export interface components {
                 [key: string]: string;
             };
             signature_required?: boolean;
+            otp_required?: boolean;
             /** @enum {string} */
             status?: "draft" | "pending" | "executed" | "voided";
             content_sha256?: string | null;
@@ -5108,6 +5164,21 @@ export interface components {
             signers?: components["schemas"]["ContractSigner"][];
             signatures?: components["schemas"]["ContractSignature"][];
             media?: components["schemas"]["ContractMedia"][];
+        };
+        ContractOtpChallenge: {
+            /** @enum {string} */
+            channel?: "whatsapp";
+            phone_masked?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            /** Format: date-time */
+            resend_at?: string;
+        };
+        EnvelopeContractOtpChallenge: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ContractOtpChallenge"];
+            meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeContractPreset: {
             /** @enum {boolean} */
@@ -11488,6 +11559,94 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeContractInstance"];
+                };
+            };
+            /** @description Conflict (`CONFLICT`), or `OTP_REQUIRED` when the customer signer has no fresh verified OTP. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    sendTenantContractSignerOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                signerUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description Override recipient; defaults to the signer phone. */
+                    phone?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OTP sent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractOtpChallenge"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description `OTP_CHANNEL_UNAVAILABLE` (WhatsApp not connected) or contract/signer not open */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    verifyTenantContractSignerOtp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                signerUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Instance after verification */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractInstance"];
+                };
+            };
+            /** @description `INVALID_OTP_CODE` (wrong, expired, used, or too many attempts) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
             409: components["responses"]["Conflict"];

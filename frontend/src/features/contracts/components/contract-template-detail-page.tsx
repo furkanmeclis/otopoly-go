@@ -40,6 +40,7 @@ type FormState = {
   variables: string[];
   signer_slots: SignerSlot[];
   signature_required: boolean;
+  otp_required: boolean;
   is_active: boolean;
 };
 
@@ -57,6 +58,7 @@ function formFromTemplate(data: ContractTemplate): FormState {
       ? data.signer_slots
       : DEFAULT_SIGNER_SLOTS,
     signature_required: data.signature_required,
+    otp_required: data.otp_required ?? false,
     is_active: data.is_active,
   };
 }
@@ -115,6 +117,7 @@ function ContractTemplateFormEditor({
         variables: form.variables,
         signer_slots: form.signer_slots.filter((s) => s.role.trim()),
         signature_required: form.signature_required,
+        otp_required: form.otp_required,
         is_active: form.is_active,
       },
     });
@@ -204,6 +207,24 @@ function ContractTemplateFormEditor({
                   }
                 />
                 {t("contracts.fields.signature_required")}
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <Switch
+                  checked={form.otp_required}
+                  disabled={!canWrite}
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      otp_required: checked,
+                    }))
+                  }
+                />
+                <span>
+                  {t("contracts.fields.otp_required")}
+                  <span className="text-muted-foreground block text-xs">
+                    {t("contracts.fields.otp_required_hint")}
+                  </span>
+                </span>
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <Switch

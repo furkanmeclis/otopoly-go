@@ -517,7 +517,7 @@ function CustomerEditDialog({
 
   return (
     <Dialog open={Boolean(customer)} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("customers.dialog.edit_title")}</DialogTitle>
           <DialogDescription>
@@ -574,7 +574,7 @@ function CustomerFields() {
   const { t } = useLocale();
   const kind = useWatch({ name: "kind" }) as string | undefined;
   return (
-    <FieldGroup className="gap-4">
+    <FieldGroup className="grid gap-4 sm:grid-cols-2">
       <AppInput
         name="name"
         label={t("customers.fields.name")}
@@ -609,8 +609,16 @@ function CustomerFields() {
           />
         </>
       ) : null}
-      <AppTextarea name="notes" label={t("customers.fields.notes")} />
-      <AppSwitch name="is_active" label={t("customers.fields.active")} />
+      <AppTextarea
+        name="notes"
+        label={t("customers.fields.notes")}
+        className="sm:col-span-2"
+      />
+      <AppSwitch
+        name="is_active"
+        label={t("customers.fields.active")}
+        className="sm:col-span-2"
+      />
     </FieldGroup>
   );
 }

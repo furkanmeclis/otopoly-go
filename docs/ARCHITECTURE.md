@@ -188,6 +188,14 @@ Platform presets and tenant templates/instances for on-site multi-party signing.
 
 **Flow:** platform preset → tenant clone/customize → instance bound to `subject_type=service_job` → on-site SignaturePad signers → Asynq HTML→PDF → executed PDF download. Gallery media allowed on draft/pending. Remote/email signing and KEP are out of scope for v1.
 
+**Signer auto-fill:** at instance create each signer gets `suggested_name` (+ `phone`): `customer` → job customer name/phone, `staff` → job assignee, else the creating user. The signing UI pre-fills the name.
+
+**WhatsApp OTP consent (`otp_required`):** presets/templates/instances carry `otp_required` (default `true` for new ones). When set, `customer` signers must verify a 6-digit code before `sign` (`409 OTP_REQUIRED` otherwise):
+
+- `POST …/signers/{signerUuid}/otp` sends the code over the organization's **own** WhatsApp session (`messaging.SendDirect`, event `contract.otp`, body not persisted). The message carries the contract title/number, plate and the KVKK (6698) notice. `409 OTP_CHANNEL_UNAVAILABLE` when WhatsApp is not connected.
+- `POST …/signers/{signerUuid}/otp/verify` checks the latest code (5 min TTL, 5 attempts, 60 s resend cooldown, 5 sends/hour; only the SHA-256 hash is stored in `contract_signer_otps`). A verified OTP authorizes signing for 30 minutes.
+- Evidence (`otp_verified_at`, channel, masked phone, signed-at) is stored on `contract_signers` and printed under each signature in the executed PDF.
+
 ## Tenant cari (`/t/{slug}/cari`)
 
 Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.

@@ -18,6 +18,10 @@ RUN pnpm install --frozen-lockfile
 FROM base AS build
 
 ENV NEXT_TELEMETRY_DISABLED=1
+# Public site origin for canonical / Open Graph / sitemap URLs. Static pages
+# (landing, OG image, robots, sitemap) bake it in at build time.
+ARG SITE_URL=""
+ENV NEXT_PUBLIC_SITE_URL=$SITE_URL
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ .
