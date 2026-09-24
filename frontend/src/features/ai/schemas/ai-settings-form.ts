@@ -34,6 +34,10 @@ export const aiSettingsFormSchema = z
   .refine((v) => v.provider !== "openai_compatible" || v.base_url !== "", {
     message: "Base URL is required for OpenAI-compatible providers",
     path: ["base_url"],
+  })
+  .refine((v) => !v.feature_voice || v.voice_base_url !== "", {
+    message: "Speaches URL is required to enable voice",
+    path: ["voice_base_url"],
   });
 
 export type AISettingsFormValues = z.infer<typeof aiSettingsFormSchema>;

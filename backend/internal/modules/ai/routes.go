@@ -33,6 +33,10 @@ func RegisterRoutes(
 	mux.Handle("PATCH /v1/tenant/ai/conversations/{uuid}", tenant(h.RenameConversation))
 	mux.Handle("DELETE /v1/tenant/ai/conversations/{uuid}", tenant(h.DeleteConversation))
 	mux.Handle("POST /v1/tenant/ai/conversations/{uuid}/messages", tenant(h.SendMessage))
+	mux.Handle("POST /v1/tenant/ai/actions/{uuid}/confirm", tenant(h.ConfirmAction))
+	mux.Handle("POST /v1/tenant/ai/actions/{uuid}/cancel", tenant(h.CancelAction))
+	mux.Handle("POST /v1/tenant/ai/voice/transcribe", tenant(h.Transcribe))
+	mux.Handle("POST /v1/tenant/ai/voice/speech", tenant(h.Speech))
 
 	platform := func(handler http.HandlerFunc, perm string) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, middleware.RequirePermission(perm))
@@ -40,6 +44,7 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/platform/ai/settings", platform(h.GetSettings, rbac.PermPlatformAIRead))
 	mux.Handle("PATCH /v1/platform/ai/settings", platform(h.PatchSettings, rbac.PermPlatformAIWrite))
 	mux.Handle("POST /v1/platform/ai/settings/test", platform(h.TestConnection, rbac.PermPlatformAIWrite))
+	mux.Handle("POST /v1/platform/ai/voice/test", platform(h.TestVoice, rbac.PermPlatformAIWrite))
 	mux.Handle("GET /v1/platform/ai/usage", platform(h.Usage, rbac.PermPlatformAIRead))
 	mux.Handle("GET /v1/platform/ai/organizations/{uuid}", platform(h.GetOrgSettings, rbac.PermPlatformAIRead))
 	mux.Handle("PUT /v1/platform/ai/organizations/{uuid}", platform(h.PutOrgSettings, rbac.PermPlatformAIWrite))

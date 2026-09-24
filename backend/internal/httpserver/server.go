@@ -17,12 +17,12 @@ import (
 	accessmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/access"
 	accesshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/access/handler"
 	activitymodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity"
+	activityhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity/handler"
+	activityusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity/usecase"
 	aimodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai"
 	aihandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/handler"
 	aitools "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	aiusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/usecase"
-	activityhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity/handler"
-	activityusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity/usecase"
 	authmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth"
 	authhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/identity"
@@ -40,9 +40,6 @@ import (
 	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
 	contractsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts"
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
-	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
-	messagingproviders "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
-	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	customersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers"
 	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
@@ -64,6 +61,9 @@ import (
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
+	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
+	messagingproviders "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
@@ -76,19 +76,21 @@ import (
 	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
 	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
 	salesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales/usecase"
-	staffmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff"
-	staffusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff/usecase"
 	searchmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search"
 	searchhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/handler"
 	searchusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/usecase"
 	settingsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/settings"
 	settingshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/settings/handler"
 	settingsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/settings/usecase"
+	staffmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff"
+	staffusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff/usecase"
 	storagemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage"
 	storagehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/handler"
 	storageusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/usecase"
 	suppliersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/suppliers"
 	suppliersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/suppliers/usecase"
+	todosmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos"
+	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	vehiclemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog"
 	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
 	vehicleusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
@@ -351,17 +353,6 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	reportsSvc := reportsusecase.New(deps.Queries)
 	reportsmodule.RegisterRoutes(mux, reportsSvc, tokens, loader, deps.Queries)
 	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
-	aiTools := aitools.DefaultRegistry(aitools.Deps{
-		Customers: deps.Queries,
-		Cari:      cariSvc,
-		Jobs:      jobsSvc,
-		Reports:   reportsSvc,
-		Finance:   financeSvc,
-		Sales:     salesSvc,
-		Catalog:   catalogSvc,
-	})
-	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
-	aimodule.RegisterRoutes(mux, aihandler.New(aiSvc, activityRec), tokens, loader, deps.Queries)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
 	nh := notifhandler.New(notifSvc)
@@ -409,6 +400,31 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	vehiclemodule.RegisterRoutes(mux, vehiclehandler.New(vehicleSvc, deps.Storage), tokens, loader, deps.Queries)
 	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
+	todosSvc := todosusecase.New(deps.Queries, activityRec)
+	todosmodule.RegisterRoutes(mux, todosSvc, tokens, loader, deps.Queries)
+	aiTools := aitools.DefaultRegistry(aitools.Deps{
+		Customers:      deps.Queries,
+		Cari:           cariSvc,
+		Jobs:           jobsSvc,
+		Reports:        reportsSvc,
+		Finance:        financeSvc,
+		Sales:          salesSvc,
+		Catalog:        catalogSvc,
+		CariWrite:      cariSvc,
+		FinanceWrite:   financeSvc,
+		CustomersWrite: customersSvc,
+		VehicleCatalog: vehicleSvc,
+		VehicleOptions: deps.Queries,
+		JobsWrite:      jobsSvc,
+		CatalogLookup:  catalogSvc,
+		SalesWrite:     salesSvc,
+		Todos:          todosSvc,
+	})
+	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
+	aiSvc.SetActivityRecorder(activityRec)
+	aiSvc.EnableActions()
+	aiSvc.SetVoiceAPIKey(cfg.Speaches.APIKey)
+	aimodule.RegisterRoutes(mux, aihandler.New(aiSvc, activityRec), tokens, loader, deps.Queries)
 	logsSvc := logsusecase.New(deps.Queries)
 	if s.worker != nil {
 		s.worker.WithExport(exportSvc.ProcessExport).

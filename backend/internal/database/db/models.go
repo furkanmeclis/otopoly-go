@@ -60,6 +60,27 @@ type AiOrganizationSetting struct {
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
+type AiPendingAction struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	UserID         int64              `json:"user_id"`
+	ConversationID int64              `json:"conversation_id"`
+	MessageID      pgtype.Int8        `json:"message_id"`
+	ToolUseID      string             `json:"tool_use_id"`
+	ToolName       string             `json:"tool_name"`
+	Input          []byte             `json:"input"`
+	Preview        []byte             `json:"preview"`
+	Status         string             `json:"status"`
+	Result         []byte             `json:"result"`
+	Error          string             `json:"error"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	ResolvedAt     pgtype.Timestamptz `json:"resolved_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type AiSetting struct {
 	ID                       int16              `json:"id"`
 	Provider                 string             `json:"provider"`
@@ -1033,6 +1054,26 @@ type Supplier struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type Todo struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Title          string             `json:"title"`
+	Notes          string             `json:"notes"`
+	DueDate        pgtype.Date        `json:"due_date"`
+	DueTime        pgtype.Time        `json:"due_time"`
+	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
+	CustomerID     pgtype.Int8        `json:"customer_id"`
+	ServiceJobID   pgtype.Int8        `json:"service_job_id"`
+	Status         string             `json:"status"`
+	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
+	CompletedBy    pgtype.Int8        `json:"completed_by"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	ViaAi          bool               `json:"via_ai"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type User struct {

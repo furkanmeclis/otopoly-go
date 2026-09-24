@@ -1,5 +1,6 @@
 import {
   Activity,
+  ListTodo,
   Bell,
   Building2,
   Download,
@@ -37,6 +38,7 @@ import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
 import { defineNav } from "@/features/nav-engine";
 import { usersNavItem } from "@/features/users/nav";
+import { TodosNavAdornment } from "@/features/todos/nav";
 
 export const platformNav = defineNav({
   id: "platform",
@@ -280,6 +282,14 @@ export function tenantNav(slug: string) {
             href: routes.tenant.reports.root(slug),
             icon: ChartColumn,
             permission: permissions.reports.read,
+          },
+          {
+            id: "todos",
+            titleKey: "layout.nav_todos",
+            href: routes.tenant.todos.root(slug),
+            icon: ListTodo,
+            permission: permissions.todos.read,
+            Adornment: TodosNavAdornment,
           },
           {
             id: "assistant",

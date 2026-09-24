@@ -9,6 +9,7 @@ import type {
   AISettingsPatch,
   AIStatus,
   AITestResult,
+  AIUIBlock,
   AIUsageSummary,
 } from "@/features/ai/types";
 
@@ -88,6 +89,14 @@ export const aiTenantService = {
         params: { path: { uuid } },
         body: { title },
       }),
+    );
+  },
+  async cancelAction(uuid: string) {
+    return unwrap<{ block: AIUIBlock }>(
+      await apiClient.POST("/v1/tenant/ai/actions/{uuid}/cancel", {
+        params: { path: { uuid } },
+      }),
+      { silent: true },
     );
   },
   async deleteConversation(uuid: string) {

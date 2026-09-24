@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { VoiceTestPanel } from "@/features/ai/components/platform/voice-test-panel";
 import { toolLabelKey } from "@/features/ai/lib/labels";
 import {
   aiSettingsFormSchema,
@@ -44,6 +45,10 @@ type AISettingsFormProps = {
   onSubmit: (values: AISettingsFormValues) => Promise<void>;
   onTest: () => void;
 };
+
+function permissionLabelKey(slug: string) {
+  return `permissions.labels.${slug}`;
+}
 
 export function toFormValues(settings: AISettings): AISettingsFormValues {
   return {
@@ -315,18 +320,20 @@ export function AISettingsForm({
                 description={t("ai.form.feature_charts_hint")}
                 disabled={disabled}
               />
+              <AppSwitch
+                name="feature_actions"
+                label={t("ai.form.feature_actions")}
+                description={t("ai.form.feature_actions_hint")}
+                disabled={disabled}
+              />
+              <AppSwitch
+                name="feature_todos"
+                label={t("ai.form.feature_todos")}
+                description={t("ai.form.feature_todos_hint")}
+                disabled={disabled}
+              />
               {(
                 [
-                  [
-                    "feature_actions",
-                    "ai.form.feature_actions",
-                    "ai.form.feature_actions_hint",
-                  ],
-                  [
-                    "feature_todos",
-                    "ai.form.feature_todos",
-                    "ai.form.feature_todos_hint",
-                  ],
                   [
                     "feature_voice",
                     "ai.form.feature_voice",
@@ -341,7 +348,7 @@ export function AISettingsForm({
                   <div className="space-y-0.5">
                     <Label htmlFor={name}>
                       {t(label)}
-                      {soon}
+                      {name === "feature_voice" ? null : soon}
                     </Label>
                     <p className="text-muted-foreground text-xs">{t(hint)}</p>
                   </div>
@@ -375,13 +382,23 @@ export function AISettingsForm({
                           {tool.name}
                         </code>
                       </p>
-                      <p className="text-muted-foreground truncate text-xs">
+                      <div className="text-muted-foreground text-xs">
+                        {tool.requires_confirmation ? (
+                          <Badge
+                            variant="outline"
+                            className="mr-1.5 px-1.5 py-0 text-[10px] font-normal"
+                          >
+                            {t("ai.form.tool_confirm_badge")}
+                          </Badge>
+                        ) : null}
                         {tool.permissions.length > 0
                           ? t("ai.form.tool_requires", {
-                              permissions: tool.permissions.join(", "),
+                              permissions: tool.permissions
+                                .map((p) => t(permissionLabelKey(p)))
+                                .join(", "),
                             })
                           : t("ai.form.tool_no_permission")}
-                      </p>
+                      </div>
                     </div>
                     <Switch
                       checked={form.watch(`tools.${tool.name}`) ?? true}
@@ -438,26 +455,37 @@ export function AISettingsForm({
                 name="voice_base_url"
                 label={t("ai.form.voice_base_url")}
                 description={t("ai.form.voice_base_url_hint")}
-                placeholder="http://speaches:8000/v1"
+                placeholder="http://app-speaches:8000"
                 disabled={disabled}
               />
               <AppInput
                 name="voice_language"
                 label={t("ai.form.voice_language")}
+                description={t("ai.form.voice_language_hint")}
                 placeholder="tr"
                 disabled={disabled}
               />
               <AppInput
                 name="voice_stt_model"
                 label={t("ai.form.voice_stt_model")}
-                placeholder="Systran/faster-whisper-medium"
+                description={t("ai.form.voice_stt_model_hint")}
+                placeholder="Systran/faster-whisper-small"
                 disabled={disabled}
               />
               <AppInput
                 name="voice_tts_voice"
                 label={t("ai.form.voice_tts_voice")}
-                placeholder="tr_TR-dfki-medium"
+                description={t("ai.form.voice_tts_voice_hint")}
+                placeholder="speaches-ai/piper-tr_TR-fettah-medium"
                 disabled={disabled}
+              />
+              <VoiceTestPanel
+                disabled={!canWrite}
+                getValues={() => ({
+                  base_url: form.getValues("voice_base_url") ?? "",
+                  stt_model: form.getValues("voice_stt_model") ?? "",
+                  tts_voice: form.getValues("voice_tts_voice") ?? "",
+                })}
               />
             </FormSection>
 

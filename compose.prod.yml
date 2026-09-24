@@ -61,6 +61,8 @@ x-backend-environment: &backend-environment
   MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required}
   MEILI_INDEX_PREFIX: ${MEILI_INDEX_PREFIX:-app}
   GOTENBERG_URL: http://${NAME_PREFIX:-app}-gotenberg:3000
+  # Only for an external Speaches started with API_KEY (the bundled one needs none).
+  SPEACHES_API_KEY: ${SPEACHES_API_KEY:-}
   LOG_LEVEL: ${LOG_LEVEL:-info}
   LOG_FORMAT: ${LOG_FORMAT:-json}
 
@@ -206,6 +208,36 @@ services:
     networks:
       - app
 
+  # AI voice (Speaches: faster-whisper STT + Piper TTS, OpenAI-compatible API).
+  # Internal only: the browser never talks to it; Go proxies /v1/tenant/ai/voice/*.
+  # Admin → /platform/ai → Ses: URL http://${NAME_PREFIX:-app}-speaches:8000
+  # Models are downloaded into the hf cache volume on first start (PRELOAD_MODELS).
+  speaches:
+    image: ${SPEACHES_IMAGE:-ghcr.io/speaches-ai/speaches:latest-cpu}
+    container_name: ${NAME_PREFIX:-app}-speaches
+    restart: unless-stopped
+    environment:
+      # JSON list; the server exits if a model cannot be downloaded.
+      PRELOAD_MODELS: ${SPEACHES_PRELOAD_MODELS:-["Systran/faster-whisper-small","speaches-ai/piper-tr_TR-fettah-medium"]}
+      WHISPER__COMPUTE_TYPE: ${SPEACHES_WHISPER_COMPUTE_TYPE:-int8}
+      # Keep models in memory (-1) to avoid a cold start on every question.
+      STT_MODEL_TTL: ${SPEACHES_STT_MODEL_TTL:--1}
+      TTS_MODEL_TTL: ${SPEACHES_TTS_MODEL_TTL:--1}
+      ENABLE_UI: "false"
+      LOG_LEVEL: ${SPEACHES_LOG_LEVEL:-info}
+    volumes:
+      - speaches_models:/home/ubuntu/.cache/huggingface/hub
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
+    networks:
+      - app
+
   migrate:
     <<: *backend-image
     container_name: ${NAME_PREFIX:-app}-migrate
@@ -347,6 +379,8 @@ volumes:
     name: ${MINIO_VOLUME_NAME:-${NAME_PREFIX:-app}-prod-minio}
   meili_data:
     name: ${MEILI_VOLUME_NAME:-${NAME_PREFIX:-app}-prod-meilisearch}
+  speaches_models:
+    name: ${SPEACHES_VOLUME_NAME:-${NAME_PREFIX:-app}-prod-speaches-models}
 
 networks:
   app:

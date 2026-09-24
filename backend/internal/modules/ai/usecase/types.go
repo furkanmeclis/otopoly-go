@@ -43,6 +43,15 @@ type Store interface {
 	SoftDeleteAIConversation(ctx context.Context, id int64) error
 	InsertAIMessage(ctx context.Context, arg db.InsertAIMessageParams) (db.AiMessage, error)
 	ListAIMessages(ctx context.Context, conversationID int64) ([]db.AiMessage, error)
+	GetAIMessageByID(ctx context.Context, id int64) (db.AiMessage, error)
+	UpdateAIMessageContentUI(ctx context.Context, arg db.UpdateAIMessageContentUIParams) error
+	InsertAIPendingAction(ctx context.Context, arg db.InsertAIPendingActionParams) (db.AiPendingAction, error)
+	GetAIPendingActionForUser(ctx context.Context, arg db.GetAIPendingActionForUserParams) (db.GetAIPendingActionForUserRow, error)
+	AttachAIPendingActionsToMessage(ctx context.Context, arg db.AttachAIPendingActionsToMessageParams) error
+	ClaimAIPendingAction(ctx context.Context, arg db.ClaimAIPendingActionParams) (db.AiPendingAction, error)
+	FinishAIPendingAction(ctx context.Context, arg db.FinishAIPendingActionParams) (db.AiPendingAction, error)
+	CancelAIPendingAction(ctx context.Context, id int64) (db.AiPendingAction, error)
+	ExpireAIPendingActions(ctx context.Context, arg db.ExpireAIPendingActionsParams) ([]db.AiPendingAction, error)
 }
 
 // Encrypter encrypts the provider API key at rest (crypto.SecretBox).
@@ -248,7 +257,10 @@ const (
 	UITool  = "tool"
 	UIChart = "chart"
 	UIError = "error"
-	// Phase 2: UIConfirm ("confirm") and UITodoList ("todo_list").
+	// UIConfirm is a write-action confirmation card (Data: ConfirmCard).
+	UIConfirm = "confirm"
+	// UITodoList is the assistant's plan checklist (Data: tools.Plan), ID "plan".
+	UITodoList = "todo_list"
 )
 
 // UIBlock is a render block for the chat UI.
@@ -263,7 +275,7 @@ type UIBlock struct {
 	Chart         *tools.Chart   `json:"chart,omitempty"`
 	Code          string         `json:"code,omitempty"`
 	Message       string         `json:"message,omitempty"`
-	// Data carries type-specific payloads for future block types (confirm cards, todo lists).
+	// Data carries type-specific payloads (confirm cards, plan checklists).
 	Data json.RawMessage `json:"data,omitempty"`
 }
 

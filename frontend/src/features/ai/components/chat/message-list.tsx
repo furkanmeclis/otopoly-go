@@ -3,6 +3,7 @@
 import { Sparkles } from "lucide-react";
 
 import { MessageBlocks } from "@/features/ai/components/chat/message-blocks";
+import { ReadAloudButton } from "@/features/ai/components/chat/voice/read-aloud-button";
 import type { ChatMessage } from "@/features/ai/types";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
@@ -21,7 +22,13 @@ function UserBubble({ message }: { message: ChatMessage }) {
   );
 }
 
-function AssistantMessage({ message }: { message: ChatMessage }) {
+function AssistantMessage({
+  message,
+  hidePlan,
+}: {
+  message: ChatMessage;
+  hidePlan?: boolean;
+}) {
   const { t } = useLocale();
   const empty = message.blocks.length === 0;
   return (
@@ -35,13 +42,14 @@ function AssistantMessage({ message }: { message: ChatMessage }) {
             {t("ai.assistant.thinking")}
           </p>
         ) : (
-          <MessageBlocks blocks={message.blocks} />
+          <MessageBlocks blocks={message.blocks} hidePlan={hidePlan} />
         )}
         {message.status === "cancelled" && !message.streaming ? (
           <p className="text-muted-foreground text-xs italic">
             {t("ai.assistant.cancelled")}
           </p>
         ) : null}
+        <ReadAloudButton message={message} />
       </div>
     </div>
   );
@@ -54,13 +62,22 @@ export function MessageList({
   messages: ChatMessage[];
   className?: string;
 }) {
+  // Only the latest plan checklist is shown; earlier snapshots are hidden.
+  let lastPlan = -1;
+  messages.forEach((m, i) => {
+    if (m.blocks.some((b) => b.type === "todo_list")) lastPlan = i;
+  });
   return (
     <div className={cn("space-y-5", className)}>
-      {messages.map((message) =>
+      {messages.map((message, i) =>
         message.role === "user" ? (
           <UserBubble key={message.uuid} message={message} />
-        ) : (
-          <AssistantMessage key={message.uuid} message={message} />
+        ) : message.blocks.length === 0 && !message.streaming ? null : (
+          <AssistantMessage
+            key={message.uuid}
+            message={message}
+            hidePlan={i < lastPlan}
+          />
         ),
       )}
     </div>

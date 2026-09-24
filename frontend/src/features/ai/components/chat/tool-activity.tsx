@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, Clock, Loader2 } from "lucide-react";
+import { AlertTriangle, Ban, Check, Clock, Loader2 } from "lucide-react";
 
 import {
   isSummaryKey,
@@ -23,7 +23,7 @@ export function ToolActivity({ block }: { block: AIUIBlock }) {
   const label =
     status === "running"
       ? t(toolRunningKey(name))
-      : isSummaryKey(block.summary_key) && status !== "error"
+      : status === "done" && isSummaryKey(block.summary_key)
         ? t(block.summary_key, params)
         : t(toolLabelKey(name));
 
@@ -34,7 +34,9 @@ export function ToolActivity({ block }: { block: AIUIBlock }) {
         ? AlertTriangle
         : status === "pending"
           ? Clock
-          : Check;
+          : status === "cancelled"
+            ? Ban
+            : Check;
 
   return (
     <div

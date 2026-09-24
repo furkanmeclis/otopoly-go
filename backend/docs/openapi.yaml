@@ -6437,6 +6437,9 @@ paths:
         - `tool_start` `{id, name}`
         - `tool_result` `{id, name, ok, summary_key, summary_params}`
         - `chart` `{id, chart: AIChart}`
+        - `plan` `{block: AIUIBlock}` (todo_list checklist; replaces the previous one)
+        - `confirm` `{block: AIUIBlock}` (write action proposed; the turn pauses until
+          `/v1/tenant/ai/actions/{uuid}/confirm` or `/cancel`, or the next message expires it)
         - `error` `{code, message}` (provider_error, quota_exceeded, refusal, max_tokens, internal_error)
         - `message_done` `{message_uuid, status, stop_reason, usage}`
         - `title` `{conversation_uuid, title}` (first exchange only)
@@ -6464,6 +6467,358 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/ai/actions/{uuid}/confirm:
+    post:
+      tags: [Tenant]
+      operationId: confirmTenantAIAction
+      summary: Confirm a pending assistant action and stream the continuation (SSE)
+      description: |
+        Executes a write action the assistant proposed (confirm card) exactly once,
+        with the requesting user's identity and permissions, then feeds the result
+        back to the model and streams its continuation. Optional `edits` change the
+        card's editable fields (re-validated before execution). Checks run before
+        the stream starts: 404 (not the user's action), 403 `AI_ACTION_FORBIDDEN`
+        (the user lacks the underlying permission or actions were disabled),
+        409 `AI_ACTION_RESOLVED` (already confirmed/cancelled; double confirm),
+        409 `AI_ACTION_EXPIRED`, 409 `AI_ACTION_NOT_READY` (the proposing turn is
+        still streaming), 400 for invalid edits. Stream events (`data` is JSON):
+
+        - `action` `{action_uuid, status, tool_use_id, block: AIUIBlock}` (confirmed | failed)
+        - then, when the assistant is available: `message_start` `{conversation_uuid, resumed: true, action_uuid}`
+          followed by the same events as the messages endpoint.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIConfirmActionRequest"
+      responses:
+        "200":
+          description: Server-sent event stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/ai/actions/{uuid}/cancel:
+    post:
+      tags: [Tenant]
+      operationId: cancelTenantAIAction
+      summary: Cancel a pending assistant action (nothing is executed)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated confirm card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIActionBlock"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/todos/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantTodosMeta
+      summary: Todo list metadata
+      description: Requires `tenant.todos.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/todos/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantTodosSummary
+      summary: Open / overdue / today / assigned-to-me todo counts
+      description: Requires `tenant.todos.read`. Dates are Europe/Istanbul.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodoSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/todos/assignees:
+    get:
+      tags: [Tenant]
+      operationId: getTenantTodoAssignees
+      summary: Organization members todos can be assigned to
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodoAssignees"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/todos:
+    get:
+      tags: [Tenant]
+      operationId: getTenantTodos
+      summary: List todos (open first, by due date)
+      description: Requires `tenant.todos.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { type: string, enum: [open, done] }
+        - name: scope
+          in: query
+          description: open_due = overdue + today.
+          schema: { type: string, enum: [overdue, today, open_due, upcoming, no_date] }
+        - name: assignee
+          in: query
+          description: "`me` or a user uuid."
+          schema: { type: string }
+      responses:
+        "200":
+          description: Todo page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodoList"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantTodo
+      summary: Create a todo
+      description: Requires `tenant.todos.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTodoRequest"
+      responses:
+        "201":
+          description: Created todo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodo"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/todos/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantTodo
+      summary: Get a todo
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Todo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodo"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Tenant]
+      operationId: updateTenantTodo
+      summary: Update a todo (empty string clears optional fields)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchTodoRequest"
+      responses:
+        "200":
+          description: Updated todo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodo"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantTodo
+      summary: Delete a todo
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/todos/{uuid}/complete:
+    post:
+      tags: [Tenant]
+      operationId: completeTenantTodo
+      summary: Mark a todo done
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated todo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodo"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/todos/{uuid}/reopen:
+    post:
+      tags: [Tenant]
+      operationId: reopenTenantTodo
+      summary: Reopen a done todo
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Updated todo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTodo"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/ai/voice/transcribe:
+    post:
+      tags: [Tenant]
+      operationId: transcribeTenantAIVoice
+      summary: Transcribe a push-to-talk clip (Speaches faster-whisper)
+      description: |
+        Multipart upload with one `file` field (MediaRecorder output: webm/ogg/mp4,
+        or wav/mp3/flac), at most 5 MB. Uses the platform STT model and language.
+        Requires `tenant.ai.use`, the assistant enabled for the organization and
+        the `voice` feature (403 `AI_VOICE_DISABLED`). Clips longer than 120 s are
+        rejected (`AUDIO_TOO_LONG`); the UI stops recording at 60 s.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: Recognized text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAITranscription"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "413":
+          description: Audio larger than 5 MB (`AUDIO_TOO_LARGE`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "415":
+          description: Unsupported audio type (`AUDIO_UNSUPPORTED`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502":
+          description: Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/tenant/ai/voice/speech:
+    post:
+      tags: [Tenant]
+      operationId: synthesizeTenantAIVoice
+      summary: Read assistant text aloud (Speaches Piper TTS), streamed as MP3
+      description: |
+        Markdown is reduced to speakable text server-side (code, tables and link
+        targets dropped) and clipped to 2500 characters at a sentence boundary.
+        Same gating as transcribe.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AISpeechRequest"
+      responses:
+        "200":
+          description: Audio stream
+          content:
+            audio/mpeg:
+              schema: { type: string, format: binary }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "502":
+          description: Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/platform/ai/settings:
     get:
@@ -6517,6 +6872,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeAITestResult"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/ai/voice/test:
+    post:
+      tags: [Platform]
+      operationId: testPlatformAIVoice
+      summary: Check the Speaches server and whether the configured models are installed
+      description: |
+        Lists installed models (`GET /v1/models` on Speaches). Body fields override
+        the saved voice settings so unsaved values can be tested. `ok` is true only
+        when both the STT model and the TTS model are installed.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIVoiceTestRequest"
+      responses:
+        "200":
+          description: Test result (ok=false carries the reason in message)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIVoiceTestResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -8813,8 +9195,10 @@ components:
       required: [base_url, stt_model, tts_voice, language]
       properties:
         base_url: { type: string, description: Speaches (OpenAI-compatible audio) base URL }
-        stt_model: { type: string }
-        tts_voice: { type: string }
+        stt_model: { type: string, description: "faster-whisper model id; empty = Systran/faster-whisper-small" }
+        tts_voice:
+          type: string
+          description: "TTS model id, optionally `<model>:<voice>`; empty = speaches-ai/piper-tr_TR-fettah-medium"
         language: { type: string }
 
     AIToolInfo:
@@ -8914,6 +9298,68 @@ components:
         data: { $ref: "#/components/schemas/AITestResult" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
+    AITranscription:
+      type: object
+      required: [text, duration_seconds]
+      properties:
+        text: { type: string }
+        language: { type: string }
+        duration_seconds: { type: number }
+
+    EnvelopeAITranscription:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AITranscription" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AISpeechRequest:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, maxLength: 20000, description: Assistant message text (Markdown allowed) }
+
+    AIVoiceTestRequest:
+      type: object
+      properties:
+        base_url: { type: string }
+        stt_model: { type: string }
+        tts_voice: { type: string }
+
+    AIVoiceModel:
+      type: object
+      required: [id]
+      properties:
+        id: { type: string }
+        task: { type: string }
+
+    AIVoiceTestResult:
+      type: object
+      required: [ok, reachable, base_url, latency_ms, stt_model, stt_model_installed, tts_model, tts_voice, tts_model_installed, installed_models]
+      properties:
+        ok: { type: boolean }
+        reachable: { type: boolean, description: The server answered GET /v1/models }
+        base_url: { type: string }
+        latency_ms: { type: integer, format: int64 }
+        message: { type: string }
+        stt_model: { type: string }
+        stt_model_installed: { type: boolean }
+        tts_model: { type: string }
+        tts_voice: { type: string }
+        tts_model_installed: { type: boolean }
+        installed_models:
+          type: array
+          items: { $ref: "#/components/schemas/AIVoiceModel" }
+
+    EnvelopeAIVoiceTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIVoiceTestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
     AIQuota:
       type: object
       required: [limit, used, remaining, unlimited, period_start, period_end]
@@ -8986,13 +9432,16 @@ components:
     AIUIBlock:
       type: object
       required: [type]
-      description: Chat render block. Phase 2 adds `confirm` and `todo_list` types carrying `data`.
+      description: |
+        Chat render block. `confirm` blocks carry an AIConfirmCard in `data`
+        (`id` = action uuid, `status` = pending | executing | confirmed | failed |
+        cancelled | expired); `todo_list` blocks carry an AIPlan in `data` (`id` = "plan").
       properties:
-        type: { type: string, description: "text | tool | chart | error" }
+        type: { type: string, description: "text | tool | chart | error | confirm | todo_list" }
         text: { type: string }
         id: { type: string }
         name: { type: string }
-        status: { type: string, description: "tool: running | done | error | pending" }
+        status: { type: string, description: "tool: running | done | error | pending | cancelled; confirm: action status" }
         summary_key: { type: string }
         summary_params:
           type: object
@@ -9001,8 +9450,243 @@ components:
         code: { type: string }
         message: { type: string }
         data:
+          description: AIConfirmCard for `confirm`, AIPlan for `todo_list`.
+          oneOf:
+            - $ref: "#/components/schemas/AIConfirmCard"
+            - $ref: "#/components/schemas/AIPlan"
+            - type: object
+              additionalProperties: true
+
+    AIPreviewField:
+      type: object
+      required: [key]
+      properties:
+        key: { type: string, description: "i18n key suffix under ai.confirm.fields" }
+        value: { type: string }
+        value_key: { type: string, description: "i18n key for the value (enums)" }
+
+    AIEditOption:
+      type: object
+      required: [value]
+      properties:
+        value: { type: string }
+        label: { type: string }
+        label_key: { type: string }
+
+    AIEditField:
+      type: object
+      required: [key, type, value]
+      properties:
+        key: { type: string }
+        type: { type: string, enum: [money, text, textarea, select, date, time] }
+        value: { type: string }
+        required: { type: boolean }
+        options:
+          type: array
+          items: { $ref: "#/components/schemas/AIEditOption" }
+
+    AIActionPreview:
+      type: object
+      required: [action, title, fields]
+      properties:
+        action: { type: string, description: Tool name }
+        title: { type: string }
+        amount: { type: string }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/AIPreviewField" }
+        edit:
+          type: array
+          items: { $ref: "#/components/schemas/AIEditField" }
+        warnings:
+          type: array
+          items: { type: string, description: "i18n key suffix under ai.confirm.warnings" }
+
+    AIActionLink:
+      type: object
+      required: [kind, uuid]
+      properties:
+        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo] }
+        uuid: { type: string, format: uuid }
+
+    AIActionResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        summary_key: { type: string }
+        summary_params:
           type: object
           additionalProperties: true
+        message: { type: string }
+        link: { $ref: "#/components/schemas/AIActionLink" }
+
+    AIConfirmCard:
+      type: object
+      required: [preview, tool_use_id, expires_at]
+      properties:
+        preview: { $ref: "#/components/schemas/AIActionPreview" }
+        tool_use_id: { type: string }
+        expires_at: { type: string, format: date-time }
+        result: { $ref: "#/components/schemas/AIActionResult" }
+
+    AIPlanItem:
+      type: object
+      required: [text, status]
+      properties:
+        text: { type: string }
+        status: { type: string, enum: [pending, in_progress, done, skipped] }
+
+    AIPlan:
+      type: object
+      required: [items]
+      properties:
+        title: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AIPlanItem" }
+
+    AIConfirmActionRequest:
+      type: object
+      properties:
+        edits:
+          type: object
+          description: Editable card fields (by key) with new values; strings are coerced to the field type.
+          additionalProperties: true
+        locale: { type: string, enum: [tr, en] }
+
+    EnvelopeAIActionBlock:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [block]
+          properties:
+            block: { $ref: "#/components/schemas/AIUIBlock" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    TodoRef:
+      type: object
+      required: [uuid, label]
+      properties:
+        uuid: { type: string, format: uuid }
+        label: { type: string }
+
+    Todo:
+      type: object
+      required: [uuid, title, notes, due_date, due_time, status, overdue, assignee, customer, job, via_ai, created_by_name, completed_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        title: { type: string }
+        notes: { type: string }
+        due_date: { type: [string, "null"], format: date }
+        due_time: { type: [string, "null"], description: "HH:MM (Europe/Istanbul)" }
+        status: { type: string, enum: [open, done] }
+        overdue: { type: boolean }
+        assignee:
+          oneOf:
+            - $ref: "#/components/schemas/TodoRef"
+            - type: "null"
+        customer:
+          oneOf:
+            - $ref: "#/components/schemas/TodoRef"
+            - type: "null"
+        job:
+          oneOf:
+            - $ref: "#/components/schemas/TodoRef"
+            - type: "null"
+        via_ai: { type: boolean }
+        created_by_name: { type: string }
+        completed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    TodoSummary:
+      type: object
+      required: [open, overdue, today, mine, date]
+      properties:
+        open: { type: integer, format: int64 }
+        overdue: { type: integer, format: int64 }
+        today: { type: integer, format: int64 }
+        mine: { type: integer, format: int64 }
+        date: { type: string, format: date }
+
+    TodoAssignee:
+      type: object
+      required: [uuid, name, role]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string, enum: [owner, staff] }
+
+    CreateTodoRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, maxLength: 200 }
+        notes: { type: string, maxLength: 2000 }
+        due_date: { type: [string, "null"], format: date }
+        due_time: { type: [string, "null"], description: "HH:MM; requires due_date" }
+        assignee_uuid: { type: [string, "null"], format: uuid }
+        customer_uuid: { type: [string, "null"], format: uuid }
+        job_uuid: { type: [string, "null"], format: uuid }
+
+    PatchTodoRequest:
+      type: object
+      description: Missing fields are kept; an empty string clears optional fields.
+      properties:
+        title: { type: string, maxLength: 200 }
+        notes: { type: string, maxLength: 2000 }
+        due_date: { type: string }
+        due_time: { type: string }
+        assignee_uuid: { type: string }
+        customer_uuid: { type: string }
+        job_uuid: { type: string }
+
+    EnvelopeTodo:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/Todo" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeTodoSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/TodoSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeTodoAssignees:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/TodoAssignee" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeTodoList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Todo" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     AIMessage:
       type: object

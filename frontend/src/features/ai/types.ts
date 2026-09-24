@@ -17,6 +17,18 @@ export type AIOrgSettings = Schemas["AIOrgSettings"];
 export type AIOrgSettingsPut = Schemas["PutAIOrgSettingsRequest"];
 export type AIUsageSummary = Schemas["AIUsageSummary"];
 export type AIUsageOrgRow = Schemas["AIUsageOrgRow"];
+export type AIConfirmCard = Schemas["AIConfirmCard"];
+export type AIActionPreview = Schemas["AIActionPreview"];
+export type AIEditField = Schemas["AIEditField"];
+export type AIActionResult = Schemas["AIActionResult"];
+export type AIActionLink = Schemas["AIActionLink"];
+export type AIPlan = Schemas["AIPlan"];
+
+/** Confirm card status (the pending action's lifecycle). */
+export type AIActionStatus =
+  "pending" | "executing" | "confirmed" | "failed" | "cancelled" | "expired";
+export type AITranscription = Schemas["AITranscription"];
+export type AIVoiceTestResult = Schemas["AIVoiceTestResult"];
 
 export type AIConversationPage = {
   items: AIConversation[];
@@ -29,7 +41,24 @@ export type AIConversationPage = {
 export type AIStreamEvent =
   | {
       event: "message_start";
-      data: { conversation_uuid: string; user_message_uuid: string };
+      data: {
+        conversation_uuid: string;
+        user_message_uuid?: string;
+        /** Set when the stream continues after a confirmed action. */
+        resumed?: boolean;
+        action_uuid?: string;
+      };
+    }
+  | { event: "confirm"; data: { block: AIUIBlock } }
+  | { event: "plan"; data: { block: AIUIBlock } }
+  | {
+      event: "action";
+      data: {
+        action_uuid: string;
+        status: AIActionStatus;
+        tool_use_id: string;
+        block: AIUIBlock;
+      };
     }
   | { event: "text_delta"; data: { text: string } }
   | { event: "tool_start"; data: { id: string; name: string } }

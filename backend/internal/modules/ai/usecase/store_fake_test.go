@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -21,6 +22,15 @@ type memStore struct {
 	usage     []db.InsertAIUsageParams
 	usedExtra int64 // pre-existing monthly tokens
 	nextID    int64
+	actions   []db.AiPendingAction
+	clock     func() time.Time
+}
+
+func (m *memStore) nowT() time.Time {
+	if m.clock != nil {
+		return m.clock()
+	}
+	return time.Now()
 }
 
 func newMemStore() *memStore {
@@ -223,6 +233,131 @@ func (m *memStore) ListAIMessages(_ context.Context, convID int64) ([]db.AiMessa
 	for _, msg := range m.messages {
 		if msg.ConversationID == convID {
 			out = append(out, msg)
+		}
+	}
+	return out, nil
+}
+
+func (m *memStore) GetAIMessageByID(_ context.Context, id int64) (db.AiMessage, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, msg := range m.messages {
+		if msg.ID == id {
+			return msg, nil
+		}
+	}
+	return db.AiMessage{}, pgx.ErrNoRows
+}
+
+func (m *memStore) UpdateAIMessageContentUI(_ context.Context, p db.UpdateAIMessageContentUIParams) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.messages {
+		if m.messages[i].ID == p.ID {
+			m.messages[i].Content, m.messages[i].Ui = p.Content, p.Ui
+		}
+	}
+	return nil
+}
+
+func (m *memStore) InsertAIPendingAction(_ context.Context, p db.InsertAIPendingActionParams) (db.AiPendingAction, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, a := range m.actions {
+		if a.IdempotencyKey == p.IdempotencyKey {
+			return db.AiPendingAction{}, errors.New("duplicate idempotency key")
+		}
+	}
+	a := db.AiPendingAction{
+		ID: m.id(), Uuid: uuid.New(), OrganizationID: p.OrganizationID, UserID: p.UserID, ConversationID: p.ConversationID,
+		ToolUseID: p.ToolUseID, ToolName: p.ToolName, Input: p.Input, Preview: p.Preview, Status: "pending",
+		IdempotencyKey: p.IdempotencyKey, ExpiresAt: p.ExpiresAt,
+	}
+	m.actions = append(m.actions, a)
+	return a, nil
+}
+
+func (m *memStore) GetAIPendingActionForUser(_ context.Context, p db.GetAIPendingActionForUserParams) (db.GetAIPendingActionForUserRow, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, a := range m.actions {
+		if a.Uuid == p.Uuid && a.OrganizationID == p.OrganizationID && a.UserID == p.UserID {
+			var convUUID uuid.UUID
+			for _, c := range m.convs {
+				if c.ID == a.ConversationID {
+					convUUID = c.Uuid
+				}
+			}
+			return db.GetAIPendingActionForUserRow{
+				ID: a.ID, Uuid: a.Uuid, OrganizationID: a.OrganizationID, UserID: a.UserID, ConversationID: a.ConversationID,
+				MessageID: a.MessageID, ToolUseID: a.ToolUseID, ToolName: a.ToolName, Input: a.Input, Preview: a.Preview,
+				Status: a.Status, Result: a.Result, Error: a.Error, IdempotencyKey: a.IdempotencyKey, ExpiresAt: a.ExpiresAt,
+				ConversationUuid: convUUID,
+			}, nil
+		}
+	}
+	return db.GetAIPendingActionForUserRow{}, pgx.ErrNoRows
+}
+
+func (m *memStore) AttachAIPendingActionsToMessage(_ context.Context, p db.AttachAIPendingActionsToMessageParams) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.actions {
+		if m.actions[i].ConversationID == p.ConversationID && !m.actions[i].MessageID.Valid {
+			m.actions[i].MessageID = p.MessageID
+		}
+	}
+	return nil
+}
+
+func (m *memStore) ClaimAIPendingAction(_ context.Context, p db.ClaimAIPendingActionParams) (db.AiPendingAction, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.actions {
+		a := &m.actions[i]
+		if a.ID == p.ID && a.Status == "pending" && a.MessageID.Valid && a.ExpiresAt.Time.After(m.nowT()) {
+			a.Status, a.Input, a.Preview = "executing", p.Input, p.Preview
+			return *a, nil
+		}
+	}
+	return db.AiPendingAction{}, pgx.ErrNoRows
+}
+
+func (m *memStore) FinishAIPendingAction(_ context.Context, p db.FinishAIPendingActionParams) (db.AiPendingAction, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.actions {
+		a := &m.actions[i]
+		if a.ID == p.ID {
+			a.Status, a.Result, a.Error = p.Status, p.Result, p.Error
+			return *a, nil
+		}
+	}
+	return db.AiPendingAction{}, pgx.ErrNoRows
+}
+
+func (m *memStore) CancelAIPendingAction(_ context.Context, id int64) (db.AiPendingAction, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.actions {
+		a := &m.actions[i]
+		if a.ID == id && a.Status == "pending" {
+			a.Status = "cancelled"
+			return *a, nil
+		}
+	}
+	return db.AiPendingAction{}, pgx.ErrNoRows
+}
+
+func (m *memStore) ExpireAIPendingActions(_ context.Context, p db.ExpireAIPendingActionsParams) ([]db.AiPendingAction, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var out []db.AiPendingAction
+	for i := range m.actions {
+		a := &m.actions[i]
+		if a.ConversationID == p.ConversationID && a.Status == "pending" && (p.AllPending || !a.ExpiresAt.Time.After(m.nowT())) {
+			a.Status = "expired"
+			out = append(out, *a)
 		}
 	}
 	return out, nil

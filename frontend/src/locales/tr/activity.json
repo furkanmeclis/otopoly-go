@@ -114,5 +114,15 @@
   "resources.tenant.staff": "Personel",
   "actions.ai.settings.updated": "AI asistan ayarları güncellendi",
   "actions.ai.organization.updated": "İşletme AI ayarları güncellendi",
-  "resources.platform.ai": "AI asistan"
+  "resources.platform.ai": "AI asistan",
+  "actions.todos.create": "Görev oluşturuldu",
+  "actions.todos.update": "Görev güncellendi",
+  "actions.todos.complete": "Görev tamamlandı",
+  "actions.todos.reopen": "Görev yeniden açıldı",
+  "actions.todos.delete": "Görev silindi",
+  "actions.ai.action.confirmed": "AI işlemi onaylandı",
+  "actions.ai.action.failed": "AI işlemi başarısız oldu",
+  "resources.todos.todo": "Görev",
+  "resources.ai.action": "AI işlemi",
+  "via_ai": "AI üzerinden"
 }
