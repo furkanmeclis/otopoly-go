@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Outfit, Plus_Jakarta_Sans } from "next/font/google";
 
 import { brand } from "@/config/brand";
+import { site } from "@/config/site";
 import { AppProviders } from "@/providers/app-providers";
 
 import "./globals.css";
@@ -28,12 +29,18 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: {
     default: brand.productName,
     template: `%s · ${brand.name}`,
   },
   description: brand.tagline,
   applicationName: brand.productName,
+  openGraph: {
+    type: "website",
+    siteName: site.name,
+    locale: site.locale,
+  },
 };
 
 export const viewport: Viewport = {
