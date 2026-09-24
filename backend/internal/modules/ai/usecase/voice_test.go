@@ -142,7 +142,7 @@ func TestTestVoiceReportsInstalledModels(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.OK || !res.STTModelInstalled || res.TTSModelInstalled || !strings.Contains(res.Message, DefaultTTSVoice) {
+	if res.OK || !res.Reachable || !res.STTModelInstalled || res.TTSModelInstalled || !strings.Contains(res.Message, DefaultTTSVoice) {
 		t.Fatalf("res = %+v", res)
 	}
 	if len(res.InstalledModels) != 1 || res.InstalledModels[0].Task != "automatic-speech-recognition" {
@@ -163,7 +163,7 @@ func TestTestVoiceReportsInstalledModels(t *testing.T) {
 
 	down := "http://127.0.0.1:1"
 	res, err = h.svc.TestVoice(h.ctx, VoiceTestInput{BaseURL: &down})
-	if err != nil || res.OK || res.Message == "" {
+	if err != nil || res.OK || res.Reachable || res.Message == "" {
 		t.Fatalf("unreachable: res = %+v err = %v", res, err)
 	}
 	bad := "ftp://x"

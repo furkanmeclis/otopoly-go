@@ -222,6 +222,7 @@ type VoiceModelInfo struct {
 // are installed on the Speaches server.
 type VoiceTestResult struct {
 	OK                bool             `json:"ok"`
+	Reachable         bool             `json:"reachable"`
 	BaseURL           string           `json:"base_url"`
 	LatencyMS         int64            `json:"latency_ms"`
 	Message           string           `json:"message,omitempty"`
@@ -273,6 +274,7 @@ func (s *Service) TestVoice(ctx context.Context, in VoiceTestInput) (VoiceTestRe
 		res.Message = err.Error()
 		return res, nil
 	}
+	res.Reachable = true
 	for _, m := range models {
 		res.InstalledModels = append(res.InstalledModels, VoiceModelInfo(m))
 		if m.ID == res.STTModel {

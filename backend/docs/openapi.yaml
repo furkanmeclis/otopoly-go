@@ -9059,9 +9059,10 @@ components:
 
     AIVoiceTestResult:
       type: object
-      required: [ok, base_url, latency_ms, stt_model, stt_model_installed, tts_model, tts_voice, tts_model_installed, installed_models]
+      required: [ok, reachable, base_url, latency_ms, stt_model, stt_model_installed, tts_model, tts_voice, tts_model_installed, installed_models]
       properties:
         ok: { type: boolean }
+        reachable: { type: boolean, description: The server answered GET /v1/models }
         base_url: { type: string }
         latency_ms: { type: integer, format: int64 }
         message: { type: string }
