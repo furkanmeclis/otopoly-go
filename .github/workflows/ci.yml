@@ -91,6 +91,12 @@ jobs:
       - name: Open or reuse pull request
         id: pr
         run: |
+          ahead="$(gh api "repos/$GH_REPO/compare/$BASE...$GITHUB_SHA" --jq '.ahead_by')"
+          if [ "$ahead" = "0" ]; then
+            echo "Branch has nothing that is not already in $BASE; skipping."
+            echo "number=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           number="$(gh pr list --head "$BRANCH" --base "$BASE" --state open --json number --jq '.[0].number // empty')"
           if [ -z "$number" ]; then
             title="$(gh api "repos/$GH_REPO/commits/$GITHUB_SHA" --jq '.commit.message | split("\n")[0]')"
@@ -106,6 +112,7 @@ jobs:
           fi
           echo "number=$number" >> "$GITHUB_OUTPUT"
       - name: Merge
+        if: steps.pr.outputs.number != ''
         run: |
           # This job only runs after backend + frontend passed, so merge right away
           # (no --auto: that needs branch protection). Only merge the commit this
