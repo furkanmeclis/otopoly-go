@@ -56,11 +56,23 @@ type Deps struct {
 	Finance   FinanceReader
 	Sales     SalesReader
 	Catalog   CatalogReader
+
+	// Write tools (Phase 2). A nil dependency skips the tools that need it.
+	CariWrite      CariWriter
+	FinanceWrite   FinanceWriter
+	CustomersWrite CustomersWriter
+	VehicleCatalog VehicleCatalog
+	VehicleOptions VehicleOptionStore
+	JobsWrite      JobsWriter
+	CatalogLookup  CatalogLookup
+	SalesWrite     SalesWriter
+	Todos          TodosService
 }
 
-// DefaultRegistry builds the Phase 1 tool set.
+// DefaultRegistry builds the tool set (read tools, charts, plan checklist and
+// confirmable write tools).
 func DefaultRegistry(d Deps) *Registry {
-	r := NewRegistry(RenderChart{})
+	r := NewRegistry(RenderChart{}, UpdatePlan{})
 	if d.Customers != nil {
 		r.Register(SearchCustomers{store: d.Customers})
 	}
@@ -82,7 +94,44 @@ func DefaultRegistry(d Deps) *Registry {
 	if d.Catalog != nil {
 		r.Register(SearchProducts{catalog: d.Catalog})
 	}
+	registerWriteTools(r, d)
 	return r
+}
+
+func registerWriteTools(r *Registry, d Deps) {
+	if d.CariWrite != nil && d.FinanceWrite != nil {
+		r.Register(RecordCariPayment{cari: d.CariWrite, finance: d.FinanceWrite})
+	}
+	if d.CariWrite != nil {
+		r.Register(RecordCariCharge{cari: d.CariWrite})
+	}
+	if d.FinanceWrite != nil {
+		r.Register(RecordFinanceEntry{finance: d.FinanceWrite})
+		r.Register(CreateFinanceTransfer{finance: d.FinanceWrite})
+	}
+	if d.CustomersWrite != nil {
+		r.Register(CreateCustomer{customers: d.CustomersWrite, search: d.Customers})
+		if d.VehicleOptions != nil {
+			r.Register(AddCustomerVehicle{customers: d.CustomersWrite, options: d.VehicleOptions})
+		}
+		if d.JobsWrite != nil && d.CatalogLookup != nil {
+			r.Register(CreateJob{customers: d.CustomersWrite, jobs: d.JobsWrite, catalog: d.CatalogLookup})
+		}
+		if d.SalesWrite != nil && d.CatalogLookup != nil && d.FinanceWrite != nil {
+			r.Register(CreateQuickSale{sales: d.SalesWrite, catalog: d.CatalogLookup, finance: d.FinanceWrite, customers: d.CustomersWrite})
+		}
+	}
+	if d.VehicleCatalog != nil {
+		r.Register(SearchVehicleModels{catalog: d.VehicleCatalog})
+	}
+	if d.JobsWrite != nil {
+		r.Register(UpdateJobStatus{jobs: d.JobsWrite})
+	}
+	if d.Todos != nil {
+		r.Register(CreateTodo{todos: d.Todos, customers: d.CustomersWrite})
+		r.Register(ListTodos{todos: d.Todos})
+		r.Register(CompleteTodo{todos: d.Todos})
+	}
 }
 
 // userError turns domain validation errors into tool errors; other errors bubble up.
@@ -344,6 +393,7 @@ func (t ListJobs) Run(ctx context.Context, env Env, raw json.RawMessage) (Result
 		return userError(err)
 	}
 	type job struct {
+		UUID     string `json:"uuid"`
 		Plate    string `json:"plate"`
 		Vehicle  string `json:"vehicle,omitempty"`
 		Customer string `json:"customer"`
@@ -358,7 +408,7 @@ func (t ListJobs) Run(ctx context.Context, env Env, raw json.RawMessage) (Result
 	for _, j := range rows {
 		byStatus[j.Status]++
 		items = append(items, job{
-			Plate: j.Plate, Vehicle: j.VehicleLabel, Customer: j.CustomerName, Status: j.Status,
+			UUID: j.UUID.String(), Plate: j.Plate, Vehicle: j.VehicleLabel, Customer: j.CustomerName, Status: j.Status,
 			Payment: j.PaymentStatus, Total: FormatMoney(j.TotalAmount, j.Currency),
 			Started: fmtTime(j.StartedAt, env.Location), Assignee: j.AssigneeName,
 		})

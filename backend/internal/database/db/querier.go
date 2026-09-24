@@ -20,6 +20,10 @@ type Querier interface {
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
 	AdjustProductStock(ctx context.Context, arg AdjustProductStockParams) (Product, error)
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
+	AttachAIPendingActionsToMessage(ctx context.Context, arg AttachAIPendingActionsToMessageParams) error
+	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
+	// The pending → executing transition is the idempotency lock for confirm.
+	ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error)
 	ClaimOutboxEvents(ctx context.Context, arg ClaimOutboxEventsParams) ([]OutboxEvent, error)
 	ClearAppSettingsLogo(ctx context.Context) (AppSetting, error)
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
@@ -67,6 +71,7 @@ type Querier interface {
 	CountStorageActivity(ctx context.Context, objectKey string) (int64, error)
 	CountStorageTrash(ctx context.Context) (int64, error)
 	CountSuppliers(ctx context.Context, arg CountSuppliersParams) (int64, error)
+	CountTodos(ctx context.Context, arg CountTodosParams) (int64, error)
 	CountUnreadInappForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountUsersWithRole(ctx context.Context, roleSlug string) (int64, error)
@@ -127,6 +132,7 @@ type Querier interface {
 	CreateServiceJobPayment(ctx context.Context, arg CreateServiceJobPaymentParams) (ServiceJobPayment, error)
 	// Tenant suppliers (firmalar).
 	CreateSupplier(ctx context.Context, arg CreateSupplierParams) (Supplier, error)
+	CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	// System-wide vehicle brand / model / year catalog.
 	CreateVehicleBrand(ctx context.Context, arg CreateVehicleBrandParams) (VehicleBrand, error)
@@ -145,14 +151,21 @@ type Querier interface {
 	DeleteStorageShare(ctx context.Context, argUuid uuid.UUID) error
 	DeleteStorageStar(ctx context.Context, arg DeleteStorageStarParams) error
 	DeleteStorageTrashByUUID(ctx context.Context, argUuid uuid.UUID) error
+	DeleteTodo(ctx context.Context, arg DeleteTodoParams) error
 	DeleteUserTOTP(ctx context.Context, userID int64) error
 	DeleteVehicleModelYear(ctx context.Context, arg DeleteVehicleModelYearParams) error
 	DeleteWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) error
 	DeleteWebAuthnCredentialByUUID(ctx context.Context, arg DeleteWebAuthnCredentialByUUIDParams) error
+	// Expires pending actions of a conversation: all of them (the user moved on)
+	// or only those past expires_at.
+	ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error)
 	ExtensionExists(ctx context.Context, extname string) (bool, error)
+	FinishAIPendingAction(ctx context.Context, arg FinishAIPendingActionParams) (AiPendingAction, error)
 	GetAIConversation(ctx context.Context, arg GetAIConversationParams) (AiConversation, error)
+	GetAIMessageByID(ctx context.Context, id int64) (AiMessage, error)
 	GetAIOrganizationByUUID(ctx context.Context, argUuid uuid.UUID) (GetAIOrganizationByUUIDRow, error)
 	GetAIOrganizationSettings(ctx context.Context, organizationID int64) (AiOrganizationSetting, error)
+	GetAIPendingActionForUser(ctx context.Context, arg GetAIPendingActionForUserParams) (GetAIPendingActionForUserRow, error)
 	GetAISettings(ctx context.Context) (AiSetting, error)
 	GetAIUserDisplay(ctx context.Context, id int64) (GetAIUserDisplayRow, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
@@ -250,6 +263,10 @@ type Querier interface {
 	GetSupplierByUUID(ctx context.Context, arg GetSupplierByUUIDParams) (Supplier, error)
 	GetSupplierForSearch(ctx context.Context, arg GetSupplierForSearchParams) (GetSupplierForSearchRow, error)
 	GetTemplateByCodeChannelLang(ctx context.Context, arg GetTemplateByCodeChannelLangParams) (NotificationTemplate, error)
+	GetTodoAssigneeByUUID(ctx context.Context, arg GetTodoAssigneeByUUIDParams) (GetTodoAssigneeByUUIDRow, error)
+	GetTodoByUUID(ctx context.Context, arg GetTodoByUUIDParams) (GetTodoByUUIDRow, error)
+	GetTodoCustomerRef(ctx context.Context, arg GetTodoCustomerRefParams) (GetTodoCustomerRefRow, error)
+	GetTodoJobRef(ctx context.Context, arg GetTodoJobRefParams) (GetTodoJobRefRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
@@ -267,6 +284,7 @@ type Querier interface {
 	IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error)
 	IncrementOTPAttempts(ctx context.Context, id int64) (OtpCode, error)
 	InsertAIMessage(ctx context.Context, arg InsertAIMessageParams) (AiMessage, error)
+	InsertAIPendingAction(ctx context.Context, arg InsertAIPendingActionParams) (AiPendingAction, error)
 	InsertAIUsage(ctx context.Context, arg InsertAIUsageParams) error
 	InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) (ActivityEvent, error)
 	InsertAppLog(ctx context.Context, arg InsertAppLogParams) error
@@ -394,6 +412,9 @@ type Querier interface {
 	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
 	ListSuppliersForExport(ctx context.Context, arg ListSuppliersForExportParams) ([]Supplier, error)
 	ListSuppliersForSearch(ctx context.Context) ([]ListSuppliersForSearchRow, error)
+	ListTodoAssignees(ctx context.Context, organizationID int64) ([]ListTodoAssigneesRow, error)
+	// scope: overdue | today | upcoming | no_date | open_due (overdue + today); today is the local date.
+	ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTodosRow, error)
 	ListUserRoleSlugs(ctx context.Context, userID int64) ([]string, error)
 	ListUserRolesByUserID(ctx context.Context, userID int64) ([]Role, error)
 	ListUserRolesByUserUUID(ctx context.Context, argUuid uuid.UUID) ([]Role, error)
@@ -473,6 +494,7 @@ type Querier interface {
 	SetContractInstancePDFError(ctx context.Context, arg SetContractInstancePDFErrorParams) error
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
 	SetRolePermissions(ctx context.Context, roleID int64) error
+	SetTodoStatus(ctx context.Context, arg SetTodoStatusParams) (Todo, error)
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteAIConversation(ctx context.Context, id int64) error
@@ -497,8 +519,10 @@ type Querier interface {
 	SumFinanceTransactionsByType(ctx context.Context, arg SumFinanceTransactionsByTypeParams) ([]SumFinanceTransactionsByTypeRow, error)
 	SumProductSalesDaily(ctx context.Context, arg SumProductSalesDailyParams) (SumProductSalesDailyRow, error)
 	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
+	TodoSummary(ctx context.Context, arg TodoSummaryParams) (TodoSummaryRow, error)
 	TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error
 	UpdateAIConversationTitle(ctx context.Context, arg UpdateAIConversationTitleParams) (AiConversation, error)
+	UpdateAIMessageContentUI(ctx context.Context, arg UpdateAIMessageContentUIParams) error
 	UpdateAISettings(ctx context.Context, arg UpdateAISettingsParams) (AiSetting, error)
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
@@ -526,6 +550,7 @@ type Querier interface {
 	UpdateServiceJobNotes(ctx context.Context, arg UpdateServiceJobNotesParams) (ServiceJob, error)
 	UpdateStepupSettings(ctx context.Context, arg UpdateStepupSettingsParams) (StepupSetting, error)
 	UpdateSupplier(ctx context.Context, arg UpdateSupplierParams) (Supplier, error)
+	UpdateTodo(ctx context.Context, arg UpdateTodoParams) (Todo, error)
 	UpdateUserLastLogin(ctx context.Context, id int64) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPasswordByID(ctx context.Context, arg UpdateUserPasswordByIDParams) error

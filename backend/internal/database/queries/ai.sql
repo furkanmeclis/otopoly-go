@@ -179,3 +179,72 @@ WHERE c.organization_id = sqlc.arg(organization_id)
   )
 ORDER BY c.is_active DESC, c.name ASC
 LIMIT sqlc.arg(limit_count);
+
+-- name: GetAIMessageByID :one
+SELECT * FROM ai_messages WHERE id = sqlc.arg(id);
+
+-- name: UpdateAIMessageContentUI :exec
+UPDATE ai_messages
+SET content = sqlc.arg(content), ui = sqlc.arg(ui)
+WHERE id = sqlc.arg(id);
+
+-- name: InsertAIPendingAction :one
+INSERT INTO ai_pending_actions (
+    organization_id, user_id, conversation_id, tool_use_id, tool_name,
+    input, preview, idempotency_key, expires_at
+) VALUES (
+    sqlc.arg(organization_id), sqlc.arg(user_id), sqlc.arg(conversation_id), sqlc.arg(tool_use_id),
+    sqlc.arg(tool_name), sqlc.arg(input), sqlc.arg(preview), sqlc.arg(idempotency_key), sqlc.arg(expires_at)
+)
+RETURNING *;
+
+-- name: GetAIPendingActionForUser :one
+SELECT a.*, c.uuid AS conversation_uuid
+FROM ai_pending_actions a
+JOIN ai_conversations c ON c.id = a.conversation_id AND c.deleted_at IS NULL
+WHERE a.uuid = sqlc.arg(uuid)
+  AND a.organization_id = sqlc.arg(organization_id)
+  AND a.user_id = sqlc.arg(user_id);
+
+-- name: AttachAIPendingActionsToMessage :exec
+UPDATE ai_pending_actions
+SET message_id = sqlc.arg(message_id)
+WHERE conversation_id = sqlc.arg(conversation_id)
+  AND message_id IS NULL;
+
+-- name: ClaimAIPendingAction :one
+-- The pending → executing transition is the idempotency lock for confirm.
+UPDATE ai_pending_actions
+SET status = 'executing',
+    input = sqlc.arg(input),
+    preview = sqlc.arg(preview)
+WHERE id = sqlc.arg(id)
+  AND status = 'pending'
+  AND message_id IS NOT NULL
+  AND expires_at > now()
+RETURNING *;
+
+-- name: FinishAIPendingAction :one
+UPDATE ai_pending_actions
+SET status = sqlc.arg(status),
+    result = sqlc.narg(result),
+    error = sqlc.arg(error),
+    resolved_at = now()
+WHERE id = sqlc.arg(id)
+RETURNING *;
+
+-- name: CancelAIPendingAction :one
+UPDATE ai_pending_actions
+SET status = 'cancelled', resolved_at = now()
+WHERE id = sqlc.arg(id) AND status = 'pending'
+RETURNING *;
+
+-- name: ExpireAIPendingActions :many
+-- Expires pending actions of a conversation: all of them (the user moved on)
+-- or only those past expires_at.
+UPDATE ai_pending_actions
+SET status = 'expired', resolved_at = now()
+WHERE conversation_id = sqlc.arg(conversation_id)
+  AND status = 'pending'
+  AND (sqlc.arg(all_pending)::boolean OR expires_at <= now())
+RETURNING *;

@@ -37,6 +37,7 @@ type Service struct {
 	registry      *tools.Registry
 	newProvider   ProviderFactory
 	confirm       ConfirmationGate
+	activity      ActivityRecorder
 	log           *slog.Logger
 	now           func() time.Time
 	loc           *time.Location
@@ -73,7 +74,8 @@ func New(store Store, box Encrypter, registry *tools.Registry, log *slog.Logger)
 // SetProviderFactory overrides provider construction (tests, custom transports).
 func (s *Service) SetProviderFactory(f ProviderFactory) { s.newProvider = f }
 
-// SetConfirmationGate installs the Phase 2 confirmation flow for write tools.
+// SetConfirmationGate installs a custom confirmation flow for write tools
+// (EnableActions installs the built-in one).
 func (s *Service) SetConfirmationGate(g ConfirmationGate) {
 	if g != nil {
 		s.confirm = g

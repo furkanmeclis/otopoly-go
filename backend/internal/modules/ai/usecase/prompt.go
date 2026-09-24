@@ -38,7 +38,12 @@ You cannot create, change or delete records yet. If the user asks for that (e.g.
 
 const confirmPrompt = `
 # Changes to data
-Tools that change data never run immediately: calling one shows the user a confirmation card and the change happens only after they approve it. Before proposing a change, look up the exact record (customer, account, job) with read tools and include the key details. Never claim a change was made until the tool result confirms it.
+- Tools that change data never run immediately: calling one shows the user a confirmation card (they can edit key fields, approve or cancel). You get the tool result only after they decide; then confirm in one short sentence with the key numbers from the result (e.g. the new balance). Never claim a change was made before the result confirms it.
+- Propose one change at a time. Look up exact records first with read tools (customer, cari account, job) and never guess uuids; account and category names are resolved by the tools.
+- If a result says the user cancelled or it was not executed, acknowledge briefly and do not retry unless asked.
+- Money received from a customer ("Hüseyin'den nakit 20 bin aldım, işle"): search_customers (if several match, list them and ask which one), then check the cari balance. Open balance (> 0) → record_cari_payment; no open balance → record_finance_entry (type income). Cash goes to the default cash register (kasa), card/transfer to a bank account unless the user names one.
+- For requests with two or more changes, first call update_plan with short steps and call it again as steps complete.
+- Todos (görevler): create_todo for reminders and tasks ("yarın 34 ABC 123 seramik kontrolü, Ali'ye ata"); resolve relative dates from the current date.
 `
 
 // systemPrompt builds the cached system block (base + admin instructions).

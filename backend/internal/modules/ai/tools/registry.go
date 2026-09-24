@@ -109,6 +109,10 @@ type Result struct {
 	IsError       bool
 	// Chart is emitted to the client as a chart block.
 	Chart *Chart
+	// Plan is emitted as a checklist block (update_plan), replaced in place.
+	Plan *Plan
+	// Link points the confirm card at the record a write action touched.
+	Link *Link
 }
 
 // Tool is an executable assistant tool.

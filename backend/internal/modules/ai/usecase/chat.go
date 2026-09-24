@@ -14,6 +14,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // MaxMessageLength caps a user message (characters).
@@ -32,13 +33,18 @@ const (
 	EventTitle        = "title"
 	EventMessageDone  = "message_done"
 	EventError        = "error"
-	// Phase 2: EventConfirm ("confirm_required") carries a confirm card block.
+	// EventConfirm carries a confirm card block (write action proposed).
+	EventConfirm = "confirm"
+	// EventPlan carries the plan checklist block (replaces the previous one).
+	EventPlan = "plan"
+	// EventAction reports a confirmed/failed action (confirm endpoint).
+	EventAction = "action"
 )
 
 // Emitter delivers a server-sent event to the client.
 type Emitter func(event string, data any)
 
-// ------------------------------------------------------------------ confirmation gate (Phase 2)
+// ------------------------------------------------------------------ confirmation gate
 
 // PendingCall is a write-tool call awaiting user confirmation.
 type PendingCall struct {
@@ -131,6 +137,22 @@ type turnState struct {
 	ui    []UIBlock
 	emit  Emitter
 	usage provider.Usage
+	// proposed is set once a write action was proposed in this turn (one per turn).
+	proposed bool
+}
+
+// upsertPlan replaces the turn's plan checklist block (or appends it).
+func (ts *turnState) upsertPlan(plan *tools.Plan) UIBlock {
+	raw, _ := json.Marshal(plan)
+	block := UIBlock{Type: UITodoList, ID: "plan", Data: raw}
+	for i := range ts.ui {
+		if ts.ui[i].Type == UITodoList {
+			ts.ui[i] = block
+			return block
+		}
+	}
+	ts.ui = append(ts.ui, block)
+	return block
 }
 
 func (ts *turnState) appendText(text string) {
@@ -163,15 +185,17 @@ func (s *Service) RunTurn(ctx context.Context, t *Turn, emit Emitter) error {
 	if emit == nil {
 		emit = func(string, any) {}
 	}
-	settings := t.settings
-	orgID, userID, convID := t.scope.InternalID, t.principal.UserInternal, t.conv.ID
+	convID := t.conv.ID
 	persistCtx := context.WithoutCancel(ctx)
+
+	// A new message resolves any unanswered confirm cards as "not executed".
+	s.expireActions(persistCtx, t.conv, true)
 
 	rows, err := s.store.ListAIMessages(ctx, convID)
 	if err != nil {
 		return err
 	}
-	history, results := historyFromRows(rows, settings.Model)
+	history, results := historyFromRows(rows, t.settings.Model)
 
 	now := s.now()
 	userMsg := provider.Message{Role: provider.RoleUser, Content: []provider.Block{
@@ -188,6 +212,17 @@ func (s *Service) RunTurn(ctx context.Context, t *Turn, emit Emitter) error {
 	emit(EventMessageStart, map[string]any{
 		"conversation_uuid": t.conv.Uuid, "user_message_uuid": userRow.Uuid,
 	})
+	return s.runAgent(ctx, t, emit, history, results, []provider.Message{userMsg})
+}
+
+// runAgent runs the tool loop after history + lead (the new user message, or
+// nothing when resuming after a confirmed action), streams events, persists
+// the assistant turn and titles new conversations.
+func (s *Service) runAgent(ctx context.Context, t *Turn, emit Emitter, history []provider.Message, results map[string]string, lead []provider.Message) error {
+	settings := t.settings
+	orgID, userID, convID := t.scope.InternalID, t.principal.UserInternal, t.conv.ID
+	persistCtx := context.WithoutCancel(ctx)
+	now := s.now()
 
 	gate := s.gate(settings)
 	available := s.registry.Available(t.principal, t.scope, gate)
@@ -235,7 +270,7 @@ loop:
 				break
 			}
 		}
-		msgs := sanitizeHistory(trimHistory(sanitizeHistory(append(append(append([]provider.Message{}, history...), userMsg), turnMsgs...))))
+		msgs := sanitizeHistory(trimHistory(sanitizeHistory(append(append(append([]provider.Message{}, history...), lead...), turnMsgs...))))
 		req := provider.Request{
 			Model:          settings.Model,
 			System:         system,
@@ -330,6 +365,13 @@ loop:
 	if err != nil {
 		return err
 	}
+	if ts.proposed {
+		if err := s.store.AttachAIPendingActionsToMessage(persistCtx, db.AttachAIPendingActionsToMessageParams{
+			ConversationID: convID, MessageID: pgtype.Int8{Int64: assistantRow.ID, Valid: true},
+		}); err != nil {
+			s.log.Warn("ai_actions_attach_failed", "error", err)
+		}
+	}
 	if err := s.store.TouchAIConversation(persistCtx, db.TouchAIConversationParams{ID: convID, Added: 1}); err != nil {
 		s.log.Warn("ai_conversation_touch_failed", "error", err)
 	}
@@ -340,7 +382,7 @@ loop:
 		"usage":        ts.usage,
 	})
 
-	if strings.TrimSpace(t.conv.Title) == "" && ctx.Err() == nil {
+	if t.text != "" && strings.TrimSpace(t.conv.Title) == "" && ctx.Err() == nil {
 		title := tools.Truncate(strings.SplitN(t.text, "\n", 2)[0], 60)
 		if status == "complete" {
 			title = s.generateTitle(ctx, t, lastAssistantText(turnMsgs))
@@ -415,6 +457,9 @@ func (s *Service) execTool(ctx context.Context, t *Turn, env tools.Env, byName m
 			ts.ui = append(ts.ui, UIBlock{Type: UIChart, ID: id, Chart: res.Chart})
 			ts.emit(EventChart, map[string]any{"id": id, "chart": res.Chart})
 		}
+		if res.Plan != nil {
+			ts.emit(EventPlan, map[string]any{"block": ts.upsertPlan(res.Plan)})
+		}
 		block := provider.ToolResultBlock(id, content, res.IsError)
 		return &block
 	}
@@ -432,6 +477,9 @@ func (s *Service) execTool(ctx context.Context, t *Turn, env tools.Env, byName m
 		return finish(tools.ErrorResult("Invalid input: " + err.Error() + ". Fix the input and call the tool again.")), false
 	}
 	if spec.RequiresConfirmation {
+		if ts.proposed {
+			return finish(tools.ErrorResult(resultOnePerTurn)), false
+		}
 		pr, err := s.confirm.Propose(ctx, PendingCall{
 			ConversationUUID: t.conv.Uuid, ConversationID: t.conv.ID, ToolUseID: id, Tool: tool, Input: tu.Input, Env: env,
 		})
@@ -441,8 +489,12 @@ func (s *Service) execTool(ctx context.Context, t *Turn, env tools.Env, byName m
 		}
 		if pr.UI != nil {
 			ts.ui = append(ts.ui, *pr.UI)
+			if pr.UI.Type == UIConfirm {
+				ts.emit(EventConfirm, map[string]any{"block": *pr.UI})
+			}
 		}
 		if pr.Result == nil {
+			ts.proposed = true
 			if b := ts.toolBlock(id); b != nil {
 				b.Status = "pending"
 			}

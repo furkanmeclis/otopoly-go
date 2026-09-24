@@ -32,6 +32,7 @@ func (r *Recorder) Record(ctx context.Context, actorID *int64, action, resource 
 	if r == nil || r.q == nil {
 		return
 	}
+	payload = withOriginPayload(ctx, payload)
 	body, err := json.Marshal(payload)
 	if err != nil || payload == nil {
 		body = []byte("{}")

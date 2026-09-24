@@ -102,6 +102,101 @@ func (q *Queries) AISearchCustomers(ctx context.Context, arg AISearchCustomersPa
 	return items, nil
 }
 
+const attachAIPendingActionsToMessage = `-- name: AttachAIPendingActionsToMessage :exec
+UPDATE ai_pending_actions
+SET message_id = $1
+WHERE conversation_id = $2
+  AND message_id IS NULL
+`
+
+type AttachAIPendingActionsToMessageParams struct {
+	MessageID      pgtype.Int8 `json:"message_id"`
+	ConversationID int64       `json:"conversation_id"`
+}
+
+func (q *Queries) AttachAIPendingActionsToMessage(ctx context.Context, arg AttachAIPendingActionsToMessageParams) error {
+	_, err := q.db.Exec(ctx, attachAIPendingActionsToMessage, arg.MessageID, arg.ConversationID)
+	return err
+}
+
+const cancelAIPendingAction = `-- name: CancelAIPendingAction :one
+UPDATE ai_pending_actions
+SET status = 'cancelled', resolved_at = now()
+WHERE id = $1 AND status = 'pending'
+RETURNING id, uuid, organization_id, user_id, conversation_id, message_id, tool_use_id, tool_name, input, preview, status, result, error, idempotency_key, expires_at, resolved_at, created_at, updated_at
+`
+
+func (q *Queries) CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error) {
+	row := q.db.QueryRow(ctx, cancelAIPendingAction, id)
+	var i AiPendingAction
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.ConversationID,
+		&i.MessageID,
+		&i.ToolUseID,
+		&i.ToolName,
+		&i.Input,
+		&i.Preview,
+		&i.Status,
+		&i.Result,
+		&i.Error,
+		&i.IdempotencyKey,
+		&i.ExpiresAt,
+		&i.ResolvedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const claimAIPendingAction = `-- name: ClaimAIPendingAction :one
+UPDATE ai_pending_actions
+SET status = 'executing',
+    input = $1,
+    preview = $2
+WHERE id = $3
+  AND status = 'pending'
+  AND message_id IS NOT NULL
+  AND expires_at > now()
+RETURNING id, uuid, organization_id, user_id, conversation_id, message_id, tool_use_id, tool_name, input, preview, status, result, error, idempotency_key, expires_at, resolved_at, created_at, updated_at
+`
+
+type ClaimAIPendingActionParams struct {
+	Input   []byte `json:"input"`
+	Preview []byte `json:"preview"`
+	ID      int64  `json:"id"`
+}
+
+// The pending → executing transition is the idempotency lock for confirm.
+func (q *Queries) ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error) {
+	row := q.db.QueryRow(ctx, claimAIPendingAction, arg.Input, arg.Preview, arg.ID)
+	var i AiPendingAction
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.ConversationID,
+		&i.MessageID,
+		&i.ToolUseID,
+		&i.ToolName,
+		&i.Input,
+		&i.Preview,
+		&i.Status,
+		&i.Result,
+		&i.Error,
+		&i.IdempotencyKey,
+		&i.ExpiresAt,
+		&i.ResolvedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const countAIConversations = `-- name: CountAIConversations :one
 SELECT COUNT(*)::bigint FROM ai_conversations
 WHERE organization_id = $1
@@ -153,6 +248,109 @@ func (q *Queries) CreateAIConversation(ctx context.Context, arg CreateAIConversa
 	return i, err
 }
 
+const expireAIPendingActions = `-- name: ExpireAIPendingActions :many
+UPDATE ai_pending_actions
+SET status = 'expired', resolved_at = now()
+WHERE conversation_id = $1
+  AND status = 'pending'
+  AND ($2::boolean OR expires_at <= now())
+RETURNING id, uuid, organization_id, user_id, conversation_id, message_id, tool_use_id, tool_name, input, preview, status, result, error, idempotency_key, expires_at, resolved_at, created_at, updated_at
+`
+
+type ExpireAIPendingActionsParams struct {
+	ConversationID int64 `json:"conversation_id"`
+	AllPending     bool  `json:"all_pending"`
+}
+
+// Expires pending actions of a conversation: all of them (the user moved on)
+// or only those past expires_at.
+func (q *Queries) ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error) {
+	rows, err := q.db.Query(ctx, expireAIPendingActions, arg.ConversationID, arg.AllPending)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AiPendingAction{}
+	for rows.Next() {
+		var i AiPendingAction
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.UserID,
+			&i.ConversationID,
+			&i.MessageID,
+			&i.ToolUseID,
+			&i.ToolName,
+			&i.Input,
+			&i.Preview,
+			&i.Status,
+			&i.Result,
+			&i.Error,
+			&i.IdempotencyKey,
+			&i.ExpiresAt,
+			&i.ResolvedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const finishAIPendingAction = `-- name: FinishAIPendingAction :one
+UPDATE ai_pending_actions
+SET status = $1,
+    result = $2,
+    error = $3,
+    resolved_at = now()
+WHERE id = $4
+RETURNING id, uuid, organization_id, user_id, conversation_id, message_id, tool_use_id, tool_name, input, preview, status, result, error, idempotency_key, expires_at, resolved_at, created_at, updated_at
+`
+
+type FinishAIPendingActionParams struct {
+	Status string `json:"status"`
+	Result []byte `json:"result"`
+	Error  string `json:"error"`
+	ID     int64  `json:"id"`
+}
+
+func (q *Queries) FinishAIPendingAction(ctx context.Context, arg FinishAIPendingActionParams) (AiPendingAction, error) {
+	row := q.db.QueryRow(ctx, finishAIPendingAction,
+		arg.Status,
+		arg.Result,
+		arg.Error,
+		arg.ID,
+	)
+	var i AiPendingAction
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.ConversationID,
+		&i.MessageID,
+		&i.ToolUseID,
+		&i.ToolName,
+		&i.Input,
+		&i.Preview,
+		&i.Status,
+		&i.Result,
+		&i.Error,
+		&i.IdempotencyKey,
+		&i.ExpiresAt,
+		&i.ResolvedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getAIConversation = `-- name: GetAIConversation :one
 SELECT id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at FROM ai_conversations
 WHERE uuid = $1
@@ -181,6 +379,30 @@ func (q *Queries) GetAIConversation(ctx context.Context, arg GetAIConversationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+	)
+	return i, err
+}
+
+const getAIMessageByID = `-- name: GetAIMessageByID :one
+SELECT id, uuid, conversation_id, organization_id, role, status, content, ui, model, input_tokens, output_tokens, created_at FROM ai_messages WHERE id = $1
+`
+
+func (q *Queries) GetAIMessageByID(ctx context.Context, id int64) (AiMessage, error) {
+	row := q.db.QueryRow(ctx, getAIMessageByID, id)
+	var i AiMessage
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.ConversationID,
+		&i.OrganizationID,
+		&i.Role,
+		&i.Status,
+		&i.Content,
+		&i.Ui,
+		&i.Model,
+		&i.InputTokens,
+		&i.OutputTokens,
+		&i.CreatedAt,
 	)
 	return i, err
 }
@@ -222,6 +444,70 @@ func (q *Queries) GetAIOrganizationSettings(ctx context.Context, organizationID 
 		&i.MonthlyTokenQuota,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getAIPendingActionForUser = `-- name: GetAIPendingActionForUser :one
+SELECT a.id, a.uuid, a.organization_id, a.user_id, a.conversation_id, a.message_id, a.tool_use_id, a.tool_name, a.input, a.preview, a.status, a.result, a.error, a.idempotency_key, a.expires_at, a.resolved_at, a.created_at, a.updated_at, c.uuid AS conversation_uuid
+FROM ai_pending_actions a
+JOIN ai_conversations c ON c.id = a.conversation_id AND c.deleted_at IS NULL
+WHERE a.uuid = $1
+  AND a.organization_id = $2
+  AND a.user_id = $3
+`
+
+type GetAIPendingActionForUserParams struct {
+	Uuid           uuid.UUID `json:"uuid"`
+	OrganizationID int64     `json:"organization_id"`
+	UserID         int64     `json:"user_id"`
+}
+
+type GetAIPendingActionForUserRow struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	UserID           int64              `json:"user_id"`
+	ConversationID   int64              `json:"conversation_id"`
+	MessageID        pgtype.Int8        `json:"message_id"`
+	ToolUseID        string             `json:"tool_use_id"`
+	ToolName         string             `json:"tool_name"`
+	Input            []byte             `json:"input"`
+	Preview          []byte             `json:"preview"`
+	Status           string             `json:"status"`
+	Result           []byte             `json:"result"`
+	Error            string             `json:"error"`
+	IdempotencyKey   string             `json:"idempotency_key"`
+	ExpiresAt        pgtype.Timestamptz `json:"expires_at"`
+	ResolvedAt       pgtype.Timestamptz `json:"resolved_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ConversationUuid uuid.UUID          `json:"conversation_uuid"`
+}
+
+func (q *Queries) GetAIPendingActionForUser(ctx context.Context, arg GetAIPendingActionForUserParams) (GetAIPendingActionForUserRow, error) {
+	row := q.db.QueryRow(ctx, getAIPendingActionForUser, arg.Uuid, arg.OrganizationID, arg.UserID)
+	var i GetAIPendingActionForUserRow
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.ConversationID,
+		&i.MessageID,
+		&i.ToolUseID,
+		&i.ToolName,
+		&i.Input,
+		&i.Preview,
+		&i.Status,
+		&i.Result,
+		&i.Error,
+		&i.IdempotencyKey,
+		&i.ExpiresAt,
+		&i.ResolvedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ConversationUuid,
 	)
 	return i, err
 }
@@ -332,6 +618,65 @@ func (q *Queries) InsertAIMessage(ctx context.Context, arg InsertAIMessageParams
 		&i.InputTokens,
 		&i.OutputTokens,
 		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertAIPendingAction = `-- name: InsertAIPendingAction :one
+INSERT INTO ai_pending_actions (
+    organization_id, user_id, conversation_id, tool_use_id, tool_name,
+    input, preview, idempotency_key, expires_at
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7, $8, $9
+)
+RETURNING id, uuid, organization_id, user_id, conversation_id, message_id, tool_use_id, tool_name, input, preview, status, result, error, idempotency_key, expires_at, resolved_at, created_at, updated_at
+`
+
+type InsertAIPendingActionParams struct {
+	OrganizationID int64              `json:"organization_id"`
+	UserID         int64              `json:"user_id"`
+	ConversationID int64              `json:"conversation_id"`
+	ToolUseID      string             `json:"tool_use_id"`
+	ToolName       string             `json:"tool_name"`
+	Input          []byte             `json:"input"`
+	Preview        []byte             `json:"preview"`
+	IdempotencyKey string             `json:"idempotency_key"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+}
+
+func (q *Queries) InsertAIPendingAction(ctx context.Context, arg InsertAIPendingActionParams) (AiPendingAction, error) {
+	row := q.db.QueryRow(ctx, insertAIPendingAction,
+		arg.OrganizationID,
+		arg.UserID,
+		arg.ConversationID,
+		arg.ToolUseID,
+		arg.ToolName,
+		arg.Input,
+		arg.Preview,
+		arg.IdempotencyKey,
+		arg.ExpiresAt,
+	)
+	var i AiPendingAction
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.ConversationID,
+		&i.MessageID,
+		&i.ToolUseID,
+		&i.ToolName,
+		&i.Input,
+		&i.Preview,
+		&i.Status,
+		&i.Result,
+		&i.Error,
+		&i.IdempotencyKey,
+		&i.ExpiresAt,
+		&i.ResolvedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }
@@ -655,6 +1000,23 @@ func (q *Queries) UpdateAIConversationTitle(ctx context.Context, arg UpdateAICon
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const updateAIMessageContentUI = `-- name: UpdateAIMessageContentUI :exec
+UPDATE ai_messages
+SET content = $1, ui = $2
+WHERE id = $3
+`
+
+type UpdateAIMessageContentUIParams struct {
+	Content []byte `json:"content"`
+	Ui      []byte `json:"ui"`
+	ID      int64  `json:"id"`
+}
+
+func (q *Queries) UpdateAIMessageContentUI(ctx context.Context, arg UpdateAIMessageContentUIParams) error {
+	_, err := q.db.Exec(ctx, updateAIMessageContentUI, arg.Content, arg.Ui, arg.ID)
+	return err
 }
 
 const updateAISettings = `-- name: UpdateAISettings :one

@@ -25,6 +25,10 @@ const (
 	CodeAINotConfigured = "AI_NOT_CONFIGURED"
 	CodeAIOrgDisabled   = "AI_ORG_DISABLED"
 	CodeAIQuotaExceeded = "AI_QUOTA_EXCEEDED"
+	CodeActionResolved  = "AI_ACTION_RESOLVED"
+	CodeActionExpired   = "AI_ACTION_EXPIRED"
+	CodeActionNotReady  = "AI_ACTION_NOT_READY"
+	CodeActionForbidden = "AI_ACTION_FORBIDDEN"
 )
 
 // Handler serves AI endpoints.
@@ -56,6 +60,14 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		response.Error(w, r, http.StatusForbidden, CodeAIOrgDisabled, "The AI assistant is disabled for this organization")
 	case errors.Is(err, aiusecase.ErrQuotaExceeded):
 		response.Error(w, r, http.StatusForbidden, CodeAIQuotaExceeded, "Monthly AI token quota exceeded")
+	case errors.Is(err, aiusecase.ErrActionResolved):
+		response.Error(w, r, http.StatusConflict, CodeActionResolved, err.Error())
+	case errors.Is(err, aiusecase.ErrActionExpired):
+		response.Error(w, r, http.StatusConflict, CodeActionExpired, err.Error())
+	case errors.Is(err, aiusecase.ErrActionNotReady):
+		response.Error(w, r, http.StatusConflict, CodeActionNotReady, err.Error())
+	case errors.Is(err, aiusecase.ErrActionForbidden):
+		response.Error(w, r, http.StatusForbidden, CodeActionForbidden, err.Error())
 	default:
 		response.InternalErr(w, r, err, "unexpected error")
 	}
@@ -212,8 +224,8 @@ func (s *sseWriter) send(event string, data any) {
 }
 
 // SendMessage streams the assistant's answer as server-sent events:
-// message_start, text_delta, tool_start, tool_result, chart, error,
-// message_done, title.
+// message_start, text_delta, tool_start, tool_result, chart, plan, confirm,
+// error, message_done, title.
 func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	id, ok := pathUUID(w, r)
 	if !ok {
@@ -223,18 +235,29 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 	if !decodeJSON(w, r, &in) {
 		return
 	}
-	if strings.TrimSpace(in.Locale) == "" {
-		in.Locale = r.Header.Get("Accept-Language")
-		if len(in.Locale) > 2 {
-			in.Locale = in.Locale[:2]
-		}
-	}
+	in.Locale = requestLocale(r, in.Locale)
 	turn, err := h.svc.PrepareMessage(r.Context(), id, in)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 
+	h.stream(w, r, func(emit aiusecase.Emitter) error { return h.svc.RunTurn(r.Context(), turn, emit) })
+}
+
+func requestLocale(r *http.Request, locale string) string {
+	if strings.TrimSpace(locale) != "" {
+		return locale
+	}
+	l := r.Header.Get("Accept-Language")
+	if len(l) > 2 {
+		l = l[:2]
+	}
+	return l
+}
+
+// stream opens a text/event-stream response with heartbeats and runs fn.
+func (h *Handler) stream(w http.ResponseWriter, r *http.Request, fn func(emit aiusecase.Emitter) error) {
 	rc := http.NewResponseController(w)
 	// Streams outlive the server's default write timeout.
 	_ = rc.SetWriteDeadline(time.Now().Add(15 * time.Minute))
@@ -262,12 +285,50 @@ func (h *Handler) SendMessage(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
-	err = h.svc.RunTurn(r.Context(), turn, sse.send)
+	err := fn(sse.send)
 	close(done)
 	if err != nil {
-		slog.ErrorContext(r.Context(), "ai_turn_failed", "error", err)
+		slog.ErrorContext(r.Context(), "ai_stream_failed", "error", err)
 		sse.send(aiusecase.EventError, map[string]string{"code": "internal_error", "message": "unexpected error"})
 	}
+}
+
+// ConfirmAction executes a pending write action (optionally with edited
+// fields) and streams the assistant's continuation as server-sent events:
+// action, message_start, text_delta, tool_start, tool_result, chart, plan,
+// confirm, error, message_done.
+func (h *Handler) ConfirmAction(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	var in aiusecase.ConfirmInput
+	if r.ContentLength != 0 {
+		if !decodeJSON(w, r, &in) {
+			return
+		}
+	}
+	in.Locale = requestLocale(r, in.Locale)
+	run, err := h.svc.PrepareConfirm(r.Context(), id, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	h.stream(w, r, func(emit aiusecase.Emitter) error { return h.svc.RunConfirm(r.Context(), run, emit) })
+}
+
+// CancelAction cancels a pending write action (nothing is executed).
+func (h *Handler) CancelAction(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	block, err := h.svc.CancelAction(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, map[string]any{"block": block})
 }
 
 // ------------------------------------------------------------------ platform

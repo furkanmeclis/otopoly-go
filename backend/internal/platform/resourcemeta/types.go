@@ -766,3 +766,29 @@ func TenantReports() ResourceMeta {
 		},
 	}
 }
+
+// TenantTodos returns meta for GET /v1/tenant/todos.
+func TenantTodos() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.todos",
+		DefaultSort:   "due_date",
+		DefaultFields: []string{"uuid", "title", "due_date", "due_time", "status", "assignee"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true,
+			Search: true, Filter: true, Sort: false, Export: false,
+		},
+		SearchableFields: []string{"title", "notes"},
+		SortableFields:   []string{},
+		FilterableFields: []string{"status", "scope", "assignee"},
+		Columns: []Column{
+			{Key: "title", LabelKey: "todos.fields.title", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "due_date", LabelKey: "todos.fields.due_date", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "assignee", LabelKey: "todos.fields.assignee", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "todos.fields.status", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "todos.fields.status", Variant: FilterVariantFaceted},
+			{Key: "scope", LabelKey: "todos.fields.scope", Variant: FilterVariantFaceted},
+		},
+	}
+}

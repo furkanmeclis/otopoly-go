@@ -33,6 +33,8 @@ func RegisterRoutes(
 	mux.Handle("PATCH /v1/tenant/ai/conversations/{uuid}", tenant(h.RenameConversation))
 	mux.Handle("DELETE /v1/tenant/ai/conversations/{uuid}", tenant(h.DeleteConversation))
 	mux.Handle("POST /v1/tenant/ai/conversations/{uuid}/messages", tenant(h.SendMessage))
+	mux.Handle("POST /v1/tenant/ai/actions/{uuid}/confirm", tenant(h.ConfirmAction))
+	mux.Handle("POST /v1/tenant/ai/actions/{uuid}/cancel", tenant(h.CancelAction))
 
 	platform := func(handler http.HandlerFunc, perm string) http.Handler {
 		return middleware.Chain(http.HandlerFunc(handler), authn, middleware.RequirePermission(perm))

@@ -100,6 +100,8 @@ func (s *Service) GetConversation(ctx context.Context, id uuid.UUID) (Conversati
 	if err != nil {
 		return ConversationDetail{}, err
 	}
+	// Confirm cards past their expiry resolve as "not executed".
+	s.expireActions(ctx, conv, false)
 	msgs, err := s.store.ListAIMessages(ctx, conv.ID)
 	if err != nil {
 		return ConversationDetail{}, err

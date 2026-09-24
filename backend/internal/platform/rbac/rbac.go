@@ -104,6 +104,8 @@ const (
 	PermPlatformAIRead                          = "platform.ai.read"
 	PermPlatformAIWrite                         = "platform.ai.write"
 	PermTenantAIUse                             = "tenant.ai.use"
+	PermTenantTodosRead                         = "tenant.todos.read"
+	PermTenantTodosWrite                        = "tenant.todos.write"
 )
 
 // IsSystemRole reports whether slug is a protected system role.
