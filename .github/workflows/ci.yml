@@ -105,11 +105,15 @@ jobs:
             number="${url##*/}"
           fi
           echo "number=$number" >> "$GITHUB_OUTPUT"
-      - name: Enable auto-merge
+      - name: Merge
         run: |
-          if ! out="$(gh pr merge "${{ steps.pr.outputs.number }}" --auto --merge 2>&1)"; then
+          # This job only runs after backend + frontend passed, so merge right away
+          # (no --auto: that needs branch protection). Only merge the commit this
+          # run tested: a later push (or a re-run of an older run) must never
+          # merge an untested branch head.
+          if ! out="$(gh pr merge "${{ steps.pr.outputs.number }}" --merge --match-head-commit "$GITHUB_SHA" 2>&1)"; then
             echo "$out"
-            echo "::error title=Auto-merge unavailable::Enable Settings → General → 'Allow auto-merge' and protect main with required checks (backend, frontend)."
+            echo "::error title=Merge failed::PR could not be merged (head moved, conflict, or merge not permitted for this token)."
             exit 1
           fi
           echo "$out"
