@@ -1,6 +1,7 @@
 import type { AppLocale } from "@/config/i18n";
 
 import enAccess from "@/locales/en/access.json";
+import enAi from "@/locales/en/ai.json";
 import enActivity from "@/locales/en/activity.json";
 import enAuth from "@/locales/en/auth.json";
 import enBranding from "@/locales/en/branding.json";
@@ -43,6 +44,7 @@ import enStorage from "@/locales/en/storage.json";
 import enTable from "@/locales/en/table.json";
 import enUsers from "@/locales/en/users.json";
 import trAccess from "@/locales/tr/access.json";
+import trAi from "@/locales/tr/ai.json";
 import trActivity from "@/locales/tr/activity.json";
 import trAuth from "@/locales/tr/auth.json";
 import trBranding from "@/locales/tr/branding.json";
@@ -131,6 +133,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     contracts: trContracts,
     register: trRegister,
     stepup: trStepup,
+    ai: trAi,
   },
   en: {
     common: enCommon,
@@ -175,6 +178,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     contracts: enContracts,
     register: enRegister,
     stepup: enStepup,
+    ai: enAi,
   },
 };
 export function loadMessages(locale: AppLocale) {

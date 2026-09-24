@@ -57,5 +57,7 @@
   "expand_sidebar": "Kenar çubuğunu genişlet",
   "nav_item_info": "Detaylar",
   "nav_messaging": "Mesajlaşma",
-  "nav_staff": "Personel"
+  "nav_staff": "Personel",
+  "nav_ai": "AI asistan",
+  "nav_assistant": "Asistan"
 }

@@ -71,6 +71,11 @@ export const routes = {
     reports: {
       root: (slug: string) => `/t/${slug}/reports`,
     },
+    assistant: {
+      root: (slug: string) => `/t/${slug}/assistant`,
+      conversation: (slug: string, uuid: string) =>
+        `/t/${slug}/assistant?c=${encodeURIComponent(uuid)}`,
+    },
     contracts: {
       root: (slug: string) => `/t/${slug}/contracts`,
       templates: (slug: string) => `/t/${slug}/contracts/templates`,
@@ -185,6 +190,9 @@ export const routes = {
     },
     activity: {
       root: "/platform/activity",
+    },
+    ai: {
+      root: "/platform/ai",
     },
     logs: {
       root: "/platform/logs",

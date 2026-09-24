@@ -26,6 +26,7 @@ import {
   Receipt,
   ChartColumn,
   FileText,
+  Sparkles,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -123,6 +124,13 @@ export const platformNav = defineNav({
           href: routes.platform.access.root,
           icon: KeyRound,
           permission: permissions.access.read,
+        },
+        {
+          id: "ai",
+          titleKey: "layout.nav_ai",
+          href: routes.platform.ai.root,
+          icon: Sparkles,
+          permission: permissions.ai.read,
         },
       ],
     },
@@ -272,6 +280,13 @@ export function tenantNav(slug: string) {
             href: routes.tenant.reports.root(slug),
             icon: ChartColumn,
             permission: permissions.reports.read,
+          },
+          {
+            id: "assistant",
+            titleKey: "layout.nav_assistant",
+            href: routes.tenant.assistant.root(slug),
+            icon: Sparkles,
+            permission: permissions.ai.use,
           },
           {
             id: "profile",

@@ -17,6 +17,10 @@ import (
 	accessmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/access"
 	accesshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/access/handler"
 	activitymodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity"
+	aimodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai"
+	aihandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/handler"
+	aitools "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
+	aiusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/usecase"
 	activityhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity/handler"
 	activityusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/activity/usecase"
 	authmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth"
@@ -347,6 +351,17 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	reportsSvc := reportsusecase.New(deps.Queries)
 	reportsmodule.RegisterRoutes(mux, reportsSvc, tokens, loader, deps.Queries)
 	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
+	aiTools := aitools.DefaultRegistry(aitools.Deps{
+		Customers: deps.Queries,
+		Cari:      cariSvc,
+		Jobs:      jobsSvc,
+		Reports:   reportsSvc,
+		Finance:   financeSvc,
+		Sales:     salesSvc,
+		Catalog:   catalogSvc,
+	})
+	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
+	aimodule.RegisterRoutes(mux, aihandler.New(aiSvc, activityRec), tokens, loader, deps.Queries)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
 	nh := notifhandler.New(notifSvc)

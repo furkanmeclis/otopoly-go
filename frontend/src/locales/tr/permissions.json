@@ -114,5 +114,8 @@
   "groups.tenant": "İşletme",
   "groups.other": "Diğer",
   "labels.tenant.staff.read": "Personel görüntüle",
-  "labels.tenant.staff.write": "Personel yönet"
+  "labels.tenant.staff.write": "Personel yönet",
+  "labels.platform.ai.read": "AI asistan ayarlarını görüntüle",
+  "labels.platform.ai.write": "AI asistan ayarlarını yönet",
+  "labels.tenant.ai.use": "AI asistanı kullan"
 }

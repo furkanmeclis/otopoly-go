@@ -111,5 +111,8 @@
   "actions.staff.create": "Personel oluşturuldu",
   "actions.staff.update": "Personel güncellendi",
   "actions.staff.reset_password": "Personel şifresi sıfırlandı",
-  "resources.tenant.staff": "Personel"
+  "resources.tenant.staff": "Personel",
+  "actions.ai.settings.updated": "AI asistan ayarları güncellendi",
+  "actions.ai.organization.updated": "İşletme AI ayarları güncellendi",
+  "resources.platform.ai": "AI asistan"
 }

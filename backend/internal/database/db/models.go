@@ -24,6 +24,83 @@ type ActivityEvent struct {
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 }
 
+type AiConversation struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	UserID         int64              `json:"user_id"`
+	Title          string             `json:"title"`
+	MessageCount   int32              `json:"message_count"`
+	LastMessageAt  pgtype.Timestamptz `json:"last_message_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type AiMessage struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	ConversationID int64              `json:"conversation_id"`
+	OrganizationID int64              `json:"organization_id"`
+	Role           string             `json:"role"`
+	Status         string             `json:"status"`
+	Content        []byte             `json:"content"`
+	Ui             []byte             `json:"ui"`
+	Model          string             `json:"model"`
+	InputTokens    int64              `json:"input_tokens"`
+	OutputTokens   int64              `json:"output_tokens"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type AiOrganizationSetting struct {
+	OrganizationID    int64              `json:"organization_id"`
+	Enabled           bool               `json:"enabled"`
+	MonthlyTokenQuota pgtype.Int8        `json:"monthly_token_quota"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AiSetting struct {
+	ID                       int16              `json:"id"`
+	Provider                 string             `json:"provider"`
+	ApiKeyEnc                pgtype.Text        `json:"api_key_enc"`
+	BaseUrl                  string             `json:"base_url"`
+	Model                    string             `json:"model"`
+	TitleModel               string             `json:"title_model"`
+	Effort                   string             `json:"effort"`
+	MaxTokens                int32              `json:"max_tokens"`
+	ChatEnabled              bool               `json:"chat_enabled"`
+	ActionsEnabled           bool               `json:"actions_enabled"`
+	ChartsEnabled            bool               `json:"charts_enabled"`
+	VoiceEnabled             bool               `json:"voice_enabled"`
+	TodosEnabled             bool               `json:"todos_enabled"`
+	ToolSettings             []byte             `json:"tool_settings"`
+	ExtraInstructions        string             `json:"extra_instructions"`
+	DefaultMonthlyTokenQuota int64              `json:"default_monthly_token_quota"`
+	VoiceBaseUrl             string             `json:"voice_base_url"`
+	VoiceSttModel            string             `json:"voice_stt_model"`
+	VoiceTtsVoice            string             `json:"voice_tts_voice"`
+	VoiceLanguage            string             `json:"voice_language"`
+	UpdatedByUserID          pgtype.Int8        `json:"updated_by_user_id"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+}
+
+type AiUsage struct {
+	ID               int64              `json:"id"`
+	OrganizationID   pgtype.Int8        `json:"organization_id"`
+	UserID           pgtype.Int8        `json:"user_id"`
+	ConversationID   pgtype.Int8        `json:"conversation_id"`
+	Provider         string             `json:"provider"`
+	Model            string             `json:"model"`
+	Purpose          string             `json:"purpose"`
+	InputTokens      int64              `json:"input_tokens"`
+	OutputTokens     int64              `json:"output_tokens"`
+	CacheReadTokens  int64              `json:"cache_read_tokens"`
+	CacheWriteTokens int64              `json:"cache_write_tokens"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+}
+
 type AppLog struct {
 	ID        int64              `json:"id"`
 	Uuid      uuid.UUID          `json:"uuid"`

@@ -6304,6 +6304,289 @@ paths:
         "200": { description: Deleted }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/tenant/ai/status:
+    get:
+      tags: [Tenant]
+      operationId: getTenantAIStatus
+      summary: Whether the AI assistant is available for the current user
+      description: Requires `tenant.ai.use`. `reason` is set when unavailable (disabled, not_configured, org_disabled, quota_exceeded).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Assistant status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIStatus"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/ai/conversations:
+    get:
+      tags: [Tenant]
+      operationId: getTenantAIConversations
+      summary: List the current user's assistant conversations
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+      responses:
+        "200":
+          description: Conversation page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIConversationList"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantAIConversation
+      summary: Start a conversation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIConversationTitleRequest"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIConversation"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/ai/conversations/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantAIConversation
+      summary: Get a conversation with its messages (UI blocks)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIConversationDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Tenant]
+      operationId: renameTenantAIConversation
+      summary: Rename a conversation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIConversationTitleRequest"
+      responses:
+        "200":
+          description: Updated conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIConversation"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantAIConversation
+      summary: Delete a conversation (soft delete)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/ai/conversations/{uuid}/messages:
+    post:
+      tags: [Tenant]
+      operationId: sendTenantAIMessage
+      summary: Send a message and stream the assistant's answer (SSE)
+      description: |
+        Send with `Accept: text/event-stream`. Availability and quota are checked
+        before the stream starts (403 with `AI_DISABLED`, `AI_NOT_CONFIGURED`,
+        `AI_ORG_DISABLED` or `AI_QUOTA_EXCEEDED`). The response is a
+        server-sent event stream; each event's `data` is JSON:
+
+        - `message_start` `{conversation_uuid, user_message_uuid}`
+        - `text_delta` `{text}`
+        - `tool_start` `{id, name}`
+        - `tool_result` `{id, name, ok, summary_key, summary_params}`
+        - `chart` `{id, chart: AIChart}`
+        - `error` `{code, message}` (provider_error, quota_exceeded, refusal, max_tokens, internal_error)
+        - `message_done` `{message_uuid, status, stop_reason, usage}`
+        - `title` `{conversation_uuid, title}` (first exchange only)
+
+        Comment lines (`: ping`) are sent as keep-alives.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AISendMessageRequest"
+      responses:
+        "200":
+          description: Server-sent event stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/ai/settings:
+    get:
+      tags: [Platform]
+      operationId: getPlatformAISettings
+      summary: Read AI assistant settings
+      description: Requires `platform.ai.read`. The API key is never returned (`has_api_key` + `api_key_hint`).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: AI settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAISettings"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformAISettings
+      summary: Update AI assistant settings
+      description: Requires `platform.ai.write`. `api_key` sets or replaces the key (stored encrypted); `clear_api_key` removes it.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchAISettingsRequest"
+      responses:
+        "200":
+          description: Updated AI settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAISettings"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/ai/settings/test:
+    post:
+      tags: [Platform]
+      operationId: testPlatformAISettings
+      summary: Test the provider connection with the saved settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Test result (ok=false carries the provider error message)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAITestResult"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/ai/usage:
+    get:
+      tags: [Platform]
+      operationId: getPlatformAIUsage
+      summary: Token usage and estimated cost per organization for a month
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: month
+          in: query
+          description: YYYY-MM (Europe/Istanbul). Defaults to the current month.
+          schema: { type: string, pattern: "^\\d{4}-\\d{2}$" }
+      responses:
+        "200":
+          description: Usage summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIUsageSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/ai/organizations/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Platform]
+      operationId: getPlatformAIOrganizationSettings
+      summary: Per-organization AI switch and monthly token quota
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Organization AI settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIOrgSettings"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Platform]
+      operationId: putPlatformAIOrganizationSettings
+      summary: Replace the per-organization AI override
+      description: "`monthly_token_quota`: null inherits the platform default, 0 means unlimited."
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PutAIOrgSettingsRequest"
+      responses:
+        "200":
+          description: Updated organization AI settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIOrgSettings"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -8513,4 +8796,376 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/ContractMedia" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AIFeatures:
+      type: object
+      required: [chat, actions, charts, voice, todos]
+      properties:
+        chat: { type: boolean }
+        actions: { type: boolean }
+        charts: { type: boolean }
+        voice: { type: boolean }
+        todos: { type: boolean }
+
+    AIVoiceSettings:
+      type: object
+      required: [base_url, stt_model, tts_voice, language]
+      properties:
+        base_url: { type: string, description: Speaches (OpenAI-compatible audio) base URL }
+        stt_model: { type: string }
+        tts_voice: { type: string }
+        language: { type: string }
+
+    AIToolInfo:
+      type: object
+      required: [name, kind, feature, permissions, requires_confirmation, enabled]
+      properties:
+        name: { type: string }
+        kind: { type: string, enum: [read, write, ui] }
+        feature: { type: string, enum: [chat, charts, actions, todos] }
+        permissions:
+          type: array
+          items: { type: string }
+        requires_confirmation: { type: boolean }
+        enabled: { type: boolean }
+
+    AISettings:
+      type: object
+      required:
+        [provider, has_api_key, base_url, model, title_model, effort, max_tokens, features, tools,
+         extra_instructions, default_monthly_token_quota, voice, configured, updated_at]
+      properties:
+        provider: { type: string, enum: [anthropic, openai_compatible] }
+        has_api_key: { type: boolean }
+        api_key_hint: { type: string, description: "Last 4 characters of the key, prefixed with an ellipsis" }
+        base_url: { type: string }
+        model: { type: string }
+        title_model: { type: string }
+        effort: { type: string, enum: [low, medium, high, xhigh, max] }
+        max_tokens: { type: integer }
+        features: { $ref: "#/components/schemas/AIFeatures" }
+        tools:
+          type: array
+          items: { $ref: "#/components/schemas/AIToolInfo" }
+        extra_instructions: { type: string }
+        default_monthly_token_quota: { type: integer, format: int64, description: 0 = unlimited }
+        voice: { $ref: "#/components/schemas/AIVoiceSettings" }
+        configured: { type: boolean }
+        updated_at: { type: string, format: date-time }
+
+    EnvelopeAISettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AISettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PatchAISettingsRequest:
+      type: object
+      properties:
+        provider: { type: string, enum: [anthropic, openai_compatible] }
+        api_key: { type: string, writeOnly: true }
+        clear_api_key: { type: boolean }
+        base_url: { type: string }
+        model: { type: string }
+        title_model: { type: string }
+        effort: { type: string, enum: [low, medium, high, xhigh, max] }
+        max_tokens: { type: integer, minimum: 256, maximum: 128000 }
+        features:
+          type: object
+          properties:
+            chat: { type: boolean }
+            actions: { type: boolean }
+            charts: { type: boolean }
+            voice: { type: boolean }
+            todos: { type: boolean }
+        tools:
+          type: object
+          description: Tool name → enabled
+          additionalProperties: { type: boolean }
+        extra_instructions: { type: string, maxLength: 4000 }
+        default_monthly_token_quota: { type: integer, format: int64, minimum: 0 }
+        voice:
+          type: object
+          properties:
+            base_url: { type: string }
+            stt_model: { type: string }
+            tts_voice: { type: string }
+            language: { type: string }
+
+    AITestResult:
+      type: object
+      required: [ok, provider, model, latency_ms]
+      properties:
+        ok: { type: boolean }
+        provider: { type: string }
+        model: { type: string }
+        latency_ms: { type: integer, format: int64 }
+        message: { type: string }
+        reply: { type: string }
+
+    EnvelopeAITestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AITestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AIQuota:
+      type: object
+      required: [limit, used, remaining, unlimited, period_start, period_end]
+      properties:
+        limit: { type: integer, format: int64 }
+        used: { type: integer, format: int64 }
+        remaining: { type: integer, format: int64 }
+        unlimited: { type: boolean }
+        period_start: { type: string, format: date-time }
+        period_end: { type: string, format: date-time }
+
+    AIStatus:
+      type: object
+      required: [available, features, quota, provider, model, tools]
+      properties:
+        available: { type: boolean }
+        reason: { type: string, enum: [disabled, not_configured, org_disabled, quota_exceeded] }
+        features: { $ref: "#/components/schemas/AIFeatures" }
+        quota: { $ref: "#/components/schemas/AIQuota" }
+        provider: { type: string }
+        model: { type: string }
+        tools:
+          type: array
+          items: { type: string }
+
+    EnvelopeAIStatus:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIStatus" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AIConversation:
+      type: object
+      required: [uuid, title, message_count, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        title: { type: string }
+        message_count: { type: integer }
+        last_message_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    AIChartSeries:
+      type: object
+      required: [key, label]
+      properties:
+        key: { type: string }
+        label: { type: string }
+
+    AIChart:
+      type: object
+      required: [type, title, x_key, series, rows]
+      properties:
+        type: { type: string, enum: [line, bar, area, pie] }
+        title: { type: string }
+        x_key: { type: string }
+        series:
+          type: array
+          items: { $ref: "#/components/schemas/AIChartSeries" }
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        value_format: { type: string, enum: [currency, number, percent] }
+        currency: { type: string }
+
+    AIUIBlock:
+      type: object
+      required: [type]
+      description: Chat render block. Phase 2 adds `confirm` and `todo_list` types carrying `data`.
+      properties:
+        type: { type: string, description: "text | tool | chart | error" }
+        text: { type: string }
+        id: { type: string }
+        name: { type: string }
+        status: { type: string, description: "tool: running | done | error | pending" }
+        summary_key: { type: string }
+        summary_params:
+          type: object
+          additionalProperties: true
+        chart: { $ref: "#/components/schemas/AIChart" }
+        code: { type: string }
+        message: { type: string }
+        data:
+          type: object
+          additionalProperties: true
+
+    AIMessage:
+      type: object
+      required: [uuid, role, status, blocks, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        role: { type: string, enum: [user, assistant] }
+        status: { type: string, enum: [complete, error, cancelled, pending] }
+        blocks:
+          type: array
+          items: { $ref: "#/components/schemas/AIUIBlock" }
+        created_at: { type: string, format: date-time }
+
+    AIConversationDetail:
+      allOf:
+        - $ref: "#/components/schemas/AIConversation"
+        - type: object
+          required: [messages]
+          properties:
+            messages:
+              type: array
+              items: { $ref: "#/components/schemas/AIMessage" }
+
+    EnvelopeAIConversation:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIConversation" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeAIConversationDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIConversationDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeAIConversationList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/AIConversation" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeAIDeleted:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [deleted]
+          properties:
+            deleted: { type: boolean }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AIConversationTitleRequest:
+      type: object
+      properties:
+        title: { type: string, maxLength: 200 }
+
+    AISendMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 8000 }
+        locale: { type: string, enum: [tr, en] }
+
+    AIOrgSettings:
+      type: object
+      required: [organization_uuid, organization_name, enabled, monthly_token_quota, default_quota, quota]
+      properties:
+        organization_uuid: { type: string, format: uuid }
+        organization_name: { type: string }
+        enabled: { type: boolean }
+        monthly_token_quota:
+          type: [integer, "null"]
+          format: int64
+          description: null = inherit platform default; 0 = unlimited
+        default_quota: { type: integer, format: int64 }
+        quota: { $ref: "#/components/schemas/AIQuota" }
+
+    EnvelopeAIOrgSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIOrgSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PutAIOrgSettingsRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+        monthly_token_quota:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+
+    AIUsageModelRow:
+      type: object
+      required: [model, input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, request_count, estimated_cost_usd]
+      properties:
+        model: { type: string }
+        input_tokens: { type: integer, format: int64 }
+        output_tokens: { type: integer, format: int64 }
+        cache_read_tokens: { type: integer, format: int64 }
+        cache_write_tokens: { type: integer, format: int64 }
+        request_count: { type: integer, format: int64 }
+        estimated_cost_usd: { type: [number, "null"] }
+
+    AIUsageOrgRow:
+      type: object
+      required:
+        [organization_uuid, organization_name, organization_slug, input_tokens, output_tokens, cache_read_tokens,
+         cache_write_tokens, quota_tokens, request_count, estimated_cost_usd, enabled, quota_limit, models]
+      properties:
+        organization_uuid: { type: string, format: uuid }
+        organization_name: { type: string }
+        organization_slug: { type: string }
+        input_tokens: { type: integer, format: int64 }
+        output_tokens: { type: integer, format: int64 }
+        cache_read_tokens: { type: integer, format: int64 }
+        cache_write_tokens: { type: integer, format: int64 }
+        quota_tokens: { type: integer, format: int64, description: input + output + cache writes }
+        request_count: { type: integer, format: int64 }
+        estimated_cost_usd: { type: number }
+        enabled: { type: boolean }
+        quota_limit: { type: integer, format: int64 }
+        models:
+          type: array
+          items: { $ref: "#/components/schemas/AIUsageModelRow" }
+
+    AIUsageSummary:
+      type: object
+      required: [month, period_start, period_end, items, total_tokens, estimated_cost_usd]
+      properties:
+        month: { type: string }
+        period_start: { type: string, format: date-time }
+        period_end: { type: string, format: date-time }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AIUsageOrgRow" }
+        total_tokens: { type: integer, format: int64 }
+        estimated_cost_usd: { type: number }
+
+    EnvelopeAIUsageSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIUsageSummary" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

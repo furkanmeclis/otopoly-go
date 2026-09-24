@@ -12,6 +12,9 @@ import (
 )
 
 type Querier interface {
+	// Turkish-folded search for the assistant: name (diacritics-insensitive),
+	// phone digits, or normalized plate.
+	AISearchCustomers(ctx context.Context, arg AISearchCustomersParams) ([]AISearchCustomersRow, error)
 	AddVehicleModelYear(ctx context.Context, arg AddVehicleModelYearParams) error
 	AdjustCariAccountBalance(ctx context.Context, arg AdjustCariAccountBalanceParams) (CariAccount, error)
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
@@ -23,6 +26,7 @@ type Querier interface {
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
 	ConfirmUserTOTP(ctx context.Context, arg ConfirmUserTOTPParams) (UserTotp, error)
 	ConsumeOTP(ctx context.Context, id int64) error
+	CountAIConversations(ctx context.Context, arg CountAIConversationsParams) (int64, error)
 	CountActiveVehicleModelsByBrand(ctx context.Context, brandID int64) (int64, error)
 	CountActivityEvents(ctx context.Context, arg CountActivityEventsParams) (int64, error)
 	CountAllBulkJobs(ctx context.Context) (int64, error)
@@ -67,6 +71,7 @@ type Querier interface {
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountUsersWithRole(ctx context.Context, roleSlug string) (int64, error)
 	CountVehicleBrands(ctx context.Context, arg CountVehicleBrandsParams) (int64, error)
+	CreateAIConversation(ctx context.Context, arg CreateAIConversationParams) (AiConversation, error)
 	CreateBulkJob(ctx context.Context, arg CreateBulkJobParams) (BulkJob, error)
 	// Tenant cari (accounts receivable) accounts and ledger entries.
 	CreateCariAccount(ctx context.Context, arg CreateCariAccountParams) (CariAccount, error)
@@ -145,6 +150,11 @@ type Querier interface {
 	DeleteWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) error
 	DeleteWebAuthnCredentialByUUID(ctx context.Context, arg DeleteWebAuthnCredentialByUUIDParams) error
 	ExtensionExists(ctx context.Context, extname string) (bool, error)
+	GetAIConversation(ctx context.Context, arg GetAIConversationParams) (AiConversation, error)
+	GetAIOrganizationByUUID(ctx context.Context, argUuid uuid.UUID) (GetAIOrganizationByUUIDRow, error)
+	GetAIOrganizationSettings(ctx context.Context, organizationID int64) (AiOrganizationSetting, error)
+	GetAISettings(ctx context.Context) (AiSetting, error)
+	GetAIUserDisplay(ctx context.Context, id int64) (GetAIUserDisplayRow, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
 	GetAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (AppLog, error)
 	GetAppSettings(ctx context.Context) (AppSetting, error)
@@ -256,6 +266,8 @@ type Querier interface {
 	GetWhatsAppSession(ctx context.Context, organizationID int64) (WhatsappSession, error)
 	IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error)
 	IncrementOTPAttempts(ctx context.Context, id int64) (OtpCode, error)
+	InsertAIMessage(ctx context.Context, arg InsertAIMessageParams) (AiMessage, error)
+	InsertAIUsage(ctx context.Context, arg InsertAIUsageParams) error
 	InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) (ActivityEvent, error)
 	InsertAppLog(ctx context.Context, arg InsertAppLogParams) error
 	InsertBulkChange(ctx context.Context, arg InsertBulkChangeParams) (BulkChange, error)
@@ -277,6 +289,10 @@ type Querier interface {
 	LinkPurchaseFinance(ctx context.Context, arg LinkPurchaseFinanceParams) (Purchase, error)
 	LinkServiceJobPaymentCari(ctx context.Context, arg LinkServiceJobPaymentCariParams) (ServiceJobPayment, error)
 	LinkServiceJobPaymentFinance(ctx context.Context, arg LinkServiceJobPaymentFinanceParams) (ServiceJobPayment, error)
+	ListAIConversations(ctx context.Context, arg ListAIConversationsParams) ([]AiConversation, error)
+	ListAIMessages(ctx context.Context, conversationID int64) ([]AiMessage, error)
+	ListAIOrganizationSettingsByOrgIDs(ctx context.Context, organizationUuids []uuid.UUID) ([]ListAIOrganizationSettingsByOrgIDsRow, error)
+	ListAIUsageByOrganization(ctx context.Context, arg ListAIUsageByOrganizationParams) ([]ListAIUsageByOrganizationRow, error)
 	ListActivePublicKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActivePublicLinks(ctx context.Context) ([]StorageLink, error)
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID int64) ([]RefreshToken, error)
@@ -459,6 +475,7 @@ type Querier interface {
 	SetRolePermissions(ctx context.Context, roleID int64) error
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
+	SoftDeleteAIConversation(ctx context.Context, id int64) error
 	SoftDeleteCariAccountByCustomer(ctx context.Context, arg SoftDeleteCariAccountByCustomerParams) (CariAccount, error)
 	SoftDeleteCatalogCategory(ctx context.Context, arg SoftDeleteCatalogCategoryParams) (CatalogCategory, error)
 	SoftDeleteContractPreset(ctx context.Context, argUuid uuid.UUID) error
@@ -473,11 +490,16 @@ type Querier interface {
 	SoftDeleteSupplier(ctx context.Context, arg SoftDeleteSupplierParams) (Supplier, error)
 	SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
 	SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
+	// Quota tokens = input + output + cache writes (cache reads are not counted).
+	SumAIOrganizationTokensSince(ctx context.Context, arg SumAIOrganizationTokensSinceParams) (int64, error)
 	SumCariBalances(ctx context.Context, organizationID int64) (SumCariBalancesRow, error)
 	SumFinanceExpensesByCategory(ctx context.Context, arg SumFinanceExpensesByCategoryParams) ([]SumFinanceExpensesByCategoryRow, error)
 	SumFinanceTransactionsByType(ctx context.Context, arg SumFinanceTransactionsByTypeParams) ([]SumFinanceTransactionsByTypeRow, error)
 	SumProductSalesDaily(ctx context.Context, arg SumProductSalesDailyParams) (SumProductSalesDailyRow, error)
 	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
+	TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error
+	UpdateAIConversationTitle(ctx context.Context, arg UpdateAIConversationTitleParams) (AiConversation, error)
+	UpdateAISettings(ctx context.Context, arg UpdateAISettingsParams) (AiSetting, error)
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
@@ -517,6 +539,7 @@ type Querier interface {
 	UpdateWebAuthnCredentialCounter(ctx context.Context, arg UpdateWebAuthnCredentialCounterParams) error
 	UpdateWebAuthnCredentialName(ctx context.Context, arg UpdateWebAuthnCredentialNameParams) (WebauthnCredential, error)
 	UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAppSessionQRParams) (WhatsappSession, error)
+	UpsertAIOrganizationSettings(ctx context.Context, arg UpsertAIOrganizationSettingsParams) (AiOrganizationSetting, error)
 	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)
 	UpsertNotificationRule(ctx context.Context, arg UpsertNotificationRuleParams) (NotificationRule, error)
