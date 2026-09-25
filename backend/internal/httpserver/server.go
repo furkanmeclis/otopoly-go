@@ -144,6 +144,10 @@ type Server struct {
 	worker        *queue.Worker
 	msgWorker     *queue.MessagingWorker
 	reminderSched *asynq.Scheduler
+	// reminderTick runs the notification sweep in-process when the queue is
+	// disabled (single-process local setups).
+	reminderTick  func(ctx context.Context) error
+	reminderStop  context.CancelFunc
 	events        events.Bus
 	outboxPub     *outbox.Publisher
 	outboxStop    func()
@@ -194,7 +198,13 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		providers.NoopProvider{Name: "sms", Log: log},
 		providers.NoopProvider{Name: "push", Log: log},
 	}
-	notifSvc := notifusecase.New(deps.Queries, deps.Queue, provs, log)
+	// Pass a nil interface (not a typed-nil *queue.Client) when the queue is
+	// disabled so notifications are delivered inline.
+	var notifQueue notifusecase.Enqueuer
+	if deps.Queue != nil {
+		notifQueue = deps.Queue
+	}
+	notifSvc := notifusecase.New(deps.Queries, notifQueue, provs, log)
 	notifSvc.WithActionSigner(cfg.JWT.AccessSecret, 0)
 	notifSvc.WithVAPID(notifusecase.VAPIDConfig{
 		PublicKey:  cfg.VAPID.PublicKey,
@@ -420,6 +430,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	todosSvc.SetReminders(centerSvc)
 	// Leads & Quotes: todosSvc.SetLinkResolver(<leads/quotes resolver>) here.
 	centerSvc.RegisterGuard("todo", todosSvc.ReminderGuard)
+	if deps.Queue == nil {
+		s.reminderTick = centerSvc.ProcessDue
+	}
 	todosmodule.RegisterRoutes(mux, todosSvc, tokens, loader, deps.Queries)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:      deps.Queries,
@@ -522,6 +535,11 @@ func (s *Server) Start() error {
 			s.log.Error("reminder_scheduler_failed", "error", err)
 		}
 	}
+	if s.reminderTick != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		s.reminderStop = cancel
+		go s.runReminderTicker(ctx)
+	}
 	if s.msgWorker != nil {
 		if err := s.msgWorker.Start(); err != nil {
 			s.log.Error("messaging_worker_failed", "error", err)
@@ -547,6 +565,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.reminderSched != nil {
 		s.reminderSched.Shutdown()
+	}
+	if s.reminderStop != nil {
+		s.reminderStop()
 	}
 	if s.msgWorker != nil {
 		s.msgWorker.Shutdown()
@@ -677,4 +698,24 @@ func storagePublicBaseURL(cfg config.StorageConfig) string {
 		return cfg.S3.PublicBaseURL
 	}
 	return cfg.MinIO.PublicBaseURL
+}
+
+// runReminderTicker dispatches due scheduled notifications every minute when
+// no Asynq worker is available. The DB claim keeps it safe next to workers.
+func (s *Server) runReminderTicker(ctx context.Context) {
+	s.log.Info("reminder_ticker_started", "interval", "1m")
+	t := time.NewTicker(time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			runCtx, cancel := context.WithTimeout(ctx, 55*time.Second)
+			if err := s.reminderTick(runCtx); err != nil {
+				s.log.Error("reminder_ticker_failed", "error", err)
+			}
+			cancel()
+		}
+	}
 }
