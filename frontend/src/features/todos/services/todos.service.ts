@@ -39,6 +39,14 @@ export const todosService = {
       await apiClient.GET("/v1/tenant/todos/assignees"),
     );
   },
+  async get(uuid: string) {
+    return unwrap<Todo>(
+      await apiClient.GET("/v1/tenant/todos/{uuid}", {
+        params: { path: { uuid } },
+      }),
+      { silent: true },
+    );
+  },
   async create(body: CreateTodoInput) {
     return unwrap<Todo>(await apiClient.POST("/v1/tenant/todos", { body }));
   },

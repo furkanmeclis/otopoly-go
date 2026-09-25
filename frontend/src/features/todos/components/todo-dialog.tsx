@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
+import {
+  AsyncCombobox,
+  type ComboboxOption,
+} from "@/components/ui/async-combobox";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -21,6 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { customersService } from "@/features/customers/services/customers.service";
+import { ReminderPicker } from "@/features/todos/components/reminder-picker";
 import {
   useTodoAssignees,
   useTodoMutations,
@@ -57,7 +64,26 @@ function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
   );
   const [dueTime, setDueTime] = useState(todo?.due_time ?? "");
   const [assignee, setAssignee] = useState(todo?.assignee?.uuid ?? "");
+  const [customer, setCustomer] = useState(todo?.customer?.uuid ?? "");
+  const [reminders, setReminders] = useState<number[]>(
+    todo?.reminder_offsets ?? [],
+  );
   const pending = create.isPending || patch.isPending;
+  const initialCustomer: ComboboxOption[] = todo?.customer
+    ? [{ value: todo.customer.uuid, label: todo.customer.label }]
+    : [];
+  const loadCustomers = useCallback(async (q: string) => {
+    const page = await customersService.list({
+      q: q.trim() || undefined,
+      limit: 20,
+      offset: 0,
+      is_active: "true",
+    });
+    return page.items.map((c) => ({
+      value: c.uuid,
+      label: c.phone ? `${c.name} · ${c.phone}` : c.name,
+    }));
+  }, []);
 
   const submit = async () => {
     const body = {
@@ -66,6 +92,8 @@ function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
       due_date: dueDate,
       due_time: dueDate ? dueTime : "",
       assignee_uuid: assignee,
+      customer_uuid: customer,
+      reminder_offsets: dueDate ? reminders : [],
     };
     if (todo) {
       await patch.mutateAsync({ uuid: todo.uuid, body });
@@ -76,13 +104,15 @@ function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
         due_date: body.due_date || null,
         due_time: body.due_time || null,
         assignee_uuid: body.assignee_uuid || null,
+        customer_uuid: body.customer_uuid || null,
+        reminder_offsets: body.reminder_offsets,
       });
     }
     onOpenChange(false);
   };
 
   return (
-    <DialogContent className="sm:max-w-md">
+    <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-lg">
       <DialogHeader>
         <DialogTitle>
           {todo ? t("todos.dialog.edit_title") : t("todos.dialog.create_title")}
@@ -141,6 +171,43 @@ function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
             </SelectContent>
           </Select>
         </div>
+        <div className="space-y-1.5">
+          <Label>{t("todos.fields.reminders")}</Label>
+          <ReminderPicker
+            value={reminders}
+            onChange={setReminders}
+            disabled={!dueDate}
+            hasTime={Boolean(dueTime)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="todo-customer">{t("todos.fields.customer")}</Label>
+          <AsyncCombobox
+            id="todo-customer"
+            value={customer}
+            onValueChange={setCustomer}
+            loadOptions={loadCustomers}
+            initialOptions={initialCustomer}
+            clearable
+            placeholder={t("todos.customer.placeholder")}
+            searchPlaceholder={t("todos.customer.search")}
+            emptyText={t("todos.customer.empty")}
+          />
+        </div>
+        {todo?.lead || todo?.quote ? (
+          <div className="flex flex-wrap gap-2 text-xs">
+            {todo.lead ? (
+              <Badge variant="outline">
+                {t("todos.fields.lead")}: {todo.lead.label}
+              </Badge>
+            ) : null}
+            {todo.quote ? (
+              <Badge variant="outline">
+                {t("todos.fields.quote")}: {todo.quote.label}
+              </Badge>
+            ) : null}
+          </div>
+        ) : null}
         <div className="space-y-1.5">
           <Label htmlFor="todo-notes">{t("todos.fields.notes")}</Label>
           <Textarea

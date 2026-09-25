@@ -1,6 +1,8 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { ListTodo, Plus } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -14,6 +16,7 @@ import {
   useTodosAccess,
   useTodoSummary,
 } from "@/features/todos/hooks/use-todos";
+import { todosService } from "@/features/todos/services/todos.service";
 import type { Todo, TodoListParams } from "@/features/todos/types";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -36,6 +39,18 @@ export function TodosPage({ slug }: { slug: string }) {
   const summary = useTodoSummary(access.canRead);
   const list = useTodos(TAB_PARAMS[tab], access.canRead);
   const { toggle, remove } = useTodoMutations();
+  // Deep link from reminder notifications: /t/{slug}/todos?todo={uuid}
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const linkedUUID = searchParams.get("todo");
+  const linked = useQuery({
+    queryKey: ["tenant", "todos", "linked", linkedUUID],
+    queryFn: () => todosService.get(linkedUUID ?? ""),
+    enabled: access.canRead && Boolean(linkedUUID),
+  });
+  const [dismissedLink, setDismissedLink] = useState<string | null>(null);
+  const linkedTodo =
+    linked.data && linkedUUID !== dismissedLink ? linked.data : null;
 
   if (!access.canRead) {
     return (
@@ -126,9 +141,15 @@ export function TodosPage({ slug }: { slug: string }) {
       </div>
 
       <TodoDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        todo={editing}
+        open={dialogOpen || Boolean(linkedTodo)}
+        onOpenChange={(open) => {
+          if (!open && linkedTodo) {
+            setDismissedLink(linkedUUID);
+            router.replace("?", { scroll: false });
+          }
+          setDialogOpen(open);
+        }}
+        todo={linkedTodo ?? editing}
       />
     </div>
   );

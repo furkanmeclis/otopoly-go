@@ -119,5 +119,7 @@
   "labels.platform.ai.write": "Manage AI assistant settings",
   "labels.tenant.ai.use": "Use AI assistant",
   "labels.tenant.todos.read": "View todos",
-  "labels.tenant.todos.write": "Manage todos"
+  "labels.tenant.todos.write": "Manage todos",
+  "labels.tenant.messaging.read": "View messaging settings",
+  "labels.tenant.messaging.write": "Manage messaging settings and templates"
 }

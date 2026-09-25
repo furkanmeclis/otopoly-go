@@ -2719,6 +2719,81 @@ export interface paths {
         patch: operations["patchTenantMessagingTemplate"];
         trace?: never;
     };
+    "/v1/tenant/messaging/template-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Message/notification template catalog
+         * @description Every registered template type with its channels, allowed placeholders
+         *     (with TR/EN sample values for live preview) and the effective template
+         *     per channel × locale (organization override or system default).
+         *     Requires `tenant.messaging.read`.
+         */
+        get: operations["getTenantMessagingTemplateTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/template-types/{event_type}/{channel}/{locale}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_type: string;
+                channel: "inapp" | "email" | "whatsapp" | "sms";
+                locale: "tr" | "en";
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Save the organization override of a template
+         * @description Placeholders are validated against the type registry; unknown
+         *     `{{placeholders}}` return 400 with one `unknown_placeholder` detail each.
+         *     Requires `tenant.messaging.write` (organization owner).
+         */
+        put: operations["putTenantMessagingTemplateByKey"];
+        post?: never;
+        /**
+         * Reset a template to the system default
+         * @description Deletes the organization override. Requires `tenant.messaging.write` (organization owner).
+         */
+        delete: operations["resetTenantMessagingTemplateByKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/notification-preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Caller's notification channels per type in this organization
+         * @description Defaults without a saved row: in-app on, e-mail and SMS off, WhatsApp on
+         *     only when a phone number is saved. Any organization member.
+         */
+        get: operations["getTenantNotificationPreferences"];
+        /** Update notification phone and per-type channels */
+        put: operations["putTenantNotificationPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/messaging/simulate": {
         parameters: {
             query?: never;
@@ -6007,6 +6082,12 @@ export interface components {
             assignee: components["schemas"]["TodoRef"] | null;
             customer: components["schemas"]["TodoRef"] | null;
             job: components["schemas"]["TodoRef"] | null;
+            lead: components["schemas"]["TodoRef"] | null;
+            quote: components["schemas"]["TodoRef"] | null;
+            /** @description Minutes before the due moment (0 = at due time). Date-only todos are due at 09:00 Europe/Istanbul. */
+            reminder_offsets: number[];
+            /** Format: date-time */
+            next_reminder_at: string | null;
             via_ai: boolean;
             created_by_name: string;
             /** Format: date-time */
@@ -6048,6 +6129,12 @@ export interface components {
             customer_uuid?: string | null;
             /** Format: uuid */
             job_uuid?: string | null;
+            /** Format: uuid */
+            lead_uuid?: string | null;
+            /** Format: uuid */
+            quote_uuid?: string | null;
+            /** @description Minutes before due (requires due_date). */
+            reminder_offsets?: number[];
         };
         /** @description Missing fields are kept; an empty string clears optional fields. */
         PatchTodoRequest: {
@@ -6058,6 +6145,90 @@ export interface components {
             assignee_uuid?: string;
             customer_uuid?: string;
             job_uuid?: string;
+            lead_uuid?: string;
+            quote_uuid?: string;
+            /** @description Replaces the reminder set when present; [] clears. */
+            reminder_offsets?: number[];
+        };
+        MessageTemplatePlaceholder: {
+            key: string;
+            sample_tr: string;
+            sample_en: string;
+        };
+        MessageTemplateEntry: {
+            /** @enum {string} */
+            channel: "inapp" | "email" | "whatsapp" | "sms";
+            /** @enum {string} */
+            locale: "tr" | "en";
+            subject: string;
+            body: string;
+            /** @description Passive templates disable the channel. */
+            is_active: boolean;
+            /** @description True when an organization override exists. */
+            is_custom: boolean;
+            /** Format: uuid */
+            uuid?: string;
+            default_subject: string;
+            default_body: string;
+        };
+        MessageTemplateType: {
+            /** @example quote.sent */
+            type: string;
+            group: string;
+            /** @enum {string} */
+            audience: "customer" | "staff";
+            channels: ("inapp" | "email" | "whatsapp" | "sms")[];
+            placeholders: components["schemas"]["MessageTemplatePlaceholder"][];
+            templates: components["schemas"]["MessageTemplateEntry"][];
+        };
+        SaveMessageTemplateRequest: {
+            subject?: string;
+            body: string;
+            /** @default true */
+            is_active: boolean;
+        };
+        EnvelopeMessageTemplateTypes: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MessageTemplateType"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeMessageTemplateEntry: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MessageTemplateEntry"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        NotificationChannelPrefs: {
+            inapp: boolean;
+            email: boolean;
+            whatsapp: boolean;
+            sms: boolean;
+        };
+        NotificationTypePreference: {
+            /** @example todo.reminder */
+            type: string;
+            channels: ("inapp" | "email" | "whatsapp" | "sms")[];
+            prefs: components["schemas"]["NotificationChannelPrefs"];
+            custom: boolean;
+        };
+        NotificationTypePreferences: {
+            /** @description WhatsApp/SMS number for this organization. */
+            phone: string;
+            types: components["schemas"]["NotificationTypePreference"][];
+        };
+        UpdateNotificationTypePreferencesRequest: {
+            phone?: string;
+            types?: {
+                type: string;
+                prefs: components["schemas"]["NotificationChannelPrefs"];
+            }[];
+        };
+        EnvelopeNotificationTypePreferences: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["NotificationTypePreferences"];
+            meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeTodo: {
             /** @enum {boolean} */
@@ -11398,6 +11569,135 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getTenantMessagingTemplateTypes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template types */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMessageTemplateTypes"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    putTenantMessagingTemplateByKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_type: string;
+                channel: "inapp" | "email" | "whatsapp" | "sms";
+                locale: "tr" | "en";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveMessageTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Saved template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMessageTemplateEntry"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    resetTenantMessagingTemplateByKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                event_type: string;
+                channel: "inapp" | "email" | "whatsapp" | "sms";
+                locale: "tr" | "en";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Default template now in effect */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMessageTemplateEntry"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeNotificationTypePreferences"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    putTenantNotificationPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationTypePreferencesRequest"];
+            };
+        };
+        responses: {
+            /** @description Preferences */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeNotificationTypePreferences"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     postTenantMessagingSimulate: {
         parameters: {
             query?: never;
@@ -13599,6 +13899,12 @@ export interface operations {
                 scope?: "overdue" | "today" | "open_due" | "upcoming" | "no_date";
                 /** @description `me` or a user uuid. */
                 assignee?: string;
+                /** @description Only todos linked to this customer (uuid). */
+                customer?: string;
+                /** @description Only todos linked to this lead (uuid). */
+                lead?: string;
+                /** @description Only todos linked to this quote (uuid). */
+                quote?: string;
             };
             header?: never;
             path?: never;

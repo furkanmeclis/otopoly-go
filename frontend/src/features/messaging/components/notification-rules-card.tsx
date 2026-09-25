@@ -21,37 +21,42 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  useMessageTemplates,
   useNotificationRules,
   useSimulateMessaging,
   useToggleRule,
 } from "@/features/messaging/hooks/use-messaging";
-import { TemplateEditorDialog } from "@/features/messaging/components/template-editor-dialog";
+import { useTemplateCatalog } from "@/features/messaging/hooks/use-message-templates";
+import { MessageTemplateEditor } from "@/features/messaging/components/message-template-editor";
+import { renderTemplate } from "@/features/messaging/lib/render";
 import type { RuleList } from "@/features/messaging/types";
-import { SAMPLE_VARS, renderTemplatePreview } from "@/features/messaging/types";
-
-interface EditorTarget {
-  eventType: string;
-  eventLabel: string;
-  channel: string;
-}
+import { SAMPLE_VARS } from "@/features/messaging/types";
+import { permissions } from "@/config/permissions";
+import { usePermission } from "@/providers/permission-provider";
 
 export function NotificationRulesCard() {
   const rulesQuery = useNotificationRules();
-  const templatesQuery = useMessageTemplates();
+  const catalogQuery = useTemplateCatalog();
+  const { hasPermission } = usePermission();
+  const canWrite = hasPermission(permissions.messaging.write);
   const toggleRule = useToggleRule();
   const simulateMutation = useSimulateMessaging();
 
-  const [editorTarget, setEditorTarget] = useState<EditorTarget | null>(null);
+  const [editorType, setEditorType] = useState<string | null>(null);
   const [simPhone, setSimPhone] = useState("");
 
   const ruleLists: RuleList[] = rulesQuery.data ?? [];
-  const templates = templatesQuery.data ?? [];
+  const catalog = catalogQuery.data ?? [];
 
-  function getTemplate(eventType: string, channel: string) {
-    return templates.find(
-      (t) => t.event_type === eventType && t.channel === channel,
+  function previewFor(eventType: string) {
+    const type = catalog.find((x) => x.type === eventType);
+    const entry = type?.templates.find(
+      (e) => e.channel === "whatsapp" && e.locale === "tr",
     );
+    if (!type || !entry) return "";
+    const samples = Object.fromEntries(
+      type.placeholders.map((p) => [p.key, p.sample_tr]),
+    );
+    return renderTemplate(entry.body, samples);
   }
 
   function handleToggle(
@@ -87,12 +92,14 @@ export function NotificationRulesCard() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center">
+          <div className="bg-muted/30 flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-sm font-medium">İşlem yaşam döngüsü simülasyonu</p>
-              <p className="text-xs text-muted-foreground">
-                Oluşturma → sözleşme → hazır → teslim → ödeme mesajlarını sırayla
-                test olarak gönderir.
+              <p className="text-sm font-medium">
+                İşlem yaşam döngüsü simülasyonu
+              </p>
+              <p className="text-muted-foreground text-xs">
+                Oluşturma → sözleşme → hazır → teslim → ödeme mesajlarını
+                sırayla test olarak gönderir.
               </p>
             </div>
             <div className="flex gap-2">
@@ -106,9 +113,7 @@ export function NotificationRulesCard() {
                 type="button"
                 variant="secondary"
                 size="sm"
-                disabled={
-                  simulateMutation.isPending || !simPhone.trim()
-                }
+                disabled={simulateMutation.isPending || !simPhone.trim()}
                 onClick={handleLifecycleSimulate}
               >
                 <Play className="mr-1.5 size-3.5" />
@@ -118,26 +123,21 @@ export function NotificationRulesCard() {
           </div>
 
           {rulesQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
+            <p className="text-muted-foreground text-sm">Yükleniyor...</p>
           ) : null}
           {rulesQuery.isError ? (
-            <p className="text-sm text-destructive">
-              Kurallar yüklenemedi.
-            </p>
+            <p className="text-destructive text-sm">Kurallar yüklenemedi.</p>
           ) : null}
 
           {ruleLists.length === 0 && !rulesQuery.isLoading ? (
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Henüz bildirim kuralı tanımlanmamış.
             </p>
           ) : null}
 
           <div className="divide-y">
             {ruleLists.map((rl) => {
-              const tpl = getTemplate(rl.event_type, "whatsapp");
-              const preview = tpl
-                ? renderTemplatePreview(tpl.body, SAMPLE_VARS)
-                : "";
+              const preview = previewFor(rl.event_type);
 
               return (
                 <div
@@ -146,8 +146,10 @@ export function NotificationRulesCard() {
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-2">
-                      <Bell className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="text-sm font-medium">{rl.event_label}</span>
+                      <Bell className="text-muted-foreground size-4 shrink-0" />
+                      <span className="text-sm font-medium">
+                        {rl.event_label}
+                      </span>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3">
@@ -162,7 +164,10 @@ export function NotificationRulesCard() {
                                 <TooltipTrigger asChild>
                                   <div className="flex items-center gap-1.5 opacity-50">
                                     <Switch disabled checked={false} />
-                                    <Badge variant="outline" className="text-xs">
+                                    <Badge
+                                      variant="outline"
+                                      className="text-xs"
+                                    >
                                       SMS
                                     </Badge>
                                   </div>
@@ -206,13 +211,7 @@ export function NotificationRulesCard() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() =>
-                          setEditorTarget({
-                            eventType: rl.event_type,
-                            eventLabel: rl.event_label,
-                            channel: "whatsapp",
-                          })
-                        }
+                        onClick={() => setEditorType(rl.event_type)}
                       >
                         <Pencil className="mr-1.5 size-3.5" />
                         Mesaj Düzenle
@@ -221,7 +220,7 @@ export function NotificationRulesCard() {
                   </div>
 
                   {preview ? (
-                    <p className="line-clamp-2 pl-6 text-xs text-muted-foreground whitespace-pre-wrap">
+                    <p className="text-muted-foreground line-clamp-2 pl-6 text-xs whitespace-pre-wrap">
                       {preview}
                     </p>
                   ) : null}
@@ -232,19 +231,14 @@ export function NotificationRulesCard() {
         </CardContent>
       </Card>
 
-      {editorTarget ? (
-        <TemplateEditorDialog
-          key={`${editorTarget.eventType}-${getTemplate(editorTarget.eventType, editorTarget.channel)?.uuid ?? "new"}`}
-          open={Boolean(editorTarget)}
-          onOpenChange={(open) => {
-            if (!open) setEditorTarget(null);
-          }}
-          eventType={editorTarget.eventType}
-          eventLabel={editorTarget.eventLabel}
-          channel={editorTarget.channel}
-          existing={getTemplate(editorTarget.eventType, editorTarget.channel)}
-        />
-      ) : null}
+      <MessageTemplateEditor
+        type={catalog.find((x) => x.type === editorType) ?? null}
+        initialChannel="whatsapp"
+        canWrite={canWrite}
+        onOpenChange={(open) => {
+          if (!open) setEditorType(null);
+        }}
+      />
     </>
   );
 }

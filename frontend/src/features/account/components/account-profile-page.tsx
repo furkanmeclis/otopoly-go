@@ -18,6 +18,7 @@ import { routes } from "@/config/routes";
 import { ChangePasswordForm } from "@/features/account/components/change-password-form";
 import { OAuthIdentityManager } from "@/features/account/components/github-identity-manager";
 import { NotificationPreferencesForm } from "@/features/account/components/notification-preferences-form";
+import { TenantNotificationPreferences } from "@/features/account/components/tenant-notification-preferences";
 import { PasskeyManager } from "@/features/account/components/passkey-manager";
 import { SessionManager } from "@/features/account/components/session-manager";
 import { TotpManager } from "@/features/account/components/totp-manager";
@@ -261,6 +262,18 @@ export function AccountProfilePage({
           <NotificationPreferencesForm />
         </CardContent>
       </Card>
+
+      {shell === "tenant" && tenantSlug ? (
+        <Card className="shadow-none">
+          <CardHeader>
+            <CardTitle>{t("messaging.prefs.title")}</CardTitle>
+            <CardHint>{t("messaging.prefs.description")}</CardHint>
+          </CardHeader>
+          <CardContent>
+            <TenantNotificationPreferences />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card className="shadow-none">
         <CardHeader>

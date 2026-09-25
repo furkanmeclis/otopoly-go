@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Sparkles, Trash2, UserRound } from "lucide-react";
+import { BellRing, Pencil, Sparkles, Trash2, UserRound } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ export function TodoItem({
   onEdit,
   onDelete,
 }: TodoItemProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const done = todo.status === "done";
   return (
     <div
@@ -81,6 +81,32 @@ export function TodoItem({
             >
               {todo.job.label}
             </Link>
+          ) : null}
+          {todo.lead ? (
+            <span className="text-muted-foreground text-xs">
+              {t("todos.fields.lead")}: {todo.lead.label}
+            </span>
+          ) : null}
+          {todo.quote ? (
+            <span className="text-muted-foreground text-xs">
+              {t("todos.fields.quote")}: {todo.quote.label}
+            </span>
+          ) : null}
+          {todo.next_reminder_at && !done ? (
+            <span
+              className="text-muted-foreground inline-flex items-center gap-1 text-xs"
+              title={t("todos.reminders.next", {
+                time: new Date(todo.next_reminder_at).toLocaleString(locale),
+              })}
+            >
+              <BellRing className="size-3" />
+              {new Date(todo.next_reminder_at).toLocaleString(locale, {
+                day: "2-digit",
+                month: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
           ) : null}
           {todo.via_ai ? (
             <span
