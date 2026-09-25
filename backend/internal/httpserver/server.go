@@ -68,6 +68,8 @@ import (
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
+	notifycentermodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter"
+	centerusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/usecase"
 	orgmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	purchasesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases"
@@ -112,6 +114,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/realtime"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -139,6 +142,8 @@ type Server struct {
 	storage       storage.Driver
 	realtime      realtime.Publisher
 	worker        *queue.Worker
+	msgWorker     *queue.MessagingWorker
+	reminderSched *asynq.Scheduler
 	events        events.Bus
 	outboxPub     *outbox.Publisher
 	outboxStop    func()
@@ -341,6 +346,12 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		messagingproviders.NewWhatsAppProvider(waClient, log),
 		&messagingproviders.NoopSMSProvider{Log: log},
 	)
+	messagingSvc.SetStorage(deps.Storage)
+	if deps.Queue != nil {
+		messagingSvc.SetQueue(deps.Queue)
+		// This process owns the WhatsApp sessions, so it consumes queued sends.
+		s.msgWorker = queue.NewMessagingWorker(cfg, log, messagingSvc.ProcessOutbound)
+	}
 	messagingSvc.RestoreConnectedSessions(context.Background())
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
 	messagingResolver := messagingmodule.NewDBPhoneResolver(deps.Queries)
@@ -400,7 +411,15 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	vehiclemodule.RegisterRoutes(mux, vehiclehandler.New(vehicleSvc, deps.Storage), tokens, loader, deps.Queries)
 	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
+	centerSvc := centerusecase.New(deps.Queries, notifSvc, messagingmodule.NewCenterMessenger(messagingSvc, deps.Queries), log).
+		SetStorage(deps.Storage).
+		SetAppURL(cfg.Auth.FrontendURL)
+	notifycentermodule.RegisterRoutes(mux, centerSvc, tokens, loader, deps.Queries)
 	todosSvc := todosusecase.New(deps.Queries, activityRec)
+	todosSvc.SetLogger(log)
+	todosSvc.SetReminders(centerSvc)
+	// Leads & Quotes: todosSvc.SetLinkResolver(<leads/quotes resolver>) here.
+	centerSvc.RegisterGuard("todo", todosSvc.ReminderGuard)
 	todosmodule.RegisterRoutes(mux, todosSvc, tokens, loader, deps.Queries)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:      deps.Queries,
@@ -438,7 +457,13 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithImport(importSvc.ProcessImport).
 			WithBulk(bulkSvc.ProcessBulk).
 			WithLogPurge(logsSvc.ApplyDueRules).
-			WithContractExecute(contractsSvc.ExecutePDF)
+			WithContractExecute(contractsSvc.ExecutePDF).
+			WithReminderSweep(centerSvc.ProcessDue)
+		if sched, err := queue.StartReminderScheduler(cfg, log); err != nil {
+			log.Error("reminder_scheduler_init_failed", "error", err)
+		} else {
+			s.reminderSched = sched
+		}
 		if searchIndexer != nil {
 			s.worker.WithSearch(
 				searchIndexer.ProcessUpsert,
@@ -492,6 +517,16 @@ func (s *Server) Start() error {
 			}
 		}()
 	}
+	if s.reminderSched != nil {
+		if err := s.reminderSched.Start(); err != nil {
+			s.log.Error("reminder_scheduler_failed", "error", err)
+		}
+	}
+	if s.msgWorker != nil {
+		if err := s.msgWorker.Start(); err != nil {
+			s.log.Error("messaging_worker_failed", "error", err)
+		}
+	}
 	if s.searchIndexer != nil {
 		go s.searchIndexer.Bootstrap(context.Background())
 	}
@@ -509,6 +544,12 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.worker != nil {
 		s.worker.Shutdown()
+	}
+	if s.reminderSched != nil {
+		s.reminderSched.Shutdown()
+	}
+	if s.msgWorker != nil {
+		s.msgWorker.Shutdown()
 	}
 	if s.queueClient != nil {
 		_ = s.queueClient.Close()

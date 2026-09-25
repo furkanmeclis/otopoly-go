@@ -15,9 +15,13 @@ import (
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
+	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
+	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
+	centerusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/usecase"
+	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
@@ -150,6 +154,16 @@ func main() {
 	searchIndexer := searchengine.NewIndexer(searchClient, searchReg, nil, log)
 	catalogProductsBulk.SetSearchIndexer(searchIndexer)
 	catalogServicesBulk.SetSearchIndexer(searchIndexer)
+	// Notification center: the sweep runs here; WhatsApp/SMS sends are queued
+	// to the API process (owner of the WhatsApp sessions) via QueueMessaging.
+	queueClient := queue.NewClient(cfg.Redis)
+	defer func() { _ = queueClient.Close() }()
+	messagingSvc := messagingusecase.New(queries, nil, nil).SetQueue(queueClient).SetStorage(store)
+	centerSvc := centerusecase.New(queries, notifSvc, messagingmodule.NewCenterMessenger(messagingSvc, queries), log).
+		SetStorage(store).
+		SetAppURL(cfg.Auth.FrontendURL)
+	centerSvc.RegisterGuard("todo", todosusecase.New(queries, nil).ReminderGuard)
+
 	persist := logging.Attach(log, logsSvc)
 	log = persist.Logger()
 	defer persist.Close()
@@ -160,6 +174,7 @@ func main() {
 		WithBulk(bulkSvc.ProcessBulk).
 		WithLogPurge(logsSvc.ApplyDueRules).
 		WithContractExecute(contractsSvc.ExecutePDF).
+		WithReminderSweep(centerSvc.ProcessDue).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -173,6 +188,10 @@ func main() {
 	scheduler, err := queue.StartLogPurgeScheduler(cfg, log)
 	if err != nil {
 		log.Error("log_purge_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterReminderSweep(scheduler, log); err != nil {
+		log.Error("reminder_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
 	go func() {

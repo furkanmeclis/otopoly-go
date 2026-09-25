@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 	_ "time/tzdata" // Europe/Istanbul must resolve in minimal containers.
@@ -46,6 +47,8 @@ type Store interface {
 	ListTodoAssignees(ctx context.Context, organizationID int64) ([]db.ListTodoAssigneesRow, error)
 	GetTodoCustomerRef(ctx context.Context, arg db.GetTodoCustomerRefParams) (db.GetTodoCustomerRefRow, error)
 	GetTodoJobRef(ctx context.Context, arg db.GetTodoJobRefParams) (db.GetTodoJobRefRow, error)
+	GetTodoRowByID(ctx context.Context, arg db.GetTodoRowByIDParams) (db.Todo, error)
+	GetTodoReminderState(ctx context.Context, arg db.GetTodoReminderStateParams) (string, error)
 }
 
 // Ref is a related record.
@@ -56,21 +59,27 @@ type Ref struct {
 
 // Todo is the API shape.
 type Todo struct {
-	UUID          uuid.UUID  `json:"uuid"`
-	Title         string     `json:"title"`
-	Notes         string     `json:"notes"`
-	DueDate       *string    `json:"due_date"`
-	DueTime       *string    `json:"due_time"`
-	Status        string     `json:"status"`
-	Overdue       bool       `json:"overdue"`
-	Assignee      *Ref       `json:"assignee"`
-	Customer      *Ref       `json:"customer"`
-	Job           *Ref       `json:"job"`
-	ViaAI         bool       `json:"via_ai"`
-	CreatedByName string     `json:"created_by_name"`
-	CompletedAt   *time.Time `json:"completed_at"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	UUID     uuid.UUID `json:"uuid"`
+	Title    string    `json:"title"`
+	Notes    string    `json:"notes"`
+	DueDate  *string   `json:"due_date"`
+	DueTime  *string   `json:"due_time"`
+	Status   string    `json:"status"`
+	Overdue  bool      `json:"overdue"`
+	Assignee *Ref      `json:"assignee"`
+	Customer *Ref      `json:"customer"`
+	Job      *Ref      `json:"job"`
+	Lead     *Ref      `json:"lead"`
+	Quote    *Ref      `json:"quote"`
+	// ReminderOffsets are minutes before the due moment (0 = at due time).
+	ReminderOffsets []int `json:"reminder_offsets"`
+	// NextReminderAt is the next pending reminder (nil when none).
+	NextReminderAt *time.Time `json:"next_reminder_at"`
+	ViaAI          bool       `json:"via_ai"`
+	CreatedByName  string     `json:"created_by_name"`
+	CompletedAt    *time.Time `json:"completed_at"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // Summary counts open todos for the dashboard and nav badge.
@@ -97,6 +106,10 @@ type ListFilters struct {
 	// Assignee: "me" or a user uuid.
 	Assignee string
 	Q        string
+	// Customer / Lead / Quote narrow to todos linked to that record (uuid).
+	Customer string
+	Lead     string
+	Quote    string
 }
 
 // CreateInput creates a todo.
@@ -108,6 +121,10 @@ type CreateInput struct {
 	AssigneeUUID *uuid.UUID `json:"assignee_uuid"`
 	CustomerUUID *uuid.UUID `json:"customer_uuid"`
 	JobUUID      *uuid.UUID `json:"job_uuid"`
+	LeadUUID     *uuid.UUID `json:"lead_uuid"`
+	QuoteUUID    *uuid.UUID `json:"quote_uuid"`
+	// ReminderOffsets: minutes before due (requires due_date).
+	ReminderOffsets []int `json:"reminder_offsets"`
 	// ViaAI marks todos created by the assistant (never bound from JSON).
 	ViaAI bool `json:"-"`
 }
@@ -122,14 +139,21 @@ type PatchInput struct {
 	AssigneeUUID *string `json:"assignee_uuid"`
 	CustomerUUID *string `json:"customer_uuid"`
 	JobUUID      *string `json:"job_uuid"`
+	LeadUUID     *string `json:"lead_uuid"`
+	QuoteUUID    *string `json:"quote_uuid"`
+	// ReminderOffsets replaces the reminder set when present ([] clears).
+	ReminderOffsets *[]int `json:"reminder_offsets"`
 }
 
 // Service is the todos use case.
 type Service struct {
-	store Store
-	act   *activity.Recorder
-	loc   *time.Location
-	now   func() time.Time
+	store     Store
+	act       *activity.Recorder
+	loc       *time.Location
+	now       func() time.Time
+	links     LinkResolver
+	reminders Reminders
+	log       *slog.Logger
 }
 
 // New creates the service.
@@ -138,8 +162,17 @@ func New(store Store, act *activity.Recorder) *Service {
 	if err != nil {
 		loc = time.FixedZone("TRT", 3*60*60)
 	}
-	return &Service{store: store, act: act, loc: loc, now: time.Now}
+	return &Service{store: store, act: act, loc: loc, now: time.Now, links: NoLinks{}, log: slog.Default()}
 }
+
+// SetLogger sets the logger used for fail-soft reminder errors.
+func (s *Service) SetLogger(l *slog.Logger) {
+	if l != nil {
+		s.log = l
+	}
+}
+
+func (s *Service) logErr(msg string, err error) { s.log.Error(msg, "error", err) }
 
 // SetClock overrides time (tests).
 func (s *Service) SetClock(now func() time.Time) { s.now = now }
@@ -233,7 +266,58 @@ func (s *Service) mapRow(r db.GetTodoByUUIDRow) Todo {
 	if r.JobUuid.Valid {
 		out.Job = &Ref{UUID: r.JobUuid.Bytes, Label: r.JobPlate}
 	}
+	out.ReminderOffsets = make([]int, 0, len(r.ReminderOffsets))
+	for _, o := range r.ReminderOffsets {
+		out.ReminderOffsets = append(out.ReminderOffsets, int(o))
+	}
 	return out
+}
+
+// decorate fills lead/quote labels and next reminder for a page (batched:
+// one resolver call per kind + one reminder query, no N+1).
+func (s *Service) decorate(ctx context.Context, orgID int64, rows []db.GetTodoByUUIDRow, out []Todo) {
+	var leadIDs, quoteIDs, ids []int64
+	for _, r := range rows {
+		ids = append(ids, r.ID)
+		if r.LeadID.Valid {
+			leadIDs = append(leadIDs, r.LeadID.Int64)
+		}
+		if r.QuoteID.Valid {
+			quoteIDs = append(quoteIDs, r.QuoteID.Int64)
+		}
+	}
+	var leads, quotes map[int64]Ref
+	if len(leadIDs) > 0 {
+		leads, _ = s.links.DescribeLeads(ctx, orgID, leadIDs)
+	}
+	if len(quoteIDs) > 0 {
+		quotes, _ = s.links.DescribeQuotes(ctx, orgID, quoteIDs)
+	}
+	var next map[int64][]time.Time
+	if s.reminders != nil {
+		var err error
+		if next, err = s.reminders.PendingFireTimes(ctx, "todo", ids); err != nil {
+			s.logErr("todos_pending_reminders_failed", err)
+		}
+	}
+	for i, r := range rows {
+		if r.LeadID.Valid {
+			if ref, ok := leads[r.LeadID.Int64]; ok {
+				v := ref
+				out[i].Lead = &v
+			}
+		}
+		if r.QuoteID.Valid {
+			if ref, ok := quotes[r.QuoteID.Int64]; ok {
+				v := ref
+				out[i].Quote = &v
+			}
+		}
+		if ts := next[r.ID]; len(ts) > 0 {
+			t := ts[0]
+			out[i].NextReminderAt = &t
+		}
+	}
 }
 
 func text(v string) pgtype.Text { return pgtype.Text{String: v, Valid: true} }
@@ -275,6 +359,38 @@ func (s *Service) listParams(ctx context.Context, orgID, actor int64, f ListFilt
 	if q := strings.TrimSpace(f.Q); q != "" {
 		p.Q = text(q)
 	}
+	if c := strings.TrimSpace(f.Customer); c != "" {
+		id, err := uuid.Parse(c)
+		if err != nil {
+			return p, invalid("customer must be a uuid")
+		}
+		r, err := s.store.GetTodoCustomerRef(ctx, db.GetTodoCustomerRefParams{OrganizationID: orgID, Uuid: id})
+		if errors.Is(err, pgx.ErrNoRows) {
+			return p, invalid("customer not found")
+		}
+		if err != nil {
+			return p, err
+		}
+		p.CustomerID = pgtype.Int8{Int64: r.ID, Valid: true}
+	}
+	for _, lf := range []struct {
+		raw  string
+		kind string
+		dst  *pgtype.Int8
+	}{{f.Lead, "lead", &p.LeadID}, {f.Quote, "quote", &p.QuoteID}} {
+		if strings.TrimSpace(lf.raw) == "" {
+			continue
+		}
+		id, err := uuid.Parse(strings.TrimSpace(lf.raw))
+		if err != nil {
+			return p, invalid("%s must be a uuid", lf.kind)
+		}
+		v, err := s.resolveLink(ctx, orgID, &id, lf.kind)
+		if err != nil {
+			return p, err
+		}
+		*lf.dst = pgtype.Int8{Int64: v, Valid: true}
+	}
 	return p, nil
 }
 
@@ -295,15 +411,20 @@ func (s *Service) List(ctx context.Context, limit, offset int32, f ListFilters) 
 	}
 	total, err := s.store.CountTodos(ctx, db.CountTodosParams{
 		OrganizationID: p.OrganizationID, Status: p.Status, AssigneeUserID: p.AssigneeUserID,
+		CustomerID: p.CustomerID, LeadID: p.LeadID, QuoteID: p.QuoteID,
 		Q: p.Q, Scope: p.Scope, Today: p.Today,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
 	out := make([]Todo, 0, len(rows))
+	full := make([]db.GetTodoByUUIDRow, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, s.mapRow(db.GetTodoByUUIDRow(r)))
+		fr := db.GetTodoByUUIDRow(r)
+		full = append(full, fr)
+		out = append(out, s.mapRow(fr))
 	}
+	s.decorate(ctx, orgID, full, out)
 	return out, total, nil
 }
 
@@ -354,7 +475,9 @@ func (s *Service) Get(ctx context.Context, id uuid.UUID) (Todo, error) {
 	if err != nil {
 		return Todo{}, err
 	}
-	return s.mapRow(row), nil
+	out := []Todo{s.mapRow(row)}
+	s.decorate(ctx, orgID, []db.GetTodoByUUIDRow{row}, out)
+	return out[0], nil
 }
 
 func (s *Service) resolveRefs(ctx context.Context, orgID int64, assignee, customer, job *uuid.UUID) (a, c, j pgtype.Int8, err error) {
@@ -439,6 +562,22 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Todo, error) {
 	if p.AssigneeUserID, p.CustomerID, p.ServiceJobID, err = s.resolveRefs(ctx, orgID, in.AssigneeUUID, in.CustomerUUID, in.JobUUID); err != nil {
 		return Todo{}, err
 	}
+	if v, err := s.resolveLink(ctx, orgID, in.LeadUUID, "lead"); err != nil {
+		return Todo{}, err
+	} else if v > 0 {
+		p.LeadID = pgtype.Int8{Int64: v, Valid: true}
+	}
+	if v, err := s.resolveLink(ctx, orgID, in.QuoteUUID, "quote"); err != nil {
+		return Todo{}, err
+	} else if v > 0 {
+		p.QuoteID = pgtype.Int8{Int64: v, Valid: true}
+	}
+	if p.ReminderOffsets, err = CleanOffsets(in.ReminderOffsets); err != nil {
+		return Todo{}, err
+	}
+	if len(p.ReminderOffsets) > 0 && !p.DueDate.Valid {
+		return Todo{}, invalid("reminders require due_date")
+	}
 	if actor > 0 {
 		p.CreatedBy = pgtype.Int8{Int64: actor, Valid: true}
 	}
@@ -447,6 +586,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Todo, error) {
 		return Todo{}, err
 	}
 	s.record(ctx, "todos.create", row.Uuid, map[string]any{"title": row.Title, "via_ai": row.ViaAi})
+	s.afterWrite(ctx, row.ID)
 	return s.Get(ctx, row.Uuid)
 }
 
@@ -532,10 +672,42 @@ func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (Todo,
 	if p.AssigneeUserID, p.CustomerID, p.ServiceJobID, err = s.resolveRefs(ctx, orgID, assignee, customer, job); err != nil {
 		return Todo{}, err
 	}
+	lead, clearL, err := optionalUUID(in.LeadUUID, "lead_uuid")
+	if err != nil {
+		return Todo{}, err
+	}
+	quote, clearQ, err := optionalUUID(in.QuoteUUID, "quote_uuid")
+	if err != nil {
+		return Todo{}, err
+	}
+	p.ClearLead, p.ClearQuote = clearL, clearQ
+	if v, err := s.resolveLink(ctx, orgID, lead, "lead"); err != nil {
+		return Todo{}, err
+	} else if v > 0 {
+		p.LeadID = pgtype.Int8{Int64: v, Valid: true}
+	}
+	if v, err := s.resolveLink(ctx, orgID, quote, "quote"); err != nil {
+		return Todo{}, err
+	} else if v > 0 {
+		p.QuoteID = pgtype.Int8{Int64: v, Valid: true}
+	}
+	hasOffsets := len(cur.ReminderOffsets) > 0
+	if in.ReminderOffsets != nil {
+		offs, err := CleanOffsets(*in.ReminderOffsets)
+		if err != nil {
+			return Todo{}, err
+		}
+		p.ReminderOffsets = offs
+		hasOffsets = len(offs) > 0
+	}
+	if hasOffsets && !hasDate && !p.ClearDue {
+		return Todo{}, invalid("reminders require due_date")
+	}
 	if _, err := s.store.UpdateTodo(ctx, p); err != nil {
 		return Todo{}, err
 	}
 	s.record(ctx, "todos.update", id, nil)
+	s.afterWrite(ctx, cur.ID)
 	return s.Get(ctx, id)
 }
 
@@ -568,6 +740,7 @@ func (s *Service) SetStatus(ctx context.Context, id uuid.UUID, status string) (T
 		action = "todos.reopen"
 	}
 	s.record(ctx, action, id, map[string]any{"title": cur.Title})
+	s.afterWrite(ctx, cur.ID)
 	return s.Get(ctx, id)
 }
 
@@ -583,6 +756,11 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	if err != nil {
 		return err
+	}
+	if s.reminders != nil {
+		if _, err := s.reminders.CancelBySubject(ctx, "todo", cur.ID); err != nil {
+			return fmt.Errorf("cancel reminders: %w", err)
+		}
 	}
 	if err := s.store.DeleteTodo(ctx, db.DeleteTodoParams{ID: cur.ID, OrganizationID: orgID}); err != nil {
 		return err
