@@ -106,6 +106,10 @@ const (
 	PermTenantAIUse                             = "tenant.ai.use"
 	PermTenantTodosRead                         = "tenant.todos.read"
 	PermTenantTodosWrite                        = "tenant.todos.write"
+	PermTenantLeadsRead                         = "tenant.leads.read"
+	PermTenantLeadsWrite                        = "tenant.leads.write"
+	PermTenantQuotesRead                        = "tenant.quotes.read"
+	PermTenantQuotesWrite                       = "tenant.quotes.write"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

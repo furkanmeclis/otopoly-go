@@ -4157,6 +4157,505 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/leads/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lead list metadata
+         * @description Requires `tenant.leads.read`.
+         */
+        get: operations["getTenantLeadsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/leads/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open / hot / overdue / due-today lead counts
+         * @description Requires `tenant.leads.read`. Dates are Europe/Istanbul.
+         */
+        get: operations["getTenantLeadsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/leads/assignees": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization members leads can be assigned to
+         * @description Requires `tenant.leads.read`.
+         */
+        get: operations["getTenantLeadAssignees"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List leads
+         * @description Requires `tenant.leads.read`.
+         */
+        get: operations["getTenantLeads"];
+        put?: never;
+        /**
+         * Create a lead for an organization customer
+         * @description Requires `tenant.leads.write`. Every referenced uuid must belong to the active organization.
+         */
+        post: operations["createTenantLead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/leads/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a lead with its quotes and timeline
+         * @description Requires `tenant.leads.read`.
+         */
+        get: operations["getTenantLead"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a lead
+         * @description Requires `tenant.leads.write`.
+         */
+        delete: operations["deleteTenantLead"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a lead (records timeline events)
+         * @description Requires `tenant.leads.write`. Empty string clears optional references.
+         */
+        patch: operations["updateTenantLead"];
+        trace?: never;
+    };
+    "/v1/tenant/leads/{uuid}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a free note to the lead timeline
+         * @description Requires `tenant.leads.write`.
+         */
+        post: operations["addTenantLeadNote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/leads/{uuid}/todo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a todo from a lead
+         * @description Requires `tenant.leads.write` and `tenant.todos.write`. 503 NOT_CONFIGURED when no todo integration is wired.
+         */
+        post: operations["createTenantLeadTodo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Quote list metadata
+         * @description Requires `tenant.quotes.read`.
+         */
+        get: operations["getTenantQuotesMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open quote counts and totals
+         * @description Requires `tenant.quotes.read`.
+         */
+        get: operations["getTenantQuotesSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List quotes
+         * @description Requires `tenant.quotes.read`.
+         */
+        get: operations["getTenantQuotes"];
+        put?: never;
+        /**
+         * Create a draft quote
+         * @description Requires `tenant.quotes.write`. Totals are computed server-side; the number (TKL-YYYY-NNNN) is allocated per organization.
+         */
+        post: operations["createTenantQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a quote (lines, history, deliveries, reminders)
+         * @description Requires `tenant.quotes.read`.
+         */
+        get: operations["getTenantQuote"];
+        /**
+         * Replace a draft / sent / viewed quote's content
+         * @description Requires `tenant.quotes.write`.
+         */
+        put: operations["updateTenantQuote"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Copy a quote into a new draft
+         * @description Requires `tenant.quotes.write`.
+         */
+        post: operations["duplicateTenantQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Manual status change
+         * @description Requires `tenant.quotes.write`. 409 INVALID_TRANSITION when the status machine refuses it; viewed / expired are system-only.
+         */
+        post: operations["setTenantQuoteStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the quote (PDF + message) to the customer
+         * @description Requires `tenant.quotes.write`. Moves draft → sent, records a delivery, optionally replaces reminders. The delivery may fail (e.g. messenger not configured) while the quote is still marked sent.
+         */
+        post: operations["sendTenantQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}/deliveries/{deliveryUuid}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                deliveryUuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry a failed delivery
+         * @description Requires `tenant.quotes.write`.
+         */
+        post: operations["retryTenantQuoteDelivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}/reminders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Replace pending reminders
+         * @description Requires `tenant.quotes.write`.
+         */
+        put: operations["setTenantQuoteReminders"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Download / preview the quote PDF
+         * @description Requires `tenant.quotes.read`. `inline=1` for preview. 503 PDF_UNAVAILABLE when the renderer is down.
+         */
+        get: operations["getTenantQuotePdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/quotes/{uuid}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Preview quick conversion into a job
+         * @description Requires `tenant.quotes.read`.
+         */
+        get: operations["getTenantQuoteConvertPreview"];
+        put?: never;
+        /**
+         * Quick-convert the quote into a job
+         * @description Requires `tenant.quotes.write` and `tenant.jobs.write`. 400 VEHICLE_REQUIRED lists missing vehicle fields.
+         */
+        post: operations["convertTenantQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/quotes/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Customer view of a shared quote
+         * @description No auth. Rate-limited per IP. The first open of a sent quote marks it viewed.
+         */
+        get: operations["getPublicQuote"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/quotes/{token}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * PDF of a shared quote
+         * @description No auth. Rate-limited per IP.
+         */
+        get: operations["getPublicQuotePdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/quotes/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Customer accepts the quote
+         * @description No auth. Records IP, user agent and time.
+         */
+        post: operations["acceptPublicQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/quotes/{token}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Customer rejects the quote
+         * @description No auth. Records IP, user agent and time.
+         */
+        post: operations["rejectPublicQuote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6419,6 +6918,561 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["AIUsageSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @enum {string} */
+        LeadSource: "incoming_call" | "outgoing_call" | "walk_in" | "whatsapp" | "social" | "referral" | "website" | "other";
+        LeadRef: {
+            /** Format: uuid */
+            uuid: string;
+            label: string;
+        };
+        Lead: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            vehicle_plate: string;
+            vehicle_text: string;
+            interest: string;
+            source: components["schemas"]["LeadSource"];
+            /** @enum {string} */
+            temperature: "cold" | "warm" | "hot";
+            /** @enum {string} */
+            status: "new" | "contacted" | "quoted" | "won" | "lost";
+            lost_reason: string;
+            /** Format: date */
+            follow_up_date: string | null;
+            /** @enum {string} */
+            follow_up_state: "none" | "overdue" | "today" | "upcoming";
+            assignee: components["schemas"]["LeadRef"] | null;
+            quote_count: number;
+            /** Format: date-time */
+            last_activity_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        LeadEvent: {
+            /** Format: uuid */
+            uuid: string;
+            /** @description created | status_changed | temperature_changed | source_changed | assignee_changed | follow_up_changed | note | updated | quote_created | quote_sent | quote_accepted | quote_rejected | todo_created | job_created */
+            kind: string;
+            from_value: string;
+            to_value: string;
+            body: string;
+            /** @description quote | todo | job | empty */
+            ref_type: string;
+            /** Format: uuid */
+            ref_uuid: string | null;
+            ref_label: string;
+            actor_name: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LeadQuote: {
+            /** Format: uuid */
+            uuid: string;
+            number: string;
+            status: string;
+            grand_total: string;
+            currency: string;
+            /** Format: date */
+            valid_until: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LeadDetail: components["schemas"]["Lead"] & {
+            /** Format: uuid */
+            vehicle_uuid: string | null;
+            notes: string;
+            created_by_name: string;
+            /** Format: date-time */
+            contacted_at: string | null;
+            /** Format: date-time */
+            closed_at: string | null;
+            quotes: components["schemas"]["LeadQuote"][];
+            events: components["schemas"]["LeadEvent"][];
+        };
+        LeadSummary: {
+            open: number;
+            new: number;
+            hot: number;
+            overdue: number;
+            due_today: number;
+            mine: number;
+            /** Format: date */
+            date: string;
+        };
+        LeadAssignee: {
+            /** Format: uuid */
+            uuid: string;
+            label: string;
+            role: string;
+        };
+        CreateLeadRequest: {
+            /** Format: uuid */
+            customer_uuid: string;
+            /** Format: uuid */
+            vehicle_uuid?: string | null;
+            vehicle_text?: string;
+            interest?: string;
+            source?: components["schemas"]["LeadSource"];
+            /** @enum {string} */
+            temperature?: "cold" | "warm" | "hot";
+            notes?: string;
+            /** Format: date */
+            follow_up_date?: string | null;
+            /** Format: uuid */
+            assignee_uuid?: string | null;
+        };
+        PatchLeadRequest: {
+            /** Format: uuid */
+            customer_uuid?: string;
+            /** @description uuid or empty string to clear */
+            vehicle_uuid?: string;
+            vehicle_text?: string;
+            interest?: string;
+            source?: components["schemas"]["LeadSource"];
+            /** @enum {string} */
+            temperature?: "cold" | "warm" | "hot";
+            /** @enum {string} */
+            status?: "new" | "contacted" | "quoted" | "won" | "lost";
+            lost_reason?: string;
+            notes?: string;
+            /** @description yyyy-MM-dd or empty string to clear */
+            follow_up_date?: string;
+            /** @description uuid or empty string to clear */
+            assignee_uuid?: string;
+        };
+        LeadNoteRequest: {
+            body: string;
+        };
+        LeadTodoRequest: {
+            title?: string;
+            notes?: string;
+            /** Format: date */
+            due_date?: string | null;
+            /** @description HH:mm */
+            due_time?: string | null;
+            /** Format: uuid */
+            assignee_uuid?: string | null;
+        };
+        LeadTodoResult: {
+            /** Format: uuid */
+            todo_uuid: string;
+            title: string;
+            lead: components["schemas"]["LeadDetail"];
+        };
+        /** @enum {string} */
+        QuoteStatus: "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired" | "cancelled";
+        Quote: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example TKL-2026-0001 */
+            number: string;
+            status: components["schemas"]["QuoteStatus"];
+            currency: string;
+            grand_total: string;
+            /** Format: date */
+            valid_until: string | null;
+            is_past_valid_until: boolean;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            vehicle_plate: string;
+            vehicle_label: string;
+            /** Format: uuid */
+            lead_uuid: string | null;
+            /** Format: uuid */
+            job_uuid: string | null;
+            line_count: number;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            viewed_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        QuoteLine: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            line_type: "service" | "product" | "custom";
+            /** Format: uuid */
+            service_uuid?: string;
+            /** Format: uuid */
+            product_uuid?: string;
+            description: string;
+            quantity: string;
+            unit: string;
+            unit_price: string;
+            /** @enum {string} */
+            discount_type: "none" | "percent" | "amount";
+            discount_value: string;
+            vat_rate: string;
+            line_subtotal: string;
+            line_discount: string;
+            quote_discount_share: string;
+            net_amount: string;
+            vat_amount: string;
+            line_total: string;
+            sort_order: number;
+        };
+        QuoteEvent: {
+            /** Format: uuid */
+            uuid: string;
+            /** @description created | updated | status_changed | resent | reminders_set | converted | reminder_sent | reminder_failed */
+            kind: string;
+            from_status: string;
+            to_status: string;
+            body: string;
+            /** @enum {string} */
+            channel: "tenant" | "public" | "system";
+            actor_name: string;
+            ip?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        QuoteDelivery: {
+            /** Format: uuid */
+            uuid: string;
+            channel: string;
+            recipient: string;
+            /** @enum {string} */
+            status: "pending" | "sent" | "failed";
+            error: string;
+            attempt_count: number;
+            /** Format: date-time */
+            last_attempt_at: string | null;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        QuoteReminder: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            kind: "before_3d" | "before_1d" | "last_day" | "custom";
+            offset_days: number;
+            /** Format: date-time */
+            fire_at: string;
+            /** @enum {string} */
+            status: "pending" | "scheduled" | "sent" | "failed" | "cancelled";
+            error: string;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            cancelled_at: string | null;
+        };
+        QuoteDetail: components["schemas"]["Quote"] & {
+            /** Format: uuid */
+            vehicle_uuid: string | null;
+            /** Format: uuid */
+            vehicle_model_uuid: string | null;
+            vehicle_model_label: string;
+            vehicle_year: number | null;
+            customer_email: string;
+            prices_include_vat: boolean;
+            /** @enum {string} */
+            discount_type: "none" | "percent" | "amount";
+            discount_value: string;
+            subtotal: string;
+            discount_total: string;
+            vat_total: string;
+            notes: string;
+            terms: string;
+            /** @description Public customer link (/q/{token}) */
+            share_url: string;
+            view_count: number;
+            /** Format: date-time */
+            accepted_at: string | null;
+            /** Format: date-time */
+            rejected_at: string | null;
+            /** Format: date-time */
+            expired_at: string | null;
+            /** Format: date-time */
+            cancelled_at: string | null;
+            decision_note: string;
+            decision_channel: string;
+            /** Format: date-time */
+            converted_at: string | null;
+            created_by_name: string;
+            allowed_statuses: components["schemas"]["QuoteStatus"][];
+            can_edit: boolean;
+            can_send: boolean;
+            can_convert: boolean;
+            lines: components["schemas"]["QuoteLine"][];
+            events: components["schemas"]["QuoteEvent"][];
+            deliveries: components["schemas"]["QuoteDelivery"][];
+            reminders: components["schemas"]["QuoteReminder"][];
+        };
+        QuoteSummary: {
+            currency: string;
+            open_count: number;
+            draft_count: number;
+            awaiting_count: number;
+            pending_total: string;
+            expiring_soon: number;
+            accepted_month: number;
+            accepted_month_total: string;
+        };
+        QuoteLineInput: {
+            /** @enum {string} */
+            line_type?: "service" | "product" | "custom";
+            /** Format: uuid */
+            service_uuid?: string | null;
+            /** Format: uuid */
+            product_uuid?: string | null;
+            /** @description Required for custom lines; defaults to the catalog name */
+            description?: string;
+            /** @default 1 */
+            quantity: string;
+            unit?: string;
+            /** @description Defaults to the catalog price; required for custom lines */
+            unit_price?: string | null;
+            /** @enum {string} */
+            discount_type?: "none" | "percent" | "amount";
+            discount_value?: string;
+            /** @description Defaults to the catalog VAT rate (20 for custom) */
+            vat_rate?: string | null;
+        };
+        QuoteVehicleInput: {
+            /**
+             * Format: uuid
+             * @description Existing customer vehicle
+             */
+            vehicle_uuid?: string | null;
+            /** @description Optional */
+            plate?: string;
+            /** @description Free text such as "Beyaz Clio" */
+            label?: string;
+            /**
+             * Format: uuid
+             * @description Vehicle catalog model
+             */
+            model_uuid?: string | null;
+            year?: number | null;
+        };
+        SaveQuoteRequest: {
+            /** Format: uuid */
+            customer_uuid: string;
+            /** Format: uuid */
+            lead_uuid?: string | null;
+            vehicle?: components["schemas"]["QuoteVehicleInput"] | null;
+            /** @default TRY */
+            currency: string;
+            /** @default true */
+            prices_include_vat: boolean;
+            /** @enum {string} */
+            discount_type?: "none" | "percent" | "amount";
+            discount_value?: string;
+            /** @description yyyy-MM-dd (empty clears) */
+            valid_until?: string | null;
+            notes?: string;
+            terms?: string;
+            lines: components["schemas"]["QuoteLineInput"][];
+        };
+        QuoteStatusRequest: {
+            /** @enum {string} */
+            status: "sent" | "accepted" | "rejected" | "cancelled";
+            note?: string;
+        };
+        QuoteReminderInput: {
+            /** @enum {string} */
+            kind: "before_3d" | "before_1d" | "last_day" | "custom";
+            /**
+             * Format: date
+             * @description custom only
+             */
+            date?: string | null;
+        };
+        QuoteRemindersRequest: {
+            reminders: components["schemas"]["QuoteReminderInput"][];
+        };
+        SendQuoteRequest: {
+            /** @default whatsapp */
+            channel: string;
+            /** @description When present, replaces pending reminders. */
+            reminders?: components["schemas"]["QuoteReminderInput"][] | null;
+        };
+        QuoteSendResult: {
+            quote: components["schemas"]["QuoteDetail"];
+            delivery: components["schemas"]["QuoteDelivery"];
+        };
+        ConvertQuoteRequest: {
+            /** Format: uuid */
+            vehicle_uuid?: string | null;
+            plate?: string;
+            /** Format: uuid */
+            model_uuid?: string | null;
+            year?: number | null;
+            /** Format: uuid */
+            assignee_uuid?: string | null;
+            notes?: string;
+        };
+        QuoteConvertLine: {
+            description: string;
+            line_type: string;
+            quantity: string;
+            unit_price: string;
+            line_total: string;
+            included: boolean;
+            /** @enum {string} */
+            reason?: "not_a_service" | "service_deleted";
+        };
+        QuoteConvertPreview: {
+            can_convert: boolean;
+            /** @enum {string} */
+            blocker?: "already_converted" | "status" | "no_service_lines";
+            will_accept: boolean;
+            customer_name: string;
+            /** Format: uuid */
+            vehicle_uuid: string | null;
+            vehicle_label: string;
+            plate: string;
+            creates_vehicle: boolean;
+            missing: ("plate" | "model")[];
+            customer_vehicles: components["schemas"]["LeadRef"][];
+            lines: components["schemas"]["QuoteConvertLine"][];
+            job_total: string;
+            skipped_total: string;
+            currency: string;
+            /** Format: uuid */
+            lead_uuid: string | null;
+        };
+        QuoteConvertResult: {
+            /** Format: uuid */
+            job_uuid: string;
+            quote: components["schemas"]["QuoteDetail"];
+        };
+        PublicQuoteLine: {
+            description: string;
+            quantity: string;
+            unit: string;
+            unit_price: string;
+            discount: string;
+            vat_rate: string;
+            line_total: string;
+        };
+        PublicQuote: {
+            number: string;
+            status: components["schemas"]["QuoteStatus"];
+            organization_name: string;
+            organization_logo_url: string | null;
+            organization_phone: string;
+            organization_address: string;
+            primary_color: string;
+            customer_name: string;
+            vehicle_plate: string;
+            vehicle_label: string;
+            currency: string;
+            prices_include_vat: boolean;
+            subtotal: string;
+            discount_total: string;
+            vat_total: string;
+            grand_total: string;
+            /** Format: date */
+            valid_until: string | null;
+            notes: string;
+            terms: string;
+            /** Format: date-time */
+            issued_at: string;
+            /** Format: date-time */
+            decided_at: string | null;
+            can_decide: boolean;
+            lines: components["schemas"]["PublicQuoteLine"][];
+        };
+        PublicQuoteDecisionRequest: {
+            note?: string;
+        };
+        EnvelopeLeadSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LeadSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLeadList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Lead"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLeadDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LeadDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLeadTodoResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LeadTodoResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLeadAssignees: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LeadAssignee"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeQuoteSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QuoteSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeQuoteList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Quote"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeQuoteDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QuoteDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeQuoteSendResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QuoteSendResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeQuoteConvertPreview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QuoteConvertPreview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeQuoteConvertResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QuoteConvertResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePublicQuote: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PublicQuote"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -14363,6 +15417,773 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantLeadsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLeadsSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLeadAssignees: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadAssignees"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLeads: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: "new" | "contacted" | "quoted" | "won" | "lost" | "open";
+                temperature?: "cold" | "warm" | "hot";
+                source?: components["schemas"]["LeadSource"];
+                /** @description `me` or a user uuid. */
+                assignee?: string;
+                follow_up?: "overdue" | "today";
+                customer_uuid?: string;
+                sort?: "-created_at" | "created_at" | "follow_up_date" | "-follow_up_date" | "-updated_at";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantLead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateLeadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantLead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantLead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchLeadRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    addTenantLeadNote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeadNoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTenantLeadTodo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LeadTodoRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLeadTodoResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantQuotesMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantQuotesSummary: {
+        parameters: {
+            query?: {
+                currency?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantQuotes: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired" | "cancelled" | "open";
+                customer_uuid?: string;
+                lead_uuid?: string;
+                sort?: "-created_at" | "created_at" | "grand_total" | "-grand_total" | "valid_until";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    duplicateTenantQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTenantQuoteStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    sendTenantQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteSendResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    retryTenantQuoteDelivery: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                deliveryUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteSendResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    setTenantQuoteReminders: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QuoteRemindersRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantQuotePdf: {
+        parameters: {
+            query?: {
+                inline?: "1";
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantQuoteConvertPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteConvertPreview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    convertTenantQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConvertQuoteRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteConvertResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPublicQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicQuote"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getPublicQuotePdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    acceptPublicQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicQuoteDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicQuote"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    rejectPublicQuote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Share token from the quote link (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicQuoteDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicQuote"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
 }

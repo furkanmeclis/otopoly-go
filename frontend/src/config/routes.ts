@@ -3,6 +3,7 @@ export const routes = {
     root: "/",
     register: "/register",
     health: "/health",
+    quote: (token: string) => `/q/${token}`,
     share: {
       slug: (slug: string) => `/share/${slug}`,
       signed: (token: string) => `/share/s/${token}`,
@@ -73,6 +74,16 @@ export const routes = {
     },
     todos: {
       root: (slug: string) => `/t/${slug}/todos`,
+    },
+    leads: {
+      root: (slug: string) => `/t/${slug}/leads`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/leads/${uuid}`,
+    },
+    quotes: {
+      root: (slug: string) => `/t/${slug}/quotes`,
+      new: (slug: string) => `/t/${slug}/quotes/new`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/quotes/${uuid}`,
+      edit: (slug: string, uuid: string) => `/t/${slug}/quotes/${uuid}/edit`,
     },
     assistant: {
       root: (slug: string) => `/t/${slug}/assistant`,

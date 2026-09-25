@@ -22,6 +22,7 @@ type Querier interface {
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
 	AttachAIPendingActionsToMessage(ctx context.Context, arg AttachAIPendingActionsToMessageParams) error
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
+	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
 	// The pending → executing transition is the idempotency lock for confirm.
 	ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error)
@@ -60,6 +61,7 @@ type Querier interface {
 	CountFinanceTransactions(ctx context.Context, arg CountFinanceTransactionsParams) (int64, error)
 	CountImportJobsForActor(ctx context.Context, actorID int64) (int64, error)
 	CountImportJobsForOrganization(ctx context.Context, organizationID int64) (int64, error)
+	CountLeads(ctx context.Context, arg CountLeadsParams) (int64, error)
 	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
 	CountOrganizations(ctx context.Context, arg CountOrganizationsParams) (int64, error)
 	CountOutboxByStatus(ctx context.Context, status string) (int64, error)
@@ -70,6 +72,7 @@ type Querier interface {
 	CountProductSales(ctx context.Context, arg CountProductSalesParams) (int64, error)
 	CountProducts(ctx context.Context, arg CountProductsParams) (int64, error)
 	CountPurchases(ctx context.Context, arg CountPurchasesParams) (int64, error)
+	CountQuotes(ctx context.Context, arg CountQuotesParams) (int64, error)
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
 	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
 	CountServiceJobsByCustomer(ctx context.Context, arg CountServiceJobsByCustomerParams) (int64, error)
@@ -110,6 +113,9 @@ type Querier interface {
 	CreateFinanceCategory(ctx context.Context, arg CreateFinanceCategoryParams) (FinanceCategory, error)
 	CreateFinanceTransaction(ctx context.Context, arg CreateFinanceTransactionParams) (FinanceTransaction, error)
 	CreateImportJob(ctx context.Context, arg CreateImportJobParams) (ImportJob, error)
+	// Tenant leads and their timeline. Every query is scoped by organization_id.
+	CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, error)
+	CreateLeadEvent(ctx context.Context, arg CreateLeadEventParams) (LeadEvent, error)
 	CreateLogPurgeRule(ctx context.Context, arg CreateLogPurgeRuleParams) (LogPurgeRule, error)
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreateOAuthAccount(ctx context.Context, arg CreateOAuthAccountParams) (OauthAccount, error)
@@ -126,6 +132,11 @@ type Querier interface {
 	// Tenant stock purchases.
 	CreatePurchase(ctx context.Context, arg CreatePurchaseParams) (Purchase, error)
 	CreatePurchaseLine(ctx context.Context, arg CreatePurchaseLineParams) (PurchaseLine, error)
+	CreateQuote(ctx context.Context, arg CreateQuoteParams) (Quote, error)
+	CreateQuoteDelivery(ctx context.Context, arg CreateQuoteDeliveryParams) (QuoteDelivery, error)
+	CreateQuoteEvent(ctx context.Context, arg CreateQuoteEventParams) (QuoteEvent, error)
+	CreateQuoteLine(ctx context.Context, arg CreateQuoteLineParams) (QuoteLine, error)
+	CreateQuoteReminder(ctx context.Context, arg CreateQuoteReminderParams) (QuoteReminder, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateRole(ctx context.Context, arg CreateRoleParams) (Role, error)
 	// ============================================================================
@@ -154,6 +165,7 @@ type Querier interface {
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
 	DeleteOAuthAccountByUserProvider(ctx context.Context, arg DeleteOAuthAccountByUserProviderParams) error
 	DeletePushSubscription(ctx context.Context, arg DeletePushSubscriptionParams) error
+	DeleteQuoteLines(ctx context.Context, arg DeleteQuoteLinesParams) error
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
 	DeleteStorageShare(ctx context.Context, argUuid uuid.UUID) error
 	DeleteStorageStar(ctx context.Context, arg DeleteStorageStarParams) error
@@ -166,12 +178,17 @@ type Querier interface {
 	// Expires pending actions of a conversation: all of them (the user moved on)
 	// or only those past expires_at.
 	ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error)
+	// Marks open quotes whose valid_until day has passed as expired. Idempotent:
+	// a second run finds nothing; accepted / rejected / cancelled rows are never touched.
+	ExpireDueQuotes(ctx context.Context, arg ExpireDueQuotesParams) ([]ExpireDueQuotesRow, error)
 	ExtensionExists(ctx context.Context, extname string) (bool, error)
 	// Resolves actions stuck in 'executing' (the server stopped mid-execution) as
 	// failed: for one conversation, or for all conversations when it is NULL.
 	FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error)
 	FinishAIPendingAction(ctx context.Context, arg FinishAIPendingActionParams) (AiPendingAction, error)
 	FinishOutboundMessage(ctx context.Context, arg FinishOutboundMessageParams) (OutboundMessage, error)
+	FinishQuoteDelivery(ctx context.Context, arg FinishQuoteDeliveryParams) (QuoteDelivery, error)
+	FinishQuoteReminder(ctx context.Context, arg FinishQuoteReminderParams) (QuoteReminder, error)
 	GetAIConversation(ctx context.Context, arg GetAIConversationParams) (AiConversation, error)
 	GetAIMessageByID(ctx context.Context, id int64) (AiMessage, error)
 	GetAIOrganizationByUUID(ctx context.Context, argUuid uuid.UUID) (GetAIOrganizationByUUIDRow, error)
@@ -225,6 +242,10 @@ type Querier interface {
 	GetImportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
 	GetJobOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetJobOrgAndPhoneByUUIDRow, error)
 	GetLatestContractSignerOTP(ctx context.Context, signerID int64) (ContractSignerOtp, error)
+	GetLeadDetail(ctx context.Context, arg GetLeadDetailParams) (GetLeadDetailRow, error)
+	GetLeadRefByID(ctx context.Context, id int64) (GetLeadRefByIDRow, error)
+	GetLeadRowByUUID(ctx context.Context, arg GetLeadRowByUUIDParams) (Lead, error)
+	GetLeadRowByUUIDForUpdate(ctx context.Context, arg GetLeadRowByUUIDForUpdateParams) (Lead, error)
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
 	GetMessageTemplate(ctx context.Context, arg GetMessageTemplateParams) (MessageTemplate, error)
 	GetMessageTemplateByKey(ctx context.Context, arg GetMessageTemplateByKeyParams) (MessageTemplate, error)
@@ -244,6 +265,12 @@ type Querier interface {
 	GetOAuthAccountByProviderAccount(ctx context.Context, arg GetOAuthAccountByProviderAccountParams) (GetOAuthAccountByProviderAccountRow, error)
 	GetOAuthAccountByUserProvider(ctx context.Context, arg GetOAuthAccountByUserProviderParams) (GetOAuthAccountByUserProviderRow, error)
 	GetOAuthProviderSettings(ctx context.Context, provider string) (OauthProviderSetting, error)
+	GetOrgCustomerRef(ctx context.Context, arg GetOrgCustomerRefParams) (GetOrgCustomerRefRow, error)
+	GetOrgCustomerVehicleRef(ctx context.Context, arg GetOrgCustomerVehicleRefParams) (GetOrgCustomerVehicleRefRow, error)
+	GetOrgLeadRef(ctx context.Context, arg GetOrgLeadRefParams) (GetOrgLeadRefRow, error)
+	GetOrgMemberUser(ctx context.Context, arg GetOrgMemberUserParams) (GetOrgMemberUserRow, error)
+	GetOrgProductRef(ctx context.Context, arg GetOrgProductRefParams) (GetOrgProductRefRow, error)
+	GetOrgServiceRef(ctx context.Context, arg GetOrgServiceRefParams) (GetOrgServiceRefRow, error)
 	GetOrganizationByID(ctx context.Context, id int64) (Organization, error)
 	GetOrganizationBySlug(ctx context.Context, slug string) (Organization, error)
 	GetOrganizationByUUID(ctx context.Context, argUuid uuid.UUID) (Organization, error)
@@ -262,6 +289,15 @@ type Querier interface {
 	GetProductSaleForSearch(ctx context.Context, arg GetProductSaleForSearchParams) (GetProductSaleForSearchRow, error)
 	GetPurchaseByUUID(ctx context.Context, arg GetPurchaseByUUIDParams) (GetPurchaseByUUIDRow, error)
 	GetPurchaseForSearch(ctx context.Context, arg GetPurchaseForSearchParams) (GetPurchaseForSearchRow, error)
+	GetQuoteByShareToken(ctx context.Context, shareToken string) (Quote, error)
+	GetQuoteByShareTokenForUpdate(ctx context.Context, shareToken string) (Quote, error)
+	GetQuoteDeliveryByUUID(ctx context.Context, arg GetQuoteDeliveryByUUIDParams) (QuoteDelivery, error)
+	// Joined display fields for one quote (detail, PDF, public view).
+	GetQuoteRefs(ctx context.Context, id int64) (GetQuoteRefsRow, error)
+	GetQuoteReminderByUUID(ctx context.Context, argUuid uuid.UUID) (QuoteReminder, error)
+	GetQuoteRowByID(ctx context.Context, id int64) (Quote, error)
+	GetQuoteRowByUUID(ctx context.Context, arg GetQuoteRowByUUIDParams) (Quote, error)
+	GetQuoteRowByUUIDForUpdate(ctx context.Context, arg GetQuoteRowByUUIDForUpdateParams) (Quote, error)
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
@@ -300,12 +336,14 @@ type Querier interface {
 	GetVehicleCatalogOption(ctx context.Context, arg GetVehicleCatalogOptionParams) (GetVehicleCatalogOptionRow, error)
 	GetVehicleModelByBrandAndName(ctx context.Context, arg GetVehicleModelByBrandAndNameParams) (VehicleModel, error)
 	GetVehicleModelByUUID(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
+	GetVehicleModelRef(ctx context.Context, argUuid uuid.UUID) (GetVehicleModelRefRow, error)
 	GetVehicleModelYearForSearch(ctx context.Context, arg GetVehicleModelYearForSearchParams) (GetVehicleModelYearForSearchRow, error)
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
 	GetWhatsAppSession(ctx context.Context, organizationID int64) (WhatsappSession, error)
 	IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error)
 	IncrementOTPAttempts(ctx context.Context, id int64) (OtpCode, error)
+	IncrementQuoteViews(ctx context.Context, id int64) error
 	InsertAIMessage(ctx context.Context, arg InsertAIMessageParams) (AiMessage, error)
 	InsertAIPendingAction(ctx context.Context, arg InsertAIPendingActionParams) (AiPendingAction, error)
 	InsertAIUsage(ctx context.Context, arg InsertAIUsageParams) error
@@ -329,10 +367,12 @@ type Querier interface {
 	InsertStorageTrash(ctx context.Context, arg InsertStorageTrashParams) (StorageTrash, error)
 	InsertUserRole(ctx context.Context, arg InsertUserRoleParams) error
 	InvalidateActiveOTPs(ctx context.Context, arg InvalidateActiveOTPsParams) error
+	LeadSummary(ctx context.Context, arg LeadSummaryParams) (LeadSummaryRow, error)
 	LinkCariEntryFinanceTransaction(ctx context.Context, arg LinkCariEntryFinanceTransactionParams) (CariEntry, error)
 	LinkProductSaleCari(ctx context.Context, arg LinkProductSaleCariParams) (ProductSale, error)
 	LinkProductSaleFinance(ctx context.Context, arg LinkProductSaleFinanceParams) (ProductSale, error)
 	LinkPurchaseFinance(ctx context.Context, arg LinkPurchaseFinanceParams) (Purchase, error)
+	LinkQuoteJob(ctx context.Context, arg LinkQuoteJobParams) (Quote, error)
 	LinkServiceJobPaymentCari(ctx context.Context, arg LinkServiceJobPaymentCariParams) (ServiceJobPayment, error)
 	LinkServiceJobPaymentFinance(ctx context.Context, arg LinkServiceJobPaymentFinanceParams) (ServiceJobPayment, error)
 	ListAIConversations(ctx context.Context, arg ListAIConversationsParams) ([]AiConversation, error)
@@ -380,6 +420,9 @@ type Querier interface {
 	ListImportChangesForJob(ctx context.Context, jobID int64) ([]ImportChange, error)
 	ListImportJobsForActor(ctx context.Context, arg ListImportJobsForActorParams) ([]ImportJob, error)
 	ListImportJobsForOrganization(ctx context.Context, arg ListImportJobsForOrganizationParams) ([]ImportJob, error)
+	ListLeadEvents(ctx context.Context, arg ListLeadEventsParams) ([]ListLeadEventsRow, error)
+	ListLeadQuotes(ctx context.Context, arg ListLeadQuotesParams) ([]ListLeadQuotesRow, error)
+	ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLeadsRow, error)
 	ListLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
 	ListMessageTemplateDefaults(ctx context.Context) ([]MessageTemplateDefault, error)
 	ListMessageTemplatesByOrg(ctx context.Context, organizationID int64) ([]MessageTemplate, error)
@@ -389,6 +432,7 @@ type Querier interface {
 	ListOAuthAccountsByUserID(ctx context.Context, userID int64) ([]ListOAuthAccountsByUserIDRow, error)
 	ListOAuthAccountsForUserIDs(ctx context.Context, userIds []int64) ([]ListOAuthAccountsForUserIDsRow, error)
 	ListOAuthProviderSettings(ctx context.Context) ([]OauthProviderSetting, error)
+	ListOrgMemberOptions(ctx context.Context, organizationID int64) ([]ListOrgMemberOptionsRow, error)
 	ListOrganizationMemberOptions(ctx context.Context, organizationID int64) ([]ListOrganizationMemberOptionsRow, error)
 	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
 	ListOrganizationMembersByUserID(ctx context.Context, userID int64) ([]ListOrganizationMembersByUserIDRow, error)
@@ -416,6 +460,11 @@ type Querier interface {
 	ListPurchasesForExport(ctx context.Context, arg ListPurchasesForExportParams) ([]Purchase, error)
 	ListPurchasesForSearch(ctx context.Context) ([]ListPurchasesForSearchRow, error)
 	ListPushSubscriptionsByUser(ctx context.Context, userID int64) ([]PushSubscription, error)
+	ListQuoteDeliveries(ctx context.Context, quoteID int64) ([]QuoteDelivery, error)
+	ListQuoteEvents(ctx context.Context, quoteID int64) ([]ListQuoteEventsRow, error)
+	ListQuoteLines(ctx context.Context, quoteID int64) ([]ListQuoteLinesRow, error)
+	ListQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
+	ListQuotes(ctx context.Context, arg ListQuotesParams) ([]ListQuotesRow, error)
 	ListRecentFinanceTransactionsByAccount(ctx context.Context, arg ListRecentFinanceTransactionsByAccountParams) ([]ListRecentFinanceTransactionsByAccountRow, error)
 	ListRolePermissionSlugsByRoleUUID(ctx context.Context, argUuid uuid.UUID) ([]string, error)
 	ListRoleUUIDsForBulk(ctx context.Context, q_ pgtype.Text) ([]uuid.UUID, error)
@@ -498,8 +547,12 @@ type Querier interface {
 	MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaidParams) (ServiceJob, error)
 	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
 	NextContractInstanceNumber(ctx context.Context, organizationID int64) (int32, error)
+	// Tenant quotes (teklifler). Tenant queries are scoped by organization_id;
+	// public queries look up by the unguessable share_token only.
+	NextQuoteNumber(ctx context.Context, arg NextQuoteNumberParams) (int32, error)
 	PingDB(ctx context.Context) (int32, error)
 	QueueImportJob(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
+	QuoteSummary(ctx context.Context, arg QuoteSummaryParams) (QuoteSummaryRow, error)
 	ReleaseStuckScheduledNotifications(ctx context.Context, staleBefore pgtype.Timestamptz) (int64, error)
 	RemoveUserRoleBySlug(ctx context.Context, arg RemoveUserRoleBySlugParams) error
 	ReplaceUserRoles(ctx context.Context, userID int64) error
@@ -530,7 +583,14 @@ type Querier interface {
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
 	SetContractInstancePDFError(ctx context.Context, arg SetContractInstancePDFErrorParams) error
+	// Used by the quotes module (quoted / won). Never reopens a closed lead
+	// except to mark it won.
+	SetLeadStatusByID(ctx context.Context, arg SetLeadStatusByIDParams) (SetLeadStatusByIDRow, error)
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
+	SetQuotePDF(ctx context.Context, arg SetQuotePDFParams) error
+	SetQuoteReminderScheduled(ctx context.Context, arg SetQuoteReminderScheduledParams) error
+	// Guarded transition: only applies when the row is still in from_status.
+	SetQuoteStatus(ctx context.Context, arg SetQuoteStatusParams) (Quote, error)
 	SetRolePermissions(ctx context.Context, roleID int64) error
 	SetTodoStatus(ctx context.Context, arg SetTodoStatusParams) (Todo, error)
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
@@ -545,6 +605,7 @@ type Querier interface {
 	SoftDeleteCustomerVehiclesByCustomer(ctx context.Context, arg SoftDeleteCustomerVehiclesByCustomerParams) error
 	SoftDeleteFinanceAccount(ctx context.Context, arg SoftDeleteFinanceAccountParams) (FinanceAccount, error)
 	SoftDeleteFinanceCategory(ctx context.Context, arg SoftDeleteFinanceCategoryParams) (FinanceCategory, error)
+	SoftDeleteLead(ctx context.Context, arg SoftDeleteLeadParams) (SoftDeleteLeadRow, error)
 	SoftDeleteProduct(ctx context.Context, arg SoftDeleteProductParams) (Product, error)
 	SoftDeleteService(ctx context.Context, arg SoftDeleteServiceParams) (Service, error)
 	SoftDeleteSupplier(ctx context.Context, arg SoftDeleteSupplierParams) (Supplier, error)
@@ -576,12 +637,14 @@ type Querier interface {
 	UpdateImportJobFileKey(ctx context.Context, arg UpdateImportJobFileKeyParams) (ImportJob, error)
 	UpdateImportJobMapping(ctx context.Context, arg UpdateImportJobMappingParams) (ImportJob, error)
 	UpdateImportJobPreview(ctx context.Context, arg UpdateImportJobPreviewParams) (ImportJob, error)
+	UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, error)
 	UpdateLogPurgeRule(ctx context.Context, arg UpdateLogPurgeRuleParams) (LogPurgeRule, error)
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)
 	UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOrganizationLetterheadParams) (Organization, error)
 	UpdateOrganizationPlatform(ctx context.Context, arg UpdateOrganizationPlatformParams) (Organization, error)
 	UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOutboundMessageStatusParams) (OutboundMessage, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
+	UpdateQuoteContent(ctx context.Context, arg UpdateQuoteContentParams) (Quote, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
 	UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error)
 	UpdateServiceJobAssignee(ctx context.Context, arg UpdateServiceJobAssigneeParams) (ServiceJob, error)

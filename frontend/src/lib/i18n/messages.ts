@@ -4,6 +4,8 @@ import enAccess from "@/locales/en/access.json";
 import enAi from "@/locales/en/ai.json";
 import enTodos from "@/locales/en/todos.json";
 import enMessaging from "@/locales/en/messaging.json";
+import enLeads from "@/locales/en/leads.json";
+import enQuotes from "@/locales/en/quotes.json";
 import enActivity from "@/locales/en/activity.json";
 import enAuth from "@/locales/en/auth.json";
 import enBranding from "@/locales/en/branding.json";
@@ -49,6 +51,8 @@ import trAccess from "@/locales/tr/access.json";
 import trAi from "@/locales/tr/ai.json";
 import trTodos from "@/locales/tr/todos.json";
 import trMessaging from "@/locales/tr/messaging.json";
+import trLeads from "@/locales/tr/leads.json";
+import trQuotes from "@/locales/tr/quotes.json";
 import trActivity from "@/locales/tr/activity.json";
 import trAuth from "@/locales/tr/auth.json";
 import trBranding from "@/locales/tr/branding.json";
@@ -140,6 +144,8 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     ai: trAi,
     todos: trTodos,
     messaging: trMessaging,
+    leads: trLeads,
+    quotes: trQuotes,
   },
   en: {
     common: enCommon,
@@ -187,6 +193,8 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     ai: enAi,
     todos: enTodos,
     messaging: enMessaging,
+    leads: enLeads,
+    quotes: enQuotes,
   },
 };
 export function loadMessages(locale: AppLocale) {
