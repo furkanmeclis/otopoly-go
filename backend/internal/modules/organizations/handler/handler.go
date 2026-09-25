@@ -258,6 +258,9 @@ func (h *Handler) PlatformUploadLogo(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, r, response.CodeValidationError, "organization uuid is invalid")
 		return
 	}
+	// Cap the whole body: ParseMultipartForm only bounds memory and spills
+	// the rest to temp files.
+	r.Body = http.MaxBytesReader(w, r.Body, (3<<20)+(1<<20))
 	if err := r.ParseMultipartForm(3 << 20); err != nil {
 		response.BadRequest(w, r, response.CodeValidationError, "invalid multipart form")
 		return
@@ -347,6 +350,9 @@ func (h *Handler) TenantPatchSettings(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) TenantUploadLogo(w http.ResponseWriter, r *http.Request) {
 	scope := orgctx.MustScope(r.Context())
+	// Cap the whole body: ParseMultipartForm only bounds memory and spills
+	// the rest to temp files.
+	r.Body = http.MaxBytesReader(w, r.Body, (3<<20)+(1<<20))
 	if err := r.ParseMultipartForm(3 << 20); err != nil {
 		response.BadRequest(w, r, response.CodeValidationError, "invalid multipart form")
 		return
