@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import { sanitizeRichHtml } from "@/lib/utils/sanitize-html";
 
 function statusTone(status: string) {
   switch (status) {
@@ -111,9 +112,7 @@ export function ContractInstanceDetailPage({
   }
 
   const canMutate =
-    canWrite &&
-    instance.status !== "voided" &&
-    instance.status !== "executed";
+    canWrite && instance.status !== "voided" && instance.status !== "executed";
 
   return (
     <EntityPage
@@ -224,8 +223,10 @@ export function ContractInstanceDetailPage({
             </div>
             <div className="bg-primary mx-5 mb-4 h-0.5 w-14 rounded-full" />
             <div
-              className="contract-preview prose prose-sm dark:prose-invert max-w-none px-5 pb-6 prose-headings:text-primary prose-headings:tracking-tight prose-ol:list-decimal prose-ul:list-disc prose-strong:text-foreground"
-              dangerouslySetInnerHTML={{ __html: instance.content_html }}
+              className="contract-preview prose prose-sm dark:prose-invert prose-headings:text-primary prose-headings:tracking-tight prose-ol:list-decimal prose-ul:list-disc prose-strong:text-foreground max-w-none px-5 pb-6"
+              dangerouslySetInnerHTML={{
+                __html: sanitizeRichHtml(instance.content_html),
+              }}
             />
           </div>
         </EntitySectionCard>
@@ -252,7 +253,9 @@ export function ContractInstanceDetailPage({
                   </p>
                   <p className="text-muted-foreground text-xs">
                     {signer.role}
-                    {signer.required ? ` · ${t("contracts.fields.required")}` : ""}
+                    {signer.required
+                      ? ` · ${t("contracts.fields.required")}`
+                      : ""}
                     {signer.otp_required
                       ? ` · ${
                           signer.otp_verified_at
@@ -267,16 +270,15 @@ export function ContractInstanceDetailPage({
                 <div className="flex items-center gap-2">
                   <StatusChip
                     label={
-                      t(`contracts.instances.signer_status.${signer.status}`) !==
-                      `contracts.instances.signer_status.${signer.status}`
+                      t(
+                        `contracts.instances.signer_status.${signer.status}`,
+                      ) !== `contracts.instances.signer_status.${signer.status}`
                         ? t(
                             `contracts.instances.signer_status.${signer.status}`,
                           )
                         : signer.status
                     }
-                    tone={
-                      signer.status === "signed" ? "success" : "default"
-                    }
+                    tone={signer.status === "signed" ? "success" : "default"}
                   />
                   {canMutate && signer.status === "pending" ? (
                     <Button
