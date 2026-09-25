@@ -12,6 +12,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimOutboundMessage = `-- name: ClaimOutboundMessage :one
+UPDATE outbound_messages
+SET status = 'sending', attempts = attempts + 1
+WHERE id = $1 AND status = 'queued'
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+`
+
+// queued → sending; a second delivery of the same task finds no row.
+func (q *Queries) ClaimOutboundMessage(ctx context.Context, id int64) (OutboundMessage, error) {
+	row := q.db.QueryRow(ctx, claimOutboundMessage, id)
+	var i OutboundMessage
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.EventType,
+		&i.Channel,
+		&i.RecipientPhone,
+		&i.Status,
+		&i.ProviderReference,
+		&i.ErrorMessage,
+		&i.Payload,
+		&i.SubjectType,
+		&i.SubjectUuid,
+		&i.SentAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
+		&i.Attachment,
+		&i.Attempts,
+		&i.ScheduledNotificationID,
+	)
+	return i, err
+}
+
 const deleteMessageTemplate = `-- name: DeleteMessageTemplate :exec
 DELETE FROM message_templates
 WHERE uuid = $1 AND organization_id = $2
@@ -25,6 +60,82 @@ type DeleteMessageTemplateParams struct {
 func (q *Queries) DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error {
 	_, err := q.db.Exec(ctx, deleteMessageTemplate, arg.Uuid, arg.OrganizationID)
 	return err
+}
+
+const deleteMessageTemplateByKey = `-- name: DeleteMessageTemplateByKey :execrows
+DELETE FROM message_templates
+WHERE organization_id = $1 AND event_type = $2 AND channel = $3 AND locale = $4
+`
+
+type DeleteMessageTemplateByKeyParams struct {
+	OrganizationID int64  `json:"organization_id"`
+	EventType      string `json:"event_type"`
+	Channel        string `json:"channel"`
+	Locale         string `json:"locale"`
+}
+
+func (q *Queries) DeleteMessageTemplateByKey(ctx context.Context, arg DeleteMessageTemplateByKeyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMessageTemplateByKey,
+		arg.OrganizationID,
+		arg.EventType,
+		arg.Channel,
+		arg.Locale,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const finishOutboundMessage = `-- name: FinishOutboundMessage :one
+UPDATE outbound_messages
+SET status = $1,
+    provider_reference = $2,
+    error_message = $3,
+    sent_at = $4
+WHERE id = $5 AND status = 'sending'
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+`
+
+type FinishOutboundMessageParams struct {
+	Status            string             `json:"status"`
+	ProviderReference string             `json:"provider_reference"`
+	ErrorMessage      string             `json:"error_message"`
+	SentAt            pgtype.Timestamptz `json:"sent_at"`
+	ID                int64              `json:"id"`
+}
+
+func (q *Queries) FinishOutboundMessage(ctx context.Context, arg FinishOutboundMessageParams) (OutboundMessage, error) {
+	row := q.db.QueryRow(ctx, finishOutboundMessage,
+		arg.Status,
+		arg.ProviderReference,
+		arg.ErrorMessage,
+		arg.SentAt,
+		arg.ID,
+	)
+	var i OutboundMessage
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.EventType,
+		&i.Channel,
+		&i.RecipientPhone,
+		&i.Status,
+		&i.ProviderReference,
+		&i.ErrorMessage,
+		&i.Payload,
+		&i.SubjectType,
+		&i.SubjectUuid,
+		&i.SentAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
+		&i.Attachment,
+		&i.Attempts,
+		&i.ScheduledNotificationID,
+	)
+	return i, err
 }
 
 const getMessageTemplate = `-- name: GetMessageTemplate :one
@@ -75,6 +186,71 @@ type GetMessageTemplateByKeyParams struct {
 
 func (q *Queries) GetMessageTemplateByKey(ctx context.Context, arg GetMessageTemplateByKeyParams) (MessageTemplate, error) {
 	row := q.db.QueryRow(ctx, getMessageTemplateByKey,
+		arg.OrganizationID,
+		arg.EventType,
+		arg.Channel,
+		arg.Locale,
+	)
+	var i MessageTemplate
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.EventType,
+		&i.Channel,
+		&i.Locale,
+		&i.Subject,
+		&i.Body,
+		&i.Variables,
+		&i.IsActive,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getMessageTemplateDefault = `-- name: GetMessageTemplateDefault :one
+SELECT id, event_type, channel, locale, subject, body, created_at, updated_at FROM message_template_defaults
+WHERE event_type = $1 AND channel = $2 AND locale = $3
+`
+
+type GetMessageTemplateDefaultParams struct {
+	EventType string `json:"event_type"`
+	Channel   string `json:"channel"`
+	Locale    string `json:"locale"`
+}
+
+func (q *Queries) GetMessageTemplateDefault(ctx context.Context, arg GetMessageTemplateDefaultParams) (MessageTemplateDefault, error) {
+	row := q.db.QueryRow(ctx, getMessageTemplateDefault, arg.EventType, arg.Channel, arg.Locale)
+	var i MessageTemplateDefault
+	err := row.Scan(
+		&i.ID,
+		&i.EventType,
+		&i.Channel,
+		&i.Locale,
+		&i.Subject,
+		&i.Body,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getMessageTemplateOverride = `-- name: GetMessageTemplateOverride :one
+SELECT id, uuid, organization_id, event_type, channel, locale, subject, body, variables, is_active, created_at, updated_at FROM message_templates
+WHERE organization_id = $1 AND event_type = $2 AND channel = $3 AND locale = $4
+`
+
+type GetMessageTemplateOverrideParams struct {
+	OrganizationID int64  `json:"organization_id"`
+	EventType      string `json:"event_type"`
+	Channel        string `json:"channel"`
+	Locale         string `json:"locale"`
+}
+
+// Organization override regardless of is_active (passive = channel disabled).
+func (q *Queries) GetMessageTemplateOverride(ctx context.Context, arg GetMessageTemplateOverrideParams) (MessageTemplate, error) {
+	row := q.db.QueryRow(ctx, getMessageTemplateOverride,
 		arg.OrganizationID,
 		arg.EventType,
 		arg.Channel,
@@ -159,7 +335,7 @@ INSERT INTO outbound_messages (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
 `
 
 type InsertOutboundMessageParams struct {
@@ -201,6 +377,73 @@ func (q *Queries) InsertOutboundMessage(ctx context.Context, arg InsertOutboundM
 		&i.SentAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Body,
+		&i.Attachment,
+		&i.Attempts,
+		&i.ScheduledNotificationID,
+	)
+	return i, err
+}
+
+const insertQueuedOutboundMessage = `-- name: InsertQueuedOutboundMessage :one
+INSERT INTO outbound_messages (
+    organization_id, event_type, channel, recipient_phone, status, payload,
+    subject_type, subject_uuid, body, attachment, scheduled_notification_id
+) VALUES (
+    $1, $2, $3, $4, 'queued',
+    $5, $6, $7, $8, $9,
+    $10
+)
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+`
+
+type InsertQueuedOutboundMessageParams struct {
+	OrganizationID          int64       `json:"organization_id"`
+	EventType               string      `json:"event_type"`
+	Channel                 string      `json:"channel"`
+	RecipientPhone          string      `json:"recipient_phone"`
+	Payload                 []byte      `json:"payload"`
+	SubjectType             string      `json:"subject_type"`
+	SubjectUuid             pgtype.UUID `json:"subject_uuid"`
+	Body                    string      `json:"body"`
+	Attachment              []byte      `json:"attachment"`
+	ScheduledNotificationID pgtype.Int8 `json:"scheduled_notification_id"`
+}
+
+func (q *Queries) InsertQueuedOutboundMessage(ctx context.Context, arg InsertQueuedOutboundMessageParams) (OutboundMessage, error) {
+	row := q.db.QueryRow(ctx, insertQueuedOutboundMessage,
+		arg.OrganizationID,
+		arg.EventType,
+		arg.Channel,
+		arg.RecipientPhone,
+		arg.Payload,
+		arg.SubjectType,
+		arg.SubjectUuid,
+		arg.Body,
+		arg.Attachment,
+		arg.ScheduledNotificationID,
+	)
+	var i OutboundMessage
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.EventType,
+		&i.Channel,
+		&i.RecipientPhone,
+		&i.Status,
+		&i.ProviderReference,
+		&i.ErrorMessage,
+		&i.Payload,
+		&i.SubjectType,
+		&i.SubjectUuid,
+		&i.SentAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Body,
+		&i.Attachment,
+		&i.Attempts,
+		&i.ScheduledNotificationID,
 	)
 	return i, err
 }
@@ -235,6 +478,40 @@ func (q *Queries) ListConnectedWhatsAppSessions(ctx context.Context) ([]Whatsapp
 			&i.UpdatedAt,
 			&i.QrCode,
 			&i.QrExpiresAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listMessageTemplateDefaults = `-- name: ListMessageTemplateDefaults :many
+SELECT id, event_type, channel, locale, subject, body, created_at, updated_at FROM message_template_defaults
+ORDER BY event_type, channel, locale
+`
+
+func (q *Queries) ListMessageTemplateDefaults(ctx context.Context) ([]MessageTemplateDefault, error) {
+	rows, err := q.db.Query(ctx, listMessageTemplateDefaults)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MessageTemplateDefault{}
+	for rows.Next() {
+		var i MessageTemplateDefault
+		if err := rows.Scan(
+			&i.ID,
+			&i.EventType,
+			&i.Channel,
+			&i.Locale,
+			&i.Subject,
+			&i.Body,
+			&i.CreatedAt,
+			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -328,7 +605,7 @@ SET
     error_message      = $4,
     sent_at            = $5
 WHERE id = $1
-RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
 `
 
 type UpdateOutboundMessageStatusParams struct {
@@ -364,6 +641,10 @@ func (q *Queries) UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOut
 		&i.SentAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Body,
+		&i.Attachment,
+		&i.Attempts,
+		&i.ScheduledNotificationID,
 	)
 	return i, err
 }

@@ -1,11 +1,11 @@
 -- name: CreateTodo :one
 INSERT INTO todos (
     organization_id, title, notes, due_date, due_time, assignee_user_id,
-    customer_id, service_job_id, created_by, via_ai
+    customer_id, service_job_id, created_by, via_ai, lead_id, quote_id, reminder_offsets
 ) VALUES (
     sqlc.arg(organization_id), sqlc.arg(title), sqlc.arg(notes), sqlc.narg(due_date), sqlc.narg(due_time),
     sqlc.narg(assignee_user_id), sqlc.narg(customer_id), sqlc.narg(service_job_id), sqlc.narg(created_by),
-    sqlc.arg(via_ai)
+    sqlc.arg(via_ai), sqlc.narg(lead_id), sqlc.narg(quote_id), sqlc.arg(reminder_offsets)::integer[]
 )
 RETURNING *;
 
@@ -43,6 +43,9 @@ LEFT JOIN users cu ON cu.id = t.created_by
 WHERE t.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR t.status = sqlc.narg(status))
   AND (sqlc.narg(assignee_user_id)::bigint IS NULL OR t.assignee_user_id = sqlc.narg(assignee_user_id))
+  AND (sqlc.narg(customer_id)::bigint IS NULL OR t.customer_id = sqlc.narg(customer_id))
+  AND (sqlc.narg(lead_id)::bigint IS NULL OR t.lead_id = sqlc.narg(lead_id))
+  AND (sqlc.narg(quote_id)::bigint IS NULL OR t.quote_id = sqlc.narg(quote_id))
   AND (sqlc.narg(q)::text IS NULL OR t.title ILIKE '%' || sqlc.narg(q) || '%' OR t.notes ILIKE '%' || sqlc.narg(q) || '%')
   AND (
     sqlc.narg(scope)::text IS NULL
@@ -63,6 +66,9 @@ FROM todos t
 WHERE t.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR t.status = sqlc.narg(status))
   AND (sqlc.narg(assignee_user_id)::bigint IS NULL OR t.assignee_user_id = sqlc.narg(assignee_user_id))
+  AND (sqlc.narg(customer_id)::bigint IS NULL OR t.customer_id = sqlc.narg(customer_id))
+  AND (sqlc.narg(lead_id)::bigint IS NULL OR t.lead_id = sqlc.narg(lead_id))
+  AND (sqlc.narg(quote_id)::bigint IS NULL OR t.quote_id = sqlc.narg(quote_id))
   AND (sqlc.narg(q)::text IS NULL OR t.title ILIKE '%' || sqlc.narg(q) || '%' OR t.notes ILIKE '%' || sqlc.narg(q) || '%')
   AND (
     sqlc.narg(scope)::text IS NULL
@@ -94,7 +100,13 @@ SET title = COALESCE(sqlc.narg(title), title),
     customer_id = CASE WHEN sqlc.arg(clear_customer)::boolean THEN NULL
                        ELSE COALESCE(sqlc.narg(customer_id), customer_id) END,
     service_job_id = CASE WHEN sqlc.arg(clear_job)::boolean THEN NULL
-                          ELSE COALESCE(sqlc.narg(service_job_id), service_job_id) END
+                          ELSE COALESCE(sqlc.narg(service_job_id), service_job_id) END,
+    lead_id = CASE WHEN sqlc.arg(clear_lead)::boolean THEN NULL
+                   ELSE COALESCE(sqlc.narg(lead_id), lead_id) END,
+    quote_id = CASE WHEN sqlc.arg(clear_quote)::boolean THEN NULL
+                    ELSE COALESCE(sqlc.narg(quote_id), quote_id) END,
+    reminder_offsets = CASE WHEN sqlc.arg(clear_due)::boolean THEN '{}'::integer[]
+                            ELSE COALESCE(sqlc.narg(reminder_offsets)::integer[], reminder_offsets) END
 WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id)
 RETURNING *;
 
@@ -129,3 +141,9 @@ WHERE organization_id = sqlc.arg(organization_id) AND uuid = sqlc.arg(uuid) AND 
 -- name: GetTodoJobRef :one
 SELECT id, uuid, plate FROM service_jobs
 WHERE organization_id = sqlc.arg(organization_id) AND uuid = sqlc.arg(uuid);
+
+-- name: GetTodoReminderState :one
+SELECT status FROM todos WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id);
+
+-- name: GetTodoRowByID :one
+SELECT * FROM todos WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id);

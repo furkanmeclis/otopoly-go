@@ -22,9 +22,15 @@ type Querier interface {
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
 	AttachAIPendingActionsToMessage(ctx context.Context, arg AttachAIPendingActionsToMessageParams) error
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
+	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
 	// The pending → executing transition is the idempotency lock for confirm.
 	ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error)
+	// Atomic batch claim; concurrent sweepers skip each other's rows.
+	ClaimDueScheduledNotifications(ctx context.Context, arg ClaimDueScheduledNotificationsParams) ([]ScheduledNotification, error)
+	// queued → sending; a second delivery of the same task finds no row.
+	ClaimOutboundMessage(ctx context.Context, id int64) (OutboundMessage, error)
 	ClaimOutboxEvents(ctx context.Context, arg ClaimOutboxEventsParams) ([]OutboxEvent, error)
+	ClaimScheduledNotificationByID(ctx context.Context, id int64) (ScheduledNotification, error)
 	ClearAppSettingsLogo(ctx context.Context) (AppSetting, error)
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
@@ -144,6 +150,7 @@ type Querier interface {
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error
+	DeleteMessageTemplateByKey(ctx context.Context, arg DeleteMessageTemplateByKeyParams) (int64, error)
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
 	DeleteOAuthAccountByUserProvider(ctx context.Context, arg DeleteOAuthAccountByUserProviderParams) error
 	DeletePushSubscription(ctx context.Context, arg DeletePushSubscriptionParams) error
@@ -164,6 +171,7 @@ type Querier interface {
 	// failed: for one conversation, or for all conversations when it is NULL.
 	FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error)
 	FinishAIPendingAction(ctx context.Context, arg FinishAIPendingActionParams) (AiPendingAction, error)
+	FinishOutboundMessage(ctx context.Context, arg FinishOutboundMessageParams) (OutboundMessage, error)
 	GetAIConversation(ctx context.Context, arg GetAIConversationParams) (AiConversation, error)
 	GetAIMessageByID(ctx context.Context, id int64) (AiMessage, error)
 	GetAIOrganizationByUUID(ctx context.Context, argUuid uuid.UUID) (GetAIOrganizationByUUIDRow, error)
@@ -220,10 +228,19 @@ type Querier interface {
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
 	GetMessageTemplate(ctx context.Context, arg GetMessageTemplateParams) (MessageTemplate, error)
 	GetMessageTemplateByKey(ctx context.Context, arg GetMessageTemplateByKeyParams) (MessageTemplate, error)
+	GetMessageTemplateDefault(ctx context.Context, arg GetMessageTemplateDefaultParams) (MessageTemplateDefault, error)
+	// Organization override regardless of is_active (passive = channel disabled).
+	GetMessageTemplateOverride(ctx context.Context, arg GetMessageTemplateOverrideParams) (MessageTemplate, error)
 	GetNotificationByID(ctx context.Context, id int64) (Notification, error)
 	GetNotificationByUUID(ctx context.Context, argUuid uuid.UUID) (Notification, error)
+	GetNotificationMemberSettings(ctx context.Context, arg GetNotificationMemberSettingsParams) (NotificationMemberSetting, error)
+	GetNotificationOrganization(ctx context.Context, id int64) (GetNotificationOrganizationRow, error)
 	GetNotificationPreferences(ctx context.Context, userID int64) (NotificationPreference, error)
+	GetNotificationRecipientCustomer(ctx context.Context, arg GetNotificationRecipientCustomerParams) (GetNotificationRecipientCustomerRow, error)
+	// A member of the organization (tenant isolation for user recipients).
+	GetNotificationRecipientUser(ctx context.Context, arg GetNotificationRecipientUserParams) (GetNotificationRecipientUserRow, error)
 	GetNotificationRule(ctx context.Context, arg GetNotificationRuleParams) (NotificationRule, error)
+	GetNotificationTypePreference(ctx context.Context, arg GetNotificationTypePreferenceParams) (NotificationTypePreference, error)
 	GetOAuthAccountByProviderAccount(ctx context.Context, arg GetOAuthAccountByProviderAccountParams) (GetOAuthAccountByProviderAccountRow, error)
 	GetOAuthAccountByUserProvider(ctx context.Context, arg GetOAuthAccountByUserProviderParams) (GetOAuthAccountByUserProviderRow, error)
 	GetOAuthProviderSettings(ctx context.Context, provider string) (OauthProviderSetting, error)
@@ -249,6 +266,7 @@ type Querier interface {
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
 	GetSaleOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetSaleOrgAndPhoneByUUIDRow, error)
+	GetScheduledNotificationByKey(ctx context.Context, arg GetScheduledNotificationByKeyParams) (ScheduledNotification, error)
 	GetServiceByCode(ctx context.Context, arg GetServiceByCodeParams) (Service, error)
 	GetServiceByID(ctx context.Context, arg GetServiceByIDParams) (Service, error)
 	GetServiceByName(ctx context.Context, arg GetServiceByNameParams) (Service, error)
@@ -270,6 +288,8 @@ type Querier interface {
 	GetTodoByUUID(ctx context.Context, arg GetTodoByUUIDParams) (GetTodoByUUIDRow, error)
 	GetTodoCustomerRef(ctx context.Context, arg GetTodoCustomerRefParams) (GetTodoCustomerRefRow, error)
 	GetTodoJobRef(ctx context.Context, arg GetTodoJobRefParams) (GetTodoJobRefRow, error)
+	GetTodoReminderState(ctx context.Context, arg GetTodoReminderStateParams) (string, error)
+	GetTodoRowByID(ctx context.Context, arg GetTodoRowByIDParams) (Todo, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
@@ -296,7 +316,12 @@ type Querier interface {
 	InsertNotificationHistory(ctx context.Context, arg InsertNotificationHistoryParams) (NotificationHistory, error)
 	InsertOutboundMessage(ctx context.Context, arg InsertOutboundMessageParams) (OutboundMessage, error)
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) (OutboxEvent, error)
+	InsertQueuedOutboundMessage(ctx context.Context, arg InsertQueuedOutboundMessageParams) (OutboundMessage, error)
 	InsertRolePermission(ctx context.Context, arg InsertRolePermissionParams) error
+	// Inserts a notification slot. A conflicting cancelled row is revived (a
+	// reschedule back to the same slot); any other conflict returns no row, which
+	// the caller treats as a duplicate.
+	InsertScheduledNotification(ctx context.Context, arg InsertScheduledNotificationParams) (ScheduledNotification, error)
 	InsertStorageActivity(ctx context.Context, arg InsertStorageActivityParams) (StorageActivity, error)
 	InsertStorageLink(ctx context.Context, arg InsertStorageLinkParams) (StorageLink, error)
 	InsertStorageShare(ctx context.Context, arg InsertStorageShareParams) (StorageShare, error)
@@ -356,8 +381,10 @@ type Querier interface {
 	ListImportJobsForActor(ctx context.Context, arg ListImportJobsForActorParams) ([]ImportJob, error)
 	ListImportJobsForOrganization(ctx context.Context, arg ListImportJobsForOrganizationParams) ([]ImportJob, error)
 	ListLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
+	ListMessageTemplateDefaults(ctx context.Context) ([]MessageTemplateDefault, error)
 	ListMessageTemplatesByOrg(ctx context.Context, organizationID int64) ([]MessageTemplate, error)
 	ListNotificationRulesByOrg(ctx context.Context, organizationID int64) ([]NotificationRule, error)
+	ListNotificationTypePreferences(ctx context.Context, arg ListNotificationTypePreferencesParams) ([]NotificationTypePreference, error)
 	ListNotificationsForUser(ctx context.Context, arg ListNotificationsForUserParams) ([]Notification, error)
 	ListOAuthAccountsByUserID(ctx context.Context, userID int64) ([]ListOAuthAccountsByUserIDRow, error)
 	ListOAuthAccountsForUserIDs(ctx context.Context, userIds []int64) ([]ListOAuthAccountsForUserIDsRow, error)
@@ -366,6 +393,8 @@ type Querier interface {
 	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
 	ListOrganizationMembersByUserID(ctx context.Context, userID int64) ([]ListOrganizationMembersByUserIDRow, error)
 	ListOrganizationsFiltered(ctx context.Context, arg ListOrganizationsFilteredParams) ([]Organization, error)
+	// Pending reminder fire times for a page of subjects (no N+1 in lists).
+	ListPendingRemindersForSubjects(ctx context.Context, arg ListPendingRemindersForSubjectsParams) ([]ListPendingRemindersForSubjectsRow, error)
 	ListPermissionSlugsByRoleID(ctx context.Context, roleID int64) ([]string, error)
 	ListPermissionSlugsByRoleSlug(ctx context.Context, slug string) ([]string, error)
 	ListPermissionsFiltered(ctx context.Context, arg ListPermissionsFilteredParams) ([]Permission, error)
@@ -393,6 +422,7 @@ type Querier interface {
 	ListRolesFiltered(ctx context.Context, arg ListRolesFilteredParams) ([]Role, error)
 	ListRolesForExport(ctx context.Context, q_ pgtype.Text) ([]Role, error)
 	ListRolesForUserIDs(ctx context.Context, userIds []int64) ([]ListRolesForUserIDsRow, error)
+	ListScheduledNotificationsBySubject(ctx context.Context, arg ListScheduledNotificationsBySubjectParams) ([]ScheduledNotification, error)
 	ListServiceJobLines(ctx context.Context, arg ListServiceJobLinesParams) ([]ListServiceJobLinesRow, error)
 	ListServiceJobPayments(ctx context.Context, arg ListServiceJobPaymentsParams) ([]ListServiceJobPaymentsRow, error)
 	ListServiceJobs(ctx context.Context, arg ListServiceJobsParams) ([]ListServiceJobsRow, error)
@@ -458,6 +488,10 @@ type Querier interface {
 	MarkOutboxFailed(ctx context.Context, arg MarkOutboxFailedParams) error
 	MarkOutboxPublished(ctx context.Context, id int64) error
 	MarkOutboxRetry(ctx context.Context, arg MarkOutboxRetryParams) error
+	MarkScheduledNotificationCancelled(ctx context.Context, arg MarkScheduledNotificationCancelledParams) (ScheduledNotification, error)
+	// Back to pending with backoff, or failed once max_attempts is reached.
+	MarkScheduledNotificationRetry(ctx context.Context, arg MarkScheduledNotificationRetryParams) (ScheduledNotification, error)
+	MarkScheduledNotificationSent(ctx context.Context, arg MarkScheduledNotificationSentParams) (ScheduledNotification, error)
 	MarkServiceJobCancelled(ctx context.Context, arg MarkServiceJobCancelledParams) (ServiceJob, error)
 	MarkServiceJobDelivered(ctx context.Context, arg MarkServiceJobDeliveredParams) (ServiceJob, error)
 	MarkServiceJobDone(ctx context.Context, arg MarkServiceJobDoneParams) (ServiceJob, error)
@@ -466,6 +500,7 @@ type Querier interface {
 	NextContractInstanceNumber(ctx context.Context, organizationID int64) (int32, error)
 	PingDB(ctx context.Context) (int32, error)
 	QueueImportJob(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
+	ReleaseStuckScheduledNotifications(ctx context.Context, staleBefore pgtype.Timestamptz) (int64, error)
 	RemoveUserRoleBySlug(ctx context.Context, arg RemoveUserRoleBySlugParams) error
 	ReplaceUserRoles(ctx context.Context, userID int64) error
 	ReportCariOutstanding(ctx context.Context, arg ReportCariOutstandingParams) ([]ReportCariOutstandingRow, error)
@@ -569,8 +604,10 @@ type Querier interface {
 	UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAppSessionQRParams) (WhatsappSession, error)
 	UpsertAIOrganizationSettings(ctx context.Context, arg UpsertAIOrganizationSettingsParams) (AiOrganizationSetting, error)
 	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
+	UpsertNotificationMemberSettings(ctx context.Context, arg UpsertNotificationMemberSettingsParams) (NotificationMemberSetting, error)
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)
 	UpsertNotificationRule(ctx context.Context, arg UpsertNotificationRuleParams) (NotificationRule, error)
+	UpsertNotificationTypePreference(ctx context.Context, arg UpsertNotificationTypePreferenceParams) (NotificationTypePreference, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)
