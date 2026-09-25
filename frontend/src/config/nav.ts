@@ -28,6 +28,8 @@ import {
   ChartColumn,
   FileText,
   Sparkles,
+  Megaphone,
+  FileSignature,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -39,6 +41,8 @@ import { routes } from "@/config/routes";
 import { defineNav } from "@/features/nav-engine";
 import { usersNavItem } from "@/features/users/nav";
 import { TodosNavAdornment } from "@/features/todos/nav";
+import { LeadsNavAdornment } from "@/features/leads/nav";
+import { QuotesNavAdornment } from "@/features/quotes/nav";
 
 export const platformNav = defineNav({
   id: "platform",
@@ -362,6 +366,22 @@ export function tenantNav(slug: string) {
             href: routes.tenant.customers.root(slug),
             icon: Users,
             permission: permissions.customers.read,
+          },
+          {
+            id: "leads",
+            titleKey: "layout.nav_leads",
+            href: routes.tenant.leads.root(slug),
+            icon: Megaphone,
+            permission: permissions.leads.read,
+            Adornment: LeadsNavAdornment,
+          },
+          {
+            id: "quotes",
+            titleKey: "layout.nav_quotes",
+            href: routes.tenant.quotes.root(slug),
+            icon: FileSignature,
+            permission: permissions.quotes.read,
+            Adornment: QuotesNavAdornment,
           },
           {
             id: "suppliers",

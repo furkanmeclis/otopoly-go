@@ -53,5 +53,11 @@
   "tenant.setup.job.title": "İlk iş emri",
   "tenant.setup.job.hint": "Aracı kabul edip panoda takip edin",
   "tenant.setup.contract.title": "Sözleşme şablonu",
-  "tenant.setup.contract.hint": "Seramik, PPF gibi işler için"
+  "tenant.setup.contract.hint": "Seramik, PPF gibi işler için",
+  "pipeline.follow_up": "Takip edilecek fırsat",
+  "pipeline.overdue": "{{count}} geciken takip",
+  "pipeline.open_leads": "{{count}} açık fırsat",
+  "pipeline.open_quotes": "Yanıt bekleyen teklifler",
+  "pipeline.expiring": "{{count}} teklif 3 gün içinde bitiyor",
+  "pipeline.awaiting": "{{count}} teklif yanıt bekliyor"
 }

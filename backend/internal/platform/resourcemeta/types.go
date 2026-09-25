@@ -792,3 +792,62 @@ func TenantTodos() ResourceMeta {
 		},
 	}
 }
+
+// TenantLeads returns meta for GET /v1/tenant/leads.
+func TenantLeads() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.leads",
+		DefaultSort:   "-created_at",
+		DefaultFields: []string{"uuid", "customer_name", "interest", "source", "temperature", "status", "follow_up_date", "assignee_name"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: true,
+			Search: true, Filter: true, Sort: true, Export: false,
+		},
+		SearchableFields: []string{"customer_name", "customer_phone", "interest", "vehicle_text", "vehicle_plate"},
+		SortableFields:   []string{"created_at", "follow_up_date", "updated_at"},
+		FilterableFields: []string{"status", "temperature", "source", "assignee", "follow_up"},
+		Columns: []Column{
+			{Key: "customer_name", LabelKey: "leads.fields.customer", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "interest", LabelKey: "leads.fields.interest", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "source", LabelKey: "leads.fields.source", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "temperature", LabelKey: "leads.fields.temperature", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "status", LabelKey: "leads.fields.status", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "follow_up_date", LabelKey: "leads.fields.follow_up_date", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "assignee_name", LabelKey: "leads.fields.assignee", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "leads.fields.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: false},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "leads.fields.status", Variant: FilterVariantFaceted},
+			{Key: "temperature", LabelKey: "leads.fields.temperature", Variant: FilterVariantFaceted},
+			{Key: "source", LabelKey: "leads.fields.source", Variant: FilterVariantFaceted},
+		},
+	}
+}
+
+// TenantQuotes returns meta for GET /v1/tenant/quotes.
+func TenantQuotes() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.quotes",
+		DefaultSort:   "-created_at",
+		DefaultFields: []string{"uuid", "number", "customer_name", "vehicle_plate", "status", "grand_total", "valid_until", "created_at"},
+		Capabilities: Capabilities{
+			Create: true, Read: true, Update: true, Delete: false,
+			Search: true, Filter: true, Sort: true, Export: false,
+		},
+		SearchableFields: []string{"number", "customer_name", "customer_phone", "vehicle_plate"},
+		SortableFields:   []string{"created_at", "grand_total", "valid_until"},
+		FilterableFields: []string{"status", "customer_uuid", "lead_uuid"},
+		Columns: []Column{
+			{Key: "number", LabelKey: "quotes.fields.number", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "customer_name", LabelKey: "quotes.fields.customer", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "vehicle_plate", LabelKey: "quotes.fields.vehicle", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "status", LabelKey: "quotes.fields.status", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "grand_total", LabelKey: "quotes.fields.grand_total", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "valid_until", LabelKey: "quotes.fields.valid_until", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "created_at", LabelKey: "quotes.fields.created_at", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "quotes.fields.status", Variant: FilterVariantFaceted},
+		},
+	}
+}

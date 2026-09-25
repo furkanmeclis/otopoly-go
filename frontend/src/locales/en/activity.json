@@ -124,5 +124,19 @@
   "actions.ai.action.failed": "AI action failed",
   "resources.todos.todo": "Todo",
   "resources.ai.action": "AI action",
-  "via_ai": "via AI"
+  "via_ai": "via AI",
+  "actions.tenant.lead.create": "Lead created",
+  "actions.tenant.lead.update": "Lead updated",
+  "actions.tenant.lead.status": "Lead status changed",
+  "actions.tenant.lead.delete": "Lead deleted",
+  "actions.tenant.lead.note": "Note added to lead",
+  "actions.tenant.lead.todo": "Todo created from lead",
+  "actions.tenant.quote.create": "Quote created",
+  "actions.tenant.quote.update": "Quote updated",
+  "actions.tenant.quote.status": "Quote status changed",
+  "actions.tenant.quote.send": "Quote sent",
+  "actions.tenant.quote.convert": "Quote converted to a job",
+  "actions.tenant.quote.public_decision": "Customer answered a quote",
+  "resources.lead": "Lead",
+  "resources.quote": "Quote"
 }

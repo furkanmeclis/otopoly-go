@@ -121,5 +121,9 @@
   "labels.tenant.todos.read": "Görevleri görüntüle",
   "labels.tenant.todos.write": "Görevleri yönet",
   "labels.tenant.messaging.read": "Mesajlaşma ayarlarını görüntüle",
-  "labels.tenant.messaging.write": "Mesajlaşma ayarlarını ve şablonları yönet"
+  "labels.tenant.messaging.write": "Mesajlaşma ayarlarını ve şablonları yönet",
+  "labels.tenant.leads.read": "Fırsatları görüntüle",
+  "labels.tenant.leads.write": "Fırsatları yönet",
+  "labels.tenant.quotes.read": "Teklifleri görüntüle",
+  "labels.tenant.quotes.write": "Teklifleri yönet"
 }

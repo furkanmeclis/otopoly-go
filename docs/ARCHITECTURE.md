@@ -196,6 +196,27 @@ Platform presets and tenant templates/instances for on-site multi-party signing.
 - `POST …/signers/{signerUuid}/otp/verify` checks the latest code (5 min TTL, 5 attempts, 60 s resend cooldown, 5 sends/hour; only the SHA-256 hash is stored in `contract_signer_otps`). A verified OTP authorizes signing for 30 minutes.
 - Evidence (`otp_verified_at`, channel, masked phone, signed-at) is stored on `contract_signers` and printed under each signature in the executed PDF.
 
+## Tenant leads & quotes (`/t/{slug}/leads`, `/t/{slug}/quotes`)
+
+Leads (fırsat) and quotes (teklif) under `/v1/tenant/leads/*` and `/v1/tenant/quotes/*`; customer share link at `/q/{token}` backed by `/v1/public/quotes/{token}` (rate-limited, no auth, token ≠ uuid).
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.leads.read` / `.write` | owners + staff | List, timeline, notes, status/temperature |
+| `tenant.quotes.read` / `.write` | owners + staff | Editor, send, status, PDF, reminders |
+| `tenant.quotes.write` + `tenant.jobs.write` | owners + staff | Quick convert to job |
+| `tenant.leads.write` + `tenant.todos.write` | owners + staff | Todo from lead |
+
+**Tables:** `leads`, `lead_events` (timeline), `quote_counters` (per org/year number sequence, `TKL-YYYY-NNNN`), `quotes`, `quote_lines`, `quote_events`, `quote_deliveries`, `quote_reminders`.
+
+**Quote status:** `draft → sent → viewed → accepted | rejected`, `expired` (hourly Asynq sweep `app:quotes:expire_sweep`, day-granular Europe/Istanbul; only draft/sent/viewed), `cancelled` (also accepted → cancelled while not converted). `viewed` / `expired` are system-only. Terminal transitions cancel pending reminders.
+
+**Totals** are computed server-side with exact rationals (half-up, 2 decimals per line): line discount (percent/amount), optional quote discount allocated pro rata, VAT inclusive (catalog default) or exclusive.
+
+**Seams** (defaults are no-ops; wired in `internal/httpserver/server.go`): `quotesusecase.QuoteMessenger` (send PDF + message), `quotesusecase.ReminderScheduler` (schedule/cancel reminders; fire → `Service.ReminderMessage` + `Service.CompleteReminder`), `leadsusecase.TodoCreator` (default: plain todo via the todos module linked to the customer).
+
+**Quick convert:** service lines → job lines via `jobsusecase.Service.Create` (unit price = paid amount after discounts, VAT incl.); product / free-text lines are listed in the job notes, not transferred. A missing vehicle is created on the customer from the quote's plate + catalog model (only missing fields are asked). The quote stores `job_id`; a linked lead becomes `won`.
+
 ## Tenant cari (`/t/{slug}/cari`)
 
 Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.

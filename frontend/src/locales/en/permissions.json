@@ -121,5 +121,9 @@
   "labels.tenant.todos.read": "View todos",
   "labels.tenant.todos.write": "Manage todos",
   "labels.tenant.messaging.read": "View messaging settings",
-  "labels.tenant.messaging.write": "Manage messaging settings and templates"
+  "labels.tenant.messaging.write": "Manage messaging settings and templates",
+  "labels.tenant.leads.read": "View leads",
+  "labels.tenant.leads.write": "Manage leads",
+  "labels.tenant.quotes.read": "View quotes",
+  "labels.tenant.quotes.write": "Manage quotes"
 }

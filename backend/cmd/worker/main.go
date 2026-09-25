@@ -21,6 +21,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
 	centerusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/usecase"
+	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
@@ -135,6 +136,8 @@ func main() {
 		contractsPublicURL = cfg.Storage.S3.PublicBaseURL
 	}
 	contractsSvc := contractsusecase.New(pool, queries, activityRec, store, pdfClient, nil, contractsPublicURL)
+	quotesSvc := quotesusecase.New(pool, queries, activityRec, store, pdfClient, cfg.Auth.FrontendURL)
+	quotesSvc.SetLogger(log)
 	searchReg := searchengine.NewRegistry(
 		searchadapters.NewUsers(queries),
 		searchadapters.NewRoles(queries),
@@ -175,6 +178,7 @@ func main() {
 		WithLogPurge(logsSvc.ApplyDueRules).
 		WithContractExecute(contractsSvc.ExecutePDF).
 		WithReminderSweep(centerSvc.ProcessDue).
+		WithQuoteExpire(quotesSvc.ExpireDue).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -192,6 +196,10 @@ func main() {
 	}
 	if err := queue.RegisterReminderSweep(scheduler, log); err != nil {
 		log.Error("reminder_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterQuoteExpirySchedule(scheduler); err != nil {
+		log.Error("quote_expiry_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
 	go func() {
