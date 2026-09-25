@@ -563,6 +563,17 @@ type MessageTemplate struct {
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
+type MessageTemplateDefault struct {
+	ID        int64              `json:"id"`
+	EventType string             `json:"event_type"`
+	Channel   string             `json:"channel"`
+	Locale    string             `json:"locale"`
+	Subject   string             `json:"subject"`
+	Body      string             `json:"body"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Notification struct {
 	ID                int64              `json:"id"`
 	Uuid              uuid.UUID          `json:"uuid"`
@@ -601,6 +612,15 @@ type NotificationHistory struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
+type NotificationMemberSetting struct {
+	ID             int64              `json:"id"`
+	UserID         int64              `json:"user_id"`
+	OrganizationID int64              `json:"organization_id"`
+	Phone          string             `json:"phone"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type NotificationPreference struct {
 	ID              int64              `json:"id"`
 	Uuid            uuid.UUID          `json:"uuid"`
@@ -635,6 +655,19 @@ type NotificationTemplate struct {
 	Active    bool               `json:"active"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type NotificationTypePreference struct {
+	ID               int64              `json:"id"`
+	UserID           int64              `json:"user_id"`
+	OrganizationID   int64              `json:"organization_id"`
+	NotificationType string             `json:"notification_type"`
+	InappEnabled     bool               `json:"inapp_enabled"`
+	EmailEnabled     bool               `json:"email_enabled"`
+	WhatsappEnabled  bool               `json:"whatsapp_enabled"`
+	SmsEnabled       bool               `json:"sms_enabled"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
 type OauthAccount struct {
@@ -712,21 +745,25 @@ type OtpCode struct {
 }
 
 type OutboundMessage struct {
-	ID                int64              `json:"id"`
-	Uuid              uuid.UUID          `json:"uuid"`
-	OrganizationID    int64              `json:"organization_id"`
-	EventType         string             `json:"event_type"`
-	Channel           string             `json:"channel"`
-	RecipientPhone    string             `json:"recipient_phone"`
-	Status            string             `json:"status"`
-	ProviderReference string             `json:"provider_reference"`
-	ErrorMessage      string             `json:"error_message"`
-	Payload           []byte             `json:"payload"`
-	SubjectType       string             `json:"subject_type"`
-	SubjectUuid       pgtype.UUID        `json:"subject_uuid"`
-	SentAt            pgtype.Timestamptz `json:"sent_at"`
-	CreatedAt         pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	ID                      int64              `json:"id"`
+	Uuid                    uuid.UUID          `json:"uuid"`
+	OrganizationID          int64              `json:"organization_id"`
+	EventType               string             `json:"event_type"`
+	Channel                 string             `json:"channel"`
+	RecipientPhone          string             `json:"recipient_phone"`
+	Status                  string             `json:"status"`
+	ProviderReference       string             `json:"provider_reference"`
+	ErrorMessage            string             `json:"error_message"`
+	Payload                 []byte             `json:"payload"`
+	SubjectType             string             `json:"subject_type"`
+	SubjectUuid             pgtype.UUID        `json:"subject_uuid"`
+	SentAt                  pgtype.Timestamptz `json:"sent_at"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+	Body                    string             `json:"body"`
+	Attachment              []byte             `json:"attachment"`
+	Attempts                int32              `json:"attempts"`
+	ScheduledNotificationID pgtype.Int8        `json:"scheduled_notification_id"`
 }
 
 type OutboxEvent struct {
@@ -895,6 +932,38 @@ type RolePermission struct {
 	PermissionID int64 `json:"permission_id"`
 }
 
+type ScheduledNotification struct {
+	ID                  int64              `json:"id"`
+	Uuid                uuid.UUID          `json:"uuid"`
+	OrganizationID      int64              `json:"organization_id"`
+	Kind                string             `json:"kind"`
+	SubjectType         string             `json:"subject_type"`
+	SubjectID           int64              `json:"subject_id"`
+	RecipientUserID     pgtype.Int8        `json:"recipient_user_id"`
+	RecipientCustomerID pgtype.Int8        `json:"recipient_customer_id"`
+	RecipientPhone      string             `json:"recipient_phone"`
+	RecipientEmail      string             `json:"recipient_email"`
+	Channels            []string           `json:"channels"`
+	DeliveredChannels   []string           `json:"delivered_channels"`
+	Locale              string             `json:"locale"`
+	Vars                []byte             `json:"vars"`
+	Attachment          []byte             `json:"attachment"`
+	ActionUrl           string             `json:"action_url"`
+	FireAt              pgtype.Timestamptz `json:"fire_at"`
+	NextAttemptAt       pgtype.Timestamptz `json:"next_attempt_at"`
+	Status              string             `json:"status"`
+	Attempts            int32              `json:"attempts"`
+	MaxAttempts         int32              `json:"max_attempts"`
+	LastError           string             `json:"last_error"`
+	DedupeKey           string             `json:"dedupe_key"`
+	LockedAt            pgtype.Timestamptz `json:"locked_at"`
+	SentAt              pgtype.Timestamptz `json:"sent_at"`
+	CancelledAt         pgtype.Timestamptz `json:"cancelled_at"`
+	CreatedBy           pgtype.Int8        `json:"created_by"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Service struct {
 	ID              int64              `json:"id"`
 	Uuid            uuid.UUID          `json:"uuid"`
@@ -1059,23 +1128,26 @@ type Supplier struct {
 }
 
 type Todo struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	OrganizationID int64              `json:"organization_id"`
-	Title          string             `json:"title"`
-	Notes          string             `json:"notes"`
-	DueDate        pgtype.Date        `json:"due_date"`
-	DueTime        pgtype.Time        `json:"due_time"`
-	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
-	CustomerID     pgtype.Int8        `json:"customer_id"`
-	ServiceJobID   pgtype.Int8        `json:"service_job_id"`
-	Status         string             `json:"status"`
-	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
-	CompletedBy    pgtype.Int8        `json:"completed_by"`
-	CreatedBy      pgtype.Int8        `json:"created_by"`
-	ViaAi          bool               `json:"via_ai"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ID              int64              `json:"id"`
+	Uuid            uuid.UUID          `json:"uuid"`
+	OrganizationID  int64              `json:"organization_id"`
+	Title           string             `json:"title"`
+	Notes           string             `json:"notes"`
+	DueDate         pgtype.Date        `json:"due_date"`
+	DueTime         pgtype.Time        `json:"due_time"`
+	AssigneeUserID  pgtype.Int8        `json:"assignee_user_id"`
+	CustomerID      pgtype.Int8        `json:"customer_id"`
+	ServiceJobID    pgtype.Int8        `json:"service_job_id"`
+	Status          string             `json:"status"`
+	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
+	CompletedBy     pgtype.Int8        `json:"completed_by"`
+	CreatedBy       pgtype.Int8        `json:"created_by"`
+	ViaAi           bool               `json:"via_ai"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	LeadID          pgtype.Int8        `json:"lead_id"`
+	QuoteID         pgtype.Int8        `json:"quote_id"`
+	ReminderOffsets []int32            `json:"reminder_offsets"`
 }
 
 type User struct {

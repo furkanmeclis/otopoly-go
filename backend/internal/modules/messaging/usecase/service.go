@@ -11,7 +11,9 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/msgtemplate"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -39,6 +41,13 @@ type Querier interface {
 	DeleteMessageTemplate(ctx context.Context, arg db.DeleteMessageTemplateParams) error
 	InsertOutboundMessage(ctx context.Context, arg db.InsertOutboundMessageParams) (db.OutboundMessage, error)
 	UpdateOutboundMessageStatus(ctx context.Context, arg db.UpdateOutboundMessageStatusParams) (db.OutboundMessage, error)
+	GetMessageTemplateDefault(ctx context.Context, arg db.GetMessageTemplateDefaultParams) (db.MessageTemplateDefault, error)
+	ListMessageTemplateDefaults(ctx context.Context) ([]db.MessageTemplateDefault, error)
+	GetMessageTemplateOverride(ctx context.Context, arg db.GetMessageTemplateOverrideParams) (db.MessageTemplate, error)
+	DeleteMessageTemplateByKey(ctx context.Context, arg db.DeleteMessageTemplateByKeyParams) (int64, error)
+	InsertQueuedOutboundMessage(ctx context.Context, arg db.InsertQueuedOutboundMessageParams) (db.OutboundMessage, error)
+	ClaimOutboundMessage(ctx context.Context, id int64) (db.OutboundMessage, error)
+	FinishOutboundMessage(ctx context.Context, arg db.FinishOutboundMessageParams) (db.OutboundMessage, error)
 }
 
 // ChannelSender is a generic send interface for a messaging channel.
@@ -53,6 +62,8 @@ type Service struct {
 	wp       *providers.WhatsAppProvider
 	sms      *providers.NoopSMSProvider
 	channels map[string]ChannelSender
+	enq      Enqueuer
+	store    storage.Driver
 }
 
 // New builds a messaging service.
@@ -625,7 +636,8 @@ func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateIn
 	return result, nil
 }
 
-// EnsureDefaultTemplates upserts missing active templates for known events.
+// EnsureDefaultTemplates migrates legacy rules. Templates are no longer copied per
+// organization: system defaults apply until an override is saved.
 func (s *Service) EnsureDefaultTemplates(ctx context.Context, orgID int64) error {
 	// Migrate legacy job.completed rule → job.ready when the new rule is absent.
 	if legacy, err := s.q.GetNotificationRule(ctx, db.GetNotificationRuleParams{
@@ -647,59 +659,16 @@ func (s *Service) EnsureDefaultTemplates(ctx context.Context, orgID int64) error
 		}
 	}
 
-	for _, ev := range model.AllEvents() {
-		for _, ch := range []string{model.ChannelWhatsApp} {
-			_, err := s.q.GetMessageTemplateByKey(ctx, db.GetMessageTemplateByKeyParams{
-				OrganizationID: orgID,
-				EventType:      ev.Type,
-				Channel:        ch,
-				Locale:         "tr",
-			})
-			if err == nil {
-				continue
-			}
-			if !errors.Is(err, pgx.ErrNoRows) {
-				return err
-			}
-			subject, body, ok := model.DefaultTemplate(ev.Type, ch)
-			if !ok {
-				continue
-			}
-			vars, _ := json.Marshal(model.EventVariables(ev.Type))
-			_, _ = s.q.UpsertMessageTemplate(ctx, db.UpsertMessageTemplateParams{
-				OrganizationID: orgID,
-				EventType:      ev.Type,
-				Channel:        ch,
-				Locale:         "tr",
-				Subject:        subject,
-				Body:           body,
-				Variables:      vars,
-				IsActive:       true,
-			})
-		}
-	}
+	// Defaults live in message_template_defaults; organizations only store overrides.
 	return nil
 }
 
 func (s *Service) resolveBody(ctx context.Context, orgID int64, eventType, channel string, vars map[string]string) (string, bool) {
-	tmpl, err := s.q.GetMessageTemplateByKey(ctx, db.GetMessageTemplateByKeyParams{
-		OrganizationID: orgID,
-		EventType:      eventType,
-		Channel:        channel,
-		Locale:         "tr",
-	})
-	var raw string
-	if err != nil {
-		subject, body, ok := model.DefaultTemplate(eventType, channel)
-		_ = subject
-		if !ok {
-			return "", false
-		}
-		raw = body
-	} else {
-		raw = tmpl.Body
+	tpl, found, err := s.ResolveTemplate(ctx, orgID, eventType, channel, "tr")
+	if err != nil || !found || !tpl.Active {
+		return "", false
 	}
-	return renderTemplate(raw, vars), true
+	return renderTemplate(tpl.Body, vars), true
 }
 
 // --- helpers ---
@@ -756,12 +725,23 @@ func mapTemplate(row db.MessageTemplate) model.MessageTemplate {
 	return m
 }
 
-// renderTemplate replaces {{key}} placeholders (Mustache-lite). Dot form {{.key}} is also accepted.
+// renderTemplate renders via the shared placeholder engine. business_name
+// and company_name are aliases of each other.
 func renderTemplate(tplStr string, vars map[string]string) string {
-	out := tplStr
+	return msgtemplate.Render(tplStr, WithCompanyAlias(vars))
+}
+
+// WithCompanyAlias fills company_name/business_name from each other.
+func WithCompanyAlias(vars map[string]string) map[string]string {
+	out := make(map[string]string, len(vars)+1)
 	for k, v := range vars {
-		out = strings.ReplaceAll(out, "{{"+k+"}}", v)
-		out = strings.ReplaceAll(out, "{{."+k+"}}", v)
+		out[k] = v
+	}
+	if out["company_name"] == "" {
+		out["company_name"] = out["business_name"]
+	}
+	if out["business_name"] == "" {
+		out["business_name"] = out["company_name"]
 	}
 	return out
 }

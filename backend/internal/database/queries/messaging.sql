@@ -109,3 +109,47 @@ SET
     sent_at            = $5
 WHERE id = $1
 RETURNING *;
+
+-- name: GetMessageTemplateDefault :one
+SELECT * FROM message_template_defaults
+WHERE event_type = $1 AND channel = $2 AND locale = $3;
+
+-- name: ListMessageTemplateDefaults :many
+SELECT * FROM message_template_defaults
+ORDER BY event_type, channel, locale;
+
+-- name: GetMessageTemplateOverride :one
+-- Organization override regardless of is_active (passive = channel disabled).
+SELECT * FROM message_templates
+WHERE organization_id = $1 AND event_type = $2 AND channel = $3 AND locale = $4;
+
+-- name: DeleteMessageTemplateByKey :execrows
+DELETE FROM message_templates
+WHERE organization_id = $1 AND event_type = $2 AND channel = $3 AND locale = $4;
+
+-- name: InsertQueuedOutboundMessage :one
+INSERT INTO outbound_messages (
+    organization_id, event_type, channel, recipient_phone, status, payload,
+    subject_type, subject_uuid, body, attachment, scheduled_notification_id
+) VALUES (
+    sqlc.arg(organization_id), sqlc.arg(event_type), sqlc.arg(channel), sqlc.arg(recipient_phone), 'queued',
+    sqlc.arg(payload), sqlc.arg(subject_type), sqlc.narg(subject_uuid), sqlc.arg(body), sqlc.narg(attachment),
+    sqlc.narg(scheduled_notification_id)
+)
+RETURNING *;
+
+-- name: ClaimOutboundMessage :one
+-- queued → sending; a second delivery of the same task finds no row.
+UPDATE outbound_messages
+SET status = 'sending', attempts = attempts + 1
+WHERE id = sqlc.arg(id) AND status = 'queued'
+RETURNING *;
+
+-- name: FinishOutboundMessage :one
+UPDATE outbound_messages
+SET status = sqlc.arg(status),
+    provider_reference = sqlc.arg(provider_reference),
+    error_message = sqlc.arg(error_message),
+    sent_at = sqlc.narg(sent_at)
+WHERE id = sqlc.arg(id) AND status = 'sending'
+RETURNING *;

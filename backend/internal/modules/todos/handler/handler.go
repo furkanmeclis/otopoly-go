@@ -86,6 +86,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		Status:   strings.TrimSpace(r.URL.Query().Get("status")),
 		Scope:    strings.TrimSpace(r.URL.Query().Get("scope")),
 		Assignee: strings.TrimSpace(r.URL.Query().Get("assignee")),
+		Customer: strings.TrimSpace(r.URL.Query().Get("customer")),
+		Lead:     strings.TrimSpace(r.URL.Query().Get("lead")),
+		Quote:    strings.TrimSpace(r.URL.Query().Get("quote")),
 		Q:        q.Q,
 	})
 	if err != nil {

@@ -23,6 +23,12 @@ const (
 	EventJobPaid        = "job.paid"
 	EventJobCancelled   = "job.cancelled"
 	EventSaleCreated    = "sale.created"
+	// Quote events: templates + org rules exist here; the quotes module sends
+	// them through the notification center.
+	EventQuoteCreated  = "quote.created"
+	EventQuoteSent     = "quote.sent"
+	EventQuoteReminder = "quote.reminder"
+	EventQuoteExpiring = "quote.expiring"
 	// EventContractOTP is transactional (not rule-driven): contract signing consent code.
 	EventContractOTP = "contract.otp"
 
@@ -44,6 +50,10 @@ func AllEvents() []EventMeta {
 		{Type: EventJobPaid, Label: "Ödeme Alındı"},
 		{Type: EventJobCancelled, Label: "İş İptal Edildi"},
 		{Type: EventSaleCreated, Label: "Satış Oluşturuldu"},
+		{Type: EventQuoteCreated, Label: "Teklif Oluşturuldu"},
+		{Type: EventQuoteSent, Label: "Teklif Gönderildi"},
+		{Type: EventQuoteReminder, Label: "Teklif Hatırlatması"},
+		{Type: EventQuoteExpiring, Label: "Teklif Süresi Doluyor"},
 	}
 }
 

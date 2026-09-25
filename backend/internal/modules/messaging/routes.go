@@ -50,5 +50,10 @@ func RegisterRoutes(
 	mux.Handle("PATCH /v1/tenant/messaging/templates/{uuid}", tWrite(h.PatchTemplate))
 	mux.Handle("DELETE /v1/tenant/messaging/templates/{uuid}", tWrite(h.DeleteTemplate))
 
+	// Template catalog (types × channels × locales, system defaults + org overrides)
+	mux.Handle("GET /v1/tenant/messaging/template-types", tRead(h.TemplateCatalog))
+	mux.Handle("PUT /v1/tenant/messaging/template-types/{event_type}/{channel}/{locale}", tWrite(h.SaveTemplateByKey))
+	mux.Handle("DELETE /v1/tenant/messaging/template-types/{event_type}/{channel}/{locale}", tWrite(h.ResetTemplateByKey))
+
 	mux.Handle("POST /v1/tenant/messaging/simulate", tWrite(h.Simulate))
 }

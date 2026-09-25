@@ -83,6 +83,8 @@ export const Permission = {
   TenantAIUse: "tenant.ai.use",
   TenantTodosRead: "tenant.todos.read",
   TenantTodosWrite: "tenant.todos.write",
+  TenantMessagingRead: "tenant.messaging.read",
+  TenantMessagingWrite: "tenant.messaging.write",
 
   TenantCatalogRead: "tenant.catalog.read",
   TenantCatalogWrite: "tenant.catalog.write",
@@ -285,6 +287,10 @@ export const permissions = {
   todos: {
     read: Permission.TenantTodosRead,
     write: Permission.TenantTodosWrite,
+  },
+  messaging: {
+    read: Permission.TenantMessagingRead,
+    write: Permission.TenantMessagingWrite,
   },
   auth: {
     session: Permission.AuthSession,

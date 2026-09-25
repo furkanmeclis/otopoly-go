@@ -18,14 +18,17 @@ FROM todos t
 WHERE t.organization_id = $1
   AND ($2::text IS NULL OR t.status = $2)
   AND ($3::bigint IS NULL OR t.assignee_user_id = $3)
-  AND ($4::text IS NULL OR t.title ILIKE '%' || $4 || '%' OR t.notes ILIKE '%' || $4 || '%')
+  AND ($4::bigint IS NULL OR t.customer_id = $4)
+  AND ($5::bigint IS NULL OR t.lead_id = $5)
+  AND ($6::bigint IS NULL OR t.quote_id = $6)
+  AND ($7::text IS NULL OR t.title ILIKE '%' || $7 || '%' OR t.notes ILIKE '%' || $7 || '%')
   AND (
-    $5::text IS NULL
-    OR ($5 = 'overdue' AND t.due_date < $6::date)
-    OR ($5 = 'today' AND t.due_date = $6::date)
-    OR ($5 = 'open_due' AND t.due_date <= $6::date)
-    OR ($5 = 'upcoming' AND t.due_date > $6::date)
-    OR ($5 = 'no_date' AND t.due_date IS NULL)
+    $8::text IS NULL
+    OR ($8 = 'overdue' AND t.due_date < $9::date)
+    OR ($8 = 'today' AND t.due_date = $9::date)
+    OR ($8 = 'open_due' AND t.due_date <= $9::date)
+    OR ($8 = 'upcoming' AND t.due_date > $9::date)
+    OR ($8 = 'no_date' AND t.due_date IS NULL)
   )
 `
 
@@ -33,6 +36,9 @@ type CountTodosParams struct {
 	OrganizationID int64       `json:"organization_id"`
 	Status         pgtype.Text `json:"status"`
 	AssigneeUserID pgtype.Int8 `json:"assignee_user_id"`
+	CustomerID     pgtype.Int8 `json:"customer_id"`
+	LeadID         pgtype.Int8 `json:"lead_id"`
+	QuoteID        pgtype.Int8 `json:"quote_id"`
 	Q              pgtype.Text `json:"q"`
 	Scope          pgtype.Text `json:"scope"`
 	Today          pgtype.Date `json:"today"`
@@ -43,6 +49,9 @@ func (q *Queries) CountTodos(ctx context.Context, arg CountTodosParams) (int64, 
 		arg.OrganizationID,
 		arg.Status,
 		arg.AssigneeUserID,
+		arg.CustomerID,
+		arg.LeadID,
+		arg.QuoteID,
 		arg.Q,
 		arg.Scope,
 		arg.Today,
@@ -55,26 +64,29 @@ func (q *Queries) CountTodos(ctx context.Context, arg CountTodosParams) (int64, 
 const createTodo = `-- name: CreateTodo :one
 INSERT INTO todos (
     organization_id, title, notes, due_date, due_time, assignee_user_id,
-    customer_id, service_job_id, created_by, via_ai
+    customer_id, service_job_id, created_by, via_ai, lead_id, quote_id, reminder_offsets
 ) VALUES (
     $1, $2, $3, $4, $5,
     $6, $7, $8, $9,
-    $10
+    $10, $11, $12, $13::integer[]
 )
-RETURNING id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at
+RETURNING id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at, lead_id, quote_id, reminder_offsets
 `
 
 type CreateTodoParams struct {
-	OrganizationID int64       `json:"organization_id"`
-	Title          string      `json:"title"`
-	Notes          string      `json:"notes"`
-	DueDate        pgtype.Date `json:"due_date"`
-	DueTime        pgtype.Time `json:"due_time"`
-	AssigneeUserID pgtype.Int8 `json:"assignee_user_id"`
-	CustomerID     pgtype.Int8 `json:"customer_id"`
-	ServiceJobID   pgtype.Int8 `json:"service_job_id"`
-	CreatedBy      pgtype.Int8 `json:"created_by"`
-	ViaAi          bool        `json:"via_ai"`
+	OrganizationID  int64       `json:"organization_id"`
+	Title           string      `json:"title"`
+	Notes           string      `json:"notes"`
+	DueDate         pgtype.Date `json:"due_date"`
+	DueTime         pgtype.Time `json:"due_time"`
+	AssigneeUserID  pgtype.Int8 `json:"assignee_user_id"`
+	CustomerID      pgtype.Int8 `json:"customer_id"`
+	ServiceJobID    pgtype.Int8 `json:"service_job_id"`
+	CreatedBy       pgtype.Int8 `json:"created_by"`
+	ViaAi           bool        `json:"via_ai"`
+	LeadID          pgtype.Int8 `json:"lead_id"`
+	QuoteID         pgtype.Int8 `json:"quote_id"`
+	ReminderOffsets []int32     `json:"reminder_offsets"`
 }
 
 func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, error) {
@@ -89,6 +101,9 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 		arg.ServiceJobID,
 		arg.CreatedBy,
 		arg.ViaAi,
+		arg.LeadID,
+		arg.QuoteID,
+		arg.ReminderOffsets,
 	)
 	var i Todo
 	err := row.Scan(
@@ -109,6 +124,9 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 		&i.ViaAi,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LeadID,
+		&i.QuoteID,
+		&i.ReminderOffsets,
 	)
 	return i, err
 }
@@ -159,7 +177,7 @@ func (q *Queries) GetTodoAssigneeByUUID(ctx context.Context, arg GetTodoAssignee
 }
 
 const getTodoByUUID = `-- name: GetTodoByUUID :one
-SELECT t.id, t.uuid, t.organization_id, t.title, t.notes, t.due_date, t.due_time, t.assignee_user_id, t.customer_id, t.service_job_id, t.status, t.completed_at, t.completed_by, t.created_by, t.via_ai, t.created_at, t.updated_at,
+SELECT t.id, t.uuid, t.organization_id, t.title, t.notes, t.due_date, t.due_time, t.assignee_user_id, t.customer_id, t.service_job_id, t.status, t.completed_at, t.completed_by, t.created_by, t.via_ai, t.created_at, t.updated_at, t.lead_id, t.quote_id, t.reminder_offsets,
        au.uuid AS assignee_uuid,
        COALESCE(btrim(au.name || ' ' || au.surname), '')::text AS assignee_name,
        c.uuid AS customer_uuid,
@@ -181,30 +199,33 @@ type GetTodoByUUIDParams struct {
 }
 
 type GetTodoByUUIDRow struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	OrganizationID int64              `json:"organization_id"`
-	Title          string             `json:"title"`
-	Notes          string             `json:"notes"`
-	DueDate        pgtype.Date        `json:"due_date"`
-	DueTime        pgtype.Time        `json:"due_time"`
-	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
-	CustomerID     pgtype.Int8        `json:"customer_id"`
-	ServiceJobID   pgtype.Int8        `json:"service_job_id"`
-	Status         string             `json:"status"`
-	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
-	CompletedBy    pgtype.Int8        `json:"completed_by"`
-	CreatedBy      pgtype.Int8        `json:"created_by"`
-	ViaAi          bool               `json:"via_ai"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	AssigneeUuid   pgtype.UUID        `json:"assignee_uuid"`
-	AssigneeName   string             `json:"assignee_name"`
-	CustomerUuid   pgtype.UUID        `json:"customer_uuid"`
-	CustomerName   string             `json:"customer_name"`
-	JobUuid        pgtype.UUID        `json:"job_uuid"`
-	JobPlate       string             `json:"job_plate"`
-	CreatedByName  string             `json:"created_by_name"`
+	ID              int64              `json:"id"`
+	Uuid            uuid.UUID          `json:"uuid"`
+	OrganizationID  int64              `json:"organization_id"`
+	Title           string             `json:"title"`
+	Notes           string             `json:"notes"`
+	DueDate         pgtype.Date        `json:"due_date"`
+	DueTime         pgtype.Time        `json:"due_time"`
+	AssigneeUserID  pgtype.Int8        `json:"assignee_user_id"`
+	CustomerID      pgtype.Int8        `json:"customer_id"`
+	ServiceJobID    pgtype.Int8        `json:"service_job_id"`
+	Status          string             `json:"status"`
+	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
+	CompletedBy     pgtype.Int8        `json:"completed_by"`
+	CreatedBy       pgtype.Int8        `json:"created_by"`
+	ViaAi           bool               `json:"via_ai"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	LeadID          pgtype.Int8        `json:"lead_id"`
+	QuoteID         pgtype.Int8        `json:"quote_id"`
+	ReminderOffsets []int32            `json:"reminder_offsets"`
+	AssigneeUuid    pgtype.UUID        `json:"assignee_uuid"`
+	AssigneeName    string             `json:"assignee_name"`
+	CustomerUuid    pgtype.UUID        `json:"customer_uuid"`
+	CustomerName    string             `json:"customer_name"`
+	JobUuid         pgtype.UUID        `json:"job_uuid"`
+	JobPlate        string             `json:"job_plate"`
+	CreatedByName   string             `json:"created_by_name"`
 }
 
 func (q *Queries) GetTodoByUUID(ctx context.Context, arg GetTodoByUUIDParams) (GetTodoByUUIDRow, error) {
@@ -228,6 +249,9 @@ func (q *Queries) GetTodoByUUID(ctx context.Context, arg GetTodoByUUIDParams) (G
 		&i.ViaAi,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LeadID,
+		&i.QuoteID,
+		&i.ReminderOffsets,
 		&i.AssigneeUuid,
 		&i.AssigneeName,
 		&i.CustomerUuid,
@@ -285,6 +309,59 @@ func (q *Queries) GetTodoJobRef(ctx context.Context, arg GetTodoJobRefParams) (G
 	return i, err
 }
 
+const getTodoReminderState = `-- name: GetTodoReminderState :one
+SELECT status FROM todos WHERE id = $1 AND organization_id = $2
+`
+
+type GetTodoReminderStateParams struct {
+	ID             int64 `json:"id"`
+	OrganizationID int64 `json:"organization_id"`
+}
+
+func (q *Queries) GetTodoReminderState(ctx context.Context, arg GetTodoReminderStateParams) (string, error) {
+	row := q.db.QueryRow(ctx, getTodoReminderState, arg.ID, arg.OrganizationID)
+	var status string
+	err := row.Scan(&status)
+	return status, err
+}
+
+const getTodoRowByID = `-- name: GetTodoRowByID :one
+SELECT id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at, lead_id, quote_id, reminder_offsets FROM todos WHERE id = $1 AND organization_id = $2
+`
+
+type GetTodoRowByIDParams struct {
+	ID             int64 `json:"id"`
+	OrganizationID int64 `json:"organization_id"`
+}
+
+func (q *Queries) GetTodoRowByID(ctx context.Context, arg GetTodoRowByIDParams) (Todo, error) {
+	row := q.db.QueryRow(ctx, getTodoRowByID, arg.ID, arg.OrganizationID)
+	var i Todo
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.Title,
+		&i.Notes,
+		&i.DueDate,
+		&i.DueTime,
+		&i.AssigneeUserID,
+		&i.CustomerID,
+		&i.ServiceJobID,
+		&i.Status,
+		&i.CompletedAt,
+		&i.CompletedBy,
+		&i.CreatedBy,
+		&i.ViaAi,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LeadID,
+		&i.QuoteID,
+		&i.ReminderOffsets,
+	)
+	return i, err
+}
+
 const listTodoAssignees = `-- name: ListTodoAssignees :many
 SELECT u.id, u.uuid, u.name, u.surname, om.role
 FROM organization_members om
@@ -328,7 +405,7 @@ func (q *Queries) ListTodoAssignees(ctx context.Context, organizationID int64) (
 }
 
 const listTodos = `-- name: ListTodos :many
-SELECT t.id, t.uuid, t.organization_id, t.title, t.notes, t.due_date, t.due_time, t.assignee_user_id, t.customer_id, t.service_job_id, t.status, t.completed_at, t.completed_by, t.created_by, t.via_ai, t.created_at, t.updated_at,
+SELECT t.id, t.uuid, t.organization_id, t.title, t.notes, t.due_date, t.due_time, t.assignee_user_id, t.customer_id, t.service_job_id, t.status, t.completed_at, t.completed_by, t.created_by, t.via_ai, t.created_at, t.updated_at, t.lead_id, t.quote_id, t.reminder_offsets,
        au.uuid AS assignee_uuid,
        COALESCE(btrim(au.name || ' ' || au.surname), '')::text AS assignee_name,
        c.uuid AS customer_uuid,
@@ -344,25 +421,31 @@ LEFT JOIN users cu ON cu.id = t.created_by
 WHERE t.organization_id = $1
   AND ($2::text IS NULL OR t.status = $2)
   AND ($3::bigint IS NULL OR t.assignee_user_id = $3)
-  AND ($4::text IS NULL OR t.title ILIKE '%' || $4 || '%' OR t.notes ILIKE '%' || $4 || '%')
+  AND ($4::bigint IS NULL OR t.customer_id = $4)
+  AND ($5::bigint IS NULL OR t.lead_id = $5)
+  AND ($6::bigint IS NULL OR t.quote_id = $6)
+  AND ($7::text IS NULL OR t.title ILIKE '%' || $7 || '%' OR t.notes ILIKE '%' || $7 || '%')
   AND (
-    $5::text IS NULL
-    OR ($5 = 'overdue' AND t.due_date < $6::date)
-    OR ($5 = 'today' AND t.due_date = $6::date)
-    OR ($5 = 'open_due' AND t.due_date <= $6::date)
-    OR ($5 = 'upcoming' AND t.due_date > $6::date)
-    OR ($5 = 'no_date' AND t.due_date IS NULL)
+    $8::text IS NULL
+    OR ($8 = 'overdue' AND t.due_date < $9::date)
+    OR ($8 = 'today' AND t.due_date = $9::date)
+    OR ($8 = 'open_due' AND t.due_date <= $9::date)
+    OR ($8 = 'upcoming' AND t.due_date > $9::date)
+    OR ($8 = 'no_date' AND t.due_date IS NULL)
   )
 ORDER BY (t.status = 'done') ASC,
          CASE WHEN t.status = 'done' THEN t.completed_at END DESC NULLS LAST,
          t.due_date ASC NULLS LAST, t.due_time ASC NULLS LAST, t.id DESC
-LIMIT $8 OFFSET $7
+LIMIT $11 OFFSET $10
 `
 
 type ListTodosParams struct {
 	OrganizationID int64       `json:"organization_id"`
 	Status         pgtype.Text `json:"status"`
 	AssigneeUserID pgtype.Int8 `json:"assignee_user_id"`
+	CustomerID     pgtype.Int8 `json:"customer_id"`
+	LeadID         pgtype.Int8 `json:"lead_id"`
+	QuoteID        pgtype.Int8 `json:"quote_id"`
 	Q              pgtype.Text `json:"q"`
 	Scope          pgtype.Text `json:"scope"`
 	Today          pgtype.Date `json:"today"`
@@ -371,30 +454,33 @@ type ListTodosParams struct {
 }
 
 type ListTodosRow struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	OrganizationID int64              `json:"organization_id"`
-	Title          string             `json:"title"`
-	Notes          string             `json:"notes"`
-	DueDate        pgtype.Date        `json:"due_date"`
-	DueTime        pgtype.Time        `json:"due_time"`
-	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
-	CustomerID     pgtype.Int8        `json:"customer_id"`
-	ServiceJobID   pgtype.Int8        `json:"service_job_id"`
-	Status         string             `json:"status"`
-	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
-	CompletedBy    pgtype.Int8        `json:"completed_by"`
-	CreatedBy      pgtype.Int8        `json:"created_by"`
-	ViaAi          bool               `json:"via_ai"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	AssigneeUuid   pgtype.UUID        `json:"assignee_uuid"`
-	AssigneeName   string             `json:"assignee_name"`
-	CustomerUuid   pgtype.UUID        `json:"customer_uuid"`
-	CustomerName   string             `json:"customer_name"`
-	JobUuid        pgtype.UUID        `json:"job_uuid"`
-	JobPlate       string             `json:"job_plate"`
-	CreatedByName  string             `json:"created_by_name"`
+	ID              int64              `json:"id"`
+	Uuid            uuid.UUID          `json:"uuid"`
+	OrganizationID  int64              `json:"organization_id"`
+	Title           string             `json:"title"`
+	Notes           string             `json:"notes"`
+	DueDate         pgtype.Date        `json:"due_date"`
+	DueTime         pgtype.Time        `json:"due_time"`
+	AssigneeUserID  pgtype.Int8        `json:"assignee_user_id"`
+	CustomerID      pgtype.Int8        `json:"customer_id"`
+	ServiceJobID    pgtype.Int8        `json:"service_job_id"`
+	Status          string             `json:"status"`
+	CompletedAt     pgtype.Timestamptz `json:"completed_at"`
+	CompletedBy     pgtype.Int8        `json:"completed_by"`
+	CreatedBy       pgtype.Int8        `json:"created_by"`
+	ViaAi           bool               `json:"via_ai"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	LeadID          pgtype.Int8        `json:"lead_id"`
+	QuoteID         pgtype.Int8        `json:"quote_id"`
+	ReminderOffsets []int32            `json:"reminder_offsets"`
+	AssigneeUuid    pgtype.UUID        `json:"assignee_uuid"`
+	AssigneeName    string             `json:"assignee_name"`
+	CustomerUuid    pgtype.UUID        `json:"customer_uuid"`
+	CustomerName    string             `json:"customer_name"`
+	JobUuid         pgtype.UUID        `json:"job_uuid"`
+	JobPlate        string             `json:"job_plate"`
+	CreatedByName   string             `json:"created_by_name"`
 }
 
 // scope: overdue | today | upcoming | no_date | open_due (overdue + today); today is the local date.
@@ -403,6 +489,9 @@ func (q *Queries) ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTod
 		arg.OrganizationID,
 		arg.Status,
 		arg.AssigneeUserID,
+		arg.CustomerID,
+		arg.LeadID,
+		arg.QuoteID,
 		arg.Q,
 		arg.Scope,
 		arg.Today,
@@ -434,6 +523,9 @@ func (q *Queries) ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTod
 			&i.ViaAi,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LeadID,
+			&i.QuoteID,
+			&i.ReminderOffsets,
 			&i.AssigneeUuid,
 			&i.AssigneeName,
 			&i.CustomerUuid,
@@ -458,7 +550,7 @@ SET status = $1::text,
     completed_at = CASE WHEN $1::text = 'done' THEN now() ELSE NULL END,
     completed_by = CASE WHEN $1::text = 'done' THEN $2::bigint ELSE NULL END
 WHERE id = $3 AND organization_id = $4
-RETURNING id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at
+RETURNING id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at, lead_id, quote_id, reminder_offsets
 `
 
 type SetTodoStatusParams struct {
@@ -494,6 +586,9 @@ func (q *Queries) SetTodoStatus(ctx context.Context, arg SetTodoStatusParams) (T
 		&i.ViaAi,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LeadID,
+		&i.QuoteID,
+		&i.ReminderOffsets,
 	)
 	return i, err
 }
@@ -545,26 +640,37 @@ SET title = COALESCE($1, title),
     customer_id = CASE WHEN $9::boolean THEN NULL
                        ELSE COALESCE($10, customer_id) END,
     service_job_id = CASE WHEN $11::boolean THEN NULL
-                          ELSE COALESCE($12, service_job_id) END
-WHERE id = $13 AND organization_id = $14
-RETURNING id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at
+                          ELSE COALESCE($12, service_job_id) END,
+    lead_id = CASE WHEN $13::boolean THEN NULL
+                   ELSE COALESCE($14, lead_id) END,
+    quote_id = CASE WHEN $15::boolean THEN NULL
+                    ELSE COALESCE($16, quote_id) END,
+    reminder_offsets = CASE WHEN $3::boolean THEN '{}'::integer[]
+                            ELSE COALESCE($17::integer[], reminder_offsets) END
+WHERE id = $18 AND organization_id = $19
+RETURNING id, uuid, organization_id, title, notes, due_date, due_time, assignee_user_id, customer_id, service_job_id, status, completed_at, completed_by, created_by, via_ai, created_at, updated_at, lead_id, quote_id, reminder_offsets
 `
 
 type UpdateTodoParams struct {
-	Title          pgtype.Text `json:"title"`
-	Notes          pgtype.Text `json:"notes"`
-	ClearDue       bool        `json:"clear_due"`
-	DueDate        pgtype.Date `json:"due_date"`
-	ClearDueTime   bool        `json:"clear_due_time"`
-	DueTime        pgtype.Time `json:"due_time"`
-	ClearAssignee  bool        `json:"clear_assignee"`
-	AssigneeUserID pgtype.Int8 `json:"assignee_user_id"`
-	ClearCustomer  bool        `json:"clear_customer"`
-	CustomerID     pgtype.Int8 `json:"customer_id"`
-	ClearJob       bool        `json:"clear_job"`
-	ServiceJobID   pgtype.Int8 `json:"service_job_id"`
-	ID             int64       `json:"id"`
-	OrganizationID int64       `json:"organization_id"`
+	Title           pgtype.Text `json:"title"`
+	Notes           pgtype.Text `json:"notes"`
+	ClearDue        bool        `json:"clear_due"`
+	DueDate         pgtype.Date `json:"due_date"`
+	ClearDueTime    bool        `json:"clear_due_time"`
+	DueTime         pgtype.Time `json:"due_time"`
+	ClearAssignee   bool        `json:"clear_assignee"`
+	AssigneeUserID  pgtype.Int8 `json:"assignee_user_id"`
+	ClearCustomer   bool        `json:"clear_customer"`
+	CustomerID      pgtype.Int8 `json:"customer_id"`
+	ClearJob        bool        `json:"clear_job"`
+	ServiceJobID    pgtype.Int8 `json:"service_job_id"`
+	ClearLead       bool        `json:"clear_lead"`
+	LeadID          pgtype.Int8 `json:"lead_id"`
+	ClearQuote      bool        `json:"clear_quote"`
+	QuoteID         pgtype.Int8 `json:"quote_id"`
+	ReminderOffsets []int32     `json:"reminder_offsets"`
+	ID              int64       `json:"id"`
+	OrganizationID  int64       `json:"organization_id"`
 }
 
 func (q *Queries) UpdateTodo(ctx context.Context, arg UpdateTodoParams) (Todo, error) {
@@ -581,6 +687,11 @@ func (q *Queries) UpdateTodo(ctx context.Context, arg UpdateTodoParams) (Todo, e
 		arg.CustomerID,
 		arg.ClearJob,
 		arg.ServiceJobID,
+		arg.ClearLead,
+		arg.LeadID,
+		arg.ClearQuote,
+		arg.QuoteID,
+		arg.ReminderOffsets,
 		arg.ID,
 		arg.OrganizationID,
 	)
@@ -603,6 +714,9 @@ func (q *Queries) UpdateTodo(ctx context.Context, arg UpdateTodoParams) (Todo, e
 		&i.ViaAi,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LeadID,
+		&i.QuoteID,
+		&i.ReminderOffsets,
 	)
 	return i, err
 }

@@ -262,29 +262,78 @@ func (c *OrgContextClient) GenerateQR(ctx context.Context) (model.QRCodeResponse
 	return model.QRCodeResponse{}, nil
 }
 
-func (c *OrgContextClient) Send(ctx context.Context, phone, body string) (string, error) {
+// liveClient returns the connected client for the org in ctx.
+func (c *OrgContextClient) liveClient(ctx context.Context) (*whatsmeow.Client, error) {
 	scope, ok := orgctx.ScopeFrom(ctx)
 	if !ok {
-		return "", fmt.Errorf("no org scope in context")
+		return nil, fmt.Errorf("no org scope in context")
 	}
-
 	c.mgr.mu.RLock()
 	entry, exists := c.mgr.entries[scope.InternalID]
 	connected := exists && entry.client != nil && entry.client.IsConnected()
 	c.mgr.mu.RUnlock()
 	if !connected {
-		return "", fmt.Errorf("whatsapp not connected for org %d (reconnect from messaging settings if backend restarted)", scope.InternalID)
+		return nil, fmt.Errorf("whatsapp not connected for org %d (reconnect from messaging settings if backend restarted)", scope.InternalID)
 	}
+	return entry.client, nil
+}
 
+func (c *OrgContextClient) Send(ctx context.Context, phone, body string) (string, error) {
+	cli, err := c.liveClient(ctx)
+	if err != nil {
+		return "", err
+	}
 	normalized, err := normalizeWhatsAppPhone(phone)
 	if err != nil {
 		return "", err
 	}
 	jid := types.NewJID(normalized, types.DefaultUserServer)
 	msg := &waE2E.Message{Conversation: proto.String(body)}
-	resp, err := entry.client.SendMessage(ctx, jid, msg)
+	resp, err := cli.SendMessage(ctx, jid, msg)
 	if err != nil {
 		return "", fmt.Errorf("whatsapp send: %w", err)
+	}
+	return resp.ID, nil
+}
+
+// SendDocument uploads the file to WhatsApp media servers and sends a
+// DocumentMessage (caption = message body). Failures are returned so the
+// messaging queue can retry with backoff.
+func (c *OrgContextClient) SendDocument(ctx context.Context, phone string, doc Document) (string, error) {
+	cli, err := c.liveClient(ctx)
+	if err != nil {
+		return "", err
+	}
+	normalized, err := normalizeWhatsAppPhone(phone)
+	if err != nil {
+		return "", err
+	}
+	uploaded, err := cli.Upload(ctx, doc.Data, whatsmeow.MediaDocument)
+	if err != nil {
+		return "", fmt.Errorf("whatsapp upload: %w", err)
+	}
+	mime := doc.MimeType
+	if mime == "" {
+		mime = "application/octet-stream"
+	}
+	msg := &waE2E.Message{DocumentMessage: &waE2E.DocumentMessage{
+		URL:           proto.String(uploaded.URL),
+		DirectPath:    proto.String(uploaded.DirectPath),
+		MediaKey:      uploaded.MediaKey,
+		Mimetype:      proto.String(mime),
+		FileEncSHA256: uploaded.FileEncSHA256,
+		FileSHA256:    uploaded.FileSHA256,
+		FileLength:    proto.Uint64(uploaded.FileLength),
+		FileName:      proto.String(doc.FileName),
+		Title:         proto.String(doc.FileName),
+	}}
+	if strings.TrimSpace(doc.Caption) != "" {
+		msg.DocumentMessage.Caption = proto.String(doc.Caption)
+	}
+	jid := types.NewJID(normalized, types.DefaultUserServer)
+	resp, err := cli.SendMessage(ctx, jid, msg)
+	if err != nil {
+		return "", fmt.Errorf("whatsapp send document: %w", err)
 	}
 	return resp.ID, nil
 }

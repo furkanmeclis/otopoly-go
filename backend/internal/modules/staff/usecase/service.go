@@ -113,12 +113,46 @@ func (s *Service) List(ctx context.Context) ([]Member, error) {
 			Email:     row.Email,
 			Name:      row.Name,
 			Surname:   row.Surname,
-			Status:    row.Status,
+			Status:    staffStatus(row.Status),
 			Role:      row.Role,
 			CreatedAt: row.CreatedAt.Time,
 		})
 	}
 	return out, nil
+}
+
+// staffStatus maps users.status to the staff API vocabulary (active|inactive).
+func staffStatus(userStatus string) string {
+	if userStatus == "disabled" {
+		return "inactive"
+	}
+	return userStatus
+}
+
+// ensureOrgOwnedAccount guards owner-side account changes. Users are global:
+// a staff row may belong to someone who is also a member of another
+// organization or holds platform roles. Resetting their password or
+// disabling them from one tenant would take over / lock out that global
+// account, so only accounts that exist solely as this organization's staff
+// may be managed here.
+func (s *Service) ensureOrgOwnedAccount(ctx context.Context, userID int64) error {
+	memberships, err := s.q.ListOrganizationMembersByUserID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if len(memberships) > 1 {
+		return fmt.Errorf("%w: this account belongs to other organizations as well; ask a platform admin", ErrConflict)
+	}
+	roles, err := s.q.ListUserRoleSlugs(ctx, userID)
+	if err != nil {
+		return err
+	}
+	for _, role := range roles {
+		if role != rbac.RoleOrganizationUser {
+			return fmt.Errorf("%w: this account has platform roles; ask a platform admin", ErrConflict)
+		}
+	}
+	return nil
 }
 
 func (s *Service) Options(ctx context.Context) ([]MemberOption, error) {
@@ -246,19 +280,35 @@ func (s *Service) Patch(ctx context.Context, userUUID uuid.UUID, in PatchInput) 
 	if status != "active" && status != "inactive" {
 		return Member{}, fmt.Errorf("%w: status must be active or inactive", ErrInvalidRequest)
 	}
+	if err := s.ensureOrgOwnedAccount(ctx, row.UserID); err != nil {
+		return Member{}, err
+	}
+	// users.status only allows active|disabled|pending; "inactive" used to
+	// violate the CHECK constraint, so deactivation never took effect.
+	userStatus := status
+	if status == "inactive" {
+		userStatus = "disabled"
+	}
 	updated, err := s.q.UpdateUserPlatform(ctx, db.UpdateUserPlatformParams{
 		Uuid:   userUUID,
-		Status: pgtype.Text{String: status, Valid: true},
+		Status: pgtype.Text{String: userStatus, Valid: true},
 	})
 	if err != nil {
 		return Member{}, err
+	}
+	if userStatus == "disabled" {
+		// Cut existing sessions; access tokens are already rejected for
+		// disabled users by the identity loader.
+		if err := s.q.RevokeAllRefreshTokensForUser(ctx, row.UserID); err != nil {
+			return Member{}, err
+		}
 	}
 	m := Member{
 		UUID:      updated.Uuid,
 		Email:     updated.Email,
 		Name:      updated.Name,
 		Surname:   updated.Surname,
-		Status:    updated.Status,
+		Status:    staffStatus(updated.Status),
 		Role:      row.Role,
 		CreatedAt: row.CreatedAt.Time,
 	}
@@ -290,6 +340,9 @@ func (s *Service) ResetPassword(ctx context.Context, userUUID uuid.UUID, in Rese
 	if len(in.Password) < 8 {
 		return fmt.Errorf("%w: password must be at least 8 characters", ErrInvalidRequest)
 	}
+	if err := s.ensureOrgOwnedAccount(ctx, row.UserID); err != nil {
+		return err
+	}
 	hash, err := password.Hash(in.Password)
 	if err != nil {
 		return err
@@ -298,6 +351,9 @@ func (s *Service) ResetPassword(ctx context.Context, userUUID uuid.UUID, in Rese
 		ID:           row.UserID,
 		PasswordHash: hash,
 	}); err != nil {
+		return err
+	}
+	if err := s.q.RevokeAllRefreshTokensForUser(ctx, row.UserID); err != nil {
 		return err
 	}
 	s.recordActivity(ctx, "staff.reset_password", "tenant.staff", &userUUID, nil)

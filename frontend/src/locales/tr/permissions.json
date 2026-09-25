@@ -119,5 +119,7 @@
   "labels.platform.ai.write": "AI asistan ayarlarını yönet",
   "labels.tenant.ai.use": "AI asistanı kullan",
   "labels.tenant.todos.read": "Görevleri görüntüle",
-  "labels.tenant.todos.write": "Görevleri yönet"
+  "labels.tenant.todos.write": "Görevleri yönet",
+  "labels.tenant.messaging.read": "Mesajlaşma ayarlarını görüntüle",
+  "labels.tenant.messaging.write": "Mesajlaşma ayarlarını ve şablonları yönet"
 }

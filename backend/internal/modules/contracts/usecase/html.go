@@ -3,6 +3,7 @@ package usecase
 import (
 	"fmt"
 	"html"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -27,6 +28,22 @@ var trTime = time.FixedZone("UTC+3", 3*60*60)
 
 func formatEvidenceTime(t time.Time) string {
 	return t.In(trTime).Format("02.01.2006 15:04:05") + " (UTC+3)"
+}
+
+// contractPDFCSPMeta locks down subresource loading for Gotenberg rendering.
+const contractPDFCSPMeta = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'">`
+
+// activeHTMLTag matches elements that can navigate, load remote documents, or
+// execute code even under a restrictive CSP (meta refresh, base, frames,
+// objects, scripts). Template HTML is rich text; none of these are needed.
+var (
+	activeHTMLBlock = regexp.MustCompile(`(?is)<\s*script\b[^>]*>.*?<\s*/\s*script\s*>`)
+	activeHTMLTag   = regexp.MustCompile(`(?is)<\s*/?\s*(?:meta|base|link|script|iframe|frame|frameset|object|embed|applet|portal)\b[^>]*>`)
+)
+
+// stripActiveHTML removes active/navigating elements from tenant template HTML.
+func stripActiveHTML(s string) string {
+	return activeHTMLTag.ReplaceAllString(activeHTMLBlock.ReplaceAllString(s, ""), "")
 }
 
 type mediaEmbed struct {
@@ -127,6 +144,11 @@ func buildContractHTML(opts contractPDFOptions) string {
 
 	var b strings.Builder
 	b.WriteString("<!DOCTYPE html><html><head><meta charset=\"utf-8\">")
+	// Template HTML is tenant-authored and rendered by Chromium inside the
+	// cluster network: forbid every remote/local subresource, frames and
+	// scripts so a template cannot probe internal services (SSRF) or read
+	// files into the PDF. Attachments and signatures are inlined as data: URIs.
+	b.WriteString(contractPDFCSPMeta)
 	b.WriteString("<title>")
 	b.WriteString(html.EscapeString(opts.Title))
 	b.WriteString("</title>")
@@ -327,7 +349,7 @@ h1{
 	b.WriteString(`</h1><div class="hero-rule"></div></div>`)
 
 	b.WriteString(`<div class="content">`)
-	b.WriteString(opts.ContentHTML)
+	b.WriteString(stripActiveHTML(opts.ContentHTML))
 	b.WriteString(`</div>`)
 
 	if len(opts.Signatures) > 0 {
