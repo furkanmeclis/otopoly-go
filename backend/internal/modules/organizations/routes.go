@@ -9,6 +9,7 @@ import (
 	orghandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/handler"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 )
@@ -22,8 +23,10 @@ func RegisterRoutes(
 	tokens *jwt.Manager,
 	loader middleware.IdentityLoader,
 	q *db.Queries,
+	limiter *ratelimit.Limiter,
 ) {
 	h := orghandler.New(svc, auth, store)
+	h.SetRateLimiter(limiter)
 	authn := middleware.Authenticate(tokens, loader)
 	require := func(slug string) func(http.Handler) http.Handler {
 		return middleware.RequirePermission(slug)

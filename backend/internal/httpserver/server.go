@@ -288,7 +288,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	orgSvc := orgusecase.New(deps.DB, deps.Queries)
 	uc.SetOrganizationResolver(orgSvc)
 	authmodule.RegisterRoutes(mux, h, tokens, loader, stepUpSvc)
-	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader, deps.Queries)
+	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader, deps.Queries, ratelimit.New(deps.Redis, cfg.App.Env))
 	financeSvc := financeusecase.New(deps.DB, deps.Queries, activityRec)
 	financeSvc.SetSearchIndexer(searchIndexer)
 	financemodule.RegisterRoutes(mux, financeSvc, tokens, loader, deps.Queries)

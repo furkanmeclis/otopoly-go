@@ -8,6 +8,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/repository"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/password"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
@@ -500,5 +501,80 @@ func TestLastSuperAdminProtection(t *testing.T) {
 	empty := []uuid.UUID{}
 	if _, err := uc.PatchPlatformUser(context.Background(), user.UUID, model.PatchPlatformUserInput{RoleUUIDs: &empty}); !errors.Is(err, ErrLastSuperAdmin) {
 		t.Fatalf("expected last super admin error, got %v", err)
+	}
+}
+
+// revokedRepo simulates a refresh token already rotated by a concurrent call.
+type revokedRepo struct{ *memRepo }
+
+func (r revokedRepo) GetRefreshSession(context.Context, string) (model.RefreshSession, error) {
+	return model.RefreshSession{UserID: 1}, nil
+}
+
+func (r revokedRepo) RevokeRefresh(context.Context, string) error { return repository.ErrNotFound }
+
+func TestRefreshIsSingleUse(t *testing.T) {
+	tokens, _ := jwt.NewManager("test-secret-key-32-bytes-minimum!", time.Minute, time.Hour)
+	uc := New(revokedRepo{newMemRepo()}, tokens)
+	if _, err := uc.Refresh(context.Background(), "raw", model.SessionMeta{}); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("expected ErrInvalidCredentials for already-rotated token, got %v", err)
+	}
+	if err := uc.Logout(context.Background(), "raw"); err != nil {
+		t.Fatalf("logout of already-revoked token must be a no-op, got %v", err)
+	}
+}
+
+func TestLoginDisabledUserRequiresPassword(t *testing.T) {
+	repo := newMemRepo()
+	hash, _ := password.Hash("Secret123")
+	_, _ = repo.CreateUser(context.Background(), model.User{Email: "d@x.io", PasswordHash: hash, Status: "disabled"}, true)
+	tokens, _ := jwt.NewManager("test-secret-key-32-bytes-minimum!", time.Minute, time.Hour)
+	uc := New(repo, tokens)
+	if _, err := uc.Login(context.Background(), "d@x.io", "wrong", "", "", model.SessionMeta{}); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("wrong password on disabled account must not reveal status, got %v", err)
+	}
+	if _, err := uc.Login(context.Background(), "d@x.io", "Secret123", "", "", model.SessionMeta{}); !errors.Is(err, ErrUserDisabled) {
+		t.Fatalf("expected ErrUserDisabled, got %v", err)
+	}
+}
+
+func TestNonSuperAdminCannotEscalateToSuperAdmin(t *testing.T) {
+	repo := newMemRepo()
+	tokens, _ := jwt.NewManager("test-secret-key-32-bytes-minimum!", time.Minute, time.Hour)
+	uc := New(repo, tokens)
+	hash, _ := password.Hash("Secret123")
+	sa, _ := repo.CreateUser(context.Background(), model.User{Email: "sa@x.io", PasswordHash: hash, Status: "active"}, true)
+	repo.userRoles[sa.ID] = []string{rbac.RoleSuperAdmin}
+
+	ctx := authctx.WithPrincipal(context.Background(), authctx.Principal{IsSuperAdmin: false})
+	if err := uc.SetPlatformUserPassword(ctx, sa.UUID, "Another123"); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("non-super-admin reset of super admin password: got %v", err)
+	}
+	name := "X"
+	if _, err := uc.PatchPlatformUser(ctx, sa.UUID, model.PatchPlatformUserInput{Name: &name}); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("non-super-admin patch of super admin: got %v", err)
+	}
+}
+
+func TestCanSubscribeChannelScopes(t *testing.T) {
+	uc := New(newMemRepo(), nil)
+	me, other := uuid.New(), uuid.New()
+	ctx := context.Background()
+	cases := []struct {
+		ch   string
+		sa   bool
+		want bool
+	}{
+		{"user:" + me.String(), false, true},
+		{"user:" + other.String(), false, false},
+		{"conversation:" + other.String(), false, false},
+		{"system.notifications", false, false},
+		{"system.notifications", true, true},
+	}
+	for _, c := range cases {
+		got, err := uc.CanSubscribeChannel(ctx, me, c.sa, c.ch)
+		if err != nil || got != c.want {
+			t.Fatalf("%s (sa=%v): got %v,%v want %v", c.ch, c.sa, got, err, c.want)
+		}
 	}
 }

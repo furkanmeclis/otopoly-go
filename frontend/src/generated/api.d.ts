@@ -7616,6 +7616,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getPublicOrganizationBySlug: {
@@ -8259,7 +8260,10 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": {
-                    /** Format: email */
+                    /**
+                     * Format: email
+                     * @description Optional; must equal the caller's own email (other values are ignored).
+                     */
                     email?: string;
                 };
             };
@@ -8275,6 +8279,7 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
+            429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -8301,6 +8306,7 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -11295,6 +11301,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     resetTenantStaffPassword: {
@@ -11325,6 +11332,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getTenantMessagingSession: {

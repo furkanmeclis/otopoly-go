@@ -3,6 +3,7 @@ package mail
 import (
 	"context"
 	"fmt"
+	"mime"
 	"net"
 	"net/smtp"
 	"strconv"
@@ -66,6 +67,14 @@ func (s *SMTPSender) Send(_ context.Context, msg Message) error {
 	if s.fromName != "" {
 		fromHeader = fmt.Sprintf("%s <%s>", s.fromName, from)
 	}
+	// Header values must not carry CR/LF: subjects interpolate user-chosen
+	// names and a newline would inject extra headers (Bcc, etc.).
+	for _, to := range msg.To {
+		if strings.ContainsAny(to, "\r\n") {
+			return fmt.Errorf("mail: invalid recipient")
+		}
+	}
+	subject := mime.QEncoding.Encode("utf-8", stripHeaderBreaks(msg.Subject))
 	payload := strings.Builder{}
 	payload.WriteString("From: ")
 	payload.WriteString(fromHeader)
@@ -74,7 +83,7 @@ func (s *SMTPSender) Send(_ context.Context, msg Message) error {
 	payload.WriteString(strings.Join(msg.To, ", "))
 	payload.WriteString("\r\n")
 	payload.WriteString("Subject: ")
-	payload.WriteString(msg.Subject)
+	payload.WriteString(subject)
 	payload.WriteString("\r\n")
 	payload.WriteString("MIME-Version: 1.0\r\n")
 	payload.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
@@ -84,6 +93,10 @@ func (s *SMTPSender) Send(_ context.Context, msg Message) error {
 		return fmt.Errorf("mail: send: %w", err)
 	}
 	return nil
+}
+
+func stripHeaderBreaks(v string) string {
+	return strings.NewReplacer("\r\n", " ", "\r", " ", "\n", " ").Replace(v)
 }
 
 // NoopSender discards mail (tests).
