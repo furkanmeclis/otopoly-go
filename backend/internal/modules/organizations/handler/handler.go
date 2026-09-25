@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	authusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
@@ -20,9 +22,15 @@ import (
 )
 
 type Handler struct {
-	svc   *orgusecase.Service
-	auth  *authusecase.AuthUseCase
-	store storage.Driver
+	svc     *orgusecase.Service
+	auth    *authusecase.AuthUseCase
+	store   storage.Driver
+	limiter *ratelimit.Limiter
+}
+
+// SetRateLimiter enables per-IP limits on public business registration.
+func (h *Handler) SetRateLimiter(l *ratelimit.Limiter) {
+	h.limiter = l
 }
 
 func New(svc *orgusecase.Service, auth *authusecase.AuthUseCase, store storage.Driver) *Handler {
@@ -43,6 +51,15 @@ func (h *Handler) PublicRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return
+	}
+	if h.limiter != nil {
+		if ok, retry := h.limiter.AllowRegister(r.Context(), sessionMeta(r).IP); !ok {
+			if retry > 0 {
+				w.Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+			}
+			response.TooManyRequests(w, r, "Too many attempts. Try again later.")
+			return
+		}
 	}
 	result, err := h.svc.Register(r.Context(), orgusecase.RegisterInput{
 		Name: in.Name, Surname: in.Surname, Email: in.Email, Password: in.Password,

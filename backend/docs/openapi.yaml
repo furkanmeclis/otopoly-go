@@ -1120,6 +1120,8 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "409":
           $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
 
   /v1/public/organizations/by-slug/{slug}:
     get:
@@ -1773,6 +1775,7 @@ paths:
                 email:
                   type: string
                   format: email
+                  description: Optional; must equal the caller's own email (other values are ignored).
       responses:
         "200":
           description: Accepted
@@ -1782,6 +1785,8 @@ paths:
                 $ref: "#/components/schemas/EnvelopeStatus"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -1806,6 +1811,8 @@ paths:
                 $ref: "#/components/schemas/EnvelopeStatus"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
 
