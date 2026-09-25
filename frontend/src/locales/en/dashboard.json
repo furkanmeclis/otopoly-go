@@ -53,5 +53,11 @@
   "tenant.setup.job.title": "First job",
   "tenant.setup.job.hint": "Check in a car and track it on the board",
   "tenant.setup.contract.title": "Contract template",
-  "tenant.setup.contract.hint": "For ceramic, PPF and similar jobs"
+  "tenant.setup.contract.hint": "For ceramic, PPF and similar jobs",
+  "pipeline.follow_up": "Leads to follow up",
+  "pipeline.overdue": "{{count}} overdue follow-ups",
+  "pipeline.open_leads": "{{count}} open leads",
+  "pipeline.open_quotes": "Quotes awaiting answer",
+  "pipeline.expiring": "{{count}} quotes expire within 3 days",
+  "pipeline.awaiting": "{{count}} quotes awaiting answer"
 }

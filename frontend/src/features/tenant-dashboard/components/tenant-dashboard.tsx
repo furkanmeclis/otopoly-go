@@ -43,6 +43,7 @@ import { useTenant } from "@/features/organizations/providers/tenant-provider";
 import { useReportsOverview } from "@/features/reports/hooks/use-reports";
 import { useTenantReportsAccess } from "@/features/reports/hooks/use-tenant-reports-access";
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
+import { SalesPipelineWidget } from "@/features/quotes";
 import { TodosWidget } from "@/features/todos";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { cn } from "@/lib/utils";
@@ -130,6 +131,8 @@ export function TenantDashboard({ slug }: { slug: string }) {
       ) : null}
 
       {jobsAccess.canRead ? <TodaySection slug={slug} /> : null}
+
+      <SalesPipelineWidget slug={slug} />
 
       <TodosWidget slug={slug} />
 

@@ -119,5 +119,9 @@
   "labels.platform.ai.write": "Manage AI assistant settings",
   "labels.tenant.ai.use": "Use AI assistant",
   "labels.tenant.todos.read": "View todos",
-  "labels.tenant.todos.write": "Manage todos"
+  "labels.tenant.todos.write": "Manage todos",
+  "labels.tenant.leads.read": "View leads",
+  "labels.tenant.leads.write": "Manage leads",
+  "labels.tenant.quotes.read": "View quotes",
+  "labels.tenant.quotes.write": "Manage quotes"
 }

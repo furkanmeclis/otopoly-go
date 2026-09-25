@@ -58,6 +58,9 @@ function wantsBinaryStream(path: string) {
     path.includes("platform/storage/objects/download") ||
     path.includes("platform/storage/objects/preview") ||
     path.startsWith("public/storage/") ||
+    // Quote PDFs (tenant download / public share link).
+    /^tenant\/quotes\/[^/]+\/pdf$/.test(path) ||
+    /^public\/quotes\/[^/]+\/pdf$/.test(path) ||
     // AI read-aloud: stream MP3 as Speaches produces it.
     path === "tenant/ai/voice/speech"
   );

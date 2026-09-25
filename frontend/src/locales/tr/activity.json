@@ -124,5 +124,19 @@
   "actions.ai.action.failed": "AI işlemi başarısız oldu",
   "resources.todos.todo": "Görev",
   "resources.ai.action": "AI işlemi",
-  "via_ai": "AI üzerinden"
+  "via_ai": "AI üzerinden",
+  "actions.tenant.lead.create": "Fırsat oluşturuldu",
+  "actions.tenant.lead.update": "Fırsat güncellendi",
+  "actions.tenant.lead.status": "Fırsat durumu değişti",
+  "actions.tenant.lead.delete": "Fırsat silindi",
+  "actions.tenant.lead.note": "Fırsata not eklendi",
+  "actions.tenant.lead.todo": "Fırsattan görev oluşturuldu",
+  "actions.tenant.quote.create": "Teklif oluşturuldu",
+  "actions.tenant.quote.update": "Teklif güncellendi",
+  "actions.tenant.quote.status": "Teklif durumu değişti",
+  "actions.tenant.quote.send": "Teklif gönderildi",
+  "actions.tenant.quote.convert": "Teklif iş emrine dönüştürüldü",
+  "actions.tenant.quote.public_decision": "Müşteri teklifi yanıtladı",
+  "resources.lead": "Fırsat",
+  "resources.quote": "Teklif"
 }
