@@ -335,8 +335,17 @@ func (r *Postgres) ResolveOrganizationInternalID(ctx context.Context, orgUUID uu
 	return org.ID, nil
 }
 
+// RevokeRefresh revokes an active refresh token. It returns ErrNotFound when
+// no active row matched, so callers can treat rotation as single-use.
 func (r *Postgres) RevokeRefresh(ctx context.Context, hash string) error {
-	return r.q.RevokeRefreshTokenByHash(ctx, hash)
+	n, err := r.q.RevokeRefreshTokenByHash(ctx, hash)
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 func (r *Postgres) RevokeAllRefresh(ctx context.Context, userID int64) error {
