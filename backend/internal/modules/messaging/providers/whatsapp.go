@@ -12,11 +12,22 @@ import (
 // WhatsAppClient is the interface we'll implement with whatsmeow later.
 type WhatsAppClient interface {
 	Send(ctx context.Context, phone, body string) (string, error)
+	// SendDocument uploads a document and sends it with body as caption.
+	SendDocument(ctx context.Context, phone string, doc Document) (string, error)
 	GenerateQR(ctx context.Context) (model.QRCodeResponse, error)
 	Disconnect(ctx context.Context) error
 	IsConnected() bool
 	// RestoreSession reconnects a previously paired device from sqlstore.
 	RestoreSession(orgID int64, jid string) error
+}
+
+// Document is a file attachment for WhatsApp (e.g. a quote PDF).
+type Document struct {
+	Data     []byte
+	FileName string
+	MimeType string
+	// Caption is the message text shown under the document.
+	Caption string
 }
 
 // WhatsAppProvider delivers messages via WhatsApp.
@@ -41,6 +52,14 @@ func (c *StubWhatsAppClient) Send(_ context.Context, phone, body string) (string
 	return "stub-ref-" + fmt.Sprint(time.Now().UnixMilli()), nil
 }
 
+func (c *StubWhatsAppClient) SendDocument(_ context.Context, phone string, doc Document) (string, error) {
+	if c.Log != nil {
+		c.Log.Info("whatsapp_stub_send_document", "phone", phone, "file", doc.FileName,
+			"mime", doc.MimeType, "size", len(doc.Data), "caption_len", len(doc.Caption))
+	}
+	return "stub-doc-" + fmt.Sprint(time.Now().UnixMilli()), nil
+}
+
 func (c *StubWhatsAppClient) GenerateQR(_ context.Context) (model.QRCodeResponse, error) {
 	return model.QRCodeResponse{
 		Code:      "stub-qr-code-scan-not-available",
@@ -61,6 +80,17 @@ func (p *WhatsAppProvider) Send(ctx context.Context, phone, body string) (ref st
 		return "", fmt.Errorf("whatsapp client not initialized")
 	}
 	return p.client.Send(ctx, phone, body)
+}
+
+// SendDocument sends a document message with an optional caption.
+func (p *WhatsAppProvider) SendDocument(ctx context.Context, phone string, doc Document) (string, error) {
+	if p.client == nil {
+		return "", fmt.Errorf("whatsapp client not initialized")
+	}
+	if len(doc.Data) == 0 {
+		return "", fmt.Errorf("whatsapp document is empty")
+	}
+	return p.client.SendDocument(ctx, phone, doc)
 }
 
 func (p *WhatsAppProvider) GenerateQR(ctx context.Context) (model.QRCodeResponse, error) {

@@ -23,6 +23,15 @@ func New(svc *messagingusecase.Service) *Handler {
 }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
+	var verr *messagingusecase.ValidationError
+	if errors.As(err, &verr) {
+		details := []response.Detail{{Field: verr.Field, Message: verr.Msg, Code: "invalid"}}
+		for _, k := range verr.Unknown {
+			details = append(details, response.Detail{Field: verr.Field, Message: "{{" + k + "}}", Code: "unknown_placeholder"})
+		}
+		response.ValidationError(w, r, details)
+		return
+	}
 	switch {
 	case errors.Is(err, messagingusecase.ErrNotFound):
 		response.NotFound(w, r, "not found")
@@ -189,4 +198,39 @@ func (h *Handler) Simulate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, result)
+}
+
+// TemplateCatalog lists template types with placeholders and effective templates.
+func (h *Handler) TemplateCatalog(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.TemplateCatalog(r.Context(), orgID(r))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, items)
+}
+
+// SaveTemplateByKey upserts the organization override for type/channel/locale.
+func (h *Handler) SaveTemplateByKey(w http.ResponseWriter, r *http.Request) {
+	var in messagingusecase.SaveTemplateInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	e, err := h.svc.SaveTemplate(r.Context(), orgID(r), r.PathValue("event_type"), r.PathValue("channel"), r.PathValue("locale"), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, e)
+}
+
+// ResetTemplateByKey deletes the override (system default applies).
+func (h *Handler) ResetTemplateByKey(w http.ResponseWriter, r *http.Request) {
+	e, err := h.svc.ResetTemplate(r.Context(), orgID(r), r.PathValue("event_type"), r.PathValue("channel"), r.PathValue("locale"))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, e)
 }
