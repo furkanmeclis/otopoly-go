@@ -10,7 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path"
+	"net/http"
 	"strings"
 	"time"
 
@@ -1007,13 +1007,15 @@ func (s *Service) UploadMedia(ctx context.Context, instanceUUID uuid.UUID, in Up
 		return Media{}, fmt.Errorf("%w: cannot attach media to %s contract", ErrConflict, inst.Status)
 	}
 
-	mediaUUID := uuid.New()
-	ext := extensionFromName(in.FileName, in.ContentType)
-	objectKey := storage.ContractMediaObjectKey(scope.UUID, inst.Uuid, mediaUUID, ext)
-	ct := strings.TrimSpace(in.ContentType)
-	if ct == "" {
-		ct = "application/octet-stream"
+	// Never trust the client Content-Type or file extension: media lands in a
+	// publicly readable bucket, so HTML/SVG uploads would be served as active
+	// content. Sniff the bytes and allow only raster images and PDF.
+	ct, ext, ok := sniffContractMedia(in.Body)
+	if !ok {
+		return Media{}, fmt.Errorf("%w: file must be a JPEG, PNG, WebP, GIF image or a PDF", ErrInvalidRequest)
 	}
+	mediaUUID := uuid.New()
+	objectKey := storage.ContractMediaObjectKey(scope.UUID, inst.Uuid, mediaUUID, ext)
 	if err := s.storage.Upload(ctx, storage.File{
 		Body:        bytes.NewReader(in.Body),
 		Size:        int64(len(in.Body)),
@@ -1528,22 +1530,26 @@ func stripDataURL(s string) string {
 	return s
 }
 
-func extensionFromName(fileName, contentType string) string {
-	ext := strings.TrimPrefix(path.Ext(fileName), ".")
-	if ext != "" {
-		return ext
+// sniffContractMedia detects the media type from content and returns the
+// canonical content type and extension for allowed attachment types.
+func sniffContractMedia(body []byte) (contentType, ext string, ok bool) {
+	head := body
+	if len(head) > 512 {
+		head = head[:512]
 	}
-	switch {
-	case strings.Contains(contentType, "png"):
-		return "png"
-	case strings.Contains(contentType, "jpeg"), strings.Contains(contentType, "jpg"):
-		return "jpg"
-	case strings.Contains(contentType, "webp"):
-		return "webp"
-	case strings.Contains(contentType, "pdf"):
-		return "pdf"
+	switch http.DetectContentType(head) {
+	case "image/jpeg":
+		return "image/jpeg", "jpg", true
+	case "image/png":
+		return "image/png", "png", true
+	case "image/webp":
+		return "image/webp", "webp", true
+	case "image/gif":
+		return "image/gif", "gif", true
+	case "application/pdf":
+		return "application/pdf", "pdf", true
 	default:
-		return "bin"
+		return "", "", false
 	}
 }
 
