@@ -58,6 +58,8 @@ import (
 	oauthproviderusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider/usecase"
 	jobsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs"
 	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
+	leadsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads"
+	leadsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads/usecase"
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
@@ -72,6 +74,8 @@ import (
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	purchasesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases"
 	purchasesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases/usecase"
+	quotesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes"
+	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
 	reportsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports"
 	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
 	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
@@ -402,6 +406,18 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
 	todosSvc := todosusecase.New(deps.Queries, activityRec)
 	todosmodule.RegisterRoutes(mux, todosSvc, tokens, loader, deps.Queries)
+	// Leads & quotes. Seams (defaults are no-ops / the plain todos module):
+	//   leadsSvc.SetTodoCreator(leadsusecase.TodoCreator)
+	//   quotesSvc.SetMessenger(quotesusecase.QuoteMessenger)
+	//   quotesSvc.SetReminderScheduler(quotesusecase.ReminderScheduler)
+	leadsSvc := leadsusecase.New(deps.DB, deps.Queries, activityRec)
+	leadsSvc.SetTodoCreator(leadsusecase.TodosServiceCreator{Todos: todosSvc})
+	leadsmodule.RegisterRoutes(mux, leadsSvc, tokens, loader, deps.Queries)
+	quotesSvc := quotesusecase.New(deps.DB, deps.Queries, activityRec, deps.Storage, pdfClient, cfg.Auth.FrontendURL)
+	quotesSvc.SetLogger(log)
+	quotesSvc.SetJobCreator(jobsSvc)
+	quotesSvc.SetVehicleCreator(customersSvc)
+	quotesmodule.RegisterRoutes(mux, quotesSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:      deps.Queries,
 		Cari:           cariSvc,
@@ -438,7 +454,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithImport(importSvc.ProcessImport).
 			WithBulk(bulkSvc.ProcessBulk).
 			WithLogPurge(logsSvc.ApplyDueRules).
-			WithContractExecute(contractsSvc.ExecutePDF)
+			WithContractExecute(contractsSvc.ExecutePDF).
+			WithQuoteExpire(quotesSvc.ExpireDue)
 		if searchIndexer != nil {
 			s.worker.WithSearch(
 				searchIndexer.ProcessUpsert,

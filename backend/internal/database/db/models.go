@@ -529,6 +529,45 @@ type ImportJob struct {
 	OrganizationID pgtype.Int8        `json:"organization_id"`
 }
 
+type Lead struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	CustomerID     int64              `json:"customer_id"`
+	VehicleID      pgtype.Int8        `json:"vehicle_id"`
+	VehicleText    string             `json:"vehicle_text"`
+	Interest       string             `json:"interest"`
+	Source         string             `json:"source"`
+	Temperature    string             `json:"temperature"`
+	Status         string             `json:"status"`
+	LostReason     string             `json:"lost_reason"`
+	Notes          string             `json:"notes"`
+	FollowUpDate   pgtype.Date        `json:"follow_up_date"`
+	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	ContactedAt    pgtype.Timestamptz `json:"contacted_at"`
+	ClosedAt       pgtype.Timestamptz `json:"closed_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type LeadEvent struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	LeadID         int64              `json:"lead_id"`
+	Kind           string             `json:"kind"`
+	FromValue      string             `json:"from_value"`
+	ToValue        string             `json:"to_value"`
+	Body           string             `json:"body"`
+	RefType        string             `json:"ref_type"`
+	RefUuid        pgtype.UUID        `json:"ref_uuid"`
+	RefLabel       string             `json:"ref_label"`
+	ActorUserID    pgtype.Int8        `json:"actor_user_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
 type LogPurgeRule struct {
 	ID               int64              `json:"id"`
 	Uuid             uuid.UUID          `json:"uuid"`
@@ -863,6 +902,134 @@ type PushSubscription struct {
 	KeyAuth   string             `json:"key_auth"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type Quote struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	OrganizationID    int64              `json:"organization_id"`
+	Number            string             `json:"number"`
+	CustomerID        int64              `json:"customer_id"`
+	LeadID            pgtype.Int8        `json:"lead_id"`
+	VehicleID         pgtype.Int8        `json:"vehicle_id"`
+	VehiclePlate      string             `json:"vehicle_plate"`
+	VehicleLabel      string             `json:"vehicle_label"`
+	VehicleModelID    pgtype.Int8        `json:"vehicle_model_id"`
+	VehicleYear       pgtype.Int2        `json:"vehicle_year"`
+	Status            string             `json:"status"`
+	Currency          string             `json:"currency"`
+	PricesIncludeVat  bool               `json:"prices_include_vat"`
+	DiscountType      string             `json:"discount_type"`
+	DiscountValue     pgtype.Numeric     `json:"discount_value"`
+	Subtotal          pgtype.Numeric     `json:"subtotal"`
+	DiscountTotal     pgtype.Numeric     `json:"discount_total"`
+	VatTotal          pgtype.Numeric     `json:"vat_total"`
+	GrandTotal        pgtype.Numeric     `json:"grand_total"`
+	ValidUntil        pgtype.Date        `json:"valid_until"`
+	Notes             string             `json:"notes"`
+	Terms             string             `json:"terms"`
+	ShareToken        string             `json:"share_token"`
+	PdfObjectKey      pgtype.Text        `json:"pdf_object_key"`
+	PdfSha256         string             `json:"pdf_sha256"`
+	SentAt            pgtype.Timestamptz `json:"sent_at"`
+	ViewedAt          pgtype.Timestamptz `json:"viewed_at"`
+	ViewCount         int32              `json:"view_count"`
+	AcceptedAt        pgtype.Timestamptz `json:"accepted_at"`
+	RejectedAt        pgtype.Timestamptz `json:"rejected_at"`
+	ExpiredAt         pgtype.Timestamptz `json:"expired_at"`
+	CancelledAt       pgtype.Timestamptz `json:"cancelled_at"`
+	DecisionNote      string             `json:"decision_note"`
+	DecisionChannel   string             `json:"decision_channel"`
+	DecisionIp        string             `json:"decision_ip"`
+	DecisionUserAgent string             `json:"decision_user_agent"`
+	JobID             pgtype.Int8        `json:"job_id"`
+	ConvertedAt       pgtype.Timestamptz `json:"converted_at"`
+	CreatedBy         pgtype.Int8        `json:"created_by"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type QuoteCounter struct {
+	OrganizationID int64              `json:"organization_id"`
+	Year           int32              `json:"year"`
+	LastNumber     int32              `json:"last_number"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type QuoteDelivery struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	QuoteID        int64              `json:"quote_id"`
+	Channel        string             `json:"channel"`
+	Recipient      string             `json:"recipient"`
+	Status         string             `json:"status"`
+	Error          string             `json:"error"`
+	ProviderRef    string             `json:"provider_ref"`
+	AttemptCount   int32              `json:"attempt_count"`
+	LastAttemptAt  pgtype.Timestamptz `json:"last_attempt_at"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type QuoteEvent struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	QuoteID        int64              `json:"quote_id"`
+	Kind           string             `json:"kind"`
+	FromStatus     string             `json:"from_status"`
+	ToStatus       string             `json:"to_status"`
+	Body           string             `json:"body"`
+	Channel        string             `json:"channel"`
+	Ip             string             `json:"ip"`
+	UserAgent      string             `json:"user_agent"`
+	ActorUserID    pgtype.Int8        `json:"actor_user_id"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type QuoteLine struct {
+	ID                 int64              `json:"id"`
+	Uuid               uuid.UUID          `json:"uuid"`
+	OrganizationID     int64              `json:"organization_id"`
+	QuoteID            int64              `json:"quote_id"`
+	LineType           string             `json:"line_type"`
+	ServiceID          pgtype.Int8        `json:"service_id"`
+	ProductID          pgtype.Int8        `json:"product_id"`
+	Description        string             `json:"description"`
+	Quantity           pgtype.Numeric     `json:"quantity"`
+	Unit               string             `json:"unit"`
+	UnitPrice          pgtype.Numeric     `json:"unit_price"`
+	DiscountType       string             `json:"discount_type"`
+	DiscountValue      pgtype.Numeric     `json:"discount_value"`
+	VatRate            pgtype.Numeric     `json:"vat_rate"`
+	LineSubtotal       pgtype.Numeric     `json:"line_subtotal"`
+	LineDiscount       pgtype.Numeric     `json:"line_discount"`
+	QuoteDiscountShare pgtype.Numeric     `json:"quote_discount_share"`
+	NetAmount          pgtype.Numeric     `json:"net_amount"`
+	VatAmount          pgtype.Numeric     `json:"vat_amount"`
+	LineTotal          pgtype.Numeric     `json:"line_total"`
+	SortOrder          int32              `json:"sort_order"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+}
+
+type QuoteReminder struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	QuoteID        int64              `json:"quote_id"`
+	Kind           string             `json:"kind"`
+	OffsetDays     int32              `json:"offset_days"`
+	FireAt         pgtype.Timestamptz `json:"fire_at"`
+	Status         string             `json:"status"`
+	ExternalRef    string             `json:"external_ref"`
+	Error          string             `json:"error"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+	CancelledAt    pgtype.Timestamptz `json:"cancelled_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type RefreshToken struct {

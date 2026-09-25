@@ -6995,6 +6995,684 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/tenant/leads/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantLeadsMeta
+      summary: Lead list metadata
+      description: Requires `tenant.leads.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/leads/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantLeadsSummary
+      summary: Open / hot / overdue / due-today lead counts
+      description: Requires `tenant.leads.read`. Dates are Europe/Istanbul.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/leads/assignees:
+    get:
+      tags: [Tenant]
+      operationId: getTenantLeadAssignees
+      summary: Organization members leads can be assigned to
+      description: Requires `tenant.leads.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadAssignees"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/leads:
+    get:
+      tags: [Tenant]
+      operationId: getTenantLeads
+      summary: List leads
+      description: Requires `tenant.leads.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { type: string, enum: [new, contacted, quoted, won, lost, open] }
+        - name: temperature
+          in: query
+          schema: { type: string, enum: [cold, warm, hot] }
+        - name: source
+          in: query
+          schema: { $ref: "#/components/schemas/LeadSource" }
+        - name: assignee
+          in: query
+          description: "`me` or a user uuid."
+          schema: { type: string }
+        - name: follow_up
+          in: query
+          schema: { type: string, enum: [overdue, today] }
+        - name: customer_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [-created_at, created_at, follow_up_date, -follow_up_date, -updated_at] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadList"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantLead
+      summary: Create a lead for an organization customer
+      description: Requires `tenant.leads.write`. Every referenced uuid must belong to the active organization.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLeadRequest"
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/leads/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantLead
+      summary: Get a lead with its quotes and timeline
+      description: Requires `tenant.leads.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Tenant]
+      operationId: updateTenantLead
+      summary: Update a lead (records timeline events)
+      description: Requires `tenant.leads.write`. Empty string clears optional references.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchLeadRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantLead
+      summary: Delete a lead
+      description: Requires `tenant.leads.write`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/tenant/leads/{uuid}/notes:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: addTenantLeadNote
+      summary: Add a free note to the lead timeline
+      description: Requires `tenant.leads.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadNoteRequest"
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/tenant/leads/{uuid}/todo:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: createTenantLeadTodo
+      summary: Create a todo from a lead
+      description: Requires `tenant.leads.write` and `tenant.todos.write`. 503 NOT_CONFIGURED when no todo integration is wired.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LeadTodoRequest"
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLeadTodoResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/tenant/quotes/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantQuotesMeta
+      summary: Quote list metadata
+      description: Requires `tenant.quotes.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/quotes/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantQuotesSummary
+      summary: Open quote counts and totals
+      description: Requires `tenant.quotes.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: currency
+          in: query
+          schema: { type: string, default: TRY }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/quotes:
+    get:
+      tags: [Tenant]
+      operationId: getTenantQuotes
+      summary: List quotes
+      description: Requires `tenant.quotes.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { type: string, enum: [draft, sent, viewed, accepted, rejected, expired, cancelled, open] }
+        - name: customer_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: lead_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [-created_at, created_at, grand_total, -grand_total, valid_until] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteList"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantQuote
+      summary: Create a draft quote
+      description: Requires `tenant.quotes.write`. Totals are computed server-side; the number (TKL-YYYY-NNNN) is allocated per organization.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveQuoteRequest"
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/quotes/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantQuote
+      summary: Get a quote (lines, history, deliveries, reminders)
+      description: Requires `tenant.quotes.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantQuote
+      summary: Replace a draft / sent / viewed quote's content
+      description: Requires `tenant.quotes.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveQuoteRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/quotes/{uuid}/duplicate:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: duplicateTenantQuote
+      summary: Copy a quote into a new draft
+      description: Requires `tenant.quotes.write`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/tenant/quotes/{uuid}/status:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: setTenantQuoteStatus
+      summary: Manual status change
+      description: Requires `tenant.quotes.write`. 409 INVALID_TRANSITION when the status machine refuses it; viewed / expired are system-only.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteStatusRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/quotes/{uuid}/send:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: sendTenantQuote
+      summary: Send the quote (PDF + message) to the customer
+      description: Requires `tenant.quotes.write`. Moves draft → sent, records a delivery, optionally replaces reminders. The delivery may fail (e.g. messenger not configured) while the quote is still marked sent.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SendQuoteRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteSendResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/quotes/{uuid}/deliveries/{deliveryUuid}/retry:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: deliveryUuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: retryTenantQuoteDelivery
+      summary: Retry a failed delivery
+      description: Requires `tenant.quotes.write`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteSendResult"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/quotes/{uuid}/reminders:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      tags: [Tenant]
+      operationId: setTenantQuoteReminders
+      summary: Replace pending reminders
+      description: Requires `tenant.quotes.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteRemindersRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/quotes/{uuid}/pdf:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantQuotePdf
+      summary: Download / preview the quote PDF
+      description: Requires `tenant.quotes.read`. `inline=1` for preview. 503 PDF_UNAVAILABLE when the renderer is down.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: inline
+          in: query
+          schema: { type: string, enum: ["1"] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/tenant/quotes/{uuid}/convert:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantQuoteConvertPreview
+      summary: Preview quick conversion into a job
+      description: Requires `tenant.quotes.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteConvertPreview"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Tenant]
+      operationId: convertTenantQuote
+      summary: Quick-convert the quote into a job
+      description: Requires `tenant.quotes.write` and `tenant.jobs.write`. 400 VEHICLE_REQUIRED lists missing vehicle fields.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConvertQuoteRequest"
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteConvertResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/public/quotes/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Share token from the quote link (not the uuid)
+        schema: { type: string, minLength: 43, maxLength: 43 }
+    get:
+      tags: [Public]
+      operationId: getPublicQuote
+      summary: Customer view of a shared quote
+      description: No auth. Rate-limited per IP. The first open of a sent quote marks it viewed.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicQuote"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/public/quotes/{token}/pdf:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Share token from the quote link (not the uuid)
+        schema: { type: string, minLength: 43, maxLength: 43 }
+    get:
+      tags: [Public]
+      operationId: getPublicQuotePdf
+      summary: PDF of a shared quote
+      description: No auth. Rate-limited per IP.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/public/quotes/{token}/accept:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Share token from the quote link (not the uuid)
+        schema: { type: string, minLength: 43, maxLength: 43 }
+    post:
+      tags: [Public]
+      operationId: acceptPublicQuote
+      summary: Customer accepts the quote
+      description: No auth. Records IP, user agent and time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicQuoteDecisionRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicQuote"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/public/quotes/{token}/reject:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Share token from the quote link (not the uuid)
+        schema: { type: string, minLength: 43, maxLength: 43 }
+    post:
+      tags: [Public]
+      operationId: rejectPublicQuote
+      summary: Customer rejects the quote
+      description: No auth. Records IP, user agent and time.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicQuoteDecisionRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicQuote"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -9892,4 +10570,615 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/AIUsageSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    LeadSource:
+      type: string
+      enum: [incoming_call, outgoing_call, walk_in, whatsapp, social, referral, website, other]
+
+    LeadRef:
+      type: object
+      required: [uuid, label]
+      properties:
+        uuid: { type: string, format: uuid }
+        label: { type: string }
+
+    Lead:
+      type: object
+      required: [uuid, customer_uuid, customer_name, customer_phone, vehicle_plate, vehicle_text, interest, source, temperature, status, lost_reason, follow_up_date, follow_up_state, assignee, quote_count, last_activity_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        vehicle_plate: { type: string }
+        vehicle_text: { type: string }
+        interest: { type: string }
+        source: { $ref: "#/components/schemas/LeadSource" }
+        temperature: { type: string, enum: [cold, warm, hot] }
+        status: { type: string, enum: [new, contacted, quoted, won, lost] }
+        lost_reason: { type: string }
+        follow_up_date: { type: [string, "null"], format: date }
+        follow_up_state: { type: string, enum: [none, overdue, today, upcoming] }
+        assignee:
+          oneOf:
+            - $ref: "#/components/schemas/LeadRef"
+            - type: "null"
+        quote_count: { type: integer }
+        last_activity_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LeadEvent:
+      type: object
+      required: [uuid, kind, from_value, to_value, body, ref_type, ref_uuid, ref_label, actor_name, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        kind:
+          type: string
+          description: created | status_changed | temperature_changed | source_changed | assignee_changed | follow_up_changed | note | updated | quote_created | quote_sent | quote_accepted | quote_rejected | todo_created | job_created
+        from_value: { type: string }
+        to_value: { type: string }
+        body: { type: string }
+        ref_type: { type: string, description: "quote | todo | job | empty" }
+        ref_uuid: { type: [string, "null"], format: uuid }
+        ref_label: { type: string }
+        actor_name: { type: string }
+        created_at: { type: string, format: date-time }
+
+    LeadQuote:
+      type: object
+      required: [uuid, number, status, grand_total, currency, valid_until, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        number: { type: string }
+        status: { type: string }
+        grand_total: { type: string }
+        currency: { type: string }
+        valid_until: { type: [string, "null"], format: date }
+        created_at: { type: string, format: date-time }
+
+    LeadDetail:
+      allOf:
+        - $ref: "#/components/schemas/Lead"
+        - type: object
+          required: [vehicle_uuid, notes, created_by_name, contacted_at, closed_at, quotes, events]
+          properties:
+            vehicle_uuid: { type: [string, "null"], format: uuid }
+            notes: { type: string }
+            created_by_name: { type: string }
+            contacted_at: { type: [string, "null"], format: date-time }
+            closed_at: { type: [string, "null"], format: date-time }
+            quotes:
+              type: array
+              items: { $ref: "#/components/schemas/LeadQuote" }
+            events:
+              type: array
+              items: { $ref: "#/components/schemas/LeadEvent" }
+
+    LeadSummary:
+      type: object
+      required: [open, new, hot, overdue, due_today, mine, date]
+      properties:
+        open: { type: integer }
+        new: { type: integer }
+        hot: { type: integer }
+        overdue: { type: integer }
+        due_today: { type: integer }
+        mine: { type: integer }
+        date: { type: string, format: date }
+
+    LeadAssignee:
+      type: object
+      required: [uuid, label, role]
+      properties:
+        uuid: { type: string, format: uuid }
+        label: { type: string }
+        role: { type: string }
+
+    CreateLeadRequest:
+      type: object
+      required: [customer_uuid]
+      properties:
+        customer_uuid: { type: string, format: uuid }
+        vehicle_uuid: { type: [string, "null"], format: uuid }
+        vehicle_text: { type: string, maxLength: 200 }
+        interest: { type: string, maxLength: 300 }
+        source: { $ref: "#/components/schemas/LeadSource" }
+        temperature: { type: string, enum: [cold, warm, hot] }
+        notes: { type: string }
+        follow_up_date: { type: [string, "null"], format: date }
+        assignee_uuid: { type: [string, "null"], format: uuid }
+
+    PatchLeadRequest:
+      type: object
+      properties:
+        customer_uuid: { type: string, format: uuid }
+        vehicle_uuid: { type: string, description: "uuid or empty string to clear" }
+        vehicle_text: { type: string }
+        interest: { type: string }
+        source: { $ref: "#/components/schemas/LeadSource" }
+        temperature: { type: string, enum: [cold, warm, hot] }
+        status: { type: string, enum: [new, contacted, quoted, won, lost] }
+        lost_reason: { type: string }
+        notes: { type: string }
+        follow_up_date: { type: string, description: "yyyy-MM-dd or empty string to clear" }
+        assignee_uuid: { type: string, description: "uuid or empty string to clear" }
+
+    LeadNoteRequest:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, maxLength: 2000 }
+
+    LeadTodoRequest:
+      type: object
+      properties:
+        title: { type: string, maxLength: 200 }
+        notes: { type: string }
+        due_date: { type: [string, "null"], format: date }
+        due_time: { type: [string, "null"], description: "HH:mm" }
+        assignee_uuid: { type: [string, "null"], format: uuid }
+
+    LeadTodoResult:
+      type: object
+      required: [todo_uuid, title, lead]
+      properties:
+        todo_uuid: { type: string, format: uuid }
+        title: { type: string }
+        lead: { $ref: "#/components/schemas/LeadDetail" }
+
+    QuoteStatus:
+      type: string
+      enum: [draft, sent, viewed, accepted, rejected, expired, cancelled]
+
+    Quote:
+      type: object
+      required: [uuid, number, status, currency, grand_total, valid_until, is_past_valid_until, customer_uuid, customer_name, customer_phone, vehicle_plate, vehicle_label, lead_uuid, job_uuid, line_count, sent_at, viewed_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        number: { type: string, example: TKL-2026-0001 }
+        status: { $ref: "#/components/schemas/QuoteStatus" }
+        currency: { type: string }
+        grand_total: { type: string }
+        valid_until: { type: [string, "null"], format: date }
+        is_past_valid_until: { type: boolean }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        vehicle_plate: { type: string }
+        vehicle_label: { type: string }
+        lead_uuid: { type: [string, "null"], format: uuid }
+        job_uuid: { type: [string, "null"], format: uuid }
+        line_count: { type: integer }
+        sent_at: { type: [string, "null"], format: date-time }
+        viewed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    QuoteLine:
+      type: object
+      required: [uuid, line_type, description, quantity, unit, unit_price, discount_type, discount_value, vat_rate, line_subtotal, line_discount, quote_discount_share, net_amount, vat_amount, line_total, sort_order]
+      properties:
+        uuid: { type: string, format: uuid }
+        line_type: { type: string, enum: [service, product, custom] }
+        service_uuid: { type: string, format: uuid }
+        product_uuid: { type: string, format: uuid }
+        description: { type: string }
+        quantity: { type: string }
+        unit: { type: string }
+        unit_price: { type: string }
+        discount_type: { type: string, enum: [none, percent, amount] }
+        discount_value: { type: string }
+        vat_rate: { type: string }
+        line_subtotal: { type: string }
+        line_discount: { type: string }
+        quote_discount_share: { type: string }
+        net_amount: { type: string }
+        vat_amount: { type: string }
+        line_total: { type: string }
+        sort_order: { type: integer }
+
+    QuoteEvent:
+      type: object
+      required: [uuid, kind, from_status, to_status, body, channel, actor_name, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        kind: { type: string, description: "created | updated | status_changed | resent | reminders_set | converted | reminder_sent | reminder_failed" }
+        from_status: { type: string }
+        to_status: { type: string }
+        body: { type: string }
+        channel: { type: string, enum: [tenant, public, system] }
+        actor_name: { type: string }
+        ip: { type: string }
+        created_at: { type: string, format: date-time }
+
+    QuoteDelivery:
+      type: object
+      required: [uuid, channel, recipient, status, error, attempt_count, last_attempt_at, sent_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        channel: { type: string }
+        recipient: { type: string }
+        status: { type: string, enum: [pending, sent, failed] }
+        error: { type: string }
+        attempt_count: { type: integer }
+        last_attempt_at: { type: [string, "null"], format: date-time }
+        sent_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    QuoteReminder:
+      type: object
+      required: [uuid, kind, offset_days, fire_at, status, error, sent_at, cancelled_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        kind: { type: string, enum: [before_3d, before_1d, last_day, custom] }
+        offset_days: { type: integer }
+        fire_at: { type: string, format: date-time }
+        status: { type: string, enum: [pending, scheduled, sent, failed, cancelled] }
+        error: { type: string }
+        sent_at: { type: [string, "null"], format: date-time }
+        cancelled_at: { type: [string, "null"], format: date-time }
+
+    QuoteDetail:
+      allOf:
+        - $ref: "#/components/schemas/Quote"
+        - type: object
+          required: [vehicle_uuid, vehicle_model_uuid, vehicle_model_label, vehicle_year, customer_email, prices_include_vat, discount_type, discount_value, subtotal, discount_total, vat_total, notes, terms, share_url, view_count, accepted_at, rejected_at, expired_at, cancelled_at, decision_note, decision_channel, converted_at, created_by_name, allowed_statuses, can_edit, can_send, can_convert, lines, events, deliveries, reminders]
+          properties:
+            vehicle_uuid: { type: [string, "null"], format: uuid }
+            vehicle_model_uuid: { type: [string, "null"], format: uuid }
+            vehicle_model_label: { type: string }
+            vehicle_year: { type: [integer, "null"] }
+            customer_email: { type: string }
+            prices_include_vat: { type: boolean }
+            discount_type: { type: string, enum: [none, percent, amount] }
+            discount_value: { type: string }
+            subtotal: { type: string }
+            discount_total: { type: string }
+            vat_total: { type: string }
+            notes: { type: string }
+            terms: { type: string }
+            share_url: { type: string, description: "Public customer link (/q/{token})" }
+            view_count: { type: integer }
+            accepted_at: { type: [string, "null"], format: date-time }
+            rejected_at: { type: [string, "null"], format: date-time }
+            expired_at: { type: [string, "null"], format: date-time }
+            cancelled_at: { type: [string, "null"], format: date-time }
+            decision_note: { type: string }
+            decision_channel: { type: string }
+            converted_at: { type: [string, "null"], format: date-time }
+            created_by_name: { type: string }
+            allowed_statuses:
+              type: array
+              items: { $ref: "#/components/schemas/QuoteStatus" }
+            can_edit: { type: boolean }
+            can_send: { type: boolean }
+            can_convert: { type: boolean }
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/QuoteLine" }
+            events:
+              type: array
+              items: { $ref: "#/components/schemas/QuoteEvent" }
+            deliveries:
+              type: array
+              items: { $ref: "#/components/schemas/QuoteDelivery" }
+            reminders:
+              type: array
+              items: { $ref: "#/components/schemas/QuoteReminder" }
+
+    QuoteSummary:
+      type: object
+      required: [currency, open_count, draft_count, awaiting_count, pending_total, expiring_soon, accepted_month, accepted_month_total]
+      properties:
+        currency: { type: string }
+        open_count: { type: integer }
+        draft_count: { type: integer }
+        awaiting_count: { type: integer }
+        pending_total: { type: string }
+        expiring_soon: { type: integer }
+        accepted_month: { type: integer }
+        accepted_month_total: { type: string }
+
+    QuoteLineInput:
+      type: object
+      properties:
+        line_type: { type: string, enum: [service, product, custom] }
+        service_uuid: { type: [string, "null"], format: uuid }
+        product_uuid: { type: [string, "null"], format: uuid }
+        description: { type: string, maxLength: 300, description: "Required for custom lines; defaults to the catalog name" }
+        quantity: { type: string, default: "1" }
+        unit: { type: string, maxLength: 32 }
+        unit_price: { type: [string, "null"], description: "Defaults to the catalog price; required for custom lines" }
+        discount_type: { type: string, enum: [none, percent, amount] }
+        discount_value: { type: string }
+        vat_rate: { type: [string, "null"], description: "Defaults to the catalog VAT rate (20 for custom)" }
+
+    QuoteVehicleInput:
+      type: object
+      properties:
+        vehicle_uuid: { type: [string, "null"], format: uuid, description: "Existing customer vehicle" }
+        plate: { type: string, description: "Optional" }
+        label: { type: string, description: "Free text such as \"Beyaz Clio\"" }
+        model_uuid: { type: [string, "null"], format: uuid, description: "Vehicle catalog model" }
+        year: { type: [integer, "null"] }
+
+    SaveQuoteRequest:
+      type: object
+      required: [customer_uuid, lines]
+      properties:
+        customer_uuid: { type: string, format: uuid }
+        lead_uuid: { type: [string, "null"], format: uuid }
+        vehicle:
+          oneOf:
+            - $ref: "#/components/schemas/QuoteVehicleInput"
+            - type: "null"
+        currency: { type: string, default: TRY }
+        prices_include_vat: { type: boolean, default: true }
+        discount_type: { type: string, enum: [none, percent, amount] }
+        discount_value: { type: string }
+        valid_until: { type: [string, "null"], description: "yyyy-MM-dd (empty clears)" }
+        notes: { type: string }
+        terms: { type: string }
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: "#/components/schemas/QuoteLineInput" }
+
+    QuoteStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [sent, accepted, rejected, cancelled] }
+        note: { type: string }
+
+    QuoteReminderInput:
+      type: object
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [before_3d, before_1d, last_day, custom] }
+        date: { type: [string, "null"], format: date, description: "custom only" }
+
+    QuoteRemindersRequest:
+      type: object
+      required: [reminders]
+      properties:
+        reminders:
+          type: array
+          items: { $ref: "#/components/schemas/QuoteReminderInput" }
+
+    SendQuoteRequest:
+      type: object
+      properties:
+        channel: { type: string, default: whatsapp }
+        reminders:
+          type: [array, "null"]
+          description: When present, replaces pending reminders.
+          items: { $ref: "#/components/schemas/QuoteReminderInput" }
+
+    QuoteSendResult:
+      type: object
+      required: [quote, delivery]
+      properties:
+        quote: { $ref: "#/components/schemas/QuoteDetail" }
+        delivery: { $ref: "#/components/schemas/QuoteDelivery" }
+
+    ConvertQuoteRequest:
+      type: object
+      properties:
+        vehicle_uuid: { type: [string, "null"], format: uuid }
+        plate: { type: string }
+        model_uuid: { type: [string, "null"], format: uuid }
+        year: { type: [integer, "null"] }
+        assignee_uuid: { type: [string, "null"], format: uuid }
+        notes: { type: string }
+
+    QuoteConvertLine:
+      type: object
+      required: [description, line_type, quantity, unit_price, line_total, included]
+      properties:
+        description: { type: string }
+        line_type: { type: string }
+        quantity: { type: string }
+        unit_price: { type: string }
+        line_total: { type: string }
+        included: { type: boolean }
+        reason: { type: string, enum: [not_a_service, service_deleted] }
+
+    QuoteConvertPreview:
+      type: object
+      required: [can_convert, will_accept, customer_name, vehicle_uuid, vehicle_label, plate, creates_vehicle, missing, customer_vehicles, lines, job_total, skipped_total, currency, lead_uuid]
+      properties:
+        can_convert: { type: boolean }
+        blocker: { type: string, enum: [already_converted, status, no_service_lines] }
+        will_accept: { type: boolean }
+        customer_name: { type: string }
+        vehicle_uuid: { type: [string, "null"], format: uuid }
+        vehicle_label: { type: string }
+        plate: { type: string }
+        creates_vehicle: { type: boolean }
+        missing:
+          type: array
+          items: { type: string, enum: [plate, model] }
+        customer_vehicles:
+          type: array
+          items: { $ref: "#/components/schemas/LeadRef" }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/QuoteConvertLine" }
+        job_total: { type: string }
+        skipped_total: { type: string }
+        currency: { type: string }
+        lead_uuid: { type: [string, "null"], format: uuid }
+
+    QuoteConvertResult:
+      type: object
+      required: [job_uuid, quote]
+      properties:
+        job_uuid: { type: string, format: uuid }
+        quote: { $ref: "#/components/schemas/QuoteDetail" }
+
+    PublicQuoteLine:
+      type: object
+      required: [description, quantity, unit, unit_price, discount, vat_rate, line_total]
+      properties:
+        description: { type: string }
+        quantity: { type: string }
+        unit: { type: string }
+        unit_price: { type: string }
+        discount: { type: string }
+        vat_rate: { type: string }
+        line_total: { type: string }
+
+    PublicQuote:
+      type: object
+      required: [number, status, organization_name, organization_logo_url, organization_phone, organization_address, primary_color, customer_name, vehicle_plate, vehicle_label, currency, prices_include_vat, subtotal, discount_total, vat_total, grand_total, valid_until, notes, terms, issued_at, decided_at, can_decide, lines]
+      properties:
+        number: { type: string }
+        status: { $ref: "#/components/schemas/QuoteStatus" }
+        organization_name: { type: string }
+        organization_logo_url: { type: [string, "null"] }
+        organization_phone: { type: string }
+        organization_address: { type: string }
+        primary_color: { type: string }
+        customer_name: { type: string }
+        vehicle_plate: { type: string }
+        vehicle_label: { type: string }
+        currency: { type: string }
+        prices_include_vat: { type: boolean }
+        subtotal: { type: string }
+        discount_total: { type: string }
+        vat_total: { type: string }
+        grand_total: { type: string }
+        valid_until: { type: [string, "null"], format: date }
+        notes: { type: string }
+        terms: { type: string }
+        issued_at: { type: string, format: date-time }
+        decided_at: { type: [string, "null"], format: date-time }
+        can_decide: { type: boolean }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/PublicQuoteLine" }
+
+    PublicQuoteDecisionRequest:
+      type: object
+      properties:
+        note: { type: string, maxLength: 1000 }
+
+    EnvelopeLeadSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LeadSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLeadList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Lead" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLeadDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LeadDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLeadTodoResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LeadTodoResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLeadAssignees:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/LeadAssignee" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeQuoteSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QuoteSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeQuoteList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Quote" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeQuoteDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QuoteDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeQuoteSendResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QuoteSendResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeQuoteConvertPreview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QuoteConvertPreview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeQuoteConvertResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QuoteConvertResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopePublicQuote:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PublicQuote" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
