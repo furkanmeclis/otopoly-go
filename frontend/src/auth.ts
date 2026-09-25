@@ -25,6 +25,7 @@ import {
   loginWithPassword,
   type OAuthConfigPayload,
 } from "@/lib/auth/go-adapter-client";
+import { clientIpFromHeaders } from "@/lib/server/upstream";
 import { fetchAppPublicConfig } from "@/services/app-config.service";
 
 const pendingGitHubLogins = new Map<string, string>();
@@ -131,7 +132,7 @@ async function _doBuildProviders(): Promise<Provider[]> {
           totp_code: { label: "Authenticator code", type: "text" },
           organization_slug: { label: "Organization slug", type: "text" },
         },
-        async authorize(credentials) {
+        async authorize(credentials, request) {
           const email = String(credentials?.email ?? "").trim();
           const password = String(credentials?.password ?? "");
           const totpCode = String(credentials?.totp_code ?? "").trim();
@@ -152,6 +153,9 @@ async function _doBuildProviders(): Promise<Provider[]> {
               password,
               totpCode || undefined,
               organizationSlug || undefined,
+              request instanceof Request
+                ? clientIpFromHeaders(request.headers)
+                : null,
             );
             const user = await adapterGetUserByEmail(email);
             return {
@@ -242,14 +246,16 @@ async function buildProviders(): Promise<Provider[]> {
   }
   // Deduplicate concurrent calls while the first build is in flight.
   if (!_providersBuildPromise) {
-    _providersBuildPromise = _doBuildProviders().then((providers) => {
-      _providersCache = { providers, builtAt: Date.now() };
-      _providersBuildPromise = null;
-      return providers;
-    }).catch((err) => {
-      _providersBuildPromise = null;
-      throw err;
-    });
+    _providersBuildPromise = _doBuildProviders()
+      .then((providers) => {
+        _providersCache = { providers, builtAt: Date.now() };
+        _providersBuildPromise = null;
+        return providers;
+      })
+      .catch((err) => {
+        _providersBuildPromise = null;
+        throw err;
+      });
   }
   return _providersBuildPromise;
 }
@@ -334,9 +340,8 @@ const authHandlers = NextAuth(async () => ({
           token.accessToken = extended.accessToken;
           token.refreshToken = extended.refreshToken;
           token.expiresIn = extended.expiresIn;
-          const { organizationUuidFromAccessToken } = await import(
-            "@/lib/server/auth-tokens"
-          );
+          const { organizationUuidFromAccessToken } =
+            await import("@/lib/server/auth-tokens");
           const oid = organizationUuidFromAccessToken(extended.accessToken);
           if (oid) token.organizationUuid = oid;
           else delete token.organizationUuid;
@@ -373,9 +378,8 @@ const authHandlers = NextAuth(async () => ({
         };
         if (patch.accessToken) {
           token.accessToken = patch.accessToken;
-          const { organizationUuidFromAccessToken } = await import(
-            "@/lib/server/auth-tokens"
-          );
+          const { organizationUuidFromAccessToken } =
+            await import("@/lib/server/auth-tokens");
           const oid = organizationUuidFromAccessToken(patch.accessToken);
           if (oid) token.organizationUuid = oid;
           else delete token.organizationUuid;
@@ -404,9 +408,7 @@ const authHandlers = NextAuth(async () => ({
       nextSession.organizationUuid =
         (token.organizationUuid as string | undefined) ?? null;
       nextSession.error = token.error as
-        | "PasskeySessionError"
-        | "OAuthSessionError"
-        | undefined;
+        "PasskeySessionError" | "OAuthSessionError" | undefined;
       return nextSession;
     },
   },
