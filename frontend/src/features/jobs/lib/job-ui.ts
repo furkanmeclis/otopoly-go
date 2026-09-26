@@ -3,6 +3,11 @@ import type {
   JobStatus,
   PaymentStatus,
 } from "@/features/jobs/services/jobs.service";
+import {
+  calendarDaysBetween,
+  localDateOf,
+  localToday,
+} from "@/lib/utils/local-date";
 import { foldSearch } from "@/lib/utils/search";
 
 export { localToday, shiftDate } from "@/lib/utils/local-date";
@@ -38,9 +43,21 @@ export function minutesSince(iso: string, now: number): number {
   return Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
 }
 
+/**
+ * Day of work for an unfinished job opened on an earlier day (2 = second day),
+ * or null for same-day and finished jobs.
+ */
+export function carryOverDay(job: Job, today = localToday()): number | null {
+  if (job.status !== "in_progress" && job.status !== "ready") return null;
+  const days = calendarDaysBetween(localDateOf(job.started_at), today);
+  return days > 0 ? days + 1 : null;
+}
+
 export function isStale(job: Job, now: number): boolean {
+  // Multi-day work is expected to run long; only same-day jobs get flagged.
   return (
     job.status === "in_progress" &&
+    carryOverDay(job) === null &&
     minutesSince(job.started_at, now) >= STALE_AFTER_MINUTES
   );
 }

@@ -114,6 +114,8 @@ export const jobsService = {
       status?: string;
       date_from?: string;
       date_to?: string;
+      /** Also return unfinished jobs opened before date_from. */
+      include_open?: string;
     },
   ) {
     return platformRequest<ListPage<Job>>("GET", "/v1/tenant/jobs", {

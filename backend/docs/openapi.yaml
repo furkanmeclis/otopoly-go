@@ -4331,6 +4331,10 @@ paths:
         - name: date_to
           in: query
           schema: { type: string, format: date }
+        - name: include_open
+          in: query
+          description: Also return in_progress/ready jobs started before date_from (multi-day work still going on).
+          schema: { type: boolean }
       responses:
         "200": { description: Jobs page }
         "401": { $ref: "#/components/responses/Unauthenticated" }

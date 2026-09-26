@@ -11996,6 +11996,8 @@ export interface operations {
                 payment_status?: "unpaid" | "paid";
                 date_from?: string;
                 date_to?: string;
+                /** @description Also return in_progress/ready jobs started before date_from (multi-day work still going on). */
+                include_open?: boolean;
             };
             header?: never;
             path?: never;

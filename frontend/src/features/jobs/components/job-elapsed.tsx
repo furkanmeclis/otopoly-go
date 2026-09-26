@@ -11,6 +11,13 @@ export function formatElapsed(
   t: (key: string, params?: Record<string, string | number>) => string,
 ) {
   if (minutes < 60) return t("jobs.elapsed.minutes", { m: minutes });
+  if (minutes >= 24 * 60) {
+    const d = Math.floor(minutes / (24 * 60));
+    const h = Math.floor((minutes % (24 * 60)) / 60);
+    return h === 0
+      ? t("jobs.elapsed.days", { d })
+      : t("jobs.elapsed.days_hours", { d, h });
+  }
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return m === 0

@@ -91,7 +91,8 @@ export function JobsPage({ slug }: { slug: string }) {
 
   const isToday = date === localToday();
   // Load the whole day once; status/search/assignee filter client-side so
-  // counts stay visible and filtering is instant.
+  // counts stay visible and filtering is instant. Today also pulls unfinished
+  // jobs opened on earlier days so multi-day work stays on the board.
   const listParams = useMemo(
     () => ({
       limit: 100,
@@ -99,8 +100,9 @@ export function JobsPage({ slug }: { slug: string }) {
       sort: "-started_at",
       date_from: date || undefined,
       date_to: date || undefined,
+      include_open: isToday ? "true" : undefined,
     }),
-    [date],
+    [date, isToday],
   );
   const listQuery = useJobs(listParams, {
     refetchInterval: isToday ? LIVE_REFRESH_MS : false,

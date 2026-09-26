@@ -10,7 +10,12 @@ import { formatFinanceAmount } from "@/features/finance/lib/format";
 import type { JobQuickAction } from "@/features/jobs/components/job-board-card";
 import { JobElapsed } from "@/features/jobs/components/job-elapsed";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
-import { isStale, paymentTone, statusTone } from "@/features/jobs/lib/job-ui";
+import {
+  carryOverDay,
+  isStale,
+  paymentTone,
+  statusTone,
+} from "@/features/jobs/lib/job-ui";
 import type { Job } from "@/features/jobs/services/jobs.service";
 import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
@@ -84,6 +89,11 @@ export function JobsTable({
                   <p className="text-xs tabular-nums">
                     {datetime(job.started_at, "HH:mm", locale)}
                   </p>
+                  {carryOverDay(job) ? (
+                    <p className="text-muted-foreground text-xs tabular-nums">
+                      {datetime(job.started_at, "dd.MM.yyyy", locale)}
+                    </p>
+                  ) : null}
                   {job.status === "in_progress" || job.status === "ready" ? (
                     <JobElapsed
                       startedAt={job.started_at}
@@ -98,6 +108,14 @@ export function JobsTable({
                       label={t(`jobs.status.${job.status}`)}
                       tone={statusTone(job.status)}
                     />
+                    {carryOverDay(job) ? (
+                      <StatusChip
+                        label={t("jobs.board.carry_over_day", {
+                          n: carryOverDay(job) ?? 0,
+                        })}
+                        tone="default"
+                      />
+                    ) : null}
                     {job.status === "delivered" ? (
                       <StatusChip
                         label={t(`jobs.payment.${job.payment_status}`)}

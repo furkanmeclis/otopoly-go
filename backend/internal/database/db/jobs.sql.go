@@ -17,13 +17,23 @@ SELECT COUNT(*)::bigint
 FROM service_jobs j
 WHERE j.organization_id = $1
   AND ($2::text IS NULL OR j.status = $2)
-  AND ($3::timestamptz IS NULL OR j.started_at >= $3)
-  AND ($4::timestamptz IS NULL OR j.started_at < $4)
   AND (
-    $5::text IS NULL
-    OR j.plate ILIKE '%' || $5 || '%'
-    OR j.customer_name ILIKE '%' || $5 || '%'
-    OR j.vehicle_label ILIKE '%' || $5 || '%'
+    (
+      ($3::timestamptz IS NULL OR j.started_at >= $3)
+      AND ($4::timestamptz IS NULL OR j.started_at < $4)
+    )
+    -- Multi-day work: unfinished jobs opened before the window stay listed.
+    OR (
+      $5::boolean
+      AND j.status IN ('in_progress', 'ready')
+      AND j.started_at < $3
+    )
+  )
+  AND (
+    $6::text IS NULL
+    OR j.plate ILIKE '%' || $6 || '%'
+    OR j.customer_name ILIKE '%' || $6 || '%'
+    OR j.vehicle_label ILIKE '%' || $6 || '%'
   )
 `
 
@@ -32,6 +42,7 @@ type CountServiceJobsParams struct {
 	Status         pgtype.Text        `json:"status"`
 	DateFrom       pgtype.Timestamptz `json:"date_from"`
 	DateTo         pgtype.Timestamptz `json:"date_to"`
+	IncludeOpen    bool               `json:"include_open"`
 	Q              pgtype.Text        `json:"q"`
 }
 
@@ -41,6 +52,7 @@ func (q *Queries) CountServiceJobs(ctx context.Context, arg CountServiceJobsPara
 		arg.Status,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.IncludeOpen,
 		arg.Q,
 	)
 	var column_1 int64
@@ -729,23 +741,33 @@ JOIN customer_vehicles v ON v.id = j.vehicle_id
 LEFT JOIN users au ON au.id = j.assignee_user_id
 WHERE j.organization_id = $1
   AND ($2::text IS NULL OR j.status = $2)
-  AND ($3::timestamptz IS NULL OR j.started_at >= $3)
-  AND ($4::timestamptz IS NULL OR j.started_at < $4)
   AND (
-    $5::text IS NULL
-    OR j.plate ILIKE '%' || $5 || '%'
-    OR j.customer_name ILIKE '%' || $5 || '%'
-    OR j.vehicle_label ILIKE '%' || $5 || '%'
+    (
+      ($3::timestamptz IS NULL OR j.started_at >= $3)
+      AND ($4::timestamptz IS NULL OR j.started_at < $4)
+    )
+    -- Multi-day work: unfinished jobs opened before the window stay listed.
+    OR (
+      $5::boolean
+      AND j.status IN ('in_progress', 'ready')
+      AND j.started_at < $3
+    )
+  )
+  AND (
+    $6::text IS NULL
+    OR j.plate ILIKE '%' || $6 || '%'
+    OR j.customer_name ILIKE '%' || $6 || '%'
+    OR j.vehicle_label ILIKE '%' || $6 || '%'
   )
 ORDER BY
-    CASE WHEN $6::text = 'started_at' THEN j.started_at END ASC,
-    CASE WHEN $6::text = '-started_at' THEN j.started_at END DESC,
-    CASE WHEN $6::text = 'total_amount' THEN j.total_amount END ASC,
-    CASE WHEN $6::text = '-total_amount' THEN j.total_amount END DESC,
-    CASE WHEN $6::text = 'plate' THEN j.plate END ASC,
-    CASE WHEN $6::text = '-plate' THEN j.plate END DESC,
+    CASE WHEN $7::text = 'started_at' THEN j.started_at END ASC,
+    CASE WHEN $7::text = '-started_at' THEN j.started_at END DESC,
+    CASE WHEN $7::text = 'total_amount' THEN j.total_amount END ASC,
+    CASE WHEN $7::text = '-total_amount' THEN j.total_amount END DESC,
+    CASE WHEN $7::text = 'plate' THEN j.plate END ASC,
+    CASE WHEN $7::text = '-plate' THEN j.plate END DESC,
     j.started_at DESC
-LIMIT $8 OFFSET $7
+LIMIT $9 OFFSET $8
 `
 
 type ListServiceJobsParams struct {
@@ -753,6 +775,7 @@ type ListServiceJobsParams struct {
 	Status         pgtype.Text        `json:"status"`
 	DateFrom       pgtype.Timestamptz `json:"date_from"`
 	DateTo         pgtype.Timestamptz `json:"date_to"`
+	IncludeOpen    bool               `json:"include_open"`
 	Q              pgtype.Text        `json:"q"`
 	Sort           string             `json:"sort"`
 	OffsetCount    int32              `json:"offset_count"`
@@ -793,6 +816,7 @@ func (q *Queries) ListServiceJobs(ctx context.Context, arg ListServiceJobsParams
 		arg.Status,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.IncludeOpen,
 		arg.Q,
 		arg.Sort,
 		arg.OffsetCount,

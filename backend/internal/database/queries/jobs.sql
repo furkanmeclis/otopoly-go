@@ -77,8 +77,18 @@ JOIN customer_vehicles v ON v.id = j.vehicle_id
 LEFT JOIN users au ON au.id = j.assignee_user_id
 WHERE j.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR j.status = sqlc.narg(status))
-  AND (sqlc.narg(date_from)::timestamptz IS NULL OR j.started_at >= sqlc.narg(date_from))
-  AND (sqlc.narg(date_to)::timestamptz IS NULL OR j.started_at < sqlc.narg(date_to))
+  AND (
+    (
+      (sqlc.narg(date_from)::timestamptz IS NULL OR j.started_at >= sqlc.narg(date_from))
+      AND (sqlc.narg(date_to)::timestamptz IS NULL OR j.started_at < sqlc.narg(date_to))
+    )
+    -- Multi-day work: unfinished jobs opened before the window stay listed.
+    OR (
+      sqlc.arg(include_open)::boolean
+      AND j.status IN ('in_progress', 'ready')
+      AND j.started_at < sqlc.narg(date_from)
+    )
+  )
   AND (
     sqlc.narg(q)::text IS NULL
     OR j.plate ILIKE '%' || sqlc.narg(q) || '%'
@@ -100,8 +110,18 @@ SELECT COUNT(*)::bigint
 FROM service_jobs j
 WHERE j.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR j.status = sqlc.narg(status))
-  AND (sqlc.narg(date_from)::timestamptz IS NULL OR j.started_at >= sqlc.narg(date_from))
-  AND (sqlc.narg(date_to)::timestamptz IS NULL OR j.started_at < sqlc.narg(date_to))
+  AND (
+    (
+      (sqlc.narg(date_from)::timestamptz IS NULL OR j.started_at >= sqlc.narg(date_from))
+      AND (sqlc.narg(date_to)::timestamptz IS NULL OR j.started_at < sqlc.narg(date_to))
+    )
+    -- Multi-day work: unfinished jobs opened before the window stay listed.
+    OR (
+      sqlc.arg(include_open)::boolean
+      AND j.status IN ('in_progress', 'ready')
+      AND j.started_at < sqlc.narg(date_from)
+    )
+  )
   AND (
     sqlc.narg(q)::text IS NULL
     OR j.plate ILIKE '%' || sqlc.narg(q) || '%'

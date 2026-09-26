@@ -152,8 +152,9 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		LimitCount:     limit,
 		OffsetCount:    offset,
 		Sort:           normalizeSort(filters.Sort),
+		IncludeOpen:    filters.IncludeOpen,
 	}
-	countParams := db.CountServiceJobsParams{OrganizationID: orgID}
+	countParams := db.CountServiceJobsParams{OrganizationID: orgID, IncludeOpen: filters.IncludeOpen}
 	if st := strings.TrimSpace(filters.Status); st != "" {
 		params.Status = pgtype.Text{String: st, Valid: true}
 		countParams.Status = params.Status

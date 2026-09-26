@@ -53,11 +53,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	q := apiquery.Parse(r.URL.Query())
 	items, total, err := h.svc.List(r.Context(), q.Limit, q.Offset, jobsusecase.ListFilters{
-		Q:        q.Q,
-		Status:   strings.TrimSpace(r.URL.Query().Get("status")),
-		DateFrom: strings.TrimSpace(r.URL.Query().Get("date_from")),
-		DateTo:   strings.TrimSpace(r.URL.Query().Get("date_to")),
-		Sort:     strings.TrimSpace(r.URL.Query().Get("sort")),
+		Q:           q.Q,
+		Status:      strings.TrimSpace(r.URL.Query().Get("status")),
+		DateFrom:    strings.TrimSpace(r.URL.Query().Get("date_from")),
+		DateTo:      strings.TrimSpace(r.URL.Query().Get("date_to")),
+		Sort:        strings.TrimSpace(r.URL.Query().Get("sort")),
+		IncludeOpen: r.URL.Query().Get("include_open") == "true",
 	})
 	if err != nil {
 		writeError(w, r, err)

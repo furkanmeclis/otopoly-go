@@ -76,6 +76,9 @@ type ListFilters struct {
 	DateFrom string
 	DateTo   string
 	Sort     string
+	// IncludeOpen also returns in_progress/ready jobs started before DateFrom
+	// (multi-day work that is still going on).
+	IncludeOpen bool
 	// Location sets the day boundaries of DateFrom/DateTo (nil = server local
 	// time, the HTTP API default).
 	Location *time.Location

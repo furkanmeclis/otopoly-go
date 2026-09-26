@@ -161,5 +161,9 @@
   "board.empty_hint": "Yeni işlem ile ilk aracı kabul edin; araçlar İşlemde → Hazır → Teslim akışında burada görünür.",
   "board.empty.in_progress": "İşlemde araç yok",
   "board.empty.ready": "Teslime hazır araç yok",
-  "board.empty.delivered": "Henüz teslim edilen araç yok"
+  "board.empty.delivered": "Henüz teslim edilen araç yok",
+  "elapsed.days": "{{d}} gün",
+  "elapsed.days_hours": "{{d}} gün {{h}} sa",
+  "board.carry_over_day": "{{n}}. gün",
+  "board.carry_over_hint": "Başlangıç: {{date}} — iş bitene kadar listede kalır"
 }

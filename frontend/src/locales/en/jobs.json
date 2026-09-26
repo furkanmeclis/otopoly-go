@@ -161,5 +161,9 @@
   "board.empty_hint": "Check in the first car with New job; cars move through In progress → Ready → Delivered here.",
   "board.empty.in_progress": "No cars in progress",
   "board.empty.ready": "No cars ready",
-  "board.empty.delivered": "No cars delivered yet"
+  "board.empty.delivered": "No cars delivered yet",
+  "elapsed.days": "{{d}}d",
+  "elapsed.days_hours": "{{d}}d {{h}}h",
+  "board.carry_over_day": "Day {{n}}",
+  "board.carry_over_hint": "Started {{date}} — stays listed until the job is finished"
 }

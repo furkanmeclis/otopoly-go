@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { JobElapsed } from "@/features/jobs/components/job-elapsed";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
-import { initials, isStale } from "@/features/jobs/lib/job-ui";
+import { carryOverDay, initials, isStale } from "@/features/jobs/lib/job-ui";
 import type { Job } from "@/features/jobs/services/jobs.service";
 import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
@@ -36,6 +36,7 @@ export function JobBoardCard({
 }) {
   const { t, locale } = useLocale();
   const stale = isStale(job, now);
+  const workDay = carryOverDay(job);
   const unpaid = job.payment_status === "unpaid";
 
   return (
@@ -51,7 +52,19 @@ export function JobBoardCard({
         aria-label={`${job.plate} · ${job.customer_name}`}
       />
       <div className="flex items-start justify-between gap-2">
-        <PlateBadge plate={job.plate} size="sm" />
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <PlateBadge plate={job.plate} size="sm" />
+          {workDay ? (
+            <span
+              className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-400"
+              title={t("jobs.board.carry_over_hint", {
+                date: datetime(job.started_at, "dd.MM.yyyy HH:mm", locale),
+              })}
+            >
+              {t("jobs.board.carry_over_day", { n: workDay })}
+            </span>
+          ) : null}
+        </div>
         <span className="text-sm font-semibold tabular-nums">
           {formatFinanceAmount(job.total_amount, job.currency, locale)}
         </span>
