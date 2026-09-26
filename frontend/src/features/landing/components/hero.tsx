@@ -20,24 +20,47 @@ import { HeroShader } from "@/features/landing/components/shaders";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
+const ACCENT_GRADIENT = "linear-gradient(90deg, #FFD2B8, #F59A6F, #EA6E43)";
+
 function Words({
   text,
   delay,
-  className,
+  gradient,
 }: {
   text: string;
   delay: number;
-  className?: string;
+  /**
+   * Gradient text, painted on each word's own span: WebKit (iOS Safari) does
+   * not carry a parent's `background-clip: text` into the transformed
+   * inline-block word layers, which left the accent invisible on iPhone.
+   * Each word shows its slice of one wide gradient so the sweep stays
+   * continuous across the phrase.
+   */
+  gradient?: string;
 }) {
+  const words = text.split(" ");
   return (
-    <span className={className}>
-      {text.split(" ").map((word, i) => (
+    <span>
+      {words.map((word, i) => (
         <span
           key={`${word}-${i}`}
           className="inline-block overflow-hidden pb-[0.12em] align-bottom"
         >
           <motion.span
-            className="inline-block"
+            className={
+              gradient
+                ? "inline-block bg-clip-text text-transparent [-webkit-background-clip:text] [-webkit-text-fill-color:transparent]"
+                : "inline-block"
+            }
+            style={
+              gradient
+                ? {
+                    backgroundImage: gradient,
+                    backgroundSize: `${words.length * 100}% 100%`,
+                    backgroundPosition: `${words.length > 1 ? (i / (words.length - 1)) * 100 : 0}% 0`,
+                  }
+                : undefined
+            }
             initial={{ y: "110%" }}
             animate={{ y: 0 }}
             transition={{ duration: 0.8, ease: EASE, delay: delay + i * 0.06 }}
@@ -120,7 +143,7 @@ export function Hero() {
             <Words
               text={hero.titleAccent}
               delay={0.35}
-              className="bg-gradient-to-r from-[#FFD2B8] via-[#F59A6F] to-[#EA6E43] bg-clip-text text-transparent"
+              gradient={ACCENT_GRADIENT}
             />
           </h1>
 
