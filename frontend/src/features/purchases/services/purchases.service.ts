@@ -37,6 +37,9 @@ export type PurchaseDetail = Purchase & {
   lines: PurchaseLine[];
 };
 
+/** List rows carry their lines so the table can show products and quantities. */
+export type PurchaseListItem = PurchaseDetail;
+
 export type ListPage<T> = {
   items: T[];
   total: number;
@@ -69,9 +72,13 @@ export const purchasesService = {
       date_to?: string;
     },
   ) {
-    return platformRequest<ListPage<Purchase>>("GET", "/v1/tenant/purchases", {
-      query: params,
-    });
+    return platformRequest<ListPage<PurchaseListItem>>(
+      "GET",
+      "/v1/tenant/purchases",
+      {
+        query: params,
+      },
+    );
   },
   get(uuid: string) {
     return platformRequest<PurchaseDetail>(

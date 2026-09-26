@@ -51,5 +51,6 @@
   "toast.failed": "Purchase action failed",
   "empty_hint": "Record products bought from suppliers; stock goes up and the expense is posted.",
   "summary.count": "Purchases",
-  "summary.total": "Total purchased"
+  "summary.total": "Total purchased",
+  "status_label": "Status"
 }

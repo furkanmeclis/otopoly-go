@@ -56,6 +56,14 @@ JOIN products pr ON pr.id = l.product_id
 WHERE l.purchase_id = $1 AND l.organization_id = $2
 ORDER BY l.sort_order ASC, l.id ASC;
 
+-- name: ListPurchaseLinesByPurchaseIDs :many
+SELECT l.*, pr.uuid AS product_uuid
+FROM purchase_lines l
+JOIN products pr ON pr.id = l.product_id
+WHERE l.organization_id = sqlc.arg(organization_id)
+  AND l.purchase_id = ANY (sqlc.arg(purchase_ids)::bigint[])
+ORDER BY l.purchase_id ASC, l.sort_order ASC, l.id ASC;
+
 -- name: ListPurchases :many
 SELECT p.*,
        s.uuid AS supplier_uuid

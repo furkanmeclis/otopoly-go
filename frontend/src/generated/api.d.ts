@@ -13280,7 +13280,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Purchases page */
+            /** @description Purchases page; each item includes its `lines` (product, qty, unit_cost, line_total) */
             200: {
                 headers: {
                     [name: string]: unknown;

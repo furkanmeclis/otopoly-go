@@ -465,6 +465,7 @@ type Querier interface {
 	// ============================================================================
 	ListProductsForSearch(ctx context.Context) ([]ListProductsForSearchRow, error)
 	ListPurchaseLines(ctx context.Context, arg ListPurchaseLinesParams) ([]ListPurchaseLinesRow, error)
+	ListPurchaseLinesByPurchaseIDs(ctx context.Context, arg ListPurchaseLinesByPurchaseIDsParams) ([]ListPurchaseLinesByPurchaseIDsRow, error)
 	ListPurchases(ctx context.Context, arg ListPurchasesParams) ([]ListPurchasesRow, error)
 	ListPurchasesForExport(ctx context.Context, arg ListPurchasesForExportParams) ([]Purchase, error)
 	ListPurchasesForSearch(ctx context.Context) ([]ListPurchasesForSearchRow, error)

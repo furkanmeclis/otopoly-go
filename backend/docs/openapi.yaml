@@ -5316,7 +5316,7 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Purchases page }
+        "200": { description: "Purchases page; each item includes its `lines` (product, qty, unit_cost, line_total)" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:

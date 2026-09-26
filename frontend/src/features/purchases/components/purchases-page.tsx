@@ -1,22 +1,20 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { z } from "zod";
 
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/common/card";
 import { DaySummaryBar } from "@/components/common/day-summary-bar";
-import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
-import { Loading } from "@/components/common/loading";
 import { StatusChip } from "@/components/common/status-chip";
-import { EntityActions, EntityPage, EntityToolbar } from "@/components/entity";
+import {
+  EntityActions,
+  EntityPage,
+  EntityTable,
+  EntityToolbar,
+} from "@/components/entity";
 import { AppForm, AppSelect, AppTextarea } from "@/components/forms";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { Button } from "@/components/ui/button";
@@ -49,7 +47,7 @@ import {
 import { useTenantPurchasesAccess } from "@/features/purchases/hooks/use-tenant-purchases-access";
 import type {
   CreatePurchaseInput,
-  Purchase,
+  PurchaseListItem,
   PurchaseMethod,
   PurchaseStatus,
 } from "@/features/purchases/services/purchases.service";
@@ -109,6 +107,7 @@ export function PurchasesPage({ slug }: { slug: string }) {
 
   const listQuery = usePurchases(listParams);
   const metaQuery = usePurchasesMeta();
+  const columns = usePurchaseColumns();
 
   const applySearch = useCallback(() => {
     setQ(searchInput.trim());
@@ -226,45 +225,29 @@ export function PurchasesPage({ slug }: { slug: string }) {
         </TabsList>
       </Tabs>
 
-      {listQuery.isLoading ? <Loading label={t("common.loading")} /> : null}
-      {listQuery.isError ? (
-        <ErrorState
-          title={t("common.error_generic")}
-          description={t("purchases.error_description")}
-          onRetry={() => void listQuery.refetch()}
-        />
-      ) : null}
-
-      {!listQuery.isLoading && !listQuery.isError && items.length === 0 ? (
-        <EmptyState
-          title={t("purchases.empty_title")}
-          description={t("purchases.empty_hint")}
-          action={
-            canWrite ? (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setCreateOpen(true)}
-              >
-                <Plus className="size-4" />
-                {t("purchases.actions.create")}
-              </Button>
-            ) : null
-          }
-        />
-      ) : null}
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {items.map((purchase) => (
-          <PurchaseCard
-            key={purchase.uuid}
-            purchase={purchase}
-            onOpen={() =>
-              router.push(routes.tenant.purchases.detail(slug, purchase.uuid))
-            }
-          />
-        ))}
-      </div>
+      <EntityTable
+        columns={columns}
+        data={items}
+        getRowId={(row) => row.uuid}
+        onRowClick={(row) =>
+          router.push(routes.tenant.purchases.detail(slug, row.uuid))
+        }
+        isLoading={listQuery.isLoading}
+        isError={listQuery.isError}
+        errorDescription={t("purchases.error_description")}
+        onRetry={() => void listQuery.refetch()}
+        emptyTitle={t("purchases.empty_title")}
+        emptyDescription={t("purchases.empty_hint")}
+        manual={{ filtering: false, sorting: false, pagination: false }}
+        features={{
+          persistKey: `tenant-purchases-${slug}`,
+          globalFilter: false,
+          columnFilters: false,
+          facetedFilters: false,
+          rowSelection: false,
+          pagination: false,
+        }}
+      />
 
       <CreatePurchaseDialog
         open={createOpen}
@@ -280,52 +263,119 @@ export function PurchasesPage({ slug }: { slug: string }) {
   );
 }
 
-function PurchaseCard({
-  purchase,
-  onOpen,
-}: {
-  purchase: Purchase;
-  onOpen: () => void;
-}) {
+function usePurchaseColumns(): ColumnDef<PurchaseListItem>[] {
   const { t, locale } = useLocale();
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="focus-visible:ring-ring rounded-xl text-left focus-visible:ring-2 focus-visible:outline-none"
-    >
-      <Card className="hover:border-primary/40 hover:bg-muted/20 h-full shadow-none transition-colors">
-        <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-          <div className="min-w-0">
-            <CardTitle className="truncate text-base font-semibold">
-              {purchase.supplier_name}
-            </CardTitle>
-            <p className="text-muted-foreground truncate text-sm">
-              {t(`purchases.payment_method.${purchase.method}`)}
-            </p>
-          </div>
+  return useMemo<ColumnDef<PurchaseListItem>[]>(
+    () => [
+      {
+        accessorKey: "purchased_at",
+        header: t("purchases.purchased_at"),
+        meta: { label: t("purchases.purchased_at") },
+        cell: ({ row }) => (
+          <span className="text-muted-foreground whitespace-nowrap tabular-nums">
+            {datetime(row.original.purchased_at, "dd.MM.yyyy HH:mm", locale)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "supplier_name",
+        header: t("purchases.supplier"),
+        meta: { label: t("purchases.supplier"), gridPrimary: true },
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.supplier_name}</span>
+        ),
+      },
+      {
+        id: "products",
+        header: t("purchases.products"),
+        meta: { label: t("purchases.products") },
+        enableSorting: false,
+        cell: ({ row }) => {
+          const lines = row.original.lines ?? [];
+          if (lines.length === 0) {
+            return <span className="text-muted-foreground">—</span>;
+          }
+          return (
+            <ul className="space-y-1 py-1">
+              {lines.map((line) => (
+                <li
+                  key={line.uuid}
+                  className="flex flex-wrap items-baseline gap-x-2 text-sm"
+                >
+                  <span className="font-medium">{line.name}</span>
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatQty(line.qty, locale)} ×{" "}
+                    {formatFinanceAmount(line.unit_cost, line.currency, locale)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          );
+        },
+      },
+      {
+        id: "qty",
+        header: t("purchases.qty"),
+        meta: {
+          label: t("purchases.qty"),
+          cellClassName: "text-right",
+          headerClassName: "text-right [&>div]:justify-end",
+        },
+        accessorFn: (row) =>
+          (row.lines ?? []).reduce(
+            (total, line) => total + parseFinanceAmount(line.qty),
+            0,
+          ),
+        cell: ({ getValue }) => (
+          <span className="tabular-nums">
+            {formatQty(getValue<number>(), locale)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "method",
+        header: t("purchases.method"),
+        meta: { label: t("purchases.method") },
+        cell: ({ row }) => t(`purchases.payment_method.${row.original.method}`),
+      },
+      {
+        id: "total_amount",
+        header: t("purchases.total"),
+        meta: {
+          label: t("purchases.total"),
+          cellClassName: "text-right",
+          headerClassName: "text-right [&>div]:justify-end",
+        },
+        accessorFn: (row) => parseFinanceAmount(row.total_amount),
+        cell: ({ row }) => (
+          <span className="font-semibold whitespace-nowrap tabular-nums">
+            {formatFinanceAmount(
+              row.original.total_amount,
+              row.original.currency,
+              locale,
+            )}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: t("purchases.status_label"),
+        meta: { label: t("purchases.status_label") },
+        cell: ({ row }) => (
           <StatusChip
-            label={t(`purchases.status.${purchase.status}`)}
-            tone={statusTone(purchase.status)}
+            label={t(`purchases.status.${row.original.status}`)}
+            tone={statusTone(row.original.status)}
           />
-        </CardHeader>
-        <CardContent className="pt-0 pb-4">
-          <div className="flex items-center justify-between gap-2 pt-2">
-            <span className="text-muted-foreground text-xs tabular-nums">
-              {datetime(purchase.purchased_at, "dd.MM.yyyy HH:mm", locale)}
-            </span>
-            <span className="text-sm font-semibold tabular-nums">
-              {formatFinanceAmount(
-                purchase.total_amount,
-                purchase.currency,
-                locale,
-              )}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
-    </button>
+        ),
+      },
+    ],
+    [t, locale],
   );
+}
+
+function formatQty(value: string | number, locale: AppLocale) {
+  const n = typeof value === "number" ? value : parseFinanceAmount(value);
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 3 }).format(n);
 }
 
 function CreatePurchaseDialog({
@@ -390,24 +440,27 @@ function CreatePurchaseDialog({
     }));
   }, []);
 
-  const loadProducts = useCallback(async (query: string) => {
-    const result = await catalogService.listProducts({
-      limit: 20,
-      offset: 0,
-      q: query.trim() || undefined,
-      is_active: "true",
-      sort: "name",
-    });
-    return result.items.map((product) => ({
-      value: product.uuid,
-      label: product.sku ? `${product.name} · ${product.sku}` : product.name,
-      description: formatFinanceAmount(
-        product.cost_price,
-        product.currency,
-        locale,
-      ),
-    }));
-  }, [locale]);
+  const loadProducts = useCallback(
+    async (query: string) => {
+      const result = await catalogService.listProducts({
+        limit: 20,
+        offset: 0,
+        q: query.trim() || undefined,
+        is_active: "true",
+        sort: "name",
+      });
+      return result.items.map((product) => ({
+        value: product.uuid,
+        label: product.sku ? `${product.name} · ${product.sku}` : product.name,
+        description: formatFinanceAmount(
+          product.cost_price,
+          product.currency,
+          locale,
+        ),
+      }));
+    },
+    [locale],
+  );
 
   const addProduct = useCallback(
     async (productUuid: string) => {

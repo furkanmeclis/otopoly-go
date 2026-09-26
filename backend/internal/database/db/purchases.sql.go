@@ -393,6 +393,72 @@ func (q *Queries) ListPurchaseLines(ctx context.Context, arg ListPurchaseLinesPa
 	return items, nil
 }
 
+const listPurchaseLinesByPurchaseIDs = `-- name: ListPurchaseLinesByPurchaseIDs :many
+SELECT l.id, l.uuid, l.organization_id, l.purchase_id, l.product_id, l.name, l.unit_cost, l.qty, l.line_total, l.currency, l.sort_order, l.created_at, l.updated_at, pr.uuid AS product_uuid
+FROM purchase_lines l
+JOIN products pr ON pr.id = l.product_id
+WHERE l.organization_id = $1
+  AND l.purchase_id = ANY ($2::bigint[])
+ORDER BY l.purchase_id ASC, l.sort_order ASC, l.id ASC
+`
+
+type ListPurchaseLinesByPurchaseIDsParams struct {
+	OrganizationID int64   `json:"organization_id"`
+	PurchaseIds    []int64 `json:"purchase_ids"`
+}
+
+type ListPurchaseLinesByPurchaseIDsRow struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	PurchaseID     int64              `json:"purchase_id"`
+	ProductID      int64              `json:"product_id"`
+	Name           string             `json:"name"`
+	UnitCost       pgtype.Numeric     `json:"unit_cost"`
+	Qty            pgtype.Numeric     `json:"qty"`
+	LineTotal      pgtype.Numeric     `json:"line_total"`
+	Currency       string             `json:"currency"`
+	SortOrder      int32              `json:"sort_order"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	ProductUuid    uuid.UUID          `json:"product_uuid"`
+}
+
+func (q *Queries) ListPurchaseLinesByPurchaseIDs(ctx context.Context, arg ListPurchaseLinesByPurchaseIDsParams) ([]ListPurchaseLinesByPurchaseIDsRow, error) {
+	rows, err := q.db.Query(ctx, listPurchaseLinesByPurchaseIDs, arg.OrganizationID, arg.PurchaseIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPurchaseLinesByPurchaseIDsRow{}
+	for rows.Next() {
+		var i ListPurchaseLinesByPurchaseIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.PurchaseID,
+			&i.ProductID,
+			&i.Name,
+			&i.UnitCost,
+			&i.Qty,
+			&i.LineTotal,
+			&i.Currency,
+			&i.SortOrder,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ProductUuid,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPurchases = `-- name: ListPurchases :many
 SELECT p.id, p.uuid, p.organization_id, p.supplier_id, p.supplier_name, p.status, p.currency, p.total_amount, p.method, p.finance_account_id, p.finance_transaction_id, p.notes, p.purchased_at, p.created_by, p.voided_at, p.voided_by, p.created_at, p.updated_at,
        s.uuid AS supplier_uuid

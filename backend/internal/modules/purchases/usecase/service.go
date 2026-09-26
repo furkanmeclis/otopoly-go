@@ -104,7 +104,7 @@ func (s *Service) indexPurchase(ctx context.Context, id uuid.UUID) {
 	s.search.EnqueueUpsert(ctx, "tenant_purchases", scope.UUID.String()+"_"+id.String())
 }
 
-func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFilters) ([]Purchase, int64, error) {
+func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFilters) ([]PurchaseDetail, int64, error) {
 	orgID, err := s.requireOrgID(ctx)
 	if err != nil {
 		return nil, 0, err
@@ -152,9 +152,30 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 	if err != nil {
 		return nil, 0, err
 	}
-	out := make([]Purchase, 0, len(rows))
+	out := make([]PurchaseDetail, 0, len(rows))
+	if len(rows) == 0 {
+		return out, total, nil
+	}
+	ids := make([]int64, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, mapPurchaseList(row))
+		ids = append(ids, row.ID)
+	}
+	lineRows, err := s.q.ListPurchaseLinesByPurchaseIDs(ctx, db.ListPurchaseLinesByPurchaseIDsParams{
+		OrganizationID: orgID, PurchaseIds: ids,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	linesByPurchase := make(map[int64][]Line, len(rows))
+	for _, line := range lineRows {
+		linesByPurchase[line.PurchaseID] = append(linesByPurchase[line.PurchaseID], mapLine(db.ListPurchaseLinesRow(line)))
+	}
+	for _, row := range rows {
+		lines := linesByPurchase[row.ID]
+		if lines == nil {
+			lines = []Line{}
+		}
+		out = append(out, PurchaseDetail{Purchase: mapPurchaseList(row), Lines: lines})
 	}
 	return out, total, nil
 }

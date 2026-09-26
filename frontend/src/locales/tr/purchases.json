@@ -51,5 +51,6 @@
   "toast.failed": "Alış işlemi başarısız",
   "empty_hint": "Tedarikçiden aldığınız ürünleri kaydedin; stok artar, gider kasaya işlenir.",
   "summary.count": "Alış",
-  "summary.total": "Toplam alış"
+  "summary.total": "Toplam alış",
+  "status_label": "Durum"
 }
