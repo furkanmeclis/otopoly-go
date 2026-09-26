@@ -27,15 +27,16 @@ x-backend-environment: &backend-environment
   DB_SSLMODE: ${DB_SSLMODE:-disable}
   REDIS_ADDR: ${NAME_PREFIX:-app}-redis:6379
   REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-  STORAGE_DRIVER: ${STORAGE_DRIVER:-minio}
-  STORAGE_PUBLIC_BASE_URL: ${STORAGE_PUBLIC_BASE_URL:?STORAGE_PUBLIC_BASE_URL is required}
-  # Qualify with APP_NETWORK: short name `minio` collides on dokploy-network.
-  S3_ENDPOINT: http://minio.${APP_NETWORK_NAME:-${NAME_PREFIX:-app}-app}:9000
+  # External S3-compatible storage (AWS S3, Cloudflare R2, Hetzner, Wasabi…).
+  # No object store runs in this stack.
+  STORAGE_DRIVER: ${STORAGE_DRIVER:-s3}
+  S3_ENDPOINT: ${S3_ENDPOINT:?S3_ENDPOINT is required}
   S3_ACCESS_KEY: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}
   S3_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
   S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
   S3_REGION: ${S3_REGION:-us-east-1}
-  S3_USE_PATH_STYLE: "true"
+  S3_USE_PATH_STYLE: ${S3_USE_PATH_STYLE:-false}
+  S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-}
   CENTRIFUGO_API_URL: http://centrifugo.${APP_NETWORK_NAME:-${NAME_PREFIX:-app}-app}:8000
   CENTRIFUGO_API_KEY: ${CENTRIFUGO_API_KEY:?CENTRIFUGO_API_KEY is required}
   CENTRIFUGO_TOKEN_HMAC_SECRET: ${CENTRIFUGO_TOKEN_HMAC_SECRET:?CENTRIFUGO_TOKEN_HMAC_SECRET is required}
@@ -102,47 +103,6 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
-    networks:
-      - app
-
-  minio:
-    image: quay.io/minio/minio:latest
-    container_name: ${NAME_PREFIX:-app}-minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
-    volumes:
-      - minio_data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - app
-      - dokploy-network
-
-  minio-init:
-    image: quay.io/minio/mc:latest
-    container_name: ${NAME_PREFIX:-app}-minio-init
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint:
-      - /bin/sh
-      - -c
-      - |
-        set -eu
-        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
-        mc mb --ignore-existing "local/$$S3_BUCKET"
-        mc anonymous set download "local/$$S3_BUCKET"
-    environment:
-      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?S3_ACCESS_KEY is required}
-      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?S3_SECRET_KEY is required}
-      S3_BUCKET: ${S3_BUCKET:?S3_BUCKET is required}
-    restart: "no"
     networks:
       - app
 
@@ -286,8 +246,6 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
       centrifugo:
         condition: service_healthy
       meilisearch:
@@ -319,8 +277,6 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
       centrifugo:
         condition: service_healthy
       meilisearch:
@@ -375,8 +331,6 @@ volumes:
     name: ${POSTGRES_VOLUME_NAME:-${NAME_PREFIX:-app}-prod-postgres}
   redis_data:
     name: ${REDIS_VOLUME_NAME:-${NAME_PREFIX:-app}-prod-redis}
-  minio_data:
-    name: ${MINIO_VOLUME_NAME:-${NAME_PREFIX:-app}-prod-minio}
   meili_data:
     name: ${MEILI_VOLUME_NAME:-${NAME_PREFIX:-app}-prod-meilisearch}
   speaches_models:
