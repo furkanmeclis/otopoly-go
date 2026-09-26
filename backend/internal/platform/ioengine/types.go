@@ -23,6 +23,16 @@ type Column struct {
 	LabelKey string     `json:"label_key"`
 	Type     ColumnType `json:"type"`
 	Required bool       `json:"required"`
+	// AlignRight right-aligns the column in PDF output (amounts, balances).
+	AlignRight bool `json:"align_right,omitempty"`
+	// Weight overrides the relative PDF column width (0 = type default).
+	Weight float64 `json:"weight,omitempty"`
+}
+
+// InfoLine is a labelled value printed under the document title (PDF/XLSX).
+type InfoLine struct {
+	LabelKey string `json:"label_key"`
+	Value    string `json:"value"`
 }
 
 // Dataset is format-agnostic tabular data.
@@ -30,6 +40,10 @@ type Dataset struct {
 	Resource string           `json:"resource"`
 	Columns  []Column         `json:"columns"`
 	Rows     []map[string]any `json:"rows"`
+	// Info lines describe the document subject (e.g. statement customer).
+	Info []InfoLine `json:"info,omitempty"`
+	// Totals is rendered as a bold summary row under the table (PDF/XLSX).
+	Totals map[string]any `json:"totals,omitempty"`
 }
 
 // ExportFormat supported for downloads.

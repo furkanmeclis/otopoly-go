@@ -77,6 +77,9 @@ func formatPDFCell(v any, col Column, loc i18n.Locale) string {
 }
 
 func pdfMaxRunes(col Column) int {
+	if col.Weight > 0 {
+		return int(20 * col.Weight)
+	}
 	switch col.Type {
 	case ColumnTypeUUID:
 		return 18
@@ -113,6 +116,10 @@ func truncateRunes(s string, max int) string {
 func pdfColumnWeights(columns []Column) []float64 {
 	weights := make([]float64, len(columns))
 	for i, c := range columns {
+		if c.Weight > 0 {
+			weights[i] = c.Weight
+			continue
+		}
 		switch c.Type {
 		case ColumnTypeUUID:
 			weights[i] = 1.05

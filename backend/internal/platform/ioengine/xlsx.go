@@ -19,6 +19,17 @@ func EncodeXLSX(ds Dataset, locale string, lh *Letterhead) ([]byte, error) {
 	if lh != nil {
 		rowStart = writeXLSXLetterhead(f, sheet, lh) + 1
 	}
+	if len(ds.Info) > 0 {
+		for _, line := range ds.Info {
+			if strings.TrimSpace(line.Value) == "" {
+				continue
+			}
+			_ = f.SetCellValue(sheet, fmt.Sprintf("A%d", rowStart), i18n.Translate(loc, line.LabelKey))
+			_ = f.SetCellValue(sheet, fmt.Sprintf("B%d", rowStart), line.Value)
+			rowStart++
+		}
+		rowStart++
+	}
 	// header
 	for i, c := range ds.Columns {
 		cell, _ := excelize.CoordinatesToCellName(i+1, rowStart)
@@ -36,6 +47,15 @@ func EncodeXLSX(ds Dataset, locale string, lh *Letterhead) ([]byte, error) {
 		for ci, c := range ds.Columns {
 			cell, _ := excelize.CoordinatesToCellName(ci+1, rowStart+1+ri)
 			_ = f.SetCellValue(sheet, cell, formatCell(row[c.Key], c, loc))
+		}
+	}
+	if len(ds.Totals) > 0 {
+		totalsRow := rowStart + 1 + len(ds.Rows)
+		bold, _ := f.NewStyle(&excelize.Style{Font: &excelize.Font{Bold: true}})
+		for ci, c := range ds.Columns {
+			cell, _ := excelize.CoordinatesToCellName(ci+1, totalsRow)
+			_ = f.SetCellValue(sheet, cell, formatCell(ds.Totals[c.Key], c, loc))
+			_ = f.SetCellStyle(sheet, cell, cell, bold)
 		}
 	}
 	var buf bytes.Buffer

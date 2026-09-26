@@ -191,6 +191,7 @@ ORDER BY c.name ASC;
 -- name: ListCariEntriesForExport :many
 SELECT e.uuid, e.type, e.status, e.amount, e.balance_after, e.entry_date,
        e.description, e.reference_no, e.payment_method, e.created_at,
+       e.metadata,
        c.name AS customer_name
 FROM cari_entries e
 JOIN cari_accounts a ON a.id = e.account_id
@@ -199,7 +200,7 @@ WHERE e.organization_id = sqlc.arg(organization_id)
   AND e.account_id = sqlc.arg(account_id)
   AND (sqlc.narg(type)::text IS NULL OR e.type = sqlc.narg(type))
   AND (sqlc.narg(status)::text IS NULL OR e.status = sqlc.narg(status))
-ORDER BY e.entry_date DESC, e.created_at DESC;
+ORDER BY e.entry_date ASC, e.created_at ASC;
 
 -- name: ListCariAccountsForSearch :many
 SELECT a.uuid, a.balance, a.currency, a.is_active, a.organization_id,

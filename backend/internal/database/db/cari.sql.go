@@ -941,6 +941,7 @@ func (q *Queries) ListCariEntries(ctx context.Context, arg ListCariEntriesParams
 const listCariEntriesForExport = `-- name: ListCariEntriesForExport :many
 SELECT e.uuid, e.type, e.status, e.amount, e.balance_after, e.entry_date,
        e.description, e.reference_no, e.payment_method, e.created_at,
+       e.metadata,
        c.name AS customer_name
 FROM cari_entries e
 JOIN cari_accounts a ON a.id = e.account_id
@@ -949,7 +950,7 @@ WHERE e.organization_id = $1
   AND e.account_id = $2
   AND ($3::text IS NULL OR e.type = $3)
   AND ($4::text IS NULL OR e.status = $4)
-ORDER BY e.entry_date DESC, e.created_at DESC
+ORDER BY e.entry_date ASC, e.created_at ASC
 `
 
 type ListCariEntriesForExportParams struct {
@@ -970,6 +971,7 @@ type ListCariEntriesForExportRow struct {
 	ReferenceNo   pgtype.Text        `json:"reference_no"`
 	PaymentMethod pgtype.Text        `json:"payment_method"`
 	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	Metadata      []byte             `json:"metadata"`
 	CustomerName  string             `json:"customer_name"`
 }
 
@@ -998,6 +1000,7 @@ func (q *Queries) ListCariEntriesForExport(ctx context.Context, arg ListCariEntr
 			&i.ReferenceNo,
 			&i.PaymentMethod,
 			&i.CreatedAt,
+			&i.Metadata,
 			&i.CustomerName,
 		); err != nil {
 			return nil, err
