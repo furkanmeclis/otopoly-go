@@ -8,6 +8,8 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -22,8 +24,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { routes } from "@/config/routes";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { useQuoteMutations } from "@/features/quotes/hooks/use-quotes";
+import {
+  deliveryErrorText,
+  isWhatsAppNotConnected,
+} from "@/features/quotes/lib/delivery-error";
 import { quotesService } from "@/features/quotes/services/quotes.service";
 import type {
   QuoteDelivery,
@@ -106,11 +113,32 @@ export function remindersBody(
     .map((k) => (k === "custom" ? { kind: k, date: customDate } : { kind: k }));
 }
 
+function WhatsAppNotConnected({ slug }: { slug: string }) {
+  const { t } = useLocale();
+  return (
+    <div className="flex gap-2 rounded-lg bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
+      <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+      <div className="space-y-1">
+        <p className="font-medium">{t("quotes.send.wa_not_connected")}</p>
+        <p>{t("quotes.send.wa_not_connected_hint")}</p>
+        <Link
+          href={routes.tenant.settings.messaging(slug)}
+          className="text-primary inline-block font-medium hover:underline"
+        >
+          {t("quotes.send.wa_settings_link")}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function SendQuoteDialogBody({
   quote,
+  slug,
   onOpenChange,
 }: {
   quote: QuoteDetail;
+  slug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -122,6 +150,14 @@ function SendQuoteDialogBody({
   const [customDate, setCustomDate] = useState(() => localToday());
   const [result, setResult] = useState<QuoteDelivery | null>(null);
   const noPhone = !quote.customer_phone;
+  const preview = useQuery({
+    queryKey: ["tenant", "quotes", "send-preview", quote.uuid],
+    queryFn: () => quotesService.sendPreview(quote.uuid),
+    retry: false,
+    staleTime: 30_000,
+  });
+  const waDisconnected =
+    preview.data !== undefined && !preview.data.channel_connected;
 
   const submit = () =>
     send.mutate(
@@ -157,12 +193,13 @@ function SendQuoteDialogBody({
             <div>
               <p className="font-medium">{t("quotes.send.failed")}</p>
               <p className="text-xs opacity-80">
-                {result.error === "not configured"
-                  ? t("quotes.send.not_configured")
-                  : result.error}
+                {deliveryErrorText(result.error, t)}
               </p>
             </div>
           </div>
+          {isWhatsAppNotConnected(result.error) ? (
+            <WhatsAppNotConnected slug={slug} />
+          ) : null}
           <p className="text-muted-foreground text-sm">
             {t("quotes.send.fallback")}
           </p>
@@ -250,6 +287,21 @@ function SendQuoteDialogBody({
               <AlertTriangle className="size-4 shrink-0" />
               {t("quotes.send.no_phone")}
             </p>
+          ) : waDisconnected ? (
+            <WhatsAppNotConnected slug={slug} />
+          ) : null}
+          {preview.data?.message && !waDisconnected && !noPhone ? (
+            <details className="bg-muted/40 rounded-lg p-3 text-xs">
+              <summary className="cursor-pointer font-medium">
+                {t("quotes.send.preview")}
+              </summary>
+              <p className="mt-2 whitespace-pre-wrap">{preview.data.message}</p>
+              {preview.data.attachment_file_name ? (
+                <p className="text-muted-foreground mt-2">
+                  {preview.data.attachment_file_name}
+                </p>
+              ) : null}
+            </details>
           ) : null}
           <div className="space-y-2">
             <p className="text-sm font-medium">{t("quotes.reminders.title")}</p>
@@ -280,6 +332,7 @@ function SendQuoteDialogBody({
 
 export function SendQuoteDialog(props: {
   quote: QuoteDetail;
+  slug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {

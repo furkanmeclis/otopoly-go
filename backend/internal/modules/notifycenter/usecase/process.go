@@ -61,7 +61,29 @@ func (s *Service) process(ctx context.Context, row db.ScheduledNotification) db.
 		row.DeliveredChannels, row.LastError = delivered, lastErr
 		return row
 	}
+	s.afterSend(ctx, out, noChannel == reasonIneligible)
 	return out
+}
+
+// reasonIneligible is the cancel reason when a Guard / Preparer declines.
+const reasonIneligible = "subject no longer eligible"
+
+// afterSend runs the subject's SentHook (panics are contained).
+func (s *Service) afterSend(ctx context.Context, row db.ScheduledNotification, skipped bool) {
+	h, ok := s.hooks[row.SubjectType]
+	if !ok {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Error("notifycenter_sent_hook_panic", "id", row.ID, "panic", r)
+		}
+	}()
+	h(ctx, SentEvent{
+		OrgID: row.OrganizationID, UUID: row.Uuid, Kind: row.Kind,
+		SubjectType: row.SubjectType, SubjectID: row.SubjectID, Status: row.Status,
+		Delivered: row.DeliveredChannels, LastError: row.LastError, Skipped: skipped,
+	})
 }
 
 // deliver sends every channel not yet delivered. retry=true when at least one
@@ -74,8 +96,19 @@ func (s *Service) deliver(ctx context.Context, row db.ScheduledNotification) (de
 			return delivered, "guard: " + err.Error(), true, ""
 		}
 		if !okSend {
-			return delivered, "", false, "subject no longer eligible"
+			return delivered, "", false, reasonIneligible
 		}
+	}
+	var fresh map[string]string
+	if p, ok := s.preps[row.SubjectType]; ok {
+		prep, err := p(ctx, row.OrganizationID, row.SubjectID)
+		if err != nil {
+			return delivered, "prepare: " + err.Error(), true, ""
+		}
+		if prep.Skip {
+			return delivered, "", false, reasonIneligible
+		}
+		fresh = prep.Vars
 	}
 	spec, ok := msgtemplate.Lookup(row.Kind)
 	if !ok {
@@ -108,6 +141,9 @@ func (s *Service) deliver(ctx context.Context, row db.ScheduledNotification) (de
 	}
 	vars := map[string]string{}
 	_ = json.Unmarshal(row.Vars, &vars)
+	for k, v := range fresh {
+		vars[k] = v
+	}
 	vars = s.enrichVars(vars, locale, org, rcpt, row)
 
 	var att model.Attachment
@@ -337,6 +373,7 @@ func (s *Service) enrichVars(vars map[string]string, locale string, org db.GetNo
 		if row.SubjectType == model.SubjectTodo {
 			setIfEmpty("todo_link", link)
 		}
+		setIfEmpty("app_link", link)
 	}
 	return vars
 }

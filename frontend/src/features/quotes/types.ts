@@ -15,6 +15,7 @@ export type QuoteLineInput = Schemas["QuoteLineInput"];
 export type QuoteReminderInput = Schemas["QuoteReminderInput"];
 export type SendQuoteInput = Schemas["SendQuoteRequest"];
 export type QuoteSendResult = Schemas["QuoteSendResult"];
+export type QuoteSendPreview = Schemas["QuoteSendPreview"];
 export type ConvertQuoteInput = Schemas["ConvertQuoteRequest"];
 export type QuoteConvertPreview = Schemas["QuoteConvertPreview"];
 export type QuoteConvertResult = Schemas["QuoteConvertResult"];

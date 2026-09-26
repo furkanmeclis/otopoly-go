@@ -58,6 +58,8 @@ type Service struct {
 	loc    *time.Location
 	appURL string
 	guards map[string]Guard
+	preps  map[string]Preparer
+	hooks  map[string]SentHook
 }
 
 // New builds the service. inbox / msg may be nil (channel then unavailable).
@@ -69,7 +71,7 @@ func New(q Querier, inbox Inbox, msg Messenger, log *slog.Logger) *Service {
 	if err != nil {
 		loc = time.FixedZone("TRT", 3*60*60)
 	}
-	return &Service{q: q, inbox: inbox, msg: msg, log: log, now: time.Now, loc: loc, guards: map[string]Guard{}}
+	return &Service{q: q, inbox: inbox, msg: msg, log: log, now: time.Now, loc: loc, guards: map[string]Guard{}, preps: map[string]Preparer{}, hooks: map[string]SentHook{}}
 }
 
 // SetStorage enables uploading attachment bytes (required for Schedule with Data).
@@ -83,6 +85,14 @@ func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
 // RegisterGuard installs a send-time eligibility check for a subject type.
 func (s *Service) RegisterGuard(subjectType string, g Guard) { s.guards[subjectType] = g }
+
+// RegisterPreparer installs a send-time guard that may also refresh vars.
+// It runs after the Guard of the same subject type (if any).
+func (s *Service) RegisterPreparer(subjectType string, p Preparer) { s.preps[subjectType] = p }
+
+// RegisterSentHook installs a callback that observes every delivery outcome
+// of a subject type (e.g. to mirror it on the owning module's row).
+func (s *Service) RegisterSentHook(subjectType string, h SentHook) { s.hooks[subjectType] = h }
 
 func (s *Service) orgID(ctx context.Context, explicit int64) (int64, error) {
 	sc, ok := orgctx.ScopeFrom(ctx)

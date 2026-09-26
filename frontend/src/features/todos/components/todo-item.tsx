@@ -1,6 +1,14 @@
 "use client";
 
-import { BellRing, Pencil, Sparkles, Trash2, UserRound } from "lucide-react";
+import {
+  BellRing,
+  FileText,
+  Pencil,
+  Sparkles,
+  Target,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -83,14 +91,22 @@ export function TodoItem({
             </Link>
           ) : null}
           {todo.lead ? (
-            <span className="text-muted-foreground text-xs">
-              {t("todos.fields.lead")}: {todo.lead.label}
-            </span>
+            <Link
+              href={routes.tenant.leads.detail(slug, todo.lead.uuid)}
+              className="bg-muted text-muted-foreground hover:text-foreground inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
+            >
+              <Target className="size-3 shrink-0" />
+              <span className="truncate">{todo.lead.label}</span>
+            </Link>
           ) : null}
           {todo.quote ? (
-            <span className="text-muted-foreground text-xs">
-              {t("todos.fields.quote")}: {todo.quote.label}
-            </span>
+            <Link
+              href={routes.tenant.quotes.detail(slug, todo.quote.uuid)}
+              className="bg-muted text-muted-foreground hover:text-foreground inline-flex max-w-full items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
+            >
+              <FileText className="size-3 shrink-0" />
+              <span className="truncate">{todo.quote.label}</span>
+            </Link>
           ) : null}
           {todo.next_reminder_at && !done ? (
             <span

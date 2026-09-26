@@ -13,6 +13,7 @@ import type {
   QuoteListParams,
   QuotePage,
   QuoteReminderInput,
+  QuoteSendPreview,
   QuoteSendResult,
   QuoteSummary,
   SaveQuoteInput,
@@ -51,6 +52,12 @@ export const quotesService = {
     return platformRequest<QuoteSendResult>("POST", `${base}/${uuid}/send`, {
       body,
     });
+  },
+  sendPreview(uuid: string) {
+    return platformRequest<QuoteSendPreview>(
+      "GET",
+      `${base}/${uuid}/send-preview`,
+    );
   },
   retryDelivery(uuid: string, deliveryUuid: string) {
     return platformRequest<QuoteSendResult>(

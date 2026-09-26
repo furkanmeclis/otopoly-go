@@ -509,6 +509,81 @@ func (q *Queries) ExpireDueQuotes(ctx context.Context, arg ExpireDueQuotesParams
 	return items, nil
 }
 
+const failQuoteDeliveryByRef = `-- name: FailQuoteDeliveryByRef :one
+UPDATE quote_deliveries
+SET status = 'failed', error = $1, sent_at = NULL
+WHERE organization_id = $2 AND provider_ref = $3
+  AND provider_ref <> '' AND status = 'sent'
+RETURNING id, uuid, organization_id, quote_id, channel, recipient, status, error, provider_ref, attempt_count, last_attempt_at, sent_at, created_by, created_at, updated_at
+`
+
+type FailQuoteDeliveryByRefParams struct {
+	Error          string `json:"error"`
+	OrganizationID int64  `json:"organization_id"`
+	ProviderRef    string `json:"provider_ref"`
+}
+
+// Async WhatsApp failure reported after the delivery was handed off.
+func (q *Queries) FailQuoteDeliveryByRef(ctx context.Context, arg FailQuoteDeliveryByRefParams) (QuoteDelivery, error) {
+	row := q.db.QueryRow(ctx, failQuoteDeliveryByRef, arg.Error, arg.OrganizationID, arg.ProviderRef)
+	var i QuoteDelivery
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.QuoteID,
+		&i.Channel,
+		&i.Recipient,
+		&i.Status,
+		&i.Error,
+		&i.ProviderRef,
+		&i.AttemptCount,
+		&i.LastAttemptAt,
+		&i.SentAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const failQuoteReminderByRef = `-- name: FailQuoteReminderByRef :one
+UPDATE quote_reminders
+SET status = 'failed', error = $1
+WHERE organization_id = $2 AND external_ref = $3
+  AND external_ref <> '' AND status IN ('scheduled', 'sent')
+RETURNING id, uuid, organization_id, quote_id, kind, offset_days, fire_at, status, external_ref, error, sent_at, cancelled_at, created_at, updated_at
+`
+
+type FailQuoteReminderByRefParams struct {
+	Error          string `json:"error"`
+	OrganizationID int64  `json:"organization_id"`
+	ExternalRef    string `json:"external_ref"`
+}
+
+// Async WhatsApp failure of a reminder that was already handed off.
+func (q *Queries) FailQuoteReminderByRef(ctx context.Context, arg FailQuoteReminderByRefParams) (QuoteReminder, error) {
+	row := q.db.QueryRow(ctx, failQuoteReminderByRef, arg.Error, arg.OrganizationID, arg.ExternalRef)
+	var i QuoteReminder
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.QuoteID,
+		&i.Kind,
+		&i.OffsetDays,
+		&i.FireAt,
+		&i.Status,
+		&i.ExternalRef,
+		&i.Error,
+		&i.SentAt,
+		&i.CancelledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const finishQuoteDelivery = `-- name: FinishQuoteDelivery :one
 UPDATE quote_deliveries
 SET status = $1::text,
@@ -863,6 +938,44 @@ func (q *Queries) GetQuoteDeliveryByUUID(ctx context.Context, arg GetQuoteDelive
 	return i, err
 }
 
+const getQuoteNotifyPeople = `-- name: GetQuoteNotifyPeople :one
+SELECT
+    q.created_by,
+    COALESCE(NULLIF(TRIM(u.name || ' ' || u.surname), ''), u.email, '')::text AS created_by_name,
+    l.assignee_user_id AS lead_assignee_id,
+    c.name AS customer_name
+FROM quotes q
+JOIN customers c ON c.id = q.customer_id
+LEFT JOIN users u ON u.id = q.created_by
+LEFT JOIN leads l ON l.id = q.lead_id AND l.organization_id = q.organization_id AND l.deleted_at IS NULL
+WHERE q.id = $1 AND q.organization_id = $2
+`
+
+type GetQuoteNotifyPeopleParams struct {
+	ID             int64 `json:"id"`
+	OrganizationID int64 `json:"organization_id"`
+}
+
+type GetQuoteNotifyPeopleRow struct {
+	CreatedBy      pgtype.Int8 `json:"created_by"`
+	CreatedByName  string      `json:"created_by_name"`
+	LeadAssigneeID pgtype.Int8 `json:"lead_assignee_id"`
+	CustomerName   string      `json:"customer_name"`
+}
+
+// Team members related to a quote (creator, lead assignee) for internal notifications.
+func (q *Queries) GetQuoteNotifyPeople(ctx context.Context, arg GetQuoteNotifyPeopleParams) (GetQuoteNotifyPeopleRow, error) {
+	row := q.db.QueryRow(ctx, getQuoteNotifyPeople, arg.ID, arg.OrganizationID)
+	var i GetQuoteNotifyPeopleRow
+	err := row.Scan(
+		&i.CreatedBy,
+		&i.CreatedByName,
+		&i.LeadAssigneeID,
+		&i.CustomerName,
+	)
+	return i, err
+}
+
 const getQuoteRefs = `-- name: GetQuoteRefs :one
 SELECT
     c.uuid AS customer_uuid,
@@ -920,6 +1033,37 @@ func (q *Queries) GetQuoteRefs(ctx context.Context, id int64) (GetQuoteRefsRow, 
 		&i.VehicleModelLabel,
 		&i.JobUuid,
 		&i.CreatedByName,
+	)
+	return i, err
+}
+
+const getQuoteReminderByID = `-- name: GetQuoteReminderByID :one
+SELECT id, uuid, organization_id, quote_id, kind, offset_days, fire_at, status, external_ref, error, sent_at, cancelled_at, created_at, updated_at FROM quote_reminders WHERE id = $1 AND organization_id = $2
+`
+
+type GetQuoteReminderByIDParams struct {
+	ID             int64 `json:"id"`
+	OrganizationID int64 `json:"organization_id"`
+}
+
+func (q *Queries) GetQuoteReminderByID(ctx context.Context, arg GetQuoteReminderByIDParams) (QuoteReminder, error) {
+	row := q.db.QueryRow(ctx, getQuoteReminderByID, arg.ID, arg.OrganizationID)
+	var i QuoteReminder
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.QuoteID,
+		&i.Kind,
+		&i.OffsetDays,
+		&i.FireAt,
+		&i.Status,
+		&i.ExternalRef,
+		&i.Error,
+		&i.SentAt,
+		&i.CancelledAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

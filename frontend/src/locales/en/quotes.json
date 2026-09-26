@@ -192,5 +192,10 @@
   "toast.link_copied": "Link copied",
   "toast.reminders": "Reminders saved",
   "toast.converted": "Job created",
-  "convert.model_placeholder": "Search make / model / year"
+  "convert.model_placeholder": "Search make / model / year",
+  "send.wa_not_connected": "WhatsApp is not connected",
+  "send.wa_not_connected_hint": "The quote is marked as sent but the message cannot be delivered. Connect your WhatsApp line or share the link manually.",
+  "send.wa_settings_link": "Settings > Messages",
+  "send.no_phone_error": "The customer has no phone number.",
+  "send.preview": "Message preview"
 }

@@ -215,7 +215,13 @@ func TestScheduleDedupeClaimAndPreferences_DB(t *testing.T) {
 		Prefs model.ChannelPrefs `json:"prefs"`
 	}{Type: "todo.reminder", Prefs: model.ChannelPrefs{WhatsApp: true}})
 	prefs, err := svc.UpdatePreferences(uctx, in)
-	if err != nil || prefs.Phone != phone || !prefs.Types[0].Custom || prefs.Types[0].Prefs.Inapp {
+	var todoPref model.TypePreference
+	for _, tp := range prefs.Types {
+		if tp.Type == "todo.reminder" {
+			todoPref = tp
+		}
+	}
+	if err != nil || prefs.Phone != phone || !todoPref.Custom || todoPref.Prefs.Inapp {
 		t.Fatalf("prefs: %+v %v", prefs, err)
 	}
 	if _, err := f.pool.Exec(context.Background(), `UPDATE users SET locale='en' WHERE id=$1`, f.userID); err != nil {
@@ -242,8 +248,8 @@ func TestRetryThenFail_DB(t *testing.T) {
 
 	n := model.Notification{
 		Kind: "quote.reminder", SubjectType: "quote", SubjectID: 99,
-		Recipient: model.Recipient{CustomerID: f.customerID},
-		Vars:      map[string]string{"quote_number": "TKL-1", "quote_link": "https://x"},
+		Recipient:   model.Recipient{CustomerID: f.customerID},
+		Vars:        map[string]string{"quote_number": "TKL-1", "quote_link": "https://x"},
 		MaxAttempts: 2,
 		Attachment:  &model.Attachment{ObjectKey: "quotes/1.pdf", FileName: "teklif.pdf", MimeType: "application/pdf"},
 	}
