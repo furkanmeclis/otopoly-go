@@ -148,7 +148,9 @@ FROM service_job_lines l
 JOIN service_jobs j ON j.id = l.job_id
 WHERE l.organization_id = sqlc.arg(organization_id)
   AND l.line_type = 'service'
-  AND j.status IN ('paid', 'done', 'in_progress')
+  -- Job statuses are in_progress | ready | delivered | cancelled | voided
+  -- (000046); payment is tracked separately in payment_status.
+  AND j.status NOT IN ('cancelled', 'voided')
   AND j.started_at >= sqlc.arg(ts_from)
   AND j.started_at < sqlc.arg(ts_to)
   AND (sqlc.narg(currency)::text IS NULL OR l.currency = sqlc.narg(currency))

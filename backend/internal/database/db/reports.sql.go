@@ -856,7 +856,9 @@ FROM service_job_lines l
 JOIN service_jobs j ON j.id = l.job_id
 WHERE l.organization_id = $1
   AND l.line_type = 'service'
-  AND j.status IN ('paid', 'done', 'in_progress')
+  -- Job statuses are in_progress | ready | delivered | cancelled | voided
+  -- (000046); payment is tracked separately in payment_status.
+  AND j.status NOT IN ('cancelled', 'voided')
   AND j.started_at >= $2
   AND j.started_at < $3
   AND ($4::text IS NULL OR l.currency = $4)
