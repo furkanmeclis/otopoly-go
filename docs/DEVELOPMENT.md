@@ -87,7 +87,9 @@ Optional frontend public vars (root `.env`): `NEXT_PUBLIC_BFF_BASE_URL`, `NEXT_P
 3. `make prod-config` then `make prod-up`
 4. Seed platform admin: `make prod-create-super-admin` (uses `SA_*` from `.env.server`; backend image includes `create-super-admin`)
 
-Dokploy-attached services: **minio, centrifugo, backend, frontend**. Postgres, Redis, Meilisearch, and the worker stay on the private app network.
+Dokploy-attached services: **centrifugo, backend, frontend**. Postgres, Redis, Meilisearch, and the worker stay on the private app network.
+
+Prod has no object store container: set `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_BUCKET`, `S3_REGION` (and optionally `S3_USE_PATH_STYLE`, `S3_PUBLIC_BASE_URL`) for an external S3-compatible bucket. Public media (logos, share links) need public read on the bucket or a CDN URL in `S3_PUBLIC_BASE_URL`. MinIO remains in `compose.local.yml` for local dev only.
 
 `APP_ENCRYPTION_KEY` (32-byte, raw or base64) encrypts GitHub App secrets at rest. Generate: `openssl rand -base64 32`. Replace the example key in production.
 
