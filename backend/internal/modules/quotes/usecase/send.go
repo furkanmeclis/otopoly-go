@@ -199,6 +199,10 @@ func (s *Service) SetReminders(ctx context.Context, id uuid.UUID, in []ReminderI
 
 // buildMessage assembles the messenger payload (renders the PDF when possible).
 func (s *Service) buildMessage(ctx context.Context, row db.Quote) (QuoteMessage, error) {
+	return s.buildMessageOpts(ctx, row, true)
+}
+
+func (s *Service) buildMessageOpts(ctx context.Context, row db.Quote, withPDF bool) (QuoteMessage, error) {
 	org, err := s.q.GetOrganizationByID(ctx, row.OrganizationID)
 	if err != nil {
 		return QuoteMessage{}, err
@@ -210,7 +214,8 @@ func (s *Service) buildMessage(ctx context.Context, row db.Quote) (QuoteMessage,
 	msg := QuoteMessage{
 		OrganizationID: org.ID, OrganizationUUID: org.Uuid, OrganizationName: org.Name,
 		QuoteID: row.ID, QuoteUUID: row.Uuid, QuoteNumber: row.Number, Status: row.Status,
-		CustomerUUID: refs.CustomerUuid, CustomerName: refs.CustomerName, CustomerPhone: refs.CustomerPhone,
+		CustomerID: row.CustomerID, CustomerUUID: refs.CustomerUuid, CustomerName: refs.CustomerName,
+		CustomerPhone: refs.CustomerPhone, CustomerEmail: refs.CustomerEmail,
 		VehiclePlate: row.VehiclePlate, VehicleLabel: row.VehicleLabel,
 		GrandTotal: money(row.GrandTotal), Currency: row.Currency,
 		ShareURL: s.ShareURL(row.ShareToken), PDFFileName: row.Number + ".pdf", Locale: "tr",
@@ -218,6 +223,9 @@ func (s *Service) buildMessage(ctx context.Context, row db.Quote) (QuoteMessage,
 	if row.ValidUntil.Valid {
 		v := row.ValidUntil.Time
 		msg.ValidUntil = &v
+	}
+	if !withPDF {
+		return msg, nil
 	}
 	pdf, key, perr := s.ensurePDF(ctx, row)
 	if perr != nil {
@@ -303,6 +311,7 @@ func (s *Service) Send(ctx context.Context, id uuid.UUID, in SendInput) (SendRes
 	s.record(ctx, "tenant.quote.send", row.Uuid, map[string]any{
 		"number": row.Number, "channel": channel, "delivery_status": delivery.Status,
 	})
+	s.notify(ctx, "sent", row)
 	detail, err := s.loadDetail(ctx, row)
 	if err != nil {
 		return SendResult{}, err
@@ -314,6 +323,7 @@ func (s *Service) Send(ctx context.Context, id uuid.UUID, in SendInput) (SendRes
 func (s *Service) deliver(ctx context.Context, row db.Quote, d db.QuoteDelivery) db.QuoteDelivery {
 	status, errMsg, ref := "sent", "", ""
 	msg, err := s.buildMessage(ctx, row)
+	msg.DeliveryUUID, msg.Attempt = d.Uuid, d.AttemptCount+1
 	if err == nil {
 		if strings.TrimSpace(msg.CustomerPhone) == "" {
 			err = errors.New("customer has no phone number")

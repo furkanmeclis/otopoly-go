@@ -49,6 +49,8 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		response.Conflict(w, r, response.CodeConflict, err.Error())
 	case errors.Is(err, quotesusecase.ErrInvalidRequest):
 		response.BadRequest(w, r, response.CodeValidationError, err.Error())
+	case errors.Is(err, quotesusecase.ErrNotConfigured):
+		response.ServiceUnavailable(w, r, "NOT_CONFIGURED", "messaging is not configured")
 	case errors.Is(err, quotesusecase.ErrPDFUnavailable):
 		response.ServiceUnavailable(w, r, "PDF_UNAVAILABLE", "PDF could not be generated")
 	default:
@@ -244,6 +246,20 @@ func (h *Handler) Send(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out, err := h.svc.Send(r.Context(), id, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+// SendPreview renders the customer message for the send dialog.
+func (h *Handler) SendPreview(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r, "uuid")
+	if !ok {
+		return
+	}
+	out, err := h.svc.SendPreview(r.Context(), id)
 	if err != nil {
 		writeError(w, r, err)
 		return

@@ -79,6 +79,9 @@ var (
 	phQuoteTotal = Placeholder{Key: "total_amount", SampleTR: "12.500,00 TRY", SampleEN: "TRY 12,500.00"}
 	phValidUntil = Placeholder{Key: "valid_until", SampleTR: "30.09.2026", SampleEN: "Sep 30, 2026"}
 	phQuoteLink  = Placeholder{Key: "quote_link", SampleTR: "https://otopoly.app/q/abc123", SampleEN: "https://otopoly.app/q/abc123"}
+	phCreatedBy  = Placeholder{Key: "created_by_name", SampleTR: "Mehmet Kaya", SampleEN: "Mark Brown"}
+	// app_link is the absolute in-app link of the notification (staff types).
+	phAppLink = Placeholder{Key: "app_link", SampleTR: "https://otopoly.app/t/tech-oto/quotes/abc", SampleEN: "https://otopoly.app/t/tech-oto/quotes/abc"}
 
 	phTodoTitle = Placeholder{Key: "todo_title", SampleTR: "34 ABC 123 seramik kontrolü", SampleEN: "Ceramic coating check 34 ABC 123"}
 	phDueAt     = Placeholder{Key: "due_at", SampleTR: "25.09.2026 14:30", SampleEN: "Sep 25, 2026 14:30"}
@@ -114,10 +117,16 @@ func init() {
 	Register(TypeSpec{Type: "sale.created", Group: "sales", Audience: AudienceCustomer, Channels: customerChannels,
 		Placeholders: []Placeholder{phCustomer, phCompany, phBusiness, phAmount, phCurrency, phPlate}})
 
-	quotePh := []Placeholder{phCustomer, phCompany, phQuoteNo, phQuoteTotal, phValidUntil, phQuoteLink}
+	quotePh := []Placeholder{phCustomer, phCompany, phQuoteNo, phQuoteTotal, phValidUntil, phQuoteLink, phPlate}
 	for _, t := range []string{"quote.created", "quote.sent", "quote.reminder", "quote.expiring"} {
 		Register(TypeSpec{Type: t, Group: "quotes", Audience: AudienceCustomer,
 			Channels: []string{ChannelWhatsApp, ChannelSMS, ChannelEmail}, Placeholders: quotePh})
+	}
+	// Team-facing quote notifications (in-app / e-mail, per-user preferences).
+	teamQuotePh := []Placeholder{phQuoteNo, phCustomer, phQuoteTotal, phValidUntil, phCreatedBy, phAssignee, phCompany, phAppLink}
+	for _, t := range []string{"quote.team_created", "quote.team_expiring"} {
+		Register(TypeSpec{Type: t, Group: "quotes", Audience: AudienceStaff,
+			Channels: []string{ChannelInapp, ChannelEmail}, Placeholders: teamQuotePh, UserPreference: true})
 	}
 	Register(TypeSpec{Type: "todo.reminder", Group: "todos", Audience: AudienceStaff,
 		Channels:       []string{ChannelInapp, ChannelEmail, ChannelWhatsApp, ChannelSMS},

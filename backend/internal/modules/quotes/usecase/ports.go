@@ -23,9 +23,11 @@ type QuoteMessage struct {
 	QuoteUUID        uuid.UUID
 	QuoteNumber      string
 	Status           string
+	CustomerID       int64
 	CustomerUUID     uuid.UUID
 	CustomerName     string
 	CustomerPhone    string
+	CustomerEmail    string
 	VehiclePlate     string
 	VehicleLabel     string
 	GrandTotal       string // "1250.00"
@@ -39,6 +41,10 @@ type QuoteMessage struct {
 	PDFFileName  string
 	PDFError     string
 	Locale       string
+	// DeliveryUUID / Attempt identify one "send to customer" attempt (zero
+	// for reminders and previews); messengers use them for idempotency.
+	DeliveryUUID uuid.UUID
+	Attempt      int32
 }
 
 // QuoteSendResult is what a messenger reports back on success.
@@ -52,6 +58,47 @@ type QuoteSendResult struct {
 type QuoteMessenger interface {
 	SendQuote(ctx context.Context, msg QuoteMessage) (QuoteSendResult, error)
 }
+
+// QuotePreview is the rendered customer message shown before sending.
+type QuotePreview struct {
+	Channel            string `json:"channel"`
+	ChannelConnected   bool   `json:"channel_connected"`
+	CustomerPhone      string `json:"customer_phone"`
+	Message            string `json:"message"`
+	TemplateActive     bool   `json:"template_active"`
+	AttachmentFileName string `json:"attachment_file_name"`
+}
+
+// QuotePreviewer is optionally implemented by a QuoteMessenger.
+type QuotePreviewer interface {
+	PreviewQuote(ctx context.Context, msg QuoteMessage) (QuotePreview, error)
+}
+
+// QuoteEvent is published after a quote write (post-commit, fail-soft).
+type QuoteEvent struct {
+	Kind           string // created | sent | updated | status
+	OrganizationID int64
+	QuoteID        int64
+	QuoteUUID      uuid.UUID
+	Number         string
+	Status         string
+	GrandTotal     string
+	Currency       string
+	ValidUntil     *time.Time
+	CreatedBy      int64
+	// ActorID is the user who made the change (0 for system / public).
+	ActorID int64
+}
+
+// QuoteNotifier reacts to quote changes (internal notifications). The
+// default is a no-op.
+type QuoteNotifier interface {
+	QuoteChanged(ctx context.Context, ev QuoteEvent)
+}
+
+type noopNotifier struct{}
+
+func (noopNotifier) QuoteChanged(context.Context, QuoteEvent) {}
 
 // QuoteReminder is one desired reminder handed to the scheduler.
 type QuoteReminder struct {

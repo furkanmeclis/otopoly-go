@@ -64,6 +64,7 @@ type Service struct {
 	channels map[string]ChannelSender
 	enq      Enqueuer
 	store    storage.Driver
+	observer OutboundObserver
 }
 
 // New builds a messaging service.

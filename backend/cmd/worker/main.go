@@ -22,6 +22,7 @@ import (
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
 	centerusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/usecase"
 	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/salesflow"
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
@@ -162,10 +163,18 @@ func main() {
 	queueClient := queue.NewClient(cfg.Redis)
 	defer func() { _ = queueClient.Close() }()
 	messagingSvc := messagingusecase.New(queries, nil, nil).SetQueue(queueClient).SetStorage(store)
-	centerSvc := centerusecase.New(queries, notifSvc, messagingmodule.NewCenterMessenger(messagingSvc, queries), log).
+	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
+	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
 		SetStorage(store).
 		SetAppURL(cfg.Auth.FrontendURL)
 	centerSvc.RegisterGuard("todo", todosusecase.New(queries, nil).ReminderGuard)
+	// Quote reminders fire from this sweep: same preparer / sent hook as the
+	// API; expiry cancels their scheduled notifications.
+	sales := salesflow.New(centerSvc, centerMessenger, queries, log)
+	sales.Register(centerSvc)
+	sales.SetQuotes(quotesSvc)
+	quotesSvc.SetReminderScheduler(sales)
+	quotesSvc.SetNotifier(sales)
 
 	persist := logging.Attach(log, logsSvc)
 	log = persist.Logger()

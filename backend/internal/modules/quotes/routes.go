@@ -45,6 +45,7 @@ func RegisterRoutes(
 	mux.Handle("PUT /v1/tenant/quotes/{uuid}", write(h.Update))
 	mux.Handle("POST /v1/tenant/quotes/{uuid}/duplicate", write(h.Duplicate))
 	mux.Handle("POST /v1/tenant/quotes/{uuid}/status", write(h.SetStatus))
+	mux.Handle("GET /v1/tenant/quotes/{uuid}/send-preview", write(h.SendPreview))
 	mux.Handle("POST /v1/tenant/quotes/{uuid}/send", write(h.Send))
 	mux.Handle("POST /v1/tenant/quotes/{uuid}/deliveries/{deliveryUuid}/retry", write(h.RetryDelivery))
 	mux.Handle("PUT /v1/tenant/quotes/{uuid}/reminders", write(h.SetReminders))

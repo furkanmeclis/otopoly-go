@@ -7578,6 +7578,34 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/quotes/{uuid}/send-preview:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantQuoteSendPreview
+      summary: Preview the customer message of a quote send
+      description: Requires `tenant.quotes.write`. Renders the WhatsApp `quote.sent` message and reports whether the organization's WhatsApp line is connected. Nothing is stored and no PDF is rendered.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQuoteSendPreview"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503":
+          description: Messaging is not configured (NOT_CONFIGURED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /v1/tenant/quotes/{uuid}/deliveries/{deliveryUuid}/retry:
     parameters:
       - name: uuid
@@ -11431,6 +11459,25 @@ components:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/QuoteSendResult" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeQuoteSendPreview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QuoteSendPreview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    QuoteSendPreview:
+      type: object
+      required: [channel, channel_connected, customer_phone, message, template_active, attachment_file_name]
+      properties:
+        channel: { type: string, example: whatsapp }
+        channel_connected: { type: boolean }
+        customer_phone: { type: string }
+        message: { type: string, description: Rendered message text (empty when no template is configured). }
+        template_active: { type: boolean }
+        attachment_file_name: { type: string }
 
     EnvelopeQuoteConvertPreview:
       type: object

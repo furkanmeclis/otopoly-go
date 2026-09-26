@@ -45,6 +45,29 @@ func (s *Service) SetQueue(enq Enqueuer) *Service {
 	return s
 }
 
+// OutboundOutcome is the final result of a queued WhatsApp/SMS send.
+type OutboundOutcome struct {
+	OrgID       int64
+	EventType   string
+	Channel     string
+	SubjectType string
+	// SubjectUUID is the sender's reference (for notification-center sends:
+	// the scheduled notification uuid).
+	SubjectUUID *uuid.UUID
+	Sent        bool
+	Error       string
+}
+
+// OutboundObserver receives final outcomes of queued sends (asynq path only:
+// inline sends report errors to their caller directly).
+type OutboundObserver func(ctx context.Context, o OutboundOutcome)
+
+// SetOutboundObserver installs the observer (nil disables it).
+func (s *Service) SetOutboundObserver(fn OutboundObserver) *Service {
+	s.observer = fn
+	return s
+}
+
 // SetStorage enables attachment upload/download.
 func (s *Service) SetStorage(store storage.Driver) *Service {
 	s.store = store
@@ -142,10 +165,14 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 // Returns an error to trigger an asynq retry; on the final attempt the row is
 // marked failed.
 func (s *Service) ProcessOutbound(ctx context.Context, id int64, final bool) error {
-	return s.processOutbound(ctx, id, final, nil)
+	return s.processOutboundObserved(ctx, id, final, nil, s.observer)
 }
 
 func (s *Service) processOutbound(ctx context.Context, id int64, final bool, inlineData []byte) error {
+	return s.processOutboundObserved(ctx, id, final, inlineData, nil)
+}
+
+func (s *Service) processOutboundObserved(ctx context.Context, id int64, final bool, inlineData []byte, observe OutboundObserver) error {
 	row, err := s.q.ClaimOutboundMessage(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil // already sent / claimed by another delivery
@@ -169,6 +196,17 @@ func (s *Service) processOutbound(ctx context.Context, id int64, final bool, inl
 	}
 	if _, err := s.q.FinishOutboundMessage(ctx, params); err != nil {
 		return fmt.Errorf("finish outbound: %w", err)
+	}
+	if observe != nil && (sendErr == nil || final) {
+		o := OutboundOutcome{
+			OrgID: row.OrganizationID, EventType: row.EventType, Channel: row.Channel,
+			SubjectType: row.SubjectType, Sent: sendErr == nil, Error: params.ErrorMessage,
+		}
+		if row.SubjectUuid.Valid {
+			id := uuid.UUID(row.SubjectUuid.Bytes)
+			o.SubjectUUID = &id
+		}
+		observe(ctx, o)
 	}
 	return sendErr
 }

@@ -330,3 +330,35 @@ SELECT m.id, m.uuid, b.name AS brand_name, m.name AS model_name
 FROM vehicle_models m
 JOIN vehicle_brands b ON b.id = m.brand_id
 WHERE m.uuid = sqlc.arg(uuid) AND m.deleted_at IS NULL;
+
+-- name: GetQuoteReminderByID :one
+SELECT * FROM quote_reminders WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id);
+
+-- name: FailQuoteDeliveryByRef :one
+-- Async WhatsApp failure reported after the delivery was handed off.
+UPDATE quote_deliveries
+SET status = 'failed', error = sqlc.arg(error), sent_at = NULL
+WHERE organization_id = sqlc.arg(organization_id) AND provider_ref = sqlc.arg(provider_ref)
+  AND provider_ref <> '' AND status = 'sent'
+RETURNING *;
+
+-- name: FailQuoteReminderByRef :one
+-- Async WhatsApp failure of a reminder that was already handed off.
+UPDATE quote_reminders
+SET status = 'failed', error = sqlc.arg(error)
+WHERE organization_id = sqlc.arg(organization_id) AND external_ref = sqlc.arg(external_ref)
+  AND external_ref <> '' AND status IN ('scheduled', 'sent')
+RETURNING *;
+
+-- name: GetQuoteNotifyPeople :one
+-- Team members related to a quote (creator, lead assignee) for internal notifications.
+SELECT
+    q.created_by,
+    COALESCE(NULLIF(TRIM(u.name || ' ' || u.surname), ''), u.email, '')::text AS created_by_name,
+    l.assignee_user_id AS lead_assignee_id,
+    c.name AS customer_name
+FROM quotes q
+JOIN customers c ON c.id = q.customer_id
+LEFT JOIN users u ON u.id = q.created_by
+LEFT JOIN leads l ON l.id = q.lead_id AND l.organization_id = q.organization_id AND l.deleted_at IS NULL
+WHERE q.id = sqlc.arg(id) AND q.organization_id = sqlc.arg(organization_id);

@@ -74,3 +74,34 @@ type Messenger interface {
 // Guard reports whether a subject is still eligible at send time (e.g. the
 // todo is still open). Returning false cancels the notification.
 type Guard func(ctx context.Context, orgID, subjectID int64) (bool, error)
+
+// Preparer is a guard that can also refresh template variables at send time
+// (e.g. a quote reminder re-reads the current total). Skip=true cancels the
+// notification like a Guard returning false. Vars override the stored vars.
+type Preparer func(ctx context.Context, orgID, subjectID int64) (Prepared, error)
+
+// Prepared is the outcome of a Preparer.
+type Prepared struct {
+	Skip bool
+	Vars map[string]string
+}
+
+// SentEvent describes the stored outcome of one delivery attempt.
+type SentEvent struct {
+	OrgID       int64
+	UUID        uuid.UUID
+	Kind        string
+	SubjectType string
+	SubjectID   int64
+	// Status is the row status after the attempt: sent | pending (retry
+	// scheduled) | failed (attempts exhausted) | cancelled.
+	Status    string
+	Delivered []string
+	LastError string
+	// Skipped: a Guard / Preparer declined the subject (no longer eligible).
+	Skipped bool
+}
+
+// SentHook runs after every delivery attempt of a subject type (Dispatch and
+// sweep). It must be quick and must not fail the delivery.
+type SentHook func(ctx context.Context, ev SentEvent)

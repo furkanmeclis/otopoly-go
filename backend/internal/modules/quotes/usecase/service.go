@@ -74,6 +74,7 @@ type Service struct {
 	pdf       PDFRenderer
 	messenger QuoteMessenger
 	scheduler ReminderScheduler
+	notifier  QuoteNotifier
 	jobs      JobCreator
 	vehicles  VehicleCreator
 	shareBase string
@@ -91,7 +92,7 @@ func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder, store storag
 	}
 	return &Service{
 		pool: pool, q: q, act: act, storage: store, pdf: pdf,
-		messenger: NoopMessenger{}, scheduler: NoopReminderScheduler{},
+		messenger: NoopMessenger{}, scheduler: NoopReminderScheduler{}, notifier: noopNotifier{},
 		shareBase: strings.TrimRight(strings.TrimSpace(shareBaseURL), "/"),
 		loc:       loc, now: time.Now, log: slog.Default(),
 	}
@@ -111,6 +112,31 @@ func (s *Service) SetReminderScheduler(r ReminderScheduler) {
 		r = NoopReminderScheduler{}
 	}
 	s.scheduler = r
+}
+
+// SetNotifier installs the QuoteNotifier (nil restores the no-op).
+func (s *Service) SetNotifier(n QuoteNotifier) {
+	if n == nil {
+		n = noopNotifier{}
+	}
+	s.notifier = n
+}
+
+// notify publishes a quote change to the notifier (after commit).
+func (s *Service) notify(ctx context.Context, kind string, row db.Quote) {
+	ev := QuoteEvent{
+		Kind: kind, OrganizationID: row.OrganizationID, QuoteID: row.ID, QuoteUUID: row.Uuid,
+		Number: row.Number, Status: row.Status, GrandTotal: money(row.GrandTotal), Currency: row.Currency,
+		CreatedBy: row.CreatedBy.Int64,
+	}
+	if row.ValidUntil.Valid {
+		v := row.ValidUntil.Time
+		ev.ValidUntil = &v
+	}
+	if a := actorID(ctx); a.Valid {
+		ev.ActorID = a.Int64
+	}
+	s.notifier.QuoteChanged(ctx, ev)
 }
 
 // SetJobCreator wires quick conversion into the jobs module.
@@ -869,6 +895,7 @@ func (s *Service) Create(ctx context.Context, in SaveInput) (Detail, error) {
 		return Detail{}, err
 	}
 	s.record(ctx, "tenant.quote.create", row.Uuid, map[string]any{"number": row.Number, "total": money(row.GrandTotal)})
+	s.notify(ctx, "created", row)
 	return s.loadDetail(ctx, row)
 }
 
@@ -967,6 +994,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, in SaveInput) (Detai
 	}
 	s.afterReminderChange(ctx, row, cancelled, planned)
 	s.record(ctx, "tenant.quote.update", row.Uuid, map[string]any{"number": row.Number, "total": money(row.GrandTotal)})
+	s.notify(ctx, "updated", row)
 	return s.loadDetail(ctx, row)
 }
 
@@ -1091,5 +1119,6 @@ func (s *Service) SetStatus(ctx context.Context, id uuid.UUID, in StatusInput) (
 	}
 	s.afterReminderChange(ctx, row, cancelled, nil)
 	s.record(ctx, "tenant.quote.status", row.Uuid, map[string]any{"number": row.Number, "from": cur.Status, "to": to})
+	s.notify(ctx, "status", row)
 	return s.loadDetail(ctx, row)
 }

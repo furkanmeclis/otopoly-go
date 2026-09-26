@@ -82,6 +82,7 @@ import (
 	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
 	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
 	salesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/salesflow"
 	searchmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search"
 	searchhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/handler"
 	searchusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/search/usecase"
@@ -425,23 +426,30 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	vehiclemodule.RegisterRoutes(mux, vehiclehandler.New(vehicleSvc, deps.Storage), tokens, loader, deps.Queries)
 	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
-	centerSvc := centerusecase.New(deps.Queries, notifSvc, messagingmodule.NewCenterMessenger(messagingSvc, deps.Queries), log).
+	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, deps.Queries)
+	centerSvc := centerusecase.New(deps.Queries, notifSvc, centerMessenger, log).
 		SetStorage(deps.Storage).
 		SetAppURL(cfg.Auth.FrontendURL)
 	notifycentermodule.RegisterRoutes(mux, centerSvc, tokens, loader, deps.Queries)
+	// Leads & quotes ↔ notification center / todos integration.
+	sales := salesflow.New(centerSvc, centerMessenger, deps.Queries, log)
+	sales.Register(centerSvc)
+	messagingSvc.SetOutboundObserver(func(ctx context.Context, o messagingusecase.OutboundOutcome) {
+		if !o.Sent {
+			sales.OutboundFailed(ctx, o.OrgID, o.EventType, o.SubjectUUID, o.Error)
+		}
+	})
 	todosSvc := todosusecase.New(deps.Queries, activityRec)
 	todosSvc.SetLogger(log)
 	todosSvc.SetReminders(centerSvc)
-	// Leads & Quotes: todosSvc.SetLinkResolver(<leads/quotes resolver>) here.
+	todosSvc.SetLinkResolver(salesflow.NewLinks(deps.Queries))
 	centerSvc.RegisterGuard("todo", todosSvc.ReminderGuard)
 	if deps.Queue == nil {
 		s.reminderTick = centerSvc.ProcessDue
 	}
 	todosmodule.RegisterRoutes(mux, todosSvc, tokens, loader, deps.Queries)
-	// Leads & quotes. Seams (defaults are no-ops / the plain todos module):
-	//   leadsSvc.SetTodoCreator(leadsusecase.TodoCreator)
-	//   quotesSvc.SetMessenger(quotesusecase.QuoteMessenger)
-	//   quotesSvc.SetReminderScheduler(quotesusecase.ReminderScheduler)
+	// Leads & quotes: lead todos are linked to the lead; quotes are sent and
+	// reminded through the notification center (see internal/modules/salesflow).
 	leadsSvc := leadsusecase.New(deps.DB, deps.Queries, activityRec)
 	leadsSvc.SetTodoCreator(leadsusecase.TodosServiceCreator{Todos: todosSvc})
 	leadsmodule.RegisterRoutes(mux, leadsSvc, tokens, loader, deps.Queries)
@@ -449,6 +457,10 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	quotesSvc.SetLogger(log)
 	quotesSvc.SetJobCreator(jobsSvc)
 	quotesSvc.SetVehicleCreator(customersSvc)
+	quotesSvc.SetMessenger(sales)
+	quotesSvc.SetReminderScheduler(sales)
+	quotesSvc.SetNotifier(sales)
+	sales.SetQuotes(quotesSvc)
 	quotesmodule.RegisterRoutes(mux, quotesSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:      deps.Queries,

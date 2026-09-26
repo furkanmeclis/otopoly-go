@@ -175,6 +175,8 @@ type Querier interface {
 	DeleteVehicleModelYear(ctx context.Context, arg DeleteVehicleModelYearParams) error
 	DeleteWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) error
 	DeleteWebAuthnCredentialByUUID(ctx context.Context, arg DeleteWebAuthnCredentialByUUIDParams) error
+	DescribeTodoLeadLinks(ctx context.Context, arg DescribeTodoLeadLinksParams) ([]DescribeTodoLeadLinksRow, error)
+	DescribeTodoQuoteLinks(ctx context.Context, arg DescribeTodoQuoteLinksParams) ([]DescribeTodoQuoteLinksRow, error)
 	// Expires pending actions of a conversation: all of them (the user moved on)
 	// or only those past expires_at.
 	ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error)
@@ -182,6 +184,10 @@ type Querier interface {
 	// a second run finds nothing; accepted / rejected / cancelled rows are never touched.
 	ExpireDueQuotes(ctx context.Context, arg ExpireDueQuotesParams) ([]ExpireDueQuotesRow, error)
 	ExtensionExists(ctx context.Context, extname string) (bool, error)
+	// Async WhatsApp failure reported after the delivery was handed off.
+	FailQuoteDeliveryByRef(ctx context.Context, arg FailQuoteDeliveryByRefParams) (QuoteDelivery, error)
+	// Async WhatsApp failure of a reminder that was already handed off.
+	FailQuoteReminderByRef(ctx context.Context, arg FailQuoteReminderByRefParams) (QuoteReminder, error)
 	// Resolves actions stuck in 'executing' (the server stopped mid-execution) as
 	// failed: for one conversation, or for all conversations when it is NULL.
 	FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error)
@@ -292,8 +298,11 @@ type Querier interface {
 	GetQuoteByShareToken(ctx context.Context, shareToken string) (Quote, error)
 	GetQuoteByShareTokenForUpdate(ctx context.Context, shareToken string) (Quote, error)
 	GetQuoteDeliveryByUUID(ctx context.Context, arg GetQuoteDeliveryByUUIDParams) (QuoteDelivery, error)
+	// Team members related to a quote (creator, lead assignee) for internal notifications.
+	GetQuoteNotifyPeople(ctx context.Context, arg GetQuoteNotifyPeopleParams) (GetQuoteNotifyPeopleRow, error)
 	// Joined display fields for one quote (detail, PDF, public view).
 	GetQuoteRefs(ctx context.Context, id int64) (GetQuoteRefsRow, error)
+	GetQuoteReminderByID(ctx context.Context, arg GetQuoteReminderByIDParams) (QuoteReminder, error)
 	GetQuoteReminderByUUID(ctx context.Context, argUuid uuid.UUID) (QuoteReminder, error)
 	GetQuoteRowByID(ctx context.Context, id int64) (Quote, error)
 	GetQuoteRowByUUID(ctx context.Context, arg GetQuoteRowByUUIDParams) (Quote, error)
@@ -573,6 +582,9 @@ type Querier interface {
 	ReportPurchaseStats(ctx context.Context, arg ReportPurchaseStatsParams) (ReportPurchaseStatsRow, error)
 	ReportServicesDistribution(ctx context.Context, arg ReportServicesDistributionParams) ([]ReportServicesDistributionRow, error)
 	ReportTopCustomers(ctx context.Context, arg ReportTopCustomersParams) ([]ReportTopCustomersRow, error)
+	// Todo ↔ lead / quote links (todos LinkResolver). Every query is org-scoped.
+	ResolveTodoLeadLink(ctx context.Context, arg ResolveTodoLeadLinkParams) (int64, error)
+	ResolveTodoQuoteLink(ctx context.Context, arg ResolveTodoQuoteLinkParams) (int64, error)
 	RestoreProduct(ctx context.Context, arg RestoreProductParams) error
 	RestoreService(ctx context.Context, arg RestoreServiceParams) error
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error

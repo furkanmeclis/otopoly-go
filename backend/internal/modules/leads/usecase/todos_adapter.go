@@ -2,13 +2,17 @@ package usecase
 
 import (
 	"context"
+	"strings"
 
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
+	"github.com/google/uuid"
 )
 
-// TodosServiceCreator is a TodoCreator backed by the existing todos module.
-// It links the todo to the lead's customer (todos have no lead_id yet); the
-// notification-center integration can replace it with a lead-linked one.
+// TodosServiceCreator is a TodoCreator backed by the todos module: the todo
+// is linked to the lead (todos.lead_id) and its customer, assigned to the
+// requested (or lead) assignee, and — when a due time is set — gets a
+// reminder at the due moment. The lead module records the todo_created
+// timeline event itself.
 type TodosServiceCreator struct {
 	Todos *todosusecase.Service
 }
@@ -18,11 +22,20 @@ func (c TodosServiceCreator) CreateTodoForLead(ctx context.Context, req TodoRequ
 	if c.Todos == nil {
 		return CreatedTodo{}, ErrNotConfigured
 	}
-	customer := req.CustomerUUID
-	t, err := c.Todos.Create(ctx, todosusecase.CreateInput{
+	in := todosusecase.CreateInput{
 		Title: req.Title, Notes: req.Notes, DueDate: req.DueDate, DueTime: req.DueTime,
-		AssigneeUUID: req.AssigneeUUID, CustomerUUID: &customer,
-	})
+		AssigneeUUID: req.AssigneeUUID,
+	}
+	if customer := req.CustomerUUID; customer != uuid.Nil {
+		in.CustomerUUID = &customer
+	}
+	if lead := req.LeadUUID; lead != uuid.Nil {
+		in.LeadUUID = &lead
+	}
+	if req.DueTime != nil && strings.TrimSpace(*req.DueTime) != "" && req.DueDate != nil && strings.TrimSpace(*req.DueDate) != "" {
+		in.ReminderOffsets = []int{0}
+	}
+	t, err := c.Todos.Create(ctx, in)
 	if err != nil {
 		return CreatedTodo{}, err
 	}
