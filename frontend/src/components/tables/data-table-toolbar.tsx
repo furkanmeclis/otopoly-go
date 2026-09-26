@@ -129,13 +129,11 @@ export function DataTableToolbar<TData>({
 
   return (
     <div className="flex flex-col gap-3">
-      {forceMobileCards ? (
-        <p className="text-muted-foreground text-xs">
-          {t("table.mobile_cards")}
-        </p>
-      ) : null}
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-1 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="flex flex-wrap items-center gap-2 sm:justify-between">
+        {/* Phones: search takes its own row, then filters, page actions
+            (export/import/refresh) and table controls flow on one wrapping
+            line instead of stacking full-width. */}
+        <div className="contents sm:flex sm:flex-1 sm:flex-wrap sm:items-center sm:gap-2">
           {features.globalFilter ? (
             <InputGroup className="w-full sm:max-w-xs">
               <InputGroupAddon align="inline-start">
@@ -194,7 +192,7 @@ export function DataTableToolbar<TData>({
           ) : null}
         </div>
 
-        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
+        <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
           {selectedCount > 0 ? (
             <span className="text-muted-foreground me-1 text-xs">
               {t("table.selected", { count: selectedCount })}

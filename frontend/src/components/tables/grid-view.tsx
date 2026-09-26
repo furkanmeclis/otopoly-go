@@ -163,7 +163,7 @@ function DefaultCard<TData>({
         ) : null}
 
         {actionsCell ? (
-          <footer className="border-border/60 flex items-center justify-end border-t pt-3">
+          <footer className="border-border/60 flex items-center justify-end border-t pt-3 empty:hidden">
             {flexRender(
               actionsCell.column.columnDef.cell,
               actionsCell.getContext(),
