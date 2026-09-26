@@ -129,253 +129,260 @@ export function DataTableToolbar<TData>({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 sm:justify-between">
-        {/* Phones: search takes its own row, then filters, page actions
-            (export/import/refresh) and table controls flow on one wrapping
-            line instead of stacking full-width. */}
-        <div className="contents sm:flex sm:flex-1 sm:flex-wrap sm:items-center sm:gap-2">
-          {features.globalFilter ? (
-            <InputGroup className="w-full sm:max-w-xs">
-              <InputGroupAddon align="inline-start">
-                <Search className="size-4" aria-hidden />
-              </InputGroupAddon>
-              <InputGroupInput
-                value={globalFilter}
-                onChange={(e) => table.setGlobalFilter(e.target.value)}
-                placeholder={t("table.search")}
-              />
-              {globalFilter ? (
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label={t("table.clear_filter")}
-                    onClick={() => table.setGlobalFilter("")}
-                  >
-                    <X className="size-3.5" />
-                  </InputGroupButton>
-                </InputGroupAddon>
-              ) : null}
-            </InputGroup>
-          ) : null}
-
-          {facetedColumns.map((column) => {
-            const meta = column.columnDef.meta as DataTableColumnMeta;
-            const title = meta.labelKey
-              ? t(meta.labelKey)
-              : (meta.label ?? column.id);
-            const options = (meta.filterOptions ?? []).map((option) => ({
-              value: option.value,
-              label: option.labelKey ? t(option.labelKey) : option.label,
-            }));
-            return (
-              <DataTableFacetedFilter
-                key={column.id}
-                column={column}
-                title={title}
-                options={options}
-              />
-            );
-          })}
-
-          {toolbar}
-          {isFiltered ? (
-            <ToolbarIconButton
-              label={t("table.reset_filters")}
-              variant="ghost"
-              onClick={() => {
-                table.resetColumnFilters();
-                table.resetGlobalFilter();
-              }}
-            >
-              <X className="size-4" />
-            </ToolbarIconButton>
-          ) : null}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-          {selectedCount > 0 ? (
-            <span className="text-muted-foreground me-1 text-xs">
-              {t("table.selected", { count: selectedCount })}
-            </span>
-          ) : null}
-          {bulkNode}
-
-          {onReorderModeChange ? (
-            <ToolbarIconButton
-              label={
-                reorderMode ? t("table.reorder_done") : t("table.reorder_mode")
-              }
-              variant={reorderMode ? "default" : "outline"}
-              aria-pressed={reorderMode}
-              onClick={() => onReorderModeChange(!reorderMode)}
-            >
-              <GripVertical className="size-4" />
-            </ToolbarIconButton>
-          ) : null}
-
-          {features.viewMode && !forceMobileCards && !reorderMode ? (
-            <div className="border-border flex rounded-md border p-0.5">
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className={cn("size-8", viewMode === "table" && "bg-muted")}
-                onClick={() => setViewMode("table")}
-                aria-label={t("table.view_table")}
-              >
-                <List className="size-4" />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className={cn("size-8", viewMode === "grid" && "bg-muted")}
-                onClick={() => setViewMode("grid")}
-                aria-label={t("table.view_grid")}
-              >
-                <LayoutGrid className="size-4" />
-              </Button>
-            </div>
-          ) : null}
-
-          {features.density && !forceMobileCards ? (
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="size-8"
-                      aria-label={t("table.density")}
-                    >
-                      <Rows3 className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {t("table.density")}
-                </TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>{t("table.density")}</DropdownMenuLabel>
-                <DropdownMenuRadioGroup
-                  value={density}
-                  onValueChange={(v) => setDensity(v as TableDensity)}
+      {/* Phones: search on its own row, then filters, page actions
+          (export/import/refresh) and table controls on a single row that
+          scrolls horizontally. From sm up the scroller dissolves (contents)
+          into the usual wrapping toolbar with table controls on the right. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        {features.globalFilter ? (
+          <InputGroup className="w-full sm:max-w-xs">
+            <InputGroupAddon align="inline-start">
+              <Search className="size-4" aria-hidden />
+            </InputGroupAddon>
+            <InputGroupInput
+              value={globalFilter}
+              onChange={(e) => table.setGlobalFilter(e.target.value)}
+              placeholder={t("table.search")}
+            />
+            {globalFilter ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label={t("table.clear_filter")}
+                  onClick={() => table.setGlobalFilter("")}
                 >
-                  <DropdownMenuRadioItem value="compact">
-                    {t("table.density_compact")}
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="comfortable">
-                    {t("table.density_comfortable")}
-                  </DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="spacious">
-                    {t("table.density_spacious")}
-                  </DropdownMenuRadioItem>
-                </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
+                  <X className="size-3.5" />
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
+        ) : null}
 
-          {features.columnVisibility ? (
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className="size-8"
-                      aria-label={t("table.columns")}
-                    >
-                      <Columns3 className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">
-                  {t("table.columns")}
-                </TooltipContent>
-              </Tooltip>
-              <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuLabel>{t("table.columns")}</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {table
-                  .getAllColumns()
-                  .filter((col) => col.getCanHide())
-                  .map((col) => {
-                    const meta = col.columnDef.meta;
-                    const label = meta?.labelKey
-                      ? t(meta.labelKey)
-                      : (meta?.label ?? col.id);
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={col.id}
-                        checked={col.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          col.toggleVisibility(Boolean(value))
-                        }
-                      >
-                        {label}
-                      </DropdownMenuCheckboxItem>
-                    );
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
+        <div className="-mx-1 flex [scrollbar-width:none] items-center gap-2 overflow-x-auto px-1 py-0.5 sm:contents [&::-webkit-scrollbar]:hidden">
+          <div className="flex shrink-0 items-center gap-2 sm:flex-1 sm:flex-wrap [&>*]:shrink-0">
+            {facetedColumns.map((column) => {
+              const meta = column.columnDef.meta as DataTableColumnMeta;
+              const title = meta.labelKey
+                ? t(meta.labelKey)
+                : (meta.label ?? column.id);
+              const options = (meta.filterOptions ?? []).map((option) => ({
+                value: option.value,
+                label: option.labelKey ? t(option.labelKey) : option.label,
+              }));
+              return (
+                <DataTableFacetedFilter
+                  key={column.id}
+                  column={column}
+                  title={title}
+                  options={options}
+                />
+              );
+            })}
 
-          {onExport ? (
-            <ToolbarIconButton label={t("table.export")} onClick={onExport}>
-              <Download className="size-4" />
-            </ToolbarIconButton>
-          ) : null}
-
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="size-8"
-                    aria-label={t("table.reset")}
-                  >
-                    <RotateCcw className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">{t("table.reset")}</TooltipContent>
-            </Tooltip>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => table.resetSorting()}>
-                {t("table.reset_sort")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
+            {toolbar}
+            {isFiltered ? (
+              <ToolbarIconButton
+                label={t("table.reset_filters")}
+                variant="ghost"
                 onClick={() => {
                   table.resetColumnFilters();
                   table.resetGlobalFilter();
                 }}
               >
-                {t("table.reset_filters")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  table.resetColumnVisibility();
-                  table.resetColumnOrder();
-                  table.resetColumnPinning();
-                  table.resetColumnSizing();
-                }}
+                <X className="size-4" />
+              </ToolbarIconButton>
+            ) : null}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1.5 sm:flex-wrap sm:justify-end [&>*]:shrink-0">
+            {selectedCount > 0 ? (
+              <span className="text-muted-foreground me-1 text-xs">
+                {t("table.selected", { count: selectedCount })}
+              </span>
+            ) : null}
+            {bulkNode}
+
+            {onReorderModeChange ? (
+              <ToolbarIconButton
+                label={
+                  reorderMode
+                    ? t("table.reorder_done")
+                    : t("table.reorder_mode")
+                }
+                variant={reorderMode ? "default" : "outline"}
+                aria-pressed={reorderMode}
+                onClick={() => onReorderModeChange(!reorderMode)}
               >
-                {t("table.reset_columns")}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={resetAll}>
-                {t("table.reset_all")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <GripVertical className="size-4" />
+              </ToolbarIconButton>
+            ) : null}
+
+            {features.viewMode && !forceMobileCards && !reorderMode ? (
+              <div className="border-border flex rounded-md border p-0.5">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className={cn("size-8", viewMode === "table" && "bg-muted")}
+                  onClick={() => setViewMode("table")}
+                  aria-label={t("table.view_table")}
+                >
+                  <List className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className={cn("size-8", viewMode === "grid" && "bg-muted")}
+                  onClick={() => setViewMode("grid")}
+                  aria-label={t("table.view_grid")}
+                >
+                  <LayoutGrid className="size-4" />
+                </Button>
+              </div>
+            ) : null}
+
+            {features.density && !forceMobileCards ? (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="size-8"
+                        aria-label={t("table.density")}
+                      >
+                        <Rows3 className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {t("table.density")}
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{t("table.density")}</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={density}
+                    onValueChange={(v) => setDensity(v as TableDensity)}
+                  >
+                    <DropdownMenuRadioItem value="compact">
+                      {t("table.density_compact")}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="comfortable">
+                      {t("table.density_comfortable")}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="spacious">
+                      {t("table.density_spacious")}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+
+            {features.columnVisibility ? (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="size-8"
+                        aria-label={t("table.columns")}
+                      >
+                        <Columns3 className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {t("table.columns")}
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" className="w-52">
+                  <DropdownMenuLabel>{t("table.columns")}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {table
+                    .getAllColumns()
+                    .filter((col) => col.getCanHide())
+                    .map((col) => {
+                      const meta = col.columnDef.meta;
+                      const label = meta?.labelKey
+                        ? t(meta.labelKey)
+                        : (meta?.label ?? col.id);
+                      return (
+                        <DropdownMenuCheckboxItem
+                          key={col.id}
+                          checked={col.getIsVisible()}
+                          onCheckedChange={(value) =>
+                            col.toggleVisibility(Boolean(value))
+                          }
+                        >
+                          {label}
+                        </DropdownMenuCheckboxItem>
+                      );
+                    })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+
+            {onExport ? (
+              <ToolbarIconButton label={t("table.export")} onClick={onExport}>
+                <Download className="size-4" />
+              </ToolbarIconButton>
+            ) : null}
+
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      aria-label={t("table.reset")}
+                    >
+                      <RotateCcw className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {t("table.reset")}
+                </TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => table.resetSorting()}>
+                  {t("table.reset_sort")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    table.resetColumnFilters();
+                    table.resetGlobalFilter();
+                  }}
+                >
+                  {t("table.reset_filters")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    table.resetColumnVisibility();
+                    table.resetColumnOrder();
+                    table.resetColumnPinning();
+                    table.resetColumnSizing();
+                  }}
+                >
+                  {t("table.reset_columns")}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={resetAll}>
+                  {t("table.reset_all")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
     </div>
