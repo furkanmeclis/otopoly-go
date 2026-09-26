@@ -10,6 +10,7 @@ import { permissions } from "@/config/permissions";
 import { DailySummaryCard } from "@/features/messaging/components/daily-summary-card";
 import { MessageTemplatesPanel } from "@/features/messaging/components/message-templates-panel";
 import { NotificationRulesCard } from "@/features/messaging/components/notification-rules-card";
+import { VehicleAlertsCard } from "@/features/messaging/components/vehicle-alerts-card";
 import { WhatsAppSessionCard } from "@/features/messaging/components/whatsapp-session-card";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -48,6 +49,7 @@ export function MessagingPage() {
             <WhatsAppSessionCard />
             <NotificationRulesCard />
             {/* Owner-only: the summary contains revenue and cash balances. */}
+            {canWrite ? <VehicleAlertsCard /> : null}
             {canWrite ? <DailySummaryCard /> : null}
           </div>
         </TabsContent>

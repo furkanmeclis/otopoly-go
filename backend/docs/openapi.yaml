@@ -4726,6 +4726,62 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/vehicle-alerts:
+    get:
+      tags: [Tenant]
+      operationId: getTenantVehicleAlertSettings
+      summary: Team vehicle alert settings (owner)
+      description: >-
+        Events (created/ready/delivered/cancelled), service filter (empty = all),
+        recipients, WhatsApp batch window (0 = instant, 30, 60 min), plus
+        selectable members (has_phone, has_push) and services. In-app/push is
+        instant; WhatsApp goes only to recipients web push cannot reach.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Vehicle alert settings }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantVehicleAlertSettings
+      summary: Save team vehicle alert settings (owner)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, events, service_uuids, recipient_user_uuids, batch_minutes]
+              properties:
+                enabled: { type: boolean }
+                events:
+                  type: array
+                  items: { type: string, enum: [created, ready, delivered, cancelled] }
+                service_uuids:
+                  type: array
+                  items: { type: string, format: uuid }
+                recipient_user_uuids:
+                  type: array
+                  maxItems: 20
+                  items: { type: string, format: uuid }
+                batch_minutes: { type: integer, enum: [0, 30, 60] }
+      responses:
+        "200": { description: Saved settings }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/vehicle-alerts/test:
+    post:
+      tags: [Tenant]
+      operationId: sendTestTenantVehicleAlert
+      summary: Send a sample vehicle alert to the saved recipients (owner)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: "{ in_app, whatsapp, skipped[] }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /v1/tenant/messaging/session:
     get:
       tags: [Tenant]

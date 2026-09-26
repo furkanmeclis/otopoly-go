@@ -34,6 +34,8 @@ type Querier interface {
 	ClaimOutboundMessage(ctx context.Context, id int64) (OutboundMessage, error)
 	ClaimOutboxEvents(ctx context.Context, arg ClaimOutboxEventsParams) ([]OutboxEvent, error)
 	ClaimScheduledNotificationByID(ctx context.Context, id int64) (ScheduledNotification, error)
+	// Serialises flushes per org and enforces the batch window.
+	ClaimVehicleAlertFlush(ctx context.Context, organizationID int64) (int64, error)
 	ClearAppSettingsLogo(ctx context.Context) (AppSetting, error)
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
@@ -187,6 +189,8 @@ type Querier interface {
 	DeleteWebAuthnCredentialByUUID(ctx context.Context, arg DeleteWebAuthnCredentialByUUIDParams) error
 	DescribeTodoLeadLinks(ctx context.Context, arg DescribeTodoLeadLinksParams) ([]DescribeTodoLeadLinksRow, error)
 	DescribeTodoQuoteLinks(ctx context.Context, arg DescribeTodoQuoteLinksParams) ([]DescribeTodoQuoteLinksRow, error)
+	// Lines older than the cutoff are not worth a late WhatsApp (line was down).
+	DropStaleVehicleAlertEvents(ctx context.Context, arg DropStaleVehicleAlertEventsParams) error
 	// Expires pending actions of a conversation: all of them (the user moved on)
 	// or only those past expires_at.
 	ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error)
@@ -351,6 +355,8 @@ type Querier interface {
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
 	GetUserTOTPByUserID(ctx context.Context, userID int64) (UserTotp, error)
 	GetValidRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
+	GetVehicleAlertJob(ctx context.Context, argUuid uuid.UUID) (GetVehicleAlertJobRow, error)
+	GetVehicleAlertSettings(ctx context.Context, organizationID int64) (VehicleAlertSetting, error)
 	GetVehicleBrandByName(ctx context.Context, lower string) (VehicleBrand, error)
 	GetVehicleBrandByUUID(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
 	GetVehicleCatalogOption(ctx context.Context, arg GetVehicleCatalogOptionParams) (GetVehicleCatalogOptionRow, error)
@@ -386,6 +392,7 @@ type Querier interface {
 	InsertStorageStar(ctx context.Context, arg InsertStorageStarParams) (StorageStar, error)
 	InsertStorageTrash(ctx context.Context, arg InsertStorageTrashParams) (StorageTrash, error)
 	InsertUserRole(ctx context.Context, arg InsertUserRoleParams) error
+	InsertVehicleAlertEvent(ctx context.Context, arg InsertVehicleAlertEventParams) error
 	InvalidateActiveOTPs(ctx context.Context, arg InvalidateActiveOTPsParams) error
 	LeadSummary(ctx context.Context, arg LeadSummaryParams) (LeadSummaryRow, error)
 	LinkCariEntryFinanceTransaction(ctx context.Context, arg LinkCariEntryFinanceTransactionParams) (CariEntry, error)
@@ -460,8 +467,10 @@ type Querier interface {
 	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
 	ListOrganizationMembersByUserID(ctx context.Context, userID int64) ([]ListOrganizationMembersByUserIDRow, error)
 	ListOrganizationsFiltered(ctx context.Context, arg ListOrganizationsFilteredParams) ([]Organization, error)
+	ListOrgsWithPendingVehicleAlerts(ctx context.Context) ([]VehicleAlertSetting, error)
 	// Pending reminder fire times for a page of subjects (no N+1 in lists).
 	ListPendingRemindersForSubjects(ctx context.Context, arg ListPendingRemindersForSubjectsParams) ([]ListPendingRemindersForSubjectsRow, error)
+	ListPendingVehicleAlertEvents(ctx context.Context, arg ListPendingVehicleAlertEventsParams) ([]VehicleAlertEvent, error)
 	ListPermissionSlugsByRoleID(ctx context.Context, roleID int64) ([]string, error)
 	ListPermissionSlugsByRoleSlug(ctx context.Context, slug string) ([]string, error)
 	ListPermissionsFiltered(ctx context.Context, arg ListPermissionsFilteredParams) ([]Permission, error)
@@ -527,6 +536,9 @@ type Querier interface {
 	ListUserUUIDsForBulk(ctx context.Context, arg ListUserUUIDsForBulkParams) ([]uuid.UUID, error)
 	ListUsersFiltered(ctx context.Context, arg ListUsersFilteredParams) ([]User, error)
 	ListUsersForExport(ctx context.Context, arg ListUsersForExportParams) ([]User, error)
+	// Active members with notification phone and whether web push reaches them.
+	ListVehicleAlertMembers(ctx context.Context, organizationID int64) ([]ListVehicleAlertMembersRow, error)
+	ListVehicleAlertServices(ctx context.Context, organizationID int64) ([]ListVehicleAlertServicesRow, error)
 	ListVehicleBrands(ctx context.Context, arg ListVehicleBrandsParams) ([]ListVehicleBrandsRow, error)
 	ListVehicleModelYearIDsByBrand(ctx context.Context, argUuid uuid.UUID) ([]ListVehicleModelYearIDsByBrandRow, error)
 	ListVehicleModelYearIDsByModel(ctx context.Context, argUuid uuid.UUID) ([]ListVehicleModelYearIDsByModelRow, error)
@@ -570,6 +582,7 @@ type Querier interface {
 	MarkServiceJobDone(ctx context.Context, arg MarkServiceJobDoneParams) (ServiceJob, error)
 	MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaidParams) (ServiceJob, error)
 	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
+	MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicleAlertEventsSentParams) error
 	NextContractInstanceNumber(ctx context.Context, organizationID int64) (int32, error)
 	// Tenant quotes (teklifler). Tenant queries are scoped by organization_id;
 	// public queries look up by the unguessable share_token only.
@@ -701,6 +714,7 @@ type Querier interface {
 	UpsertNotificationTypePreference(ctx context.Context, arg UpsertNotificationTypePreferenceParams) (NotificationTypePreference, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
+	UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error)
 	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)
 	VehicleModelYearExists(ctx context.Context, arg VehicleModelYearExistsParams) (bool, error)

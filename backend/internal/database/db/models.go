@@ -1359,6 +1359,29 @@ type UserTotp struct {
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
+type VehicleAlertEvent struct {
+	ID             int64              `json:"id"`
+	OrganizationID int64              `json:"organization_id"`
+	JobID          int64              `json:"job_id"`
+	Event          string             `json:"event"`
+	Line           string             `json:"line"`
+	Amount         pgtype.Numeric     `json:"amount"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+}
+
+type VehicleAlertSetting struct {
+	OrganizationID   int64              `json:"organization_id"`
+	Enabled          bool               `json:"enabled"`
+	Events           []string           `json:"events"`
+	ServiceIds       []int64            `json:"service_ids"`
+	RecipientUserIds []int64            `json:"recipient_user_ids"`
+	BatchMinutes     int32              `json:"batch_minutes"`
+	LastFlushedAt    pgtype.Timestamptz `json:"last_flushed_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
 type VehicleBrand struct {
 	ID            int64              `json:"id"`
 	Uuid          uuid.UUID          `json:"uuid"`

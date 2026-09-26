@@ -2668,6 +2668,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/vehicle-alerts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Team vehicle alert settings (owner)
+         * @description Events (created/ready/delivered/cancelled), service filter (empty = all), recipients, WhatsApp batch window (0 = instant, 30, 60 min), plus selectable members (has_phone, has_push) and services. In-app/push is instant; WhatsApp goes only to recipients web push cannot reach.
+         */
+        get: operations["getTenantVehicleAlertSettings"];
+        /** Save team vehicle alert settings (owner) */
+        put: operations["updateTenantVehicleAlertSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/vehicle-alerts/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Send a sample vehicle alert to the saved recipients (owner) */
+        post: operations["sendTestTenantVehicleAlert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/messaging/session": {
         parameters: {
             query?: never;
@@ -12591,6 +12629,79 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantVehicleAlertSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Vehicle alert settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateTenantVehicleAlertSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    enabled: boolean;
+                    events: ("created" | "ready" | "delivered" | "cancelled")[];
+                    service_uuids: string[];
+                    recipient_user_uuids: string[];
+                    /** @enum {integer} */
+                    batch_minutes: 0 | 30 | 60;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    sendTestTenantVehicleAlert: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description { in_app, whatsapp, skipped[] } */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
         };
     };
     getTenantMessagingSession: {

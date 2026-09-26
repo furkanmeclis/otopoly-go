@@ -26,6 +26,8 @@ import (
 	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/salesflow"
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts"
+	vausecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
@@ -167,6 +169,7 @@ func main() {
 	messagingSvc := messagingusecase.New(queries, nil, nil).SetQueue(queueClient).SetStorage(store)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
 	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
+	vehicleAlertsSvc := vausecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
 	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
 		SetStorage(store).
 		SetAppURL(cfg.Auth.FrontendURL)
@@ -192,6 +195,7 @@ func main() {
 		WithReminderSweep(centerSvc.ProcessDue).
 		WithQuoteExpire(quotesSvc.ExpireDue).
 		WithDailySummary(dailySummarySvc.SendDue).
+		WithVehicleAlerts(vehicleAlertsSvc.Flush).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -217,6 +221,10 @@ func main() {
 	}
 	if err := queue.RegisterDailySummarySchedule(scheduler); err != nil {
 		log.Error("daily_summary_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterVehicleAlertsSchedule(scheduler); err != nil {
+		log.Error("vehicle_alerts_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
 	go func() {

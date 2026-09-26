@@ -100,6 +100,8 @@ import (
 	suppliersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/suppliers/usecase"
 	todosmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos"
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts"
+	vausecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts/usecase"
 	vehiclemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog"
 	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
 	vehicleusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
@@ -373,6 +375,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
 	dailySummarySvc := dsusecase.New(deps.Queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	dailysummary.RegisterRoutes(mux, dailySummarySvc, tokens, loader, deps.Queries)
+	vehicleAlertsSvc := vausecase.New(deps.Queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
+	vehiclealerts.RegisterRoutes(mux, vehicleAlertsSvc, tokens, loader, deps.Queries)
+	vehiclealerts.RegisterEventHandlers(eventBus, vehicleAlertsSvc, log)
 	messagingResolver := messagingmodule.NewDBPhoneResolver(deps.Queries)
 	messagingmodule.RegisterEventHandlers(eventBus, messagingSvc, messagingResolver, log)
 	contractsSvc.SetOTPSender(messagingmodule.NewContractOTPSender(messagingSvc))
@@ -505,7 +510,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithContractExecute(contractsSvc.ExecutePDF).
 			WithReminderSweep(centerSvc.ProcessDue).
 			WithQuoteExpire(quotesSvc.ExpireDue).
-			WithDailySummary(dailySummarySvc.SendDue)
+			WithDailySummary(dailySummarySvc.SendDue).
+			WithVehicleAlerts(vehicleAlertsSvc.Flush)
 		if sched, err := queue.StartReminderScheduler(cfg, log); err != nil {
 			log.Error("reminder_scheduler_init_failed", "error", err)
 		} else {
@@ -514,6 +520,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			}
 			if err := queue.RegisterDailySummarySchedule(sched); err != nil {
 				log.Error("daily_summary_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterVehicleAlertsSchedule(sched); err != nil {
+				log.Error("vehicle_alerts_scheduler_failed", "error", err)
 			}
 			s.reminderSched = sched
 		}
