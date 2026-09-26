@@ -1,9 +1,11 @@
 name: CI
 
+# Push covers every branch; a pull_request trigger only duplicated those runs
+# and, for PRs opened by the auto-pr job (github-actions bot), produced empty
+# "failure"/"action_required" runs that showed as red X's.
 on:
   push:
     branches: ["**"]
-  pull_request:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
