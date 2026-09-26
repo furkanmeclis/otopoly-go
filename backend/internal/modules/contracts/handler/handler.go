@@ -344,6 +344,20 @@ func (h *Handler) VoidInstance(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, r, http.StatusOK, item)
 }
 
+func (h *Handler) FinalizeInstance(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "instance uuid is invalid")
+		return
+	}
+	item, err := h.svc.FinalizeInstance(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
 func (h *Handler) Sign(w http.ResponseWriter, r *http.Request) {
 	instanceID, err := uuid.Parse(r.PathValue("uuid"))
 	if err != nil {

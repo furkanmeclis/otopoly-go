@@ -136,6 +136,8 @@ export type CreateInstanceInput = {
   subject_type: string;
   subject_uuid: string;
   title?: string;
+  /** Keep a no-signature contract open until photos are uploaded; then finalize. */
+  defer_execute?: boolean;
 };
 
 export type SignInput = {
@@ -221,6 +223,12 @@ export const contractsService = {
       "POST",
       "/v1/tenant/contracts/instances",
       { body },
+    );
+  },
+  finalizeInstance(uuid: string) {
+    return platformRequest<ContractInstance>(
+      "POST",
+      `/v1/tenant/contracts/instances/${uuid}/finalize`,
     );
   },
   voidInstance(uuid: string) {

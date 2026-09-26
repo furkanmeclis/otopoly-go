@@ -217,6 +217,9 @@ type CreateInstanceInput struct {
 	SubjectType  string    `json:"subject_type"`
 	SubjectUUID  uuid.UUID `json:"subject_uuid"`
 	Title        string    `json:"title"`
+	// DeferExecute keeps a contract without pending signers open so photos can
+	// be attached first; the client then calls FinalizeInstance.
+	DeferExecute bool `json:"defer_execute"`
 }
 
 // SignInput captures a PNG signature for a signer slot.

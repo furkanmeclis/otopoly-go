@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Download, FilePlus2, Users } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Camera, Download, FilePlus2, ImagePlus, Users, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { StatusChip } from "@/components/common/status-chip";
 import { EntitySectionCard } from "@/components/entity";
@@ -25,6 +27,7 @@ import {
 import { routes } from "@/config/routes";
 import { SignerSignForm } from "@/features/contracts/components/signer-sign-form";
 import {
+  contractKeys,
   useContractInstances,
   useContractMutations,
   useContractTemplates,
@@ -54,6 +57,11 @@ function statusTone(status: string) {
   }
 }
 
+// Mirrors the API upload cap (handler caps contract media bodies at 12 MB).
+const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
+
+type PhotoDraft = { id: string; file: File; previewUrl: string };
+
 function nextPendingSigner(instance: ContractInstance): ContractSigner | null {
   const signers = instance.signers ?? [];
   return (
@@ -76,7 +84,29 @@ export function JobContractsSection({
   const [templateUuid, setTemplateUuid] = useState("");
   const [created, setCreated] = useState<ContractInstance | null>(null);
   const [downloadingUuid, setDownloadingUuid] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<PhotoDraft[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const photosRef = useRef<PhotoDraft[]>([]);
+  const queryClient = useQueryClient();
   const mutations = useContractMutations();
+
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+
+  useEffect(
+    () => () => {
+      for (const photo of photosRef.current) {
+        URL.revokeObjectURL(photo.previewUrl);
+      }
+    },
+    [],
+  );
 
   const listParams = useMemo(
     () => ({
@@ -96,10 +126,86 @@ export function JobContractsSection({
     offset: 0,
   });
 
+  const clearPhotos = () => {
+    setPhotos((prev) => {
+      for (const photo of prev) {
+        URL.revokeObjectURL(photo.previewUrl);
+      }
+      return [];
+    });
+  };
+
   const resetSheet = () => {
     setTemplateUuid("");
     setCreated(null);
+    setUploadProgress(null);
+    clearPhotos();
   };
+
+  const addPhotos = (files: FileList | null) => {
+    if (!files) return;
+    const next: PhotoDraft[] = [];
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue;
+      if (file.size > MAX_PHOTO_BYTES) {
+        toast.error(t("contracts.job.photos_too_large", { name: file.name }));
+        continue;
+      }
+      next.push({
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random()}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
+    }
+    if (next.length > 0) setPhotos((prev) => [...prev, ...next]);
+  };
+
+  const removePhoto = (id: string) => {
+    setPhotos((prev) => {
+      const photo = prev.find((p) => p.id === id);
+      if (photo) URL.revokeObjectURL(photo.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  };
+
+  const createWithPhotos = async () => {
+    const instance = await mutations.createInstance.mutateAsync({
+      template_uuid: templateUuid,
+      subject_type: "service_job",
+      subject_uuid: jobUuid,
+      defer_execute: photos.length > 0,
+    });
+    if (photos.length === 0) {
+      setCreated(instance);
+      return;
+    }
+    const failed: string[] = [];
+    for (const [index, photo] of photos.entries()) {
+      setUploadProgress({ done: index, total: photos.length });
+      try {
+        await contractsService.uploadMedia(instance.uuid, photo.file);
+      } catch {
+        failed.push(photo.file.name);
+      }
+    }
+    setUploadProgress(null);
+    if (failed.length > 0) {
+      toast.error(
+        t("contracts.job.photos_failed", { names: failed.join(", ") }),
+      );
+    }
+    // Renders the PDF now when nothing waits for a signature; otherwise the
+    // last signature finalizes it (photos are already attached either way).
+    const finalized = await contractsService
+      .finalizeInstance(instance.uuid)
+      .catch(() => instance);
+    clearPhotos();
+    void queryClient.invalidateQueries({ queryKey: contractKeys.all });
+    setCreated(finalized);
+  };
+
+  const creating =
+    mutations.createInstance.isPending || uploadProgress !== null;
 
   if (!canRead) return null;
 
@@ -228,7 +334,10 @@ export function JobContractsSection({
           setSheetOpen(next);
         }}
       >
-        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetContent
+          side="right"
+          className="w-full overflow-y-auto sm:max-w-lg"
+        >
           <SheetHeader>
             <SheetTitle>
               {created
@@ -247,10 +356,7 @@ export function JobContractsSection({
               <>
                 <div className="space-y-2">
                   <Label>{t("contracts.instances.create_template")}</Label>
-                  <Select
-                    value={templateUuid}
-                    onValueChange={setTemplateUuid}
-                  >
+                  <Select value={templateUuid} onValueChange={setTemplateUuid}>
                     <SelectTrigger>
                       <SelectValue
                         placeholder={t("contracts.instances.create_template")}
@@ -265,30 +371,107 @@ export function JobContractsSection({
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label>{t("contracts.job.photos")}</Label>
+                    <p className="text-muted-foreground text-xs">
+                      {t("contracts.job.photos_hint")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={creating}
+                      onClick={() => cameraInputRef.current?.click()}
+                    >
+                      <Camera className="size-4" />
+                      {t("contracts.job.photos_take")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={creating}
+                      onClick={() => galleryInputRef.current?.click()}
+                    >
+                      <ImagePlus className="size-4" />
+                      {t("contracts.job.photos_pick")}
+                    </Button>
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(event) => {
+                        addPhotos(event.target.files);
+                        event.target.value = "";
+                      }}
+                    />
+                    <input
+                      ref={galleryInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => {
+                        addPhotos(event.target.files);
+                        event.target.value = "";
+                      }}
+                    />
+                  </div>
+                  {photos.length > 0 ? (
+                    <ul className="grid grid-cols-3 gap-2">
+                      {photos.map((photo) => (
+                        <li
+                          key={photo.id}
+                          className="bg-muted relative aspect-square overflow-hidden rounded-md border"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photo.previewUrl}
+                            alt={photo.file.name}
+                            className="size-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            disabled={creating}
+                            onClick={() => removePhoto(photo.id)}
+                            className="bg-background/90 hover:bg-background absolute top-1 right-1 rounded-full p-1 shadow-sm"
+                            aria-label={t("contracts.job.photos_remove")}
+                          >
+                            <X className="size-3.5" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                  {uploadProgress ? (
+                    <p className="text-muted-foreground text-xs">
+                      {t("contracts.job.photos_uploading", {
+                        done: String(uploadProgress.done + 1),
+                        total: String(uploadProgress.total),
+                      })}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
                     variant="outline"
+                    disabled={creating}
                     onClick={() => setSheetOpen(false)}
                   >
                     {t("common.cancel")}
                   </Button>
                   <Button
                     type="button"
-                    disabled={
-                      !templateUuid || mutations.createInstance.isPending
-                    }
-                    onClick={async () => {
-                      const instance =
-                        await mutations.createInstance.mutateAsync({
-                          template_uuid: templateUuid,
-                          subject_type: "service_job",
-                          subject_uuid: jobUuid,
-                        });
-                      setCreated(instance);
-                    }}
+                    disabled={!templateUuid || creating}
+                    onClick={() => void createWithPhotos()}
                   >
-                    {mutations.createInstance.isPending
+                    {creating
                       ? t("common.saving")
                       : t("contracts.job.sheet_continue")}
                   </Button>
@@ -305,9 +488,7 @@ export function JobContractsSection({
 
                 {pendingSigner ? (
                   <div className="space-y-4">
-                    <p className="text-sm font-medium">
-                      {pendingSigner.label}
-                    </p>
+                    <p className="text-sm font-medium">{pendingSigner.label}</p>
                     <SignerSignForm
                       key={pendingSigner.uuid}
                       instance={created}

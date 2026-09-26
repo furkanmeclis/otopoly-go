@@ -810,7 +810,7 @@ func (s *Service) CreateInstance(ctx context.Context, in CreateInstanceInput) (I
 	if err != nil {
 		return Instance{}, err
 	}
-	if !tmpl.SignatureRequired || pending == 0 {
+	if (!tmpl.SignatureRequired || pending == 0) && !in.DeferExecute {
 		if err := s.enqueueExecutePDF(ctx, row.ID); err != nil {
 			_ = s.q.SetContractInstancePDFError(ctx, db.SetContractInstancePDFErrorParams{
 				ID: row.ID, PdfError: err.Error(),
@@ -854,6 +854,42 @@ func (s *Service) VoidInstance(ctx context.Context, id uuid.UUID) (Instance, err
 		return Instance{}, err
 	}
 	s.recordActivity(ctx, "tenant.contract_instance.void", "contract_instance", &id, map[string]any{"title": updated.Title})
+	return s.GetInstance(ctx, id)
+}
+
+// FinalizeInstance renders the PDF for a contract created with DeferExecute once
+// its attachments are uploaded. Contracts that still wait for required
+// signatures are finalized by the last signature instead, so this is a no-op.
+func (s *Service) FinalizeInstance(ctx context.Context, id uuid.UUID) (Instance, error) {
+	orgID, err := s.requireOrgID(ctx)
+	if err != nil {
+		return Instance{}, err
+	}
+	row, err := s.q.GetContractInstanceByUUID(ctx, db.GetContractInstanceByUUIDParams{
+		Uuid: id, OrganizationID: orgID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Instance{}, ErrNotFound
+		}
+		return Instance{}, err
+	}
+	if row.Status == "voided" {
+		return Instance{}, fmt.Errorf("%w: voided contracts cannot be finalized", ErrConflict)
+	}
+	if row.Status != "executed" {
+		pending, err := s.q.CountPendingRequiredSigners(ctx, row.ID)
+		if err != nil {
+			return Instance{}, err
+		}
+		if !row.SignatureRequired || pending == 0 {
+			if err := s.enqueueExecutePDF(ctx, row.ID); err != nil {
+				_ = s.q.SetContractInstancePDFError(ctx, db.SetContractInstancePDFErrorParams{
+					ID: row.ID, PdfError: err.Error(),
+				})
+			}
+		}
+	}
 	return s.GetInstance(ctx, id)
 }
 

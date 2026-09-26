@@ -3333,6 +3333,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/contracts/instances/{uuid}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Render the PDF of a contract created with defer_execute (no-op while signatures are pending) */
+        post: operations["finalizeTenantContractInstance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/sign": {
         parameters: {
             query?: never;
@@ -13882,6 +13899,8 @@ export interface operations {
                     /** Format: uuid */
                     subject_uuid: string;
                     title?: string;
+                    /** @description Keep a contract without pending signers open so photos can be attached first; call the finalize endpoint afterwards. */
+                    defer_execute?: boolean;
                 };
             };
         };
@@ -13942,6 +13961,32 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeContractInstance"];
                 };
             };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    finalizeTenantContractInstance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instance (PDF rendering queued when no required signers are pending) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeContractInstance"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };

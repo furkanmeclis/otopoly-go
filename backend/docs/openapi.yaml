@@ -5787,6 +5787,11 @@ paths:
                 subject_type: { type: string, enum: [service_job] }
                 subject_uuid: { type: string, format: uuid }
                 title: { type: string }
+                defer_execute:
+                  type: boolean
+                  description: >-
+                    Keep a contract without pending signers open so photos can be
+                    attached first; call the finalize endpoint afterwards.
       responses:
         "201":
           description: Created
@@ -5834,6 +5839,27 @@ paths:
               schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /v1/tenant/contracts/instances/{uuid}/finalize:
+    post:
+      tags: [Tenant]
+      operationId: finalizeTenantContractInstance
+      summary: Render the PDF of a contract created with defer_execute (no-op while signatures are pending)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Instance (PDF rendering queued when no required signers are pending)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeContractInstance" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/sign:
     post:
       tags: [Tenant]

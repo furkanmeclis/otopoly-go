@@ -67,6 +67,7 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/tenant/contracts/instances", tWrite(h.CreateInstance))
 	mux.Handle("GET /v1/tenant/contracts/instances/{uuid}", tRead(h.GetInstance))
 	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/void", tOwnerWrite(h.VoidInstance))
+	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/finalize", tWrite(h.FinalizeInstance))
 	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/sign", tWrite(h.Sign))
 	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/otp", tWrite(h.SendSignerOTP))
 	mux.Handle("POST /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/otp/verify", tWrite(h.VerifySignerOTP))
