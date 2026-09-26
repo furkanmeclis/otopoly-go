@@ -167,5 +167,9 @@
   "detail.report_id": "Belge no",
   "detail.print": "Yazdır",
   "detail.void_title": "İşlemi iptal et",
-  "detail.void_description": "Bakiye etkisi geri alınır. Kayıt iptal olarak görünmeye devam eder."
+  "detail.void_description": "Bakiye etkisi geri alınır. Kayıt iptal olarak görünmeye devam eder.",
+  "payment_method.cash": "Nakit",
+  "payment_method.card": "Kart",
+  "payment_method.transfer": "Havale/EFT",
+  "payment_method.other": "Diğer"
 }

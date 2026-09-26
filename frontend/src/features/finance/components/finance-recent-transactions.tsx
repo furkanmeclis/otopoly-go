@@ -20,6 +20,7 @@ import {
 } from "@/features/finance/lib/labels";
 import { useFinanceTransactions } from "@/features/finance/hooks/use-finance-queries";
 import { cn } from "@/lib/utils";
+import { date as formatDate } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
 function typeIcon(type: string) {
@@ -98,18 +99,45 @@ export function FinanceRecentTransactions({
                       <Icon aria-hidden className="size-4" />
                     </span>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">
-                        {t(transactionTypeLabelKey(tx.type))} ·{" "}
-                        {formatFinanceAmount(tx.amount, tx.currency, locale)}
+                      <div
+                        className="truncate text-sm font-medium"
+                        title={tx.description || undefined}
+                      >
+                        {tx.description?.trim() ||
+                          t(transactionTypeLabelKey(tx.type))}
                       </div>
                       <div className="text-muted-foreground truncate text-xs">
-                        {tx.transaction_date} · {tx.account_name}
+                        {[
+                          t(transactionTypeLabelKey(tx.type)),
+                          formatDate(tx.transaction_date, "dd.MM.yyyy", locale),
+                          tx.account_name,
+                          tx.category_name,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </div>
                     </div>
                   </div>
-                  <span className="text-muted-foreground shrink-0 text-xs">
-                    {t(transactionStatusLabelKey(tx.status))}
-                  </span>
+                  <div className="shrink-0 text-right">
+                    <div
+                      className={cn(
+                        "text-sm font-semibold tabular-nums",
+                        tx.type === "income" && "text-emerald-600",
+                        tx.type === "expense" && "text-rose-600",
+                        tx.status === "void" && "line-through",
+                      )}
+                    >
+                      {tx.type === "expense"
+                        ? "−"
+                        : tx.type === "income"
+                          ? "+"
+                          : ""}
+                      {formatFinanceAmount(tx.amount, tx.currency, locale)}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      {t(transactionStatusLabelKey(tx.status))}
+                    </div>
+                  </div>
                 </Link>
               );
             })}

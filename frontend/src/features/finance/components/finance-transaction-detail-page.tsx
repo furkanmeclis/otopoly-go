@@ -13,6 +13,7 @@ import { useFinanceMutations } from "@/features/finance/hooks/use-finance-mutati
 import { useFinanceTransaction } from "@/features/finance/hooks/use-finance-queries";
 import { useTenantFinanceAccess } from "@/features/finance/hooks/use-tenant-finance-access";
 import { transactionTypeLabelKey } from "@/features/finance/lib/labels";
+import { date as formatDate } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -25,7 +26,7 @@ export function FinanceTransactionDetailPage({
   slug,
   uuid,
 }: FinanceTransactionDetailPageProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const router = useRouter();
   const { confirm } = useDialogs();
   const { canWrite } = useTenantFinanceAccess(slug);
@@ -34,7 +35,7 @@ export function FinanceTransactionDetailPage({
 
   const tx = query.data;
   const title = tx
-    ? `${t(transactionTypeLabelKey(tx.type))} · ${tx.transaction_date}`
+    ? `${t(transactionTypeLabelKey(tx.type))} · ${formatDate(tx.transaction_date, "dd.MM.yyyy", locale)}`
     : t("finance.detail.transaction_title");
 
   async function handleVoid() {

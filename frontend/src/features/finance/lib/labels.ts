@@ -24,7 +24,18 @@ const CATEGORY_KIND_KEYS = {
   expense: "finance.categories.kind_expense",
 } as const;
 
-// TODO(finance): paymentMethodLabelKey when payment_method is exposed in forms and transaction report.
+const PAYMENT_METHOD_KEYS = {
+  cash: "finance.payment_method.cash",
+  card: "finance.payment_method.card",
+  transfer: "finance.payment_method.transfer",
+  other: "finance.payment_method.other",
+} as const;
+
+export function paymentMethodLabelKey(method: string): string | null {
+  return (
+    PAYMENT_METHOD_KEYS[method as keyof typeof PAYMENT_METHOD_KEYS] ?? null
+  );
+}
 
 export function categoryKindLabelKey(kind: string): string {
   return (

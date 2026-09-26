@@ -20,11 +20,12 @@ import { Separator } from "@/components/ui/separator";
 import { routes } from "@/config/routes";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import {
+  paymentMethodLabelKey,
   transactionStatusLabelKey,
   transactionTypeLabelKey,
 } from "@/features/finance/lib/labels";
 import type { FinanceTransaction } from "@/features/finance/services/finance.service";
-import { datetime } from "@/lib/utils/format";
+import { date as formatDate, datetime } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -91,6 +92,12 @@ export function FinanceTransactionReport({
   className,
 }: FinanceTransactionReportProps) {
   const { t, locale } = useLocale();
+  const paymentKey = tx.payment_method
+    ? paymentMethodLabelKey(tx.payment_method)
+    : null;
+  const paymentMethodLabel = paymentKey
+    ? t(paymentKey)
+    : tx.payment_method || "—";
   const isVoid = tx.status === "void";
 
   const accountLink = (
@@ -165,7 +172,9 @@ export function FinanceTransactionReport({
               </div>
               <p className="text-muted-foreground text-sm">
                 {t("finance.detail.report_id")}:{" "}
-                <span className="font-mono text-xs">{tx.uuid}</span>
+                <span className="font-mono text-xs" title={tx.uuid}>
+                  {tx.uuid.slice(0, 8).toUpperCase()}
+                </span>
               </p>
             </div>
           </div>
@@ -190,7 +199,7 @@ export function FinanceTransactionReport({
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ReportField
             label={t("finance.transactions.date")}
-            value={tx.transaction_date}
+            value={formatDate(tx.transaction_date, "dd.MM.yyyy", locale)}
           />
           <ReportField
             label={t("finance.transactions.account")}
@@ -213,7 +222,7 @@ export function FinanceTransactionReport({
           />
           <ReportField
             label={t("finance.detail.payment_method")}
-            value={tx.payment_method || "—"}
+            value={paymentMethodLabel}
           />
           <ReportField
             label={t("finance.detail.reference_no")}
