@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { permissions } from "@/config/permissions";
 import { leadsKeys } from "@/features/leads/hooks/use-leads";
+import { deliveryErrorText } from "@/features/quotes/lib/delivery-error";
 import { quotesService } from "@/features/quotes/services/quotes.service";
 import type {
   ConvertQuoteInput,
@@ -129,10 +130,7 @@ export function useQuoteMutations() {
           toast.success(t("quotes.toast.sent"));
         } else {
           toast.warning(t("quotes.toast.send_failed"), {
-            description:
-              res.delivery.error === "not configured"
-                ? t("quotes.send.not_configured")
-                : res.delivery.error,
+            description: deliveryErrorText(res.delivery.error, t),
           });
         }
         store(res.quote);
@@ -151,10 +149,7 @@ export function useQuoteMutations() {
           toast.success(t("quotes.toast.sent"));
         else
           toast.warning(t("quotes.toast.send_failed"), {
-            description:
-              res.delivery.error === "not configured"
-                ? t("quotes.send.not_configured")
-                : res.delivery.error,
+            description: deliveryErrorText(res.delivery.error, t),
           });
         store(res.quote);
       },

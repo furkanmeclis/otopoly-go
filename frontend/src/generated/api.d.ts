@@ -4471,6 +4471,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/quotes/{uuid}/send-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Preview the customer message of a quote send
+         * @description Requires `tenant.quotes.write`. Renders the WhatsApp `quote.sent` message and reports whether the organization's WhatsApp line is connected. Nothing is stored and no PDF is rendered.
+         */
+        get: operations["getTenantQuoteSendPreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/quotes/{uuid}/deliveries/{deliveryUuid}/retry": {
         parameters: {
             query?: never;
@@ -7456,6 +7478,22 @@ export interface components {
             success: true;
             data: components["schemas"]["QuoteSendResult"];
             meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeQuoteSendPreview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QuoteSendPreview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QuoteSendPreview: {
+            /** @example whatsapp */
+            channel: string;
+            channel_connected: boolean;
+            customer_phone: string;
+            /** @description Rendered message text (empty when no template is configured). */
+            message: string;
+            template_active: boolean;
+            attachment_file_name: string;
         };
         EnvelopeQuoteConvertPreview: {
             /** @enum {boolean} */
@@ -15933,6 +15971,40 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantQuoteSendPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQuoteSendPreview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Messaging is not configured (NOT_CONFIGURED) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     retryTenantQuoteDelivery: {

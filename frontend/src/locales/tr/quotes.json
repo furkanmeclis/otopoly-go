@@ -192,5 +192,10 @@
   "toast.link_copied": "Bağlantı kopyalandı",
   "toast.reminders": "Hatırlatmalar kaydedildi",
   "toast.converted": "İş emri oluşturuldu",
-  "convert.model_placeholder": "Marka / model / yıl ara"
+  "convert.model_placeholder": "Marka / model / yıl ara",
+  "send.wa_not_connected": "WhatsApp bağlı değil",
+  "send.wa_not_connected_hint": "Teklif gönderildi olarak işaretlenir ancak mesaj iletilemez. WhatsApp hattınızı bağlayın ya da bağlantıyı elle paylaşın.",
+  "send.wa_settings_link": "Ayarlar > Mesajlar",
+  "send.no_phone_error": "Müşterinin telefon numarası yok.",
+  "send.preview": "Mesaj önizlemesi"
 }

@@ -6,7 +6,6 @@ import {
   AsyncCombobox,
   type ComboboxOption,
 } from "@/components/ui/async-combobox";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -27,6 +26,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { customersService } from "@/features/customers/services/customers.service";
+import { leadsService } from "@/features/leads/services/leads.service";
+import { quotesService } from "@/features/quotes/services/quotes.service";
 import { ReminderPicker } from "@/features/todos/components/reminder-picker";
 import {
   useTodoAssignees,
@@ -43,7 +44,19 @@ type TodoDialogProps = {
   /** Edit this todo; create a new one when omitted. */
   todo?: Todo | null;
   defaultDueDate?: string;
+  /** Prefill links for a new todo (e.g. from a lead / quote page). */
+  defaults?: TodoLinkDefaults;
 };
+
+export type TodoLinkDefaults = {
+  title?: string;
+  customer?: { uuid: string; label: string };
+  lead?: { uuid: string; label: string };
+  quote?: { uuid: string; label: string };
+};
+
+const optionOf = (ref?: { uuid: string; label: string } | null) =>
+  ref ? [{ value: ref.uuid, label: ref.label }] : [];
 
 export function TodoDialog(props: TodoDialogProps) {
   return (
@@ -53,25 +66,66 @@ export function TodoDialog(props: TodoDialogProps) {
   );
 }
 
-function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
+function TodoForm({
+  onOpenChange,
+  todo,
+  defaultDueDate,
+  defaults,
+}: TodoDialogProps) {
   const { t } = useLocale();
   const assignees = useTodoAssignees();
   const { create, patch } = useTodoMutations();
-  const [title, setTitle] = useState(todo?.title ?? "");
+  const [title, setTitle] = useState(todo?.title ?? defaults?.title ?? "");
   const [notes, setNotes] = useState(todo?.notes ?? "");
   const [dueDate, setDueDate] = useState(
     todo?.due_date ?? defaultDueDate ?? "",
   );
   const [dueTime, setDueTime] = useState(todo?.due_time ?? "");
   const [assignee, setAssignee] = useState(todo?.assignee?.uuid ?? "");
-  const [customer, setCustomer] = useState(todo?.customer?.uuid ?? "");
+  const [customer, setCustomer] = useState(
+    todo ? (todo.customer?.uuid ?? "") : (defaults?.customer?.uuid ?? ""),
+  );
+  const [lead, setLead] = useState(
+    todo ? (todo.lead?.uuid ?? "") : (defaults?.lead?.uuid ?? ""),
+  );
+  const [quote, setQuote] = useState(
+    todo ? (todo.quote?.uuid ?? "") : (defaults?.quote?.uuid ?? ""),
+  );
   const [reminders, setReminders] = useState<number[]>(
     todo?.reminder_offsets ?? [],
   );
   const pending = create.isPending || patch.isPending;
-  const initialCustomer: ComboboxOption[] = todo?.customer
-    ? [{ value: todo.customer.uuid, label: todo.customer.label }]
-    : [];
+  const initialCustomer: ComboboxOption[] = optionOf(
+    todo ? todo.customer : defaults?.customer,
+  );
+  const initialLead: ComboboxOption[] = optionOf(
+    todo ? todo.lead : defaults?.lead,
+  );
+  const initialQuote: ComboboxOption[] = optionOf(
+    todo ? todo.quote : defaults?.quote,
+  );
+  const loadLeads = useCallback(async (q: string) => {
+    const page = await leadsService.list({
+      q: q.trim() || undefined,
+      limit: 20,
+    });
+    return page.items.map((l) => ({
+      value: l.uuid,
+      label: [l.customer_name, l.vehicle_plate || l.interest]
+        .filter(Boolean)
+        .join(" · "),
+    }));
+  }, []);
+  const loadQuotes = useCallback(async (q: string) => {
+    const page = await quotesService.list({
+      q: q.trim() || undefined,
+      limit: 20,
+    });
+    return page.items.map((x) => ({
+      value: x.uuid,
+      label: `${x.number} · ${x.customer_name}`,
+    }));
+  }, []);
   const loadCustomers = useCallback(async (q: string) => {
     const page = await customersService.list({
       q: q.trim() || undefined,
@@ -93,6 +147,8 @@ function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
       due_time: dueDate ? dueTime : "",
       assignee_uuid: assignee,
       customer_uuid: customer,
+      lead_uuid: lead,
+      quote_uuid: quote,
       reminder_offsets: dueDate ? reminders : [],
     };
     if (todo) {
@@ -105,6 +161,8 @@ function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
         due_time: body.due_time || null,
         assignee_uuid: body.assignee_uuid || null,
         customer_uuid: body.customer_uuid || null,
+        lead_uuid: body.lead_uuid || null,
+        quote_uuid: body.quote_uuid || null,
         reminder_offsets: body.reminder_offsets,
       });
     }
@@ -194,20 +252,36 @@ function TodoForm({ onOpenChange, todo, defaultDueDate }: TodoDialogProps) {
             emptyText={t("todos.customer.empty")}
           />
         </div>
-        {todo?.lead || todo?.quote ? (
-          <div className="flex flex-wrap gap-2 text-xs">
-            {todo.lead ? (
-              <Badge variant="outline">
-                {t("todos.fields.lead")}: {todo.lead.label}
-              </Badge>
-            ) : null}
-            {todo.quote ? (
-              <Badge variant="outline">
-                {t("todos.fields.quote")}: {todo.quote.label}
-              </Badge>
-            ) : null}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="todo-lead">{t("todos.fields.lead")}</Label>
+            <AsyncCombobox
+              id="todo-lead"
+              value={lead}
+              onValueChange={setLead}
+              loadOptions={loadLeads}
+              initialOptions={initialLead}
+              clearable
+              placeholder={t("todos.link.lead_placeholder")}
+              searchPlaceholder={t("todos.link.search")}
+              emptyText={t("todos.link.empty")}
+            />
           </div>
-        ) : null}
+          <div className="space-y-1.5">
+            <Label htmlFor="todo-quote">{t("todos.fields.quote")}</Label>
+            <AsyncCombobox
+              id="todo-quote"
+              value={quote}
+              onValueChange={setQuote}
+              loadOptions={loadQuotes}
+              initialOptions={initialQuote}
+              clearable
+              placeholder={t("todos.link.quote_placeholder")}
+              searchPlaceholder={t("todos.link.search")}
+              emptyText={t("todos.link.empty")}
+            />
+          </div>
+        </div>
         <div className="space-y-1.5">
           <Label htmlFor="todo-notes">{t("todos.fields.notes")}</Label>
           <Textarea

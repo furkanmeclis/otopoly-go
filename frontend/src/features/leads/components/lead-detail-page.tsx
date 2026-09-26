@@ -54,6 +54,7 @@ import {
 import { leadStatusTone, nextLeadStatus } from "@/features/leads/lib/lead-ui";
 import type { LeadDetail, LeadEvent, LeadStatus } from "@/features/leads/types";
 import { quoteStatusTone } from "@/features/quotes/lib/quote-ui";
+import { LinkedTodosCard } from "@/features/todos";
 import { cn } from "@/lib/utils";
 import { date, datetime, relativeDatetime } from "@/lib/utils/format";
 import { localToday, shiftDate } from "@/lib/utils/local-date";
@@ -327,6 +328,16 @@ export function LeadDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
               </ul>
             )}
           </section>
+
+          <LinkedTodosCard
+            slug={slug}
+            lead={lead.uuid}
+            onAdd={access.canTodo ? () => setTodoOpen(true) : undefined}
+            defaults={{
+              lead: { uuid: lead.uuid, label: lead.customer_name },
+              customer: { uuid: lead.customer_uuid, label: lead.customer_name },
+            }}
+          />
         </aside>
       </div>
 

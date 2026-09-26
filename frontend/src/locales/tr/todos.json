@@ -63,5 +63,12 @@
   "reminders.date_only_hint": "Saat seçilmezse görev 09:00'da zamanı gelmiş sayılır.",
   "reminders.max": "En fazla 5 hatırlatma eklenebilir.",
   "reminders.next": "Hatırlatma: {{time}}",
-  "reminders.remove": "Hatırlatmayı kaldır"
+  "reminders.remove": "Hatırlatmayı kaldır",
+  "linked.title": "Görevler",
+  "linked.add": "Görev ekle",
+  "linked.empty": "Bağlı görev yok.",
+  "link.lead_placeholder": "Fırsat seç",
+  "link.quote_placeholder": "Teklif seç",
+  "link.search": "Ara…",
+  "link.empty": "Sonuç yok"
 }

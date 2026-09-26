@@ -63,5 +63,12 @@
   "reminders.date_only_hint": "Without a time the task is due at 09:00.",
   "reminders.max": "At most 5 reminders.",
   "reminders.next": "Reminder: {{time}}",
-  "reminders.remove": "Remove reminder"
+  "reminders.remove": "Remove reminder",
+  "linked.title": "Tasks",
+  "linked.add": "Add task",
+  "linked.empty": "No linked tasks.",
+  "link.lead_placeholder": "Select a lead",
+  "link.quote_placeholder": "Select a quote",
+  "link.search": "Search…",
+  "link.empty": "No results"
 }

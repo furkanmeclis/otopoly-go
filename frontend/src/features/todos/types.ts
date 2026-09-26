@@ -15,6 +15,9 @@ export type TodoListParams = {
   status?: "open" | "done";
   scope?: TodoScope;
   assignee?: string;
+  customer?: string;
+  lead?: string;
+  quote?: string;
   q?: string;
   limit?: number;
   offset?: number;

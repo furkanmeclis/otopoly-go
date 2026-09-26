@@ -65,6 +65,8 @@ import type {
 import { cn } from "@/lib/utils";
 import { date, datetime, relativeDatetime } from "@/lib/utils/format";
 import { localToday } from "@/lib/utils/local-date";
+import { deliveryErrorText } from "@/features/quotes/lib/delivery-error";
+import { LinkedTodosCard } from "@/features/todos";
 import { useLocale } from "@/providers/locale-provider";
 
 function daysLeft(validUntil: string): number {
@@ -454,9 +456,7 @@ export function QuoteDetailPage({
                           className="text-destructive truncate text-xs"
                           title={d.error}
                         >
-                          {d.error === "not configured"
-                            ? t("quotes.send.not_configured")
-                            : d.error}
+                          {deliveryErrorText(d.error, t)}
                         </p>
                       ) : null}
                       <p className="text-muted-foreground text-xs">
@@ -536,11 +536,7 @@ export function QuoteDetailPage({
                     </span>
                     <span
                       className="text-muted-foreground text-xs"
-                      title={
-                        r.error === "not configured"
-                          ? t("quotes.send.not_configured")
-                          : r.error
-                      }
+                      title={deliveryErrorText(r.error, t)}
                     >
                       {t(`quotes.reminders.status.${r.status}`)}
                     </span>
@@ -599,6 +595,21 @@ export function QuoteDetailPage({
               ))}
             </ol>
           </section>
+
+          <LinkedTodosCard
+            slug={slug}
+            quote={q.uuid}
+            defaults={{
+              quote: {
+                uuid: q.uuid,
+                label: `${q.number} · ${q.customer_name}`,
+              },
+              customer: { uuid: q.customer_uuid, label: q.customer_name },
+              ...(q.lead_uuid
+                ? { lead: { uuid: q.lead_uuid, label: q.customer_name } }
+                : {}),
+            }}
+          />
         </aside>
       </div>
 
@@ -627,6 +638,7 @@ export function QuoteDetailPage({
       </div>
 
       <SendQuoteDialog
+        slug={slug}
         quote={q}
         open={sendOpen && q.can_send}
         onOpenChange={setSendOpen}
