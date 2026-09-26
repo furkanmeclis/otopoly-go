@@ -9,7 +9,9 @@ import (
 
 type fakeNotifier struct{ events []QuoteEvent }
 
-func (f *fakeNotifier) QuoteChanged(_ context.Context, ev QuoteEvent) { f.events = append(f.events, ev) }
+func (f *fakeNotifier) QuoteChanged(_ context.Context, ev QuoteEvent) {
+	f.events = append(f.events, ev)
+}
 
 func TestQuoteIntegrationSeams_DB(t *testing.T) {
 	f := setup(t)

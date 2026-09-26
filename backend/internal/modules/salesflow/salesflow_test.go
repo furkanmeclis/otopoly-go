@@ -56,7 +56,9 @@ type fakeChannels struct {
 	rules     []string
 }
 
-func (f fakeChannels) WhatsAppConnected(context.Context, int64) (bool, error) { return f.connected, nil }
+func (f fakeChannels) WhatsAppConnected(context.Context, int64) (bool, error) {
+	return f.connected, nil
+}
 func (f fakeChannels) RuleChannels(context.Context, int64, string) ([]string, error) {
 	return f.rules, nil
 }

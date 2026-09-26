@@ -248,8 +248,8 @@ func TestRetryThenFail_DB(t *testing.T) {
 
 	n := model.Notification{
 		Kind: "quote.reminder", SubjectType: "quote", SubjectID: 99,
-		Recipient: model.Recipient{CustomerID: f.customerID},
-		Vars:      map[string]string{"quote_number": "TKL-1", "quote_link": "https://x"},
+		Recipient:   model.Recipient{CustomerID: f.customerID},
+		Vars:        map[string]string{"quote_number": "TKL-1", "quote_link": "https://x"},
 		MaxAttempts: 2,
 		Attachment:  &model.Attachment{ObjectKey: "quotes/1.pdf", FileName: "teklif.pdf", MimeType: "application/pdf"},
 	}
