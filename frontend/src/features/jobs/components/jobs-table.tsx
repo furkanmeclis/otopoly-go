@@ -10,6 +10,7 @@ import { formatFinanceAmount } from "@/features/finance/lib/format";
 import type { JobQuickAction } from "@/features/jobs/components/job-board-card";
 import { JobElapsed } from "@/features/jobs/components/job-elapsed";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
+import { VehicleBrandMark } from "@/features/jobs/components/vehicle-brand-mark";
 import {
   carryOverDay,
   isStale,
@@ -74,7 +75,13 @@ export function JobsTable({
                 )}
               >
                 <td className="px-4 py-2.5">
-                  <PlateBadge plate={job.plate} size="sm" />
+                  <div className="flex items-center gap-1.5">
+                    <VehicleBrandMark
+                      brandName={job.brand_name}
+                      logoUrl={job.brand_logo_url}
+                    />
+                    <PlateBadge plate={job.plate} size="sm" />
+                  </div>
                 </td>
                 <td className="max-w-[14rem] px-3 py-2.5">
                   <p className="truncate font-medium">{job.customer_name}</p>

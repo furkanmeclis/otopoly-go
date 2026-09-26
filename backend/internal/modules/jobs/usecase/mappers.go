@@ -110,12 +110,24 @@ func mapListJob(row db.ListServiceJobsRow) Job {
 		TotalAmount:   financeusecase.NumericToString(row.TotalAmount),
 		AssigneeUUID:  uuidPtr(row.AssigneeUuid),
 		AssigneeName:  row.AssigneeName,
+		BrandName:     row.BrandName,
+		BrandLogoURL:  brandLogoURL(row.BrandUuid, row.BrandLogoObjectKey),
 		StartedAt:     row.StartedAt.Time,
 		CompletedAt:   tsPtr(row.CompletedAt),
 		PaidAt:        tsPtr(row.PaidAt),
 		CreatedAt:     row.CreatedAt.Time,
 		UpdatedAt:     row.UpdatedAt.Time,
 	}
+}
+
+// brandLogoURL points at the public vehicle brand logo stream (same path the
+// vehicle catalog returns); nil when the brand has no logo uploaded.
+func brandLogoURL(brandUUID uuid.UUID, key pgtype.Text) *string {
+	if !key.Valid || strings.TrimSpace(key.String) == "" {
+		return nil
+	}
+	u := "/v1/public/vehicle-brands/logo/" + brandUUID.String()
+	return &u
 }
 
 func mapCustomerJob(row db.ListServiceJobsByCustomerRow) Job {

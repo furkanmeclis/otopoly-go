@@ -734,10 +734,15 @@ SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_
        c.uuid AS customer_uuid,
        v.uuid AS vehicle_uuid,
        au.uuid AS assignee_uuid,
-       CASE WHEN au.id IS NULL THEN '' ELSE trim(both FROM concat(au.name, ' ', au.surname)) END::text AS assignee_name
+       CASE WHEN au.id IS NULL THEN '' ELSE trim(both FROM concat(au.name, ' ', au.surname)) END::text AS assignee_name,
+       vb.uuid AS brand_uuid,
+       vb.name AS brand_name,
+       vb.logo_object_key AS brand_logo_object_key
 FROM service_jobs j
 JOIN customers c ON c.id = j.customer_id
 JOIN customer_vehicles v ON v.id = j.vehicle_id
+JOIN vehicle_models vm ON vm.id = v.model_id
+JOIN vehicle_brands vb ON vb.id = vm.brand_id
 LEFT JOIN users au ON au.id = j.assignee_user_id
 WHERE j.organization_id = $1
   AND ($2::text IS NULL OR j.status = $2)
@@ -783,31 +788,34 @@ type ListServiceJobsParams struct {
 }
 
 type ListServiceJobsRow struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	OrganizationID int64              `json:"organization_id"`
-	CustomerID     int64              `json:"customer_id"`
-	VehicleID      int64              `json:"vehicle_id"`
-	CustomerName   string             `json:"customer_name"`
-	CustomerPhone  string             `json:"customer_phone"`
-	Plate          string             `json:"plate"`
-	VehicleLabel   string             `json:"vehicle_label"`
-	Status         string             `json:"status"`
-	Currency       string             `json:"currency"`
-	Notes          string             `json:"notes"`
-	StartedAt      pgtype.Timestamptz `json:"started_at"`
-	CompletedAt    pgtype.Timestamptz `json:"completed_at"`
-	PaidAt         pgtype.Timestamptz `json:"paid_at"`
-	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
-	TotalAmount    pgtype.Numeric     `json:"total_amount"`
-	CreatedBy      int64              `json:"created_by"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	PaymentStatus  string             `json:"payment_status"`
-	CustomerUuid   uuid.UUID          `json:"customer_uuid"`
-	VehicleUuid    uuid.UUID          `json:"vehicle_uuid"`
-	AssigneeUuid   pgtype.UUID        `json:"assignee_uuid"`
-	AssigneeName   string             `json:"assignee_name"`
+	ID                 int64              `json:"id"`
+	Uuid               uuid.UUID          `json:"uuid"`
+	OrganizationID     int64              `json:"organization_id"`
+	CustomerID         int64              `json:"customer_id"`
+	VehicleID          int64              `json:"vehicle_id"`
+	CustomerName       string             `json:"customer_name"`
+	CustomerPhone      string             `json:"customer_phone"`
+	Plate              string             `json:"plate"`
+	VehicleLabel       string             `json:"vehicle_label"`
+	Status             string             `json:"status"`
+	Currency           string             `json:"currency"`
+	Notes              string             `json:"notes"`
+	StartedAt          pgtype.Timestamptz `json:"started_at"`
+	CompletedAt        pgtype.Timestamptz `json:"completed_at"`
+	PaidAt             pgtype.Timestamptz `json:"paid_at"`
+	AssigneeUserID     pgtype.Int8        `json:"assignee_user_id"`
+	TotalAmount        pgtype.Numeric     `json:"total_amount"`
+	CreatedBy          int64              `json:"created_by"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	PaymentStatus      string             `json:"payment_status"`
+	CustomerUuid       uuid.UUID          `json:"customer_uuid"`
+	VehicleUuid        uuid.UUID          `json:"vehicle_uuid"`
+	AssigneeUuid       pgtype.UUID        `json:"assignee_uuid"`
+	AssigneeName       string             `json:"assignee_name"`
+	BrandUuid          uuid.UUID          `json:"brand_uuid"`
+	BrandName          string             `json:"brand_name"`
+	BrandLogoObjectKey pgtype.Text        `json:"brand_logo_object_key"`
 }
 
 func (q *Queries) ListServiceJobs(ctx context.Context, arg ListServiceJobsParams) ([]ListServiceJobsRow, error) {
@@ -855,6 +863,9 @@ func (q *Queries) ListServiceJobs(ctx context.Context, arg ListServiceJobsParams
 			&i.VehicleUuid,
 			&i.AssigneeUuid,
 			&i.AssigneeName,
+			&i.BrandUuid,
+			&i.BrandName,
+			&i.BrandLogoObjectKey,
 		); err != nil {
 			return nil, err
 		}

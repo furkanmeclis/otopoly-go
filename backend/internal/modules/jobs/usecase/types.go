@@ -48,11 +48,14 @@ type Job struct {
 	TotalAmount   string     `json:"total_amount"`
 	AssigneeUUID  *uuid.UUID `json:"assignee_uuid,omitempty"`
 	AssigneeName  string     `json:"assignee_name,omitempty"`
-	StartedAt     time.Time  `json:"started_at"`
-	CompletedAt   *time.Time `json:"completed_at,omitempty"`
-	PaidAt        *time.Time `json:"paid_at,omitempty"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	// BrandName / BrandLogoURL are set on list rows for the board cards.
+	BrandName    string     `json:"brand_name,omitempty"`
+	BrandLogoURL *string    `json:"brand_logo_url,omitempty"`
+	StartedAt    time.Time  `json:"started_at"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+	PaidAt       *time.Time `json:"paid_at,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
 }
 
 type JobDetail struct {

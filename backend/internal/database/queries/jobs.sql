@@ -70,10 +70,15 @@ SELECT j.*,
        c.uuid AS customer_uuid,
        v.uuid AS vehicle_uuid,
        au.uuid AS assignee_uuid,
-       CASE WHEN au.id IS NULL THEN '' ELSE trim(both FROM concat(au.name, ' ', au.surname)) END::text AS assignee_name
+       CASE WHEN au.id IS NULL THEN '' ELSE trim(both FROM concat(au.name, ' ', au.surname)) END::text AS assignee_name,
+       vb.uuid AS brand_uuid,
+       vb.name AS brand_name,
+       vb.logo_object_key AS brand_logo_object_key
 FROM service_jobs j
 JOIN customers c ON c.id = j.customer_id
 JOIN customer_vehicles v ON v.id = j.vehicle_id
+JOIN vehicle_models vm ON vm.id = v.model_id
+JOIN vehicle_brands vb ON vb.id = vm.brand_id
 LEFT JOIN users au ON au.id = j.assignee_user_id
 WHERE j.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR j.status = sqlc.narg(status))

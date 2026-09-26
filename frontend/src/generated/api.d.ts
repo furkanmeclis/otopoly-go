@@ -12005,7 +12005,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Jobs page */
+            /** @description Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) */
             200: {
                 headers: {
                     [name: string]: unknown;

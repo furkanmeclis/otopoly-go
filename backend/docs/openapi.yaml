@@ -4336,7 +4336,7 @@ paths:
           description: Also return in_progress/ready jobs started before date_from (multi-day work still going on).
           schema: { type: boolean }
       responses:
-        "200": { description: Jobs page }
+        "200": { description: "Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none)" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:

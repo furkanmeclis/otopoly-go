@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { JobElapsed } from "@/features/jobs/components/job-elapsed";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
+import { VehicleBrandMark } from "@/features/jobs/components/vehicle-brand-mark";
 import { carryOverDay, initials, isStale } from "@/features/jobs/lib/job-ui";
 import type { Job } from "@/features/jobs/services/jobs.service";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,10 @@ export function JobBoardCard({
       />
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <VehicleBrandMark
+            brandName={job.brand_name}
+            logoUrl={job.brand_logo_url}
+          />
           <PlateBadge plate={job.plate} size="sm" />
           {workDay ? (
             <span
