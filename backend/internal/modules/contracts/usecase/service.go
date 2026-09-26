@@ -1184,19 +1184,29 @@ func (s *Service) ExecutePDF(ctx context.Context, instanceID int64) error {
 		mediaEmbeds = append(mediaEmbeds, emb)
 	}
 
+	var logoBase64, logoMIME string
+	if org.LogoObjectKey.Valid && org.LogoObjectKey.String != "" {
+		if data, err := s.downloadBytes(ctx, org.LogoObjectKey.String); err == nil && len(data) > 0 {
+			logoBase64 = base64.StdEncoding.EncodeToString(data)
+			logoMIME = storage.MIMEFromLogoKey(org.LogoObjectKey.String)
+		}
+	}
+
 	htmlDoc := buildContractHTML(contractPDFOptions{
-		Title:        inst.Title,
-		NumberLabel:  formatContractNumber(inst.Number),
-		ContentHTML:  inst.ContentHtml,
-		OrgName:      org.Name,
-		OrgAddress:   formatOrgFullAddress(org),
-		OrgPhone:     org.Phone,
-		OrgEmail:     org.Email,
-		PrimaryColor: org.PrimaryColor,
-		Locale:       i18n.Normalize(inst.Locale),
-		CreatedAt:    inst.CreatedAt.Time,
-		Signatures:   embeds,
-		Media:        mediaEmbeds,
+		OrgLogoBase64: logoBase64,
+		OrgLogoMIME:   logoMIME,
+		Title:         inst.Title,
+		NumberLabel:   formatContractNumber(inst.Number),
+		ContentHTML:   inst.ContentHtml,
+		OrgName:       org.Name,
+		OrgAddress:    formatOrgFullAddress(org),
+		OrgPhone:      org.Phone,
+		OrgEmail:      org.Email,
+		PrimaryColor:  org.PrimaryColor,
+		Locale:        i18n.Normalize(inst.Locale),
+		CreatedAt:     inst.CreatedAt.Time,
+		Signatures:    embeds,
+		Media:         mediaEmbeds,
 	})
 	pdfBytes, err := s.pdf.HTMLToPDF(ctx, htmlDoc)
 	if err != nil {

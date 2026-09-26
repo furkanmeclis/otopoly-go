@@ -252,7 +252,7 @@ var trCatalog = map[string]string{
 	"contracts.pdf.signatures":                 "İmzalar",
 	"contracts.pdf.signed_at":                  "İmza zamanı",
 	"contracts.pdf.otp_verified":               "OTP ile doğrulandı",
-	"contracts.pdf.attachments":                "Ekler",
+	"contracts.pdf.attachments":                "Görseller ve ekler",
 	"contracts.pdf.footer":                     "Bu belge basit elektronik imza ile oluşturulmuştur.",
 }
 
@@ -470,6 +470,6 @@ var enCatalog = map[string]string{
 	"contracts.pdf.signatures":                 "Signatures",
 	"contracts.pdf.signed_at":                  "Signed at",
 	"contracts.pdf.otp_verified":               "Verified by OTP",
-	"contracts.pdf.attachments":                "Attachments",
+	"contracts.pdf.attachments":                "Photos & attachments",
 	"contracts.pdf.footer":                     "This document was created with a simple electronic signature.",
 }

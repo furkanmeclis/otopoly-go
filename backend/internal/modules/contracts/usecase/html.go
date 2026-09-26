@@ -54,18 +54,21 @@ type mediaEmbed struct {
 }
 
 type contractPDFOptions struct {
-	Title        string
-	NumberLabel  string
-	ContentHTML  string
-	OrgName      string
-	OrgAddress   string
-	OrgPhone     string
-	OrgEmail     string
-	PrimaryColor string
-	Locale       i18n.Locale
-	CreatedAt    time.Time
-	Signatures   []signatureEmbed
-	Media        []mediaEmbed
+	Title       string
+	NumberLabel string
+	ContentHTML string
+	OrgName     string
+	OrgAddress  string
+	OrgPhone    string
+	OrgEmail    string
+	// OrgLogoBase64 / OrgLogoMIME replace the initial mark when the org has a logo.
+	OrgLogoBase64 string
+	OrgLogoMIME   string
+	PrimaryColor  string
+	Locale        i18n.Locale
+	CreatedAt     time.Time
+	Signatures    []signatureEmbed
+	Media         []mediaEmbed
 }
 
 func replaceVariables(contentHTML string, vars map[string]string) string {
@@ -132,12 +135,14 @@ func tintHex(hex string, amount float64) string {
 func buildContractHTML(opts contractPDFOptions) string {
 	primary := normalizePrimaryColor(opts.PrimaryColor)
 	primarySoft := tintHex(primary, 0.88)
-	primaryWash := tintHex(primary, 0.94)
-	ink := "#2A241F"
-	muted := "#6B635C"
-	subtle := "#8A8178"
-	line := "#E8E0D8"
-	paper := "#FFFcf8"
+	// Plain white paper and card surfaces with neutral ink: the brand colour is
+	// kept for accents only (bar, mark, rules, bullets) so prints stay clean.
+	primaryWash := "#FFFFFF"
+	ink := "#111827"
+	muted := "#4B5563"
+	subtle := "#6B7280"
+	line := "#E5E7EB"
+	paper := "#FFFFFF"
 	loc := i18n.Normalize(string(opts.Locale))
 	t := func(key string) string { return i18n.Translate(loc, key) }
 	initial := brandInitial(opts.OrgName)
@@ -176,6 +181,9 @@ body{
   color:#fff;font-size:18pt;font-weight:700;letter-spacing:-0.04em;
   display:flex;align-items:center;justify-content:center;
   box-shadow:0 8px 18px %s33;
+}
+.logo{
+  width:auto;height:52px;max-width:140px;flex-shrink:0;object-fit:contain;display:block;
 }
 .brand-copy{min-width:0;padding-top:1px}
 .brand-name{
@@ -273,10 +281,10 @@ h1{
 .sig-meta .role{color:%s;font-size:8.25pt}
 .media-grid{display:flex;flex-wrap:wrap;gap:14px}
 .media-card{
-  width:214px;border:1px solid %s;border-radius:14px;overflow:hidden;
-  background:#fff;
+  width:calc(50%% - 7px);border:1px solid %s;border-radius:14px;overflow:hidden;
+  background:#fff;page-break-inside:avoid;
 }
-.media-card img{width:100%%;height:148px;object-fit:cover;display:block}
+.media-card img{width:100%%;height:230px;object-fit:cover;display:block}
 .media-body{padding:9px 11px;background:%s}
 .media-name{font-size:8.5pt;font-weight:650;color:%s;word-break:break-word}
 .media-cap{font-size:8pt;color:%s;margin-top:2px}
@@ -294,7 +302,7 @@ h1{
 		primary, tintHex(primary, 0.18), primary,
 		ink, muted,
 		primaryWash, line, subtle, ink,
-		primaryWash, tintHex(primary, 0.97), line, primary,
+		primaryWash, "#FFFFFF", line, primary,
 		primary, primarySoft,
 		ink, primary,
 		primary, primary,
@@ -309,9 +317,15 @@ h1{
 	)
 
 	b.WriteString(`<div class="header"><div class="brand">`)
-	b.WriteString(`<div class="mark">`)
-	b.WriteString(html.EscapeString(initial))
-	b.WriteString(`</div><div class="brand-copy"><p class="brand-name">`)
+	if opts.OrgLogoBase64 != "" && strings.HasPrefix(opts.OrgLogoMIME, "image/") {
+		_, _ = fmt.Fprintf(&b, `<img class="logo" alt="" src="data:%s;base64,%s">`,
+			html.EscapeString(opts.OrgLogoMIME), opts.OrgLogoBase64)
+	} else {
+		b.WriteString(`<div class="mark">`)
+		b.WriteString(html.EscapeString(initial))
+		b.WriteString(`</div>`)
+	}
+	b.WriteString(`<div class="brand-copy"><p class="brand-name">`)
 	b.WriteString(html.EscapeString(opts.OrgName))
 	b.WriteString(`</p><div class="brand-meta">`)
 	if opts.OrgAddress != "" {
@@ -352,6 +366,33 @@ h1{
 	b.WriteString(stripActiveHTML(opts.ContentHTML))
 	b.WriteString(`</div>`)
 
+	if len(opts.Media) > 0 {
+		b.WriteString(`<div class="section"><div class="section-head"><h2>`)
+		b.WriteString(html.EscapeString(t("contracts.pdf.attachments")))
+		b.WriteString(`</h2><div class="rule"></div></div><div class="media-grid">`)
+		for _, m := range opts.Media {
+			b.WriteString(`<div class="media-card">`)
+			if m.DataBase64 != "" && strings.HasPrefix(m.ContentType, "image/") {
+				ct := m.ContentType
+				if ct == "" {
+					ct = "image/jpeg"
+				}
+				_, _ = fmt.Fprintf(&b, `<img alt="%s" src="data:%s;base64,%s">`,
+					html.EscapeString(m.FileName), html.EscapeString(ct), m.DataBase64)
+			}
+			b.WriteString(`<div class="media-body"><div class="media-name">`)
+			b.WriteString(html.EscapeString(m.FileName))
+			b.WriteString(`</div>`)
+			if m.Caption != "" {
+				b.WriteString(`<div class="media-cap">`)
+				b.WriteString(html.EscapeString(m.Caption))
+				b.WriteString(`</div>`)
+			}
+			b.WriteString(`</div></div>`)
+		}
+		b.WriteString(`</div></div>`)
+	}
+
 	if len(opts.Signatures) > 0 {
 		b.WriteString(`<div class="section"><div class="section-head"><h2>`)
 		b.WriteString(html.EscapeString(t("contracts.pdf.signatures")))
@@ -385,33 +426,6 @@ h1{
 					t("contracts.pdf.otp_verified"), otpChannelLabel(sig.OTPChannel), sig.OTPPhoneMasked,
 					formatEvidenceTime(sig.OTPVerifiedAt))))
 				b.WriteString(`</span>`)
-			}
-			b.WriteString(`</div></div>`)
-		}
-		b.WriteString(`</div></div>`)
-	}
-
-	if len(opts.Media) > 0 {
-		b.WriteString(`<div class="section"><div class="section-head"><h2>`)
-		b.WriteString(html.EscapeString(t("contracts.pdf.attachments")))
-		b.WriteString(`</h2><div class="rule"></div></div><div class="media-grid">`)
-		for _, m := range opts.Media {
-			b.WriteString(`<div class="media-card">`)
-			if m.DataBase64 != "" && strings.HasPrefix(m.ContentType, "image/") {
-				ct := m.ContentType
-				if ct == "" {
-					ct = "image/jpeg"
-				}
-				_, _ = fmt.Fprintf(&b, `<img alt="%s" src="data:%s;base64,%s">`,
-					html.EscapeString(m.FileName), html.EscapeString(ct), m.DataBase64)
-			}
-			b.WriteString(`<div class="media-body"><div class="media-name">`)
-			b.WriteString(html.EscapeString(m.FileName))
-			b.WriteString(`</div>`)
-			if m.Caption != "" {
-				b.WriteString(`<div class="media-cap">`)
-				b.WriteString(html.EscapeString(m.Caption))
-				b.WriteString(`</div>`)
 			}
 			b.WriteString(`</div></div>`)
 		}
