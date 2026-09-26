@@ -253,7 +253,7 @@ export function QuoteEditorPage({
 
 function EditorSkeleton() {
   return (
-    <div className="mx-auto grid w-full max-w-6xl gap-4 lg:grid-cols-[1fr_22rem]">
+    <div className="grid w-full gap-4 lg:grid-cols-[1fr_22rem]">
       <div className="space-y-4">
         <Skeleton className="h-28 rounded-2xl" />
         <Skeleton className="h-64 rounded-2xl" />
@@ -504,7 +504,7 @@ function QuoteEditor({
   const money = (v: string) => formatFinanceAmount(v, "TRY", locale);
 
   return (
-    <div className="mx-auto w-full max-w-6xl pb-28 lg:pb-6">
+    <div className="w-full pb-28 lg:pb-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <Link
           href={

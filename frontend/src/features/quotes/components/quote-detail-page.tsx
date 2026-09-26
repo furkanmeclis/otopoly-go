@@ -107,7 +107,7 @@ export function QuoteDetailPage({
 
   if (query.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-6xl space-y-4">
+      <div className="w-full space-y-4">
         <Skeleton className="h-36 rounded-2xl" />
         <Skeleton className="h-72 rounded-2xl" />
       </div>
@@ -177,7 +177,7 @@ export function QuoteDetailPage({
   })();
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 pb-24 md:pb-6">
+    <div className="flex w-full flex-col gap-4 pb-24 md:pb-6">
       <Link
         href={routes.tenant.quotes.root(slug)}
         className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 text-sm"

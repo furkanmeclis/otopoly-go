@@ -62,7 +62,7 @@ export function TodosPage({ slug }: { slug: string }) {
   const items = list.data?.items ?? [];
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+    <div className="flex w-full flex-col gap-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display flex items-center gap-2 text-2xl font-semibold tracking-tight">

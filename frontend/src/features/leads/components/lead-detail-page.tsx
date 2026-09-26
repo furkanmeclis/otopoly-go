@@ -75,7 +75,7 @@ export function LeadDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
 
   if (query.isLoading) {
     return (
-      <div className="mx-auto w-full max-w-5xl space-y-4">
+      <div className="w-full space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-32 w-full rounded-2xl" />
         <Skeleton className="h-64 w-full rounded-2xl" />
@@ -102,7 +102,7 @@ export function LeadDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const newQuoteHref = `${routes.tenant.quotes.new(slug)}?lead=${lead.uuid}&customer=${lead.customer_uuid}`;
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 pb-24 md:pb-6">
+    <div className="flex w-full flex-col gap-4 pb-24 md:pb-6">
       <Link
         href={routes.tenant.leads.root(slug)}
         className="text-muted-foreground hover:text-foreground inline-flex w-fit items-center gap-1 text-sm"

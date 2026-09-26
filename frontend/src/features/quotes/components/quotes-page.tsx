@@ -70,7 +70,7 @@ export function QuotesPage({ slug }: { slug: string }) {
     formatFinanceAmount(v ?? "0", s?.currency ?? "TRY", locale);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
+    <div className="flex w-full flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display flex items-center gap-2 text-2xl font-semibold tracking-tight">
