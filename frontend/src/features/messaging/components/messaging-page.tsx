@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { permissions } from "@/config/permissions";
+import { DailySummaryCard } from "@/features/messaging/components/daily-summary-card";
 import { MessageTemplatesPanel } from "@/features/messaging/components/message-templates-panel";
 import { NotificationRulesCard } from "@/features/messaging/components/notification-rules-card";
 import { WhatsAppSessionCard } from "@/features/messaging/components/whatsapp-session-card";
@@ -46,6 +47,8 @@ export function MessagingPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <WhatsAppSessionCard />
             <NotificationRulesCard />
+            {/* Owner-only: the summary contains revenue and cash balances. */}
+            {canWrite ? <DailySummaryCard /> : null}
           </div>
         </TabsContent>
         <TabsContent value="templates" className="mt-4">

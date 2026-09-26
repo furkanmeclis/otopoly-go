@@ -42,6 +42,8 @@ import (
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
 	customersmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers"
 	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/dailysummary"
+	dsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/dailysummary/usecase"
 	exportmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports"
 	exporthandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/handler"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
@@ -369,6 +371,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	}
 	messagingSvc.RestoreConnectedSessions(context.Background())
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
+	dailySummarySvc := dsusecase.New(deps.Queries, dailysummary.NewMessagingSender(messagingSvc), log)
+	dailysummary.RegisterRoutes(mux, dailySummarySvc, tokens, loader, deps.Queries)
 	messagingResolver := messagingmodule.NewDBPhoneResolver(deps.Queries)
 	messagingmodule.RegisterEventHandlers(eventBus, messagingSvc, messagingResolver, log)
 	contractsSvc.SetOTPSender(messagingmodule.NewContractOTPSender(messagingSvc))
@@ -500,12 +504,16 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithLogPurge(logsSvc.ApplyDueRules).
 			WithContractExecute(contractsSvc.ExecutePDF).
 			WithReminderSweep(centerSvc.ProcessDue).
-			WithQuoteExpire(quotesSvc.ExpireDue)
+			WithQuoteExpire(quotesSvc.ExpireDue).
+			WithDailySummary(dailySummarySvc.SendDue)
 		if sched, err := queue.StartReminderScheduler(cfg, log); err != nil {
 			log.Error("reminder_scheduler_init_failed", "error", err)
 		} else {
 			if err := queue.RegisterQuoteExpirySchedule(sched); err != nil {
 				log.Error("quote_expiry_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterDailySummarySchedule(sched); err != nil {
+				log.Error("daily_summary_scheduler_failed", "error", err)
 			}
 			s.reminderSched = sched
 		}

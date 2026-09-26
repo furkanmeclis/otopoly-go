@@ -4666,6 +4666,66 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /v1/tenant/daily-summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantDailySummarySettings
+      summary: End-of-day WhatsApp summary settings (owner)
+      description: >-
+        Enabled flag, local send time (Europe/Istanbul, HH:MM), selected
+        recipients, WhatsApp connection state and the members that can be
+        selected (with whether they have a notification phone).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Daily summary settings }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantDailySummarySettings
+      summary: Save end-of-day WhatsApp summary settings (owner)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled, send_time, recipient_user_uuids]
+              properties:
+                enabled: { type: boolean }
+                send_time: { type: string, pattern: "^([01]\\d|2[0-3]):[0-5]\\d$", example: "20:00" }
+                recipient_user_uuids:
+                  type: array
+                  maxItems: 20
+                  items: { type: string, format: uuid }
+      responses:
+        "200": { description: Saved settings }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/daily-summary/preview:
+    get:
+      tags: [Tenant]
+      operationId: previewTenantDailySummary
+      summary: Render today's end-of-day summary so far (owner)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: "{ message, date }" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/daily-summary/test:
+    post:
+      tags: [Tenant]
+      operationId: sendTestTenantDailySummary
+      summary: Send today's summary so far to the saved recipients now (owner)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: "{ sent, skipped[] }" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /v1/tenant/messaging/session:
     get:
       tags: [Tenant]

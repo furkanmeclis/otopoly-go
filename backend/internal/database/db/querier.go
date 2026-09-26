@@ -26,6 +26,8 @@ type Querier interface {
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
 	// The pending → executing transition is the idempotency lock for confirm.
 	ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error)
+	// Marks today's summary as sent; 0 rows when another sweep already claimed it.
+	ClaimDailySummary(ctx context.Context, arg ClaimDailySummaryParams) (int64, error)
 	// Atomic batch claim; concurrent sweepers skip each other's rows.
 	ClaimDueScheduledNotifications(ctx context.Context, arg ClaimDueScheduledNotificationsParams) ([]ScheduledNotification, error)
 	// queued → sending; a second delivery of the same task finds no row.
@@ -155,6 +157,14 @@ type Querier interface {
 	CreateVehicleBrand(ctx context.Context, arg CreateVehicleBrandParams) (VehicleBrand, error)
 	CreateVehicleModel(ctx context.Context, arg CreateVehicleModelParams) (VehicleModel, error)
 	CreateWebAuthnCredential(ctx context.Context, arg CreateWebAuthnCredentialParams) (WebauthnCredential, error)
+	DailySummaryAccounts(ctx context.Context, organizationID int64) ([]DailySummaryAccountsRow, error)
+	// Posted expenses for the day, excluding stock purchases (reported separately).
+	DailySummaryExpenses(ctx context.Context, arg DailySummaryExpensesParams) (DailySummaryExpensesRow, error)
+	DailySummaryJobCounts(ctx context.Context, arg DailySummaryJobCountsParams) (DailySummaryJobCountsRow, error)
+	DailySummaryPurchases(ctx context.Context, arg DailySummaryPurchasesParams) (DailySummaryPurchasesRow, error)
+	DailySummarySales(ctx context.Context, arg DailySummarySalesParams) (DailySummarySalesRow, error)
+	// Vehicles per service for the day ("12 × Yıkama, 1 × PPF").
+	DailySummaryServiceBreakdown(ctx context.Context, arg DailySummaryServiceBreakdownParams) ([]DailySummaryServiceBreakdownRow, error)
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteAppLogsByUUIDs(ctx context.Context, uuids []uuid.UUID) (int64, error)
 	DeleteAppLogsMatching(ctx context.Context, arg DeleteAppLogsMatchingParams) (int64, error)
@@ -228,6 +238,7 @@ type Querier interface {
 	GetCustomerByUUID(ctx context.Context, arg GetCustomerByUUIDParams) (Customer, error)
 	GetCustomerVehicleByUUID(ctx context.Context, arg GetCustomerVehicleByUUIDParams) (CustomerVehicle, error)
 	GetCustomerVehicleDetailByUUID(ctx context.Context, arg GetCustomerVehicleDetailByUUIDParams) (GetCustomerVehicleDetailByUUIDRow, error)
+	GetDailySummarySettings(ctx context.Context, organizationID int64) (DailySummarySetting, error)
 	GetExportJobByID(ctx context.Context, id int64) (ExportJob, error)
 	GetExportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ExportJob, error)
 	GetFinanceAccountByID(ctx context.Context, arg GetFinanceAccountByIDParams) (FinanceAccount, error)
@@ -415,6 +426,9 @@ type Querier interface {
 	ListContractTemplates(ctx context.Context, arg ListContractTemplatesParams) ([]ContractTemplate, error)
 	ListCustomerVehicles(ctx context.Context, arg ListCustomerVehiclesParams) ([]ListCustomerVehiclesRow, error)
 	ListCustomers(ctx context.Context, arg ListCustomersParams) ([]ListCustomersRow, error)
+	// Active organization members with their notification phone (may be empty).
+	ListDailySummaryMembers(ctx context.Context, organizationID int64) ([]ListDailySummaryMembersRow, error)
+	ListEnabledDailySummarySettings(ctx context.Context) ([]DailySummarySetting, error)
 	ListEnabledLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
 	ListExportJobsForActor(ctx context.Context, arg ListExportJobsForActorParams) ([]ExportJob, error)
 	ListExportJobsForOrganization(ctx context.Context, arg ListExportJobsForOrganizationParams) ([]ExportJob, error)
@@ -679,6 +693,7 @@ type Querier interface {
 	UpdateWebAuthnCredentialName(ctx context.Context, arg UpdateWebAuthnCredentialNameParams) (WebauthnCredential, error)
 	UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAppSessionQRParams) (WhatsappSession, error)
 	UpsertAIOrganizationSettings(ctx context.Context, arg UpsertAIOrganizationSettingsParams) (AiOrganizationSetting, error)
+	UpsertDailySummarySettings(ctx context.Context, arg UpsertDailySummarySettingsParams) (DailySummarySetting, error)
 	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
 	UpsertNotificationMemberSettings(ctx context.Context, arg UpsertNotificationMemberSettingsParams) (NotificationMemberSetting, error)
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)

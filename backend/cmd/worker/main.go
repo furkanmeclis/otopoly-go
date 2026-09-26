@@ -12,6 +12,8 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/logging"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/dailysummary"
+	dsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/dailysummary/usecase"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
@@ -164,6 +166,7 @@ func main() {
 	defer func() { _ = queueClient.Close() }()
 	messagingSvc := messagingusecase.New(queries, nil, nil).SetQueue(queueClient).SetStorage(store)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
+	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
 		SetStorage(store).
 		SetAppURL(cfg.Auth.FrontendURL)
@@ -188,6 +191,7 @@ func main() {
 		WithContractExecute(contractsSvc.ExecutePDF).
 		WithReminderSweep(centerSvc.ProcessDue).
 		WithQuoteExpire(quotesSvc.ExpireDue).
+		WithDailySummary(dailySummarySvc.SendDue).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -209,6 +213,10 @@ func main() {
 	}
 	if err := queue.RegisterQuoteExpirySchedule(scheduler); err != nil {
 		log.Error("quote_expiry_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterDailySummarySchedule(scheduler); err != nil {
+		log.Error("daily_summary_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
 	go func() {

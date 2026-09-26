@@ -410,6 +410,16 @@ type CustomerVehicle struct {
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
 }
 
+type DailySummarySetting struct {
+	OrganizationID   int64              `json:"organization_id"`
+	Enabled          bool               `json:"enabled"`
+	SendTime         pgtype.Time        `json:"send_time"`
+	RecipientUserIds []int64            `json:"recipient_user_ids"`
+	LastSentOn       pgtype.Date        `json:"last_sent_on"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
 type ExportJob struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`
