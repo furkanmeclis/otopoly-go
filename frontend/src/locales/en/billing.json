@@ -405,5 +405,21 @@
   "subs.usage": "Usage",
   "subs.none": "None.",
   "subs.unlock_hint": "To lift read-only mode, move the end date into the future.",
-  "admin.nav.dashboard": "Dashboard"
+  "admin.nav.dashboard": "Dashboard",
+  "custom.configure": "Configure",
+  "custom.title": "Choose your limits",
+  "custom.hint": "Adjust the sliders; the price updates instantly.",
+  "custom.per_step": "{{price}} per {{step}} {{unit}}",
+  "custom.active": "Selected limits",
+  "admin.plan.feature.min": "Min",
+  "admin.plan.feature.max": "Max",
+  "admin.plan.feature.step": "Step",
+  "admin.plan.feature.unit_price": "Step price (₺/mo)",
+  "admin.plan.custom_hint": "On enterprise plans, limits with min/max/step/step price are chosen by the organization.",
+  "custom_order.button": "Custom-price order",
+  "custom_order.title": "Custom-price order",
+  "custom_order.description": "Creates an order with a custom amount; the organization pays through the normal flow.",
+  "custom_order.price": "Period amount (VAT incl.)",
+  "custom_order.created": "Custom-price order created.",
+  "custom_order.create": "Create order"
 }

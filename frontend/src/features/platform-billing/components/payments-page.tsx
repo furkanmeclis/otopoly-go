@@ -1,18 +1,20 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusChip } from "@/components/common/status-chip";
 import { EntityPage } from "@/components/entity/entity-page";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { permissions } from "@/config/permissions";
 import { ORDER_TONE } from "@/features/billing/components/orders-history";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
+import { CustomOrderDialog } from "@/features/platform-billing/components/custom-order-dialog";
 import { PaymentDetailSheet } from "@/features/platform-billing/components/payment-detail-sheet";
 import {
   usePlatformBillingAccess,
@@ -37,6 +39,7 @@ export function PaymentsPage() {
   const [tab, setTab] = useState<Tab>("payment_reported");
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
   const summary = usePlatformOrdersSummary(access.canRead);
   const orders = usePlatformOrders(
     {
@@ -59,6 +62,14 @@ export function PaymentsPage() {
       title={t("billing.payments.title")}
       description={t("billing.payments.description")}
       permission={permissions.platformBilling.read}
+      actions={
+        access.canWrite ? (
+          <Button onClick={() => setCustomOpen(true)}>
+            <Plus className="size-4" />
+            {t("billing.custom_order.button")}
+          </Button>
+        ) : null
+      }
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
@@ -158,6 +169,7 @@ export function PaymentsPage() {
           </table>
         </div>
       )}
+      <CustomOrderDialog open={customOpen} onOpenChange={setCustomOpen} />
       <PaymentDetailSheet
         uuid={selected}
         canWrite={access.canWrite}

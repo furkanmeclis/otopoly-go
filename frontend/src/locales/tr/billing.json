@@ -405,5 +405,21 @@
   "subs.usage": "Kullanım",
   "subs.none": "Kayıt yok.",
   "subs.unlock_hint": "Salt okunur modu kaldırmak için bitiş tarihini ileri bir tarihe çekin.",
-  "admin.nav.dashboard": "Gösterge paneli"
+  "admin.nav.dashboard": "Gösterge paneli",
+  "custom.configure": "Yapılandır",
+  "custom.title": "Limitlerinizi seçin",
+  "custom.hint": "Değerleri kaydırıcıyla ayarlayın; fiyat anında güncellenir.",
+  "custom.per_step": "her {{step}} {{unit}} için {{price}}",
+  "custom.active": "Seçili limitler",
+  "admin.plan.feature.min": "Min",
+  "admin.plan.feature.max": "Maks",
+  "admin.plan.feature.step": "Adım",
+  "admin.plan.feature.unit_price": "Adım fiyatı (₺/ay)",
+  "admin.plan.custom_hint": "Enterprise planda min/maks/adım/adım fiyatı girilen limitleri işletme kendisi seçer.",
+  "custom_order.button": "Özel fiyatlı sipariş",
+  "custom_order.title": "Özel fiyatlı sipariş",
+  "custom_order.description": "İşletmeye özel tutarla sipariş açılır; işletme normal akışla öder.",
+  "custom_order.price": "Dönem tutarı (KDV dahil)",
+  "custom_order.created": "Özel fiyatlı sipariş oluşturuldu.",
+  "custom_order.create": "Sipariş oluştur"
 }

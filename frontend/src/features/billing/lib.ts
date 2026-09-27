@@ -75,3 +75,37 @@ export function planFeatureLine(
   }
   return `${label}: ${t("billing.usage.unlimited")}`;
 }
+
+export type CustomOption = {
+  key: string;
+  label: string;
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
+  unitPrice: number;
+};
+
+/** Configurable limits of a customizable plan (spec §9). */
+export function customOptions(plan: BillingPlan, locale: AppLocale): CustomOption[] {
+  if (!plan.is_customizable) return [];
+  return plan.features
+    .filter(
+      (f) =>
+        f.value_int !== null &&
+        f.min_value !== null &&
+        f.max_value !== null &&
+        f.step !== null &&
+        (f.step ?? 0) > 0 &&
+        f.unit_price !== null,
+    )
+    .map((f) => ({
+      key: f.key,
+      label: (locale === "tr" ? f.label_tr : f.label_en) || f.key,
+      unit: f.unit ?? "",
+      min: f.min_value as number,
+      max: f.max_value as number,
+      step: f.step as number,
+      unitPrice: Number.parseFloat(f.unit_price as string) || 0,
+    }));
+}

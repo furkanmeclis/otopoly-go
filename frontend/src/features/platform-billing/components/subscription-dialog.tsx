@@ -37,7 +37,9 @@ import {
 } from "@/features/platform-billing/hooks/use-platform-billing";
 import { useLocale } from "@/providers/locale-provider";
 
-const loadOrganizations = async (query: string): Promise<ComboboxOption[]> => {
+export const loadOrganizations = async (
+  query: string,
+): Promise<ComboboxOption[]> => {
   const res = await organizationsService.list({
     q: query || undefined,
     limit: 20,

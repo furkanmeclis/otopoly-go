@@ -22,6 +22,8 @@ type Props = {
   values: BillingPlanFeatureValue[];
   onChange: (values: BillingPlanFeatureValue[]) => void;
   disabled?: boolean;
+  /** Enterprise plan: show min / max / step / step price per limit. */
+  customizable?: boolean;
 };
 
 export function emptyValue(key: string): BillingPlanFeatureValue {
@@ -50,6 +52,7 @@ export function PlanFeaturesEditor({
   values,
   onChange,
   disabled,
+  customizable = false,
 }: Props) {
   const { t, locale } = useLocale();
   const byKey = new Map(values.map((v) => [v.key, v]));
@@ -182,6 +185,51 @@ export function PlanFeaturesEditor({
                           disabled={disabled}
                           onChange={(n) => setValue(f.key, { warn_pct: n })}
                         />
+                        {customizable ? (
+                          <div className="flex w-full flex-wrap items-center gap-2 border-t pt-2">
+                            <NumInput
+                              label={t("billing.admin.plan.feature.min")}
+                              value={v?.min_value ?? null}
+                              disabled={disabled}
+                              onChange={(n) =>
+                                setValue(f.key, { min_value: n })
+                              }
+                            />
+                            <NumInput
+                              label={t("billing.admin.plan.feature.max")}
+                              value={v?.max_value ?? null}
+                              disabled={disabled}
+                              onChange={(n) =>
+                                setValue(f.key, { max_value: n })
+                              }
+                            />
+                            <NumInput
+                              label={t("billing.admin.plan.feature.step")}
+                              value={v?.step ?? null}
+                              disabled={disabled}
+                              onChange={(n) => setValue(f.key, { step: n })}
+                            />
+                            <label className="text-muted-foreground flex items-center gap-1 text-xs">
+                              {t("billing.admin.plan.feature.unit_price")}
+                              <Input
+                                type="number"
+                                min={0}
+                                step="any"
+                                disabled={disabled}
+                                className="w-24"
+                                value={v?.unit_price ?? ""}
+                                onChange={(e) =>
+                                  setValue(f.key, {
+                                    unit_price:
+                                      e.target.value === ""
+                                        ? null
+                                        : e.target.value,
+                                  })
+                                }
+                              />
+                            </label>
+                          </div>
+                        ) : null}
                       </>
                     ) : null}
                   </>
@@ -217,6 +265,38 @@ function PctInput({
         value={value}
         onChange={(e) =>
           onChange(Math.min(100, Math.max(0, Number(e.target.value) || 0)))
+        }
+      />
+    </label>
+  );
+}
+
+function NumInput({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  disabled?: boolean;
+  onChange: (n: number | null) => void;
+}) {
+  return (
+    <label className="text-muted-foreground flex items-center gap-1 text-xs">
+      {label}
+      <Input
+        type="number"
+        min={0}
+        disabled={disabled}
+        className="w-20"
+        value={value ?? ""}
+        onChange={(e) =>
+          onChange(
+            e.target.value === ""
+              ? null
+              : Math.max(0, Math.floor(Number(e.target.value)) || 0),
+          )
         }
       />
     </label>

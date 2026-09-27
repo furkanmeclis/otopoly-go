@@ -8,6 +8,7 @@ import type {
   AdminSubscriptionInput,
   AdminSubscriptionPatch,
   BillingPlanInput,
+  CustomOrderInput,
   DiscountCodeInput,
   DisplayFeatureInput,
   PaymentSettings,
@@ -365,5 +366,18 @@ export function useSubscriptionDetail(uuid: string | null) {
     queryKey: [...platformBillingKeys.all, "subscription-detail", uuid ?? ""],
     queryFn: () => platformBillingService.subscriptionDetail(uuid!),
     enabled: Boolean(uuid),
+  });
+}
+
+export function useCustomOrderMutation() {
+  const qc = useQueryClient();
+  const { t } = useLocale();
+  return useMutation({
+    mutationFn: (body: CustomOrderInput) =>
+      platformBillingService.createCustomOrder(body),
+    onSuccess: () => {
+      toast.success(t("billing.custom_order.created"));
+      return qc.invalidateQueries({ queryKey: platformBillingKeys.all });
+    },
   });
 }

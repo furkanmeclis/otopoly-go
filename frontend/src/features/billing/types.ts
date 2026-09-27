@@ -67,6 +67,16 @@ export type OrderPreviewInput = {
   plan_uuid: string;
   period: SubscriptionPeriod;
   discount_code?: string;
+  custom_features?: Record<string, number>;
+};
+
+export type CustomOrderInput = {
+  organization_uuid: string;
+  plan_uuid: string;
+  period: SubscriptionPeriod;
+  custom_features?: Record<string, number>;
+  list_price: string;
+  note: string;
 };
 
 export type OrderPreview = S["BillingOrderPreview"];

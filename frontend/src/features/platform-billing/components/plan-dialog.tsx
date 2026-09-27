@@ -296,7 +296,13 @@ function PlanDialogBody({ onOpenChange, plan }: PlanDialogProps) {
             values={form.features}
             onChange={(values) => set("features", values)}
             disabled={pending}
+            customizable={form.is_customizable}
           />
+          {form.is_customizable ? (
+            <p className="text-muted-foreground mt-2 text-xs">
+              {t("billing.admin.plan.custom_hint")}
+            </p>
+          ) : null}
         </div>
       </div>
       <DialogFooter>

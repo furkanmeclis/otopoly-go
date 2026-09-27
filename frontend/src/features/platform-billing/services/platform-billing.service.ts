@@ -4,6 +4,7 @@ import type {
   AdminSubscriptionDetail,
   BillingDashboard,
   BillingInvoice,
+  CustomOrderInput,
   SellerSettings,
   AdminSubscriptionInput,
   AdminSubscriptionPatch,
@@ -65,6 +66,9 @@ export const platformBillingService = {
     return platformRequest<ListResult<BillingOrder>>("GET", `${base}/orders`, {
       query: params,
     });
+  },
+  createCustomOrder(body: CustomOrderInput) {
+    return platformRequest<BillingOrder>("POST", `${base}/orders`, { body });
   },
   ordersSummary() {
     return platformRequest<OrdersSummary>("GET", `${base}/orders/summary`);
