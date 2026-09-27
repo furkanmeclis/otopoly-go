@@ -138,5 +138,17 @@
   "actions.tenant.quote.convert": "Teklif iş emrine dönüştürüldü",
   "actions.tenant.quote.public_decision": "Müşteri teklifi yanıtladı",
   "resources.lead": "Fırsat",
-  "resources.quote": "Teklif"
+  "resources.quote": "Teklif",
+  "actions.platform.billing.plan.create": "Abonelik planı oluşturuldu",
+  "actions.platform.billing.plan.update": "Abonelik planı güncellendi",
+  "actions.platform.billing.plan.delete": "Abonelik planı silindi",
+  "actions.platform.billing.order.create": "Özel fiyatlı sipariş oluşturuldu",
+  "actions.platform.billing.order.approve": "Abonelik ödemesi onaylandı",
+  "actions.tenant.billing.order.create": "Abonelik siparişi verildi",
+  "resources.billing.plan": "Abonelik planı",
+  "resources.billing.order": "Abonelik siparişi",
+  "resources.billing.subscription": "Abonelik",
+  "resources.billing.invoice": "Fatura",
+  "resources.billing.discount_code": "İndirim kodu",
+  "resources.billing": "Abonelik"
 }

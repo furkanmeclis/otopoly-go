@@ -94,7 +94,17 @@ func (s *Service) recordActivity(ctx context.Context, action string, id *uuid.UU
 		v := p.UserInternal
 		actorID = &v
 	}
-	s.act.Record(ctx, actorID, action, "billing.plan", id, payload, nil)
+	s.act.Record(ctx, actorID, action, activityResource(action), id, payload, nil)
+}
+
+// activityResource maps "platform.billing.order.approve" → "billing.order".
+func activityResource(action string) string {
+	for _, r := range []string{"order", "plan", "subscription", "invoice", "discount_code"} {
+		if strings.Contains(action, ".billing."+r+".") {
+			return "billing." + r
+		}
+	}
+	return "billing"
 }
 
 func defaultString(v, fallback string) string {

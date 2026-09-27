@@ -138,5 +138,17 @@
   "actions.tenant.quote.convert": "Quote converted to a job",
   "actions.tenant.quote.public_decision": "Customer answered a quote",
   "resources.lead": "Lead",
-  "resources.quote": "Quote"
+  "resources.quote": "Quote",
+  "actions.platform.billing.plan.create": "Subscription plan created",
+  "actions.platform.billing.plan.update": "Subscription plan updated",
+  "actions.platform.billing.plan.delete": "Subscription plan deleted",
+  "actions.platform.billing.order.create": "Custom-price order created",
+  "actions.platform.billing.order.approve": "Subscription payment approved",
+  "actions.tenant.billing.order.create": "Subscription order placed",
+  "resources.billing.plan": "Subscription plan",
+  "resources.billing.order": "Subscription order",
+  "resources.billing.subscription": "Subscription",
+  "resources.billing.invoice": "Invoice",
+  "resources.billing.discount_code": "Discount code",
+  "resources.billing": "Subscription"
 }
