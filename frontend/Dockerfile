@@ -1,3 +1,8 @@
+# Build gate: empty by default. compose.prod.yml replaces it with the backend
+# image (additional_contexts), so the frontend build starts only after the
+# backend image is built. Keeps the two heavy builds from running together.
+FROM scratch AS build-gate
+
 FROM node:22.22.0-alpine3.23 AS base
 
 ENV PNPM_HOME=/pnpm
@@ -13,7 +18,8 @@ FROM base AS deps
 
 # Build context is the project root; frontend sources are under frontend/
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN --mount=from=build-gate,target=/tmp/build-gate \
+    pnpm install --frozen-lockfile
 
 FROM base AS build
 

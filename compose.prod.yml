@@ -11,6 +11,11 @@ x-frontend-image: &frontend-image
   build:
     context: .
     dockerfile: frontend/Dockerfile
+    # Build one image at a time: the frontend waits for the backend image
+    # (see the build-gate stage in frontend/Dockerfile). Running the Go and
+    # Next.js builds together exhausts memory on the host.
+    additional_contexts:
+      build-gate: service:backend
     args:
       # Landing SEO/OG URLs are baked at build time; defaults to AUTH_URL.
       SITE_URL: ${SITE_URL:-${AUTH_URL:-}}
