@@ -98,6 +98,7 @@ export type AdminSubscription = Omit<
   S["BillingAdminSubscription"],
   "status" | "source"
 > & {
+  grace_ends_at?: string | null;
   status: SubscriptionStatus;
   source: "self_service" | "admin";
 };
