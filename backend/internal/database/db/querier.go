@@ -231,7 +231,9 @@ type Querier interface {
 	GetCatalogCategoryByID(ctx context.Context, arg GetCatalogCategoryByIDParams) (CatalogCategory, error)
 	GetCatalogCategoryByName(ctx context.Context, arg GetCatalogCategoryByNameParams) (CatalogCategory, error)
 	GetCatalogCategoryByUUID(ctx context.Context, arg GetCatalogCategoryByUUIDParams) (CatalogCategory, error)
-	GetCatalogStats(ctx context.Context, id int64) (GetCatalogStatsRow, error)
+	// Each aggregate reads its own table: joining products, services and
+	// categories together multiplies the product sums by the other row counts.
+	GetCatalogStats(ctx context.Context, organizationID int64) (GetCatalogStatsRow, error)
 	GetContractInstanceByID(ctx context.Context, id int64) (ContractInstance, error)
 	GetContractInstanceByUUID(ctx context.Context, arg GetContractInstanceByUUIDParams) (ContractInstance, error)
 	GetContractInstanceMessagingByUUID(ctx context.Context, argUuid uuid.UUID) (GetContractInstanceMessagingByUUIDRow, error)

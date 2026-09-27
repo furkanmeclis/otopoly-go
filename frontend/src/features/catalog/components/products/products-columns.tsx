@@ -12,7 +12,10 @@ import {
   CATALOG_UNIT_KEYS,
 } from "@/features/catalog/lib/units";
 import type { CatalogProduct } from "@/features/catalog/services/catalog.service";
-import { formatFinanceAmount } from "@/features/finance/lib/format";
+import {
+  formatFinanceAmount,
+  formatQuantity,
+} from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
@@ -172,8 +175,8 @@ export function useProductsColumns(
               </span>
               {Number(p.cost_price) > 0 && (
                 <span className="text-muted-foreground text-xs">
-                  {t("catalog.products.cost_price")}: {p.cost_price}{" "}
-                  {p.currency}
+                  {t("catalog.products.cost_price")}:{" "}
+                  {formatFinanceAmount(p.cost_price, p.currency, locale)}
                 </span>
               )}
             </div>
@@ -228,7 +231,8 @@ export function useProductsColumns(
           return (
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold">
-                {p.stock_quantity} {catalogUnitLabel(t, p.unit)}
+                {formatQuantity(p.stock_quantity, locale)}{" "}
+                {catalogUnitLabel(t, p.unit)}
               </span>
               <Badge
                 variant={badgeVariant}
@@ -272,6 +276,12 @@ export function useProductsColumns(
         ),
       }),
     ],
-    [filterOptions?.categories, filterOptions?.lockCategory, handlers, locale, t],
+    [
+      filterOptions?.categories,
+      filterOptions?.lockCategory,
+      handlers,
+      locale,
+      t,
+    ],
   );
 }

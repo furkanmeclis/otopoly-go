@@ -45,3 +45,16 @@ export function truncateText(text: string, maxLength = 72): string {
   if (trimmed.length <= maxLength) return trimmed;
   return `${trimmed.slice(0, maxLength).trimEnd()}…`;
 }
+
+/** Locale-aware quantity (1.500 / 2,5) without trailing zeros. */
+export function formatQuantity(
+  value: string | number | undefined | null,
+  locale: AppLocale,
+): string {
+  if (value === undefined || value === null || value === "") return "—";
+  const num = typeof value === "string" ? Number.parseFloat(value) : value;
+  if (Number.isNaN(num)) return String(value);
+  return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US", {
+    maximumFractionDigits: 3,
+  }).format(num);
+}

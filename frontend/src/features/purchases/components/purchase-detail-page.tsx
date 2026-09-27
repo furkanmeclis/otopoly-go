@@ -15,7 +15,10 @@ import {
 } from "@/components/entity";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
-import { formatFinanceAmount } from "@/features/finance/lib/format";
+import {
+  formatFinanceAmount,
+  formatQuantity,
+} from "@/features/finance/lib/format";
 import {
   usePurchase,
   usePurchasesMutations,
@@ -206,7 +209,7 @@ export function PurchaseDetailPage({
                           line.currency,
                           locale,
                         )}{" "}
-                        × {line.qty}
+                        × {formatQuantity(line.qty, locale)}
                       </p>
                     </div>
                     <span className="shrink-0 font-medium tabular-nums">

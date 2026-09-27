@@ -16,7 +16,10 @@ import {
 } from "@/components/entity";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
-import { formatFinanceAmount } from "@/features/finance/lib/format";
+import {
+  formatFinanceAmount,
+  formatQuantity,
+} from "@/features/finance/lib/format";
 import { useSale, useSalesMutations } from "@/features/sales/hooks/use-sales";
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
 import type { SaleStatus } from "@/features/sales/services/sales.service";
@@ -198,7 +201,7 @@ export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                           line.currency,
                           locale,
                         )}{" "}
-                        × {line.qty}
+                        × {formatQuantity(line.qty, locale)}
                       </p>
                     </div>
                     <span className="shrink-0 font-medium tabular-nums">

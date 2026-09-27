@@ -2,7 +2,14 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Ban, PackageCheck, Pencil, Truck, Wallet, XCircle } from "lucide-react";
+import {
+  Ban,
+  PackageCheck,
+  Pencil,
+  Truck,
+  Wallet,
+  XCircle,
+} from "lucide-react";
 import { useFormContext } from "react-hook-form";
 import { z } from "zod";
 
@@ -29,7 +36,10 @@ import {
 import { FieldGroup } from "@/components/ui/field";
 import { routes } from "@/config/routes";
 import { useFinanceAccounts } from "@/features/finance/hooks/use-finance-queries";
-import { formatFinanceAmount } from "@/features/finance/lib/format";
+import {
+  formatFinanceAmount,
+  formatQuantity,
+} from "@/features/finance/lib/format";
 import { JobContractsSection } from "@/features/contracts";
 import { useJob, useJobsMutations } from "@/features/jobs/hooks/use-jobs";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
@@ -111,8 +121,7 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const title = job?.plate ?? t("jobs.detail.title");
   const status = job?.status;
   const paymentStatus = job?.payment_status;
-  const canEdit =
-    canWrite && (status === "in_progress" || status === "ready");
+  const canEdit = canWrite && (status === "in_progress" || status === "ready");
   const canPay =
     canWrite &&
     paymentStatus === "unpaid" &&
@@ -334,7 +343,7 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                           line.currency,
                           locale,
                         )}{" "}
-                        × {line.qty}
+                        × {formatQuantity(line.qty, locale)}
                       </p>
                     </div>
                     <span className="shrink-0 font-medium tabular-nums">
@@ -443,10 +452,7 @@ function NotesDialog({
   initialAssigneeUuid: string;
   assigneeOptions: { value: string; label: string }[];
   pending?: boolean;
-  onSubmit: (values: {
-    notes: string;
-    assignee_uuid: string;
-  }) => Promise<void>;
+  onSubmit: (values: { notes: string; assignee_uuid: string }) => Promise<void>;
 }) {
   const { t } = useLocale();
   const schema = useMemo(

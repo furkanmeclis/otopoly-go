@@ -379,21 +379,41 @@ WHERE s.uuid = sqlc.arg(uuid) AND o.uuid = sqlc.arg(org_uuid) AND s.deleted_at I
 
 
 -- name: GetCatalogStats :one
+-- Each aggregate reads its own table: joining products, services and
+-- categories together multiplies the product sums by the other row counts.
 SELECT
-    COUNT(DISTINCT p.id)::bigint AS total_products,
-    COUNT(DISTINCT p.id) FILTER (WHERE p.is_active = true)::bigint AS active_products,
-    COUNT(DISTINCT p.id) FILTER (WHERE p.is_active = true AND p.track_stock = true AND p.stock_quantity <= p.min_stock_alert AND p.stock_quantity > 0)::bigint AS low_stock_products,
-    COUNT(DISTINCT p.id) FILTER (WHERE p.is_active = true AND p.track_stock = true AND p.stock_quantity <= 0)::bigint AS out_of_stock_products,
-    COALESCE(SUM(p.stock_quantity * p.cost_price) FILTER (WHERE p.is_active = true AND p.track_stock = true), 0)::numeric(18,2) AS total_stock_cost_value,
-    COALESCE(SUM(p.stock_quantity * p.sale_price) FILTER (WHERE p.is_active = true AND p.track_stock = true), 0)::numeric(18,2) AS total_stock_sale_value,
-    COUNT(DISTINCT s.id)::bigint AS total_services,
-    COUNT(DISTINCT s.id) FILTER (WHERE s.is_active = true)::bigint AS active_services,
-    COUNT(DISTINCT c.id)::bigint AS total_categories
-FROM organizations o
-LEFT JOIN products p ON p.organization_id = o.id AND p.deleted_at IS NULL
-LEFT JOIN services s ON s.organization_id = o.id AND s.deleted_at IS NULL
-LEFT JOIN catalog_categories c ON c.organization_id = o.id AND c.deleted_at IS NULL
-WHERE o.id = $1;
+    ps.total_products,
+    ps.active_products,
+    ps.low_stock_products,
+    ps.out_of_stock_products,
+    ps.total_stock_cost_value,
+    ps.total_stock_sale_value,
+    ss.total_services,
+    ss.active_services,
+    cs.total_categories
+FROM (
+    SELECT
+        COUNT(*)::bigint AS total_products,
+        COUNT(*) FILTER (WHERE p.is_active = true)::bigint AS active_products,
+        COUNT(*) FILTER (WHERE p.is_active = true AND p.track_stock = true AND p.stock_quantity <= p.min_stock_alert AND p.stock_quantity > 0)::bigint AS low_stock_products,
+        COUNT(*) FILTER (WHERE p.is_active = true AND p.track_stock = true AND p.stock_quantity <= 0)::bigint AS out_of_stock_products,
+        COALESCE(SUM(p.stock_quantity * p.cost_price) FILTER (WHERE p.is_active = true AND p.track_stock = true), 0)::numeric(18,2) AS total_stock_cost_value,
+        COALESCE(SUM(p.stock_quantity * p.sale_price) FILTER (WHERE p.is_active = true AND p.track_stock = true), 0)::numeric(18,2) AS total_stock_sale_value
+    FROM products p
+    WHERE p.organization_id = $1 AND p.deleted_at IS NULL
+) ps,
+(
+    SELECT
+        COUNT(*)::bigint AS total_services,
+        COUNT(*) FILTER (WHERE s.is_active = true)::bigint AS active_services
+    FROM services s
+    WHERE s.organization_id = $1 AND s.deleted_at IS NULL
+) ss,
+(
+    SELECT COUNT(*)::bigint AS total_categories
+    FROM catalog_categories c
+    WHERE c.organization_id = $1 AND c.deleted_at IS NULL
+) cs;
 
 -- name: ListProductUUIDsForBulk :many
 SELECT p.uuid

@@ -20,7 +20,10 @@ import { useCatalogProduct } from "@/features/catalog/hooks/use-catalog-queries"
 import { useTenantCatalogAccess } from "@/features/catalog/hooks/use-tenant-catalog-access";
 import { catalogUnitLabel } from "@/features/catalog/lib/units";
 import { datetime } from "@/lib/utils/format";
-import { formatFinanceAmount } from "@/features/finance/lib/format";
+import {
+  formatFinanceAmount,
+  formatQuantity,
+} from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
 
 export function ProductDetailPage({
@@ -183,12 +186,12 @@ export function ProductDetailPage({
                     {
                       key: "qty",
                       label: t("catalog.products.stock_quantity"),
-                      value: `${product.stock_quantity} ${catalogUnitLabel(t, product.unit)}`,
+                      value: `${formatQuantity(product.stock_quantity, locale)} ${catalogUnitLabel(t, product.unit)}`,
                     },
                     {
                       key: "min",
                       label: t("catalog.products.min_stock_alert"),
-                      value: `${product.min_stock_alert} ${catalogUnitLabel(t, product.unit)}`,
+                      value: `${formatQuantity(product.min_stock_alert, locale)} ${catalogUnitLabel(t, product.unit)}`,
                     },
                     {
                       key: "created",
