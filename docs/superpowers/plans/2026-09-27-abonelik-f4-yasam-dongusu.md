@@ -19,7 +19,7 @@
 - [x] Task 5 frontend işletme (durum bandı + salt okunur uyarısı)
 - [x] Task 6 frontend admin gösterge paneli
 - [x] Task 7 frontend admin abonelik detayı ve filtreler
-- [ ] Task 8 doğrulama, ekran görüntüleri, Notion
+- [x] Task 8 doğrulama, ekran görüntüleri, Notion
 
 ## Global Constraints
 
