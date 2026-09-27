@@ -185,56 +185,50 @@ export function PlanFeaturesEditor({
                           disabled={disabled}
                           onChange={(n) => setValue(f.key, { warn_pct: n })}
                         />
-                        {customizable ? (
-                          <div className="flex w-full flex-wrap items-center gap-2 border-t pt-2">
-                            <NumInput
-                              label={t("billing.admin.plan.feature.min")}
-                              value={v?.min_value ?? null}
-                              disabled={disabled}
-                              onChange={(n) =>
-                                setValue(f.key, { min_value: n })
-                              }
-                            />
-                            <NumInput
-                              label={t("billing.admin.plan.feature.max")}
-                              value={v?.max_value ?? null}
-                              disabled={disabled}
-                              onChange={(n) =>
-                                setValue(f.key, { max_value: n })
-                              }
-                            />
-                            <NumInput
-                              label={t("billing.admin.plan.feature.step")}
-                              value={v?.step ?? null}
-                              disabled={disabled}
-                              onChange={(n) => setValue(f.key, { step: n })}
-                            />
-                            <label className="text-muted-foreground flex items-center gap-1 text-xs">
-                              {t("billing.admin.plan.feature.unit_price")}
-                              <Input
-                                type="number"
-                                min={0}
-                                step="any"
-                                disabled={disabled}
-                                className="w-24"
-                                value={v?.unit_price ?? ""}
-                                onChange={(e) =>
-                                  setValue(f.key, {
-                                    unit_price:
-                                      e.target.value === ""
-                                        ? null
-                                        : e.target.value,
-                                  })
-                                }
-                              />
-                            </label>
-                          </div>
-                        ) : null}
                       </>
                     ) : null}
                   </>
                 )}
               </div>
+              {customizable && f.kind === "limit" && defined ? (
+                <div className="flex flex-wrap items-center gap-2 border-t pt-2 sm:col-span-2">
+                  <NumInput
+                    label={t("billing.admin.plan.feature.min")}
+                    value={v?.min_value ?? null}
+                    disabled={disabled}
+                    onChange={(n) => setValue(f.key, { min_value: n })}
+                  />
+                  <NumInput
+                    label={t("billing.admin.plan.feature.max")}
+                    value={v?.max_value ?? null}
+                    disabled={disabled}
+                    onChange={(n) => setValue(f.key, { max_value: n })}
+                  />
+                  <NumInput
+                    label={t("billing.admin.plan.feature.step")}
+                    value={v?.step ?? null}
+                    disabled={disabled}
+                    onChange={(n) => setValue(f.key, { step: n })}
+                  />
+                  <label className="text-muted-foreground flex items-center gap-1 text-xs">
+                    {t("billing.admin.plan.feature.unit_price")}
+                    <Input
+                      type="number"
+                      min={0}
+                      step="any"
+                      disabled={disabled}
+                      className="w-24"
+                      value={v?.unit_price ?? ""}
+                      onChange={(e) =>
+                        setValue(f.key, {
+                          unit_price:
+                            e.target.value === "" ? null : e.target.value,
+                        })
+                      }
+                    />
+                  </label>
+                </div>
+              ) : null}
             </div>
           );
         })}

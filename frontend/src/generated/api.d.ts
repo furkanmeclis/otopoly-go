@@ -4626,7 +4626,8 @@ export interface paths {
         /** List platform billing orders */
         get: operations["listPlatformBillingOrders"];
         put?: never;
-        post?: never;
+        /** Create platform billing order with optional special price */
+        post: operations["createPlatformBillingOrder"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8040,6 +8041,23 @@ export interface components {
             /** @enum {string} */
             period: "monthly" | "yearly";
             discount_code?: string;
+            custom_features?: {
+                [key: string]: number;
+            };
+        };
+        BillingAdminOrderInput: {
+            /** Format: uuid */
+            organization_uuid: string;
+            /** Format: uuid */
+            plan_uuid: string;
+            /** @enum {string} */
+            period: "monthly" | "yearly";
+            discount_code?: string;
+            custom_features?: {
+                [key: string]: number;
+            };
+            list_price: string;
+            note: string;
         };
         BillingOrderPreview: {
             /** @enum {string} */
@@ -8047,6 +8065,9 @@ export interface components {
             plan: components["schemas"]["BillingPlanRef"];
             /** @enum {string} */
             period: "monthly" | "yearly";
+            custom_features: {
+                [key: string]: number;
+            };
             list_price: string;
             proration_credit: string;
             discount_code: string | null;
@@ -8088,6 +8109,9 @@ export interface components {
             plan: components["schemas"]["BillingPlanRef"];
             /** @enum {string} */
             period: "monthly" | "yearly";
+            custom_features: {
+                [key: string]: number;
+            };
             list_price: string;
             proration_credit: string;
             discount_code: string | null;
@@ -8244,6 +8268,9 @@ export interface components {
             /** @enum {string} */
             period: "monthly" | "yearly";
             status: string;
+            custom_features: {
+                [key: string]: number;
+            };
             /** Format: date-time */
             starts_at: string;
             /** Format: date-time */
@@ -17554,6 +17581,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            422: components["responses"]["BadRequest"];
         };
     };
     listTenantBillingOrders: {
@@ -17844,6 +17872,34 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    createPlatformBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingAdminOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["BadRequest"];
         };
     };
     getPlatformBillingOrdersSummary: {
