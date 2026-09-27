@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -105,6 +106,7 @@ type Overview struct {
 	Subscription *SubscriptionView `json:"subscription"`
 	Plan         *Plan             `json:"plan"`
 	Meters       []UsageMeter      `json:"meters"`
+	OpenOrder    *Order            `json:"open_order"`
 }
 
 type SubscriptionView struct {
@@ -119,4 +121,135 @@ type SubscriptionView struct {
 	DaysLeft      int        `json:"days_left"`
 	CreditBalance string     `json:"credit_balance"`
 	Source        string     `json:"source"`
+}
+
+type PlanRef struct {
+	UUID uuid.UUID `json:"uuid"`
+	Code string    `json:"code"`
+	Name string    `json:"name"`
+}
+
+type OrganizationRef struct {
+	UUID uuid.UUID `json:"uuid"`
+	Slug string    `json:"slug"`
+	Name string    `json:"name"`
+}
+
+type QuoteLine struct {
+	Kind   string `json:"kind"`
+	Label  string `json:"label"`
+	Amount string `json:"amount"`
+}
+
+type DiscountPreviewError struct {
+	Reason  string `json:"reason"`
+	Message string `json:"message"`
+}
+
+type OrderPreview struct {
+	Kind            string                `json:"kind"`
+	Plan            PlanRef               `json:"plan"`
+	Period          string                `json:"period"`
+	ListPrice       string                `json:"list_price"`
+	ProrationCredit string                `json:"proration_credit"`
+	DiscountCode    *string               `json:"discount_code"`
+	DiscountAmount  string                `json:"discount_amount"`
+	CreditApplied   string                `json:"credit_applied"`
+	CreditSurplus   string                `json:"credit_surplus"`
+	Total           string                `json:"total"`
+	VATRate         int32                 `json:"vat_rate"`
+	VATAmount       string                `json:"vat_amount"`
+	StartsAt        time.Time             `json:"starts_at"`
+	EndsAt          time.Time             `json:"ends_at"`
+	Lines           []QuoteLine           `json:"lines"`
+	DiscountError   *DiscountPreviewError `json:"discount_error"`
+}
+
+type BankInstructions struct {
+	BankName            string `json:"bank_name"`
+	AccountHolder       string `json:"account_holder"`
+	IBAN                string `json:"iban"`
+	Amount              string `json:"amount"`
+	ReferenceCode       string `json:"reference_code"`
+	PaymentInstructions string `json:"payment_instructions"`
+}
+
+type Order struct {
+	UUID               uuid.UUID         `json:"uuid"`
+	ReferenceCode      string            `json:"reference_code"`
+	Kind               string            `json:"kind"`
+	Status             string            `json:"status"`
+	Channel            string            `json:"channel"`
+	Plan               PlanRef           `json:"plan"`
+	Period             string            `json:"period"`
+	ListPrice          string            `json:"list_price"`
+	ProrationCredit    string            `json:"proration_credit"`
+	DiscountCode       *string           `json:"discount_code"`
+	DiscountAmount     string            `json:"discount_amount"`
+	CreditApplied      string            `json:"credit_applied"`
+	CreditSurplus      string            `json:"credit_surplus"`
+	Total              string            `json:"total"`
+	VATAmount          string            `json:"vat_amount"`
+	Lines              []QuoteLine       `json:"lines"`
+	HasReceipt         bool              `json:"has_receipt"`
+	ReceiptContentType *string           `json:"receipt_content_type"`
+	ReportNote         string            `json:"report_note"`
+	ReportedAt         *time.Time        `json:"reported_at"`
+	ReviewedAt         *time.Time        `json:"reviewed_at"`
+	RejectReason       string            `json:"reject_reason"`
+	ExpiresAt          time.Time         `json:"expires_at"`
+	CreatedAt          time.Time         `json:"created_at"`
+	Instructions       *BankInstructions `json:"instructions"`
+	Organization       *OrganizationRef  `json:"organization"`
+}
+
+type OrderInput struct {
+	PlanUUID     uuid.UUID `json:"plan_uuid"`
+	Period       string    `json:"period"`
+	DiscountCode string    `json:"discount_code"`
+}
+
+type ReportInput struct {
+	Note        string
+	Filename    string
+	ContentType string
+	Size        int64
+	Body        io.Reader
+}
+
+type OrdersSummary struct {
+	PendingPayment  int64 `json:"pending_payment"`
+	PaymentReported int64 `json:"payment_reported"`
+}
+
+type AdminSubscription struct {
+	UUID          uuid.UUID       `json:"uuid"`
+	Organization  OrganizationRef `json:"organization"`
+	Plan          PlanRef         `json:"plan"`
+	Period        string          `json:"period"`
+	Status        string          `json:"status"`
+	StartsAt      time.Time       `json:"starts_at"`
+	EndsAt        time.Time       `json:"ends_at"`
+	DaysLeft      int             `json:"days_left"`
+	PricePaid     string          `json:"price_paid"`
+	CreditBalance string          `json:"credit_balance"`
+	Source        string          `json:"source"`
+	Note          string          `json:"note"`
+	CreatedAt     time.Time       `json:"created_at"`
+}
+
+type AdminSubscriptionInput struct {
+	OrganizationUUID uuid.UUID `json:"organization_uuid"`
+	PlanUUID         uuid.UUID `json:"plan_uuid"`
+	Period           string    `json:"period"`
+	StartsAt         time.Time `json:"starts_at"`
+	EndsAt           time.Time `json:"ends_at"`
+	PricePaid        string    `json:"price_paid"`
+	Note             string    `json:"note"`
+}
+
+type AdminSubscriptionPatch struct {
+	EndsAt   *time.Time `json:"ends_at"`
+	PlanUUID *uuid.UUID `json:"plan_uuid"`
+	Note     string     `json:"note"`
 }

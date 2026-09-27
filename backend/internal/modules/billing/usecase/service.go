@@ -12,16 +12,29 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
-	ErrNotFound       = errors.New("not found")
-	ErrInvalidRequest = errors.New("invalid request")
-	ErrConflict       = errors.New("conflict")
+	ErrNotFound        = errors.New("not found")
+	ErrInvalidRequest  = errors.New("invalid request")
+	ErrConflict        = errors.New("conflict")
+	ErrOrderState      = errors.New("order state")
+	ErrPlanUnavailable = errors.New("plan unavailable")
 )
+
+type OrderOpenError struct {
+	OrderUUID uuid.UUID
+}
+
+func (e OrderOpenError) Error() string { return "open order exists" }
+
+func (e OrderOpenError) Unwrap() error { return ErrOrderOpen }
+
+var ErrOrderOpen = errors.New("order open")
 
 var (
 	planCodeRE   = regexp.MustCompile(`^[a-z0-9_-]{2,32}$`)
@@ -29,15 +42,21 @@ var (
 )
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
-	act  *activity.Recorder
-	ent  *entitlements.Service
+	pool     *pgxpool.Pool
+	q        *db.Queries
+	act      *activity.Recorder
+	ent      *entitlements.Service
+	store    storage.Driver
+	notifier Notifier
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder, ent *entitlements.Service) *Service {
 	return &Service{pool: pool, q: q, act: act, ent: ent}
 }
+
+func (s *Service) SetStorage(d storage.Driver) { s.store = d }
+
+func (s *Service) SetNotifier(n Notifier) { s.notifier = n }
 
 func (s *Service) recordActivity(ctx context.Context, action string, id *uuid.UUID, payload map[string]any) {
 	if s.act == nil {

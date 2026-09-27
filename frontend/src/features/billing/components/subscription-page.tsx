@@ -357,7 +357,11 @@ function PlanOffer({
         disabled={!purchase.canWrite || purchase.hasOpenOrder}
         onClick={() => purchase.onSelect(plan)}
       >
-        {renewable ? t("billing.checkout.renew") : t("billing.checkout.select")}
+        {renewable
+          ? t("billing.checkout.renew")
+          : current
+            ? t("billing.checkout.change_period")
+            : t("billing.checkout.select")}
       </Button>
     </div>
   );

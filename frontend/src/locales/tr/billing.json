@@ -302,5 +302,6 @@
   "discount_reason.not_found": "Kod bulunamadı.",
   "error.order_open": "Açık bir siparişiniz var.",
   "error.plan_unavailable": "Bu plan artık satışta değil.",
-  "payments.col.expires_at": "Son ödeme"
+  "payments.col.expires_at": "Son ödeme",
+  "checkout.change_period": "Dönemi değiştir"
 }

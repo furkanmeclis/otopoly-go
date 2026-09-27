@@ -10,6 +10,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/config"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/logging"
+	billingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/billing/usecase"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/dailysummary"
@@ -173,6 +174,7 @@ func main() {
 	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	vehicleAlertsSvc := vausecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
 	entitlementsSvc := entitlements.New(entitlements.NewDBStore(queries))
+	billingSvc := billingusecase.New(pool, queries, activityRec, entitlementsSvc)
 	messagingSvc.SetEntitlements(entitlementsSvc)
 	entitlementsRecomputer := entitlements.NewRecomputer(queries, entitlementsSvc)
 	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
@@ -202,6 +204,7 @@ func main() {
 		WithDailySummary(dailySummarySvc.SendDue).
 		WithVehicleAlerts(vehicleAlertsSvc.Flush).
 		WithBillingRecompute(entitlementsRecomputer.RecomputeAll).
+		WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -235,6 +238,10 @@ func main() {
 	}
 	if err := queue.RegisterBillingRecomputeSchedule(scheduler); err != nil {
 		log.Error("billing_recompute_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterBillingOrdersExpireSchedule(scheduler); err != nil {
+		log.Error("billing_orders_expire_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
 	go func() {

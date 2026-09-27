@@ -59,7 +59,7 @@ export type OrderStatus =
   | "expired";
 export type QuoteLineKind = "plan" | "proration" | "discount" | "credit";
 
-export type QuoteLine = { kind: QuoteLineKind; label: string; amount: string };
+export type QuoteLine = S["BillingQuoteLine"];
 export type PlanRef = { uuid: string; code: string; name: string };
 export type OrgRef = { uuid: string; slug: string; name: string };
 
@@ -69,62 +69,11 @@ export type OrderPreviewInput = {
   discount_code?: string;
 };
 
-export type OrderPreview = {
-  kind: OrderKind;
-  plan: PlanRef;
-  period: SubscriptionPeriod;
-  list_price: string;
-  proration_credit: string;
-  discount_code: string | null;
-  discount_amount: string;
-  credit_applied: string;
-  credit_surplus: string;
-  total: string;
-  vat_rate: number;
-  vat_amount: string;
-  starts_at: string;
-  ends_at: string;
-  lines: QuoteLine[];
-  discount_error: { reason: string; message: string } | null;
-};
+export type OrderPreview = S["BillingOrderPreview"];
 
-export type BankInstructions = {
-  bank_name: string;
-  account_holder: string;
-  iban: string;
-  amount: string;
-  reference_code: string;
-  payment_instructions: string;
-};
+export type BankInstructions = S["BillingBankInstructions"];
 
-export type BillingOrder = {
-  uuid: string;
-  reference_code: string;
-  kind: OrderKind;
-  status: OrderStatus;
-  channel: string;
-  plan: PlanRef;
-  period: SubscriptionPeriod;
-  list_price: string;
-  proration_credit: string;
-  discount_code: string | null;
-  discount_amount: string;
-  credit_applied: string;
-  credit_surplus: string;
-  total: string;
-  vat_amount: string;
-  lines: QuoteLine[];
-  has_receipt: boolean;
-  receipt_content_type: string | null;
-  report_note: string;
-  reported_at: string | null;
-  reviewed_at: string | null;
-  reject_reason: string;
-  expires_at: string;
-  created_at: string;
-  instructions: BankInstructions | null;
-  organization: OrgRef | null;
-};
+export type BillingOrder = S["BillingOrder"];
 
 export type ListResult<T> = {
   items: T[];
@@ -139,42 +88,18 @@ export type OrdersSummary = {
 };
 
 export type DiscountKind = "percent" | "amount";
-export type DiscountCode = {
-  uuid: string;
-  code: string;
-  kind: DiscountKind;
-  value: string;
-  plan_uuids: string[];
-  periods: SubscriptionPeriod[];
-  starts_at: string | null;
-  ends_at: string | null;
-  max_uses: number | null;
-  max_uses_per_org: number | null;
-  first_purchase_only: boolean;
-  is_active: boolean;
-  note: string;
-  used_count: number;
-  created_at: string;
-};
+export type DiscountCode = S["BillingDiscountCode"];
 export type DiscountCodeInput = Omit<
   DiscountCode,
   "uuid" | "used_count" | "created_at"
 >;
 
-export type AdminSubscription = {
-  uuid: string;
-  organization: OrgRef;
-  plan: PlanRef;
-  period: SubscriptionPeriod;
+export type AdminSubscription = Omit<
+  S["BillingAdminSubscription"],
+  "status" | "source"
+> & {
   status: SubscriptionStatus;
-  starts_at: string;
-  ends_at: string;
-  days_left: number;
-  price_paid: string;
-  credit_balance: string;
   source: "self_service" | "admin";
-  note: string;
-  created_at: string;
 };
 export type AdminSubscriptionInput = {
   organization_uuid: string;
@@ -191,12 +116,4 @@ export type AdminSubscriptionPatch = {
   note?: string;
 };
 
-export type PaymentSettings = {
-  bank_name: string;
-  account_holder: string;
-  iban: string;
-  payment_instructions: string;
-  order_ttl_days: number;
-  grace_days: number;
-  vat_rate: number;
-};
+export type PaymentSettings = S["BillingPaymentSettings"];

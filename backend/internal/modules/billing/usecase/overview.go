@@ -6,6 +6,7 @@ import (
 	"math"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/jackc/pgx/v5"
@@ -15,10 +16,14 @@ const mbPerGB int64 = 1024
 
 func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	scope := orgctx.MustScope(ctx)
+	open, err := s.openOrderForOverview(ctx, scope.InternalID)
+	if err != nil {
+		return Overview{}, err
+	}
 	sub, err := s.q.GetLiveSubscription(ctx, scope.InternalID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Overview{Meters: []UsageMeter{}}, nil
+			return Overview{Meters: []UsageMeter{}, OpenOrder: open}, nil
 		}
 		return Overview{}, err
 	}
@@ -40,7 +45,26 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	if err != nil {
 		return Overview{}, err
 	}
-	return Overview{Subscription: &view, Plan: &plan, Meters: meters}, nil
+	return Overview{Subscription: &view, Plan: &plan, Meters: meters, OpenOrder: open}, nil
+}
+
+func (s *Service) openOrderForOverview(ctx context.Context, orgID int64) (*Order, error) {
+	row, err := s.q.GetOpenOrderForOrg(ctx, orgID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	full, err := s.q.GetOrderByUUIDForOrg(ctx, db.GetOrderByUUIDForOrgParams{Uuid: row.Uuid, OrganizationID: orgID})
+	if err != nil {
+		return nil, err
+	}
+	out, err := s.orderFromOrgRow(ctx, full)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 func (s *Service) usageMeters(ctx context.Context, orgID int64) ([]UsageMeter, error) {

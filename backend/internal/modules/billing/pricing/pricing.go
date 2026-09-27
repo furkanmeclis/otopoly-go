@@ -39,6 +39,15 @@ type Labels struct {
 	Proration string
 	Discount  string
 	Credit    string
+	// Periods maps monthly/yearly to display names; missing keys print the code.
+	Periods map[string]string
+}
+
+func (l Labels) period(code string) string {
+	if name, ok := l.Periods[code]; ok {
+		return name
+	}
+	return code
 }
 
 type Input struct {
@@ -272,14 +281,14 @@ func buildLines(
 	if listPrice.Sign() > 0 {
 		lines = append(lines, Line{
 			Kind:   "plan",
-			Label:  fmt.Sprintf(defaultLabel(in.Labels.Plan, "%s (%s)"), in.Target.PlanName, in.Target.Period),
+			Label:  fmt.Sprintf(defaultLabel(in.Labels.Plan, "%s (%s)"), in.Target.PlanName, in.Labels.period(in.Target.Period)),
 			Amount: Format(listPrice),
 		})
 	}
 	if shownProration := minRat(prorationCredit, listPrice); shownProration.Sign() > 0 {
 		lines = append(lines, Line{
 			Kind:   "proration",
-			Label:  fmt.Sprintf(defaultLabel(in.Labels.Proration, "Kıst iadesi (%s, %d gün)"), in.Target.Period, prorationDays),
+			Label:  fmt.Sprintf(defaultLabel(in.Labels.Proration, "Kıst iadesi (%s, %d gün)"), in.Labels.period(currentPeriod(in)), prorationDays),
 			Amount: "-" + Format(shownProration),
 		})
 	}
@@ -337,4 +346,11 @@ func defaultLabel(value, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func currentPeriod(in Input) string {
+	if in.Current != nil {
+		return in.Current.Period
+	}
+	return in.Target.Period
 }

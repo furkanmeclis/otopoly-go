@@ -302,5 +302,6 @@
   "discount_reason.not_found": "Code not found.",
   "error.order_open": "You already have an open order.",
   "error.plan_unavailable": "This plan is no longer available.",
-  "payments.col.expires_at": "Pay by"
+  "payments.col.expires_at": "Pay by",
+  "checkout.change_period": "Switch billing period"
 }

@@ -7586,6 +7586,441 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/tenant/billing/orders/preview:
+    post:
+      tags: [Tenant]
+      operationId: previewTenantBillingOrder
+      summary: Preview tenant billing order
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingOrderInput" }
+      responses:
+        "200":
+          description: Preview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrderPreview" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/billing/orders:
+    get:
+      tags: [Tenant]
+      operationId: listTenantBillingOrders
+      summary: List tenant billing orders
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [open, all, pending_payment, payment_reported, approved, rejected, cancelled, expired] } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrderList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantBillingOrder
+      summary: Create tenant billing order
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingOrderInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/tenant/billing/orders/{uuid}:
+    get:
+      tags: [Tenant]
+      operationId: getTenantBillingOrder
+      summary: Get tenant billing order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/billing/orders/{uuid}/report:
+    post:
+      tags: [Tenant]
+      operationId: reportTenantBillingOrderPayment
+      summary: Report tenant billing order payment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                note: { type: string }
+      responses:
+        "200":
+          description: Reported
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/billing/orders/{uuid}/cancel:
+    post:
+      tags: [Tenant]
+      operationId: cancelTenantBillingOrder
+      summary: Cancel tenant billing order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/billing/orders/{uuid}/receipt:
+    get:
+      tags: [Tenant]
+      operationId: getTenantBillingOrderReceipt
+      summary: Stream tenant billing order receipt
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Receipt file
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/orders:
+    get:
+      tags: [Platform]
+      operationId: listPlatformBillingOrders
+      summary: List platform billing orders
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrderList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/orders/summary:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingOrdersSummary
+      summary: Billing order status summary
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrdersSummary" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/orders/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingOrder
+      summary: Get platform billing order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/orders/{uuid}/receipt:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingOrderReceipt
+      summary: Stream platform billing order receipt
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Receipt file
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/orders/{uuid}/approve:
+    post:
+      tags: [Platform]
+      operationId: approvePlatformBillingOrder
+      summary: Approve billing order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: { note: { type: string } }
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/orders/{uuid}/reject:
+    post:
+      tags: [Platform]
+      operationId: rejectPlatformBillingOrder
+      summary: Reject billing order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties: { reason: { type: string } }
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/subscriptions:
+    get:
+      tags: [Platform]
+      operationId: listPlatformBillingSubscriptions
+      summary: List admin subscriptions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Subscriptions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingAdminSubscriptionList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Platform]
+      operationId: createPlatformBillingSubscription
+      summary: Create admin subscription
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingAdminSubscriptionInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingAdminSubscription" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/subscriptions/{uuid}:
+    patch:
+      tags: [Platform]
+      operationId: updatePlatformBillingSubscription
+      summary: Update admin subscription
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingAdminSubscriptionPatch" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingAdminSubscription" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/discount-codes:
+    get:
+      tags: [Platform]
+      operationId: listPlatformBillingDiscountCodes
+      summary: List billing discount codes
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Discount codes
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingDiscountCodeList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Platform]
+      operationId: createPlatformBillingDiscountCode
+      summary: Create billing discount code
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingDiscountCodeInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingDiscountCode" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/discount-codes/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingDiscountCode
+      summary: Get billing discount code
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Discount code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingDiscountCode" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Platform]
+      operationId: updatePlatformBillingDiscountCode
+      summary: Update billing discount code
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingDiscountCodeInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingDiscountCode" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformBillingDiscountCode
+      summary: Delete or deactivate billing discount code
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingDiscountCode" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/settings:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingSettings
+      summary: Get billing payment settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingPaymentSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Platform]
+      operationId: updatePlatformBillingSettings
+      summary: Update billing payment settings
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingPaymentSettings" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingPaymentSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /v1/tenant/leads/summary:
     get:
       tags: [Tenant]
@@ -11586,13 +12021,246 @@ components:
 
     BillingOverview:
       type: object
-      required: [subscription, plan, meters]
+      required: [subscription, plan, meters, open_order]
       properties:
         subscription: { anyOf: [{ $ref: "#/components/schemas/BillingSubscription" }, { type: "null" }] }
         plan: { anyOf: [{ $ref: "#/components/schemas/BillingPlan" }, { type: "null" }] }
         meters:
           type: array
           items: { $ref: "#/components/schemas/BillingUsageMeter" }
+        open_order: { anyOf: [{ $ref: "#/components/schemas/BillingOrder" }, { type: "null" }] }
+
+    BillingPlanRef:
+      type: object
+      required: [uuid, code, name]
+      properties:
+        uuid: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+
+    BillingOrganizationRef:
+      type: object
+      required: [uuid, slug, name]
+      properties:
+        uuid: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+
+    BillingQuoteLine:
+      type: object
+      required: [kind, label, amount]
+      properties:
+        kind: { type: string, enum: [plan, proration, discount, credit] }
+        label: { type: string }
+        amount: { type: string }
+
+    BillingOrderInput:
+      type: object
+      required: [plan_uuid, period]
+      properties:
+        plan_uuid: { type: string, format: uuid }
+        period: { type: string, enum: [monthly, yearly] }
+        discount_code: { type: string }
+
+    BillingOrderPreview:
+      type: object
+      required: [kind, plan, period, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_rate, vat_amount, starts_at, ends_at, lines, discount_error]
+      properties:
+        kind: { type: string, enum: [new, renew, upgrade, downgrade, period_change] }
+        plan: { $ref: "#/components/schemas/BillingPlanRef" }
+        period: { type: string, enum: [monthly, yearly] }
+        list_price: { type: string }
+        proration_credit: { type: string }
+        discount_code: { type: [string, "null"] }
+        discount_amount: { type: string }
+        credit_applied: { type: string }
+        credit_surplus: { type: string }
+        total: { type: string }
+        vat_rate: { type: integer }
+        vat_amount: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/BillingQuoteLine" }
+        discount_error:
+          anyOf:
+            - type: object
+              required: [reason, message]
+              properties:
+                reason: { type: string, enum: [not_found, inactive, not_started, expired, plan, period, max_uses, max_uses_per_org, first_purchase_only] }
+                message: { type: string }
+            - type: "null"
+
+    BillingBankInstructions:
+      type: object
+      required: [bank_name, account_holder, iban, amount, reference_code, payment_instructions]
+      properties:
+        bank_name: { type: string }
+        account_holder: { type: string }
+        iban: { type: string }
+        amount: { type: string }
+        reference_code: { type: string }
+        payment_instructions: { type: string }
+
+    BillingOrder:
+      type: object
+      required: [uuid, reference_code, kind, status, channel, plan, period, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_amount, lines, has_receipt, receipt_content_type, report_note, reported_at, reviewed_at, reject_reason, expires_at, created_at, instructions, organization]
+      properties:
+        uuid: { type: string, format: uuid }
+        reference_code: { type: string }
+        kind: { type: string, enum: [new, renew, upgrade, downgrade, period_change] }
+        status: { type: string, enum: [pending_payment, payment_reported, approved, rejected, cancelled, expired] }
+        channel: { type: string, enum: [bank_transfer] }
+        plan: { $ref: "#/components/schemas/BillingPlanRef" }
+        period: { type: string, enum: [monthly, yearly] }
+        list_price: { type: string }
+        proration_credit: { type: string }
+        discount_code: { type: [string, "null"] }
+        discount_amount: { type: string }
+        credit_applied: { type: string }
+        credit_surplus: { type: string }
+        total: { type: string }
+        vat_amount: { type: string }
+        lines:
+          type: array
+          items: { $ref: "#/components/schemas/BillingQuoteLine" }
+        has_receipt: { type: boolean }
+        receipt_content_type: { type: [string, "null"] }
+        report_note: { type: string }
+        reported_at: { type: [string, "null"], format: date-time }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        reject_reason: { type: string }
+        expires_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        instructions: { anyOf: [{ $ref: "#/components/schemas/BillingBankInstructions" }, { type: "null" }] }
+        organization: { anyOf: [{ $ref: "#/components/schemas/BillingOrganizationRef" }, { type: "null" }] }
+
+    BillingOrderList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingOrder" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    BillingOrdersSummary:
+      type: object
+      required: [pending_payment, payment_reported]
+      properties:
+        pending_payment: { type: integer, format: int64 }
+        payment_reported: { type: integer, format: int64 }
+
+    BillingDiscountCode:
+      type: object
+      required: [uuid, code, kind, value, plan_uuids, periods, starts_at, ends_at, max_uses, max_uses_per_org, first_purchase_only, is_active, note, used_count, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        code: { type: string }
+        kind: { type: string, enum: [percent, amount] }
+        value: { type: string }
+        plan_uuids: { type: array, items: { type: string, format: uuid } }
+        periods: { type: array, items: { type: string, enum: [monthly, yearly] } }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        max_uses: { type: [integer, "null"] }
+        max_uses_per_org: { type: [integer, "null"] }
+        first_purchase_only: { type: boolean }
+        is_active: { type: boolean }
+        note: { type: string }
+        used_count: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+
+    BillingDiscountCodeInput:
+      type: object
+      required: [code, kind, value, plan_uuids, periods, first_purchase_only, is_active, note]
+      properties:
+        code: { type: string }
+        kind: { type: string, enum: [percent, amount] }
+        value: { type: string }
+        plan_uuids: { type: array, items: { type: string, format: uuid } }
+        periods: { type: array, items: { type: string, enum: [monthly, yearly] } }
+        starts_at: { type: [string, "null"], format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+        max_uses: { type: [integer, "null"] }
+        max_uses_per_org: { type: [integer, "null"] }
+        first_purchase_only: { type: boolean }
+        is_active: { type: boolean }
+        note: { type: string }
+
+    BillingDiscountCodeList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingDiscountCode" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    BillingAdminSubscription:
+      type: object
+      required: [uuid, organization, plan, period, status, starts_at, ends_at, days_left, price_paid, credit_balance, source, note, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        organization: { $ref: "#/components/schemas/BillingOrganizationRef" }
+        plan: { $ref: "#/components/schemas/BillingPlanRef" }
+        period: { type: string, enum: [monthly, yearly] }
+        status: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        days_left: { type: integer }
+        price_paid: { type: string }
+        credit_balance: { type: string }
+        source: { type: string }
+        note: { type: string }
+        created_at: { type: string, format: date-time }
+
+    BillingAdminSubscriptionList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingAdminSubscription" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    BillingAdminSubscriptionInput:
+      type: object
+      required: [organization_uuid, plan_uuid, period, starts_at, ends_at, price_paid, note]
+      properties:
+        organization_uuid: { type: string, format: uuid }
+        plan_uuid: { type: string, format: uuid }
+        period: { type: string, enum: [monthly, yearly] }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        price_paid: { type: string }
+        note: { type: string }
+
+    BillingAdminSubscriptionPatch:
+      type: object
+      properties:
+        ends_at: { type: [string, "null"], format: date-time }
+        plan_uuid: { type: [string, "null"], format: uuid }
+        note: { type: string }
+
+    BillingPaymentSettings:
+      type: object
+      required: [bank_name, account_holder, iban, payment_instructions, order_ttl_days, grace_days, vat_rate]
+      properties:
+        bank_name: { type: string }
+        account_holder: { type: string }
+        iban: { type: string }
+        payment_instructions: { type: string }
+        order_ttl_days: { type: integer }
+        grace_days: { type: integer }
+        vat_rate: { type: integer }
 
     LeadSummary:
       type: object
@@ -12048,6 +12716,78 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/BillingOverview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingOrderPreview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingOrderPreview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingOrder:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingOrder" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingOrderList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingOrderList" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingOrdersSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingOrdersSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingDiscountCode:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingDiscountCode" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingDiscountCodeList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingDiscountCodeList" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingAdminSubscription:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingAdminSubscription" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingAdminSubscriptionList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingAdminSubscriptionList" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingPaymentSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingPaymentSettings" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeLeadSummary:

@@ -4461,6 +4461,301 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/billing/orders/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview tenant billing order */
+        post: operations["previewTenantBillingOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenant billing orders */
+        get: operations["listTenantBillingOrders"];
+        put?: never;
+        /** Create tenant billing order */
+        post: operations["createTenantBillingOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/orders/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get tenant billing order */
+        get: operations["getTenantBillingOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/orders/{uuid}/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Report tenant billing order payment */
+        post: operations["reportTenantBillingOrderPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/orders/{uuid}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel tenant billing order */
+        post: operations["cancelTenantBillingOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/orders/{uuid}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream tenant billing order receipt */
+        get: operations["getTenantBillingOrderReceipt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List platform billing orders */
+        get: operations["listPlatformBillingOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/orders/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Billing order status summary */
+        get: operations["getPlatformBillingOrdersSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/orders/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get platform billing order */
+        get: operations["getPlatformBillingOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/orders/{uuid}/receipt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream platform billing order receipt */
+        get: operations["getPlatformBillingOrderReceipt"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/orders/{uuid}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Approve billing order */
+        post: operations["approvePlatformBillingOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/orders/{uuid}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reject billing order */
+        post: operations["rejectPlatformBillingOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List admin subscriptions */
+        get: operations["listPlatformBillingSubscriptions"];
+        put?: never;
+        /** Create admin subscription */
+        post: operations["createPlatformBillingSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/subscriptions/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update admin subscription */
+        patch: operations["updatePlatformBillingSubscription"];
+        trace?: never;
+    };
+    "/v1/platform/billing/discount-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List billing discount codes */
+        get: operations["listPlatformBillingDiscountCodes"];
+        put?: never;
+        /** Create billing discount code */
+        post: operations["createPlatformBillingDiscountCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/discount-codes/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get billing discount code */
+        get: operations["getPlatformBillingDiscountCode"];
+        /** Update billing discount code */
+        put: operations["updatePlatformBillingDiscountCode"];
+        post?: never;
+        /** Delete or deactivate billing discount code */
+        delete: operations["deletePlatformBillingDiscountCode"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get billing payment settings */
+        get: operations["getPlatformBillingSettings"];
+        /** Update billing payment settings */
+        put: operations["updatePlatformBillingSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/leads/summary": {
         parameters: {
             query?: never;
@@ -7494,6 +7789,220 @@ export interface components {
             subscription: components["schemas"]["BillingSubscription"] | null;
             plan: components["schemas"]["BillingPlan"] | null;
             meters: components["schemas"]["BillingUsageMeter"][];
+            open_order: components["schemas"]["BillingOrder"] | null;
+        };
+        BillingPlanRef: {
+            /** Format: uuid */
+            uuid: string;
+            code: string;
+            name: string;
+        };
+        BillingOrganizationRef: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+        };
+        BillingQuoteLine: {
+            /** @enum {string} */
+            kind: "plan" | "proration" | "discount" | "credit";
+            label: string;
+            amount: string;
+        };
+        BillingOrderInput: {
+            /** Format: uuid */
+            plan_uuid: string;
+            /** @enum {string} */
+            period: "monthly" | "yearly";
+            discount_code?: string;
+        };
+        BillingOrderPreview: {
+            /** @enum {string} */
+            kind: "new" | "renew" | "upgrade" | "downgrade" | "period_change";
+            plan: components["schemas"]["BillingPlanRef"];
+            /** @enum {string} */
+            period: "monthly" | "yearly";
+            list_price: string;
+            proration_credit: string;
+            discount_code: string | null;
+            discount_amount: string;
+            credit_applied: string;
+            credit_surplus: string;
+            total: string;
+            vat_rate: number;
+            vat_amount: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            lines: components["schemas"]["BillingQuoteLine"][];
+            discount_error: {
+                /** @enum {string} */
+                reason: "not_found" | "inactive" | "not_started" | "expired" | "plan" | "period" | "max_uses" | "max_uses_per_org" | "first_purchase_only";
+                message: string;
+            } | null;
+        };
+        BillingBankInstructions: {
+            bank_name: string;
+            account_holder: string;
+            iban: string;
+            amount: string;
+            reference_code: string;
+            payment_instructions: string;
+        };
+        BillingOrder: {
+            /** Format: uuid */
+            uuid: string;
+            reference_code: string;
+            /** @enum {string} */
+            kind: "new" | "renew" | "upgrade" | "downgrade" | "period_change";
+            /** @enum {string} */
+            status: "pending_payment" | "payment_reported" | "approved" | "rejected" | "cancelled" | "expired";
+            /** @enum {string} */
+            channel: "bank_transfer";
+            plan: components["schemas"]["BillingPlanRef"];
+            /** @enum {string} */
+            period: "monthly" | "yearly";
+            list_price: string;
+            proration_credit: string;
+            discount_code: string | null;
+            discount_amount: string;
+            credit_applied: string;
+            credit_surplus: string;
+            total: string;
+            vat_amount: string;
+            lines: components["schemas"]["BillingQuoteLine"][];
+            has_receipt: boolean;
+            receipt_content_type: string | null;
+            report_note: string;
+            /** Format: date-time */
+            reported_at: string | null;
+            /** Format: date-time */
+            reviewed_at: string | null;
+            reject_reason: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** Format: date-time */
+            created_at: string;
+            instructions: components["schemas"]["BillingBankInstructions"] | null;
+            organization: components["schemas"]["BillingOrganizationRef"] | null;
+        };
+        BillingOrderList: {
+            items: components["schemas"]["BillingOrder"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingOrdersSummary: {
+            /** Format: int64 */
+            pending_payment: number;
+            /** Format: int64 */
+            payment_reported: number;
+        };
+        BillingDiscountCode: {
+            /** Format: uuid */
+            uuid: string;
+            code: string;
+            /** @enum {string} */
+            kind: "percent" | "amount";
+            value: string;
+            plan_uuids: string[];
+            periods: ("monthly" | "yearly")[];
+            /** Format: date-time */
+            starts_at: string | null;
+            /** Format: date-time */
+            ends_at: string | null;
+            max_uses: number | null;
+            max_uses_per_org: number | null;
+            first_purchase_only: boolean;
+            is_active: boolean;
+            note: string;
+            /** Format: int64 */
+            used_count: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        BillingDiscountCodeInput: {
+            code: string;
+            /** @enum {string} */
+            kind: "percent" | "amount";
+            value: string;
+            plan_uuids: string[];
+            periods: ("monthly" | "yearly")[];
+            /** Format: date-time */
+            starts_at?: string | null;
+            /** Format: date-time */
+            ends_at?: string | null;
+            max_uses?: number | null;
+            max_uses_per_org?: number | null;
+            first_purchase_only: boolean;
+            is_active: boolean;
+            note: string;
+        };
+        BillingDiscountCodeList: {
+            items: components["schemas"]["BillingDiscountCode"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingAdminSubscription: {
+            /** Format: uuid */
+            uuid: string;
+            organization: components["schemas"]["BillingOrganizationRef"];
+            plan: components["schemas"]["BillingPlanRef"];
+            /** @enum {string} */
+            period: "monthly" | "yearly";
+            status: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            days_left: number;
+            price_paid: string;
+            credit_balance: string;
+            source: string;
+            note: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        BillingAdminSubscriptionList: {
+            items: components["schemas"]["BillingAdminSubscription"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingAdminSubscriptionInput: {
+            /** Format: uuid */
+            organization_uuid: string;
+            /** Format: uuid */
+            plan_uuid: string;
+            /** @enum {string} */
+            period: "monthly" | "yearly";
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            price_paid: string;
+            note: string;
+        };
+        BillingAdminSubscriptionPatch: {
+            /** Format: date-time */
+            ends_at?: string | null;
+            /** Format: uuid */
+            plan_uuid?: string | null;
+            note?: string;
+        };
+        BillingPaymentSettings: {
+            bank_name: string;
+            account_holder: string;
+            iban: string;
+            payment_instructions: string;
+            order_ttl_days: number;
+            grace_days: number;
+            vat_rate: number;
         };
         LeadSummary: {
             open: number;
@@ -7921,6 +8430,60 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["BillingOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingOrderPreview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingOrderPreview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingOrder: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingOrder"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingOrderList: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingOrderList"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingOrdersSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingOrdersSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingDiscountCode: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingDiscountCode"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingDiscountCodeList: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingDiscountCodeList"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingAdminSubscription: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingAdminSubscription"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingAdminSubscriptionList: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingAdminSubscriptionList"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingPaymentSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingPaymentSettings"];
             meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeLeadSummary: {
@@ -16582,6 +17145,605 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeBillingPlanList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    previewTenantBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrderPreview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listTenantBillingOrders: {
+        parameters: {
+            query?: {
+                status?: "open" | "all" | "pending_payment" | "payment_reported" | "approved" | "rejected" | "cancelled" | "expired";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Orders */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrderList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+            422: components["responses"]["BadRequest"];
+        };
+    };
+    getTenantBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    reportTenantBillingOrderPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Reported */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelTenantBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cancelled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantBillingOrderReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Receipt file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformBillingOrders: {
+        parameters: {
+            query?: {
+                status?: string;
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Orders */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrderList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingOrdersSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrdersSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Order */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingOrderReceipt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Receipt file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                    "image/jpeg": string;
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    approvePlatformBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Approved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    rejectPlatformBillingOrder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOrder"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformBillingSubscriptions: {
+        parameters: {
+            query?: {
+                status?: string;
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Subscriptions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingAdminSubscriptionList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createPlatformBillingSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingAdminSubscriptionInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingAdminSubscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updatePlatformBillingSubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingAdminSubscriptionPatch"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingAdminSubscription"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformBillingDiscountCodes: {
+        parameters: {
+            query?: {
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discount codes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingDiscountCodeList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createPlatformBillingDiscountCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingDiscountCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingDiscountCode"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingDiscountCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Discount code */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingDiscountCode"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updatePlatformBillingDiscountCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingDiscountCodeInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingDiscountCode"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    deletePlatformBillingDiscountCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingDiscountCode"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingPaymentSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updatePlatformBillingSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPaymentSettings"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingPaymentSettings"];
                 };
             };
             401: components["responses"]["Unauthenticated"];

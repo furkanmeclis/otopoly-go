@@ -3,8 +3,11 @@ package handler
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	billingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/billing/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
@@ -16,7 +19,17 @@ type Handler struct{ svc *billingusecase.Service }
 func New(svc *billingusecase.Service) *Handler { return &Handler{svc: svc} }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
+	var open billingusecase.OrderOpenError
+	var discount billingusecase.DiscountError
 	switch {
+	case errors.As(err, &open):
+		response.ErrorWithDetails(w, r, http.StatusConflict, "ORDER_OPEN", "Open order exists", []response.Detail{{Field: "order_uuid", Message: open.OrderUUID.String()}})
+	case errors.As(err, &discount):
+		response.ErrorWithDetails(w, r, http.StatusUnprocessableEntity, "DISCOUNT_INVALID", discount.Message, []response.Detail{{Field: "reason", Message: discount.Reason}})
+	case errors.Is(err, billingusecase.ErrOrderState):
+		response.Conflict(w, r, "ORDER_STATE", "Order state does not allow this operation")
+	case errors.Is(err, billingusecase.ErrPlanUnavailable):
+		response.Conflict(w, r, "PLAN_UNAVAILABLE", "Plan is unavailable")
 	case errors.Is(err, billingusecase.ErrNotFound):
 		response.NotFound(w, r, "not found")
 	case errors.Is(err, billingusecase.ErrInvalidRequest):
@@ -26,6 +39,24 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		response.InternalErr(w, r, err, "request failed")
 	}
+}
+
+func listResponse(items any, total int64, limit, offset int32) map[string]any {
+	return map[string]any{"items": items, "total": total, "limit": limit, "offset": offset}
+}
+
+func paging(r *http.Request) (int32, int32) {
+	limit64, _ := strconv.ParseInt(r.URL.Query().Get("limit"), 10, 32)
+	offset64, _ := strconv.ParseInt(r.URL.Query().Get("offset"), 10, 32)
+	limit := int32(limit64)
+	offset := int32(offset64)
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return limit, offset
 }
 
 func decode(w http.ResponseWriter, r *http.Request, v any) bool {
@@ -169,4 +200,359 @@ func (h *Handler) PlatformDeletePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, map[string]any{"deleted": true})
+}
+
+func (h *Handler) PreviewOrder(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.OrderInput
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.PreviewOrder(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.OrderInput
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.CreateOrder(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusCreated, out)
+}
+
+func (h *Handler) ListOrders(w http.ResponseWriter, r *http.Request) {
+	limit, offset := paging(r)
+	items, total, err := h.svc.ListOrders(r.Context(), r.URL.Query().Get("status"), limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, listResponse(items, total, limit, offset))
+}
+
+func (h *Handler) GetOrder(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.GetOrder(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) ReportPayment(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	if err := r.ParseMultipartForm(11 << 20); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid multipart form")
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "file is required")
+		return
+	}
+	defer file.Close()
+	contentType := header.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = http.DetectContentType(make([]byte, 0))
+	}
+	out, err := h.svc.ReportPayment(r.Context(), id, billingusecase.ReportInput{
+		Note: r.FormValue("note"), Filename: header.Filename, ContentType: contentType, Size: header.Size, Body: file,
+	})
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) CancelOrder(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.CancelOrder(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) OpenReceipt(w http.ResponseWriter, r *http.Request) {
+	h.openReceipt(w, r, false)
+}
+
+func (h *Handler) PlatformOpenReceipt(w http.ResponseWriter, r *http.Request) {
+	h.openReceipt(w, r, true)
+}
+
+func (h *Handler) openReceipt(w http.ResponseWriter, r *http.Request, platform bool) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	var ref string
+	if platform {
+		order, err := h.svc.GetOrderAdmin(r.Context(), id)
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		ref = order.ReferenceCode
+	} else {
+		order, err := h.svc.GetOrder(r.Context(), id)
+		if err != nil {
+			writeError(w, r, err)
+			return
+		}
+		ref = order.ReferenceCode
+	}
+	body, ctype, _, err := h.svc.OpenReceipt(r.Context(), id, platform)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	defer body.Close()
+	w.Header().Set("Content-Type", ctype)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="dekont-%s.%s"`, ref, receiptExt(ctype)))
+	w.Header().Set("Cache-Control", "private, no-store")
+	_, _ = io.Copy(w, body)
+}
+
+func (h *Handler) PlatformListOrders(w http.ResponseWriter, r *http.Request) {
+	limit, offset := paging(r)
+	items, total, err := h.svc.ListOrdersAdmin(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("q"), limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, listResponse(items, total, limit, offset))
+}
+
+func (h *Handler) PlatformOrdersSummary(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.OrdersSummary(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformGetOrder(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.GetOrderAdmin(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformApproveOrder(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Note string `json:"note"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.ApproveOrder(r.Context(), id, in.Note)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformRejectOrder(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.RejectOrder(r.Context(), id, in.Reason)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformListSubscriptions(w http.ResponseWriter, r *http.Request) {
+	limit, offset := paging(r)
+	items, total, err := h.svc.ListSubscriptionsAdmin(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("q"), limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, listResponse(items, total, limit, offset))
+}
+
+func (h *Handler) PlatformCreateSubscription(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.AdminSubscriptionInput
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.CreateSubscriptionAdmin(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusCreated, out)
+}
+
+func (h *Handler) PlatformUpdateSubscription(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	var in billingusecase.AdminSubscriptionPatch
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.UpdateSubscriptionAdmin(r.Context(), id, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformListDiscountCodes(w http.ResponseWriter, r *http.Request) {
+	limit, offset := paging(r)
+	items, total, err := h.svc.ListDiscountCodes(r.Context(), r.URL.Query().Get("q"), limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, listResponse(items, total, limit, offset))
+}
+
+func (h *Handler) PlatformCreateDiscountCode(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.DiscountInput
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.CreateDiscountCode(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusCreated, out)
+}
+
+func (h *Handler) PlatformGetDiscountCode(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.GetDiscountCode(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformUpdateDiscountCode(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	var in billingusecase.DiscountInput
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.UpdateDiscountCode(r.Context(), id, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformDeleteDiscountCode(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	before, err := h.svc.GetDiscountCode(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	if err := h.svc.DeleteDiscountCode(r.Context(), id); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	after, err := h.svc.GetDiscountCode(r.Context(), id)
+	if err != nil {
+		before.IsActive = false
+		response.JSON(w, r, http.StatusOK, before)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, after)
+}
+
+func (h *Handler) PlatformGetSettings(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.GetPaymentSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformUpdateSettings(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.PaymentSettings
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.UpdatePaymentSettings(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func receiptExt(contentType string) string {
+	switch strings.ToLower(strings.TrimSpace(contentType)) {
+	case "application/pdf":
+		return "pdf"
+	case "image/jpeg":
+		return "jpg"
+	case "image/png":
+		return "png"
+	case "image/webp":
+		return "webp"
+	default:
+		return "bin"
+	}
 }

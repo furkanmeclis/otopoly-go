@@ -72,6 +72,7 @@ import (
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
+	notifmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
 	notifycentermodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter"
@@ -120,6 +121,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/outbox"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/stepup"
@@ -310,6 +312,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	carimodule.RegisterRoutes(mux, cariSvc, tokens, loader, deps.Queries)
 	entitlementsSvc := entitlements.New(entitlements.NewDBStore(deps.Queries))
 	billingSvc := billingusecase.New(deps.DB, deps.Queries, activityRec, entitlementsSvc)
+	billingSvc.SetStorage(deps.Storage)
+	billingSvc.SetNotifier(&billingNotifier{pool: deps.DB, notifications: notifSvc, log: log})
 	if err := billingSvc.EnsureBuiltinFeatures(context.Background()); err != nil {
 		log.Warn("billing_builtin_features_failed", "error", err)
 	}
@@ -527,7 +531,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithReminderSweep(centerSvc.ProcessDue).
 			WithQuoteExpire(quotesSvc.ExpireDue).
 			WithDailySummary(dailySummarySvc.SendDue).
-			WithVehicleAlerts(vehicleAlertsSvc.Flush)
+			WithVehicleAlerts(vehicleAlertsSvc.Flush).
+			WithBillingOrdersExpire(billingSvc.ExpireDueOrders)
 		if sched, err := queue.StartReminderScheduler(cfg, log); err != nil {
 			log.Error("reminder_scheduler_init_failed", "error", err)
 		} else {
@@ -539,6 +544,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			}
 			if err := queue.RegisterVehicleAlertsSchedule(sched); err != nil {
 				log.Error("vehicle_alerts_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterBillingOrdersExpireSchedule(sched); err != nil {
+				log.Error("billing_orders_expire_scheduler_failed", "error", err)
 			}
 			s.reminderSched = sched
 		}
@@ -784,5 +792,83 @@ func (s *Server) runReminderTicker(ctx context.Context) {
 			}
 			cancel()
 		}
+	}
+}
+
+type billingNotifier struct {
+	pool          *pgxpool.Pool
+	notifications *notifusecase.Service
+	log           *slog.Logger
+}
+
+func (n *billingNotifier) NotifyOrganization(ctx context.Context, orgID int64, title, body, link string) {
+	if n == nil || n.pool == nil || n.notifications == nil {
+		return
+	}
+	rows, err := n.pool.Query(ctx, `
+		SELECT DISTINCT u.id
+		FROM organization_members om
+		JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+		WHERE om.organization_id = $1 AND om.role = 'owner'
+	`, orgID)
+	if err != nil {
+		n.log.Warn("billing_notify_org_recipients_failed", "org_id", orgID, "error", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			n.log.Warn("billing_notify_org_scan_failed", "org_id", orgID, "error", err)
+			continue
+		}
+		n.enqueue(ctx, userID, title, body, link)
+	}
+}
+
+func (n *billingNotifier) NotifyPlatform(ctx context.Context, title, body, link string) {
+	if n == nil || n.pool == nil || n.notifications == nil {
+		return
+	}
+	rows, err := n.pool.Query(ctx, `
+		SELECT DISTINCT u.id
+		FROM users u
+		JOIN user_roles ur ON ur.user_id = u.id
+		JOIN roles r ON r.id = ur.role_id
+		LEFT JOIN role_permissions rp ON rp.role_id = r.id
+		LEFT JOIN permissions p ON p.id = rp.permission_id
+		WHERE u.deleted_at IS NULL AND (r.slug = 'super_admin' OR p.slug = $1)
+	`, rbac.PermPlatformBillingWrite)
+	if err != nil {
+		n.log.Warn("billing_notify_platform_recipients_failed", "error", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			n.log.Warn("billing_notify_platform_scan_failed", "error", err)
+			continue
+		}
+		n.enqueue(ctx, userID, title, body, link)
+	}
+}
+
+func (n *billingNotifier) enqueue(ctx context.Context, userID int64, title, body, link string) {
+	action := link
+	if action == "" {
+		action = "/platform/billing/payments"
+	}
+	if _, err := n.notifications.Enqueue(ctx, notifmodel.EnqueueInput{
+		UserID:      &userID,
+		Channels:    []string{notifmodel.ChannelInapp},
+		Priority:    notifmodel.PriorityHigh,
+		Title:       title,
+		Body:        body,
+		ActionURL:   &action,
+		SourceEvent: "billing",
+		Language:    "tr",
+	}); err != nil && n.log != nil {
+		n.log.Warn("billing_notify_enqueue_failed", "user_id", userID, "error", err)
 	}
 }
