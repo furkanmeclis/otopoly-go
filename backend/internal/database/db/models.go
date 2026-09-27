@@ -162,6 +162,35 @@ type AuthSetting struct {
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
 }
 
+type BillingDiscountCode struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	Code              string             `json:"code"`
+	Kind              string             `json:"kind"`
+	Value             pgtype.Numeric     `json:"value"`
+	AppliesToPlans    []int64            `json:"applies_to_plans"`
+	AppliesToPeriods  []string           `json:"applies_to_periods"`
+	StartsAt          pgtype.Timestamptz `json:"starts_at"`
+	EndsAt            pgtype.Timestamptz `json:"ends_at"`
+	MaxUses           pgtype.Int4        `json:"max_uses"`
+	MaxUsesPerOrg     pgtype.Int4        `json:"max_uses_per_org"`
+	FirstPurchaseOnly bool               `json:"first_purchase_only"`
+	IsActive          bool               `json:"is_active"`
+	Note              string             `json:"note"`
+	CreatedBy         pgtype.Int8        `json:"created_by"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BillingDiscountUse struct {
+	ID             int64              `json:"id"`
+	DiscountCodeID int64              `json:"discount_code_id"`
+	OrganizationID int64              `json:"organization_id"`
+	OrderID        int64              `json:"order_id"`
+	Amount         pgtype.Numeric     `json:"amount"`
+	UsedAt         pgtype.Timestamptz `json:"used_at"`
+}
+
 type BillingFeature struct {
 	ID        int64              `json:"id"`
 	Key       string             `json:"key"`
@@ -175,6 +204,45 @@ type BillingFeature struct {
 	IsActive  bool               `json:"is_active"`
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BillingOrder struct {
+	ID                 int64              `json:"id"`
+	Uuid               uuid.UUID          `json:"uuid"`
+	OrganizationID     int64              `json:"organization_id"`
+	PlanID             int64              `json:"plan_id"`
+	Period             string             `json:"period"`
+	Kind               string             `json:"kind"`
+	Status             string             `json:"status"`
+	Channel            string             `json:"channel"`
+	ReferenceCode      string             `json:"reference_code"`
+	ListPrice          pgtype.Numeric     `json:"list_price"`
+	ProrationCredit    pgtype.Numeric     `json:"proration_credit"`
+	DiscountCodeID     pgtype.Int8        `json:"discount_code_id"`
+	DiscountCode       string             `json:"discount_code"`
+	DiscountAmount     pgtype.Numeric     `json:"discount_amount"`
+	CreditApplied      pgtype.Numeric     `json:"credit_applied"`
+	CreditSurplus      pgtype.Numeric     `json:"credit_surplus"`
+	Total              pgtype.Numeric     `json:"total"`
+	VatRate            int32              `json:"vat_rate"`
+	VatAmount          pgtype.Numeric     `json:"vat_amount"`
+	Lines              []byte             `json:"lines"`
+	StartsAt           pgtype.Timestamptz `json:"starts_at"`
+	EndsAt             pgtype.Timestamptz `json:"ends_at"`
+	ReceiptObjectKey   string             `json:"receipt_object_key"`
+	ReceiptContentType string             `json:"receipt_content_type"`
+	ReportNote         string             `json:"report_note"`
+	ReportedAt         pgtype.Timestamptz `json:"reported_at"`
+	ReviewedBy         pgtype.Int8        `json:"reviewed_by"`
+	ReviewedAt         pgtype.Timestamptz `json:"reviewed_at"`
+	ReviewNote         string             `json:"review_note"`
+	RejectReason       string             `json:"reject_reason"`
+	SubscriptionID     pgtype.Int8        `json:"subscription_id"`
+	CustomFeatures     []byte             `json:"custom_features"`
+	ExpiresAt          pgtype.Timestamptz `json:"expires_at"`
+	CreatedBy          pgtype.Int8        `json:"created_by"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 }
 
 type BillingPlan struct {
@@ -215,6 +283,29 @@ type BillingPlanFeature struct {
 	UnitPrice    pgtype.Numeric     `json:"unit_price"`
 	CreatedAt    pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BillingSetting struct {
+	ID                  int16              `json:"id"`
+	SellerName          string             `json:"seller_name"`
+	SellerTaxID         string             `json:"seller_tax_id"`
+	SellerTaxOffice     string             `json:"seller_tax_office"`
+	SellerAddress       string             `json:"seller_address"`
+	SellerCity          string             `json:"seller_city"`
+	SellerEmail         string             `json:"seller_email"`
+	SellerPhone         string             `json:"seller_phone"`
+	SellerWebsite       string             `json:"seller_website"`
+	BankName            string             `json:"bank_name"`
+	AccountHolder       string             `json:"account_holder"`
+	Iban                string             `json:"iban"`
+	PaymentInstructions string             `json:"payment_instructions"`
+	OrderTtlDays        int32              `json:"order_ttl_days"`
+	GraceDays           int32              `json:"grace_days"`
+	VatRate             int32              `json:"vat_rate"`
+	InvoiceSeries       string             `json:"invoice_series"`
+	XsltObjectKey       string             `json:"xslt_object_key"`
+	ReminderDays        []int32            `json:"reminder_days"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
 }
 
 type BillingSubscription struct {
