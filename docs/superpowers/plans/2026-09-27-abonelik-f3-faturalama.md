@@ -18,7 +18,7 @@
 - [x] Task 4 handler/route/OpenAPI
 - [x] Task 5 frontend işletme (fatura bilgileri formu + faturalar listesi)
 - [x] Task 6 frontend admin (faturalar sayfası + satıcı ayarları + XSLT yükleme)
-- [ ] Task 7 uçtan uca doğrulama, ekran görüntüleri, Notion
+- [x] Task 7 uçtan uca doğrulama, ekran görüntüleri, Notion
 
 ## Global Constraints
 

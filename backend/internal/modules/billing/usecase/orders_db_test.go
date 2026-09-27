@@ -156,6 +156,11 @@ func newOrdersDBFixture(t *testing.T) (*Service, *db.Queries, *pgxpool.Pool, con
 	t.Cleanup(pool.Close)
 	q := db.New(pool)
 	svc := New(pool, q, nil, entitlements.New(entitlements.NewDBStore(q)))
+	// Approvals issue invoices: keep them off the real series and settings.
+	restoreBillingSettings(t, pool)
+	if _, err := pool.Exec(ctx, `UPDATE billing_settings SET invoice_series = 'TST' WHERE id = 1`); err != nil {
+		t.Fatal(err)
+	}
 	svc.SetStorage(newReceiptStore())
 	if _, err := svc.UpdatePaymentSettings(ctx, PaymentSettings{
 		BankName: "Test Bank", AccountHolder: "Otobody Test", IBAN: "TR000000000000000000000000",

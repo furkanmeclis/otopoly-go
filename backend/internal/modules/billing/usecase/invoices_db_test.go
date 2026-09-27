@@ -18,7 +18,6 @@ func TestInvoicesDBIssueRegenerateVoidAndXSLT(t *testing.T) {
 	store := newReceiptStore()
 	svc.SetStorage(store)
 	svc.SetPDFRenderer(fakeInvoicePDF{err: errors.New("gotenberg down")})
-	restoreBillingSettings(t, pool)
 	if _, err := svc.UpdateSellerSettings(ctx, SellerSettings{
 		SellerName: "Teknik Yazilim A.S.", SellerTaxID: "1234567890", SellerTaxOffice: "Maslak",
 		SellerAddress: "Buyukdere Cad. No:1", SellerCity: "Istanbul", SellerEmail: "muhasebe@example.com",
