@@ -36,13 +36,22 @@ const trialDays = 14
 
 // Service manages organizations and memberships.
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
+	pool    *pgxpool.Pool
+	q       *db.Queries
+	billing TrialStarter
 }
 
 // New creates an organizations service.
 func New(pool *pgxpool.Pool, q *db.Queries) *Service {
 	return &Service{pool: pool, q: q}
+}
+
+type TrialStarter interface {
+	StartTrialTx(ctx context.Context, qtx *db.Queries, orgID int64, now time.Time) (time.Time, error)
+}
+
+func (s *Service) SetTrialStarter(starter TrialStarter) {
+	s.billing = starter
 }
 
 // Organization is the public organization projection.
@@ -250,6 +259,13 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (RegisterResul
 	if err := financeusecase.SeedDefaults(ctx, qtx, org.ID); err != nil {
 		return RegisterResult{}, err
 	}
+	if s.billing != nil {
+		trialEnd, err = s.billing.StartTrialTx(ctx, qtx, org.ID, now)
+		if err != nil {
+			return RegisterResult{}, err
+		}
+		org.AccessEndsAt = pgtype.Timestamptz{Time: trialEnd, Valid: true}
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return RegisterResult{}, err
 	}
@@ -306,6 +322,13 @@ func (s *Service) RegisterOrganization(ctx context.Context, in RegisterInput, ow
 	}
 	if err := financeusecase.SeedDefaults(ctx, qtx, org.ID); err != nil {
 		return RegisterResult{}, err
+	}
+	if s.billing != nil {
+		trialEnd, err = s.billing.StartTrialTx(ctx, qtx, org.ID, now)
+		if err != nil {
+			return RegisterResult{}, err
+		}
+		org.AccessEndsAt = pgtype.Timestamptz{Time: trialEnd, Valid: true}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return RegisterResult{}, err

@@ -70,9 +70,10 @@ func (q *Queries) CountOrgCustomers(ctx context.Context, organizationID int64) (
 
 const countOrgMembers = `-- name: CountOrgMembers :one
 SELECT COUNT(*)::bigint FROM organization_members om JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
-WHERE om.organization_id = $1
+WHERE om.organization_id = $1 AND om.role <> 'owner'
 `
 
+// Staff seats only: owners are not counted against staff.count.
 func (q *Queries) CountOrgMembers(ctx context.Context, organizationID int64) (int64, error) {
 	row := q.db.QueryRow(ctx, countOrgMembers, organizationID)
 	var column_1 int64

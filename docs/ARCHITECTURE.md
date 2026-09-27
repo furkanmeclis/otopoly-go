@@ -275,8 +275,20 @@ Audit: `activity.Recorder.Record` (fail-soft). Application logs: `internal/modul
 | Activity | `internal/platform/activity` | Audit events for mutations and I/O |
 | Step-up | `internal/platform/stepup` | Re-auth grant (password/passkey) before sensitive routes |
 | Secrets | `internal/platform/crypto` | AES-256-GCM box for GitHub App credentials |
+| Entitlements | `internal/platform/entitlements` + `modules/billing` | Plan limits / feature toggles per organization (see below) |
 
 Adapters register in `internal/httpserver/server.go` and `cmd/worker/main.go`.
+
+### Billing & entitlements
+
+Spec: `docs/superpowers/specs/2026-09-27-abonelik-ve-plan-yonetimi-design.md`.
+
+- **Catalog:** `billing_features` (builtin keys such as `jobs.daily`, `staff.count`, `whatsapp.enabled`, `module.quotes`), `billing_plans`, `billing_plan_features` (value + `hard|soft` enforcement + `tolerance_pct` / `warn_pct`), `billing_subscriptions` (one live row per organization; trial is a plan), `billing_usage_counters` (`period_key` = Istanbul day / month / `total`).
+- **Decision seam:** `entitlements.Service{Check, Consume, Enabled, Snapshot}` reads plan values through `queries/entitlements.sql`; it never imports `modules/billing`. A nil service allows everything, so modules stay testable without billing.
+- **Hooks:** use cases receive the service via `SetEntitlements(...)` — jobs (`jobs.daily` / `jobs.monthly`, given back on cancel / void), customers, staff (owners are not seats), storage (MB counter under `storage.gb`), messaging (WhatsApp toggle + monthly), AI. Module toggles gate whole route groups with `middleware.RequireFeature(ent, "module.x")` (contracts, leads + quotes, reports + exports).
+- **Errors:** a hard limit is `409 LIMIT_REACHED` with `feature` / `limit` / `used` / `tolerance` details; a plan-disabled feature is `403 FEATURE_DISABLED`. The frontend turns both into the global `LimitReachedDialog` via `lib/api/limit-events.ts`.
+- **Counters:** moved by the hooks; rebuilt from source tables by the worker at boot and daily (`app:billing:recompute`).
+- **Trial:** organization creation calls `billing.StartTrialTx`, which writes the subscription and mirrors `organizations.plan_code / access_*`.
 
 ## Data stores
 

@@ -27,10 +27,16 @@ type Props = {
 export function emptyValue(key: string): BillingPlanFeatureValue {
   return {
     key,
+    value_int: null,
+    value_bool: null,
+    display_text: "",
     enforcement: "hard",
     tolerance_pct: 0,
     warn_pct: 80,
-    display_text: "",
+    min_value: null,
+    max_value: null,
+    step: null,
+    unit_price: null,
   };
 }
 

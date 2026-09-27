@@ -78,6 +78,15 @@ Register `/meta` **before** `/{uuid}` on `ServeMux`. Capabilities must match liv
 - User fields: `name` / `surname`
 - Platform routes require the matching `platform.*` permission (`super_admin` bypasses `HasPermission`)
 
+## Plan limits
+
+Tenant mutations may be refused by the organization's subscription (`internal/platform/entitlements`):
+
+- `409 LIMIT_REACHED` — a hard limit is exhausted; `details` carries `feature`, `limit`, `used`, `tolerance`.
+- `403 FEATURE_DISABLED` — the plan turns the feature / module off (also returned by `middleware.RequireFeature` route gates).
+
+Handlers map `*entitlements.LimitError` → `middleware.WriteLimitReached` and `entitlements.ErrFeatureDisabled` → `FEATURE_DISABLED`.
+
 ## Notifications
 
 Domain / auth use cases call `notifications.Service.Enqueue(...)` only. HTTP handlers never call SMTP/SMS inline.

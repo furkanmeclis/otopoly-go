@@ -66,3 +66,12 @@ export function isFeatureDisabledError(error: unknown): boolean {
     (error as { code?: string }).code === "FEATURE_DISABLED"
   );
 }
+
+/** True for any plan-limit or feature-disabled API error. */
+export function isLimitError(error: unknown): boolean {
+  const code =
+    typeof error === "object" && error !== null
+      ? (error as { code?: string }).code
+      : undefined;
+  return typeof code === "string" && isLimitEventCode(code);
+}

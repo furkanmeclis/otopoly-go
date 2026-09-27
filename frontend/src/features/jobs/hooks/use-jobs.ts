@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { isLimitError } from "@/lib/api/limit-events";
+
 import type { ServerListParams } from "@/components/entity";
 import {
   jobsService,
@@ -86,8 +88,10 @@ export function useJobsMutations() {
           id: `job-created-${data.uuid}`,
         });
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
     patch: useMutation({
       mutationFn: ({
@@ -106,8 +110,10 @@ export function useJobsMutations() {
         });
         toast.success(t("jobs.toast.updated"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
     done: useMutation({
       mutationFn: (uuid: string) => jobsService.ready(uuid),
@@ -118,8 +124,10 @@ export function useJobsMutations() {
         });
         toast.success(t("jobs.toast.ready"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
     deliver: useMutation({
       mutationFn: (uuid: string) => jobsService.deliver(uuid),
@@ -130,8 +138,10 @@ export function useJobsMutations() {
         });
         toast.success(t("jobs.toast.delivered"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
     consumption: useMutation({
       mutationFn: (
@@ -158,8 +168,10 @@ export function useJobsMutations() {
         // Stock levels changed.
         void queryClient.invalidateQueries({ queryKey: ["tenant", "catalog"] });
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
     close: useMutation({
       mutationFn: ({ uuid, body }: { uuid: string; body: CloseJobInput }) =>
@@ -171,8 +183,10 @@ export function useJobsMutations() {
         });
         toast.success(t("jobs.toast.closed"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
     cancel: useMutation({
       mutationFn: (uuid: string) => jobsService.cancel(uuid),
@@ -184,8 +198,10 @@ export function useJobsMutations() {
         void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("jobs.toast.cancelled"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
     voidJob: useMutation({
       mutationFn: (uuid: string) => jobsService.void(uuid),
@@ -197,8 +213,10 @@ export function useJobsMutations() {
         void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("jobs.toast.voided"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("jobs.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("jobs.toast.failed"));
+      },
     }),
   };
 }

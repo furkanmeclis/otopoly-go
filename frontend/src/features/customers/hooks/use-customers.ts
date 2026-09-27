@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { isLimitError } from "@/lib/api/limit-events";
+
 import type { ServerListParams } from "@/components/entity";
 import { customersService } from "@/features/customers/services/customers.service";
 import { useLocale } from "@/providers/locale-provider";
@@ -44,8 +46,10 @@ export function useCustomerMutations() {
         void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("customers.toast.created"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("customers.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("customers.toast.failed"));
+      },
     }),
     update: useMutation({
       mutationFn: ({
@@ -59,8 +63,10 @@ export function useCustomerMutations() {
         invalidate();
         toast.success(t("customers.toast.updated"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("customers.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("customers.toast.failed"));
+      },
     }),
     remove: useMutation({
       mutationFn: customersService.remove,
@@ -69,8 +75,10 @@ export function useCustomerMutations() {
         void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("customers.toast.deleted"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("customers.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("customers.toast.failed"));
+      },
     }),
     addVehicle: useMutation({
       mutationFn: ({
@@ -84,8 +92,10 @@ export function useCustomerMutations() {
         invalidate();
         toast.success(t("customers.toast.vehicle"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("customers.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("customers.toast.failed"));
+      },
     }),
     removeVehicle: useMutation({
       mutationFn: customersService.removeVehicle,
@@ -93,8 +103,10 @@ export function useCustomerMutations() {
         invalidate();
         toast.success(t("customers.toast.vehicle_removed"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("customers.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("customers.toast.failed"));
+      },
     }),
   };
 }

@@ -72,6 +72,7 @@ type Querier interface {
 	CountLiveSubscriptionsByPlan(ctx context.Context, planID int64) (int64, error)
 	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
 	CountOrgCustomers(ctx context.Context, organizationID int64) (int64, error)
+	// Staff seats only: owners are not counted against staff.count.
 	CountOrgMembers(ctx context.Context, organizationID int64) (int64, error)
 	CountOrganizations(ctx context.Context, arg CountOrganizationsParams) (int64, error)
 	CountOutboxByStatus(ctx context.Context, status string) (int64, error)

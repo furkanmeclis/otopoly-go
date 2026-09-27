@@ -35,8 +35,9 @@ WHERE organization_id = $1 AND status NOT IN ('cancelled', 'voided')
   AND started_at >= sqlc.arg(from_at) AND started_at < sqlc.arg(to_at);
 
 -- name: CountOrgMembers :one
+-- Staff seats only: owners are not counted against staff.count.
 SELECT COUNT(*)::bigint FROM organization_members om JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
-WHERE om.organization_id = $1;
+WHERE om.organization_id = $1 AND om.role <> 'owner';
 
 -- name: CountOrgCustomers :one
 SELECT COUNT(*)::bigint FROM customers WHERE organization_id = $1 AND deleted_at IS NULL;

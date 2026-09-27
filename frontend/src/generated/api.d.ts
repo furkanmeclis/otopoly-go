@@ -724,6 +724,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/billing/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List billing features */
+        get: operations["listPlatformBillingFeatures"];
+        put?: never;
+        /** Create display billing feature */
+        post: operations["createPlatformBillingFeature"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/features/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Activate or deactivate a display billing feature */
+        patch: operations["updatePlatformBillingFeature"];
+        trace?: never;
+    };
+    "/v1/platform/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List billing plans */
+        get: operations["listPlatformBillingPlans"];
+        put?: never;
+        /** Create billing plan */
+        post: operations["createPlatformBillingPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/plans/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get billing plan */
+        get: operations["getPlatformBillingPlan"];
+        /** Update billing plan */
+        put: operations["updatePlatformBillingPlan"];
+        post?: never;
+        /** Delete billing plan */
+        delete: operations["deletePlatformBillingPlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/organizations": {
         parameters: {
             query?: never;
@@ -4349,6 +4421,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/billing/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tenant billing overview
+         * @description Requires `tenant.billing.read`.
+         */
+        get: operations["getTenantBillingOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public billing plans
+         * @description Requires `tenant.billing.read`.
+         */
+        get: operations["getTenantBillingPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/leads/summary": {
         parameters: {
             query?: never;
@@ -7258,6 +7370,120 @@ export interface components {
             quotes: components["schemas"]["LeadQuote"][];
             events: components["schemas"]["LeadEvent"][];
         };
+        BillingFeature: {
+            /** Format: int64 */
+            id: number;
+            key: string;
+            /** @enum {string} */
+            kind: "limit" | "toggle" | "display";
+            unit: string;
+            /** @enum {string} */
+            period: "day" | "month" | "total" | "none";
+            label_tr: string;
+            label_en: string;
+            sort_order: number;
+            is_builtin: boolean;
+            is_active: boolean;
+        };
+        BillingPlanFeatureValue: {
+            /** @description billing_features.key */
+            key: string;
+            /** Format: int64 */
+            value_int: number | null;
+            value_bool: boolean | null;
+            display_text: string;
+            /** @enum {string} */
+            enforcement: "hard" | "soft";
+            tolerance_pct: number;
+            warn_pct: number;
+            /** Format: int64 */
+            min_value: number | null;
+            /** Format: int64 */
+            max_value: number | null;
+            /** Format: int64 */
+            step: number | null;
+            unit_price: string | null;
+        };
+        BillingPlan: {
+            /** Format: uuid */
+            uuid: string;
+            code: string;
+            name: string;
+            description: string;
+            price_monthly: string;
+            /** @enum {string} */
+            yearly_pricing: "fixed" | "discount_amount" | "discount_percent";
+            price_yearly: string;
+            yearly_discount_value: string;
+            effective_yearly: string;
+            currency: string;
+            trial_days: number;
+            is_public: boolean;
+            is_customizable: boolean;
+            is_active: boolean;
+            badge: string;
+            sort_order: number;
+            features: components["schemas"]["BillingPlanFeatureValue"][];
+            /** Format: int64 */
+            live_subscriptions: number;
+        };
+        BillingPlanInput: {
+            code: string;
+            name: string;
+            description: string;
+            price_monthly: string;
+            /** @enum {string} */
+            yearly_pricing: "fixed" | "discount_amount" | "discount_percent";
+            price_yearly: string;
+            yearly_discount_value: string;
+            trial_days: number;
+            is_public: boolean;
+            is_customizable: boolean;
+            is_active: boolean;
+            badge: string;
+            sort_order: number;
+            features: components["schemas"]["BillingPlanFeatureValue"][];
+        };
+        BillingUsageMeter: {
+            key: string;
+            /** @enum {string} */
+            kind: "limit" | "toggle";
+            unit: string;
+            period: string;
+            period_key: string;
+            /** Format: int64 */
+            limit: number | null;
+            /** Format: int64 */
+            used: number;
+            warn_pct: number;
+            tolerance_pct: number;
+            enforcement: string;
+            enabled: boolean | null;
+            label_tr: string;
+            label_en: string;
+        };
+        BillingSubscription: {
+            /** Format: uuid */
+            uuid: string;
+            plan_code: string;
+            plan_name: string;
+            period: string;
+            status: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            /** Format: date-time */
+            grace_ends_at: string | null;
+            days_left: number;
+            credit_balance: string;
+            source: string;
+        };
+        BillingOverview: {
+            subscription: components["schemas"]["BillingSubscription"] | null;
+            plan: components["schemas"]["BillingPlan"] | null;
+            meters: components["schemas"]["BillingUsageMeter"][];
+        };
         LeadSummary: {
             open: number;
             new: number;
@@ -7655,6 +7881,36 @@ export interface components {
         };
         PublicQuoteDecisionRequest: {
             note?: string;
+        };
+        EnvelopeBillingFeature: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingFeature"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingFeatureList: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingFeature"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingPlan: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingPlan"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingPlanList: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingPlan"][];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingOverview"];
+            meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeLeadSummary: {
             /** @enum {boolean} */
@@ -9017,6 +9273,220 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    listPlatformBillingFeatures: {
+        parameters: {
+            query?: {
+                include_inactive?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Features */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingFeatureList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createPlatformBillingFeature: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    key: string;
+                    label_tr: string;
+                    label_en: string;
+                    sort_order?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingFeature"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updatePlatformBillingFeature: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    is_active: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformBillingPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plans */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingPlanList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createPlatformBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPlatformBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingPlan"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updatePlatformBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingPlanInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deletePlatformBillingPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getPlatformOrganizations: {
@@ -16057,6 +16527,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantBillingOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Billing overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingOverview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantBillingPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Plans */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingPlanList"];
                 };
             };
             401: components["responses"]["Unauthenticated"];

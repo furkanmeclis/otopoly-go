@@ -242,6 +242,15 @@ func main() {
 			log.Error("log_purge_scheduler_stopped", "error", err)
 		}
 	}()
+	// Counters only move through the module hooks; rebuild them once at boot
+	// so a fresh deploy (or the 000064 backfill) starts from real numbers.
+	go func() {
+		if n, err := entitlementsRecomputer.RecomputeAll(ctx); err != nil {
+			log.Error("billing_recompute_boot_failed", "error", err)
+		} else {
+			log.Info("billing_recompute_boot", "organizations", n)
+		}
+	}()
 
 	log.Info(
 		"worker_started",

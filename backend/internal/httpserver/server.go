@@ -31,6 +31,8 @@ import (
 	authsettingsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/authsettings"
 	authsettingshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/authsettings/handler"
 	authsettingsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/authsettings/usecase"
+	billingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/billing"
+	billingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/billing/usecase"
 	bulkmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk"
 	bulkhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/handler"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
@@ -307,6 +309,12 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	cariSvc.SetEventBus(eventBus)
 	carimodule.RegisterRoutes(mux, cariSvc, tokens, loader, deps.Queries)
 	entitlementsSvc := entitlements.New(entitlements.NewDBStore(deps.Queries))
+	billingSvc := billingusecase.New(deps.DB, deps.Queries, activityRec, entitlementsSvc)
+	if err := billingSvc.EnsureBuiltinFeatures(context.Background()); err != nil {
+		log.Warn("billing_builtin_features_failed", "error", err)
+	}
+	orgSvc.SetTrialStarter(billingSvc)
+	billingmodule.RegisterRoutes(mux, billingSvc, tokens, loader, deps.Queries)
 	jobsSvc := jobsusecase.New(deps.DB, deps.Queries, activityRec, financeSvc, cariSvc)
 	jobsSvc.SetEntitlements(entitlementsSvc)
 	jobsSvc.SetSearchIndexer(searchIndexer)

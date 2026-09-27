@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { isLimitError } from "@/lib/api/limit-events";
+
 import {
   staffService,
   type CreateStaffInput,
@@ -46,8 +48,10 @@ export function useStaffMutations() {
         void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("staff.toast.created"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("staff.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("staff.toast.failed"));
+      },
     }),
     patch: useMutation({
       mutationFn: ({
@@ -61,22 +65,21 @@ export function useStaffMutations() {
         invalidate();
         toast.success(t("staff.toast.updated"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("staff.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("staff.toast.failed"));
+      },
     }),
     resetPassword: useMutation({
-      mutationFn: ({
-        uuid,
-        password,
-      }: {
-        uuid: string;
-        password: string;
-      }) => staffService.resetPassword(uuid, { password }),
+      mutationFn: ({ uuid, password }: { uuid: string; password: string }) =>
+        staffService.resetPassword(uuid, { password }),
       onSuccess: () => {
         toast.success(t("staff.toast.password_reset"));
       },
-      onError: (err: Error) =>
-        toast.error(err.message || t("staff.toast.failed")),
+      onError: (err: Error) => {
+        if (isLimitError(err)) return; // LimitReachedDialog handles it
+        toast.error(err.message || t("staff.toast.failed"));
+      },
     }),
   };
 }
