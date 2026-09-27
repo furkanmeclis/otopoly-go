@@ -1,4 +1,9 @@
 export { PlansPage } from "./components/plans-page";
+export { PaymentsPage } from "./components/payments-page";
+export { SubscriptionsPage } from "./components/subscriptions-page";
+export { DiscountCodesPage } from "./components/discount-codes-page";
+export { PaymentSettingsPage } from "./components/settings-page";
+export { PaymentsNavAdornment } from "./nav";
 export {
   platformBillingKeys,
   usePlatformBillingAccess,

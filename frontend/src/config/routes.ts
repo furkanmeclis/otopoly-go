@@ -179,6 +179,10 @@ export const routes = {
     billing: {
       root: "/platform/billing",
       plans: "/platform/billing/plans",
+      payments: "/platform/billing/payments",
+      subscriptions: "/platform/billing/subscriptions",
+      discountCodes: "/platform/billing/discount-codes",
+      settings: "/platform/billing/settings",
     },
     access: {
       root: "/platform/access",

@@ -31,6 +31,10 @@ import {
   Megaphone,
   FileSignature,
   CreditCard,
+  Banknote,
+  CalendarClock,
+  TicketPercent,
+  Landmark,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -44,6 +48,7 @@ import { usersNavItem } from "@/features/users/nav";
 import { TodosNavAdornment } from "@/features/todos/nav";
 import { LeadsNavAdornment } from "@/features/leads/nav";
 import { QuotesNavAdornment } from "@/features/quotes/nav";
+import { PaymentsNavAdornment } from "@/features/platform-billing/nav";
 
 export const platformNav = defineNav({
   id: "platform",
@@ -148,10 +153,39 @@ export const platformNav = defineNav({
       defaultOpen: true,
       items: [
         {
+          id: "billing-payments",
+          titleKey: "layout.nav_billing_payments",
+          href: routes.platform.billing.payments,
+          icon: Banknote,
+          permission: permissions.platformBilling.read,
+          Adornment: PaymentsNavAdornment,
+        },
+        {
+          id: "billing-subscriptions",
+          titleKey: "layout.nav_billing_subscriptions",
+          href: routes.platform.billing.subscriptions,
+          icon: CalendarClock,
+          permission: permissions.platformBilling.read,
+        },
+        {
           id: "billing-plans",
           titleKey: "layout.nav_billing_plans",
           href: routes.platform.billing.plans,
           icon: CreditCard,
+          permission: permissions.platformBilling.read,
+        },
+        {
+          id: "billing-discount-codes",
+          titleKey: "layout.nav_billing_discount_codes",
+          href: routes.platform.billing.discountCodes,
+          icon: TicketPercent,
+          permission: permissions.platformBilling.read,
+        },
+        {
+          id: "billing-settings",
+          titleKey: "layout.nav_billing_settings",
+          href: routes.platform.billing.settings,
+          icon: Landmark,
           permission: permissions.platformBilling.read,
         },
       ],

@@ -12,6 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { permissions } from "@/config/permissions";
+import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
+import { OrderStatusCard } from "@/features/billing/components/order-status-card";
+import { OrdersHistory } from "@/features/billing/components/orders-history";
 import { UsageMeter } from "@/features/billing/components/usage-meter";
 import {
   useBillingAccess,
@@ -51,6 +54,14 @@ export function SubscriptionPage() {
   const overview = useBillingOverview(access.canRead);
   const plans = useBillingPlans(access.canRead);
   const [period, setPeriod] = useState<SubscriptionPeriod>("monthly");
+  const [checkoutPlan, setCheckoutPlan] = useState<BillingPlan | null>(null);
+  const openOrder = overview.data?.open_order ?? null;
+  const sub = overview.data?.subscription ?? null;
+  const purchase = {
+    canWrite: access.canWrite,
+    hasOpenOrder: Boolean(openOrder),
+    onSelect: (plan: BillingPlan) => setCheckoutPlan(plan),
+  };
 
   return (
     <EntityPage
@@ -66,6 +77,9 @@ export function SubscriptionPage() {
         </div>
       ) : overview.data ? (
         <div className="space-y-6">
+          {openOrder ? (
+            <OrderStatusCard order={openOrder} canWrite={access.canWrite} />
+          ) : null}
           <PlanCard overview={overview.data} />
           <div className="grid gap-6 lg:grid-cols-2">
             <UsageCard meters={overview.data.meters} />
@@ -92,9 +106,15 @@ export function SubscriptionPage() {
               </Tabs>
             }
           >
-            <p className="text-muted-foreground mb-4 text-sm">
-              {t("billing.plans.description")}
-            </p>
+            {!access.canWrite ? (
+              <p className="text-muted-foreground mb-4 text-sm">
+                {t("billing.checkout.owner_only")}
+              </p>
+            ) : openOrder ? (
+              <p className="text-muted-foreground mb-4 text-sm">
+                {t("billing.checkout.open_order_hint")}
+              </p>
+            ) : null}
             {plans.isLoading ? (
               <Skeleton className="h-40 w-full" />
             ) : plans.data && plans.data.length > 0 ? (
@@ -104,9 +124,13 @@ export function SubscriptionPage() {
                     key={plan.uuid}
                     plan={plan}
                     period={period}
-                    current={
-                      overview.data?.subscription?.plan_code === plan.code
+                    current={sub?.plan_code === plan.code}
+                    renewable={
+                      sub?.plan_code === plan.code &&
+                      sub?.period === period &&
+                      sub?.status !== "trial"
                     }
+                    purchase={purchase}
                   />
                 ))}
               </div>
@@ -114,6 +138,13 @@ export function SubscriptionPage() {
               <EmptyState title={t("billing.plans.empty")} />
             )}
           </EntitySectionCard>
+          <OrdersHistory />
+          <CheckoutDialog
+            plan={checkoutPlan}
+            defaultPeriod={period}
+            open={checkoutPlan !== null}
+            onOpenChange={(open) => !open && setCheckoutPlan(null)}
+          />
         </div>
       ) : (
         <EmptyState title={t("billing.no_subscription")} />
@@ -165,6 +196,20 @@ function PlanCard({ overview }: { overview: BillingOverview }) {
               ? t("billing.expired")
               : t("billing.days_left", { days: sub.days_left })}
           </dd>
+          {Number.parseFloat(sub.credit_balance) > 0 ? (
+            <>
+              <dt className="text-muted-foreground" />
+              <dd className="col-span-1 text-emerald-700 sm:col-span-2 dark:text-emerald-400">
+                {t("billing.credit_balance", {
+                  amount: formatFinanceAmount(
+                    sub.credit_balance,
+                    "TRY",
+                    locale,
+                  ),
+                })}
+              </dd>
+            </>
+          ) : null}
         </dl>
       </div>
     </EntitySectionCard>
@@ -234,14 +279,24 @@ function FeatureState({ on }: { on: boolean }) {
   );
 }
 
+type Purchase = {
+  canWrite: boolean;
+  hasOpenOrder: boolean;
+  onSelect: (plan: BillingPlan) => void;
+};
+
 function PlanOffer({
   plan,
   period,
   current,
+  renewable,
+  purchase,
 }: {
   plan: BillingPlan;
   period: SubscriptionPeriod;
   current: boolean;
+  renewable: boolean;
+  purchase: Purchase;
 }) {
   const { t, locale } = useLocale();
   const price =
@@ -292,8 +347,17 @@ function PlanOffer({
           <li key={f.key}>{planFeatureLine(f, locale, t)}</li>
         ))}
       </ul>
-      <Button variant={current ? "secondary" : "default"} disabled>
-        {current ? t("billing.plans.current") : t("billing.plans.coming_soon")}
+      {current && !renewable ? (
+        <p className="text-muted-foreground text-center text-xs">
+          {t("billing.plans.current")}
+        </p>
+      ) : null}
+      <Button
+        variant={current ? "secondary" : "default"}
+        disabled={!purchase.canWrite || purchase.hasOpenOrder}
+        onClick={() => purchase.onSelect(plan)}
+      >
+        {renewable ? t("billing.checkout.renew") : t("billing.checkout.select")}
       </Button>
     </div>
   );

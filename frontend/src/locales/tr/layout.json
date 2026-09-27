@@ -65,5 +65,9 @@
   "nav_quotes": "Teklifler",
   "nav_billing": "Abonelik",
   "section_billing": "Abonelik",
-  "nav_billing_plans": "Planlar"
+  "nav_billing_plans": "Planlar",
+  "nav_billing_payments": "Ödemeler",
+  "nav_billing_subscriptions": "Abonelikler",
+  "nav_billing_discount_codes": "İndirim kodları",
+  "nav_billing_settings": "Ödeme ayarları"
 }
