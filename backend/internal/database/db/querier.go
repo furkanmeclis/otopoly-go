@@ -22,6 +22,12 @@ type Querier interface {
 	AdjustProductStockByID(ctx context.Context, arg AdjustProductStockByIDParams) error
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
 	AttachAIPendingActionsToMessage(ctx context.Context, arg AttachAIPendingActionsToMessageParams) error
+	BillingApprovedThisMonth(ctx context.Context, arg BillingApprovedThisMonthParams) (BillingApprovedThisMonthRow, error)
+	BillingDiscountSummaries(ctx context.Context) ([]BillingDiscountSummariesRow, error)
+	BillingExpiringCounts(ctx context.Context, arg BillingExpiringCountsParams) (BillingExpiringCountsRow, error)
+	BillingPlanDistribution(ctx context.Context) ([]BillingPlanDistributionRow, error)
+	BillingSubscriptionStatusCounts(ctx context.Context) (BillingSubscriptionStatusCountsRow, error)
+	BillingTrialConversion(ctx context.Context, sinceAt pgtype.Timestamptz) (BillingTrialConversionRow, error)
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
@@ -39,6 +45,7 @@ type Querier interface {
 	ClaimVehicleAlertFlush(ctx context.Context, organizationID int64) (int64, error)
 	ClearAppSettingsLogo(ctx context.Context) (AppSetting, error)
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
+	ClearOrganizationAccessEnd(ctx context.Context, id int64) error
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
 	CloseSubscription(ctx context.Context, arg CloseSubscriptionParams) error
 	ConfirmUserTOTP(ctx context.Context, arg ConfirmUserTOTPParams) (UserTotp, error)
@@ -449,6 +456,7 @@ type Querier interface {
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) (OutboxEvent, error)
 	InsertPlanFeature(ctx context.Context, arg InsertPlanFeatureParams) error
 	InsertQueuedOutboundMessage(ctx context.Context, arg InsertQueuedOutboundMessageParams) (OutboundMessage, error)
+	InsertReminderLog(ctx context.Context, arg InsertReminderLogParams) (int64, error)
 	InsertRolePermission(ctx context.Context, arg InsertRolePermissionParams) error
 	// Inserts a notification slot. A conflicting cancelled row is revived (a
 	// reschedule back to the same slot); any other conflict returns no row, which
@@ -529,6 +537,7 @@ type Querier interface {
 	ListImportJobsForOrganization(ctx context.Context, arg ListImportJobsForOrganizationParams) ([]ImportJob, error)
 	ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]ListInvoicesRow, error)
 	ListInvoicesForOrg(ctx context.Context, arg ListInvoicesForOrgParams) ([]ListInvoicesForOrgRow, error)
+	ListInvoicesForOrgAdmin(ctx context.Context, organizationID int64) ([]ListInvoicesForOrgAdminRow, error)
 	ListJobConsumptions(ctx context.Context, arg ListJobConsumptionsParams) ([]ListJobConsumptionsRow, error)
 	ListLeadEvents(ctx context.Context, arg ListLeadEventsParams) ([]ListLeadEventsRow, error)
 	ListLeadQuotes(ctx context.Context, arg ListLeadQuotesParams) ([]ListLeadQuotesRow, error)
@@ -543,7 +552,9 @@ type Querier interface {
 	ListOAuthAccountsForUserIDs(ctx context.Context, userIds []int64) ([]ListOAuthAccountsForUserIDsRow, error)
 	ListOAuthProviderSettings(ctx context.Context) ([]OauthProviderSetting, error)
 	ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListOrdersRow, error)
+	ListOrdersExpiringWithin(ctx context.Context, arg ListOrdersExpiringWithinParams) ([]ListOrdersExpiringWithinRow, error)
 	ListOrdersForOrg(ctx context.Context, arg ListOrdersForOrgParams) ([]ListOrdersForOrgRow, error)
+	ListOrdersForOrgAdmin(ctx context.Context, organizationID int64) ([]ListOrdersForOrgAdminRow, error)
 	ListOrgMemberOptions(ctx context.Context, organizationID int64) ([]ListOrgMemberOptionsRow, error)
 	ListOrganizationIDs(ctx context.Context) ([]int64, error)
 	ListOrganizationMemberOptions(ctx context.Context, organizationID int64) ([]ListOrganizationMemberOptionsRow, error)
@@ -616,7 +627,12 @@ type Querier interface {
 	ListStorageStarsByUser(ctx context.Context, userID int64) ([]StorageStar, error)
 	ListStorageTrash(ctx context.Context, arg ListStorageTrashParams) ([]StorageTrash, error)
 	ListStuckProcessingNotificationIDs(ctx context.Context, staleMinutes int32) ([]int64, error)
+	ListSubscriptionHistoryForOrg(ctx context.Context, organizationID int64) ([]ListSubscriptionHistoryForOrgRow, error)
 	ListSubscriptionsAdmin(ctx context.Context, arg ListSubscriptionsAdminParams) ([]ListSubscriptionsAdminRow, error)
+	ListSubscriptionsEndingOn(ctx context.Context, arg ListSubscriptionsEndingOnParams) ([]ListSubscriptionsEndingOnRow, error)
+	// Billing lifecycle transitions, reminder idempotency and dashboard queries.
+	ListSubscriptionsToGrace(ctx context.Context, nowAt pgtype.Timestamptz) ([]ListSubscriptionsToGraceRow, error)
+	ListSubscriptionsToReadOnly(ctx context.Context, nowAt pgtype.Timestamptz) ([]ListSubscriptionsToReadOnlyRow, error)
 	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
 	ListSuppliersForExport(ctx context.Context, arg ListSuppliersForExportParams) ([]Supplier, error)
 	ListSuppliersForSearch(ctx context.Context) ([]ListSuppliersForSearchRow, error)
@@ -624,6 +640,7 @@ type Querier interface {
 	// scope: overdue | today | upcoming | no_date | open_due (overdue + today); today is the local date.
 	ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTodosRow, error)
 	ListUsageCounters(ctx context.Context, arg ListUsageCountersParams) ([]ListUsageCountersRow, error)
+	ListUsageMetersForOrgAdmin(ctx context.Context, organizationID int64) ([]ListUsageMetersForOrgAdminRow, error)
 	ListUserRoleSlugs(ctx context.Context, userID int64) ([]string, error)
 	ListUserRolesByUserID(ctx context.Context, userID int64) ([]Role, error)
 	ListUserRolesByUserUUID(ctx context.Context, argUuid uuid.UUID) ([]Role, error)
@@ -677,6 +694,8 @@ type Querier interface {
 	MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaidParams) (ServiceJob, error)
 	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
 	MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicleAlertEventsSentParams) error
+	MoveToGrace(ctx context.Context, arg MoveToGraceParams) (BillingSubscription, error)
+	MoveToReadOnly(ctx context.Context, id int64) (BillingSubscription, error)
 	NextContractInstanceNumber(ctx context.Context, organizationID int64) (int32, error)
 	// Billing invoices, invoice profiles and seller/XSLT settings.
 	// Single atomic upsert: row lock on conflict serialises concurrent callers.

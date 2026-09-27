@@ -107,6 +107,7 @@ type Overview struct {
 	Plan         *Plan             `json:"plan"`
 	Meters       []UsageMeter      `json:"meters"`
 	OpenOrder    *Order            `json:"open_order"`
+	ReadOnly     bool              `json:"read_only"`
 }
 
 type SubscriptionView struct {
@@ -231,6 +232,7 @@ type AdminSubscription struct {
 	Status        string          `json:"status"`
 	StartsAt      time.Time       `json:"starts_at"`
 	EndsAt        time.Time       `json:"ends_at"`
+	GraceEndsAt   *time.Time      `json:"grace_ends_at"`
 	DaysLeft      int             `json:"days_left"`
 	PricePaid     string          `json:"price_paid"`
 	CreditBalance string          `json:"credit_balance"`
@@ -253,6 +255,79 @@ type AdminSubscriptionPatch struct {
 	EndsAt   *time.Time `json:"ends_at"`
 	PlanUUID *uuid.UUID `json:"plan_uuid"`
 	Note     string     `json:"note"`
+}
+
+type AdminSubscriptionFilters struct {
+	Status             string
+	Q                  string
+	PlanUUID           *uuid.UUID
+	ExpiringWithinDays int32
+}
+
+type DashboardCounts struct {
+	Trial    int64 `json:"trial"`
+	Active   int64 `json:"active"`
+	Grace    int64 `json:"grace"`
+	ReadOnly int64 `json:"read_only"`
+}
+
+type DashboardPlan struct {
+	Code  string `json:"code"`
+	Name  string `json:"name"`
+	Count int64  `json:"count"`
+}
+
+type DashboardAmount struct {
+	Count  int64  `json:"count"`
+	Amount string `json:"amount"`
+}
+
+type DashboardExpiring struct {
+	Within7  int64 `json:"within_7"`
+	Within30 int64 `json:"within_30"`
+}
+
+type DashboardTrialConversion struct {
+	Trials90d    int64   `json:"trials_90d"`
+	Converted90d int64   `json:"converted_90d"`
+	Rate         float64 `json:"rate"`
+}
+
+type DashboardDiscount struct {
+	Code          string `json:"code"`
+	Uses          int64  `json:"uses"`
+	DiscountTotal string `json:"discount_total"`
+	Revenue       string `json:"revenue"`
+}
+
+type BillingDashboard struct {
+	Counts            DashboardCounts          `json:"counts"`
+	Plans             []DashboardPlan          `json:"plans"`
+	ApprovedThisMonth DashboardAmount          `json:"approved_this_month"`
+	Orders            OrdersSummary            `json:"orders"`
+	Expiring          DashboardExpiring        `json:"expiring"`
+	TrialConversion   DashboardTrialConversion `json:"trial_conversion"`
+	Discounts         []DashboardDiscount      `json:"discounts"`
+}
+
+type AdminUsageMeter struct {
+	Key       string    `json:"key"`
+	Kind      string    `json:"kind"`
+	Unit      string    `json:"unit"`
+	Period    string    `json:"period"`
+	PeriodKey string    `json:"period_key"`
+	Used      int64     `json:"used"`
+	LabelTR   string    `json:"label_tr"`
+	LabelEN   string    `json:"label_en"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AdminSubscriptionDetail struct {
+	Subscription AdminSubscription   `json:"subscription"`
+	History      []AdminSubscription `json:"history"`
+	Orders       []Order             `json:"orders"`
+	Invoices     []Invoice           `json:"invoices"`
+	Meters       []AdminUsageMeter   `json:"meters"`
 }
 
 type InvoiceProfile struct {

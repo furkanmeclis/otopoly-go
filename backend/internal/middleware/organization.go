@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
@@ -86,6 +87,11 @@ func RequireOrganizationResolver(tokens *jwt.Manager, resolver OrganizationResol
 					"Organization access has expired")
 				return
 			}
+			if row.SubscriptionStatus == "read_only" && !readOnlyAllowed(r.Method, r.URL.Path) {
+				response.Error(w, r, http.StatusForbidden, response.CodeSubscriptionReadOnly,
+					"Abonelik salt okunur modda. Yeni kayıt açmak için aboneliğinizi yenileyin.")
+				return
+			}
 			scope := orgctx.Scope{
 				InternalID: row.OrganizationID,
 				UUID:       row.OrganizationUuid,
@@ -96,6 +102,14 @@ func RequireOrganizationResolver(tokens *jwt.Manager, resolver OrganizationResol
 			next.ServeHTTP(w, r.WithContext(orgctx.WithScope(r.Context(), scope)))
 		})
 	}
+}
+
+func readOnlyAllowed(method, path string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions:
+		return true
+	}
+	return strings.HasPrefix(path, "/v1/tenant/billing/") || strings.HasPrefix(path, "/v1/tenant/exports/")
 }
 
 // RequireOrgRole allows only members with one of the given roles (owner, staff).

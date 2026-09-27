@@ -23,7 +23,7 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	sub, err := s.q.GetLiveSubscription(ctx, scope.InternalID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return Overview{Meters: []UsageMeter{}, OpenOrder: open}, nil
+		return Overview{Meters: []UsageMeter{}, OpenOrder: open}, nil
 		}
 		return Overview{}, err
 	}
@@ -45,7 +45,7 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	if err != nil {
 		return Overview{}, err
 	}
-	return Overview{Subscription: &view, Plan: &plan, Meters: meters, OpenOrder: open}, nil
+	return Overview{Subscription: &view, Plan: &plan, Meters: meters, OpenOrder: open, ReadOnly: sub.Status == "read_only"}, nil
 }
 
 func (s *Service) openOrderForOverview(ctx context.Context, orgID int64) (*Order, error) {

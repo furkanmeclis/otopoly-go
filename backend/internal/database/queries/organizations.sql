@@ -115,9 +115,17 @@ WHERE om.user_id = $1 AND o.slug = $2;
 -- name: GetOrganizationMemberByUserAndOrgUUID :one
 SELECT om.id, om.organization_id, om.user_id, om.role, om.created_at,
        o.uuid AS organization_uuid, o.slug AS organization_slug, o.status AS organization_status,
-       o.access_starts_at, o.access_ends_at, o.name AS organization_name
+       o.access_starts_at, o.access_ends_at, o.name AS organization_name,
+       COALESCE(live.status, '') AS subscription_status
 FROM organization_members om
 JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
+LEFT JOIN LATERAL (
+    SELECT s.status
+    FROM billing_subscriptions s
+    WHERE s.organization_id = o.id AND s.status IN ('trial', 'active', 'grace', 'read_only')
+    ORDER BY s.created_at DESC, s.id DESC
+    LIMIT 1
+) live ON TRUE
 WHERE om.user_id = $1 AND o.uuid = $2;
 
 -- name: ListOrganizationMembersByUserID :many

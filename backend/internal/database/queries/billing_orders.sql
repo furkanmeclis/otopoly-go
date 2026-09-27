@@ -227,6 +227,15 @@ FROM (
 JOIN billing_plans p ON p.id = latest.plan_id
 JOIN organizations org ON org.id = latest.organization_id
 WHERE (sqlc.arg(status)::text = '' OR latest.status = sqlc.arg(status)::text)
+    AND (sqlc.narg(plan_uuid)::uuid IS NULL OR p.uuid = sqlc.narg(plan_uuid)::uuid)
+    AND (
+        sqlc.narg(expiring_until)::timestamptz IS NULL
+        OR (
+            latest.status IN ('trial', 'active')
+            AND latest.ends_at > NOW()
+            AND latest.ends_at <= sqlc.narg(expiring_until)::timestamptz
+        )
+    )
     AND (
         sqlc.arg(q)::text = ''
         OR org.name ILIKE '%' || sqlc.arg(q)::text || '%'
@@ -242,8 +251,18 @@ FROM (
     FROM billing_subscriptions
     ORDER BY organization_id, created_at DESC
 ) latest
+JOIN billing_plans p ON p.id = latest.plan_id
 JOIN organizations org ON org.id = latest.organization_id
 WHERE (sqlc.arg(status)::text = '' OR latest.status = sqlc.arg(status)::text)
+    AND (sqlc.narg(plan_uuid)::uuid IS NULL OR p.uuid = sqlc.narg(plan_uuid)::uuid)
+    AND (
+        sqlc.narg(expiring_until)::timestamptz IS NULL
+        OR (
+            latest.status IN ('trial', 'active')
+            AND latest.ends_at > NOW()
+            AND latest.ends_at <= sqlc.narg(expiring_until)::timestamptz
+        )
+    )
     AND (
         sqlc.arg(q)::text = ''
         OR org.name ILIKE '%' || sqlc.arg(q)::text || '%'
@@ -273,6 +292,8 @@ WHERE id = sqlc.arg(id);
 UPDATE billing_subscriptions
 SET ends_at = COALESCE(sqlc.narg(ends_at), ends_at),
     plan_id = COALESCE(sqlc.narg(plan_id), plan_id),
+    status = COALESCE(sqlc.narg(status), status),
+    grace_ends_at = CASE WHEN sqlc.narg(clear_grace)::boolean THEN NULL ELSE grace_ends_at END,
     note = CASE
         WHEN sqlc.arg(note)::text = '' THEN note
         WHEN note = '' THEN sqlc.arg(note)::text

@@ -547,6 +547,19 @@ func mapInvoiceList(row db.ListInvoicesRow) Invoice {
 	return out
 }
 
+func invoiceFromOrgAdminRow(row db.ListInvoicesForOrgAdminRow) Invoice {
+	out := mapInvoiceBase(db.BillingInvoice{
+		ID: row.ID, Uuid: row.Uuid, OrganizationID: row.OrganizationID, OrderID: row.OrderID, Number: row.Number,
+		IssueDate: row.IssueDate, Profile: row.Profile, Type: row.Type, Buyer: row.Buyer, Seller: row.Seller,
+		Lines: row.Lines, Subtotal: row.Subtotal, DiscountTotal: row.DiscountTotal, VatTotal: row.VatTotal,
+		GrandTotal: row.GrandTotal, XmlObjectKey: row.XmlObjectKey, PdfObjectKey: row.PdfObjectKey,
+		XsltVersion: row.XsltVersion, Status: row.Status, Error: row.Error, VoidedAt: row.VoidedAt,
+		VoidedBy: row.VoidedBy, CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt,
+	}, row.OrderUuid, row.OrderReference)
+	out.Organization = &OrganizationRef{UUID: row.OrganizationUuid, Slug: row.OrganizationSlug, Name: row.OrganizationName}
+	return out
+}
+
 func mapInvoiceBase(row db.BillingInvoice, orderUUID uuid.UUID, orderReference string) Invoice {
 	var buyer billinginvoice.Party
 	_ = json.Unmarshal(row.Buyer, &buyer)

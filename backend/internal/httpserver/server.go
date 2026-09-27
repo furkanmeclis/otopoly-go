@@ -803,6 +803,14 @@ type billingNotifier struct {
 }
 
 func (n *billingNotifier) NotifyOrganization(ctx context.Context, orgID int64, title, body, link string) {
+	n.notifyOrganization(ctx, orgID, title, body, link, []string{notifmodel.ChannelInapp})
+}
+
+func (n *billingNotifier) NotifyOrganizationEmail(ctx context.Context, orgID int64, title, body, link string) {
+	n.notifyOrganization(ctx, orgID, title, body, link, []string{notifmodel.ChannelInapp, notifmodel.ChannelEmail})
+}
+
+func (n *billingNotifier) notifyOrganization(ctx context.Context, orgID int64, title, body, link string, channels []string) {
 	if n == nil || n.pool == nil || n.notifications == nil {
 		return
 	}
@@ -823,7 +831,7 @@ func (n *billingNotifier) NotifyOrganization(ctx context.Context, orgID int64, t
 			n.log.Warn("billing_notify_org_scan_failed", "org_id", orgID, "error", err)
 			continue
 		}
-		n.enqueue(ctx, userID, title, body, link)
+		n.enqueue(ctx, userID, title, body, link, channels)
 	}
 }
 
@@ -851,18 +859,18 @@ func (n *billingNotifier) NotifyPlatform(ctx context.Context, title, body, link 
 			n.log.Warn("billing_notify_platform_scan_failed", "error", err)
 			continue
 		}
-		n.enqueue(ctx, userID, title, body, link)
+		n.enqueue(ctx, userID, title, body, link, []string{notifmodel.ChannelInapp})
 	}
 }
 
-func (n *billingNotifier) enqueue(ctx context.Context, userID int64, title, body, link string) {
+func (n *billingNotifier) enqueue(ctx context.Context, userID int64, title, body, link string, channels []string) {
 	action := link
 	if action == "" {
 		action = "/platform/billing/payments"
 	}
 	if _, err := n.notifications.Enqueue(ctx, notifmodel.EnqueueInput{
 		UserID:      &userID,
-		Channels:    []string{notifmodel.ChannelInapp},
+		Channels:    channels,
 		Priority:    notifmodel.PriorityHigh,
 		Title:       title,
 		Body:        body,

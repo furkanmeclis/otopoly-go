@@ -13,16 +13,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (s *Service) ListSubscriptionsAdmin(ctx context.Context, status, q string, limit, offset int32) ([]AdminSubscription, int64, error) {
+func (s *Service) ListSubscriptionsAdmin(ctx context.Context, filters AdminSubscriptionFilters, limit, offset int32) ([]AdminSubscription, int64, error) {
 	limit, offset = normalizeLimitOffset(limit, offset)
-	status = strings.TrimSpace(status)
+	status := strings.TrimSpace(filters.Status)
+	var planUUID pgtype.UUID
+	if filters.PlanUUID != nil && *filters.PlanUUID != uuid.Nil {
+		planUUID = pgtype.UUID{Bytes: *filters.PlanUUID, Valid: true}
+	}
+	var expiringUntil pgtype.Timestamptz
+	if filters.ExpiringWithinDays > 0 {
+		expiringUntil = pgTimeValue(time.Now().UTC().AddDate(0, 0, int(filters.ExpiringWithinDays)))
+	}
 	rows, err := s.q.ListSubscriptionsAdmin(ctx, db.ListSubscriptionsAdminParams{
-		Status: status, Q: strings.TrimSpace(q), Limit: limit, Offset: offset,
+		Status: status, PlanUuid: planUUID, ExpiringUntil: expiringUntil,
+		Q: strings.TrimSpace(filters.Q), Limit: limit, Offset: offset,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
-	total, err := s.q.CountSubscriptionsAdmin(ctx, db.CountSubscriptionsAdminParams{Status: status, Q: strings.TrimSpace(q)})
+	total, err := s.q.CountSubscriptionsAdmin(ctx, db.CountSubscriptionsAdminParams{
+		Status: status, PlanUuid: planUUID, ExpiringUntil: expiringUntil, Q: strings.TrimSpace(filters.Q),
+	})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -149,8 +160,22 @@ func (s *Service) UpdateSubscriptionAdmin(ctx context.Context, id uuid.UUID, in 
 	if in.EndsAt != nil {
 		endsAt = pgTimeValue(*in.EndsAt)
 	}
+	var statusUpdate pgtype.Text
+	clearGrace := pgtype.Bool{}
+	effectiveEnds := current.EndsAt.Time
+	if in.EndsAt != nil {
+		effectiveEnds = *in.EndsAt
+	}
+	if effectiveEnds.After(time.Now().UTC()) && (current.Status == "grace" || current.Status == "read_only" || current.Status == "trial" || current.Status == "active") {
+		newStatus := "active"
+		if planCode == "trial" {
+			newStatus = "trial"
+		}
+		statusUpdate = pgtype.Text{String: newStatus, Valid: true}
+		clearGrace = pgtype.Bool{Bool: true, Valid: true}
+	}
 	updated, err := qtx.UpdateSubscriptionAdmin(ctx, db.UpdateSubscriptionAdminParams{
-		Uuid: id, EndsAt: endsAt, PlanID: planID, Note: strings.TrimSpace(in.Note),
+		Uuid: id, EndsAt: endsAt, PlanID: planID, Status: statusUpdate, ClearGrace: clearGrace, Note: strings.TrimSpace(in.Note),
 	})
 	if err != nil {
 		return AdminSubscription{}, err
@@ -193,7 +218,7 @@ func organizationByUUID(ctx context.Context, tx pgx.Tx, id uuid.UUID) (orgRow, e
 }
 
 func adminSubscriptionFromList(row db.ListSubscriptionsAdminRow) AdminSubscription {
-	return AdminSubscription{
+	out := AdminSubscription{
 		UUID:         row.Uuid,
 		Organization: OrganizationRef{UUID: row.OrganizationUuid, Slug: row.OrganizationSlug, Name: row.OrganizationName},
 		Plan:         PlanRef{UUID: row.PlanUuid, Code: row.PlanCode, Name: row.PlanName},
@@ -201,10 +226,15 @@ func adminSubscriptionFromList(row db.ListSubscriptionsAdminRow) AdminSubscripti
 		DaysLeft: daysLeft(row.EndsAt.Time, timeNow()), PricePaid: numericString(row.PricePaid),
 		CreditBalance: numericString(row.CreditBalance), Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
 	}
+	if row.GraceEndsAt.Valid {
+		t := row.GraceEndsAt.Time
+		out.GraceEndsAt = &t
+	}
+	return out
 }
 
 func adminSubscriptionFromGet(row db.GetSubscriptionByUUIDRow) AdminSubscription {
-	return AdminSubscription{
+	out := AdminSubscription{
 		UUID:         row.Uuid,
 		Organization: OrganizationRef{UUID: row.OrganizationUuid, Slug: row.OrganizationSlug, Name: row.OrganizationName},
 		Plan:         PlanRef{UUID: row.PlanUuid, Code: row.PlanCode, Name: row.PlanName},
@@ -212,6 +242,27 @@ func adminSubscriptionFromGet(row db.GetSubscriptionByUUIDRow) AdminSubscription
 		DaysLeft: daysLeft(row.EndsAt.Time, timeNow()), PricePaid: numericString(row.PricePaid),
 		CreditBalance: numericString(row.CreditBalance), Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
 	}
+	if row.GraceEndsAt.Valid {
+		t := row.GraceEndsAt.Time
+		out.GraceEndsAt = &t
+	}
+	return out
+}
+
+func adminSubscriptionFromHistory(row db.ListSubscriptionHistoryForOrgRow) AdminSubscription {
+	out := AdminSubscription{
+		UUID:         row.Uuid,
+		Organization: OrganizationRef{UUID: row.OrganizationUuid, Slug: row.OrganizationSlug, Name: row.OrganizationName},
+		Plan:         PlanRef{UUID: row.PlanUuid, Code: row.PlanCode, Name: row.PlanName},
+		Period:       row.Period, Status: row.Status, StartsAt: row.StartsAt.Time, EndsAt: row.EndsAt.Time,
+		DaysLeft: daysLeft(row.EndsAt.Time, timeNow()), PricePaid: numericString(row.PricePaid),
+		CreditBalance: numericString(row.CreditBalance), Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
+	}
+	if row.GraceEndsAt.Valid {
+		t := row.GraceEndsAt.Time
+		out.GraceEndsAt = &t
+	}
+	return out
 }
 
 func timeNow() time.Time { return time.Now() }

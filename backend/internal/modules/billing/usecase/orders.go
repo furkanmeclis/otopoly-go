@@ -565,6 +565,25 @@ func (s *Service) orderFromAdminListRow(ctx context.Context, row db.ListOrdersRo
 	})
 }
 
+func (s *Service) orderFromOrgAdminRow(ctx context.Context, row db.ListOrdersForOrgAdminRow) (Order, error) {
+	return s.mapOrder(ctx, orderRecord{
+		Order: db.BillingOrder{
+			ID: row.ID, Uuid: row.Uuid, OrganizationID: row.OrganizationID, PlanID: row.PlanID,
+			Period: row.Period, Kind: row.Kind, Status: row.Status, Channel: row.Channel,
+			ReferenceCode: row.ReferenceCode, ListPrice: row.ListPrice, ProrationCredit: row.ProrationCredit,
+			DiscountCodeID: row.DiscountCodeID, DiscountCode: row.DiscountCode, DiscountAmount: row.DiscountAmount,
+			CreditApplied: row.CreditApplied, CreditSurplus: row.CreditSurplus, Total: row.Total,
+			VatRate: row.VatRate, VatAmount: row.VatAmount, Lines: row.Lines, StartsAt: row.StartsAt,
+			EndsAt: row.EndsAt, ReceiptObjectKey: row.ReceiptObjectKey, ReceiptContentType: row.ReceiptContentType,
+			ReportNote: row.ReportNote, ReportedAt: row.ReportedAt, ReviewedAt: row.ReviewedAt,
+			RejectReason: row.RejectReason, ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
+		},
+		PlanUUID: row.PlanUuid, PlanCode: row.PlanCode, PlanName: row.PlanName,
+		OrganizationUUID: row.OrganizationUuid, OrganizationSlug: row.OrganizationSlug,
+		OrganizationName: row.OrganizationName, IncludeOrganization: true,
+	})
+}
+
 func (s *Service) mapOrder(ctx context.Context, rec orderRecord) (Order, error) {
 	row := rec.Order
 	var lines []QuoteLine

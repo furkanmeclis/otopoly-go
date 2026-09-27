@@ -137,22 +137,39 @@ FROM (
     FROM billing_subscriptions
     ORDER BY organization_id, created_at DESC
 ) latest
+JOIN billing_plans p ON p.id = latest.plan_id
 JOIN organizations org ON org.id = latest.organization_id
 WHERE ($1::text = '' OR latest.status = $1::text)
+    AND ($2::uuid IS NULL OR p.uuid = $2::uuid)
     AND (
-        $2::text = ''
-        OR org.name ILIKE '%' || $2::text || '%'
-        OR org.slug ILIKE '%' || $2::text || '%'
+        $3::timestamptz IS NULL
+        OR (
+            latest.status IN ('trial', 'active')
+            AND latest.ends_at > NOW()
+            AND latest.ends_at <= $3::timestamptz
+        )
+    )
+    AND (
+        $4::text = ''
+        OR org.name ILIKE '%' || $4::text || '%'
+        OR org.slug ILIKE '%' || $4::text || '%'
     )
 `
 
 type CountSubscriptionsAdminParams struct {
-	Status string `json:"status"`
-	Q      string `json:"q"`
+	Status        string             `json:"status"`
+	PlanUuid      pgtype.UUID        `json:"plan_uuid"`
+	ExpiringUntil pgtype.Timestamptz `json:"expiring_until"`
+	Q             string             `json:"q"`
 }
 
 func (q *Queries) CountSubscriptionsAdmin(ctx context.Context, arg CountSubscriptionsAdminParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countSubscriptionsAdmin, arg.Status, arg.Q)
+	row := q.db.QueryRow(ctx, countSubscriptionsAdmin,
+		arg.Status,
+		arg.PlanUuid,
+		arg.ExpiringUntil,
+		arg.Q,
+	)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -1352,20 +1369,31 @@ FROM (
 JOIN billing_plans p ON p.id = latest.plan_id
 JOIN organizations org ON org.id = latest.organization_id
 WHERE ($1::text = '' OR latest.status = $1::text)
+    AND ($2::uuid IS NULL OR p.uuid = $2::uuid)
     AND (
-        $2::text = ''
-        OR org.name ILIKE '%' || $2::text || '%'
-        OR org.slug ILIKE '%' || $2::text || '%'
+        $3::timestamptz IS NULL
+        OR (
+            latest.status IN ('trial', 'active')
+            AND latest.ends_at > NOW()
+            AND latest.ends_at <= $3::timestamptz
+        )
+    )
+    AND (
+        $4::text = ''
+        OR org.name ILIKE '%' || $4::text || '%'
+        OR org.slug ILIKE '%' || $4::text || '%'
     )
 ORDER BY latest.created_at DESC, latest.id DESC
-LIMIT $4 OFFSET $3
+LIMIT $6 OFFSET $5
 `
 
 type ListSubscriptionsAdminParams struct {
-	Status string `json:"status"`
-	Q      string `json:"q"`
-	Offset int32  `json:"offset_"`
-	Limit  int32  `json:"limit_"`
+	Status        string             `json:"status"`
+	PlanUuid      pgtype.UUID        `json:"plan_uuid"`
+	ExpiringUntil pgtype.Timestamptz `json:"expiring_until"`
+	Q             string             `json:"q"`
+	Offset        int32              `json:"offset_"`
+	Limit         int32              `json:"limit_"`
 }
 
 type ListSubscriptionsAdminRow struct {
@@ -1397,6 +1425,8 @@ type ListSubscriptionsAdminRow struct {
 func (q *Queries) ListSubscriptionsAdmin(ctx context.Context, arg ListSubscriptionsAdminParams) ([]ListSubscriptionsAdminRow, error) {
 	rows, err := q.db.Query(ctx, listSubscriptionsAdmin,
 		arg.Status,
+		arg.PlanUuid,
+		arg.ExpiringUntil,
 		arg.Q,
 		arg.Offset,
 		arg.Limit,
@@ -1765,26 +1795,32 @@ const updateSubscriptionAdmin = `-- name: UpdateSubscriptionAdmin :one
 UPDATE billing_subscriptions
 SET ends_at = COALESCE($1, ends_at),
     plan_id = COALESCE($2, plan_id),
+    status = COALESCE($3, status),
+    grace_ends_at = CASE WHEN $4::boolean THEN NULL ELSE grace_ends_at END,
     note = CASE
-        WHEN $3::text = '' THEN note
-        WHEN note = '' THEN $3::text
-        ELSE note || E'\n' || $3::text
+        WHEN $5::text = '' THEN note
+        WHEN note = '' THEN $5::text
+        ELSE note || E'\n' || $5::text
     END
-WHERE uuid = $4
+WHERE uuid = $6
 RETURNING id, uuid, organization_id, plan_id, period, status, starts_at, ends_at, grace_ends_at, price_paid, credit_balance, custom_features, source, note, created_by, created_at, updated_at
 `
 
 type UpdateSubscriptionAdminParams struct {
-	EndsAt pgtype.Timestamptz `json:"ends_at"`
-	PlanID pgtype.Int8        `json:"plan_id"`
-	Note   string             `json:"note"`
-	Uuid   uuid.UUID          `json:"uuid"`
+	EndsAt     pgtype.Timestamptz `json:"ends_at"`
+	PlanID     pgtype.Int8        `json:"plan_id"`
+	Status     pgtype.Text        `json:"status"`
+	ClearGrace pgtype.Bool        `json:"clear_grace"`
+	Note       string             `json:"note"`
+	Uuid       uuid.UUID          `json:"uuid"`
 }
 
 func (q *Queries) UpdateSubscriptionAdmin(ctx context.Context, arg UpdateSubscriptionAdminParams) (BillingSubscription, error) {
 	row := q.db.QueryRow(ctx, updateSubscriptionAdmin,
 		arg.EndsAt,
 		arg.PlanID,
+		arg.Status,
+		arg.ClearGrace,
 		arg.Note,
 		arg.Uuid,
 	)

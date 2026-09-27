@@ -412,12 +412,54 @@ func (h *Handler) PlatformRejectOrder(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) PlatformListSubscriptions(w http.ResponseWriter, r *http.Request) {
 	limit, offset := paging(r)
-	items, total, err := h.svc.ListSubscriptionsAdmin(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("q"), limit, offset)
+	var planUUID *uuid.UUID
+	if raw := strings.TrimSpace(r.URL.Query().Get("plan_uuid")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(w, r, response.CodeValidationError, "plan_uuid is invalid")
+			return
+		}
+		planUUID = &id
+	}
+	var expiringWithin int32
+	if raw := strings.TrimSpace(r.URL.Query().Get("expiring_within_days")); raw != "" {
+		n, err := strconv.ParseInt(raw, 10, 32)
+		if err != nil || n < 0 {
+			response.BadRequest(w, r, response.CodeValidationError, "expiring_within_days is invalid")
+			return
+		}
+		expiringWithin = int32(n)
+	}
+	items, total, err := h.svc.ListSubscriptionsAdmin(r.Context(), billingusecase.AdminSubscriptionFilters{
+		Status: r.URL.Query().Get("status"), Q: r.URL.Query().Get("q"), PlanUUID: planUUID, ExpiringWithinDays: expiringWithin,
+	}, limit, offset)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 	response.JSON(w, r, http.StatusOK, listResponse(items, total, limit, offset))
+}
+
+func (h *Handler) PlatformDashboard(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.Dashboard(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformSubscriptionDetail(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.SubscriptionDetail(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
 }
 
 func (h *Handler) PlatformCreateSubscription(w http.ResponseWriter, r *http.Request) {

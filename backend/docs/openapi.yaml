@@ -7640,6 +7640,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/BadRequest" }
 
@@ -7657,6 +7659,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/billing/orders/{uuid}/report:
@@ -7683,6 +7687,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/billing/orders/{uuid}/cancel:
@@ -7699,6 +7705,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/billing/orders/{uuid}/receipt:
@@ -8016,6 +8024,21 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /v1/platform/billing/dashboard:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingDashboard
+      summary: Billing lifecycle dashboard
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Dashboard
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingDashboard" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
   /v1/platform/billing/subscriptions:
     get:
       tags: [Platform]
@@ -8025,6 +8048,8 @@ paths:
       parameters:
         - { name: status, in: query, schema: { type: string } }
         - { name: q, in: query, schema: { type: string } }
+        - { name: plan_uuid, in: query, schema: { type: string, format: uuid } }
+        - { name: expiring_within_days, in: query, schema: { type: integer, example: 7 } }
         - { name: limit, in: query, schema: { type: integer, default: 50 } }
         - { name: offset, in: query, schema: { type: integer, default: 0 } }
       responses:
@@ -8053,6 +8078,24 @@ paths:
               schema: { $ref: "#/components/schemas/EnvelopeBillingAdminSubscription" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/subscriptions/{uuid}/detail:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingSubscriptionDetail
+      summary: Get admin subscription detail
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Subscription detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingAdminSubscriptionDetail" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/platform/billing/subscriptions/{uuid}:
     patch:
@@ -12270,7 +12313,7 @@ components:
 
     BillingOverview:
       type: object
-      required: [subscription, plan, meters, open_order]
+      required: [subscription, plan, meters, open_order, read_only]
       properties:
         subscription: { anyOf: [{ $ref: "#/components/schemas/BillingSubscription" }, { type: "null" }] }
         plan: { anyOf: [{ $ref: "#/components/schemas/BillingPlan" }, { type: "null" }] }
@@ -12278,6 +12321,7 @@ components:
           type: array
           items: { $ref: "#/components/schemas/BillingUsageMeter" }
         open_order: { anyOf: [{ $ref: "#/components/schemas/BillingOrder" }, { type: "null" }] }
+        read_only: { type: boolean }
 
     BillingPlanRef:
       type: object
@@ -12526,7 +12570,7 @@ components:
 
     BillingAdminSubscription:
       type: object
-      required: [uuid, organization, plan, period, status, starts_at, ends_at, days_left, price_paid, credit_balance, source, note, created_at]
+      required: [uuid, organization, plan, period, status, starts_at, ends_at, grace_ends_at, days_left, price_paid, credit_balance, source, note, created_at]
       properties:
         uuid: { type: string, format: uuid }
         organization: { $ref: "#/components/schemas/BillingOrganizationRef" }
@@ -12535,6 +12579,7 @@ components:
         status: { type: string }
         starts_at: { type: string, format: date-time }
         ends_at: { type: string, format: date-time }
+        grace_ends_at: { type: [string, "null"], format: date-time }
         days_left: { type: integer }
         price_paid: { type: string }
         credit_balance: { type: string }
@@ -12571,6 +12616,90 @@ components:
         ends_at: { type: [string, "null"], format: date-time }
         plan_uuid: { type: [string, "null"], format: uuid }
         note: { type: string }
+
+    BillingDashboard:
+      type: object
+      required: [counts, plans, approved_this_month, orders, expiring, trial_conversion, discounts]
+      properties:
+        counts:
+          type: object
+          required: [trial, active, grace, read_only]
+          properties:
+            trial: { type: integer, format: int64 }
+            active: { type: integer, format: int64 }
+            grace: { type: integer, format: int64 }
+            read_only: { type: integer, format: int64 }
+        plans:
+          type: array
+          items:
+            type: object
+            required: [code, name, count]
+            properties:
+              code: { type: string }
+              name: { type: string }
+              count: { type: integer, format: int64 }
+        approved_this_month:
+          type: object
+          required: [count, amount]
+          properties:
+            count: { type: integer, format: int64 }
+            amount: { type: string }
+        orders: { $ref: "#/components/schemas/BillingOrdersSummary" }
+        expiring:
+          type: object
+          required: [within_7, within_30]
+          properties:
+            within_7: { type: integer, format: int64 }
+            within_30: { type: integer, format: int64 }
+        trial_conversion:
+          type: object
+          required: [trials_90d, converted_90d, rate]
+          properties:
+            trials_90d: { type: integer, format: int64 }
+            converted_90d: { type: integer, format: int64 }
+            rate: { type: number, format: double }
+        discounts:
+          type: array
+          items:
+            type: object
+            required: [code, uses, discount_total, revenue]
+            properties:
+              code: { type: string }
+              uses: { type: integer, format: int64 }
+              discount_total: { type: string }
+              revenue: { type: string }
+
+    BillingAdminUsageMeter:
+      type: object
+      required: [key, kind, unit, period, period_key, used, label_tr, label_en, updated_at]
+      properties:
+        key: { type: string }
+        kind: { type: string }
+        unit: { type: string }
+        period: { type: string }
+        period_key: { type: string }
+        used: { type: integer, format: int64 }
+        label_tr: { type: string }
+        label_en: { type: string }
+        updated_at: { type: string, format: date-time }
+
+    BillingAdminSubscriptionDetail:
+      type: object
+      required: [subscription, history, orders, invoices, meters]
+      properties:
+        subscription: { $ref: "#/components/schemas/BillingAdminSubscription" }
+        history:
+          type: array
+          items: { $ref: "#/components/schemas/BillingAdminSubscription" }
+        orders:
+          type: array
+          items: { $ref: "#/components/schemas/BillingOrder" }
+        invoices:
+          type: array
+          items: { $ref: "#/components/schemas/BillingInvoice" }
+        meters:
+          type: array
+          items: { $ref: "#/components/schemas/BillingAdminUsageMeter" }
 
     BillingPaymentSettings:
       type: object
@@ -13126,6 +13255,22 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/BillingAdminSubscription" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingDashboard:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingDashboard" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingAdminSubscriptionDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingAdminSubscriptionDetail" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeBillingAdminSubscriptionList:

@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/config"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
@@ -21,6 +23,7 @@ import (
 	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
+	notifmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/providers"
 	notifusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/usecase"
 	centerusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/usecase"
@@ -39,11 +42,13 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/mail"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/outbox"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/realtime"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -175,6 +180,7 @@ func main() {
 	vehicleAlertsSvc := vausecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
 	entitlementsSvc := entitlements.New(entitlements.NewDBStore(queries))
 	billingSvc := billingusecase.New(pool, queries, activityRec, entitlementsSvc)
+	billingSvc.SetNotifier(&workerBillingNotifier{pool: pool, notifications: notifSvc, log: log})
 	messagingSvc.SetEntitlements(entitlementsSvc)
 	entitlementsRecomputer := entitlements.NewRecomputer(queries, entitlementsSvc)
 	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
@@ -205,6 +211,14 @@ func main() {
 		WithVehicleAlerts(vehicleAlertsSvc.Flush).
 		WithBillingRecompute(entitlementsRecomputer.RecomputeAll).
 		WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
+		WithBillingLifecycle(func(ctx context.Context, now time.Time) (queue.BillingLifecycleResult, error) {
+			res, err := billingSvc.RunLifecycle(ctx, now)
+			return queue.BillingLifecycleResult{
+				MovedToGrace: res.MovedToGrace, MovedToReadOnly: res.MovedToReadOnly,
+				RemindersSent: res.RemindersSent, OrderRemindersSent: res.OrderRemindersSent,
+			}, err
+		}).
+		WithBillingDigest(billingSvc.SendAdminDigest).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -244,6 +258,14 @@ func main() {
 		log.Error("billing_orders_expire_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
+	if err := queue.RegisterBillingLifecycleSchedule(scheduler); err != nil {
+		log.Error("billing_lifecycle_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterBillingDigestSchedule(scheduler); err != nil {
+		log.Error("billing_digest_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
 	go func() {
 		if err := scheduler.Run(); err != nil {
 			log.Error("log_purge_scheduler_stopped", "error", err)
@@ -257,6 +279,14 @@ func main() {
 		} else {
 			log.Info("billing_recompute_boot", "organizations", n)
 		}
+	}()
+	go func() {
+		res, err := billingSvc.RunLifecycle(ctx, time.Now().UTC())
+		if err != nil {
+			log.Error("billing_lifecycle_boot_failed", "error", err)
+			return
+		}
+		log.Info("billing_lifecycle_boot", "grace", res.MovedToGrace, "read_only", res.MovedToReadOnly, "reminders", res.RemindersSent)
 	}()
 
 	log.Info(
@@ -288,4 +318,90 @@ func main() {
 		}
 	}
 	log.Info("worker_stopped")
+}
+
+type workerBillingNotifier struct {
+	pool          *pgxpool.Pool
+	notifications *notifusecase.Service
+	log           *slog.Logger
+}
+
+func (n *workerBillingNotifier) NotifyOrganization(ctx context.Context, orgID int64, title, body, link string) {
+	n.notifyOrganization(ctx, orgID, title, body, link, []string{notifmodel.ChannelInapp})
+}
+
+func (n *workerBillingNotifier) NotifyOrganizationEmail(ctx context.Context, orgID int64, title, body, link string) {
+	n.notifyOrganization(ctx, orgID, title, body, link, []string{notifmodel.ChannelInapp, notifmodel.ChannelEmail})
+}
+
+func (n *workerBillingNotifier) NotifyPlatform(ctx context.Context, title, body, link string) {
+	if n == nil || n.pool == nil || n.notifications == nil {
+		return
+	}
+	rows, err := n.pool.Query(ctx, `
+		SELECT DISTINCT u.id
+		FROM users u
+		JOIN user_roles ur ON ur.user_id = u.id
+		JOIN roles r ON r.id = ur.role_id
+		LEFT JOIN role_permissions rp ON rp.role_id = r.id
+		LEFT JOIN permissions p ON p.id = rp.permission_id
+		WHERE u.deleted_at IS NULL AND (r.slug = 'super_admin' OR p.slug = $1)
+	`, rbac.PermPlatformBillingWrite)
+	if err != nil {
+		n.log.Warn("billing_notify_platform_recipients_failed", "error", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			n.log.Warn("billing_notify_platform_scan_failed", "error", err)
+			continue
+		}
+		n.enqueue(ctx, userID, title, body, link, []string{notifmodel.ChannelInapp})
+	}
+}
+
+func (n *workerBillingNotifier) notifyOrganization(ctx context.Context, orgID int64, title, body, link string, channels []string) {
+	if n == nil || n.pool == nil || n.notifications == nil {
+		return
+	}
+	rows, err := n.pool.Query(ctx, `
+		SELECT DISTINCT u.id
+		FROM organization_members om
+		JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+		WHERE om.organization_id = $1 AND om.role = 'owner'
+	`, orgID)
+	if err != nil {
+		n.log.Warn("billing_notify_org_recipients_failed", "org_id", orgID, "error", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID int64
+		if err := rows.Scan(&userID); err != nil {
+			n.log.Warn("billing_notify_org_scan_failed", "org_id", orgID, "error", err)
+			continue
+		}
+		n.enqueue(ctx, userID, title, body, link, channels)
+	}
+}
+
+func (n *workerBillingNotifier) enqueue(ctx context.Context, userID int64, title, body, link string, channels []string) {
+	action := link
+	if action == "" {
+		action = "/platform/billing"
+	}
+	if _, err := n.notifications.Enqueue(ctx, notifmodel.EnqueueInput{
+		UserID:      &userID,
+		Channels:    channels,
+		Priority:    notifmodel.PriorityHigh,
+		Title:       title,
+		Body:        body,
+		ActionURL:   &action,
+		SourceEvent: "billing",
+		Language:    "tr",
+	}); err != nil && n.log != nil {
+		n.log.Warn("billing_notify_enqueue_failed", "user_id", userID, "error", err)
+	}
 }

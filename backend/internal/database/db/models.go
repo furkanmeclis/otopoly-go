@@ -318,6 +318,14 @@ type BillingPlanFeature struct {
 	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
 }
 
+type BillingReminderLog struct {
+	ID             int64              `json:"id"`
+	Key            string             `json:"key"`
+	Kind           string             `json:"kind"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	SentAt         pgtype.Timestamptz `json:"sent_at"`
+}
+
 type BillingSetting struct {
 	ID                  int16              `json:"id"`
 	SellerName          string             `json:"seller_name"`

@@ -12,13 +12,13 @@
 
 ## Durum (kesinti durumunda buradan devam)
 
-- [ ] Task 1 migration + sorgular
-- [ ] Task 2 lifecycle (geçişler + hatırlatmalar + admin özeti) + worker
-- [ ] Task 3 salt okunur middleware
-- [ ] Task 4 dashboard + abonelik detayı + liste filtreleri + OpenAPI
-- [ ] Task 5 frontend işletme (durum bandı + salt okunur uyarısı)
-- [ ] Task 6 frontend admin gösterge paneli
-- [ ] Task 7 frontend admin abonelik detayı ve filtreler
+- [x] Task 1 migration + sorgular
+- [x] Task 2 lifecycle (geçişler + hatırlatmalar + admin özeti) + worker
+- [x] Task 3 salt okunur middleware
+- [x] Task 4 dashboard + abonelik detayı + liste filtreleri + OpenAPI
+- [x] Task 5 frontend işletme (durum bandı + salt okunur uyarısı)
+- [x] Task 6 frontend admin gösterge paneli
+- [x] Task 7 frontend admin abonelik detayı ve filtreler
 - [ ] Task 8 doğrulama, ekran görüntüleri, Notion
 
 ## Global Constraints
