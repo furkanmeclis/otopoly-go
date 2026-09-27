@@ -34,10 +34,12 @@ import {
   useDisconnectWhatsApp,
   useWhatsAppSession,
 } from "@/features/messaging/hooks/use-messaging";
+import { useLocale } from "@/providers/locale-provider";
 
 const QR_TTL_SECONDS = 60;
 
 export function WhatsAppSessionCard() {
+  const { t } = useLocale();
   const sessionQuery = useWhatsAppSession({
     pollWhilePairing: true,
   });
@@ -100,18 +102,15 @@ export function WhatsAppSessionCard() {
       <CardHeader>
         <div className="flex items-center gap-2">
           <MessageCircle className="size-5 text-green-500" />
-          <CardTitle>WhatsApp Bağlantısı</CardTitle>
+          <CardTitle>{t("messaging.wa.title")}</CardTitle>
         </div>
-        <CardDescription>
-          Müşterilere WhatsApp üzerinden otomatik bildirim göndermek için
-          WhatsApp hesabınızı bağlayın.
-        </CardDescription>
+        <CardDescription>{t("messaging.wa.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {sessionQuery.isLoading ? (
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <div className="text-muted-foreground flex items-center gap-2 text-sm">
             <Loader2 className="size-4 animate-spin" />
-            <span>Yükleniyor...</span>
+            <span>{t("messaging.common.loading")}</span>
           </div>
         ) : null}
 
@@ -120,7 +119,7 @@ export function WhatsAppSessionCard() {
         !showQR ? (
           <div className="space-y-3">
             {status === "error" && session?.error_message ? (
-              <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <div className="bg-destructive/10 text-destructive flex items-center gap-2 rounded-md px-3 py-2 text-sm">
                 <XCircle className="size-4 shrink-0" />
                 <span>{session.error_message}</span>
               </div>
@@ -134,36 +133,38 @@ export function WhatsAppSessionCard() {
               ) : (
                 <MessageCircle className="mr-2 size-4" />
               )}
-              WhatsApp Bağla
+              {t("messaging.wa.connect")}
             </Button>
           </div>
         ) : null}
 
         {showQR ? (
           <div className="space-y-3">
-            <div className="rounded-md border bg-muted p-4 flex flex-col items-center gap-3">
-              <p className="text-xs text-muted-foreground self-start">
-                WhatsApp uygulamanızdan QR kodu okutun:
+            <div className="bg-muted flex flex-col items-center gap-3 rounded-md border p-4">
+              <p className="text-muted-foreground self-start text-xs">
+                {t("messaging.wa.scan")}
               </p>
               {displayQrUrl ? (
                 // QR is a data URL from qrcode; next/image is not applicable.
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={displayQrUrl}
-                  alt="WhatsApp QR Kodu"
+                  alt={t("messaging.wa.qr_alt")}
                   className="rounded-md"
                   width={240}
                   height={240}
                 />
               ) : (
                 <div className="flex h-[240px] w-[240px] items-center justify-center">
-                  <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                  <Loader2 className="text-muted-foreground size-6 animate-spin" />
                 </div>
               )}
             </div>
             <div className="flex items-center gap-3">
               <Badge variant={countdown > 10 ? "secondary" : "danger"}>
-                {countdown > 0 ? `${countdown}s kaldı` : "Süresi doldu"}
+                {countdown > 0
+                  ? t("messaging.wa.expires_in", { seconds: countdown })
+                  : t("messaging.wa.expired")}
               </Badge>
               <Button
                 variant="outline"
@@ -176,7 +177,7 @@ export function WhatsAppSessionCard() {
                 ) : (
                   <RefreshCw className="mr-2 size-4" />
                 )}
-                Yenile
+                {t("messaging.wa.refresh")}
               </Button>
             </div>
           </div>
@@ -188,15 +189,17 @@ export function WhatsAppSessionCard() {
               <span className="inline-block size-2.5 rounded-full bg-green-500" />
               <div>
                 {session?.display_name ? (
-                  <p className="font-medium text-sm">{session.display_name}</p>
+                  <p className="text-sm font-medium">{session.display_name}</p>
                 ) : null}
                 {session?.phone_number ? (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-muted-foreground text-xs">
                     {session.phone_number}
                   </p>
                 ) : null}
                 {!session?.display_name && !session?.phone_number ? (
-                  <p className="text-sm text-muted-foreground">Bağlı</p>
+                  <p className="text-muted-foreground text-sm">
+                    {t("messaging.wa.connected")}
+                  </p>
                 ) : null}
               </div>
               <CheckCircle2 className="size-4 text-green-600" />
@@ -205,15 +208,16 @@ export function WhatsAppSessionCard() {
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Unplug className="mr-2 size-4" />
-                  Bağlantıyı Kes
+                  {t("messaging.wa.disconnect")}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>WhatsApp Bağlantısını Kes</DialogTitle>
+                  <DialogTitle>
+                    {t("messaging.wa.disconnect_title")}
+                  </DialogTitle>
                   <DialogDescription>
-                    Bu işlem WhatsApp oturumunu sonlandırır ve otomatik
-                    bildirimler gönderilmez. Devam etmek istiyor musunuz?
+                    {t("messaging.wa.disconnect_body")}
                   </DialogDescription>
                 </DialogHeader>
                 <DialogFooter>
@@ -221,7 +225,7 @@ export function WhatsAppSessionCard() {
                     variant="outline"
                     onClick={() => setDisconnectOpen(false)}
                   >
-                    İptal
+                    {t("messaging.wa.cancel")}
                   </Button>
                   <Button
                     variant="destructive"
@@ -231,7 +235,7 @@ export function WhatsAppSessionCard() {
                     {disconnectMutation.isPending ? (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     ) : null}
-                    Bağlantıyı Kes
+                    {t("messaging.wa.disconnect")}
                   </Button>
                 </DialogFooter>
               </DialogContent>

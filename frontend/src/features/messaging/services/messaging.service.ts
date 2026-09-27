@@ -12,7 +12,10 @@ import type {
 
 export const messagingService = {
   getSession() {
-    return platformRequest<WhatsAppSession>("GET", "/v1/tenant/messaging/session");
+    return platformRequest<WhatsAppSession>(
+      "GET",
+      "/v1/tenant/messaging/session",
+    );
   },
 
   connectWhatsApp() {

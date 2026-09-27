@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { useLocale } from "@/providers/locale-provider";
+
 import { messagingService } from "@/features/messaging/services/messaging.service";
 import type {
   PatchTemplateInput,
@@ -48,6 +50,7 @@ export function useMessageTemplates() {
 }
 
 export function useConnectWhatsApp() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => messagingService.connectWhatsApp(),
@@ -55,24 +58,26 @@ export function useConnectWhatsApp() {
       queryClient.invalidateQueries({ queryKey: messagingKeys.session() });
     },
     onError: (err: Error) =>
-      toast.error(err.message || "WhatsApp bağlantısı başlatılamadı."),
+      toast.error(err.message || t("messaging.toast.connect_failed")),
   });
 }
 
 export function useDisconnectWhatsApp() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => messagingService.disconnectWhatsApp(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: messagingKeys.session() });
-      toast.success("WhatsApp bağlantısı kesildi.");
+      toast.success(t("messaging.toast.disconnected"));
     },
     onError: (err: Error) =>
-      toast.error(err.message || "Bağlantı kesilemedi."),
+      toast.error(err.message || t("messaging.toast.disconnect_failed")),
   });
 }
 
 export function useToggleRule() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -87,50 +92,55 @@ export function useToggleRule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: messagingKeys.rules() });
     },
-    onError: (err: Error) => toast.error(err.message || "Kural güncellenemedi."),
+    onError: (err: Error) =>
+      toast.error(err.message || t("messaging.toast.rule_failed")),
   });
 }
 
 export function useUpsertTemplate() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: UpsertTemplateInput) =>
       messagingService.upsertTemplate(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: messagingKeys.templates() });
-      toast.success("Şablon kaydedildi.");
+      toast.success(t("messaging.toast.template_saved"));
     },
-    onError: (err: Error) => toast.error(err.message || "Şablon kaydedilemedi."),
+    onError: (err: Error) =>
+      toast.error(err.message || t("messaging.toast.template_save_failed")),
   });
 }
 
 export function usePatchTemplate() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ uuid, body }: { uuid: string; body: PatchTemplateInput }) =>
       messagingService.patchTemplate(uuid, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: messagingKeys.templates() });
-      toast.success("Şablon güncellendi.");
+      toast.success(t("messaging.toast.template_updated"));
     },
     onError: (err: Error) =>
-      toast.error(err.message || "Şablon güncellenemedi."),
+      toast.error(err.message || t("messaging.toast.template_update_failed")),
   });
 }
 
 export function useSimulateMessaging() {
+  const { t } = useLocale();
   return useMutation({
     mutationFn: (body: SimulateInput) => messagingService.simulate(body),
     onSuccess: (result) => {
       const failed = result.items.filter((i) => i.status !== "sent").length;
       const sent = result.items.length - failed;
       if (failed === 0) {
-        toast.success(`${sent} test mesajı gönderildi.`);
+        toast.success(t("messaging.toast.simulate_sent", { sent }));
       } else {
-        toast.error(`${sent} başarılı, ${failed} başarısız.`);
+        toast.error(t("messaging.toast.simulate_partial", { sent, failed }));
       }
     },
     onError: (err: Error) =>
-      toast.error(err.message || "Simülasyon gönderilemedi."),
+      toast.error(err.message || t("messaging.toast.simulate_failed")),
   });
 }

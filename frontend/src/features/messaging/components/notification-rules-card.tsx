@@ -32,8 +32,10 @@ import type { RuleList } from "@/features/messaging/types";
 import { SAMPLE_VARS } from "@/features/messaging/types";
 import { permissions } from "@/config/permissions";
 import { usePermission } from "@/providers/permission-provider";
+import { useLocale } from "@/providers/locale-provider";
 
 export function NotificationRulesCard() {
+  const { t } = useLocale();
   const rulesQuery = useNotificationRules();
   const catalogQuery = useTemplateCatalog();
   const { hasPermission } = usePermission();
@@ -84,22 +86,18 @@ export function NotificationRulesCard() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="size-5" />
-            <CardTitle>Bildirim Kuralları</CardTitle>
+            <CardTitle>{t("messaging.rules.title")}</CardTitle>
           </div>
-          <CardDescription>
-            Hangi olaylar için hangi kanaldan bildirim gönderileceğini yönetin
-            ve mesaj şablonlarını düzenleyin.
-          </CardDescription>
+          <CardDescription>{t("messaging.rules.description")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-muted/30 flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center">
             <div className="min-w-0 flex-1 space-y-1">
               <p className="text-sm font-medium">
-                İşlem yaşam döngüsü simülasyonu
+                {t("messaging.rules.simulate_title")}
               </p>
               <p className="text-muted-foreground text-xs">
-                Oluşturma → sözleşme → hazır → teslim → ödeme mesajlarını
-                sırayla test olarak gönderir.
+                {t("messaging.rules.simulate_body")}
               </p>
             </div>
             <div className="flex gap-2">
@@ -117,21 +115,25 @@ export function NotificationRulesCard() {
                 onClick={handleLifecycleSimulate}
               >
                 <Play className="mr-1.5 size-3.5" />
-                Simüle et
+                {t("messaging.rules.simulate")}
               </Button>
             </div>
           </div>
 
           {rulesQuery.isLoading ? (
-            <p className="text-muted-foreground text-sm">Yükleniyor...</p>
+            <p className="text-muted-foreground text-sm">
+              {t("messaging.common.loading")}
+            </p>
           ) : null}
           {rulesQuery.isError ? (
-            <p className="text-destructive text-sm">Kurallar yüklenemedi.</p>
+            <p className="text-destructive text-sm">
+              {t("messaging.rules.load_failed")}
+            </p>
           ) : null}
 
           {ruleLists.length === 0 && !rulesQuery.isLoading ? (
             <p className="text-muted-foreground text-sm">
-              Henüz bildirim kuralı tanımlanmamış.
+              {t("messaging.rules.empty")}
             </p>
           ) : null}
 
@@ -172,7 +174,9 @@ export function NotificationRulesCard() {
                                     </Badge>
                                   </div>
                                 </TooltipTrigger>
-                                <TooltipContent>Yakında</TooltipContent>
+                                <TooltipContent>
+                                  {t("messaging.rules.soon")}
+                                </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           );
@@ -214,7 +218,7 @@ export function NotificationRulesCard() {
                         onClick={() => setEditorType(rl.event_type)}
                       >
                         <Pencil className="mr-1.5 size-3.5" />
-                        Mesaj Düzenle
+                        {t("messaging.rules.edit_message")}
                       </Button>
                     </div>
                   </div>
