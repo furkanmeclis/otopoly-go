@@ -284,3 +284,15 @@ func TestCustomYearlyDiscountPercent(t *testing.T) {
 		t.Fatalf("yearly=%s, want 28080.00", got)
 	}
 }
+
+func TestPlanLabelArity(t *testing.T) {
+	if got := planLabel("%s (%s)", "Pro", "Yıllık"); got != "Pro (Yıllık)" {
+		t.Fatalf("two verbs: %q", got)
+	}
+	if got := planLabel("%s", "Enterprise (Aylık) · Günlük işlem 120 adet", "Aylık"); got != "Enterprise (Aylık) · Günlük işlem 120 adet" {
+		t.Fatalf("one verb: %q", got)
+	}
+	if got := planLabel("Sabit", "x", "y"); got != "Sabit" {
+		t.Fatalf("no verb: %q", got)
+	}
+}

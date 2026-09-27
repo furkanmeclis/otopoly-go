@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -418,7 +419,7 @@ func buildLines(
 	if listPrice.Sign() > 0 {
 		lines = append(lines, Line{
 			Kind:   "plan",
-			Label:  fmt.Sprintf(defaultLabel(in.Labels.Plan, "%s (%s)"), in.Target.PlanName, in.Labels.period(in.Target.Period)),
+			Label:  planLabel(defaultLabel(in.Labels.Plan, "%s (%s)"), in.Target.PlanName, in.Labels.period(in.Target.Period)),
 			Amount: Format(listPrice),
 		})
 	}
@@ -490,4 +491,17 @@ func currentPeriod(in Input) string {
 		return in.Current.Period
 	}
 	return in.Target.Period
+}
+
+// planLabel fills a plan label format that may take the plan name only
+// ("%s", used for pre-built enterprise labels) or name and period ("%s (%s)").
+func planLabel(format, name, period string) string {
+	switch strings.Count(format, "%s") {
+	case 0:
+		return format
+	case 1:
+		return fmt.Sprintf(format, name)
+	default:
+		return fmt.Sprintf(format, name, period)
+	}
 }
