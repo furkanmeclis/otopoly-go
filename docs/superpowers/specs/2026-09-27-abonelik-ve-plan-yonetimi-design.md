@@ -1,5 +1,5 @@
 # Abonelik ve Plan Yönetimi — Tasarım Dokümanı
-*2026-09-27 · Durum: onay bekliyor*
+*2026-09-27 · Durum: onaylandı (açık noktalar kapatıldı)*
 
 ---
 
@@ -18,12 +18,15 @@ Soru-cevapta alınan kararlar (değişmez kabul edilir):
 | 5 | Plan değişikliği | **Kıst hesap**: kalan sürenin bedeli yeni fiyattan düşülür; ödeme ekranında ve faturada ayrı **indirim kalemi** olarak görünür. Düşürmede fark sonraki döneme alacak olur. Aylık↔yıllık geçiş aynı kurala tabi |
 | 6 | Fatura satıcısı | Technowide; unvan, VKN, vergi dairesi, adres, IBAN, seri/no admin ayarlarından |
 | 7 | Fatura alıcısı | İşletme kendi ayarlarından girer; girmemişse **11111111111** TCKN ile nihai tüketici e-Arşiv faturası |
-| 8 | KDV | Plan fiyatları KDV **dahil** gösterilir; faturada %20 KDV ayrıştırılır (varsayım) |
+| 8 | KDV | Plan fiyatları KDV **dahil** gösterilir; faturada %20 KDV ayrıştırılır |
+| 12 | Yıllık fiyat | Admin plan bazında **ya sabit yıllık fiyat** girer **ya da indirim kuralı** seçer: "yıllık alımda X TL indirim" veya "%Y indirim" (aylık × 12 üzerinden). Yıllık fiyat bu kurala göre hesaplanır |
+| 13 | Deneme planı | Günlük 10 işlem, 2 personel, WhatsApp ve AI kapalı, sözleşme açık (admin sonradan değiştirebilir) |
+| 14 | Süreler | Hatırlatma günleri 7 / 3 / 1; havale bekleme süresi **3 gün** (cuma → pazartesi) |
 | 9 | Özellik kataloğu | Kodda tanımlı ve uygulanan özellikler + admin'in eklediği yalnızca gösterim amaçlı özellikler |
 | 10 | Ödeme kanalı | Şimdilik yalnızca havale/EFT; online sağlayıcılar için kanal arayüzü baştan kurulur |
 | 11 | Entegratör | Kapsam dışı; XML ve PDF arşiv kaydı olarak üretilir, GİB'e gönderim yok |
 
-Varsayılanla kapatılan konular (spec incelemesinde düzeltilebilir): indirim kodu kuralları (§6), hatırlatma zamanları (§8), enterprise fiyat modeli (§9).
+Varsayılanla kapatılan konular: indirim kodu kuralları (§6), enterprise fiyat modeli (§9).
 
 ---
 
@@ -83,8 +86,8 @@ Tablolar (migration `000064+`):
 - `key` (unique: `jobs.daily`, `staff.count`, `module.contracts` …), `kind` (`limit` | `toggle` | `display`), `unit` (`adet`, `GB` …), `period` (`day` | `month` | `total` | `none`), `label_tr/en`, `sort_order`, `is_builtin`, `is_active`.
 
 **`billing_plans`**
-- `code` (unique), `name`, `description`, `price_monthly`, `price_yearly` (KDV dahil, numeric 18,2), `currency` (`TRY`), `is_public` (fiyat sayfasında görünür), `is_customizable` (enterprise), `sort_order`, `badge` (`popular` vb.), `is_active`, `deleted_at`.
-- `trial` kodlu plan da buradadır; deneme süresi plan üzerinde `trial_days` alanı (yalnızca trial için anlamlı).
+- `code` (unique), `name`, `description`, `price_monthly` (KDV dahil, numeric 18,2), `yearly_pricing` (`fixed` | `discount_amount` | `discount_percent`), `price_yearly` (fixed ise), `yearly_discount_value` (kural ise; TL veya yüzde), `currency` (`TRY`), `is_public` (fiyat sayfasında görünür), `is_customizable` (enterprise), `sort_order`, `badge` (`popular` vb.), `is_active`, `deleted_at`.
+- `trial` kodlu plan da buradadır; deneme süresi plan üzerinde `trial_days` alanı (14). Seed değerleri: günlük 10 işlem, 2 personel, WhatsApp ve AI kapalı, sözleşme açık.
 
 **`billing_plan_features`** — plan × özellik değeri
 - `plan_id`, `feature_id`, `value_int` (limit), `value_bool` (toggle), `enforcement` (`hard` | `soft`), `tolerance_pct` (0–100), `warn_pct` (varsayılan 80), `display_text` (gösterim özellikleri için serbest metin).
@@ -95,7 +98,7 @@ Tablolar (migration `000064+`):
 - `organizations.plan_code / access_starts_at / access_ends_at` alanları korunur ama **türetilmiş** hale gelir: abonelik değiştikçe billing bunları günceller (mevcut middleware bozulmaz).
 
 **`billing_orders`** — satın alma niyeti + ödeme bildirimi
-- `organization_id`, `plan_id`, `period`, `kind` (`new` | `renew` | `upgrade` | `downgrade` | `period_change`), `status` (`pending_payment` | `payment_reported` | `approved` | `rejected` | `cancelled` | `expired`), `channel` (`bank_transfer`), `reference_code` (havale açıklaması, örn. `OTO-7F3K2Q`), `list_price`, `proration_credit`, `discount_code_id`, `discount_amount`, `credit_applied`, `total` (ödenecek), `vat_amount`, `lines` (jsonb; fatura kalemlerinin ön hali), `receipt_object_key` (dekont), `reported_at`, `reviewed_by`, `reviewed_at`, `reject_reason`, `expires_at` (ödeme bekleme süresi, varsayılan 7 gün), `custom_features` (jsonb).
+- `organization_id`, `plan_id`, `period`, `kind` (`new` | `renew` | `upgrade` | `downgrade` | `period_change`), `status` (`pending_payment` | `payment_reported` | `approved` | `rejected` | `cancelled` | `expired`), `channel` (`bank_transfer`), `reference_code` (havale açıklaması, örn. `OTO-7F3K2Q`), `list_price`, `proration_credit`, `discount_code_id`, `discount_amount`, `credit_applied`, `total` (ödenecek), `vat_amount`, `lines` (jsonb; fatura kalemlerinin ön hali), `receipt_object_key` (dekont), `reported_at`, `reviewed_by`, `reviewed_at`, `reject_reason`, `expires_at` (ödeme bekleme süresi, varsayılan 3 gün), `custom_features` (jsonb).
 
 **`billing_discount_codes`** — `code` (unique, büyük harf), `kind` (`percent` | `amount`), `value`, `applies_to_plans` (bigint[]; boş = hepsi), `applies_to_periods` (`monthly`/`yearly`/boş), `starts_at`, `ends_at`, `max_uses`, `max_uses_per_org`, `first_purchase_only`, `is_active`, `note`.
 **`billing_discount_uses`** — `discount_code_id`, `organization_id`, `order_id`, `amount`, `used_at`.
@@ -104,7 +107,7 @@ Tablolar (migration `000064+`):
 - `organization_id`, `order_id`, `number` (seri + yıl + sıra, örn. `TWD2026000000012`), `uuid` (UBL için), `issue_date`, `profile` (`EARSIVFATURA`), `type` (`SATIS`), `buyer` (jsonb snapshot), `seller` (jsonb snapshot), `lines` (jsonb), `subtotal`, `discount_total`, `vat_total`, `grand_total`, `xml_object_key`, `pdf_object_key`, `xslt_version` (hangi XSLT ile üretildi), `status` (`issued` | `voided`).
 **`billing_invoice_counters`** — `series`, `year`, `last_no` (satır kilidiyle atomik numara).
 
-**`billing_settings`** — tek satır (org'suz, platform): satıcı bilgileri (unvan, VKN, vergi dairesi, adres, e-posta, telefon, web), `iban`, `bank_name`, `account_holder`, `payment_instructions` (metin), `grace_days` (3), `order_ttl_days` (7), `invoice_series` (`TWD`), `vat_rate` (20), `xslt_object_key` (admin XSLT; boşsa repodaki `general.xslt`), `reminder_days` (`[7,3,1]`).
+**`billing_settings`** — tek satır (org'suz, platform): satıcı bilgileri (unvan, VKN, vergi dairesi, adres, e-posta, telefon, web), `iban`, `bank_name`, `account_holder`, `payment_instructions` (metin), `grace_days` (3), `order_ttl_days` (3), `invoice_series` (`TWD`), `vat_rate` (20), `xslt_object_key` (admin XSLT; boşsa repodaki `general.xslt`), `reminder_days` (`[7,3,1]`).
 
 **`organizations`** ek sütunlar: `invoice_name`, `invoice_tax_id`, `invoice_tax_office`, `invoice_address`, `invoice_email` (işletmenin fatura bilgileri).
 
@@ -175,12 +178,12 @@ type Channel interface {
 
 **Sipariş oluşturma** (`POST /v1/tenant/billing/orders`): plan + dönem + opsiyonel indirim kodu + (enterprise) özel değerler.
 1. Mevcut aboneliğe göre `kind` belirlenir.
-2. Liste fiyatı = plan dönem fiyatı (+ enterprise adım fiyatları).
+2. Liste fiyatı = plan dönem fiyatı (+ enterprise adım fiyatları). Yıllık fiyat: `fixed` → `price_yearly`; `discount_amount` → `price_monthly × 12 − X`; `discount_percent` → `price_monthly × 12 × (1 − Y/100)`. Plan kartında "Yıllık alımda X TL / %Y indirim" rozeti gösterilir.
 3. **Kıst hesap**: mevcut abonelik aktifse `kalan_gün / dönem_gün × ödenen_fiyat` = `proration_credit`. Yeni tutar ≥ kredi ise düşülür; küçükse fark `credit_balance`'a yazılır ve sonraki siparişte `credit_applied` olarak düşer.
 4. İndirim kodu doğrulanır (§6), `discount_amount` hesaplanır (kıst sonrası tutar üzerinden).
 5. `total = max(0, list − proration − discount − credit)`; `vat_amount = total − total / 1.20`.
 6. `lines` yazılır: `+ Plan (dönem)`, `− Kıst iadesi (eski plan, X gün)`, `− İndirim kodu KOD`, `− Alacak bakiyesi`. Faturada aynen kullanılır.
-7. Referans kodu üretilir, `pending_payment`, `expires_at = now + order_ttl_days`.
+7. Referans kodu üretilir, `pending_payment`, `expires_at = now + order_ttl_days` (3 gün; cuma yapılan sipariş pazartesiye kadar açık kalır).
 
 **İşletme tarafı UI** (`/t/{slug}/settings/billing`): plan kartları (aylık/yıllık anahtarı, "Mevcut planınız", fiyat farkı), özet (kalemler), "Havale bilgileri" adımı (IBAN, tutar, referans; kopyala), "Ödemeyi bildir" (dekont yükle + not), durum takibi (Ödeme bekleniyor → İnceleniyor → Onaylandı/Reddedildi). Mobilde çalışır.
 
@@ -231,7 +234,7 @@ Sipariş süresi dolarsa (`expires_at`) sistem `expired`'a çeker; işletme yeni
 ## 9. Enterprise özel limitler (F5)
 
 - `is_customizable = true` planlarda (ör. `enterprise`) sayısal özelliklerin `min/max/step/unit_price` alanları doldurulur; `price_monthly` taban fiyattır.
-- İşletme plan kartında kaydırıcılarla değer seçer; fiyat anlık hesaplanır: `taban + Σ((seçilen − min) / step × unit_price)`; yıllıkta plan yıllık taban + adım fiyatı × 12 × (1 − yıllık indirim oranı, admin ayarı).
+- İşletme plan kartında kaydırıcılarla değer seçer; fiyat anlık hesaplanır: `taban + Σ((seçilen − min) / step × unit_price)`; yıllıkta adım fiyatı × 12'ye planın yıllık indirim kuralı (#12) aynen uygulanır.
 - Seçilen değerler siparişe (`custom_features`) ve onayda aboneliğe yazılır; entitlements bunları planın önüne alır.
 - Admin "işletmeye özel fiyat" tanımlayabilir: admin elle sipariş oluşturur (tutarı yazar), işletme normal akışta öder. Böylece kod tarafında ayrı bir "özel fiyat" yapısı gerekmez.
 - Fatura kaleminde özel değerler açıklama olarak yazılır ("Enterprise · günlük 120 işlem, 15 personel").
@@ -289,10 +292,6 @@ Tümü OpenAPI'ye eklenir; izinler migration + `rbac` + `permissions.ts`.
 
 ---
 
-## 14. Açık noktalar (spec incelemesinde karar verilecek)
+## 14. Kapatılan açık noktalar
 
-1. KDV dahil gösterim varsayımı (#8) doğru mu?
-2. Deneme planının limitleri ne olsun? (öneri: günlük 10 işlem, 2 personel, WhatsApp ve AI kapalı, sözleşme açık)
-3. Yıllık ödemede indirim oranı admin ayarı mı, yoksa plan yıllık fiyatı zaten bunu içeriyor mu? (öneri: plan yıllık fiyatı yeterli; enterprise adımlarında oran ayarı)
-4. Hatırlatma günleri `[7,3,1]` uygun mu?
-5. Sipariş ödeme bekleme süresi 7 gün uygun mu?
+KDV dahil gösterim, deneme limitleri, yıllık fiyat kuralı, hatırlatma günleri ve 3 günlük bekleme süresi §0 karar tablosuna (#8, #12–#14) işlendi.
