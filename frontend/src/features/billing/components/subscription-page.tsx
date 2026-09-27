@@ -365,9 +365,11 @@ function PlanOffer({
       >
         {renewable
           ? t("billing.checkout.renew")
-          : current
-            ? t("billing.checkout.change_period")
-            : t("billing.checkout.select")}
+          : plan.is_customizable
+            ? t("billing.custom.configure")
+            : current
+              ? t("billing.checkout.change_period")
+              : t("billing.checkout.select")}
       </Button>
     </div>
   );

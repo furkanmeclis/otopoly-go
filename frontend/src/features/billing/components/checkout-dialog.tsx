@@ -1,7 +1,7 @@
 "use client";
 
 import { CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BankInstructions } from "@/features/billing/components/bank-instructions";
 import { QuoteLines } from "@/features/billing/components/quote-lines";
@@ -27,7 +28,11 @@ import type {
   BillingPlan,
   SubscriptionPeriod,
 } from "@/features/billing/types";
-import { formatFinanceAmount } from "@/features/finance/lib/format";
+import { customOptions } from "@/features/billing/lib";
+import {
+  formatFinanceAmount,
+  formatQuantity,
+} from "@/features/finance/lib/format";
 import { isApiError } from "@/lib/api";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
@@ -62,10 +67,17 @@ function CheckoutBody({
   const [code, setCode] = useState("");
   const [order, setOrder] = useState<BillingOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const options = customOptions(plan, locale);
+  const [values, setValues] = useState<Record<string, number>>(() =>
+    Object.fromEntries(options.map((o) => [o.key, o.min])),
+  );
+  const debouncedValues = useDebounced(values, 350);
+  const custom = options.length ? debouncedValues : undefined;
   const preview = useOrderPreview({
     plan_uuid: plan.uuid,
     period,
     discount_code: code || undefined,
+    custom_features: custom,
   });
   const { create } = useBillingOrderMutations();
   const q = preview.data;
@@ -77,6 +89,7 @@ function CheckoutBody({
         plan_uuid: plan.uuid,
         period,
         discount_code: code || undefined,
+        custom_features: options.length ? values : undefined,
       });
       setOrder(created);
     } catch (err) {
@@ -193,6 +206,44 @@ function CheckoutBody({
             </p>
           ) : null}
         </div>
+        {options.length ? (
+          <div className="space-y-4 rounded-lg border p-3">
+            <div>
+              <p className="text-sm font-medium">{t("billing.custom.title")}</p>
+              <p className="text-muted-foreground text-xs">
+                {t("billing.custom.hint")}
+              </p>
+            </div>
+            {options.map((o) => (
+              <div key={o.key} className="space-y-2">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <Label htmlFor={`custom-${o.key}`}>{o.label}</Label>
+                  <span className="font-medium tabular-nums">
+                    {formatQuantity(values[o.key] ?? o.min, locale)} {o.unit}
+                  </span>
+                </div>
+                <Slider
+                  id={`custom-${o.key}`}
+                  min={o.min}
+                  max={o.max}
+                  step={o.step}
+                  value={[values[o.key] ?? o.min]}
+                  onValueChange={([v]) =>
+                    setValues((prev) => ({ ...prev, [o.key]: v }))
+                  }
+                  aria-label={o.label}
+                />
+                <p className="text-muted-foreground text-[11px]">
+                  {t("billing.custom.per_step", {
+                    step: o.step,
+                    unit: o.unit,
+                    price: formatFinanceAmount(o.unitPrice, "TRY", locale),
+                  })}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {preview.isLoading || !q ? (
           <Skeleton className="h-40 w-full" />
         ) : (
@@ -235,4 +286,13 @@ function CheckoutBody({
       </DialogFooter>
     </>
   );
+}
+
+function useDebounced<T>(value: T, ms: number) {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const h = window.setTimeout(() => setV(value), ms);
+    return () => window.clearTimeout(h);
+  }, [value, ms]);
+  return v;
 }

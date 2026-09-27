@@ -87,7 +87,10 @@ export type CustomOption = {
 };
 
 /** Configurable limits of a customizable plan (spec §9). */
-export function customOptions(plan: BillingPlan, locale: AppLocale): CustomOption[] {
+export function customOptions(
+  plan: BillingPlan,
+  locale: AppLocale,
+): CustomOption[] {
   if (!plan.is_customizable) return [];
   return plan.features
     .filter(
