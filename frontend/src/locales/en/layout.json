@@ -70,5 +70,6 @@
   "nav_billing_subscriptions": "Subscriptions",
   "nav_billing_discount_codes": "Discount codes",
   "nav_billing_settings": "Payment settings",
-  "nav_billing_invoices": "Invoices"
+  "nav_billing_invoices": "Invoices",
+  "nav_billing_dashboard": "Dashboard"
 }

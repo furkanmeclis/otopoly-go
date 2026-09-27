@@ -21,7 +21,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setGlobalApiErrorHandler((error: ApiError) => {
       // Hard limits open LimitReachedDialog; disabled modules get one toast.
-      if (error.code === "LIMIT_REACHED") return;
+      if (
+        error.code === "LIMIT_REACHED" ||
+        error.code === "SUBSCRIPTION_READ_ONLY"
+      )
+        return;
       if (error.code === "FEATURE_DISABLED") {
         toast.error(t("billing.limit.feature_disabled"), {
           id: "feature-disabled",

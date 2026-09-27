@@ -40,7 +40,7 @@ export function LimitReachedDialog({ slug }: { slug: string }) {
     () =>
       subscribeLimitEvents((detail) => {
         // Plan-disabled modules show an inline lock card + toast instead.
-        if (detail.code === "LIMIT_REACHED") setEvent(detail);
+        if (detail.code !== "FEATURE_DISABLED") setEvent(detail);
       }),
     [],
   );
@@ -52,6 +52,7 @@ export function LimitReachedDialog({ slug }: { slug: string }) {
     ? meterLabel(meter, locale)
     : (event?.feature ?? "");
   const disabled = event?.code === "FEATURE_DISABLED";
+  const readOnly = event?.code === "SUBSCRIPTION_READ_ONLY";
 
   return (
     <Dialog
@@ -61,16 +62,22 @@ export function LimitReachedDialog({ slug }: { slug: string }) {
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {disabled ? t("billing.locked.title") : t("billing.limit.title")}
+            {readOnly
+              ? t("billing.read_only.title")
+              : disabled
+                ? t("billing.locked.title")
+                : t("billing.limit.title")}
           </DialogTitle>
           <DialogDescription>
-            {disabled
-              ? t("billing.limit.feature_disabled")
-              : t("billing.limit.body", {
-                  feature: featureName,
-                  limit: formatQuantity(event?.limit ?? 0, locale),
-                  used: formatQuantity(event?.used ?? 0, locale),
-                })}
+            {readOnly
+              ? t("billing.read_only.body")
+              : disabled
+                ? t("billing.limit.feature_disabled")
+                : t("billing.limit.body", {
+                    feature: featureName,
+                    limit: formatQuantity(event?.limit ?? 0, locale),
+                    used: formatQuantity(event?.used ?? 0, locale),
+                  })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

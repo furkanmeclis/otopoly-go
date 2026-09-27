@@ -3,7 +3,8 @@
  * LIMIT_REACHED (409) or FEATURE_DISABLED (403); the tenant layout listens and
  * shows the upgrade dialog, so individual mutations need no special handling.
  */
-export type LimitEventCode = "LIMIT_REACHED" | "FEATURE_DISABLED";
+export type LimitEventCode =
+  "LIMIT_REACHED" | "FEATURE_DISABLED" | "SUBSCRIPTION_READ_ONLY";
 
 export type LimitEventDetail = {
   code: LimitEventCode;
@@ -16,7 +17,11 @@ export type LimitEventDetail = {
 const EVENT_NAME = "otopoly:limit";
 
 export function isLimitEventCode(code: string): code is LimitEventCode {
-  return code === "LIMIT_REACHED" || code === "FEATURE_DISABLED";
+  return (
+    code === "LIMIT_REACHED" ||
+    code === "FEATURE_DISABLED" ||
+    code === "SUBSCRIPTION_READ_ONLY"
+  );
 }
 
 export function emitLimitEvent(detail: LimitEventDetail) {

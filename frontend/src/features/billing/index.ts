@@ -3,6 +3,7 @@ export { UsageMeter } from "./components/usage-meter";
 export { MeterFor } from "./components/meter-for";
 export { FeatureLocked } from "./components/feature-locked";
 export { LimitReachedDialog } from "./components/limit-reached-dialog";
+export { SubscriptionBanner } from "./components/subscription-banner";
 export {
   billingKeys,
   useBillingAccess,

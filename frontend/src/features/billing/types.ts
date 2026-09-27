@@ -124,3 +124,28 @@ export type InvoiceStatus = "issued" | "failed" | "voided";
 export type InvoiceProfile = S["BillingInvoiceProfile"];
 export type BillingInvoice = S["BillingInvoice"];
 export type SellerSettings = S["BillingSellerSettings"];
+
+// --- Lifecycle & tracking (F4) ------------------------------------------------
+
+export type BillingDashboard = {
+  counts: { trial: number; active: number; grace: number; read_only: number };
+  plans: Array<{ code: string; name: string; count: number }>;
+  approved_this_month: { count: number; amount: string };
+  orders: { pending_payment: number; payment_reported: number };
+  expiring: { within_7: number; within_30: number };
+  trial_conversion: { trials_90d: number; converted_90d: number; rate: number };
+  discounts: Array<{
+    code: string;
+    uses: number;
+    discount_total: string;
+    revenue: string;
+  }>;
+};
+
+export type AdminSubscriptionDetail = {
+  subscription: AdminSubscription & { grace_ends_at?: string | null };
+  history: AdminSubscription[];
+  orders: BillingOrder[];
+  invoices: BillingInvoice[];
+  meters: BillingUsageMeter[];
+};

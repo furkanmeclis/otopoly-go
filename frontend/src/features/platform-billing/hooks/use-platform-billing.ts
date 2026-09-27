@@ -348,3 +348,20 @@ export function useSellerMutations() {
     }),
   };
 }
+
+export function useBillingDashboard(enabled = true) {
+  return useQuery({
+    queryKey: [...platformBillingKeys.all, "dashboard"],
+    queryFn: () => platformBillingService.dashboard(),
+    enabled,
+    refetchInterval: 120_000,
+  });
+}
+
+export function useSubscriptionDetail(uuid: string | null) {
+  return useQuery({
+    queryKey: [...platformBillingKeys.all, "subscription-detail", uuid ?? ""],
+    queryFn: () => platformBillingService.subscriptionDetail(uuid!),
+    enabled: Boolean(uuid),
+  });
+}

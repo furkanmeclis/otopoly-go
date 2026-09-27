@@ -1,6 +1,8 @@
 import { platformRequest } from "@/lib/api/platform-request";
 import type {
   AdminSubscription,
+  AdminSubscriptionDetail,
+  BillingDashboard,
   BillingInvoice,
   SellerSettings,
   AdminSubscriptionInput,
@@ -87,9 +89,17 @@ export const platformBillingService = {
   receiptUrl(uuid: string) {
     return `${apiConfig.baseUrl.replace(/\/$/, "")}${base}/orders/${uuid}/receipt`;
   },
+  dashboard() {
+    return platformRequest<BillingDashboard>("GET", `${base}/dashboard`);
+  },
+  subscriptionDetail(uuid: string) {
+    return platformRequest<AdminSubscriptionDetail>("GET", `${base}/subscriptions/${uuid}/detail`);
+  },
   listSubscriptions(params: {
     status?: string;
     q?: string;
+    plan_uuid?: string;
+    expiring_within_days?: number;
     limit?: number;
     offset?: number;
   }) {
