@@ -165,6 +165,7 @@ func mapServiceRow(row db.ListServicesRow) ServiceItem {
 		Currency:        row.Currency,
 		IsActive:        row.IsActive,
 		Description:     row.Description,
+		Color:           row.Color,
 		CreatedAt:       row.CreatedAt.Time,
 		UpdatedAt:       row.UpdatedAt.Time,
 	}
@@ -191,6 +192,7 @@ func mapService(row db.GetServiceByUUIDRow) ServiceItem {
 		Currency:        row.Currency,
 		IsActive:        row.IsActive,
 		Description:     row.Description,
+		Color:           row.Color,
 		CreatedAt:       row.CreatedAt.Time,
 		UpdatedAt:       row.UpdatedAt.Time,
 	}

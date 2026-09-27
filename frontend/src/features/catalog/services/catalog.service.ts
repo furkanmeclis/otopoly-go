@@ -48,6 +48,8 @@ export type CatalogService = {
   currency: string;
   is_active: boolean;
   description: string;
+  /** Palette key for job card tags; "" = derived from the name. */
+  color?: string;
   created_at: string;
   updated_at: string;
 };
@@ -116,6 +118,7 @@ export type CreateServiceInput = {
   currency?: string;
   is_active?: boolean;
   description?: string;
+  color?: string;
 };
 
 export type UpdateServiceInput = Partial<CreateServiceInput>;

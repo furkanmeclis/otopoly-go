@@ -588,6 +588,12 @@ func (h *Handler) PatchService(w http.ResponseWriter, r *http.Request) {
 			in.Description = &s
 		}
 	}
+	if b, ok := raw["color"]; ok {
+		var s string
+		if err := json.Unmarshal(b, &s); err == nil {
+			in.Color = &s
+		}
+	}
 
 	service, err := h.svc.UpdateService(r.Context(), id, in)
 	if err != nil {

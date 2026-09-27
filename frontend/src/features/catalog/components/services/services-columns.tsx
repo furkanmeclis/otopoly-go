@@ -9,6 +9,7 @@ import { createColumn } from "@/components/tables";
 import { Badge } from "@/components/ui/badge";
 import type { CatalogService } from "@/features/catalog/services/catalog.service";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
+import { serviceSwatch } from "@/features/catalog/lib/service-colors";
 import { useLocale } from "@/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
@@ -91,7 +92,16 @@ export function useServicesColumns(
           const s = row.original;
           return (
             <div className="flex flex-col gap-0.5">
-              <span className="text-foreground font-medium">{s.name}</span>
+              <span className="text-foreground flex items-center gap-2 font-medium">
+                <span
+                  aria-hidden
+                  className={cn(
+                    "size-2.5 shrink-0 rounded-full",
+                    serviceSwatch(s.color, s.name).dot,
+                  )}
+                />
+                {s.name}
+              </span>
               {s.code && (
                 <span className="text-muted-foreground text-xs">
                   {t("catalog.services.code")}: {s.code}
@@ -178,6 +188,12 @@ export function useServicesColumns(
         ),
       }),
     ],
-    [filterOptions?.categories, filterOptions?.lockCategory, handlers, locale, t],
+    [
+      filterOptions?.categories,
+      filterOptions?.lockCategory,
+      handlers,
+      locale,
+      t,
+    ],
   );
 }

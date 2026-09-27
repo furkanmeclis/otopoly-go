@@ -3517,6 +3517,7 @@ paths:
                 currency: { type: string, default: "TRY" }
                 is_active: { type: boolean, default: true }
                 description: { type: string, default: "" }
+                color: { type: string, default: "", description: "Palette key (sky, emerald, amber, rose, violet, indigo, teal, orange, pink, lime, cyan, slate); empty = derived from the name" }
       responses:
         "201":
           description: Created
@@ -3620,6 +3621,7 @@ paths:
                 currency: { type: string }
                 is_active: { type: boolean }
                 description: { type: string }
+                color: { type: string, enum: ["", sky, emerald, amber, rose, violet, indigo, teal, orange, pink, lime, cyan, slate], description: "Palette key for job card tags; empty = derived from the name" }
       responses:
         "200":
           description: Updated
@@ -4336,7 +4338,7 @@ paths:
           description: Also return in_progress/ready jobs started before date_from (multi-day work still going on).
           schema: { type: boolean }
       responses:
-        "200": { description: "Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none)" }
+        "200": { description: "Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) and services [{uuid, name, color}] for the card tags" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -9849,6 +9851,7 @@ components:
         currency: { type: string }
         is_active: { type: boolean }
         description: { type: string }
+        color: { type: string, description: "Palette key; empty = derived from the name" }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 

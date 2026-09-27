@@ -124,5 +124,9 @@
   "detail.products_in_category_description": "Seçili ürünlere toplu fiyat veya stok işlemi uygulayın.",
   "detail.services_in_category": "Bu kategorideki hizmetler",
   "detail.created_at": "Oluşturulma",
-  "detail.updated_at": "Güncellenme"
+  "detail.updated_at": "Güncellenme",
+  "services.color": "Kart rengi",
+  "services.color_auto": "Otomatik",
+  "services.color_preview": "Hizmet",
+  "services.color_hint": "İşlemler panosunda hizmet kartlarındaki etiket ve şerit bu renkte görünür."
 }

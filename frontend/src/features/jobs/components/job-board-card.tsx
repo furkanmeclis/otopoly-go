@@ -6,6 +6,10 @@ import { CheckCircle2, KeyRound, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { JobElapsed } from "@/features/jobs/components/job-elapsed";
+import {
+  JobServiceStripe,
+  JobServiceTags,
+} from "@/features/jobs/components/job-service-tags";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { VehicleBrandMark } from "@/features/jobs/components/vehicle-brand-mark";
 import { carryOverDay, initials, isStale } from "@/features/jobs/lib/job-ui";
@@ -43,10 +47,15 @@ export function JobBoardCard({
   return (
     <article
       className={cn(
-        "group bg-card hover:border-primary/40 relative rounded-xl border p-3 shadow-xs transition-[border-color,box-shadow] hover:shadow-md",
+        "group bg-card hover:border-primary/40 relative overflow-hidden rounded-xl border p-3 shadow-xs transition-[border-color,box-shadow] hover:shadow-md",
+        job.services?.length ? "pt-4" : undefined,
         stale && "border-amber-400/60",
       )}
     >
+      <JobServiceStripe
+        services={job.services}
+        className="absolute inset-x-0 top-0"
+      />
       <Link
         href={href}
         className="focus-visible:ring-ring absolute inset-0 rounded-xl focus-visible:ring-2 focus-visible:outline-none"
@@ -81,6 +90,7 @@ export function JobBoardCard({
           {job.vehicle_label}
         </p>
       ) : null}
+      <JobServiceTags services={job.services} className="mt-2" />
 
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">

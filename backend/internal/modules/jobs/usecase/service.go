@@ -180,8 +180,28 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		return nil, 0, err
 	}
 	out := make([]Job, 0, len(rows))
+	ids := make([]int64, 0, len(rows))
 	for _, row := range rows {
 		out = append(out, mapListJob(row))
+		ids = append(ids, row.ID)
+	}
+	if len(ids) > 0 {
+		tags, err := s.q.ListServiceJobServiceTags(ctx, db.ListServiceJobServiceTagsParams{OrganizationID: orgID, JobIds: ids})
+		if err != nil {
+			return nil, 0, err
+		}
+		byJob := make(map[int64][]ServiceTag, len(ids))
+		for _, t := range tags {
+			tag := ServiceTag{Name: t.Name, Color: t.Color}
+			if t.ServiceUuid.Valid {
+				u := uuid.UUID(t.ServiceUuid.Bytes)
+				tag.UUID = &u
+			}
+			byJob[t.JobID] = append(byJob[t.JobID], tag)
+		}
+		for i, id := range ids {
+			out[i].Services = byJob[id]
+		}
 	}
 	return out, total, nil
 }

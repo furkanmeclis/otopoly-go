@@ -52,11 +52,20 @@ export type Job = {
   /** List rows only: vehicle brand for the board card mark. */
   brand_name?: string;
   brand_logo_url?: string | null;
+  /** List rows only: service lines for the coloured card tags. */
+  services?: JobServiceTag[];
   started_at: string;
   completed_at?: string | null;
   paid_at?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type JobServiceTag = {
+  uuid?: string | null;
+  name: string;
+  /** Palette key; "" = derived from the name. */
+  color: string;
 };
 
 export type JobDetail = Job & {

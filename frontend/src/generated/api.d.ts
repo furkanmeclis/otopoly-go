@@ -6106,6 +6106,8 @@ export interface components {
             currency: string;
             is_active: boolean;
             description?: string;
+            /** @description Palette key; empty = derived from the name */
+            color?: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -11204,6 +11206,11 @@ export interface operations {
                     is_active?: boolean;
                     /** @default  */
                     description?: string;
+                    /**
+                     * @description Palette key (sky, emerald, amber, rose, violet, indigo, teal, orange, pink, lime, cyan, slate); empty = derived from the name
+                     * @default
+                     */
+                    color?: string;
                 };
             };
         };
@@ -11332,6 +11339,11 @@ export interface operations {
                     currency?: string;
                     is_active?: boolean;
                     description?: string;
+                    /**
+                     * @description Palette key for job card tags; empty = derived from the name
+                     * @enum {string}
+                     */
+                    color?: "" | "sky" | "emerald" | "amber" | "rose" | "violet" | "indigo" | "teal" | "orange" | "pink" | "lime" | "cyan" | "slate";
                 };
             };
         };
@@ -12100,7 +12112,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) */
+            /** @description Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) and services [{uuid, name, color}] for the card tags */
             200: {
                 headers: {
                     [name: string]: unknown;

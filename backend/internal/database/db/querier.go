@@ -512,6 +512,8 @@ type Querier interface {
 	ListScheduledNotificationsBySubject(ctx context.Context, arg ListScheduledNotificationsBySubjectParams) ([]ScheduledNotification, error)
 	ListServiceJobLines(ctx context.Context, arg ListServiceJobLinesParams) ([]ListServiceJobLinesRow, error)
 	ListServiceJobPayments(ctx context.Context, arg ListServiceJobPaymentsParams) ([]ListServiceJobPaymentsRow, error)
+	// Service lines of the listed jobs, for the coloured tags on board cards.
+	ListServiceJobServiceTags(ctx context.Context, arg ListServiceJobServiceTagsParams) ([]ListServiceJobServiceTagsRow, error)
 	ListServiceJobs(ctx context.Context, arg ListServiceJobsParams) ([]ListServiceJobsRow, error)
 	ListServiceJobsByCustomer(ctx context.Context, arg ListServiceJobsByCustomerParams) ([]ListServiceJobsByCustomerRow, error)
 	ListServiceJobsForExport(ctx context.Context, arg ListServiceJobsForExportParams) ([]ListServiceJobsForExportRow, error)

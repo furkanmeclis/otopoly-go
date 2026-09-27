@@ -49,13 +49,24 @@ type Job struct {
 	AssigneeUUID  *uuid.UUID `json:"assignee_uuid,omitempty"`
 	AssigneeName  string     `json:"assignee_name,omitempty"`
 	// BrandName / BrandLogoURL are set on list rows for the board cards.
-	BrandName    string     `json:"brand_name,omitempty"`
-	BrandLogoURL *string    `json:"brand_logo_url,omitempty"`
-	StartedAt    time.Time  `json:"started_at"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty"`
-	PaidAt       *time.Time `json:"paid_at,omitempty"`
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	BrandName    string  `json:"brand_name,omitempty"`
+	BrandLogoURL *string `json:"brand_logo_url,omitempty"`
+	// Services are the job's service lines (list rows only), for the
+	// coloured tags on board cards.
+	Services    []ServiceTag `json:"services,omitempty"`
+	StartedAt   time.Time    `json:"started_at"`
+	CompletedAt *time.Time   `json:"completed_at,omitempty"`
+	PaidAt      *time.Time   `json:"paid_at,omitempty"`
+	CreatedAt   time.Time    `json:"created_at"`
+	UpdatedAt   time.Time    `json:"updated_at"`
+}
+
+// ServiceTag is one service on a job card. Color is a palette key or ""
+// (the UI derives one from the name).
+type ServiceTag struct {
+	UUID  *uuid.UUID `json:"uuid,omitempty"`
+	Name  string     `json:"name"`
+	Color string     `json:"color"`
 }
 
 type JobDetail struct {

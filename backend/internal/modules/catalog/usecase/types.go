@@ -52,9 +52,14 @@ type ServiceItem struct {
 	Currency        string     `json:"currency"`
 	IsActive        bool       `json:"is_active"`
 	Description     string     `json:"description"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	// Color is a palette key (sky, emerald, …); empty lets the UI derive one.
+	Color     string    `json:"color"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
+
+// ServiceColors is the palette a service can be tagged with.
+var ServiceColors = []string{"sky", "emerald", "amber", "rose", "violet", "indigo", "teal", "orange", "pink", "lime", "cyan", "slate"}
 
 type CatalogSummary struct {
 	TotalProducts       int64  `json:"total_products"`
@@ -144,6 +149,7 @@ type CreateServiceInput struct {
 	Currency        string     `json:"currency"`
 	IsActive        *bool      `json:"is_active"`
 	Description     string     `json:"description"`
+	Color           string     `json:"color"`
 }
 
 type UpdateServiceInput struct {
@@ -158,6 +164,7 @@ type UpdateServiceInput struct {
 	Currency        *string    `json:"currency"`
 	IsActive        *bool      `json:"is_active"`
 	Description     *string    `json:"description"`
+	Color           *string    `json:"color"`
 }
 
 type CreateCategoryInput struct {

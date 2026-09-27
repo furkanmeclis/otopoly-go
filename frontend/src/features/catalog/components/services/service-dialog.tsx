@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
+import { ServiceColorField } from "@/features/catalog/components/services/service-color-field";
 import { useCatalogMutations } from "@/features/catalog/hooks/use-catalog-mutations";
 import { useCatalogCategories } from "@/features/catalog/hooks/use-catalog-queries";
 import type { CatalogService } from "@/features/catalog/services/catalog.service";
@@ -70,6 +71,7 @@ export function ServiceDialog({
         currency: z.string().default("TRY"),
         is_active: z.boolean().default(true),
         description: z.string().optional(),
+        color: z.string().default(""),
       }),
     [t],
   );
@@ -86,6 +88,7 @@ export function ServiceDialog({
         currency: service.currency || "TRY",
         is_active: service.is_active,
         description: service.description || "",
+        color: service.color || "",
       };
     }
     return {
@@ -98,6 +101,7 @@ export function ServiceDialog({
       currency: "TRY",
       is_active: true,
       description: "",
+      color: "",
     };
   }, [service]);
 
@@ -113,6 +117,7 @@ export function ServiceDialog({
       currency: values.currency,
       is_active: values.is_active,
       description: values.description,
+      color: values.color,
     };
 
     if (isEdit && service) {
@@ -186,6 +191,8 @@ export function ServiceDialog({
                 step="any"
               />
             </div>
+
+            <ServiceColorField />
 
             <AppSwitch
               name="is_active"

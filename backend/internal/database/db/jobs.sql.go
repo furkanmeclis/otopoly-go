@@ -729,6 +729,54 @@ func (q *Queries) ListServiceJobPayments(ctx context.Context, arg ListServiceJob
 	return items, nil
 }
 
+const listServiceJobServiceTags = `-- name: ListServiceJobServiceTags :many
+SELECT l.job_id, s.uuid AS service_uuid, l.name, COALESCE(s.color, '')::text AS color
+FROM service_job_lines l
+LEFT JOIN services s ON s.id = l.service_id
+WHERE l.organization_id = $1
+  AND l.job_id = ANY($2::bigint[])
+  AND l.line_type = 'service'
+ORDER BY l.job_id, l.sort_order, l.id
+`
+
+type ListServiceJobServiceTagsParams struct {
+	OrganizationID int64   `json:"organization_id"`
+	JobIds         []int64 `json:"job_ids"`
+}
+
+type ListServiceJobServiceTagsRow struct {
+	JobID       int64       `json:"job_id"`
+	ServiceUuid pgtype.UUID `json:"service_uuid"`
+	Name        string      `json:"name"`
+	Color       string      `json:"color"`
+}
+
+// Service lines of the listed jobs, for the coloured tags on board cards.
+func (q *Queries) ListServiceJobServiceTags(ctx context.Context, arg ListServiceJobServiceTagsParams) ([]ListServiceJobServiceTagsRow, error) {
+	rows, err := q.db.Query(ctx, listServiceJobServiceTags, arg.OrganizationID, arg.JobIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListServiceJobServiceTagsRow{}
+	for rows.Next() {
+		var i ListServiceJobServiceTagsRow
+		if err := rows.Scan(
+			&i.JobID,
+			&i.ServiceUuid,
+			&i.Name,
+			&i.Color,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listServiceJobs = `-- name: ListServiceJobs :many
 SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_name, j.customer_phone, j.plate, j.vehicle_label, j.status, j.currency, j.notes, j.started_at, j.completed_at, j.paid_at, j.assignee_user_id, j.total_amount, j.created_by, j.created_at, j.updated_at, j.payment_status,
        c.uuid AS customer_uuid,

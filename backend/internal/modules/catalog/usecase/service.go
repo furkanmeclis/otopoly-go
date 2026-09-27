@@ -757,6 +757,10 @@ func (s *Service) CreateService(ctx context.Context, in CreateServiceInput) (Ser
 	if in.IsActive != nil {
 		isActive = *in.IsActive
 	}
+	color, err := normalizeServiceColor(in.Color)
+	if err != nil {
+		return ServiceItem{}, err
+	}
 
 	row, err := s.q.CreateService(ctx, db.CreateServiceParams{
 		OrganizationID:  orgID,
@@ -769,6 +773,7 @@ func (s *Service) CreateService(ctx context.Context, in CreateServiceInput) (Ser
 		Currency:        currency,
 		IsActive:        isActive,
 		Description:     in.Description,
+		Color:           color,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "uq_services_org_name_active") {
@@ -844,6 +849,13 @@ func (s *Service) UpdateService(ctx context.Context, id uuid.UUID, in UpdateServ
 	}
 	if in.Description != nil {
 		params.Description = pgtype.Text{String: *in.Description, Valid: true}
+	}
+	if in.Color != nil {
+		color, err := normalizeServiceColor(*in.Color)
+		if err != nil {
+			return ServiceItem{}, err
+		}
+		params.Color = pgtype.Text{String: color, Valid: true}
 	}
 
 	row, err := s.q.UpdateService(ctx, params)
@@ -925,4 +937,18 @@ func (s *Service) ServicesResourceMeta() resourcemeta.ResourceMeta {
 
 func (s *Service) CategoriesResourceMeta() resourcemeta.ResourceMeta {
 	return resourcemeta.TenantCatalogCategories()
+}
+
+// normalizeServiceColor accepts a palette key or "" (auto).
+func normalizeServiceColor(raw string) (string, error) {
+	c := strings.ToLower(strings.TrimSpace(raw))
+	if c == "" {
+		return "", nil
+	}
+	for _, k := range ServiceColors {
+		if k == c {
+			return c, nil
+		}
+	}
+	return "", fmt.Errorf("%w: unknown service color %q", ErrInvalidRequest, raw)
 }

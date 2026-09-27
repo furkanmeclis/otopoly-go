@@ -9,6 +9,7 @@ import { routes } from "@/config/routes";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import type { JobQuickAction } from "@/features/jobs/components/job-board-card";
 import { JobElapsed } from "@/features/jobs/components/job-elapsed";
+import { JobServiceTags } from "@/features/jobs/components/job-service-tags";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { VehicleBrandMark } from "@/features/jobs/components/vehicle-brand-mark";
 import {
@@ -88,6 +89,11 @@ export function JobsTable({
                   <p className="text-muted-foreground truncate text-xs">
                     {job.vehicle_label || job.customer_phone}
                   </p>
+                  <JobServiceTags
+                    services={job.services}
+                    max={3}
+                    className="mt-1"
+                  />
                 </td>
                 <td className="text-muted-foreground px-3 py-2.5 text-xs">
                   {job.assignee_name || "—"}

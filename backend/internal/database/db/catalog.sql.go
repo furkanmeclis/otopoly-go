@@ -297,12 +297,12 @@ const createService = `-- name: CreateService :one
 
 INSERT INTO services (
     organization_id, category_id, name, code, duration_minutes,
-    price, vat_rate, currency, is_active, description
+    price, vat_rate, currency, is_active, description, color
 ) VALUES (
     $1, $2, $3, $4, $5,
-    $6, $7, $8, $9, $10
+    $6, $7, $8, $9, $10, $11
 )
-RETURNING id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at, color
 `
 
 type CreateServiceParams struct {
@@ -316,6 +316,7 @@ type CreateServiceParams struct {
 	Currency        string         `json:"currency"`
 	IsActive        bool           `json:"is_active"`
 	Description     string         `json:"description"`
+	Color           string         `json:"color"`
 }
 
 // ============================================================================
@@ -333,6 +334,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		arg.Currency,
 		arg.IsActive,
 		arg.Description,
+		arg.Color,
 	)
 	var i Service
 	err := row.Scan(
@@ -351,6 +353,7 @@ func (q *Queries) CreateService(ctx context.Context, arg CreateServiceParams) (S
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Color,
 	)
 	return i, err
 }
@@ -790,7 +793,7 @@ func (q *Queries) GetProductForSearch(ctx context.Context, arg GetProductForSear
 }
 
 const getServiceByCode = `-- name: GetServiceByCode :one
-SELECT id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at FROM services
+SELECT id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at, color FROM services
 WHERE organization_id = $1 AND lower(code) = lower($2) AND deleted_at IS NULL
 `
 
@@ -818,12 +821,13 @@ func (q *Queries) GetServiceByCode(ctx context.Context, arg GetServiceByCodePara
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Color,
 	)
 	return i, err
 }
 
 const getServiceByID = `-- name: GetServiceByID :one
-SELECT id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at FROM services
+SELECT id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at, color FROM services
 WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
 `
 
@@ -851,12 +855,13 @@ func (q *Queries) GetServiceByID(ctx context.Context, arg GetServiceByIDParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Color,
 	)
 	return i, err
 }
 
 const getServiceByName = `-- name: GetServiceByName :one
-SELECT id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at FROM services
+SELECT id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at, color FROM services
 WHERE organization_id = $1 AND lower(name) = lower($2) AND deleted_at IS NULL
 `
 
@@ -884,12 +889,13 @@ func (q *Queries) GetServiceByName(ctx context.Context, arg GetServiceByNamePara
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Color,
 	)
 	return i, err
 }
 
 const getServiceByUUID = `-- name: GetServiceByUUID :one
-SELECT s.id, s.uuid, s.organization_id, s.category_id, s.name, s.code, s.duration_minutes, s.price, s.vat_rate, s.currency, s.is_active, s.description, s.created_at, s.updated_at, s.deleted_at, c.uuid AS category_uuid, c.name AS category_name
+SELECT s.id, s.uuid, s.organization_id, s.category_id, s.name, s.code, s.duration_minutes, s.price, s.vat_rate, s.currency, s.is_active, s.description, s.created_at, s.updated_at, s.deleted_at, s.color, c.uuid AS category_uuid, c.name AS category_name
 FROM services s
 LEFT JOIN catalog_categories c ON c.id = s.category_id AND c.deleted_at IS NULL
 WHERE s.uuid = $1 AND s.organization_id = $2 AND s.deleted_at IS NULL
@@ -916,6 +922,7 @@ type GetServiceByUUIDRow struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	Color           string             `json:"color"`
 	CategoryUuid    pgtype.UUID        `json:"category_uuid"`
 	CategoryName    pgtype.Text        `json:"category_name"`
 }
@@ -939,6 +946,7 @@ func (q *Queries) GetServiceByUUID(ctx context.Context, arg GetServiceByUUIDPara
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Color,
 		&i.CategoryUuid,
 		&i.CategoryName,
 	)
@@ -1473,7 +1481,7 @@ func (q *Queries) ListServiceUUIDsForBulk(ctx context.Context, arg ListServiceUU
 }
 
 const listServices = `-- name: ListServices :many
-SELECT s.id, s.uuid, s.organization_id, s.category_id, s.name, s.code, s.duration_minutes, s.price, s.vat_rate, s.currency, s.is_active, s.description, s.created_at, s.updated_at, s.deleted_at, c.uuid AS category_uuid, c.name AS category_name
+SELECT s.id, s.uuid, s.organization_id, s.category_id, s.name, s.code, s.duration_minutes, s.price, s.vat_rate, s.currency, s.is_active, s.description, s.created_at, s.updated_at, s.deleted_at, s.color, c.uuid AS category_uuid, c.name AS category_name
 FROM services s
 LEFT JOIN catalog_categories c ON c.id = s.category_id AND c.deleted_at IS NULL
 WHERE s.organization_id = $1 AND s.deleted_at IS NULL
@@ -1521,6 +1529,7 @@ type ListServicesRow struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	Color           string             `json:"color"`
 	CategoryUuid    pgtype.UUID        `json:"category_uuid"`
 	CategoryName    pgtype.Text        `json:"category_name"`
 }
@@ -1558,6 +1567,7 @@ func (q *Queries) ListServices(ctx context.Context, arg ListServicesParams) ([]L
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.Color,
 			&i.CategoryUuid,
 			&i.CategoryName,
 		); err != nil {
@@ -1572,7 +1582,7 @@ func (q *Queries) ListServices(ctx context.Context, arg ListServicesParams) ([]L
 }
 
 const listServicesForExport = `-- name: ListServicesForExport :many
-SELECT s.id, s.uuid, s.organization_id, s.category_id, s.name, s.code, s.duration_minutes, s.price, s.vat_rate, s.currency, s.is_active, s.description, s.created_at, s.updated_at, s.deleted_at, c.name AS category_name
+SELECT s.id, s.uuid, s.organization_id, s.category_id, s.name, s.code, s.duration_minutes, s.price, s.vat_rate, s.currency, s.is_active, s.description, s.created_at, s.updated_at, s.deleted_at, s.color, c.name AS category_name
 FROM services s
 LEFT JOIN catalog_categories c ON c.id = s.category_id AND c.deleted_at IS NULL
 WHERE s.organization_id = $1 AND s.deleted_at IS NULL
@@ -1609,6 +1619,7 @@ type ListServicesForExportRow struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	Color           string             `json:"color"`
 	CategoryName    pgtype.Text        `json:"category_name"`
 }
 
@@ -1642,6 +1653,7 @@ func (q *Queries) ListServicesForExport(ctx context.Context, arg ListServicesFor
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.Color,
 			&i.CategoryName,
 		); err != nil {
 			return nil, err
@@ -1829,7 +1841,7 @@ const softDeleteService = `-- name: SoftDeleteService :one
 UPDATE services
 SET deleted_at = NOW(), is_active = false
 WHERE uuid = $1 AND organization_id = $2 AND deleted_at IS NULL
-RETURNING id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at, color
 `
 
 type SoftDeleteServiceParams struct {
@@ -1856,6 +1868,7 @@ func (q *Queries) SoftDeleteService(ctx context.Context, arg SoftDeleteServicePa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Color,
 	)
 	return i, err
 }
@@ -2010,9 +2023,10 @@ SET name = COALESCE($1, name),
     vat_rate = COALESCE($8, vat_rate),
     currency = COALESCE($9, currency),
     is_active = COALESCE($10, is_active),
-    description = COALESCE($11, description)
-WHERE uuid = $12 AND organization_id = $13 AND deleted_at IS NULL
-RETURNING id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at
+    description = COALESCE($11, description),
+    color = COALESCE($12, color)
+WHERE uuid = $13 AND organization_id = $14 AND deleted_at IS NULL
+RETURNING id, uuid, organization_id, category_id, name, code, duration_minutes, price, vat_rate, currency, is_active, description, created_at, updated_at, deleted_at, color
 `
 
 type UpdateServiceParams struct {
@@ -2027,6 +2041,7 @@ type UpdateServiceParams struct {
 	Currency        pgtype.Text    `json:"currency"`
 	IsActive        pgtype.Bool    `json:"is_active"`
 	Description     pgtype.Text    `json:"description"`
+	Color           pgtype.Text    `json:"color"`
 	Uuid            uuid.UUID      `json:"uuid"`
 	OrganizationID  int64          `json:"organization_id"`
 }
@@ -2044,6 +2059,7 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		arg.Currency,
 		arg.IsActive,
 		arg.Description,
+		arg.Color,
 		arg.Uuid,
 		arg.OrganizationID,
 	)
@@ -2064,6 +2080,7 @@ func (q *Queries) UpdateService(ctx context.Context, arg UpdateServiceParams) (S
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.Color,
 	)
 	return i, err
 }

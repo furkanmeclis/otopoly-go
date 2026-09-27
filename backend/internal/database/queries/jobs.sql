@@ -294,3 +294,13 @@ SELECT j.uuid, j.plate, j.vehicle_label, j.customer_name, j.status, j.total_amou
 FROM service_jobs j
 JOIN organizations o ON o.id = j.organization_id
 WHERE j.uuid = $1 AND o.uuid = $2;
+
+-- name: ListServiceJobServiceTags :many
+-- Service lines of the listed jobs, for the coloured tags on board cards.
+SELECT l.job_id, s.uuid AS service_uuid, l.name, COALESCE(s.color, '')::text AS color
+FROM service_job_lines l
+LEFT JOIN services s ON s.id = l.service_id
+WHERE l.organization_id = sqlc.arg(organization_id)
+  AND l.job_id = ANY(sqlc.arg(job_ids)::bigint[])
+  AND l.line_type = 'service'
+ORDER BY l.job_id, l.sort_order, l.id;

@@ -124,5 +124,9 @@
   "detail.products_in_category_description": "Apply bulk price or stock actions to the selected products.",
   "detail.services_in_category": "Services in this category",
   "detail.created_at": "Created",
-  "detail.updated_at": "Updated"
+  "detail.updated_at": "Updated",
+  "services.color": "Card colour",
+  "services.color_auto": "Auto",
+  "services.color_preview": "Service",
+  "services.color_hint": "Service tags and the stripe on job cards use this colour."
 }

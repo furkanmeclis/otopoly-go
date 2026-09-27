@@ -207,10 +207,10 @@ ORDER BY p.name ASC;
 -- name: CreateService :one
 INSERT INTO services (
     organization_id, category_id, name, code, duration_minutes,
-    price, vat_rate, currency, is_active, description
+    price, vat_rate, currency, is_active, description, color
 ) VALUES (
     $1, $2, $3, $4, $5,
-    $6, $7, $8, $9, $10
+    $6, $7, $8, $9, $10, $11
 )
 RETURNING *;
 
@@ -277,7 +277,8 @@ SET name = COALESCE(sqlc.narg(name), name),
     vat_rate = COALESCE(sqlc.narg(vat_rate), vat_rate),
     currency = COALESCE(sqlc.narg(currency), currency),
     is_active = COALESCE(sqlc.narg(is_active), is_active),
-    description = COALESCE(sqlc.narg(description), description)
+    description = COALESCE(sqlc.narg(description), description),
+    color = COALESCE(sqlc.narg(color), color)
 WHERE uuid = sqlc.arg(uuid) AND organization_id = sqlc.arg(organization_id) AND deleted_at IS NULL
 RETURNING *;
 
