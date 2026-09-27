@@ -127,6 +127,7 @@ export const routes = {
     settings: {
       root: (slug: string) => `/t/${slug}/settings`,
       messaging: (slug: string) => `/t/${slug}/settings/messaging`,
+      billing: (slug: string) => `/t/${slug}/settings/billing`,
     },
   },
   guest: {
@@ -174,6 +175,10 @@ export const routes = {
     },
     settings: {
       root: "/platform/settings",
+    },
+    billing: {
+      root: "/platform/billing",
+      plans: "/platform/billing/plans",
     },
     access: {
       root: "/platform/access",

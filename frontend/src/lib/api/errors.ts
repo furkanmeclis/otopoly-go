@@ -1,3 +1,5 @@
+import { emitLimitEvent, isLimitEventCode, limitDetailFrom } from "./limit-events";
+
 export type ApiErrorDetail = {
   field?: string;
   message?: string;
@@ -75,11 +77,15 @@ export function parseApiError(status: number, data: unknown): ApiError {
   const body = data as Partial<ApiErrorBody> | null;
   const code = body?.error?.code ?? `HTTP_${status}`;
   const message = body?.error?.message ?? defaultMessage(status);
+  const details = body?.error?.details ?? [];
+  if (isLimitEventCode(code)) {
+    emitLimitEvent(limitDetailFrom(code, details));
+  }
   return new ApiError({
     status,
     code,
     message,
-    details: body?.error?.details ?? [],
+    details,
     requestId: body?.meta?.request_id,
     body: body as ApiErrorBody | undefined,
   });

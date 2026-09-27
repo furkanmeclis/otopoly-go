@@ -125,5 +125,10 @@
   "labels.tenant.leads.read": "View leads",
   "labels.tenant.leads.write": "Manage leads",
   "labels.tenant.quotes.read": "View quotes",
-  "labels.tenant.quotes.write": "Manage quotes"
+  "labels.tenant.quotes.write": "Manage quotes",
+  "labels.tenant.billing.read": "View subscription",
+  "labels.tenant.billing.write": "Manage subscription",
+  "labels.platform.billing.read": "View platform subscriptions",
+  "labels.platform.billing.write": "Manage platform subscriptions and plans",
+  "labels.platform.billing.settings": "Manage billing settings"
 }

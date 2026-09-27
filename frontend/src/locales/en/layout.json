@@ -62,5 +62,8 @@
   "nav_assistant": "Assistant",
   "nav_todos": "Todos",
   "nav_leads": "Leads",
-  "nav_quotes": "Quotes"
+  "nav_quotes": "Quotes",
+  "nav_billing": "Subscription",
+  "section_billing": "Subscription",
+  "nav_billing_plans": "Plans"
 }

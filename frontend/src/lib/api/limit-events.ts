@@ -1,0 +1,56 @@
+/**
+ * Plan-limit events. `parseApiError` emits one whenever the API answers with
+ * LIMIT_REACHED (409) or FEATURE_DISABLED (403); the tenant layout listens and
+ * shows the upgrade dialog, so individual mutations need no special handling.
+ */
+export type LimitEventCode = "LIMIT_REACHED" | "FEATURE_DISABLED";
+
+export type LimitEventDetail = {
+  code: LimitEventCode;
+  feature?: string;
+  limit?: number;
+  used?: number;
+  tolerance?: number;
+};
+
+const EVENT_NAME = "otopoly:limit";
+
+export function isLimitEventCode(code: string): code is LimitEventCode {
+  return code === "LIMIT_REACHED" || code === "FEATURE_DISABLED";
+}
+
+export function emitLimitEvent(detail: LimitEventDetail) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent<LimitEventDetail>(EVENT_NAME, { detail }));
+}
+
+export function subscribeLimitEvents(cb: (detail: LimitEventDetail) => void) {
+  if (typeof window === "undefined") return () => {};
+  const handler = (event: Event) => cb((event as CustomEvent<LimitEventDetail>).detail);
+  window.addEventListener(EVENT_NAME, handler);
+  return () => window.removeEventListener(EVENT_NAME, handler);
+}
+
+function numberDetail(value: string | undefined) {
+  if (value === undefined || value === "") return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Builds the event payload from an error body's details list. */
+export function limitDetailFrom(
+  code: LimitEventCode,
+  details: Array<{ field?: string; message?: string }>,
+): LimitEventDetail {
+  const map: Record<string, string> = {};
+  for (const d of details) {
+    if (d.field && d.message !== undefined) map[d.field] = d.message;
+  }
+  return {
+    code,
+    feature: map.feature,
+    limit: numberDetail(map.limit),
+    used: numberDetail(map.used),
+    tolerance: numberDetail(map.tolerance),
+  };
+}

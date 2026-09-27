@@ -14,3 +14,5 @@ export {
   type ApiErrorBody,
   type ApiErrorDetail,
 } from "./errors";
+export { emitLimitEvent, subscribeLimitEvents } from "./limit-events";
+export type { LimitEventDetail, LimitEventCode } from "./limit-events";

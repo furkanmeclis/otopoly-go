@@ -62,5 +62,8 @@
   "nav_assistant": "Asistan",
   "nav_todos": "Görevler",
   "nav_leads": "Fırsatlar",
-  "nav_quotes": "Teklifler"
+  "nav_quotes": "Teklifler",
+  "nav_billing": "Abonelik",
+  "section_billing": "Abonelik",
+  "nav_billing_plans": "Planlar"
 }
