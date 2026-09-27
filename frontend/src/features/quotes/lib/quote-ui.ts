@@ -164,3 +164,27 @@ export function computeDraftTotals(
     grand: centsToString(grand),
   };
 }
+
+/** Left stripe + row tint per status (mirrors the jobs board colours). */
+export function quoteStatusAccent(status: QuoteStatus): {
+  stripe: string;
+  row?: string;
+} {
+  switch (status) {
+    case "draft":
+      return { stripe: "bg-muted-foreground/30" };
+    case "sent":
+      return { stripe: "bg-sky-500" };
+    case "viewed":
+      return { stripe: "bg-amber-500" };
+    case "accepted":
+      return {
+        stripe: "bg-emerald-500",
+        row: "bg-emerald-500/[0.06] hover:bg-emerald-500/10",
+      };
+    case "rejected":
+      return { stripe: "bg-rose-500" };
+    default:
+      return { stripe: "bg-muted-foreground/20" };
+  }
+}

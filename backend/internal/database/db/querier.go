@@ -495,6 +495,9 @@ type Querier interface {
 	ListPurchasesForExport(ctx context.Context, arg ListPurchasesForExportParams) ([]Purchase, error)
 	ListPurchasesForSearch(ctx context.Context) ([]ListPurchasesForSearchRow, error)
 	ListPushSubscriptionsByUser(ctx context.Context, userID int64) ([]PushSubscription, error)
+	// Who hears about a customer's accept / reject: the quote's creator, the
+	// lead assignee and the business owners (members only, de-duplicated).
+	ListQuoteDecisionRecipients(ctx context.Context, arg ListQuoteDecisionRecipientsParams) ([]int64, error)
 	ListQuoteDeliveries(ctx context.Context, quoteID int64) ([]QuoteDelivery, error)
 	ListQuoteEvents(ctx context.Context, quoteID int64) ([]ListQuoteEventsRow, error)
 	ListQuoteLines(ctx context.Context, quoteID int64) ([]ListQuoteLinesRow, error)

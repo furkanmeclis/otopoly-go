@@ -100,8 +100,17 @@ func (f *fakeQuotes) AsyncSendFailed(_ context.Context, _ int64, ref, reason str
 }
 
 type fakeStore struct {
-	people db.GetQuoteNotifyPeopleRow
-	quote  db.Quote
+	people     db.GetQuoteNotifyPeopleRow
+	quote      db.Quote
+	recipients []int64
+	slug       string
+}
+
+func (f fakeStore) ListQuoteDecisionRecipients(context.Context, db.ListQuoteDecisionRecipientsParams) ([]int64, error) {
+	return f.recipients, nil
+}
+func (f fakeStore) GetNotificationOrganization(_ context.Context, id int64) (db.GetNotificationOrganizationRow, error) {
+	return db.GetNotificationOrganizationRow{ID: id, Slug: f.slug}, nil
 }
 
 func (f fakeStore) GetQuoteRowByUUID(_ context.Context, a db.GetQuoteRowByUUIDParams) (db.Quote, error) {
@@ -384,6 +393,47 @@ func TestTeamNotifications(t *testing.T) {
 	x.QuoteChanged(ctx, ev)
 	if len(center.scheduled) != 2 || len(center.cancelled) != 2 {
 		t.Fatal("closed quote must not reschedule")
+	}
+}
+
+func TestCustomerDecisionNotifiesTeam(t *testing.T) {
+	center := &fakeCenter{}
+	store := fakeStore{
+		people:     db.GetQuoteNotifyPeopleRow{CreatedBy: pgtype.Int8{Int64: 1, Valid: true}, CustomerName: "Ahmet"},
+		recipients: []int64{1, 2, 3},
+		slug:       "tech-oto",
+	}
+	x := salesflow.New(center, fakeChannels{}, store, nil)
+	// The share link carries no tenant slug: the link is resolved from the org.
+	ctx := context.Background()
+	ev := quotesusecase.QuoteEvent{Kind: "decided", OrganizationID: 7, QuoteID: 42, QuoteUUID: uuid.New(),
+		Number: "TKL-1", Status: "accepted", GrandTotal: "100.00", Currency: "TRY", CreatedBy: 1}
+
+	x.QuoteChanged(ctx, ev)
+	if len(center.dispatched) != 3 {
+		t.Fatalf("creator, assignee and owner must be told: %+v", center.dispatched)
+	}
+	for i, n := range center.dispatched {
+		if n.Kind != "quote.team_accepted" || n.Recipient.UserID != int64(i+1) ||
+			n.ActionURL != "/t/tech-oto/quotes/"+ev.QuoteUUID.String() || n.Vars["customer_name"] != "Ahmet" {
+			t.Fatalf("accepted notice %d = %+v", i, n)
+		}
+	}
+	if len(center.cancelled) != 1 {
+		t.Fatal("the expiry notice must be cancelled once decided")
+	}
+
+	ev.Status = "rejected"
+	x.QuoteChanged(ctx, ev)
+	if len(center.dispatched) != 6 || center.dispatched[5].Kind != "quote.team_rejected" {
+		t.Fatalf("rejected notices: %+v", center.dispatched[3:])
+	}
+
+	// A staff status change (kind "status") never sends the customer notice.
+	ev.Kind, ev.Status = "status", "accepted"
+	x.QuoteChanged(orgctx.WithScope(ctx, orgctx.Scope{InternalID: 7, Slug: "tech-oto"}), ev)
+	if len(center.dispatched) != 6 {
+		t.Fatal("manual status change must not notify as a customer decision")
 	}
 }
 

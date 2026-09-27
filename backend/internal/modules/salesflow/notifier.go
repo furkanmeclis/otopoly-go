@@ -20,6 +20,9 @@ func (x *Integration) QuoteChanged(ctx context.Context, ev quotesusecase.QuoteEv
 		x.teamCreated(ctx, ev)
 	case "sent", "updated", "status":
 		x.syncTeamExpiry(ctx, ev)
+	case "decided":
+		x.syncTeamExpiry(ctx, ev)
+		x.teamDecided(ctx, ev)
 	}
 }
 
@@ -69,6 +72,49 @@ func (x *Integration) teamCreated(ctx context.Context, ev quotesusecase.QuoteEve
 		CreatedBy: creator,
 	}); err != nil {
 		x.log.Warn("quote_team_created_dispatch_failed", "quote", ev.QuoteUUID, "error", err)
+	}
+}
+
+// teamDecided tells the quote's creator, the lead assignee and the owners
+// that the customer accepted or rejected the quote through the share link.
+func (x *Integration) teamDecided(ctx context.Context, ev quotesusecase.QuoteEvent) {
+	kind := KindQuoteTeamAccepted
+	switch ev.Status {
+	case quotesusecase.StatusAccepted:
+	case quotesusecase.StatusRejected:
+		kind = KindQuoteTeamRejected
+	default:
+		return
+	}
+	p, err := x.people(ctx, ev)
+	if err != nil {
+		x.log.Warn("quote_team_decided_lookup_failed", "quote", ev.QuoteUUID, "error", err)
+		return
+	}
+	users, err := x.store.ListQuoteDecisionRecipients(ctx, db.ListQuoteDecisionRecipientsParams{ID: ev.QuoteID, OrganizationID: ev.OrganizationID})
+	if err != nil {
+		x.log.Warn("quote_team_decided_recipients_failed", "quote", ev.QuoteUUID, "error", err)
+		return
+	}
+	// The share link has no tenant scope: resolve the slug for the app link.
+	link := appPath(ctx, "/quotes/%s", ev.QuoteUUID)
+	if link == "" {
+		if org, err := x.store.GetNotificationOrganization(ctx, ev.OrganizationID); err == nil && org.Slug != "" {
+			link = fmt.Sprintf("/t/%s/quotes/%s", org.Slug, ev.QuoteUUID)
+		}
+	}
+	vars := teamVars(ev, p)
+	for _, uid := range users {
+		if _, err := x.center.Dispatch(ctx, centermodel.Notification{
+			OrgID: ev.OrganizationID, Kind: kind,
+			SubjectType: SubjectQuote, SubjectID: ev.QuoteID,
+			Recipient: centermodel.Recipient{UserID: uid},
+			Vars:      vars,
+			ActionURL: link,
+			DedupeKey: fmt.Sprintf("%s:%s:u%d", kind, ev.QuoteUUID, uid),
+		}); err != nil {
+			x.log.Warn("quote_team_decided_dispatch_failed", "quote", ev.QuoteUUID, "user_id", uid, "error", err)
+		}
 	}
 }
 

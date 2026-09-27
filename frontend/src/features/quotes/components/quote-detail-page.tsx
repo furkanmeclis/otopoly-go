@@ -265,14 +265,41 @@ export function QuoteDetailPage({
 
         <QuoteStepper status={q.status} />
         {q.status === "rejected" || q.status === "accepted" ? (
-          q.decision_note || q.decision_channel === "public" ? (
-            <p className="bg-muted/50 rounded-lg px-3 py-2 text-sm">
-              {q.decision_channel === "public"
-                ? t("quotes.decided_by_customer")
-                : null}
-              {q.decision_note ? ` “${q.decision_note}”` : ""}
-            </p>
-          ) : null
+          <div
+            className={cn(
+              "flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-sm",
+              q.status === "accepted"
+                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+                : "border-rose-500/30 bg-rose-500/10 text-rose-800 dark:text-rose-300",
+            )}
+          >
+            {q.status === "accepted" ? (
+              <Check className="mt-0.5 size-4 shrink-0" />
+            ) : (
+              <X className="mt-0.5 size-4 shrink-0" />
+            )}
+            <div className="min-w-0">
+              <p className="font-medium">
+                {t(`quotes.decision_banner.${q.status}`)}
+                {(q.status === "accepted" ? q.accepted_at : q.rejected_at)
+                  ? ` · ${datetime((q.status === "accepted" ? q.accepted_at : q.rejected_at) as string, "dd.MM.yyyy HH:mm", locale)}`
+                  : ""}
+              </p>
+              {q.decision_channel === "public" || q.decision_note ? (
+                <p className="opacity-80">
+                  {q.decision_channel === "public"
+                    ? t("quotes.decided_by_customer")
+                    : null}
+                  {q.decision_note ? ` “${q.decision_note}”` : ""}
+                </p>
+              ) : null}
+              {q.status === "accepted" && !q.job_uuid && canConvert ? (
+                <p className="mt-0.5 opacity-80">
+                  {t("quotes.decision_banner.convert_hint")}
+                </p>
+              ) : null}
+            </div>
+          </div>
         ) : null}
 
         <div className="hidden flex-wrap items-center gap-2 md:flex">

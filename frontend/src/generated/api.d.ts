@@ -7351,6 +7351,8 @@ export interface components {
             open_count: number;
             draft_count: number;
             awaiting_count: number;
+            /** @description Accepted quotes not yet converted into a job */
+            accepted_pending_count: number;
             pending_total: string;
             expiring_soon: number;
             accepted_month: number;
@@ -16082,6 +16084,7 @@ export interface operations {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
+                /** @description open = draft, sent, viewed and accepted quotes not yet converted into a job */
                 status?: "draft" | "sent" | "viewed" | "accepted" | "rejected" | "expired" | "cancelled" | "open";
                 customer_uuid?: string;
                 lead_uuid?: string;

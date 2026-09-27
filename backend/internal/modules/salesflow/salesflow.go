@@ -36,6 +36,8 @@ const (
 	KindQuoteExpiring     = "quote.expiring"
 	KindQuoteTeamCreated  = "quote.team_created"
 	KindQuoteTeamExpiring = "quote.team_expiring"
+	KindQuoteTeamAccepted = "quote.team_accepted"
+	KindQuoteTeamRejected = "quote.team_rejected"
 
 	// SubjectQuote: one-off quote notifications (send, team created).
 	SubjectQuote = centermodel.SubjectQuote
@@ -80,6 +82,8 @@ type Store interface {
 	GetQuoteRowByUUID(ctx context.Context, arg db.GetQuoteRowByUUIDParams) (db.Quote, error)
 	GetQuoteRowByID(ctx context.Context, id int64) (db.Quote, error)
 	GetQuoteNotifyPeople(ctx context.Context, arg db.GetQuoteNotifyPeopleParams) (db.GetQuoteNotifyPeopleRow, error)
+	ListQuoteDecisionRecipients(ctx context.Context, arg db.ListQuoteDecisionRecipientsParams) ([]int64, error)
+	GetNotificationOrganization(ctx context.Context, id int64) (db.GetNotificationOrganizationRow, error)
 	ResolveTodoLeadLink(ctx context.Context, arg db.ResolveTodoLeadLinkParams) (int64, error)
 	ResolveTodoQuoteLink(ctx context.Context, arg db.ResolveTodoQuoteLinkParams) (int64, error)
 	DescribeTodoLeadLinks(ctx context.Context, arg db.DescribeTodoLeadLinksParams) ([]db.DescribeTodoLeadLinksRow, error)

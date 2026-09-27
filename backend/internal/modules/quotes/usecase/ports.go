@@ -76,7 +76,7 @@ type QuotePreviewer interface {
 
 // QuoteEvent is published after a quote write (post-commit, fail-soft).
 type QuoteEvent struct {
-	Kind           string // created | sent | updated | status
+	Kind           string // created | sent | updated | status | decided (customer via share link)
 	OrganizationID int64
 	QuoteID        int64
 	QuoteUUID      uuid.UUID

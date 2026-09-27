@@ -60,7 +60,7 @@ FROM quotes q
 JOIN customers c ON c.id = q.customer_id
 WHERE q.organization_id = $1
   AND ($2::text IS NULL OR q.status = $2
-       OR ($2::text = 'open' AND q.status IN ('draft', 'sent', 'viewed')))
+       OR ($2::text = 'open' AND (q.status IN ('draft', 'sent', 'viewed') OR (q.status = 'accepted' AND q.job_id IS NULL))))
   AND ($3::bigint IS NULL OR q.customer_id = $3)
   AND ($4::bigint IS NULL OR q.lead_id = $4)
   AND (
@@ -1368,6 +1368,43 @@ func (q *Queries) LinkQuoteJob(ctx context.Context, arg LinkQuoteJobParams) (Quo
 	return i, err
 }
 
+const listQuoteDecisionRecipients = `-- name: ListQuoteDecisionRecipients :many
+SELECT DISTINCT m.user_id
+FROM quotes q
+JOIN organization_members m ON m.organization_id = q.organization_id
+LEFT JOIN leads l ON l.id = q.lead_id AND l.organization_id = q.organization_id AND l.deleted_at IS NULL
+WHERE q.id = $1 AND q.organization_id = $2
+  AND (m.user_id = q.created_by OR m.user_id = l.assignee_user_id OR m.role = 'owner')
+ORDER BY m.user_id
+`
+
+type ListQuoteDecisionRecipientsParams struct {
+	ID             int64 `json:"id"`
+	OrganizationID int64 `json:"organization_id"`
+}
+
+// Who hears about a customer's accept / reject: the quote's creator, the
+// lead assignee and the business owners (members only, de-duplicated).
+func (q *Queries) ListQuoteDecisionRecipients(ctx context.Context, arg ListQuoteDecisionRecipientsParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listQuoteDecisionRecipients, arg.ID, arg.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var user_id int64
+		if err := rows.Scan(&user_id); err != nil {
+			return nil, err
+		}
+		items = append(items, user_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listQuoteDeliveries = `-- name: ListQuoteDeliveries :many
 SELECT id, uuid, organization_id, quote_id, channel, recipient, status, error, provider_ref, attempt_count, last_attempt_at, sent_at, created_by, created_at, updated_at FROM quote_deliveries WHERE quote_id = $1
 ORDER BY created_at DESC, id DESC
@@ -1608,7 +1645,7 @@ LEFT JOIN leads l ON l.id = q.lead_id
 LEFT JOIN service_jobs j ON j.id = q.job_id
 WHERE q.organization_id = $1
   AND ($2::text IS NULL OR q.status = $2
-       OR ($2::text = 'open' AND q.status IN ('draft', 'sent', 'viewed')))
+       OR ($2::text = 'open' AND (q.status IN ('draft', 'sent', 'viewed') OR (q.status = 'accepted' AND q.job_id IS NULL))))
   AND ($3::bigint IS NULL OR q.customer_id = $3)
   AND ($4::bigint IS NULL OR q.lead_id = $4)
   AND (
@@ -1738,6 +1775,7 @@ SELECT
     COALESCE(SUM(grand_total) FILTER (WHERE status IN ('sent', 'viewed')), 0)::numeric AS pending_total,
     COUNT(*) FILTER (WHERE status = 'draft')::bigint AS draft_count,
     COUNT(*) FILTER (WHERE status IN ('sent', 'viewed'))::bigint AS awaiting_count,
+    COUNT(*) FILTER (WHERE status = 'accepted' AND job_id IS NULL)::bigint AS accepted_pending_count,
     COUNT(*) FILTER (WHERE status IN ('sent', 'viewed') AND valid_until IS NOT NULL
         AND valid_until >= $1::date
         AND valid_until <= $1::date + 3)::bigint AS expiring_soon,
@@ -1756,13 +1794,14 @@ type QuoteSummaryParams struct {
 }
 
 type QuoteSummaryRow struct {
-	OpenCount          int64          `json:"open_count"`
-	PendingTotal       pgtype.Numeric `json:"pending_total"`
-	DraftCount         int64          `json:"draft_count"`
-	AwaitingCount      int64          `json:"awaiting_count"`
-	ExpiringSoon       int64          `json:"expiring_soon"`
-	AcceptedMonth      int64          `json:"accepted_month"`
-	AcceptedMonthTotal pgtype.Numeric `json:"accepted_month_total"`
+	OpenCount            int64          `json:"open_count"`
+	PendingTotal         pgtype.Numeric `json:"pending_total"`
+	DraftCount           int64          `json:"draft_count"`
+	AwaitingCount        int64          `json:"awaiting_count"`
+	AcceptedPendingCount int64          `json:"accepted_pending_count"`
+	ExpiringSoon         int64          `json:"expiring_soon"`
+	AcceptedMonth        int64          `json:"accepted_month"`
+	AcceptedMonthTotal   pgtype.Numeric `json:"accepted_month_total"`
 }
 
 func (q *Queries) QuoteSummary(ctx context.Context, arg QuoteSummaryParams) (QuoteSummaryRow, error) {
@@ -1778,6 +1817,7 @@ func (q *Queries) QuoteSummary(ctx context.Context, arg QuoteSummaryParams) (Quo
 		&i.PendingTotal,
 		&i.DraftCount,
 		&i.AwaitingCount,
+		&i.AcceptedPendingCount,
 		&i.ExpiringSoon,
 		&i.AcceptedMonth,
 		&i.AcceptedMonthTotal,

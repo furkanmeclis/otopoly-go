@@ -138,6 +138,7 @@ type Summary struct {
 	OpenCount          int64  `json:"open_count"`
 	DraftCount         int64  `json:"draft_count"`
 	AwaitingCount      int64  `json:"awaiting_count"`
+	AcceptedPending    int64  `json:"accepted_pending_count"`
 	PendingTotal       string `json:"pending_total"`
 	ExpiringSoon       int64  `json:"expiring_soon"`
 	AcceptedMonth      int64  `json:"accepted_month"`

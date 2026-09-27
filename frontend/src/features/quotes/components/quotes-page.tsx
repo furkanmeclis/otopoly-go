@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronRight, Eye, FileText, Plus, Search } from "lucide-react";
+import {
+  BriefcaseBusiness,
+  ChevronRight,
+  Eye,
+  FileText,
+  Plus,
+  Search,
+} from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -18,7 +25,10 @@ import {
   useQuotesAccess,
   useQuoteSummary,
 } from "@/features/quotes/hooks/use-quotes";
-import { quoteStatusTone } from "@/features/quotes/lib/quote-ui";
+import {
+  quoteStatusAccent,
+  quoteStatusTone,
+} from "@/features/quotes/lib/quote-ui";
 import type { Quote, QuoteListParams } from "@/features/quotes/types";
 import { cn } from "@/lib/utils";
 import { date } from "@/lib/utils/format";
@@ -91,8 +101,15 @@ export function QuotesPage({ slug }: { slug: string }) {
         ) : null}
       </header>
 
-      <dl className="bg-card grid grid-cols-2 gap-3 rounded-2xl border p-3 sm:grid-cols-4">
+      <dl className="bg-card grid grid-cols-2 gap-3 rounded-2xl border p-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
+          {
+            label: t("quotes.summary.accepted_pending"),
+            value: String(s?.accepted_pending_count ?? 0),
+            tone: s?.accepted_pending_count
+              ? "text-emerald-600 dark:text-emerald-400"
+              : undefined,
+          },
           {
             label: t("quotes.summary.awaiting"),
             value: String(s?.awaiting_count ?? 0),
@@ -138,7 +155,11 @@ export function QuotesPage({ slug }: { slug: string }) {
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
             <TabsList>
               {TABS.map((k) => (
-                <TabsTrigger key={k} value={k}>
+                <TabsTrigger
+                  key={k}
+                  value={k}
+                  title={k === "open" ? t("quotes.tabs.open_hint") : undefined}
+                >
                   {k === "open" || k === "all"
                     ? t(`quotes.tabs.${k}`)
                     : t(`quotes.status.${k}`)}
@@ -209,11 +230,20 @@ function QuoteRow({ quote, slug }: { quote: Quote; slug: string }) {
     quote.status === "draft" ||
     quote.status === "sent" ||
     quote.status === "viewed";
+  const accent = quoteStatusAccent(quote.status);
+  const accepted = quote.status === "accepted";
   return (
-    <li>
+    <li className="relative">
+      <span
+        aria-hidden
+        className={cn("absolute inset-y-0 left-0 w-1", accent.stripe)}
+      />
       <Link
         href={routes.tenant.quotes.detail(slug, quote.uuid)}
-        className="hover:bg-muted/40 flex flex-col gap-1.5 p-3 transition-colors sm:flex-row sm:items-center sm:gap-4 sm:px-4"
+        className={cn(
+          "flex flex-col gap-1.5 p-3 pl-4 transition-colors sm:flex-row sm:items-center sm:gap-4 sm:pr-4 sm:pl-5",
+          accent.row ?? "hover:bg-muted/40",
+        )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="text-muted-foreground w-28 shrink-0 font-mono text-xs">
@@ -230,8 +260,21 @@ function QuoteRow({ quote, slug }: { quote: Quote; slug: string }) {
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-3 sm:justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-3 sm:justify-end">
           <span className="flex items-center gap-2">
+            {accepted ? (
+              quote.job_uuid ? (
+                <span className="text-muted-foreground flex items-center gap-1 text-[11px]">
+                  <BriefcaseBusiness className="size-3" />
+                  {t("quotes.row.converted")}
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                  <BriefcaseBusiness className="size-3" />
+                  {t("quotes.row.convert")}
+                </span>
+              )
+            ) : null}
             <StatusChip
               label={t(`quotes.status.${quote.status}`)}
               tone={quoteStatusTone(quote.status)}
@@ -252,7 +295,12 @@ function QuoteRow({ quote, slug }: { quote: Quote; slug: string }) {
               ? date(quote.valid_until, "dd MMM", locale)
               : "—"}
           </span>
-          <span className="w-28 text-right font-semibold tabular-nums">
+          <span
+            className={cn(
+              "w-28 text-right font-semibold tabular-nums",
+              accepted && "text-emerald-700 dark:text-emerald-400",
+            )}
+          >
             {formatFinanceAmount(quote.grand_total, quote.currency, locale)}
           </span>
           <ChevronRight className="text-muted-foreground hidden size-4 sm:block" />

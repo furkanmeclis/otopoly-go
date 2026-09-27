@@ -7553,6 +7553,7 @@ paths:
         - $ref: "#/components/parameters/Q"
         - name: status
           in: query
+          description: "open = draft, sent, viewed and accepted quotes not yet converted into a job"
           schema: { type: string, enum: [draft, sent, viewed, accepted, rejected, expired, cancelled, open] }
         - name: customer_uuid
           in: query
@@ -11317,12 +11318,13 @@ components:
 
     QuoteSummary:
       type: object
-      required: [currency, open_count, draft_count, awaiting_count, pending_total, expiring_soon, accepted_month, accepted_month_total]
+      required: [currency, open_count, draft_count, awaiting_count, accepted_pending_count, pending_total, expiring_soon, accepted_month, accepted_month_total]
       properties:
         currency: { type: string }
         open_count: { type: integer }
         draft_count: { type: integer }
         awaiting_count: { type: integer }
+        accepted_pending_count: { type: integer, description: "Accepted quotes not yet converted into a job" }
         pending_total: { type: string }
         expiring_soon: { type: integer }
         accepted_month: { type: integer }

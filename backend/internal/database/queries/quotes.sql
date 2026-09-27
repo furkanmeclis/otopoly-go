@@ -108,7 +108,7 @@ LEFT JOIN leads l ON l.id = q.lead_id
 LEFT JOIN service_jobs j ON j.id = q.job_id
 WHERE q.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR q.status = sqlc.narg(status)
-       OR (sqlc.narg(status)::text = 'open' AND q.status IN ('draft', 'sent', 'viewed')))
+       OR (sqlc.narg(status)::text = 'open' AND (q.status IN ('draft', 'sent', 'viewed') OR (q.status = 'accepted' AND q.job_id IS NULL))))
   AND (sqlc.narg(customer_id)::bigint IS NULL OR q.customer_id = sqlc.narg(customer_id))
   AND (sqlc.narg(lead_id)::bigint IS NULL OR q.lead_id = sqlc.narg(lead_id))
   AND (
@@ -132,7 +132,7 @@ FROM quotes q
 JOIN customers c ON c.id = q.customer_id
 WHERE q.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR q.status = sqlc.narg(status)
-       OR (sqlc.narg(status)::text = 'open' AND q.status IN ('draft', 'sent', 'viewed')))
+       OR (sqlc.narg(status)::text = 'open' AND (q.status IN ('draft', 'sent', 'viewed') OR (q.status = 'accepted' AND q.job_id IS NULL))))
   AND (sqlc.narg(customer_id)::bigint IS NULL OR q.customer_id = sqlc.narg(customer_id))
   AND (sqlc.narg(lead_id)::bigint IS NULL OR q.lead_id = sqlc.narg(lead_id))
   AND (
@@ -149,6 +149,7 @@ SELECT
     COALESCE(SUM(grand_total) FILTER (WHERE status IN ('sent', 'viewed')), 0)::numeric AS pending_total,
     COUNT(*) FILTER (WHERE status = 'draft')::bigint AS draft_count,
     COUNT(*) FILTER (WHERE status IN ('sent', 'viewed'))::bigint AS awaiting_count,
+    COUNT(*) FILTER (WHERE status = 'accepted' AND job_id IS NULL)::bigint AS accepted_pending_count,
     COUNT(*) FILTER (WHERE status IN ('sent', 'viewed') AND valid_until IS NOT NULL
         AND valid_until >= sqlc.arg(today)::date
         AND valid_until <= sqlc.arg(today)::date + 3)::bigint AS expiring_soon,
@@ -362,3 +363,14 @@ JOIN customers c ON c.id = q.customer_id
 LEFT JOIN users u ON u.id = q.created_by
 LEFT JOIN leads l ON l.id = q.lead_id AND l.organization_id = q.organization_id AND l.deleted_at IS NULL
 WHERE q.id = sqlc.arg(id) AND q.organization_id = sqlc.arg(organization_id);
+
+-- name: ListQuoteDecisionRecipients :many
+-- Who hears about a customer's accept / reject: the quote's creator, the
+-- lead assignee and the business owners (members only, de-duplicated).
+SELECT DISTINCT m.user_id
+FROM quotes q
+JOIN organization_members m ON m.organization_id = q.organization_id
+LEFT JOIN leads l ON l.id = q.lead_id AND l.organization_id = q.organization_id AND l.deleted_at IS NULL
+WHERE q.id = sqlc.arg(id) AND q.organization_id = sqlc.arg(organization_id)
+  AND (m.user_id = q.created_by OR m.user_id = l.assignee_user_id OR m.role = 'owner')
+ORDER BY m.user_id;

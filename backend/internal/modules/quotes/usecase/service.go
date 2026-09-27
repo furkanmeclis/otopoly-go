@@ -368,7 +368,7 @@ func (s *Service) Summary(ctx context.Context, currency string) (Summary, error)
 	}
 	return Summary{
 		Currency: currency, OpenCount: row.OpenCount, DraftCount: row.DraftCount,
-		AwaitingCount: row.AwaitingCount, PendingTotal: money(row.PendingTotal),
+		AwaitingCount: row.AwaitingCount, AcceptedPending: row.AcceptedPendingCount, PendingTotal: money(row.PendingTotal),
 		ExpiringSoon: row.ExpiringSoon, AcceptedMonth: row.AcceptedMonth,
 		AcceptedMonthTotal: money(row.AcceptedMonthTotal),
 	}, nil

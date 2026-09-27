@@ -197,5 +197,12 @@
   "send.wa_not_connected_hint": "Teklif gönderildi olarak işaretlenir ancak mesaj iletilemez. WhatsApp hattınızı bağlayın ya da bağlantıyı elle paylaşın.",
   "send.wa_settings_link": "Ayarlar > Mesajlar",
   "send.no_phone_error": "Müşterinin telefon numarası yok.",
-  "send.preview": "Mesaj önizlemesi"
+  "send.preview": "Mesaj önizlemesi",
+  "summary.accepted_pending": "Onaylandı · işe dönüştür",
+  "row.convert": "İşe dönüştür",
+  "row.converted": "İşe dönüştürüldü",
+  "tabs.open_hint": "Taslak, gönderilen ve işe dönüştürülmeyi bekleyen onaylı teklifler",
+  "decision_banner.accepted": "Teklif onaylandı",
+  "decision_banner.rejected": "Teklif reddedildi",
+  "decision_banner.convert_hint": "İşe dönüştürerek hizmeti başlatabilirsiniz."
 }

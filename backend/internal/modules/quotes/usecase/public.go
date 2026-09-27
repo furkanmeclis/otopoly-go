@@ -157,6 +157,7 @@ func (s *Service) PublicDecide(ctx context.Context, token string, accept bool, i
 		return PublicQuote{}, err
 	}
 	s.afterReminderChange(ctx, updated, cancelled, nil)
+	s.notify(ctx, "decided", updated)
 	if s.act != nil {
 		s.act.Record(ctx, nil, "tenant.quote.public_decision", "quote", &updated.Uuid, map[string]any{
 			"number": updated.Number, "status": to, "ip": client.IP, "at": time.Now().UTC().Format(time.RFC3339),

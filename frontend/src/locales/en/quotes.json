@@ -197,5 +197,12 @@
   "send.wa_not_connected_hint": "The quote is marked as sent but the message cannot be delivered. Connect your WhatsApp line or share the link manually.",
   "send.wa_settings_link": "Settings > Messages",
   "send.no_phone_error": "The customer has no phone number.",
-  "send.preview": "Message preview"
+  "send.preview": "Message preview",
+  "summary.accepted_pending": "Accepted · to convert",
+  "row.convert": "Convert to job",
+  "row.converted": "Converted to job",
+  "tabs.open_hint": "Drafts, sent quotes and accepted quotes waiting to be converted",
+  "decision_banner.accepted": "Quote accepted",
+  "decision_banner.rejected": "Quote rejected",
+  "decision_banner.convert_hint": "Convert it into a job to start the service."
 }

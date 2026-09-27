@@ -124,7 +124,7 @@ func init() {
 	}
 	// Team-facing quote notifications (in-app / e-mail, per-user preferences).
 	teamQuotePh := []Placeholder{phQuoteNo, phCustomer, phQuoteTotal, phValidUntil, phCreatedBy, phAssignee, phCompany, phAppLink}
-	for _, t := range []string{"quote.team_created", "quote.team_expiring"} {
+	for _, t := range []string{"quote.team_created", "quote.team_expiring", "quote.team_accepted", "quote.team_rejected"} {
 		Register(TypeSpec{Type: t, Group: "quotes", Audience: AudienceStaff,
 			Channels: []string{ChannelInapp, ChannelEmail}, Placeholders: teamQuotePh, UserPreference: true})
 	}
