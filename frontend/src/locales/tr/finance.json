@@ -171,5 +171,18 @@
   "payment_method.cash": "Nakit",
   "payment_method.card": "Kart",
   "payment_method.transfer": "Havale/EFT",
-  "payment_method.other": "Diğer"
+  "payment_method.other": "Diğer",
+  "detail.open_source.service_job": "İş emrini aç",
+  "detail.open_source.product_sale": "Satışı aç",
+  "detail.open_source.purchase": "Alımı aç",
+  "detail.open_source.cari_payment": "Cariyi aç",
+  "detail.lines.item": "Hizmet / ürün",
+  "detail.lines.qty": "Miktar",
+  "detail.lines.unit_price": "Birim fiyat",
+  "detail.lines.total": "Tutar",
+  "detail.lines.document_total": "Belge toplamı",
+  "detail.lines.types.service": "Hizmet",
+  "detail.lines.types.product": "Ürün",
+  "detail.lines.types.custom": "Diğer",
+  "detail.walk_in_sale": "Müşterisiz satış"
 }

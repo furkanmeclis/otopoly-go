@@ -171,5 +171,18 @@
   "payment_method.cash": "Cash",
   "payment_method.card": "Card",
   "payment_method.transfer": "Bank transfer",
-  "payment_method.other": "Other"
+  "payment_method.other": "Other",
+  "detail.open_source.service_job": "Open job",
+  "detail.open_source.product_sale": "Open sale",
+  "detail.open_source.purchase": "Open purchase",
+  "detail.open_source.cari_payment": "Open account",
+  "detail.lines.item": "Service / product",
+  "detail.lines.qty": "Qty",
+  "detail.lines.unit_price": "Unit price",
+  "detail.lines.total": "Amount",
+  "detail.lines.document_total": "Document total",
+  "detail.lines.types.service": "Service",
+  "detail.lines.types.product": "Product",
+  "detail.lines.types.custom": "Other",
+  "detail.walk_in_sale": "Walk-in sale"
 }

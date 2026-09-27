@@ -48,10 +48,30 @@ export type FinanceTransaction = {
   payment_method: string;
   source_type?: string | null;
   source_uuid?: string | null;
+  /** Detail endpoint only: the document behind the row with its lines. */
+  source_detail?: FinanceSourceDetail | null;
   metadata?: unknown;
   created_at: string;
   updated_at: string;
   voided_at?: string | null;
+};
+
+export type FinanceSourceDetail = {
+  kind: "service_job" | "product_sale" | "purchase" | "cari_payment";
+  uuid: string;
+  title: string;
+  subtitle?: string;
+  plate?: string;
+  date?: string;
+  total?: string;
+  currency?: string;
+  lines: {
+    type: "service" | "product" | "custom";
+    name: string;
+    qty: string;
+    unit_price: string;
+    line_total: string;
+  }[];
 };
 
 export type FinanceAccountStats = {

@@ -1,7 +1,7 @@
 "use client";
 
 // TODO(finance): Dedicated print stylesheet (@media print), PDF export via io-engine, show created_by
-// when API returns actor, link source_type/source_uuid to future domain modules (service_job, etc.).
+// when API returns actor.
 
 import Link from "next/link";
 import {
@@ -18,6 +18,7 @@ import { Card, CardContent } from "@/components/common/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { routes } from "@/config/routes";
+import { FinanceSourceCard } from "@/features/finance/components/finance-source-card";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import {
   paymentMethodLabelKey,
@@ -240,7 +241,16 @@ export function FinanceTransactionReport({
           </>
         ) : null}
 
-        {(tx.source_type || tx.source_uuid) && (
+        {tx.source_detail ? (
+          <>
+            <Separator />
+            <FinanceSourceCard
+              slug={slug}
+              detail={tx.source_detail}
+              currency={tx.currency}
+            />
+          </>
+        ) : tx.source_type || tx.source_uuid ? (
           <>
             <Separator />
             <dl className="grid gap-4 sm:grid-cols-2">
@@ -248,21 +258,9 @@ export function FinanceTransactionReport({
                 label={t("finance.detail.source_type")}
                 value={sourceTypeLabel(t, tx.source_type)}
               />
-              {tx.source_type === "cari_payment" ? (
-                <ReportField
-                  label={t("finance.detail.source")}
-                  value={t("finance.detail.source_cari_payment")}
-                />
-              ) : null}
-              {tx.source_type === "service_job" ? (
-                <ReportField
-                  label={t("finance.detail.source")}
-                  value={t("finance.detail.source_service_job")}
-                />
-              ) : null}
             </dl>
           </>
-        )}
+        ) : null}
 
         <Separator />
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

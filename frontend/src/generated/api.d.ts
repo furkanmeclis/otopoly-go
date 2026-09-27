@@ -5712,6 +5712,37 @@ export interface components {
             transaction_date: string;
             description?: string;
             payment_method?: string;
+            /** @description manual rows omit it; service_job | product_sale | purchase | cari_payment */
+            source_type?: string;
+            /** Format: uuid */
+            source_uuid?: string;
+            /** @description Detail endpoint only — the job, sale, purchase or cari collection behind the row, with its lines. */
+            source_detail?: components["schemas"]["FinanceSourceDetail"];
+        };
+        FinanceSourceDetail: {
+            /** @enum {string} */
+            kind: "service_job" | "product_sale" | "purchase" | "cari_payment";
+            /**
+             * Format: uuid
+             * @description Job, sale, purchase or cari account to link to
+             */
+            uuid: string;
+            /** @description Customer or supplier name */
+            title: string;
+            subtitle?: string;
+            plate?: string;
+            /** Format: date-time */
+            date?: string;
+            total?: string;
+            currency?: string;
+            lines: {
+                /** @enum {string} */
+                type: "service" | "product" | "custom";
+                name: string;
+                qty: string;
+                unit_price: string;
+                line_total: string;
+            }[];
         };
         FinanceSummary: {
             /** Format: date */

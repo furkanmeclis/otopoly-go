@@ -257,6 +257,12 @@ type Querier interface {
 	GetFinanceCategoryByUUID(ctx context.Context, arg GetFinanceCategoryByUUIDParams) (FinanceCategory, error)
 	GetFinanceCategoryForSearch(ctx context.Context, arg GetFinanceCategoryForSearchParams) (GetFinanceCategoryForSearchRow, error)
 	GetFinanceCategoryStats(ctx context.Context, arg GetFinanceCategoryStatsParams) (GetFinanceCategoryStatsRow, error)
+	GetFinanceSourceCari(ctx context.Context, arg GetFinanceSourceCariParams) (GetFinanceSourceCariRow, error)
+	// Source documents behind finance transactions (job payment, sale,
+	// purchase, cari collection) for the transaction detail page.
+	GetFinanceSourceJob(ctx context.Context, arg GetFinanceSourceJobParams) (GetFinanceSourceJobRow, error)
+	GetFinanceSourcePurchase(ctx context.Context, arg GetFinanceSourcePurchaseParams) (GetFinanceSourcePurchaseRow, error)
+	GetFinanceSourceSale(ctx context.Context, arg GetFinanceSourceSaleParams) (GetFinanceSourceSaleRow, error)
 	GetFinanceTransactionBySource(ctx context.Context, arg GetFinanceTransactionBySourceParams) (FinanceTransaction, error)
 	GetFinanceTransactionByUUID(ctx context.Context, arg GetFinanceTransactionByUUIDParams) (FinanceTransaction, error)
 	GetFinanceTransactionForSearch(ctx context.Context, arg GetFinanceTransactionForSearchParams) (GetFinanceTransactionForSearchRow, error)
@@ -446,6 +452,9 @@ type Querier interface {
 	ListFinanceAccountsForSearch(ctx context.Context) ([]ListFinanceAccountsForSearchRow, error)
 	ListFinanceCategories(ctx context.Context, arg ListFinanceCategoriesParams) ([]FinanceCategory, error)
 	ListFinanceCategoriesForSearch(ctx context.Context) ([]ListFinanceCategoriesForSearchRow, error)
+	ListFinanceSourceJobLines(ctx context.Context, arg ListFinanceSourceJobLinesParams) ([]ListFinanceSourceJobLinesRow, error)
+	ListFinanceSourcePurchaseLines(ctx context.Context, arg ListFinanceSourcePurchaseLinesParams) ([]ListFinanceSourcePurchaseLinesRow, error)
+	ListFinanceSourceSaleLines(ctx context.Context, arg ListFinanceSourceSaleLinesParams) ([]ListFinanceSourceSaleLinesRow, error)
 	ListFinanceTransactions(ctx context.Context, arg ListFinanceTransactionsParams) ([]ListFinanceTransactionsRow, error)
 	ListFinanceTransactionsForExport(ctx context.Context, arg ListFinanceTransactionsForExportParams) ([]ListFinanceTransactionsForExportRow, error)
 	ListFinanceTransactionsForSearch(ctx context.Context) ([]ListFinanceTransactionsForSearchRow, error)

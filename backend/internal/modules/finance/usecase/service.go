@@ -93,6 +93,9 @@ type Transaction struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 	VoidedAt           *time.Time `json:"voided_at,omitempty"`
+	// SourceDetail is filled on the detail endpoint only: the job, sale,
+	// purchase or cari collection behind the row, with its lines.
+	SourceDetail *SourceDetail `json:"source_detail,omitempty"`
 }
 
 type Summary struct {
@@ -588,7 +591,15 @@ func (s *Service) GetTransaction(ctx context.Context, id uuid.UUID) (Transaction
 			}
 		}
 	}
-	return mapTransactionDetail(row, account, counterUUID, counterName, categoryUUID, categoryName), nil
+	tx := mapTransactionDetail(row, account, counterUUID, counterName, categoryUUID, categoryName)
+	if row.SourceType.Valid && row.SourceUuid.Valid {
+		detail, err := s.sourceDetail(ctx, orgID, row.SourceType.String, uuid.UUID(row.SourceUuid.Bytes))
+		if err != nil {
+			return Transaction{}, err
+		}
+		tx.SourceDetail = detail
+	}
+	return tx, nil
 }
 
 func (s *Service) CreateTransaction(ctx context.Context, actorID int64, in CreateTransactionInput, req *http.Request) (Transaction, error) {
