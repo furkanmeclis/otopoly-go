@@ -211,6 +211,40 @@ func TestRunTurnDispatchesToolAndFeedsResultBack(t *testing.T) {
 	}
 }
 
+func TestToolUseProviderMetaSurvivesStorageAndReplay(t *testing.T) {
+	tool := &countTool{name: "get_report_summary", perm: "tenant.reports.read"}
+	h := newHarness(t, []string{"tenant.reports.read"}, tool)
+	meta := json.RawMessage(`{"google":{"thought_signature":"opaque-sig"}}`)
+	h.fake.Responses = []provider.Response{
+		{
+			Message: provider.Message{Role: provider.RoleAssistant, Content: []provider.Block{
+				{Type: provider.BlockToolUse, ID: "tu_1", Name: "get_report_summary", Input: json.RawMessage(`{"q":"month"}`), ProviderMeta: meta},
+			}},
+			StopReason: provider.StopToolUse,
+		},
+		provider.FakeText("Rapor hazır."),
+		provider.FakeText("Rapor"),
+	}
+	h.send(t, "rapor al")
+
+	var stored []provider.Message
+	if err := json.Unmarshal(h.store.messages[1].Content, &stored); err != nil {
+		t.Fatal(err)
+	}
+	tus := stored[0].ToolUses()
+	if len(tus) != 1 || string(tus[0].ProviderMeta) != string(meta) {
+		t.Fatalf("stored provider meta = %+v", tus)
+	}
+
+	h.fake.Responses = []provider.Response{provider.FakeText("Tamam.")}
+	h.send(t, "devam")
+	replay := h.fake.Requests[3].Messages
+	tus = replay[1].ToolUses()
+	if len(tus) != 1 || string(tus[0].ProviderMeta) != string(meta) {
+		t.Fatalf("replayed provider meta = %+v", tus)
+	}
+}
+
 func TestToolsFilteredByPermissionAndSettings(t *testing.T) {
 	allowed := &countTool{name: "list_jobs", perm: "tenant.jobs.read"}
 	denied := &countTool{name: "get_finance_balances", perm: "tenant.finance.read"}

@@ -52,9 +52,10 @@ type Block struct {
 	// text
 	Text string `json:"text,omitempty"`
 	// tool_use
-	ID    string          `json:"id,omitempty"`
-	Name  string          `json:"name,omitempty"`
-	Input json.RawMessage `json:"input,omitempty"`
+	ID           string          `json:"id,omitempty"`
+	Name         string          `json:"name,omitempty"`
+	Input        json.RawMessage `json:"input,omitempty"`
+	ProviderMeta json.RawMessage `json:"provider_meta,omitempty"`
 	// tool_result
 	ToolUseID string `json:"tool_use_id,omitempty"`
 	Content   string `json:"content,omitempty"`

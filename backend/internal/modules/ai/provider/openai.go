@@ -41,10 +41,11 @@ type oaiMessage struct {
 }
 
 type oaiToolCall struct {
-	Index    *int   `json:"index,omitempty"`
-	ID       string `json:"id,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Function struct {
+	Index        *int            `json:"index,omitempty"`
+	ID           string          `json:"id,omitempty"`
+	Type         string          `json:"type,omitempty"`
+	ExtraContent json.RawMessage `json:"extra_content,omitempty"`
+	Function     struct {
 		Name      string `json:"name,omitempty"`
 		Arguments string `json:"arguments"`
 	} `json:"function"`
@@ -121,6 +122,9 @@ func (o *OpenAICompatible) buildRequest(req Request, stream bool) oaiRequest {
 					args = "{}"
 				}
 				tc.Function.Arguments = args
+				if len(tu.ProviderMeta) > 0 {
+					tc.ExtraContent = tu.ProviderMeta
+				}
 				msg.ToolCalls = append(msg.ToolCalls, tc)
 			}
 			if msg.Content == nil && len(msg.ToolCalls) == 0 {
@@ -222,7 +226,7 @@ func (o *OpenAICompatible) Complete(ctx context.Context, req Request) (Response,
 		msg.Content = append(msg.Content, TextBlock(*ch.Message.Content))
 	}
 	for _, tc := range ch.Message.ToolCalls {
-		msg.Content = append(msg.Content, toolUseFromCall(tc.ID, tc.Function.Name, tc.Function.Arguments))
+		msg.Content = append(msg.Content, toolUseFromCall(tc.ID, tc.Function.Name, tc.Function.Arguments, tc.ExtraContent))
 	}
 	finish := ""
 	if ch.FinishReason != nil {
@@ -237,9 +241,10 @@ func (o *OpenAICompatible) Complete(ctx context.Context, req Request) (Response,
 }
 
 type partialCall struct {
-	id   string
-	name string
-	args strings.Builder
+	id           string
+	name         string
+	providerMeta json.RawMessage
+	args         strings.Builder
 }
 
 // Stream implements Provider.
@@ -310,6 +315,9 @@ func (o *OpenAICompatible) Stream(ctx context.Context, req Request, onEvent func
 						onEvent(StreamEvent{Type: EventToolUseStart, ID: pc.id, Name: pc.name})
 					}
 				}
+				if len(tc.ExtraContent) > 0 {
+					pc.providerMeta = tc.ExtraContent
+				}
 				pc.args.WriteString(tc.Function.Arguments)
 			}
 			if ch.FinishReason != nil && *ch.FinishReason != "" {
@@ -338,7 +346,7 @@ func (o *OpenAICompatible) Stream(ctx context.Context, req Request, onEvent func
 		if pc.name == "" {
 			continue
 		}
-		msg.Content = append(msg.Content, toolUseFromCall(pc.id, pc.name, pc.args.String()))
+		msg.Content = append(msg.Content, toolUseFromCall(pc.id, pc.name, pc.args.String(), pc.providerMeta))
 	}
 	return Response{
 		Message:    msg,
@@ -348,7 +356,7 @@ func (o *OpenAICompatible) Stream(ctx context.Context, req Request, onEvent func
 	}, nil
 }
 
-func toolUseFromCall(id, name, args string) Block {
+func toolUseFromCall(id, name, args string, providerMeta json.RawMessage) Block {
 	args = strings.TrimSpace(args)
 	if args == "" {
 		args = "{}"
@@ -358,7 +366,7 @@ func toolUseFromCall(id, name, args string) Block {
 		quoted, _ := json.Marshal(args)
 		input = quoted
 	}
-	return Block{Type: BlockToolUse, ID: id, Name: name, Input: input}
+	return Block{Type: BlockToolUse, ID: id, Name: name, Input: input, ProviderMeta: providerMeta}
 }
 
 func normalizeOAIFinish(reason string, hasTools bool) string {

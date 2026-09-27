@@ -41,6 +41,10 @@ func sse(w io.Writer, event string, data string) {
 	_, _ = fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, data)
 }
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
 func TestAnthropicStreamRequestAndParse(t *testing.T) {
 	var body map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -198,6 +202,110 @@ func TestOpenAICompatibleStream(t *testing.T) {
 	}
 	if resp.Usage != (Usage{InputTokens: 40, OutputTokens: 20, CacheReadTokens: 60}) {
 		t.Fatalf("usage = %+v", resp.Usage)
+	}
+}
+
+func TestOpenAICompatibleStreamCapturesToolExtraContent(t *testing.T) {
+	sig := `{"google":{"thought_signature":"opaque-sig"}}`
+	body := &strings.Builder{}
+	chunks := []string{
+		`{"model":"gemini","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_a","type":"function","extra_content":` + sig + `,"function":{"name":"get_report_summary","arguments":""}}]}}]}`,
+		`{"model":"gemini","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"range\":\"month\"}"}}]}}]}`,
+		`{"model":"gemini","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}`,
+	}
+	for _, c := range chunks {
+		_, _ = fmt.Fprintf(body, "data: %s\n\n", c)
+	}
+	_, _ = io.WriteString(body, "data: [DONE]\n\n")
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/v1/chat/completions" {
+			t.Errorf("path = %s", r.URL.Path)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+			Body:       io.NopCloser(strings.NewReader(body.String())),
+			Request:    r,
+		}, nil
+	})}
+
+	p := NewOpenAICompatible(Config{BaseURL: "http://example.test/v1", HTTPClient: client})
+	resp, err := p.Stream(context.Background(), Request{
+		Model:    "gemini",
+		Messages: []Message{{Role: RoleUser, Content: []Block{TextBlock("rapor")}}},
+		Tools: []ToolDef{{Name: "get_report_summary", Description: "report", InputSchema: map[string]any{
+			"type": "object", "properties": map[string]any{}, "additionalProperties": false,
+		}}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tus := resp.Message.ToolUses()
+	if len(tus) != 1 {
+		t.Fatalf("tool uses = %+v", tus)
+	}
+	if string(tus[0].ProviderMeta) != sig {
+		t.Fatalf("provider meta = %s", tus[0].ProviderMeta)
+	}
+}
+
+func TestOpenAICompatibleRequestReplaysToolExtraContent(t *testing.T) {
+	meta := json.RawMessage(`{"google":{"thought_signature":"opaque-sig"}}`)
+	p := NewOpenAICompatible(Config{BaseURL: "http://example.test/v1"})
+	req := Request{Model: "gemini", Messages: []Message{
+		{Role: RoleUser, Content: []Block{TextBlock("rapor")}},
+		{Role: RoleAssistant, Content: []Block{
+			{Type: BlockToolUse, ID: "call_a", Name: "get_report_summary", Input: json.RawMessage(`{"range":"month"}`), ProviderMeta: meta},
+		}},
+	}}
+	raw, err := json.Marshal(p.buildRequest(req, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(raw, &body); err != nil {
+		t.Fatal(err)
+	}
+	msgs := body["messages"].([]any)
+	assistant := msgs[1].(map[string]any)
+	call := assistant["tool_calls"].([]any)[0].(map[string]any)
+	google := call["extra_content"].(map[string]any)["google"].(map[string]any)
+	if google["thought_signature"] != "opaque-sig" {
+		t.Fatalf("extra_content = %v", call["extra_content"])
+	}
+}
+
+func TestOpenAICompatibleRequestOmitsAbsentToolExtraContent(t *testing.T) {
+	p := NewOpenAICompatible(Config{BaseURL: "http://example.test/v1"})
+	req := Request{Model: "gemini", Messages: []Message{
+		{Role: RoleUser, Content: []Block{TextBlock("rapor")}},
+		{Role: RoleAssistant, Content: []Block{
+			{Type: BlockToolUse, ID: "call_a", Name: "get_report_summary", Input: json.RawMessage(`{}`)},
+		}},
+	}}
+	raw, err := json.Marshal(p.buildRequest(req, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "extra_content") {
+		t.Fatalf("extra_content must be omitted when absent: %s", raw)
+	}
+}
+
+func TestAnthropicRequestIgnoresProviderMeta(t *testing.T) {
+	a := NewAnthropic(Config{APIKey: "sk-test"})
+	req := sampleRequest()
+	req.Messages[1].Content[1].ProviderMeta = json.RawMessage(`{"google":{"thought_signature":"opaque-sig"}}`)
+	params, err := a.buildParams(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(params)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(raw), "provider_meta") || strings.Contains(string(raw), "extra_content") || strings.Contains(string(raw), "thought_signature") {
+		t.Fatalf("anthropic request leaked provider metadata: %s", raw)
 	}
 }
 
