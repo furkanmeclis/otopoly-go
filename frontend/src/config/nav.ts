@@ -142,6 +142,21 @@ export const platformNav = defineNav({
       ],
     },
     {
+      id: "billing",
+      labelKey: "layout.section_billing",
+      icon: CreditCard,
+      defaultOpen: true,
+      items: [
+        {
+          id: "billing-plans",
+          titleKey: "layout.nav_billing_plans",
+          href: routes.platform.billing.plans,
+          icon: CreditCard,
+          permission: permissions.platformBilling.read,
+        },
+      ],
+    },
+    {
       id: "auth-methods",
       labelKey: "layout.section_auth_methods",
       icon: LogIn,
