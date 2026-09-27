@@ -153,6 +153,13 @@ export const platformNav = defineNav({
       defaultOpen: true,
       items: [
         {
+          id: "billing-dashboard",
+          titleKey: "layout.nav_billing_dashboard",
+          href: routes.platform.billing.root,
+          icon: LayoutDashboard,
+          permission: permissions.platformBilling.read,
+        },
+        {
           id: "billing-payments",
           titleKey: "layout.nav_billing_payments",
           href: routes.platform.billing.payments,

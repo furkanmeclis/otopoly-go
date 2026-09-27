@@ -4,6 +4,7 @@ export { SubscriptionsPage } from "./components/subscriptions-page";
 export { DiscountCodesPage } from "./components/discount-codes-page";
 export { PaymentSettingsPage } from "./components/settings-page";
 export { InvoicesPage } from "./components/invoices-page";
+export { BillingDashboardPage } from "./components/dashboard-page";
 export { PaymentsNavAdornment } from "./nav";
 export {
   platformBillingKeys,

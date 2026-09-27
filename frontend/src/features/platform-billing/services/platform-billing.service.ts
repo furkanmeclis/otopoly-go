@@ -93,7 +93,10 @@ export const platformBillingService = {
     return platformRequest<BillingDashboard>("GET", `${base}/dashboard`);
   },
   subscriptionDetail(uuid: string) {
-    return platformRequest<AdminSubscriptionDetail>("GET", `${base}/subscriptions/${uuid}/detail`);
+    return platformRequest<AdminSubscriptionDetail>(
+      "GET",
+      `${base}/subscriptions/${uuid}/detail`,
+    );
   },
   listSubscriptions(params: {
     status?: string;
