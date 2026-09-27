@@ -81,14 +81,35 @@ func (m *memStore) UpdateAISettings(_ context.Context, p db.UpdateAISettingsPara
 	if p.ChatEnabled.Valid {
 		s.ChatEnabled = p.ChatEnabled.Bool
 	}
+	if p.ActionsEnabled.Valid {
+		s.ActionsEnabled = p.ActionsEnabled.Bool
+	}
 	if p.ChartsEnabled.Valid {
 		s.ChartsEnabled = p.ChartsEnabled.Bool
+	}
+	if p.VoiceEnabled.Valid {
+		s.VoiceEnabled = p.VoiceEnabled.Bool
+	}
+	if p.TodosEnabled.Valid {
+		s.TodosEnabled = p.TodosEnabled.Bool
 	}
 	if p.ToolSettings != nil {
 		s.ToolSettings = p.ToolSettings
 	}
 	if p.DefaultMonthlyTokenQuota.Valid {
 		s.DefaultMonthlyTokenQuota = p.DefaultMonthlyTokenQuota.Int64
+	}
+	if p.VoiceBaseUrl.Valid {
+		s.VoiceBaseUrl = p.VoiceBaseUrl.String
+	}
+	if p.VoiceSttModel.Valid {
+		s.VoiceSttModel = p.VoiceSttModel.String
+	}
+	if p.VoiceTtsVoice.Valid {
+		s.VoiceTtsVoice = p.VoiceTtsVoice.String
+	}
+	if p.VoiceLanguage.Valid {
+		s.VoiceLanguage = p.VoiceLanguage.String
 	}
 	return *s, nil
 }

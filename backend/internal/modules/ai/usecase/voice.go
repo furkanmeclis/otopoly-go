@@ -48,6 +48,18 @@ func (s *Service) SetVoiceAPIKey(key string) { s.voiceAPIKey = strings.TrimSpace
 // SetVoiceHTTPClient overrides the HTTP client used for Speaches (tests).
 func (s *Service) SetVoiceHTTPClient(hc *http.Client) { s.voiceHTTP = hc }
 
+// SetVoiceDefaultBaseURL sets the env-provided Speaches URL fallback.
+func (s *Service) SetVoiceDefaultBaseURL(baseURL string) {
+	s.voiceDefaultBaseURL = strings.TrimSpace(baseURL)
+}
+
+// SetVoiceAutoDownload toggles background model downloads.
+func (s *Service) SetVoiceAutoDownload(enabled bool) { s.voiceAutoDownload = enabled }
+
+func (s *Service) effectiveVoiceBaseURL(row db.AiSetting) string {
+	return firstNonEmpty(strings.TrimSpace(row.VoiceBaseUrl), s.voiceDefaultBaseURL)
+}
+
 func (s *Service) voiceClient(baseURL string) *voice.Client {
 	return voice.New(baseURL, s.voiceAPIKey, s.voiceHTTP)
 }
@@ -82,7 +94,7 @@ func (s *Service) voiceGate(ctx context.Context) (voiceScope, error) {
 	if _, err := s.availability(ctx, row, scope.InternalID); err != nil && !errors.Is(err, ErrQuotaExceeded) {
 		return voiceScope{}, err
 	}
-	if !featuresOf(row).Voice {
+	if !s.featuresOf(row).Voice {
 		return voiceScope{}, ErrVoiceDisabled
 	}
 	return voiceScope{row: row, orgID: scope.InternalID, userID: p.UserInternal}, nil
@@ -150,7 +162,7 @@ func (s *Service) Transcribe(ctx context.Context, in TranscribeInput) (Transcrib
 	defer cancel()
 	model := sttModelOf(vs.row)
 	started := s.now()
-	tr, err := s.voiceClient(vs.row.VoiceBaseUrl).Transcribe(ctx, voice.TranscribeRequest{
+	tr, err := s.voiceClient(s.effectiveVoiceBaseURL(vs.row)).Transcribe(ctx, voice.TranscribeRequest{
 		Audio: in.Audio, Filename: in.Filename, ContentType: ct,
 		Model: model, Language: vs.row.VoiceLanguage,
 	})
@@ -185,7 +197,7 @@ func (s *Service) Speak(ctx context.Context, in SpeechInput) (*voice.Speech, err
 	}
 	model, voiceName := voice.ResolveTTS(ttsVoiceOf(vs.row))
 	started := s.now()
-	sp, err := s.voiceClient(vs.row.VoiceBaseUrl).Speech(ctx, voice.SpeechRequest{
+	sp, err := s.voiceClient(s.effectiveVoiceBaseURL(vs.row)).Speech(ctx, voice.SpeechRequest{
 		Model: model, Voice: voiceName, Input: text, Format: "mp3",
 	})
 	if err != nil {
@@ -279,20 +291,20 @@ func (s *Service) TestVoice(ctx context.Context, in VoiceTestInput) (VoiceTestRe
 	}
 	ttsModel, ttsVoice := voice.ResolveTTS(ttsVoiceOf(row))
 	res := VoiceTestResult{
-		BaseURL: row.VoiceBaseUrl, STTModel: sttModelOf(row), TTSModel: ttsModel, TTSVoice: ttsVoice,
+		BaseURL: s.effectiveVoiceBaseURL(row), STTModel: sttModelOf(row), TTSModel: ttsModel, TTSVoice: ttsVoice,
 		InstalledModels: []VoiceModelInfo{},
 	}
-	if row.VoiceBaseUrl == "" {
+	if res.BaseURL == "" {
 		res.Message = "voice base_url is not set"
 		return res, nil
 	}
-	if !validURL(row.VoiceBaseUrl) {
+	if !validURL(res.BaseURL) {
 		return VoiceTestResult{}, invalid("voice.base_url must be an http(s) URL")
 	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	started := s.now()
-	models, err := s.voiceClient(row.VoiceBaseUrl).Models(ctx)
+	models, err := s.voiceClient(res.BaseURL).Models(ctx)
 	res.LatencyMS = s.now().Sub(started).Milliseconds()
 	if err != nil {
 		res.Message = err.Error()

@@ -82,10 +82,11 @@ type Features struct {
 
 // VoiceSettings are stored now and consumed by Phase 3 (Speaches STT/TTS).
 type VoiceSettings struct {
-	BaseURL  string `json:"base_url"`
-	STTModel string `json:"stt_model"`
-	TTSVoice string `json:"tts_voice"`
-	Language string `json:"language"`
+	BaseURL        string `json:"base_url"`
+	DefaultBaseURL string `json:"default_base_url"`
+	STTModel       string `json:"stt_model"`
+	TTSVoice       string `json:"tts_voice"`
+	Language       string `json:"language"`
 }
 
 // ToolInfo describes a tool for the admin toggle list.

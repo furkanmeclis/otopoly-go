@@ -108,7 +108,8 @@ against the real API.
 - Per-tool on/off list (tools default to on).
 - Extra instructions appended to the system prompt (max 4000 characters).
 - Default monthly token quota per organization (`0` = unlimited).
-- Voice: Speaches URL, STT model, TTS voice, language, **Test voice server**.
+- Voice: Speaches URL, STT model, TTS voice, language, model picker/downloads,
+  **Test voice server**.
 - Usage table per month: tokens, cache reads/writes, quota share, estimated
   cost (Claude models only), voice time (STT) and characters (TTS).
 
@@ -223,6 +224,26 @@ written by many people and flow into tool results. Measures:
 Voice usage goes into `ai_usage` (`purpose` `stt`/`tts`, `audio_ms`,
 `characters`, zero tokens) and does not count against the token quota.
 
+## Voice models
+
+Speaches is configured with `SPEACHES_URL` on the API process. The saved
+`voice_base_url` admin setting overrides it; when the saved value is empty the
+API uses `SPEACHES_URL` automatically and exposes that value as
+`voice.default_base_url` in `/v1/platform/ai/settings`.
+
+On API startup, when `SPEACHES_AUTO_DOWNLOAD=true` (default), the backend waits
+for Speaches to become reachable and ensures the effective STT model plus the
+TTS model resolved from the selected voice are installed. Downloads use
+`POST /v1/models/{model_id}` and can take several minutes; startup is never
+blocked or failed by this work. Speaches v0.1.0 does not honor
+`PRELOAD_MODELS`, `STT_MODEL_TTL`, or `TTS_MODEL_TTL`; use `WHISPER__TTL` for
+Whisper unload behavior.
+
+The admin voice section lists installed and registry models from Speaches,
+filtered by language (default `tr`, plus multilingual models; Piper IDs such as
+`piper-tr_TR-...` also match Turkish). Missing selected models show a warning
+and can be downloaded from the picker.
+
 ## SSE events
 
 `POST /v1/tenant/ai/conversations/{uuid}/messages` and
@@ -273,17 +294,16 @@ network, and the Go API calls it (the browser never does).
 ```bash
 # local (large image, optional profile)
 docker compose -f compose.local.yml --profile voice up -d speaches
-# Admin → Ses: URL http://127.0.0.1:8090 (local) / http://<NAME_PREFIX>-speaches:8000 (prod)
+# Admin → Ses: leave URL empty to use SPEACHES_URL, or set an override.
 ```
 
-- **Model preload:** `SPEACHES_PRELOAD_MODELS` (default
-  `["Systran/faster-whisper-small","speaches-ai/piper-tr_TR-fettah-medium"]`)
-  downloads models at startup into the `speaches_models` volume. Model TTL `-1`
-  keeps them in memory. The first start needs internet access to Hugging Face
-  and takes a few minutes. **Test voice server** in the admin page lists
-  installed models and flags missing ones.
+- **Model downloads:** the API downloads the selected STT/TTS models into the
+  `speaches_models` volume on startup (`SPEACHES_AUTO_DOWNLOAD=true`) or when an
+  admin clicks **Download** in the model picker. The first download needs
+  internet access to Hugging Face and can take a few minutes.
 - For better accuracy use `Systran/faster-whisper-medium` (slower on CPU). For
-  a GPU use a `latest-cuda` image. `WHISPER__COMPUTE_TYPE=int8` suits CPUs.
+  a GPU use a `latest-cuda` image. `WHISPER__COMPUTE_TYPE=int8` suits CPUs;
+  `SPEACHES_WHISPER_TTL` maps to Speaches `WHISPER__TTL`.
 - `SPEACHES_API_KEY` is only needed for an external Speaches started with
   `API_KEY`.
 
@@ -309,8 +329,8 @@ database (`ai_messages`). Deleting a conversation is a soft delete.
 | Confirm card stuck on "executing" | Resolved automatically after 10 minutes as failed / outcome unknown. Check the record in the app before retrying. |
 | 429 `RATE_LIMITED` | Per-user limit; wait for `Retry-After`. The limiter lets requests through (fails open) when Redis is down. |
 | Wrong "today" | Tools use Europe/Istanbul. Check the server clock, not its time zone. |
-| Voice button missing | Voice switch on and Speaches URL set; **Test voice server** shows missing models. |
-| Transcription slow on first use | Model not preloaded yet; check `SPEACHES_PRELOAD_MODELS` and the volume. |
+| Voice button missing | Voice switch on and effective Speaches URL set (`voice_base_url` or `SPEACHES_URL`); **Test voice server** shows missing models. |
+| Transcription slow on first use | Model is still downloading or cold-loading; check the admin model picker, backend `ai_voice_model_*` logs, and the volume. |
 | Stream cut after ~60 s behind a proxy | Disable buffering (`X-Accel-Buffering: no` is sent) and raise proxy read timeouts to 15 min. |
 
 ## Tests

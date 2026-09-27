@@ -513,7 +513,10 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	aiSvc.SetEntitlements(entitlementsSvc)
 	aiSvc.SetActivityRecorder(activityRec)
 	aiSvc.EnableActions()
+	aiSvc.SetVoiceDefaultBaseURL(cfg.Speaches.BaseURL)
 	aiSvc.SetVoiceAPIKey(cfg.Speaches.APIKey)
+	aiSvc.SetVoiceAutoDownload(cfg.Speaches.AutoDownload)
+	aiSvc.StartVoiceModelEnsure(context.Background())
 	recoverCtx, cancelRecover := context.WithTimeout(context.Background(), 15*time.Second)
 	if n := aiSvc.RecoverInterruptedActions(recoverCtx); n > 0 {
 		log.Warn("ai_interrupted_actions_recovered", "count", n)

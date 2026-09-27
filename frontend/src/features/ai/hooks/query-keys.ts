@@ -3,6 +3,8 @@ export const aiKeys = {
   settings: () => [...aiKeys.all, "settings"] as const,
   usage: (month: string) => [...aiKeys.all, "usage", month] as const,
   org: (uuid: string) => [...aiKeys.all, "org", uuid] as const,
+  voiceModels: (language: string) =>
+    [...aiKeys.all, "voice-models", language] as const,
   status: (slug: string) => [...aiKeys.all, "status", slug] as const,
   conversations: (slug: string) =>
     [...aiKeys.all, "conversations", slug] as const,

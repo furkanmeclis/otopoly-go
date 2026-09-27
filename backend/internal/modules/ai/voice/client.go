@@ -13,6 +13,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -25,6 +26,9 @@ const (
 
 // ErrUnreachable wraps transport failures (DNS, refused, timeout).
 var ErrUnreachable = errors.New("voice server unreachable")
+
+// ErrModelNotFound means Speaches does not know the requested downloadable id.
+var ErrModelNotFound = errors.New("voice model not found")
 
 // UpstreamError is a non-2xx answer from Speaches.
 type UpstreamError struct {
@@ -57,6 +61,14 @@ func New(baseURL, apiKey string, hc *http.Client) *Client {
 }
 
 func (c *Client) endpoint(path string) string { return c.baseURL + path }
+
+func escapedModelPath(id string) string {
+	parts := strings.Split(strings.Trim(id, "/"), "/")
+	for i := range parts {
+		parts[i] = url.PathEscape(parts[i])
+	}
+	return strings.Join(parts, "/")
+}
 
 func (c *Client) do(req *http.Request) (*http.Response, error) {
 	if c.apiKey != "" {
@@ -259,6 +271,23 @@ type Model struct {
 	Task string `json:"task,omitempty"`
 }
 
+// RegistryVoice is one voice advertised by a registry TTS model.
+type RegistryVoice struct {
+	Name     string `json:"name"`
+	Language string `json:"language,omitempty"`
+	Gender   string `json:"gender,omitempty"`
+	ID       string `json:"id,omitempty"`
+}
+
+// RegistryModel is a downloadable Speaches model returned by GET /v1/registry.
+type RegistryModel struct {
+	ID       string          `json:"id"`
+	OwnedBy  string          `json:"owned_by,omitempty"`
+	Language []string        `json:"language,omitempty"`
+	Task     string          `json:"task,omitempty"`
+	Voices   []RegistryVoice `json:"voices,omitempty"`
+}
+
 // Models lists installed models (GET /v1/models).
 func (c *Client) Models(ctx context.Context) ([]Model, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.endpoint("/v1/models"), nil)
@@ -278,4 +307,59 @@ func (c *Client) Models(ctx context.Context) ([]Model, error) {
 		return nil, fmt.Errorf("decode models: %w", err)
 	}
 	return out.Data, nil
+}
+
+// Registry lists downloadable models for a Speaches task.
+func (c *Client) Registry(ctx context.Context, task string) ([]RegistryModel, error) {
+	u := c.endpoint("/v1/registry")
+	if task = strings.TrimSpace(task); task != "" {
+		u += "?task=" + url.QueryEscape(task)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", "application/json")
+	res, err := c.do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = res.Body.Close() }()
+	raw, err := io.ReadAll(io.LimitReader(res.Body, 16<<20))
+	if err != nil {
+		return nil, fmt.Errorf("read registry: %w", err)
+	}
+	// Speaches wraps the list as {"data": [...], "object": "list"}; accept a
+	// bare array too.
+	var wrapped struct {
+		Data []RegistryModel `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &wrapped); err == nil {
+		return wrapped.Data, nil
+	}
+	var out []RegistryModel
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("decode registry: %w", err)
+	}
+	return out, nil
+}
+
+// DownloadModel downloads a model. It returns true for HTTP 200 (downloaded)
+// and false for HTTP 201 (already installed).
+func (c *Client) DownloadModel(ctx context.Context, id string) (bool, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.endpoint("/v1/models/"+escapedModelPath(id)), nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("Accept", "application/json")
+	res, err := c.do(req)
+	if err != nil {
+		var up *UpstreamError
+		if errors.As(err, &up) && up.Status == http.StatusNotFound {
+			return false, fmt.Errorf("%w: %s", ErrModelNotFound, id)
+		}
+		return false, err
+	}
+	defer func() { _ = res.Body.Close() }()
+	return res.StatusCode == http.StatusOK, nil
 }

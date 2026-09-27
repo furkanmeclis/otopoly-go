@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	_ "time/tzdata" // Europe/Istanbul must resolve in minimal containers.
 
@@ -35,20 +36,24 @@ type ProviderFactory func(cfg provider.Config) (provider.Provider, error)
 
 // Service is the AI assistant use case.
 type Service struct {
-	store         Store
-	box           Encrypter
-	registry      *tools.Registry
-	newProvider   ProviderFactory
-	confirm       ConfirmationGate
-	activity      ActivityRecorder
-	log           *slog.Logger
-	now           func() time.Time
-	loc           *time.Location
-	maxIterations int
-	toolTimeout   time.Duration
-	voiceAPIKey   string
-	voiceHTTP     *http.Client
-	ent           *entitlements.Service
+	store               Store
+	box                 Encrypter
+	registry            *tools.Registry
+	newProvider         ProviderFactory
+	confirm             ConfirmationGate
+	activity            ActivityRecorder
+	log                 *slog.Logger
+	now                 func() time.Time
+	loc                 *time.Location
+	maxIterations       int
+	toolTimeout         time.Duration
+	voiceAPIKey         string
+	voiceHTTP           *http.Client
+	voiceDefaultBaseURL string
+	voiceAutoDownload   bool
+	voiceDownloadsMu    sync.Mutex
+	voiceDownloads      map[string]VoiceDownloadStatus
+	ent                 *entitlements.Service
 }
 
 // New creates the service.
@@ -64,16 +69,18 @@ func New(store Store, box Encrypter, registry *tools.Registry, log *slog.Logger)
 		loc = time.FixedZone("TRT", 3*60*60)
 	}
 	return &Service{
-		store:         store,
-		box:           box,
-		registry:      registry,
-		newProvider:   provider.New,
-		confirm:       disabledConfirmationGate{},
-		log:           log,
-		now:           time.Now,
-		loc:           loc,
-		maxIterations: DefaultMaxIterations,
-		toolTimeout:   20 * time.Second,
+		store:             store,
+		box:               box,
+		registry:          registry,
+		newProvider:       provider.New,
+		confirm:           disabledConfirmationGate{},
+		log:               log,
+		now:               time.Now,
+		loc:               loc,
+		maxIterations:     DefaultMaxIterations,
+		toolTimeout:       20 * time.Second,
+		voiceAutoDownload: true,
+		voiceDownloads:    map[string]VoiceDownloadStatus{},
 	}
 }
 
@@ -138,13 +145,14 @@ func (s *Service) mapSettings(row db.AiSetting) Settings {
 		MaxTokens:  int(row.MaxTokens),
 		Features: Features{
 			Chat: row.ChatEnabled, Actions: row.ActionsEnabled, Charts: row.ChartsEnabled,
-			Voice: row.VoiceEnabled, Todos: row.TodosEnabled,
+			Voice: row.VoiceEnabled && s.effectiveVoiceBaseURL(row) != "", Todos: row.TodosEnabled,
 		},
 		Tools:                    toolInfos,
 		ExtraInstructions:        row.ExtraInstructions,
 		DefaultMonthlyTokenQuota: row.DefaultMonthlyTokenQuota,
 		Voice: VoiceSettings{
-			BaseURL: row.VoiceBaseUrl, STTModel: row.VoiceSttModel, TTSVoice: row.VoiceTtsVoice, Language: row.VoiceLanguage,
+			BaseURL: row.VoiceBaseUrl, DefaultBaseURL: s.voiceDefaultBaseURL,
+			STTModel: row.VoiceSttModel, TTSVoice: row.VoiceTtsVoice, Language: row.VoiceLanguage,
 		},
 		Configured: isConfigured(row),
 		UpdatedAt:  row.UpdatedAt.Time,
@@ -345,7 +353,16 @@ func (s *Service) PatchSettings(ctx context.Context, actorID *int64, in PatchSet
 	if err != nil {
 		return Settings{}, err
 	}
+	if voiceSettingsChanged(current, row) {
+		s.EnsureVoiceModelsAsync(row)
+	}
 	return s.mapSettings(row), nil
+}
+
+func voiceSettingsChanged(before, after db.AiSetting) bool {
+	return strings.TrimSpace(before.VoiceBaseUrl) != strings.TrimSpace(after.VoiceBaseUrl) ||
+		strings.TrimSpace(before.VoiceSttModel) != strings.TrimSpace(after.VoiceSttModel) ||
+		strings.TrimSpace(before.VoiceTtsVoice) != strings.TrimSpace(after.VoiceTtsVoice)
 }
 
 func (s *Service) providerFor(row db.AiSetting) (provider.Provider, error) {
@@ -488,19 +505,19 @@ func principalScope(ctx context.Context) (authctx.Principal, orgctx.Scope, error
 	return p, scope, nil
 }
 
-func featuresOf(row db.AiSetting) Features {
+func (s *Service) featuresOf(row db.AiSetting) Features {
 	return Features{
 		Chat:    row.ChatEnabled,
 		Actions: row.ActionsEnabled,
 		Charts:  row.ChartsEnabled,
-		Voice:   row.VoiceEnabled && strings.TrimSpace(row.VoiceBaseUrl) != "",
+		Voice:   row.VoiceEnabled && s.effectiveVoiceBaseURL(row) != "",
 		Todos:   row.TodosEnabled,
 	}
 }
 
 func (s *Service) gate(row db.AiSetting) tools.Gate {
 	enabled := s.toolEnabledMap(row)
-	f := featuresOf(row)
+	f := s.featuresOf(row)
 	return tools.Gate{
 		FeatureEnabled: func(feat tools.Feature) bool {
 			switch feat {
@@ -556,7 +573,7 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 		return Status{}, err
 	}
 	q, availErr := s.availability(ctx, row, scope.InternalID)
-	st := Status{Features: featuresOf(row), Quota: q, Provider: row.Provider, Model: row.Model, Tools: []string{}}
+	st := Status{Features: s.featuresOf(row), Quota: q, Provider: row.Provider, Model: row.Model, Tools: []string{}}
 	switch {
 	case availErr == nil:
 		st.Available = true

@@ -6,8 +6,10 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/voice"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/voice/voicetest"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 )
@@ -47,6 +49,26 @@ func TestVoiceGate(t *testing.T) {
 	}
 	if _, err := h.svc.Transcribe(authctx.WithPrincipal(context.Background(), authctx.Principal{UserInternal: 42}), clip); !errors.Is(err, ErrNoContext) {
 		t.Fatalf("no scope: err = %v", err)
+	}
+}
+
+func TestVoiceEffectiveBaseURLFallback(t *testing.T) {
+	h, fake := newVoiceHarness(t)
+	h.store.settings.VoiceBaseUrl = ""
+	h.svc.SetVoiceDefaultBaseURL(fake.URL)
+
+	st, err := h.svc.Settings(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !st.Features.Voice || st.Voice.BaseURL != "" || st.Voice.DefaultBaseURL != fake.URL {
+		t.Fatalf("settings = %+v", st)
+	}
+	if _, err := h.svc.Transcribe(h.ctx, TranscribeInput{Audio: []byte("opus"), ContentType: "audio/webm"}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := fake.Last(); got.Model != DefaultSTTModel {
+		t.Fatalf("upstream = %+v", got)
 	}
 }
 
@@ -188,6 +210,92 @@ func TestTestVoiceReportsInstalledModels(t *testing.T) {
 	if res, err := h.svc.TestVoice(h.ctx, VoiceTestInput{BaseURL: &empty}); err != nil || res.OK || res.Message == "" {
 		t.Fatalf("empty url: res = %+v err = %v", res, err)
 	}
+}
+
+func TestVoiceModelsFiltersAndDownloadStatus(t *testing.T) {
+	h, fake := newVoiceHarness(t)
+	fake.Set(func(s *voicetest.Server) {
+		s.Installed = []string{DefaultSTTModel}
+		s.Registry = []map[string]any{
+			{"id": DefaultSTTModel, "task": voice.TaskSTT, "owned_by": "Systran", "language": []string{"multilingual"}},
+			{"id": "Systran/faster-whisper-en", "task": voice.TaskSTT, "owned_by": "Systran", "language": []string{"en"}},
+			{"id": DefaultTTSVoice, "task": voice.TaskTTS, "owned_by": "speaches-ai", "language": []string{"tr"}},
+			{"id": "speaches-ai/piper-en_US-lessac-medium", "task": voice.TaskTTS, "owned_by": "speaches-ai", "language": []string{"en"}},
+		}
+	})
+	h.svc.setDownloadStatus(VoiceDownloadStatus{ModelID: DefaultTTSVoice, State: VoiceDownloadDownloading, StartedAt: time.Now()})
+
+	res, err := h.svc.VoiceModels(context.Background(), "tr")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Reachable || len(res.Installed) != 1 || res.Defaults.TTSModel != DefaultTTSVoice {
+		t.Fatalf("res = %+v", res)
+	}
+	seen := map[string]VoiceRegistryModel{}
+	for _, m := range res.Available {
+		seen[m.ID] = m
+	}
+	if !seen[DefaultSTTModel].Installed || seen[DefaultTTSVoice].Download == nil || seen["Systran/faster-whisper-en"].ID != "" {
+		t.Fatalf("available = %+v", res.Available)
+	}
+}
+
+func TestDownloadVoiceModelDedupeAndUnknown(t *testing.T) {
+	h, fake := newVoiceHarness(t)
+	fake.Set(func(s *voicetest.Server) {
+		s.Registry = []map[string]any{{"id": DefaultTTSVoice, "task": voice.TaskTTS, "language": []string{"tr"}}}
+		s.DownloadDelay = 100 * time.Millisecond
+	})
+
+	st, err := h.svc.DownloadVoiceModel(context.Background(), VoiceDownloadInput{ModelID: DefaultTTSVoice})
+	if err != nil {
+		t.Fatal(err)
+	}
+	st2, err := h.svc.DownloadVoiceModel(context.Background(), VoiceDownloadInput{ModelID: DefaultTTSVoice})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.State != VoiceDownloadDownloading || st2.State != VoiceDownloadDownloading {
+		t.Fatalf("statuses = %+v %+v", st, st2)
+	}
+	waitFor(t, time.Second, func() bool {
+		got := h.svc.downloadStatus(DefaultTTSVoice)
+		return got != nil && got.State == VoiceDownloadDone
+	})
+	fake.Set(func(s *voicetest.Server) {
+		if len(s.Downloads) != 1 {
+			t.Fatalf("downloads = %+v", s.Downloads)
+		}
+	})
+	if _, err := h.svc.DownloadVoiceModel(context.Background(), VoiceDownloadInput{ModelID: "nope/model"}); !errors.Is(err, ErrVoiceModelNotFound) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestEnsureVoiceModelsSkipsInstalled(t *testing.T) {
+	h, fake := newVoiceHarness(t)
+	fake.Set(func(s *voicetest.Server) {
+		s.Installed = []string{DefaultSTTModel}
+	})
+	h.svc.ensureVoiceModels(context.Background(), fake.URL, []string{DefaultSTTModel, DefaultTTSVoice})
+	fake.Set(func(s *voicetest.Server) {
+		if len(s.Downloads) != 1 || s.Downloads[0] != DefaultTTSVoice {
+			t.Fatalf("downloads = %+v", s.Downloads)
+		}
+	})
+}
+
+func waitFor(t *testing.T, timeout time.Duration, ok func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if ok() {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("condition was not met before timeout")
 }
 
 func TestNormalizeAudioType(t *testing.T) {

@@ -175,15 +175,15 @@ services:
       - app
 
   # AI voice (optional, large image): docker compose -f compose.local.yml --profile voice up -d speaches
-  # Admin → /platform/ai → Ses: URL http://127.0.0.1:${SPEACHES_PORT:-8090}
+  # Admin can leave the URL empty when the API has SPEACHES_URL, or use http://127.0.0.1:${SPEACHES_PORT:-8090}.
   speaches:
     image: ${SPEACHES_IMAGE:-ghcr.io/speaches-ai/speaches:latest-cpu}
     profiles: ["voice"]
     container_name: ${NAME_PREFIX:-app}-speaches
     restart: unless-stopped
     environment:
-      PRELOAD_MODELS: ${SPEACHES_PRELOAD_MODELS:-["Systran/faster-whisper-small","speaches-ai/piper-tr_TR-fettah-medium"]}
       WHISPER__COMPUTE_TYPE: ${SPEACHES_WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER__TTL: ${SPEACHES_WHISPER_TTL:-300}
       LOG_LEVEL: ${SPEACHES_LOG_LEVEL:-info}
     ports:
       - "${SPEACHES_PORT:-8090}:8000"

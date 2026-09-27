@@ -7486,6 +7486,52 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/platform/ai/voice/models:
+    get:
+      tags: [Platform]
+      operationId: listPlatformAIVoiceModels
+      summary: List installed and downloadable Speaches voice models
+      description: Requires `platform.ai.read`. Speaches connection failures return 200 with `reachable=false`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: language
+          schema: { type: string, default: tr }
+      responses:
+        "200":
+          description: Voice model catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIVoiceModelsResult"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/platform/ai/voice/models/download:
+    post:
+      tags: [Platform]
+      operationId: downloadPlatformAIVoiceModel
+      summary: Start an async Speaches model download
+      description: Requires `platform.ai.write`. Unknown registry ids return 422 with `AI_VOICE_MODEL_UNKNOWN`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AIVoiceModelDownloadRequest"
+      responses:
+        "202":
+          description: Download accepted or already in progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAIVoiceDownloadStatus"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+
   /v1/platform/ai/usage:
     get:
       tags: [Platform]
@@ -11330,9 +11376,10 @@ components:
 
     AIVoiceSettings:
       type: object
-      required: [base_url, stt_model, tts_voice, language]
+      required: [base_url, default_base_url, stt_model, tts_voice, language]
       properties:
         base_url: { type: string, description: Speaches (OpenAI-compatible audio) base URL }
+        default_base_url: { type: string, description: Env SPEACHES_URL used when base_url is empty }
         stt_model: { type: string, description: "faster-whisper model id; empty = Systran/faster-whisper-small" }
         tts_voice:
           type: string
@@ -11471,6 +11518,76 @@ components:
       properties:
         id: { type: string }
         task: { type: string }
+
+    AIVoiceDownloadStatus:
+      type: object
+      required: [model_id, state, started_at]
+      properties:
+        model_id: { type: string }
+        state: { type: string, enum: [downloading, done, error] }
+        error: { type: string }
+        started_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time }
+
+    AIVoiceRegistryModel:
+      type: object
+      required: [id, task, language, installed]
+      properties:
+        id: { type: string }
+        task: { type: string }
+        owned_by: { type: string }
+        language:
+          type: array
+          items: { type: string }
+        installed: { type: boolean }
+        download:
+          anyOf:
+            - $ref: "#/components/schemas/AIVoiceDownloadStatus"
+            - type: "null"
+
+    AIVoiceModelDefaults:
+      type: object
+      required: [stt_model, tts_model]
+      properties:
+        stt_model: { type: string }
+        tts_model: { type: string }
+
+    AIVoiceModelsResult:
+      type: object
+      required: [reachable, base_url, installed, available, defaults]
+      properties:
+        reachable: { type: boolean }
+        base_url: { type: string }
+        message: { type: string }
+        installed:
+          type: array
+          items: { $ref: "#/components/schemas/AIVoiceModel" }
+        available:
+          type: array
+          items: { $ref: "#/components/schemas/AIVoiceRegistryModel" }
+        defaults: { $ref: "#/components/schemas/AIVoiceModelDefaults" }
+
+    EnvelopeAIVoiceModelsResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIVoiceModelsResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AIVoiceModelDownloadRequest:
+      type: object
+      required: [model_id]
+      properties:
+        model_id: { type: string }
+
+    EnvelopeAIVoiceDownloadStatus:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AIVoiceDownloadStatus" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     AIVoiceTestResult:
       type: object

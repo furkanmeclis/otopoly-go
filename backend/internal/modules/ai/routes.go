@@ -45,6 +45,8 @@ func RegisterRoutes(
 	mux.Handle("PATCH /v1/platform/ai/settings", platform(h.PatchSettings, rbac.PermPlatformAIWrite))
 	mux.Handle("POST /v1/platform/ai/settings/test", platform(h.TestConnection, rbac.PermPlatformAIWrite))
 	mux.Handle("POST /v1/platform/ai/voice/test", platform(h.TestVoice, rbac.PermPlatformAIWrite))
+	mux.Handle("GET /v1/platform/ai/voice/models", platform(h.VoiceModels, rbac.PermPlatformAIRead))
+	mux.Handle("POST /v1/platform/ai/voice/models/download", platform(h.DownloadVoiceModel, rbac.PermPlatformAIWrite))
 	mux.Handle("GET /v1/platform/ai/usage", platform(h.Usage, rbac.PermPlatformAIRead))
 	mux.Handle("GET /v1/platform/ai/organizations/{uuid}", platform(h.GetOrgSettings, rbac.PermPlatformAIRead))
 	mux.Handle("PUT /v1/platform/ai/organizations/{uuid}", platform(h.PutOrgSettings, rbac.PermPlatformAIWrite))

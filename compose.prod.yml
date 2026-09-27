@@ -72,6 +72,7 @@ x-backend-environment: &backend-environment
   MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY is required}
   MEILI_INDEX_PREFIX: ${MEILI_INDEX_PREFIX:-app}
   GOTENBERG_URL: http://${NAME_PREFIX:-app}-gotenberg:3000
+  SPEACHES_URL: http://${NAME_PREFIX:-app}-speaches:8000
   # Only for an external Speaches started with API_KEY (the bundled one needs none).
   SPEACHES_API_KEY: ${SPEACHES_API_KEY:-}
   LOG_LEVEL: ${LOG_LEVEL:-info}
@@ -180,19 +181,14 @@ services:
 
   # AI voice (Speaches: faster-whisper STT + Piper TTS, OpenAI-compatible API).
   # Internal only: the browser never talks to it; Go proxies /v1/tenant/ai/voice/*.
-  # Admin → /platform/ai → Ses: URL http://${NAME_PREFIX:-app}-speaches:8000
-  # Models are downloaded into the hf cache volume on first start (PRELOAD_MODELS).
+  # Models are downloaded by the backend on start or from the admin model picker.
   speaches:
     image: ${SPEACHES_IMAGE:-ghcr.io/speaches-ai/speaches:latest-cpu}
     container_name: ${NAME_PREFIX:-app}-speaches
     restart: unless-stopped
     environment:
-      # JSON list; the server exits if a model cannot be downloaded.
-      PRELOAD_MODELS: ${SPEACHES_PRELOAD_MODELS:-["Systran/faster-whisper-small","speaches-ai/piper-tr_TR-fettah-medium"]}
       WHISPER__COMPUTE_TYPE: ${SPEACHES_WHISPER_COMPUTE_TYPE:-int8}
-      # Keep models in memory (-1) to avoid a cold start on every question.
-      STT_MODEL_TTL: ${SPEACHES_STT_MODEL_TTL:--1}
-      TTS_MODEL_TTL: ${SPEACHES_TTS_MODEL_TTL:--1}
+      WHISPER__TTL: ${SPEACHES_WHISPER_TTL:-300}
       ENABLE_UI: "false"
       LOG_LEVEL: ${SPEACHES_LOG_LEVEL:-info}
     volumes:

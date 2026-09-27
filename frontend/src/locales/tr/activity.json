@@ -114,6 +114,7 @@
   "resources.tenant.staff": "Personel",
   "actions.ai.settings.updated": "AI asistan ayarları güncellendi",
   "actions.ai.organization.updated": "İşletme AI ayarları güncellendi",
+  "actions.platform.ai.voice.model.download": "Ses modeli indirme istendi",
   "resources.platform.ai": "AI asistan",
   "actions.todos.create": "Görev oluşturuldu",
   "actions.todos.update": "Görev güncellendi",

@@ -19,6 +19,7 @@ const (
 	CodeAudioTooLarge      = "AUDIO_TOO_LARGE"
 	CodeAudioTooLong       = "AUDIO_TOO_LONG"
 	CodeAudioUnsupported   = "AUDIO_UNSUPPORTED"
+	CodeVoiceModelUnknown  = "AI_VOICE_MODEL_UNKNOWN"
 )
 
 func writeVoiceError(w http.ResponseWriter, r *http.Request, err error) {
@@ -37,6 +38,40 @@ func writeVoiceError(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		writeError(w, r, err)
 	}
+}
+
+// VoiceModels lists installed and downloadable Speaches models for the admin UI.
+func (h *Handler) VoiceModels(w http.ResponseWriter, r *http.Request) {
+	res, err := h.svc.VoiceModels(r.Context(), r.URL.Query().Get("language"))
+	if err != nil {
+		writeVoiceError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, res)
+}
+
+// DownloadVoiceModel starts an async Speaches model download.
+func (h *Handler) DownloadVoiceModel(w http.ResponseWriter, r *http.Request) {
+	var in aiusecase.VoiceDownloadInput
+	if !decodeJSON(w, r, &in) {
+		return
+	}
+	st, err := h.svc.DownloadVoiceModel(r.Context(), in)
+	if err != nil {
+		if errors.Is(err, aiusecase.ErrVoiceModelNotFound) {
+			response.Error(w, r, http.StatusUnprocessableEntity, CodeVoiceModelUnknown, "Unknown voice model")
+			return
+		}
+		writeVoiceError(w, r, err)
+		return
+	}
+	if h.activity != nil {
+		h.activity.Record(r.Context(), actorID(r), "platform.ai.voice.model.download", "platform.ai", nil, map[string]any{
+			"model_id": st.ModelID,
+			"state":    st.State,
+		}, r)
+	}
+	response.JSON(w, r, http.StatusAccepted, st)
 }
 
 // Transcribe accepts a multipart upload (field "file") and returns its text.

@@ -30,6 +30,10 @@ export type AIActionStatus =
 export type AITranscription = Schemas["AITranscription"];
 export type AIVoiceTestResult = Schemas["AIVoiceTestResult"];
 
+export type AIVoiceDownloadStatus = Schemas["AIVoiceDownloadStatus"];
+export type AIVoiceModel = Schemas["AIVoiceRegistryModel"];
+export type AIVoiceModelsResult = Schemas["AIVoiceModelsResult"];
+
 export type AIConversationPage = {
   items: AIConversation[];
   total: number;

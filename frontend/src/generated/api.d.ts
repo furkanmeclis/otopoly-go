@@ -4381,6 +4381,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/ai/voice/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List installed and downloadable Speaches voice models
+         * @description Requires `platform.ai.read`. Speaches connection failures return 200 with `reachable=false`.
+         */
+        get: operations["listPlatformAIVoiceModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/ai/voice/models/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start an async Speaches model download
+         * @description Requires `platform.ai.write`. Unknown registry ids return 422 with `AI_VOICE_MODEL_UNKNOWN`.
+         */
+        post: operations["downloadPlatformAIVoiceModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/ai/usage": {
         parameters: {
             query?: never;
@@ -7176,6 +7216,8 @@ export interface components {
         AIVoiceSettings: {
             /** @description Speaches (OpenAI-compatible audio) base URL */
             base_url: string;
+            /** @description Env SPEACHES_URL used when base_url is empty */
+            default_base_url: string;
             /** @description faster-whisper model id; empty = Systran/faster-whisper-small */
             stt_model: string;
             /** @description TTS model id, optionally `<model>:<voice>`; empty = speaches-ai/piper-tr_TR-fettah-medium */
@@ -7293,6 +7335,51 @@ export interface components {
         AIVoiceModel: {
             id: string;
             task?: string;
+        };
+        AIVoiceDownloadStatus: {
+            model_id: string;
+            /** @enum {string} */
+            state: "downloading" | "done" | "error";
+            error?: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            finished_at?: string;
+        };
+        AIVoiceRegistryModel: {
+            id: string;
+            task: string;
+            owned_by?: string;
+            language: string[];
+            installed: boolean;
+            download?: components["schemas"]["AIVoiceDownloadStatus"] | null;
+        };
+        AIVoiceModelDefaults: {
+            stt_model: string;
+            tts_model: string;
+        };
+        AIVoiceModelsResult: {
+            reachable: boolean;
+            base_url: string;
+            message?: string;
+            installed: components["schemas"]["AIVoiceModel"][];
+            available: components["schemas"]["AIVoiceRegistryModel"][];
+            defaults: components["schemas"]["AIVoiceModelDefaults"];
+        };
+        EnvelopeAIVoiceModelsResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIVoiceModelsResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AIVoiceModelDownloadRequest: {
+            model_id: string;
+        };
+        EnvelopeAIVoiceDownloadStatus: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AIVoiceDownloadStatus"];
+            meta: components["schemas"]["ResponseMeta"];
         };
         AIVoiceTestResult: {
             ok: boolean;
@@ -17449,6 +17536,58 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformAIVoiceModels: {
+        parameters: {
+            query?: {
+                language?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Voice model catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIVoiceModelsResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["BadRequest"];
+        };
+    };
+    downloadPlatformAIVoiceModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AIVoiceModelDownloadRequest"];
+            };
+        };
+        responses: {
+            /** @description Download accepted or already in progress */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAIVoiceDownloadStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["BadRequest"];
         };
     };
     getPlatformAIUsage: {

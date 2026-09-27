@@ -89,6 +89,39 @@ func TestAPIKeyAndUpstreamErrors(t *testing.T) {
 	}
 }
 
+func TestRegistryAndDownloadModel(t *testing.T) {
+	fake := voicetest.New()
+	defer fake.Close()
+	fake.Set(func(s *voicetest.Server) {
+		s.Registry = []map[string]any{
+			{"id": "Systran/faster-whisper-small", "task": voice.TaskSTT, "owned_by": "Systran", "language": []string{"multilingual"}},
+			{"id": "speaches-ai/piper-tr_TR-fettah-medium", "task": voice.TaskTTS, "owned_by": "speaches-ai", "language": []string{"tr"}},
+		}
+		s.Unknown = map[string]bool{"missing/model": true}
+	})
+
+	c := voice.New(fake.URL, "", nil)
+	reg, err := c.Registry(context.Background(), voice.TaskTTS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reg) != 1 || reg[0].ID != "speaches-ai/piper-tr_TR-fettah-medium" {
+		t.Fatalf("registry = %+v", reg)
+	}
+	downloaded, err := c.DownloadModel(context.Background(), "Systran/faster-whisper-small")
+	if err != nil || !downloaded {
+		t.Fatalf("downloaded=%v err=%v", downloaded, err)
+	}
+	downloaded, err = c.DownloadModel(context.Background(), "Systran/faster-whisper-small")
+	if err != nil || downloaded {
+		t.Fatalf("second downloaded=%v err=%v", downloaded, err)
+	}
+	_, err = c.DownloadModel(context.Background(), "missing/model")
+	if !errors.Is(err, voice.ErrModelNotFound) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
 func TestUnreachable(t *testing.T) {
 	fake := voicetest.New()
 	url := fake.URL

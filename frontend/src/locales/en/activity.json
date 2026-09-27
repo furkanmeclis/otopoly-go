@@ -114,6 +114,7 @@
   "resources.tenant.staff": "Staff",
   "actions.ai.settings.updated": "AI assistant settings updated",
   "actions.ai.organization.updated": "Organization AI settings updated",
+  "actions.platform.ai.voice.model.download": "Voice model download requested",
   "resources.platform.ai": "AI assistant",
   "actions.todos.create": "Todo created",
   "actions.todos.update": "Todo updated",

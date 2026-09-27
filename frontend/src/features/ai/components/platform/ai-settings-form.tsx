@@ -29,6 +29,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { VoiceTestPanel } from "@/features/ai/components/platform/voice-test-panel";
+import {
+  VoiceModelField,
+  VoiceModelsAlert,
+} from "@/features/ai/components/platform/voice-model-field";
 import { toolLabelKey } from "@/features/ai/lib/labels";
 import {
   aiSettingsFormSchema,
@@ -123,6 +127,10 @@ export function AISettingsForm({
         const provider = form.watch("provider");
         const clearKey = form.watch("clear_api_key");
         const isOpenAI = provider === "openai_compatible";
+        const voiceLanguage = form.watch("voice_language") || "tr";
+        const voiceSTTModel = form.watch("voice_stt_model");
+        const voiceTTSVoice = form.watch("voice_tts_voice");
+        const voiceBaseDefault = settings.voice.default_base_url;
         const soon = (
           <Badge variant="secondary" className="ml-2 align-middle">
             {t("ai.form.soon")}
@@ -454,8 +462,14 @@ export function AISettingsForm({
               <AppInput
                 name="voice_base_url"
                 label={t("ai.form.voice_base_url")}
-                description={t("ai.form.voice_base_url_hint")}
-                placeholder="http://app-speaches:8000"
+                description={
+                  voiceBaseDefault
+                    ? t("ai.form.voice_base_url_default_hint", {
+                        url: voiceBaseDefault,
+                      })
+                    : t("ai.form.voice_base_url_hint")
+                }
+                placeholder={voiceBaseDefault || "http://app-speaches:8000"}
                 disabled={disabled}
               />
               <AppInput
@@ -465,18 +479,27 @@ export function AISettingsForm({
                 placeholder="tr"
                 disabled={disabled}
               />
-              <AppInput
+              <VoiceModelsAlert
+                sttModel={voiceSTTModel}
+                ttsModel={voiceTTSVoice}
+                language={voiceLanguage}
+              />
+              <VoiceModelField
                 name="voice_stt_model"
+                kind="stt"
                 label={t("ai.form.voice_stt_model")}
                 description={t("ai.form.voice_stt_model_hint")}
                 placeholder="Systran/faster-whisper-small"
+                language={voiceLanguage}
                 disabled={disabled}
               />
-              <AppInput
+              <VoiceModelField
                 name="voice_tts_voice"
+                kind="tts"
                 label={t("ai.form.voice_tts_voice")}
                 description={t("ai.form.voice_tts_voice_hint")}
                 placeholder="speaches-ai/piper-tr_TR-fettah-medium"
+                language={voiceLanguage}
                 disabled={disabled}
               />
               <VoiceTestPanel

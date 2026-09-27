@@ -6,8 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Transcription is one recorded POST /v1/audio/transcriptions.
@@ -28,10 +30,14 @@ type Server struct {
 	mu             sync.Mutex
 	APIKey         string   // when set, requests need "Authorization: Bearer <APIKey>"
 	Installed      []string // ids returned by GET /v1/models
-	Text           string   // transcription text
-	Duration       float64  // transcription duration (seconds)
-	Audio          []byte   // speech payload
-	FailStatus     int      // when set, every audio call fails with this status
+	Registry       []map[string]any
+	Downloads      []string
+	DownloadDelay  time.Duration
+	Unknown        map[string]bool
+	Text           string  // transcription text
+	Duration       float64 // transcription duration (seconds)
+	Audio          []byte  // speech payload
+	FailStatus     int     // when set, every audio call fails with this status
 	Transcriptions []Transcription
 	Speeches       []Speech
 }
@@ -42,6 +48,8 @@ func New() *Server {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, "OK") })
 	mux.HandleFunc("GET /v1/models", s.auth(s.models))
+	mux.HandleFunc("GET /v1/registry", s.auth(s.registry))
+	mux.HandleFunc("POST /v1/models/", s.auth(s.download))
 	mux.HandleFunc("POST /v1/audio/transcriptions", s.auth(s.transcribe))
 	mux.HandleFunc("POST /v1/audio/speech", s.auth(s.speech))
 	s.Server = httptest.NewServer(mux)
@@ -89,6 +97,50 @@ func (s *Server) models(w http.ResponseWriter, _ *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"object": "list", "data": data})
+}
+
+func (s *Server) registry(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	task := r.URL.Query().Get("task")
+	out := []map[string]any{}
+	for _, m := range s.Registry {
+		if task == "" || m["task"] == task {
+			out = append(out, m)
+		}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]any{"data": out, "object": "list"})
+}
+
+func (s *Server) download(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/v1/models/")
+	if unescaped, err := url.PathUnescape(id); err == nil {
+		id = unescaped
+	}
+	s.mu.Lock()
+	delay := s.DownloadDelay
+	s.mu.Unlock()
+	if delay > 0 {
+		time.Sleep(delay)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.Unknown != nil && s.Unknown[id] {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = io.WriteString(w, `{"detail":"unknown model"}`)
+		return
+	}
+	for _, installed := range s.Installed {
+		if installed == id {
+			w.WriteHeader(http.StatusCreated)
+			return
+		}
+	}
+	s.Downloads = append(s.Downloads, id)
+	s.Installed = append(s.Installed, id)
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) transcribe(w http.ResponseWriter, r *http.Request) {

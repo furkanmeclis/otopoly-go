@@ -33,11 +33,13 @@ type Config struct {
 	Speaches   SpeachesConfig
 }
 
-// SpeachesConfig holds the AI voice server credentials (the URL itself is a
-// platform AI setting managed in the admin panel).
+// SpeachesConfig holds the AI voice server defaults.
 type SpeachesConfig struct {
+	// BaseURL is used when the platform setting is empty.
+	BaseURL string
 	// APIKey is sent as a Bearer token when Speaches runs with API_KEY set.
-	APIKey string
+	APIKey       string
+	AutoDownload bool
 }
 
 // GotenbergConfig controls HTML→PDF rendering via Gotenberg Chromium.
@@ -278,7 +280,9 @@ func Load() (Config, error) {
 			URL: getEnv("GOTENBERG_URL", "http://127.0.0.1:3001"),
 		},
 		Speaches: SpeachesConfig{
-			APIKey: getEnv("SPEACHES_API_KEY", ""),
+			BaseURL:      getEnv("SPEACHES_URL", ""),
+			APIKey:       getEnv("SPEACHES_API_KEY", ""),
+			AutoDownload: getBool("SPEACHES_AUTO_DOWNLOAD", true),
 		},
 	}
 
