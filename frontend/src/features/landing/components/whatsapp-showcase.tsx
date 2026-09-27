@@ -5,9 +5,9 @@ import { CheckCheck, ChevronLeft, Phone } from "lucide-react";
 import { motion, useInView } from "motion/react";
 
 import { AppMark } from "@/components/brand/app-mark";
-import { whatsappMessages } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 
-function renderBold(text: string) {
+export function renderBold(text: string) {
   return text.split(/(\*[^*]+\*)/g).map((part, i) =>
     part.startsWith("*") && part.endsWith("*") ? (
       <strong key={i} className="font-semibold tracking-wider">
@@ -21,6 +21,8 @@ function renderBold(text: string) {
 
 /** Phone mock where the day's customer messages arrive one by one. */
 export function WhatsAppShowcase() {
+  const { whatsappMessages, whatsappAccount, whatsappToday } =
+    useLandingContent();
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-120px" });
 
@@ -49,13 +51,13 @@ export function WhatsAppShowcase() {
               <p className="truncate text-sm font-semibold">
                 Tech Oto Detailing
               </p>
-              <p className="text-[11px] text-white/75">işletme hesabı</p>
+              <p className="text-[11px] text-white/75">{whatsappAccount}</p>
             </div>
             <Phone className="size-4" />
           </div>
           <div className="flex min-h-[420px] flex-col gap-2.5 bg-[radial-gradient(#d9d2c9_1px,transparent_1px)] [background-size:14px_14px] p-3">
             <span className="mx-auto rounded-md bg-white/80 px-2 py-0.5 text-[10px] text-neutral-500 shadow-sm">
-              BUGÜN
+              {whatsappToday}
             </span>
             {whatsappMessages.map((msg, i) => (
               <motion.div

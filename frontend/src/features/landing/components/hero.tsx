@@ -14,7 +14,7 @@ import { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
-import { hero } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 import { ProductMock } from "@/features/landing/components/product-mock";
 import { HeroShader } from "@/features/landing/components/shaders";
 
@@ -75,6 +75,7 @@ function Words({
 }
 
 export function Hero() {
+  const { hero } = useLandingContent();
   const reduce = useReducedMotion();
   const sectionRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({

@@ -3,11 +3,12 @@
 import { useRef } from "react";
 import { motion, useScroll, useSpring } from "motion/react";
 
-import { steps } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 import { Reveal } from "@/features/landing/components/reveal";
 
 /** Numbered steps joined by a line that fills as the section scrolls by. */
 export function HowItWorks() {
+  const { steps } = useLandingContent();
   const ref = useRef<HTMLOListElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,

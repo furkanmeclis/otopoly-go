@@ -4,10 +4,11 @@ import { useRef } from "react";
 import { ArrowUpRight, Download } from "lucide-react";
 import { motion, useInView } from "motion/react";
 
-import { reportsSection } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 
 /** Mini report card: weekly revenue bars grow in, service mix fills up. */
 export function ReportsShowcase() {
+  const { reportsSection, a11y } = useLandingContent();
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-120px" });
 
@@ -37,7 +38,7 @@ export function ReportsShowcase() {
       <div
         className="mt-8 flex h-40 items-end gap-2 sm:gap-3"
         role="img"
-        aria-label="Haftalık gelir grafiği örneği"
+        aria-label={a11y.weeklyChart}
       >
         {reportsSection.bars.map((bar, i) => (
           <div
@@ -68,7 +69,7 @@ export function ReportsShowcase() {
       </div>
 
       <div className="mt-6 space-y-3 border-t pt-5">
-        <p className="text-sm font-medium">Hizmet dağılımı</p>
+        <p className="text-sm font-medium">{reportsSection.mixTitle}</p>
         {reportsSection.mix.map((item, i) => (
           <div key={item.label}>
             <div className="flex justify-between text-xs">

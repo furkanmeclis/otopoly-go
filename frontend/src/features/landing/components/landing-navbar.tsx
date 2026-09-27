@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Languages } from "lucide-react";
 import {
   AnimatePresence,
   motion,
@@ -13,11 +13,20 @@ import {
 import { AppWordmark } from "@/components/brand/app-wordmark";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
-import { hero, landingNav } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 import { cn } from "@/lib/utils";
 
 /** Transparent over the dark hero, frosted glass once the page scrolls. */
 export function LandingNavbar() {
+  const { hero, nav: landingNav, a11y, language, locale } = useLandingContent();
+  const homeHref = locale === "en" ? "/en" : routes.public.root;
+  const rememberLocale = () => {
+    try {
+      window.localStorage.setItem("app.locale", locale === "en" ? "tr" : "en");
+    } catch {
+      /* storage blocked — the page itself still switches */
+    }
+  };
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -32,7 +41,7 @@ export function LandingNavbar() {
       className="fixed inset-x-0 top-0 z-50 px-3 pt-3 sm:px-6"
     >
       <nav
-        aria-label="Ana menü"
+        aria-label={a11y.mainNav}
         style={
           onDark
             ? ({ "--brand-glyph": "#fff" } as React.CSSProperties)
@@ -45,7 +54,7 @@ export function LandingNavbar() {
             : "border-border/60 bg-background/75 text-foreground shadow-lg shadow-black/5 backdrop-blur-xl",
         )}
       >
-        <Link href={routes.public.root} aria-label="Otopoly ana sayfa">
+        <Link href={homeHref} aria-label={a11y.home}>
           <AppWordmark className="h-6 sm:h-7" />
         </Link>
 
@@ -68,6 +77,21 @@ export function LandingNavbar() {
         </ul>
 
         <div className="hidden items-center gap-2 md:flex">
+          <Link
+            href={language.href}
+            hrefLang={locale === "en" ? "tr" : "en"}
+            onClick={rememberLocale}
+            aria-label={`${language.label}: ${language.switchTo}`}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-sm font-medium transition-colors",
+              onDark
+                ? "text-white/80 hover:bg-white/10 hover:text-white"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Languages className="size-4" />
+            {locale === "en" ? "TR" : "EN"}
+          </Link>
           <Button
             asChild
             variant="ghost"
@@ -86,7 +110,7 @@ export function LandingNavbar() {
         <button
           type="button"
           className="rounded-lg p-2 md:hidden"
-          aria-label={open ? "Menüyü kapat" : "Menüyü aç"}
+          aria-label={open ? a11y.menuClose : a11y.menuOpen}
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
         >
@@ -116,6 +140,15 @@ export function LandingNavbar() {
                 </li>
               ))}
             </ul>
+            <Link
+              href={language.href}
+              hrefLang={locale === "en" ? "tr" : "en"}
+              onClick={rememberLocale}
+              className="hover:bg-muted mt-1 flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium"
+            >
+              <Languages className="size-4" />
+              {language.switchTo}
+            </Link>
             <div className="mt-2 grid grid-cols-2 gap-2">
               <Button asChild variant="outline">
                 <Link href="/login">{hero.secondaryCta}</Link>

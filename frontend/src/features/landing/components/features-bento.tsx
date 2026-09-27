@@ -15,7 +15,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 
-import { features, type FeatureIcon } from "@/features/landing/content";
+import type { FeatureIcon } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 import { RevealGroup, RevealItem } from "@/features/landing/components/reveal";
 import { cn } from "@/lib/utils";
 
@@ -38,6 +39,7 @@ function trackPointer(e: PointerEvent<HTMLElement>) {
 
 /** Bento grid of product capabilities with a pointer-following spotlight. */
 export function FeaturesBento() {
+  const { features } = useLandingContent();
   return (
     <RevealGroup className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {features.map((feature) => {

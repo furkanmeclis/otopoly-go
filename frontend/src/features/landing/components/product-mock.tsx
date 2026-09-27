@@ -18,6 +18,8 @@ import {
 } from "motion/react";
 
 import { cn } from "@/lib/utils";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
+import { fill } from "@/features/landing/content";
 
 type Stage = 0 | 1 | 2;
 
@@ -133,11 +135,9 @@ function step(state: BoardState): BoardState {
   };
 }
 
-function Counter({ to }: { to: number }) {
+function Counter({ to, locale }: { to: number; locale: string }) {
   const value = useMotionValue(0);
-  const text = useTransform(value, (v) =>
-    Math.round(v).toLocaleString("tr-TR"),
-  );
+  const text = useTransform(value, (v) => Math.round(v).toLocaleString(locale));
   useEffect(() => {
     const controls = animate(value, to, { duration: 1.6, ease: "easeOut" });
     return () => controls.stop();
@@ -150,6 +150,8 @@ function Counter({ to }: { to: number }) {
  * WhatsApp / contract notifications pop around it.
  */
 export function ProductMock({ className }: { className?: string }) {
+  const { productMock } = useLandingContent();
+  const job = (id: number) => productMock.jobs[id % productMock.jobs.length];
   const reduce = useReducedMotion();
   const [board, dispatch] = useReducer(step, INITIAL);
   const { cards, revenue, ready } = board;
@@ -172,7 +174,9 @@ export function ProductMock({ className }: { className?: string }) {
             <span className="size-2.5 rounded-full bg-white/25" />
             <span className="size-2.5 rounded-full bg-white/25" />
           </div>
-          <p className="text-xs font-medium text-white/70">Operasyon · Bugün</p>
+          <p className="text-xs font-medium text-white/70">
+            {productMock.title}
+          </p>
           <div className="flex items-center gap-1 rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
             <span className="size-1.5 animate-pulse rounded-full bg-emerald-400" />
             Canlı
@@ -185,7 +189,7 @@ export function ProductMock({ className }: { className?: string }) {
               const items = cards.filter((c) => c.stage === stage);
               return (
                 <div
-                  key={col.title}
+                  key={productMock.columns[stage]}
                   className="min-h-[220px] rounded-xl bg-black/15 p-2 sm:min-h-[250px]"
                 >
                   <div className="mb-2 flex items-center justify-between px-1">
@@ -223,11 +227,15 @@ export function ProductMock({ className }: { className?: string }) {
                             </span>
                           </div>
                           <p className="mt-1.5 truncate text-[11px] font-medium">
-                            {card.service}
+                            {job(card.id).service}
                           </p>
                           <div className="mt-0.5 flex items-center justify-between text-[10px] text-white/55">
-                            <span className="truncate">{card.vehicle}</span>
-                            <span className="text-white/80">{card.price}</span>
+                            <span className="truncate">
+                              {job(card.id).vehicle}
+                            </span>
+                            <span className="text-white/80">
+                              {job(card.id).price}
+                            </span>
                           </div>
                         </motion.div>
                       ))}
@@ -251,9 +259,11 @@ export function ProductMock({ className }: { className?: string }) {
           <TrendingUp className="size-4" />
         </span>
         <div>
-          <p className="text-[10px] text-white/60">Bugünkü ciro</p>
+          <p className="text-[10px] text-white/60">
+            {productMock.revenueToday}
+          </p>
           <p className="font-display text-lg font-semibold">
-            ₺<Counter to={revenue} />
+            ₺<Counter to={revenue} locale={productMock.numberLocale} />
           </p>
         </div>
       </motion.div>
@@ -287,10 +297,10 @@ export function ProductMock({ className }: { className?: string }) {
               WhatsApp · Otopoly
             </p>
             <p className="mt-0.5 text-xs leading-snug">
-              {toast.plate} plakalı aracınız teslime hazır. İyi günler dileriz.
+              {fill(productMock.readyToast, { plate: toast.plate })}
             </p>
             <p className="mt-0.5 flex items-center justify-end gap-1 text-[10px] text-neutral-500">
-              şimdi <CheckCheck className="size-3 text-sky-500" />
+              {productMock.now} <CheckCheck className="size-3 text-sky-500" />
             </p>
           </motion.div>
         ) : null}

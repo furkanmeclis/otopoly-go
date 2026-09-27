@@ -1,6 +1,9 @@
 import { Check } from "lucide-react";
 
-import { reportsSection, whatsappSection } from "@/features/landing/content";
+import type { LandingContent, PublicPlan } from "@/features/landing/content";
+import { CarJourney } from "@/features/landing/components/car-journey";
+import { LandingContentProvider } from "@/features/landing/components/landing-content-provider";
+import { Pricing } from "@/features/landing/components/pricing";
 import { Faq } from "@/features/landing/components/faq";
 import { FeaturesBento } from "@/features/landing/components/features-bento";
 import { FinalCta } from "@/features/landing/components/final-cta";
@@ -30,84 +33,117 @@ function PointList({ points }: { points: readonly string[] }) {
   );
 }
 
-export function LandingPage() {
+export function LandingPage({
+  content,
+  plans,
+}: {
+  content: LandingContent;
+  plans: PublicPlan[];
+}) {
+  const { sections, whatsappSection, reportsSection, journey, pricing, faqs } =
+    content;
   return (
-    <LandingMotionProvider>
-      <div className="bg-background text-foreground min-h-svh overflow-x-clip">
-        <LandingNavbar />
-        <main>
-          <Hero />
-          <ServicesMarquee />
+    <LandingContentProvider content={content} plans={plans}>
+      <LandingMotionProvider>
+        <div className="bg-background text-foreground min-h-svh overflow-x-clip">
+          <LandingNavbar />
+          <main>
+            <Hero />
+            <ServicesMarquee />
 
-          <section
-            id="ozellikler"
-            className="mx-auto max-w-6xl scroll-mt-24 px-4 py-24 sm:px-6"
-          >
-            <SectionHeading
-              eyebrow="Özellikler"
-              title="Kağıt, defter ve Excel yerine tek bir akış."
-              description="Araç kabulünden ödemeye kadar her adım kayıt altında. Personeliniz ne yapacağını, siz de işletmenin durumunu anlık görürsünüz."
-            />
-            <FeaturesBento />
-          </section>
+            <section
+              id="ozellikler"
+              className="mx-auto max-w-6xl scroll-mt-24 px-4 py-24 sm:px-6"
+            >
+              <SectionHeading
+                eyebrow={sections.features.eyebrow}
+                title={sections.features.title}
+                description={sections.features.description}
+              />
+              <FeaturesBento />
+            </section>
 
-          <section id="whatsapp" className="bg-muted/40 scroll-mt-24 border-y">
-            <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 py-24 sm:px-6 lg:grid-cols-2">
-              <div>
+            <section id="bir-gun" className="bg-muted/40 scroll-mt-24 border-y">
+              <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
                 <SectionHeading
                   align="left"
-                  eyebrow={whatsappSection.eyebrow}
-                  title={whatsappSection.title}
-                  description={whatsappSection.description}
+                  eyebrow={journey.eyebrow}
+                  title={journey.title}
+                  description={journey.description}
                 />
-                <PointList points={whatsappSection.points} />
+                <CarJourney />
               </div>
-              <WhatsAppShowcase />
-            </div>
-          </section>
+            </section>
 
-          <section
-            id="nasil-calisir"
-            className="mx-auto max-w-6xl scroll-mt-24 px-4 py-24 sm:px-6"
-          >
-            <SectionHeading
-              eyebrow="Nasıl çalışır"
-              title="Bugün kaydolun, yarın sabah kullanın."
-              description="Kurulum, eğitim veya donanım gerekmez. Üç adımda işletmeniz hazır."
-            />
-            <HowItWorks />
-          </section>
+            <section id="whatsapp" className="scroll-mt-24">
+              <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 py-24 sm:px-6 lg:grid-cols-2">
+                <div>
+                  <SectionHeading
+                    align="left"
+                    eyebrow={whatsappSection.eyebrow}
+                    title={whatsappSection.title}
+                    description={whatsappSection.description}
+                  />
+                  <PointList points={whatsappSection.points} />
+                </div>
+                <WhatsAppShowcase />
+              </div>
+            </section>
 
-          <section className="mx-auto grid max-w-6xl items-center gap-16 px-4 pb-24 sm:px-6 lg:grid-cols-2">
-            <div className="order-2 lg:order-1">
-              <ReportsShowcase />
-            </div>
-            <div className="order-1 lg:order-2">
+            <section
+              id="nasil-calisir"
+              className="mx-auto max-w-6xl scroll-mt-24 px-4 py-24 sm:px-6"
+            >
               <SectionHeading
-                align="left"
-                eyebrow={reportsSection.eyebrow}
-                title={reportsSection.title}
-                description={reportsSection.description}
+                eyebrow={sections.how.eyebrow}
+                title={sections.how.title}
+                description={sections.how.description}
               />
-            </div>
-          </section>
+              <HowItWorks />
+            </section>
 
-          <section
-            id="sss"
-            className="bg-muted/40 scroll-mt-24 border-t px-4 py-24 sm:px-6"
-          >
-            <SectionHeading
-              eyebrow="Sık sorulan sorular"
-              title="Aklınıza takılanlar"
-              description="Deneme süresi, kurulum, WhatsApp bağlantısı ve dijital sözleşmeler hakkında en çok sorulanlar."
-            />
-            <Faq />
-          </section>
+            <section className="mx-auto grid max-w-6xl items-center gap-16 px-4 pb-24 sm:px-6 lg:grid-cols-2">
+              <div className="order-2 lg:order-1">
+                <ReportsShowcase />
+              </div>
+              <div className="order-1 lg:order-2">
+                <SectionHeading
+                  align="left"
+                  eyebrow={reportsSection.eyebrow}
+                  title={reportsSection.title}
+                  description={reportsSection.description}
+                />
+              </div>
+            </section>
 
-          <FinalCta />
-        </main>
-        <LandingFooter />
-      </div>
-    </LandingMotionProvider>
+            <section
+              id="fiyatlar"
+              className="bg-muted/40 scroll-mt-24 border-y px-4 py-24 sm:px-6"
+            >
+              <div className="mx-auto max-w-6xl">
+                <SectionHeading
+                  eyebrow={pricing.eyebrow}
+                  title={pricing.title}
+                  description={pricing.description}
+                />
+                <Pricing />
+              </div>
+            </section>
+
+            <section id="sss" className="scroll-mt-24 px-4 py-24 sm:px-6">
+              <SectionHeading
+                eyebrow={sections.faq.eyebrow}
+                title={sections.faq.title}
+                description={sections.faq.description}
+              />
+              <Faq faqs={faqs} />
+            </section>
+
+            <FinalCta />
+          </main>
+          <LandingFooter content={content} />
+        </div>
+      </LandingMotionProvider>
+    </LandingContentProvider>
   );
 }

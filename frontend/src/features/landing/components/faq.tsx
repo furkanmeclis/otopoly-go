@@ -1,10 +1,10 @@
 import { Plus } from "lucide-react";
 
-import { faqs } from "@/features/landing/content";
+import type { LandingContent } from "@/features/landing/content";
 import { RevealGroup, RevealItem } from "@/features/landing/components/reveal";
 
 /** Native <details> accordion: crawlable, keyboard-accessible, no JS needed. */
-export function Faq() {
+export function Faq({ faqs }: { faqs: LandingContent["faqs"] }) {
   return (
     <RevealGroup className="mx-auto mt-12 max-w-3xl space-y-3">
       {faqs.map((item) => (

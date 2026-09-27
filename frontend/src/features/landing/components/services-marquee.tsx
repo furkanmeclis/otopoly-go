@@ -3,15 +3,16 @@
 import { Sparkles } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 
-import { services } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 
 /** Infinite marquee of the service types Otopoly is built for. */
 export function ServicesMarquee() {
+  const { services, a11y } = useLandingContent();
   const reduce = useReducedMotion();
   const row = [...services, ...services];
   return (
     <section
-      aria-label="Desteklenen hizmetler"
+      aria-label={a11y.services}
       className="border-border/60 relative overflow-hidden border-y py-6"
     >
       <p className="sr-only">

@@ -6,10 +6,11 @@ import { motion } from "motion/react";
 
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
-import { finalCta, hero } from "@/features/landing/content";
+import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 import { CtaShader } from "@/features/landing/components/shaders";
 
 export function FinalCta() {
+  const { finalCta, hero } = useLandingContent();
   return (
     <section className="px-4 py-24 sm:px-6">
       <motion.div
