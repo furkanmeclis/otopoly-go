@@ -274,7 +274,7 @@ func (h *Handler) ReportPayment(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, r, response.CodeValidationError, "file is required")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	contentType := header.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = http.DetectContentType(make([]byte, 0))
@@ -336,7 +336,7 @@ func (h *Handler) openReceipt(w http.ResponseWriter, r *http.Request, platform b
 		writeError(w, r, err)
 		return
 	}
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 	w.Header().Set("Content-Type", ctype)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="dekont-%s.%s"`, ref, receiptExt(ctype)))
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -670,7 +670,7 @@ func (h *Handler) openInvoiceFile(w http.ResponseWriter, r *http.Request, kind s
 		writeError(w, r, err)
 		return
 	}
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 	w.Header().Set("Content-Type", ctype)
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
 	w.Header().Set("Cache-Control", "private, no-store")
@@ -749,7 +749,7 @@ func (h *Handler) PlatformUploadSellerXSLT(w http.ResponseWriter, r *http.Reques
 		response.BadRequest(w, r, response.CodeValidationError, "file is required")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	data, err := io.ReadAll(io.LimitReader(file, (2<<20)+1))
 	if err != nil {
 		writeError(w, r, err)

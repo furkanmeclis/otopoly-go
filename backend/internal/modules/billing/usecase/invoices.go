@@ -449,7 +449,7 @@ func (s *Service) currentXSLT(ctx context.Context, settings db.GetSellerSettings
 	if err != nil {
 		return nil, "", err
 	}
-	defer body.Close()
+	defer func() { _ = body.Close() }()
 	data, err := io.ReadAll(body)
 	if err != nil {
 		return nil, "", err

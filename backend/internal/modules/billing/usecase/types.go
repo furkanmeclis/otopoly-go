@@ -47,26 +47,25 @@ type PlanFeatureValue struct {
 }
 
 type Plan struct {
-	UUID                  uuid.UUID          `json:"uuid"`
-	Code                  string             `json:"code"`
-	Name                  string             `json:"name"`
-	Description           string             `json:"description"`
-	PriceMonthly          string             `json:"price_monthly"`
-	YearlyPricing         string             `json:"yearly_pricing"`
-	PriceYearly           string             `json:"price_yearly"`
-	YearlyDiscountValue   string             `json:"yearly_discount_value"`
-	EffectiveYearly       string             `json:"effective_yearly"`
-	Currency              string             `json:"currency"`
-	TrialDays             int32              `json:"trial_days"`
-	IsPublic              bool               `json:"is_public"`
-	IsCustomizable        bool               `json:"is_customizable"`
-	IsActive              bool               `json:"is_active"`
-	Badge                 string             `json:"badge"`
-	SortOrder             int32              `json:"sort_order"`
-	Features              []PlanFeatureValue `json:"features"`
-	LiveSubscriptions     int64              `json:"live_subscriptions"`
-	internalID            int64
-	internalPlanFeatureID int64
+	UUID                uuid.UUID          `json:"uuid"`
+	Code                string             `json:"code"`
+	Name                string             `json:"name"`
+	Description         string             `json:"description"`
+	PriceMonthly        string             `json:"price_monthly"`
+	YearlyPricing       string             `json:"yearly_pricing"`
+	PriceYearly         string             `json:"price_yearly"`
+	YearlyDiscountValue string             `json:"yearly_discount_value"`
+	EffectiveYearly     string             `json:"effective_yearly"`
+	Currency            string             `json:"currency"`
+	TrialDays           int32              `json:"trial_days"`
+	IsPublic            bool               `json:"is_public"`
+	IsCustomizable      bool               `json:"is_customizable"`
+	IsActive            bool               `json:"is_active"`
+	Badge               string             `json:"badge"`
+	SortOrder           int32              `json:"sort_order"`
+	Features            []PlanFeatureValue `json:"features"`
+	LiveSubscriptions   int64              `json:"live_subscriptions"`
+	internalID          int64
 }
 
 type PlanInput struct {
