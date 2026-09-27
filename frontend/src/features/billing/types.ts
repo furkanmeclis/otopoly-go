@@ -121,46 +121,6 @@ export type PaymentSettings = S["BillingPaymentSettings"];
 // --- Invoicing (F3) ---------------------------------------------------------
 
 export type InvoiceStatus = "issued" | "failed" | "voided";
-export type InvoiceProfile = {
-  invoice_name: string;
-  invoice_tax_id: string;
-  invoice_tax_office: string;
-  invoice_address: string;
-  invoice_city: string;
-  invoice_email: string;
-};
-export type BillingInvoice = {
-  uuid: string;
-  number: string;
-  issue_date: string;
-  status: InvoiceStatus;
-  order_uuid: string;
-  order_reference: string;
-  buyer: {
-    name: string;
-    tax_id: string;
-    tax_office: string;
-    is_final_consumer: boolean;
-  };
-  subtotal: string;
-  discount_total: string;
-  vat_total: string;
-  grand_total: string;
-  has_xml: boolean;
-  has_pdf: boolean;
-  error: string;
-  created_at: string;
-  organization: OrgRef | null;
-};
-export type SellerSettings = {
-  seller_name: string;
-  seller_tax_id: string;
-  seller_tax_office: string;
-  seller_address: string;
-  seller_city: string;
-  seller_email: string;
-  seller_phone: string;
-  seller_website: string;
-  invoice_series: string;
-  xslt: { custom: boolean; uploaded_at: string | null };
-};
+export type InvoiceProfile = S["BillingInvoiceProfile"];
+export type BillingInvoice = S["BillingInvoice"];
+export type SellerSettings = S["BillingSellerSettings"];

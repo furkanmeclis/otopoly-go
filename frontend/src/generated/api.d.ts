@@ -4564,6 +4564,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/billing/invoice-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get tenant billing invoice profile */
+        get: operations["getTenantBillingInvoiceProfile"];
+        /** Update tenant billing invoice profile */
+        put: operations["updateTenantBillingInvoiceProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenant billing invoices */
+        get: operations["listTenantBillingInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/billing/invoices/{uuid}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream tenant billing invoice PDF */
+        get: operations["getTenantBillingInvoicePDF"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/billing/orders": {
         parameters: {
             query?: never;
@@ -4666,6 +4718,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/billing/orders/{uuid}/invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue invoice for approved billing order */
+        post: operations["issuePlatformBillingOrderInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List platform billing invoices */
+        get: operations["listPlatformBillingInvoices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/invoices/{uuid}/xml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream platform billing invoice XML */
+        get: operations["getPlatformBillingInvoiceXML"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/invoices/{uuid}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream platform billing invoice PDF */
+        get: operations["getPlatformBillingInvoicePDF"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/invoices/{uuid}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Regenerate platform billing invoice artifacts */
+        post: operations["regeneratePlatformBillingInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/invoices/{uuid}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Void platform billing invoice */
+        post: operations["voidPlatformBillingInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/billing/subscriptions": {
         parameters: {
             query?: never;
@@ -4751,6 +4905,42 @@ export interface paths {
         put: operations["updatePlatformBillingSettings"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/seller": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get billing seller settings */
+        get: operations["getPlatformBillingSeller"];
+        /** Update billing seller settings */
+        put: operations["updatePlatformBillingSeller"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/seller/xslt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Upload billing invoice XSLT */
+        post: operations["uploadPlatformBillingSellerXSLT"];
+        /** Reset billing invoice XSLT */
+        delete: operations["deletePlatformBillingSellerXSLT"];
         options?: never;
         head?: never;
         patch?: never;
@@ -7886,6 +8076,8 @@ export interface components {
             created_at: string;
             instructions: components["schemas"]["BillingBankInstructions"] | null;
             organization: components["schemas"]["BillingOrganizationRef"] | null;
+            /** Format: uuid */
+            invoice_uuid: string | null;
         };
         BillingOrderList: {
             items: components["schemas"]["BillingOrder"][];
@@ -7899,6 +8091,68 @@ export interface components {
             pending_payment: number;
             /** Format: int64 */
             payment_reported: number;
+        };
+        BillingInvoiceProfile: {
+            invoice_name: string;
+            invoice_tax_id: string;
+            invoice_tax_office: string;
+            invoice_address: string;
+            invoice_city: string;
+            invoice_email: string;
+        };
+        BillingInvoiceBuyer: {
+            name: string;
+            tax_id: string;
+            tax_office: string;
+            is_final_consumer: boolean;
+        };
+        BillingInvoice: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example TWD2026000000001 */
+            number: string;
+            /** Format: date */
+            issue_date: string;
+            /** @enum {string} */
+            status: "issued" | "failed" | "voided";
+            /** Format: uuid */
+            order_uuid: string;
+            order_reference: string;
+            buyer: components["schemas"]["BillingInvoiceBuyer"];
+            subtotal: string;
+            discount_total: string;
+            vat_total: string;
+            grand_total: string;
+            has_xml: boolean;
+            has_pdf: boolean;
+            error: string;
+            /** Format: date-time */
+            created_at: string;
+            organization: components["schemas"]["BillingOrganizationRef"] | null;
+        };
+        BillingInvoiceList: {
+            items: components["schemas"]["BillingInvoice"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        BillingSellerSettings: {
+            seller_name: string;
+            seller_tax_id: string;
+            seller_tax_office: string;
+            seller_address: string;
+            seller_city: string;
+            seller_email: string;
+            seller_phone: string;
+            seller_website: string;
+            /** @example TWD */
+            invoice_series: string;
+            xslt: {
+                custom: boolean;
+                /** Format: date-time */
+                uploaded_at: string | null;
+            };
         };
         BillingDiscountCode: {
             /** Format: uuid */
@@ -8454,6 +8708,30 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["BillingOrdersSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingInvoiceProfile: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingInvoiceProfile"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingInvoice: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingInvoice"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingInvoiceList: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingInvoiceList"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingSellerSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingSellerSettings"];
             meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeBillingDiscountCode: {
@@ -17333,6 +17611,105 @@ export interface operations {
             403: components["responses"]["Forbidden"];
         };
     };
+    getTenantBillingInvoiceProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingInvoiceProfile"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateTenantBillingInvoiceProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingInvoiceProfile"];
+            };
+        };
+        responses: {
+            /** @description Invoice profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingInvoiceProfile"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["BadRequest"];
+        };
+    };
+    listTenantBillingInvoices: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingInvoiceList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantBillingInvoicePDF: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listPlatformBillingOrders: {
         parameters: {
             query?: {
@@ -17491,6 +17868,158 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    issuePlatformBillingOrderInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingInvoice"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listPlatformBillingInvoices: {
+        parameters: {
+            query?: {
+                status?: "issued" | "failed" | "voided";
+                q?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoices */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingInvoiceList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingInvoiceXML: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice XML */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPlatformBillingInvoicePDF: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice PDF */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    regeneratePlatformBillingInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingInvoice"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    voidPlatformBillingInvoice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invoice */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingInvoice"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
         };
     };
     listPlatformBillingSubscriptions: {
@@ -17744,6 +18273,107 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeBillingPaymentSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingSeller: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Seller settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingSellerSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updatePlatformBillingSeller: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BillingSellerSettings"];
+            };
+        };
+        responses: {
+            /** @description Seller settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingSellerSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["BadRequest"];
+        };
+    };
+    uploadPlatformBillingSellerXSLT: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Seller settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingSellerSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["BadRequest"];
+        };
+    };
+    deletePlatformBillingSellerXSLT: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Seller settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingSellerSettings"];
                 };
             };
             401: components["responses"]["Unauthenticated"];
