@@ -16,6 +16,7 @@ import { routes } from "@/config/routes";
 import { AssistantChat } from "@/features/ai/components/chat/assistant-chat";
 import { AssistantUnavailable } from "@/features/ai/components/chat/assistant-unavailable";
 import { useAIStatus } from "@/features/ai/hooks/use-ai-status";
+import { FeatureLocked } from "@/features/billing";
 import { useLocale } from "@/providers/locale-provider";
 
 /**
@@ -33,7 +34,11 @@ export function AssistantLauncher({ slug }: { slug: string }) {
   const onAssistantPage = pathname?.startsWith(
     routes.tenant.assistant.root(slug),
   );
-  const visible = allowed && Boolean(status?.available) && !onAssistantPage;
+  const canUseAssistant =
+    allowed && Boolean(status?.available) && status?.plan_enabled !== false;
+  const locked = allowed && status?.plan_enabled === false;
+  const visible = canUseAssistant && !onAssistantPage;
+  const shouldRender = visible || (open && allowed && !onAssistantPage);
 
   useEffect(() => {
     if (!visible) return;
@@ -47,20 +52,22 @@ export function AssistantLauncher({ slug }: { slug: string }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [visible]);
 
-  if (!visible) return null;
+  if (!shouldRender) return null;
 
   return (
     <>
-      <Button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
-        title={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
-        className="fixed right-5 bottom-5 z-40 size-12 rounded-full shadow-lg md:right-6 md:bottom-6"
-        data-testid="assistant-launcher"
-      >
-        <Sparkles className="size-5" />
-      </Button>
+      {visible ? (
+        <Button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
+          title={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
+          className="fixed right-5 bottom-5 z-40 size-12 rounded-full shadow-lg md:right-6 md:bottom-6"
+          data-testid="assistant-launcher"
+        >
+          <Sparkles className="size-5" />
+        </Button>
+      ) : null}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="right"
@@ -111,7 +118,9 @@ export function AssistantLauncher({ slug }: { slug: string }) {
               </Link>
             </Button>
           </div>
-          {status?.available ? (
+          {locked ? (
+            <FeatureLocked slug={slug} className="m-4 min-h-[360px]" />
+          ) : status?.available ? (
             <AssistantChat
               slug={slug}
               status={status}

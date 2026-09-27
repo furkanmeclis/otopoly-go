@@ -11,6 +11,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
 	catalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog/usecase"
+	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
 	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
@@ -23,6 +24,9 @@ import (
 type (
 	CustomerSearchStore interface {
 		AISearchCustomers(ctx context.Context, arg db.AISearchCustomersParams) ([]db.AISearchCustomersRow, error)
+	}
+	CustomerReader interface {
+		List(ctx context.Context, limit, offset int32, filters customersusecase.Filters) ([]customersusecase.Customer, int64, error)
 	}
 	CariReader interface {
 		Get(ctx context.Context, id uuid.UUID) (cariusecase.AccountDetail, error)
@@ -50,13 +54,14 @@ type (
 
 // Deps wires read tools to services; nil deps skip their tools.
 type Deps struct {
-	Customers CustomerSearchStore
-	Cari      CariReader
-	Jobs      JobsReader
-	Reports   ReportsReader
-	Finance   FinanceReader
-	Sales     SalesReader
-	Catalog   CatalogReader
+	Customers       CustomerReader
+	CustomersSearch CustomerSearchStore
+	Cari            CariReader
+	Jobs            JobsReader
+	Reports         ReportsReader
+	Finance         FinanceReader
+	Sales           SalesReader
+	Catalog         CatalogReader
 
 	// Write tools (Phase 2). A nil dependency skips the tools that need it.
 	CariWrite      CariWriter
@@ -75,7 +80,7 @@ type Deps struct {
 func DefaultRegistry(d Deps) *Registry {
 	r := NewRegistry(RenderChart{}, UpdatePlan{})
 	if d.Customers != nil {
-		r.Register(SearchCustomers{store: d.Customers})
+		r.Register(SearchCustomers{customers: d.Customers})
 	}
 	if d.Cari != nil {
 		r.Register(GetCustomerAccount{cari: d.Cari})
@@ -111,7 +116,7 @@ func registerWriteTools(r *Registry, d Deps) {
 		r.Register(CreateFinanceTransfer{finance: d.FinanceWrite})
 	}
 	if d.CustomersWrite != nil {
-		r.Register(CreateCustomer{customers: d.CustomersWrite, search: d.Customers})
+		r.Register(CreateCustomer{customers: d.CustomersWrite, search: d.CustomersSearch})
 		if d.VehicleOptions != nil {
 			r.Register(AddCustomerVehicle{customers: d.CustomersWrite, options: d.VehicleOptions})
 		}
@@ -174,23 +179,22 @@ func fmtTime(t time.Time, loc *time.Location) string {
 
 // ---------------------------------------------------------------- customers
 
-// SearchCustomers finds customers by name, phone or plate (Turkish-folded).
-type SearchCustomers struct{ store CustomerSearchStore }
+// SearchCustomers lists customers or finds customers by name, phone or plate.
+type SearchCustomers struct{ customers CustomerReader }
 
 var searchCustomersSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"query": map[string]any{"type": "string", "minLength": 2, "maxLength": 100, "description": "Name, phone number or plate (any spelling; Turkish characters optional)."},
+		"query": map[string]any{"type": "string", "maxLength": 100, "description": "Optional. Leave empty to list customers and get the total count; otherwise name, phone number or plate."},
 		"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 10, "description": "Max results (default 5)."},
 	},
-	"required":             []string{"query"},
 	"additionalProperties": false,
 }
 
 func (SearchCustomers) Spec() Spec {
 	return Spec{
 		Name:        "search_customers",
-		Description: "Search the organization's customers by name, phone or vehicle plate. Returns uuid, name, phone, plates and cari (receivable) account with balance. Use before any customer-specific question; if several match, ask the user which one.",
+		Description: "Search the organization's customers by name, phone or vehicle plate, or leave query empty to list customers and get the total count (e.g. 'how many customers do I have'). Returns uuid, name, phone, vehicle count and cari (receivable) account with balance. Use before any customer-specific question; if several match, ask the user which one.",
 		InputSchema: searchCustomersSchema,
 		Permissions: []string{rbac.PermTenantCustomersRead},
 		Feature:     FeatureChat,
@@ -207,20 +211,16 @@ func (t SearchCustomers) Run(ctx context.Context, env Env, raw json.RawMessage) 
 		return ErrorResult(err.Error()), nil
 	}
 	limit := clampInt(in.Limit, 5, 1, 10)
-	params := db.AISearchCustomersParams{
-		OrganizationID: env.Scope.InternalID,
-		Folded:         FoldTR(in.Query),
-		LimitCount:     int32(limit),
+	query := strings.TrimSpace(in.Query)
+	if query != "" && len([]rune(query)) < 2 {
+		return ErrorResult("Invalid input: query: must be at least 2 characters"), nil
 	}
-	if d := DigitsOnly(in.Query); len(d) >= 4 {
-		params.Digits = d
-	}
-	if p := PlateKey(in.Query); len(p) >= 3 && strings.ContainsAny(p, "0123456789") {
-		params.Plate = p
-	}
-	rows, err := t.store.AISearchCustomers(ctx, params)
+	rows, total, err := t.customers.List(ctx, int32(limit), 0, customersusecase.Filters{
+		Q:    query,
+		Sort: "-created_at",
+	})
 	if err != nil {
-		return Result{}, err
+		return userError(err)
 	}
 	type item struct {
 		UUID            string `json:"uuid"`
@@ -228,25 +228,27 @@ func (t SearchCustomers) Run(ctx context.Context, env Env, raw json.RawMessage) 
 		Phone           string `json:"phone,omitempty"`
 		Kind            string `json:"kind"`
 		Plates          string `json:"plates,omitempty"`
+		VehicleCount    int64  `json:"vehicle_count"`
 		Active          bool   `json:"active"`
 		CariAccountUUID string `json:"cari_account_uuid,omitempty"`
 		CariBalance     string `json:"cari_balance,omitempty"`
 	}
 	items := make([]item, 0, len(rows))
 	for _, r := range rows {
-		it := item{UUID: r.Uuid.String(), Name: DataText(r.Name, maxNameChars), Phone: DataText(r.Phone, 32), Kind: r.Kind, Plates: DataText(r.Plates, maxTextChars), Active: r.IsActive}
-		if r.CariAccountUuid.Valid {
-			it.CariAccountUUID = uuid.UUID(r.CariAccountUuid.Bytes).String()
-			cur := "TRY"
-			if r.CariCurrency.Valid {
-				cur = strings.TrimSpace(r.CariCurrency.String)
+		it := item{
+			UUID: r.UUID.String(), Name: DataText(r.Name, maxNameChars), Phone: DataText(r.Phone, 32),
+			Kind: r.Kind, VehicleCount: r.VehicleCount, Active: r.IsActive,
+		}
+		if r.CariAccountUUID != nil {
+			it.CariAccountUUID = r.CariAccountUUID.String()
+			if r.CariBalance != nil {
+				it.CariBalance = FormatMoney(*r.CariBalance, "TRY")
 			}
-			it.CariBalance = FormatMoney(financeusecase.NumericToString(r.CariBalance), cur)
 		}
 		items = append(items, it)
 	}
-	return JSONResult(map[string]any{"count": len(items), "customers": items},
-		"ai.tool_summary.customers_found", map[string]any{"count": len(items)}), nil
+	return JSONResult(map[string]any{"count": len(items), "total": total, "customers": items},
+		"ai.tool_summary.customers_found", map[string]any{"count": total}), nil
 }
 
 // ---------------------------------------------------------------- cari

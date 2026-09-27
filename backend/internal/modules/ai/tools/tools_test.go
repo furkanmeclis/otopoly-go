@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
+	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/google/uuid"
 )
 
 func TestFormatMoney(t *testing.T) {
@@ -101,5 +103,83 @@ func TestRenderChartInline(t *testing.T) {
 	env.LookupResult = func(string) (string, bool) { return "", false }
 	if res, _ := (RenderChart{}).Run(context.Background(), env, json.RawMessage(missing)); !res.IsError {
 		t.Fatal("unknown source must fail")
+	}
+}
+
+func TestRenderChartFallsBackToLatestCurrentTurnResult(t *testing.T) {
+	env := Env{
+		Now: time.Now(),
+		LookupResult: func(string) (string, bool) {
+			return "", false
+		},
+		RecentResults: func() []ToolResultRef {
+			return []ToolResultRef{
+				{ToolUseID: "tu_other", Name: "get_finance_balances", Content: `{"items":[{"name":"x","total":1}]}`},
+				{ToolUseID: "tu_report", Name: "get_report_summary", Content: `{"timeseries":[{"day":"2026-09-01","total":10},{"day":"2026-09-02","total":20}]}`},
+			}
+		},
+	}
+	in := `{"type":"bar","title":"Gelir","x_key":"day","series":[{"key":"total"}],"source_tool_use_id":"...","rows_path":"timeseries"}`
+	res, err := RenderChart{}.Run(context.Background(), env, json.RawMessage(in))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v, err = %v", res, err)
+	}
+	if len(res.Chart.Rows) != 2 || res.Chart.Rows[1]["total"] != float64(20) {
+		t.Fatalf("rows = %+v", res.Chart.Rows)
+	}
+}
+
+type fakeCustomerReader struct {
+	filters customersusecase.Filters
+	limit   int32
+	offset  int32
+}
+
+func (f *fakeCustomerReader) List(_ context.Context, limit, offset int32, filters customersusecase.Filters) ([]customersusecase.Customer, int64, error) {
+	f.limit, f.offset, f.filters = limit, offset, filters
+	bal := "1250.5"
+	accountID := uuid.New()
+	return []customersusecase.Customer{{
+		UUID: uuid.New(), Name: "Ayşe Yılmaz", Phone: "0555 000 0000", Kind: "individual",
+		IsActive: true, VehicleCount: 1, CariAccountUUID: &accountID, CariBalance: &bal,
+	}}, 7, nil
+}
+
+func TestSearchCustomersEmptyQueryListsAndReturnsTotal(t *testing.T) {
+	reader := &fakeCustomerReader{}
+	res, err := (SearchCustomers{customers: reader}).Run(context.Background(), Env{}, json.RawMessage(`{}`))
+	if err != nil || res.IsError {
+		t.Fatalf("res = %+v, err = %v", res, err)
+	}
+	if reader.filters.Q != "" || reader.filters.Sort != "-created_at" || reader.limit != 5 || reader.offset != 0 {
+		t.Fatalf("filters = %+v limit=%d offset=%d", reader.filters, reader.limit, reader.offset)
+	}
+	var out struct {
+		Count     int `json:"count"`
+		Total     int `json:"total"`
+		Customers []struct {
+			Name         string `json:"name"`
+			VehicleCount int64  `json:"vehicle_count"`
+			CariBalance  string `json:"cari_balance"`
+		} `json:"customers"`
+	}
+	if err := json.Unmarshal([]byte(res.Content), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Count != 1 || out.Total != 7 || out.Customers[0].Name != "Ayşe Yılmaz" || out.Customers[0].VehicleCount != 1 {
+		t.Fatalf("out = %+v", out)
+	}
+}
+
+func TestSearchCustomersValidationAndNormalQuery(t *testing.T) {
+	reader := &fakeCustomerReader{}
+	if res, _ := (SearchCustomers{customers: reader}).Run(context.Background(), Env{}, json.RawMessage(`{"query":"a"}`)); !res.IsError {
+		t.Fatal("one-character query must fail")
+	}
+	if _, err := (SearchCustomers{customers: reader}).Run(context.Background(), Env{}, json.RawMessage(`{"query":"ay","limit":3}`)); err != nil {
+		t.Fatal(err)
+	}
+	if reader.filters.Q != "ay" || reader.filters.Sort != "-created_at" || reader.limit != 3 {
+		t.Fatalf("filters = %+v limit=%d", reader.filters, reader.limit)
 	}
 }

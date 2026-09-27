@@ -84,14 +84,29 @@ func (RenderChart) Run(_ context.Context, env Env, raw json.RawMessage) (Result,
 		if len(rows) > 0 {
 			return ErrorResult("pass either data or source_tool_use_id, not both"), nil
 		}
-		if env.LookupResult == nil {
-			return ErrorResult("source_tool_use_id is not available"), nil
+		content := ""
+		ok := false
+		if env.LookupResult != nil {
+			content, ok = env.LookupResult(in.SourceToolID)
 		}
-		content, ok := env.LookupResult(in.SourceToolID)
 		if !ok {
-			return ErrorResult("no tool result found for source_tool_use_id " + in.SourceToolID), nil
+			fallback, fallbackOK := latestChartableResult(env, in.RowsPath)
+			if !fallbackOK {
+				return ErrorResult("no tool result found for source_tool_use_id " + in.SourceToolID), nil
+			}
+			content = fallback.Content
 		}
 		extracted, err := extractRows(content, in.RowsPath)
+		if err != nil {
+			return ErrorResult(err.Error()), nil
+		}
+		rows = extracted
+	} else if len(rows) == 0 && (in.RowsPath != "" || isPlaceholderToolUseID(in.SourceToolID)) {
+		fallback, ok := latestChartableResult(env, in.RowsPath)
+		if !ok {
+			return ErrorResult("source_tool_use_id is not available"), nil
+		}
+		extracted, err := extractRows(fallback.Content, in.RowsPath)
 		if err != nil {
 			return ErrorResult(err.Error()), nil
 		}
@@ -143,6 +158,41 @@ func (RenderChart) Run(_ context.Context, env Env, raw json.RawMessage) (Result,
 		SummaryParams: map[string]any{"title": in.Title},
 		Chart:         chart,
 	}, nil
+}
+
+func latestChartableResult(env Env, rowsPath string) (ToolResultRef, bool) {
+	if env.RecentResults == nil {
+		return ToolResultRef{}, false
+	}
+	results := env.RecentResults()
+	if len(results) == 0 {
+		return ToolResultRef{}, false
+	}
+	if strings.TrimSpace(rowsPath) != "" {
+		for i := len(results) - 1; i >= 0; i-- {
+			if results[i].Name == "render_chart" {
+				continue
+			}
+			if _, err := extractRows(results[i].Content, rowsPath); err == nil {
+				return results[i], true
+			}
+		}
+	}
+	for i := len(results) - 1; i >= 0; i-- {
+		if results[i].Name != "render_chart" {
+			return results[i], true
+		}
+	}
+	return ToolResultRef{}, false
+}
+
+func isPlaceholderToolUseID(id string) bool {
+	switch strings.ToLower(strings.TrimSpace(id)) {
+	case "", "...", "…", "null", "none", "unknown", "tool_use_id", "<tool_use_id>", "source_tool_use_id", "<source_tool_use_id>":
+		return true
+	default:
+		return false
+	}
 }
 
 func extractRows(content, path string) ([]map[string]any, error) {

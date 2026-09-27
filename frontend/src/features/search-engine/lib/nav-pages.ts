@@ -16,6 +16,7 @@ export function buildNavPageItems(
   access: AccessFns,
   t: (key: string) => string,
   tenantSlug?: string,
+  hiddenItemIds: ReadonlySet<string> = new Set(),
 ): PaletteItem[] {
   const catalog: NavCatalog =
     variant === "tenant" && tenantSlug
@@ -29,6 +30,7 @@ export function buildNavPageItems(
     if (!isNavEntryVisible(group, access)) continue;
     const groupLabel = t(group.labelKey);
     for (const item of group.items) {
+      if (hiddenItemIds.has(item.id)) continue;
       if (!isNavEntryVisible(item, access)) continue;
       if (item.soon) continue;
       items.push({

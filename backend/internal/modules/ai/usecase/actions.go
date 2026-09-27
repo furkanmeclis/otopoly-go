@@ -404,6 +404,9 @@ func (s *Service) PrepareConfirm(ctx context.Context, id uuid.UUID, in ConfirmIn
 	if err != nil {
 		return nil, err
 	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
+		return nil, err
+	}
 	full, conv, err := s.loadAction(ctx, id)
 	if err != nil {
 		return nil, err
@@ -536,6 +539,13 @@ func (s *Service) RunConfirm(ctx context.Context, run *ActionRun, emit Emitter) 
 // CancelAction resolves a pending action as cancelled (nothing runs) and
 // returns the updated confirm card.
 func (s *Service) CancelAction(ctx context.Context, id uuid.UUID) (UIBlock, error) {
+	_, scope, err := principalScope(ctx)
+	if err != nil {
+		return UIBlock{}, err
+	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
+		return UIBlock{}, err
+	}
 	full, conv, err := s.loadAction(ctx, id)
 	if err != nil {
 		return UIBlock{}, err

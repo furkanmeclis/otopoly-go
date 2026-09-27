@@ -12,7 +12,13 @@ import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
 
 /** Compact indicator for one tool call ("Müşteriler aranıyor…" → "3 müşteri bulundu"). */
-export function ToolActivity({ block }: { block: AIUIBlock }) {
+export function ToolActivity({
+  block,
+  recovered = false,
+}: {
+  block: AIUIBlock;
+  recovered?: boolean;
+}) {
   const { t } = useLocale();
   const name = block.name ?? "";
   const status = block.status ?? "running";
@@ -26,6 +32,8 @@ export function ToolActivity({ block }: { block: AIUIBlock }) {
       : status === "done" && isSummaryKey(block.summary_key)
         ? t(block.summary_key, params)
         : t(toolLabelKey(name));
+
+  const retryLabel = recovered ? t("ai.tool_status.retried") : undefined;
 
   const Icon =
     status === "running"
@@ -42,10 +50,15 @@ export function ToolActivity({ block }: { block: AIUIBlock }) {
     <div
       className={cn(
         "text-muted-foreground inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
-        status === "error" && "border-destructive/40 text-destructive",
+        status === "error" &&
+          !recovered &&
+          "border-destructive/40 text-destructive",
       )}
       data-tool={name}
       data-status={status}
+      data-recovered={recovered ? "true" : undefined}
+      title={retryLabel}
+      aria-label={retryLabel ? `${label} - ${retryLabel}` : label}
     >
       <Icon
         className={cn(

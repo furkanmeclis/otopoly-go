@@ -12,6 +12,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/provider"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
 )
@@ -70,11 +71,37 @@ func (c *countTool) count() int {
 }
 
 type harness struct {
-	svc   *Service
-	store *memStore
-	fake  *provider.Fake
-	ctx   context.Context
-	conv  Conversation
+	svc      *Service
+	store    *memStore
+	entStore *fakeEntitlementStore
+	fake     *provider.Fake
+	ctx      context.Context
+	conv     Conversation
+}
+
+type fakeEntitlementStore struct {
+	features []entitlements.Feature
+	usage    map[string]int64
+}
+
+func (f *fakeEntitlementStore) Features(context.Context, int64) ([]entitlements.Feature, error) {
+	return append([]entitlements.Feature(nil), f.features...), nil
+}
+
+func (f *fakeEntitlementStore) Usage(_ context.Context, _ int64, key, periodKey string) (int64, error) {
+	if f.usage == nil {
+		return 0, nil
+	}
+	return f.usage[key+"|"+periodKey], nil
+}
+
+func (f *fakeEntitlementStore) Consume(_ context.Context, _ int64, key, periodKey string, delta int64) (int64, error) {
+	if f.usage == nil {
+		f.usage = map[string]int64{}
+	}
+	k := key + "|" + periodKey
+	f.usage[k] += delta
+	return f.usage[k], nil
 }
 
 type recorded struct {
@@ -106,6 +133,11 @@ func newHarness(t *testing.T, perms []string, ts ...tools.Tool) *harness {
 	store := newMemStore()
 	reg := tools.NewRegistry(append([]tools.Tool{tools.RenderChart{}}, ts...)...)
 	svc := New(store, fakeBox{}, reg, nil)
+	entStore := &fakeEntitlementStore{features: []entitlements.Feature{
+		{Key: "ai.enabled", Kind: entitlements.KindToggle, Enabled: true},
+		{Key: "ai.monthly", Kind: entitlements.KindLimit, Period: entitlements.PeriodMonth, Limit: -1, Enforcement: "hard"},
+	}}
+	svc.SetEntitlements(entitlements.New(entStore))
 	fake := &provider.Fake{}
 	svc.SetProviderFactory(func(cfg provider.Config) (provider.Provider, error) {
 		if cfg.APIKey != "sk-test-key-1234" {
@@ -122,7 +154,7 @@ func newHarness(t *testing.T, perms []string, ts ...tools.Tool) *harness {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &harness{svc: svc, store: store, fake: fake, ctx: ctx, conv: conv}
+	return &harness{svc: svc, store: store, entStore: entStore, fake: fake, ctx: ctx, conv: conv}
 }
 
 func (h *harness) send(t *testing.T, text string) *recorded {
@@ -136,6 +168,18 @@ func (h *harness) send(t *testing.T, text string) *recorded {
 		t.Fatalf("run: %v", err)
 	}
 	return rec
+}
+
+func (h *harness) setAIPlanEnabled(on bool) {
+	for i := range h.entStore.features {
+		if h.entStore.features[i].Key == "ai.enabled" {
+			h.entStore.features[i].Enabled = on
+			return
+		}
+	}
+	h.entStore.features = append(h.entStore.features, entitlements.Feature{
+		Key: "ai.enabled", Kind: entitlements.KindToggle, Enabled: on,
+	})
 }
 
 func toolNames(req provider.Request) []string {
@@ -386,6 +430,34 @@ func TestDisabledAndUnconfigured(t *testing.T) {
 	}
 }
 
+func TestPlanDisabledBlocksTenantAIEntriesButStatusReports(t *testing.T) {
+	h := newHarness(t, nil)
+	h.setAIPlanEnabled(false)
+
+	if _, _, err := h.svc.ListConversations(h.ctx, 20, 0, ""); !errors.Is(err, entitlements.ErrFeatureDisabled) {
+		t.Fatalf("list conversations err = %v, want ErrFeatureDisabled", err)
+	}
+	if _, err := h.svc.PrepareMessage(h.ctx, h.conv.UUID, SendInput{Content: "merhaba"}); !errors.Is(err, entitlements.ErrFeatureDisabled) {
+		t.Fatalf("prepare message err = %v, want ErrFeatureDisabled", err)
+	}
+	st, err := h.svc.Status(h.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if st.PlanEnabled || st.Available || st.Reason != "plan_disabled" {
+		t.Fatalf("status = %+v, want plan disabled/unavailable", st)
+	}
+
+	h.setAIPlanEnabled(true)
+	if _, _, err := h.svc.ListConversations(h.ctx, 20, 0, ""); err != nil {
+		t.Fatalf("plan on list conversations: %v", err)
+	}
+	st, err = h.svc.Status(h.ctx)
+	if err != nil || !st.PlanEnabled || !st.Available {
+		t.Fatalf("plan on status = %+v, %v", st, err)
+	}
+}
+
 func TestWriteToolGoesThroughConfirmationGate(t *testing.T) {
 	write := &countTool{name: "record_payment", perm: "tenant.cari.write", kind: tools.KindWrite, conf: true}
 	h := newHarness(t, []string{"tenant.cari.write"}, write)
@@ -439,6 +511,29 @@ func TestRenderChartReferencesEarlierResult(t *testing.T) {
 	}
 	if chart == nil || len(chart.Rows) != 2 || chart.Rows[1]["total"] != float64(20) {
 		t.Fatalf("chart block = %+v", chart)
+	}
+}
+
+func TestRenderChartFallsBackWhenSourceToolIDIsBad(t *testing.T) {
+	tool := &countTool{name: "get_report_summary", perm: "tenant.reports.read"}
+	h := newHarness(t, []string{"tenant.reports.read"}, tool)
+	h.fake.Responses = []provider.Response{
+		provider.FakeToolCall("tu_r", "get_report_summary", map[string]any{"q": "month"}),
+		provider.FakeToolCall("tu_c", "render_chart", map[string]any{
+			"type": "bar", "title": "Gelir", "x_key": "day",
+			"series":             []map[string]any{{"key": "total", "label": "Toplam"}},
+			"source_tool_use_id": "made-up-id", "rows_path": "rows",
+		}),
+		provider.FakeText("Grafik hazır."),
+		provider.FakeText("Gelir grafiği"),
+	}
+	rec := h.send(t, "bu ayın gelir grafiği")
+	if !rec.has(EventChart) {
+		t.Fatalf("expected chart event, got %v", rec.events)
+	}
+	res := h.fake.Requests[2].Messages[len(h.fake.Requests[2].Messages)-1].Content[0]
+	if res.IsError || res.Content != "rendered" {
+		t.Fatalf("chart result = %+v", res)
 	}
 }
 

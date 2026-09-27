@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createElement, useCallback, useMemo, useState } from "react";
 
 import type { AppLayoutVariant } from "@/components/layout/app-layout";
+import { useAIStatus } from "@/features/ai/hooks/use-ai-status";
 import { buildNavPageItems } from "@/features/search-engine/lib/nav-pages";
 import { parsePaletteQuery } from "@/features/search-engine/lib/parse-query";
 import { readRecentItems } from "@/features/search-engine/lib/recent";
@@ -31,6 +32,7 @@ export function useCommandPaletteData(
 ) {
   const { t, locale } = useLocale();
   const { can, canAny } = usePermission();
+  const aiStatus = useAIStatus(tenantSlug ?? "");
   const [query, setQueryState] = useState("");
   const [activeSpec, setActiveSpec] = useState<string | undefined>();
 
@@ -85,9 +87,17 @@ export function useCommandPaletteData(
   const effectiveSpec = activeSpec ?? parsed.spec;
   const searchText = parsed.text;
 
+  const hiddenNavItemIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (variant === "tenant" && aiStatus.status && !aiStatus.status.available) {
+      ids.add("assistant");
+    }
+    return ids;
+  }, [aiStatus.status, variant]);
+
   const pageItems = useMemo(
-    () => buildNavPageItems(variant, access, t, tenantSlug),
-    [access, t, tenantSlug, variant],
+    () => buildNavPageItems(variant, access, t, tenantSlug, hiddenNavItemIds),
+    [access, hiddenNavItemIds, t, tenantSlug, variant],
   );
 
   const filteredPages = useMemo(() => {

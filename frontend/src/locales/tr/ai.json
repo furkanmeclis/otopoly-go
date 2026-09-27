@@ -227,6 +227,7 @@
   "tools_running.search_products": "Ürünler aranıyor…",
   "tools_running.render_chart": "Grafik çiziliyor…",
   "tools_running.unknown": "Çalışıyor…",
+  "tool_status.retried": "Yeniden denendi",
   "tool_summary.customers_found": "{{count}} müşteri bulundu",
   "tool_summary.account_balance": "{{name}}: bakiye {{balance}}",
   "tool_summary.jobs_found": "{{count}} iş emri",

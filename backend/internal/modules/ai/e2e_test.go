@@ -24,6 +24,7 @@ import (
 	aitools "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	aiusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/usecase"
 	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
+	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
@@ -194,8 +195,9 @@ func TestAssistantEndToEnd(t *testing.T) {
 	// ---- server: real routes + middleware, fake model ----
 	financeSvc := financeusecase.New(pool, q, nil)
 	cariSvc := cariusecase.New(pool, q, nil, financeSvc)
+	customersSvc := customersusecase.New(pool, q, nil)
 	reg := aitools.DefaultRegistry(aitools.Deps{
-		Customers: q, Cari: cariSvc, Finance: financeSvc, CariWrite: cariSvc, FinanceWrite: financeSvc,
+		Customers: customersSvc, CustomersSearch: q, Cari: cariSvc, Finance: financeSvc, CariWrite: cariSvc, FinanceWrite: financeSvc,
 	})
 	store := testStore{Queries: q, settings: db.AiSetting{
 		ID: 1, Provider: provider.KindOpenAICompatible, BaseUrl: "http://fake.local/v1", Model: "fake-model",

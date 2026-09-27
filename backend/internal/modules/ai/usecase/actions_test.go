@@ -14,6 +14,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/google/uuid"
 )
 
@@ -230,6 +231,24 @@ func TestConfirmExecutesOnceAndResumesConversation(t *testing.T) {
 				t.Fatalf("unexpected not-executed result in history: %+v", b)
 			}
 		}
+	}
+}
+
+func TestConfirmRequiresAIPlan(t *testing.T) {
+	h := newActionHarness(t)
+	_, id := h.propose(t, "tu_w", 20000)
+	h.setAIPlanEnabled(false)
+
+	if _, err := h.svc.PrepareConfirm(h.ctx, id, ConfirmInput{}); !errors.Is(err, entitlements.ErrFeatureDisabled) {
+		t.Fatalf("prepare confirm err = %v, want ErrFeatureDisabled", err)
+	}
+	if h.tool.count() != 0 {
+		t.Fatalf("tool runs = %d, want 0", h.tool.count())
+	}
+
+	h.setAIPlanEnabled(true)
+	if _, err := h.svc.PrepareConfirm(h.ctx, id, ConfirmInput{}); err != nil {
+		t.Fatalf("plan on prepare confirm: %v", err)
 	}
 }
 

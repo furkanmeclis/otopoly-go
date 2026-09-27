@@ -9,6 +9,7 @@ import (
 	"time"
 
 	aiusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
 )
 
@@ -24,6 +25,8 @@ const (
 
 func writeVoiceError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, entitlements.ErrFeatureDisabled):
+		response.Error(w, r, http.StatusForbidden, response.CodeFeatureDisabled, "This feature is not included in your plan")
 	case errors.Is(err, aiusecase.ErrVoiceDisabled):
 		response.Error(w, r, http.StatusForbidden, CodeAIVoiceDisabled, "Voice is disabled")
 	case errors.Is(err, aiusecase.ErrVoiceUnavailable):

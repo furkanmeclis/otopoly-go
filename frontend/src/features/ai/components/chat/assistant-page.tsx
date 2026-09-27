@@ -13,6 +13,8 @@ import { AssistantChat } from "@/features/ai/components/chat/assistant-chat";
 import { AssistantUnavailable } from "@/features/ai/components/chat/assistant-unavailable";
 import { ConversationList } from "@/features/ai/components/chat/conversation-list";
 import { useAIStatus } from "@/features/ai/hooks/use-ai-status";
+import { FeatureLocked } from "@/features/billing";
+import { isFeatureDisabledError } from "@/lib/api/limit-events";
 import { useLocale } from "@/providers/locale-provider";
 
 export function AssistantPage({ slug }: { slug: string }) {
@@ -20,7 +22,7 @@ export function AssistantPage({ slug }: { slug: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const conversationUuid = searchParams.get("c");
-  const { status, allowed, isLoading } = useAIStatus(slug);
+  const { status, allowed, isLoading, error } = useAIStatus(slug);
 
   const select = useCallback(
     (uuid: string | null) => {
@@ -52,6 +54,8 @@ export function AssistantPage({ slug }: { slug: string }) {
       />
       {isLoading ? (
         <Loading label={t("common.loading")} />
+      ) : status?.plan_enabled === false || isFeatureDisabledError(error) ? (
+        <FeatureLocked slug={slug} className="min-h-[420px]" />
       ) : !status?.available ? (
         <div className="rounded-xl border">
           <AssistantUnavailable reason={status?.reason} />

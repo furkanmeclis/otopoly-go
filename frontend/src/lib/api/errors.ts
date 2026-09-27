@@ -80,12 +80,16 @@ export class ApiError extends Error {
   }
 }
 
-export function parseApiError(status: number, data: unknown): ApiError {
+export function parseApiError(
+  status: number,
+  data: unknown,
+  options?: { emitLimitEvent?: boolean },
+): ApiError {
   const body = data as Partial<ApiErrorBody> | null;
   const code = body?.error?.code ?? `HTTP_${status}`;
   const details = body?.error?.details ?? [];
   const message = localizedMessage(code, status, body?.error?.message);
-  if (isLimitEventCode(code)) {
+  if (options?.emitLimitEvent !== false && isLimitEventCode(code)) {
     emitLimitEvent(limitDetailFrom(code, details));
   }
   return new ApiError({

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import { cmsNav, platformNav, tenantNav } from "@/config/nav";
 import { routes } from "@/config/routes";
+import { useAIStatus } from "@/features/ai/hooks/use-ai-status";
 import { NavEngine } from "@/features/nav-engine";
 
 export function AppSidebar({
@@ -25,13 +26,24 @@ export function AppSidebar({
   variant?: AppLayoutVariant;
   tenantSlug?: string;
 }) {
+  const aiStatus = useAIStatus(tenantSlug ?? "");
   const catalog = useMemo(() => {
     if (variant === "tenant" && tenantSlug) {
-      return tenantNav(tenantSlug);
+      const next = tenantNav(tenantSlug);
+      if (aiStatus.status && !aiStatus.status.available) {
+        return {
+          ...next,
+          groups: next.groups.map((group) => ({
+            ...group,
+            items: group.items.filter((item) => item.id !== "assistant"),
+          })),
+        };
+      }
+      return next;
     }
     if (variant === "cms") return cmsNav;
     return platformNav;
-  }, [tenantSlug, variant]);
+  }, [aiStatus.status, tenantSlug, variant]);
 
   const homeHref =
     variant === "platform"

@@ -562,6 +562,21 @@ func (s *Service) availability(ctx context.Context, row db.AiSetting, orgID int6
 	return q, nil
 }
 
+func (s *Service) planEnabled(ctx context.Context, orgID int64) (bool, error) {
+	return s.ent.Enabled(ctx, orgID, "ai.enabled")
+}
+
+func (s *Service) requirePlan(ctx context.Context, orgID int64) error {
+	on, err := s.planEnabled(ctx, orgID)
+	if err != nil {
+		return err
+	}
+	if !on {
+		return entitlements.ErrFeatureDisabled
+	}
+	return nil
+}
+
 // Status reports whether the assistant is usable for the current user/org.
 func (s *Service) Status(ctx context.Context) (Status, error) {
 	p, scope, err := principalScope(ctx)
@@ -572,9 +587,15 @@ func (s *Service) Status(ctx context.Context) (Status, error) {
 	if err != nil {
 		return Status{}, err
 	}
+	planEnabled, err := s.planEnabled(ctx, scope.InternalID)
+	if err != nil {
+		return Status{}, err
+	}
 	q, availErr := s.availability(ctx, row, scope.InternalID)
-	st := Status{Features: s.featuresOf(row), Quota: q, Provider: row.Provider, Model: row.Model, Tools: []string{}}
+	st := Status{PlanEnabled: planEnabled, Features: s.featuresOf(row), Quota: q, Provider: row.Provider, Model: row.Model, Tools: []string{}}
 	switch {
+	case !planEnabled:
+		st.Reason = "plan_disabled"
 	case availErr == nil:
 		st.Available = true
 	case errors.Is(availErr, ErrDisabled):

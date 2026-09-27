@@ -128,7 +128,9 @@ async function streamPost(
   let response = await send();
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const error = parseApiError(response.status, body);
+    const error = parseApiError(response.status, body, {
+      emitLimitEvent: false,
+    });
     if (error.code === "ORGANIZATION_CONTEXT_REQUIRED" && tenantSlug) {
       if (await switchOrganization(tenantSlug)) {
         response = await send();
@@ -140,6 +142,7 @@ async function streamPost(
       throw parseApiError(
         response.status,
         await response.json().catch(() => null),
+        { emitLimitEvent: false },
       );
     }
   }

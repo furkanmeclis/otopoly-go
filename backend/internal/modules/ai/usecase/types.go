@@ -175,13 +175,14 @@ type Quota struct {
 
 // Status tells the tenant UI whether the assistant can be used.
 type Status struct {
-	Available bool     `json:"available"`
-	Reason    string   `json:"reason,omitempty"`
-	Features  Features `json:"features"`
-	Quota     Quota    `json:"quota"`
-	Provider  string   `json:"provider"`
-	Model     string   `json:"model"`
-	Tools     []string `json:"tools"`
+	Available   bool     `json:"available"`
+	PlanEnabled bool     `json:"plan_enabled"`
+	Reason      string   `json:"reason,omitempty"`
+	Features    Features `json:"features"`
+	Quota       Quota    `json:"quota"`
+	Provider    string   `json:"provider"`
+	Model       string   `json:"model"`
+	Tools       []string `json:"tools"`
 }
 
 // OrgSettings is the per-organization override payload.

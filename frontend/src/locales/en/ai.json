@@ -227,6 +227,7 @@
   "tools_running.search_products": "Searching products…",
   "tools_running.render_chart": "Drawing the chart…",
   "tools_running.unknown": "Working…",
+  "tool_status.retried": "Retried",
   "tool_summary.customers_found": "{{count}} customers found",
   "tool_summary.account_balance": "{{name}}: balance {{balance}}",
   "tool_summary.jobs_found": "{{count}} jobs",

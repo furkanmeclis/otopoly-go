@@ -67,6 +67,7 @@ export const aiTenantService = {
           },
         },
       }),
+      { silent: true },
     );
   },
   async createConversation(title?: string) {
@@ -74,6 +75,7 @@ export const aiTenantService = {
       await apiClient.POST("/v1/tenant/ai/conversations", {
         body: title ? { title } : {},
       }),
+      { silent: true },
     );
   },
   async getConversation(uuid: string) {
@@ -81,6 +83,7 @@ export const aiTenantService = {
       await apiClient.GET("/v1/tenant/ai/conversations/{uuid}", {
         params: { path: { uuid } },
       }),
+      { silent: true },
     );
   },
   async renameConversation(uuid: string, title: string) {
@@ -89,6 +92,7 @@ export const aiTenantService = {
         params: { path: { uuid } },
         body: { title },
       }),
+      { silent: true },
     );
   },
   async cancelAction(uuid: string) {
@@ -104,6 +108,7 @@ export const aiTenantService = {
       await apiClient.DELETE("/v1/tenant/ai/conversations/{uuid}", {
         params: { path: { uuid } },
       }),
+      { silent: true },
     );
   },
 };

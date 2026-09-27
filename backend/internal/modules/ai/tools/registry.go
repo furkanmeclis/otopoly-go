@@ -61,6 +61,13 @@ type Spec struct {
 	RequiresConfirmation bool
 }
 
+// ToolResultRef describes a successful earlier tool result in the current turn.
+type ToolResultRef struct {
+	ToolUseID string
+	Name      string
+	Content   string
+}
+
 // Env is the execution environment for a tool call.
 type Env struct {
 	Principal authctx.Principal
@@ -70,6 +77,10 @@ type Env struct {
 	// LookupResult returns the raw content of an earlier tool_result in this
 	// conversation (used by render_chart to reference data without re-sending it).
 	LookupResult func(toolUseID string) (string, bool)
+	// RecentResults returns successful tool results from the current assistant
+	// turn, in execution order. UI-only tools can use this to recover when a
+	// model cannot see or re-use provider-specific tool_use ids.
+	RecentResults func() []ToolResultRef
 }
 
 // Today returns the current local date (YYYY-MM-DD).

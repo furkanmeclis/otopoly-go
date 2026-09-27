@@ -39,6 +39,9 @@ func (s *Service) ListConversations(ctx context.Context, limit, offset int32, q 
 	if err != nil {
 		return nil, 0, err
 	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
+		return nil, 0, err
+	}
 	var qText pgtype.Text
 	if t := strings.TrimSpace(q); t != "" {
 		qText = pgtype.Text{String: t, Valid: true}
@@ -66,6 +69,9 @@ func (s *Service) ListConversations(ctx context.Context, limit, offset int32, q 
 func (s *Service) CreateConversation(ctx context.Context, title string) (Conversation, error) {
 	p, scope, err := principalScope(ctx)
 	if err != nil {
+		return Conversation{}, err
+	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
 		return Conversation{}, err
 	}
 	title = strings.TrimSpace(title)
@@ -106,6 +112,13 @@ func (s *Service) loadConversation(ctx context.Context, id uuid.UUID) (db.AiConv
 
 // GetConversation returns a conversation with its UI messages.
 func (s *Service) GetConversation(ctx context.Context, id uuid.UUID) (ConversationDetail, error) {
+	_, scope, err := principalScope(ctx)
+	if err != nil {
+		return ConversationDetail{}, err
+	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
+		return ConversationDetail{}, err
+	}
 	conv, err := s.loadConversation(ctx, id)
 	if err != nil {
 		return ConversationDetail{}, err
@@ -127,6 +140,13 @@ func (s *Service) GetConversation(ctx context.Context, id uuid.UUID) (Conversati
 
 // RenameConversation sets the title.
 func (s *Service) RenameConversation(ctx context.Context, id uuid.UUID, title string) (Conversation, error) {
+	_, scope, err := principalScope(ctx)
+	if err != nil {
+		return Conversation{}, err
+	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
+		return Conversation{}, err
+	}
 	title = strings.TrimSpace(title)
 	if title == "" {
 		return Conversation{}, invalid("title is required")
@@ -147,6 +167,13 @@ func (s *Service) RenameConversation(ctx context.Context, id uuid.UUID, title st
 
 // DeleteConversation soft-deletes a conversation.
 func (s *Service) DeleteConversation(ctx context.Context, id uuid.UUID) error {
+	_, scope, err := principalScope(ctx)
+	if err != nil {
+		return err
+	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
+		return err
+	}
 	conv, err := s.loadConversation(ctx, id)
 	if err != nil {
 		return err

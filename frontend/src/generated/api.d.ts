@@ -3988,7 +3988,7 @@ export interface paths {
         };
         /**
          * Whether the AI assistant is available for the current user
-         * @description Requires `tenant.ai.use`. `reason` is set when unavailable (disabled, not_configured, org_disabled, quota_exceeded).
+         * @description Requires `tenant.ai.use`. `plan_enabled` reports whether the organization's plan includes AI. `reason` is set when unavailable (plan_disabled, disabled, not_configured, org_disabled, quota_exceeded).
          */
         get: operations["getTenantAIStatus"];
         put?: never;
@@ -4051,7 +4051,7 @@ export interface paths {
          * Send a message and stream the assistant's answer (SSE)
          * @description Send with `Accept: text/event-stream`. Availability and quota are checked
          *     before the stream starts (403 with `AI_DISABLED`, `AI_NOT_CONFIGURED`,
-         *     `AI_ORG_DISABLED` or `AI_QUOTA_EXCEEDED`). The response is a
+         *     `FEATURE_DISABLED`, `AI_ORG_DISABLED` or `AI_QUOTA_EXCEEDED`). The response is a
          *     server-sent event stream; each event's `data` is JSON:
          *
          *     - `message_start` `{conversation_uuid, user_message_uuid}`
@@ -4097,6 +4097,7 @@ export interface paths {
          *     card's editable fields (re-validated before execution). Checks run before
          *     the stream starts: 404 (not the user's action), 403 `AI_ACTION_FORBIDDEN`
          *     (the user lacks the underlying permission or actions were disabled),
+         *     403 `FEATURE_DISABLED` (the organization's plan excludes `ai.enabled`),
          *     409 `AI_ACTION_RESOLVED` (already confirmed/cancelled; double confirm),
          *     409 `AI_ACTION_EXPIRED`, 409 `AI_ACTION_NOT_READY` (the proposing turn is
          *     still streaming), 400 for invalid edits. Stream events (`data` is JSON):
@@ -4283,7 +4284,7 @@ export interface paths {
          * Transcribe a push-to-talk clip (Speaches faster-whisper)
          * @description Multipart upload with one `file` field (MediaRecorder output: webm/ogg/mp4,
          *     or wav/mp3/flac), at most 5 MB. Uses the platform STT model and language.
-         *     Requires `tenant.ai.use`, the assistant enabled for the organization and
+         *     Requires `tenant.ai.use`, the plan feature `ai.enabled`, the assistant enabled for the organization and
          *     the `voice` feature (403 `AI_VOICE_DISABLED`). Clips longer than 120 s are
          *     rejected (`AUDIO_TOO_LONG`); the UI stops recording at 60 s.
          */
@@ -7417,8 +7418,9 @@ export interface components {
         };
         AIStatus: {
             available: boolean;
+            plan_enabled: boolean;
             /** @enum {string} */
-            reason?: "disabled" | "not_configured" | "org_disabled" | "quota_exceeded";
+            reason?: "plan_disabled" | "disabled" | "not_configured" | "org_disabled" | "quota_exceeded";
             features: components["schemas"]["AIFeatures"];
             quota: components["schemas"]["AIQuota"];
             provider: string;
@@ -16867,7 +16869,15 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     createTenantAIConversation: {
@@ -16894,7 +16904,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description `AI_CONVERSATION_LIMIT`: the user already has 500 conversations in this organization. */
             409: {
                 headers: {
@@ -16927,7 +16945,15 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -16952,7 +16978,15 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -16982,7 +17016,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -17012,7 +17054,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or an AI availability/quota error. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
             /** @description `AI_CONVERSATION_LIMIT`: the conversation is too long; start a new one. */
             409: {
@@ -17052,7 +17102,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or `AI_ACTION_FORBIDDEN`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
@@ -17079,7 +17137,15 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -17372,7 +17438,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or `AI_VOICE_DISABLED`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Audio larger than 5 MB (`AUDIO_TOO_LARGE`) */
             413: {
                 headers: {
@@ -17427,7 +17501,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or `AI_VOICE_DISABLED`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             /** @description Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`) */
             502: {

@@ -56,6 +56,21 @@ export function MessageBlocks({
   /** Hide the plan checklist (a later message carries a newer one). */
   hidePlan?: boolean;
 }) {
+  const recoveredToolIds = new Set<string>();
+  const laterSuccesses = new Set<string>();
+  for (let i = blocks.length - 1; i >= 0; i -= 1) {
+    const block = blocks[i];
+    if (block.type !== "tool") continue;
+    const name = block.name ?? "";
+    if (!name) continue;
+    if (block.status === "error" && laterSuccesses.has(name) && block.id) {
+      recoveredToolIds.add(block.id);
+    }
+    if (block.status === "done") {
+      laterSuccesses.add(name);
+    }
+  }
+
   // Consecutive tool indicators are grouped on one wrapped row.
   const groups: { key: string; tools?: AIUIBlock[]; block?: AIUIBlock }[] = [];
   blocks.forEach((block, index) => {
@@ -77,7 +92,11 @@ export function MessageBlocks({
           return (
             <div key={group.key} className="flex flex-wrap gap-1.5">
               {group.tools.map((tool, i) => (
-                <ToolActivity key={tool.id ?? i} block={tool} />
+                <ToolActivity
+                  key={tool.id ?? i}
+                  block={tool}
+                  recovered={Boolean(tool.id && recoveredToolIds.has(tool.id))}
+                />
               ))}
             </div>
           );

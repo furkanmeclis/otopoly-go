@@ -6855,7 +6855,7 @@ paths:
       tags: [Tenant]
       operationId: getTenantAIStatus
       summary: Whether the AI assistant is available for the current user
-      description: Requires `tenant.ai.use`. `reason` is set when unavailable (disabled, not_configured, org_disabled, quota_exceeded).
+      description: Requires `tenant.ai.use`. `plan_enabled` reports whether the organization's plan includes AI. `reason` is set when unavailable (plan_disabled, disabled, not_configured, org_disabled, quota_exceeded).
       security: [{ bearerAuth: [] }]
       responses:
         "200":
@@ -6885,7 +6885,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/EnvelopeAIConversationList"
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
     post:
       tags: [Tenant]
       operationId: createTenantAIConversation
@@ -6906,7 +6910,11 @@ paths:
                 $ref: "#/components/schemas/EnvelopeAIConversation"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "409":
           description: "`AI_CONVERSATION_LIMIT`: the user already has 500 conversations in this organization."
           content:
@@ -6932,7 +6940,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/EnvelopeAIConversationDetail"
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Tenant]
@@ -6954,7 +6966,11 @@ paths:
                 $ref: "#/components/schemas/EnvelopeAIConversation"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
     delete:
       tags: [Tenant]
@@ -6969,7 +6985,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/EnvelopeAIDeleted"
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/ai/conversations/{uuid}/messages:
@@ -6980,7 +7000,7 @@ paths:
       description: |
         Send with `Accept: text/event-stream`. Availability and quota are checked
         before the stream starts (403 with `AI_DISABLED`, `AI_NOT_CONFIGURED`,
-        `AI_ORG_DISABLED` or `AI_QUOTA_EXCEEDED`). The response is a
+        `FEATURE_DISABLED`, `AI_ORG_DISABLED` or `AI_QUOTA_EXCEEDED`). The response is a
         server-sent event stream; each event's `data` is JSON:
 
         - `message_start` `{conversation_uuid, user_message_uuid}`
@@ -7021,7 +7041,11 @@ paths:
               schema: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or an AI availability/quota error.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409":
           description: "`AI_CONVERSATION_LIMIT`: the conversation is too long; start a new one."
@@ -7042,6 +7066,7 @@ paths:
         card's editable fields (re-validated before execution). Checks run before
         the stream starts: 404 (not the user's action), 403 `AI_ACTION_FORBIDDEN`
         (the user lacks the underlying permission or actions were disabled),
+        403 `FEATURE_DISABLED` (the organization's plan excludes `ai.enabled`),
         409 `AI_ACTION_RESOLVED` (already confirmed/cancelled; double confirm),
         409 `AI_ACTION_EXPIRED`, 409 `AI_ACTION_NOT_READY` (the proposing turn is
         still streaming), 400 for invalid edits. Stream events (`data` is JSON):
@@ -7074,7 +7099,11 @@ paths:
               schema: { type: string }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or `AI_ACTION_FORBIDDEN`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
@@ -7098,7 +7127,11 @@ paths:
               schema:
                 $ref: "#/components/schemas/EnvelopeAIActionBlock"
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, or `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
@@ -7330,7 +7363,7 @@ paths:
       description: |
         Multipart upload with one `file` field (MediaRecorder output: webm/ogg/mp4,
         or wav/mp3/flac), at most 5 MB. Uses the platform STT model and language.
-        Requires `tenant.ai.use`, the assistant enabled for the organization and
+        Requires `tenant.ai.use`, the plan feature `ai.enabled`, the assistant enabled for the organization and
         the `voice` feature (403 `AI_VOICE_DISABLED`). Clips longer than 120 s are
         rejected (`AUDIO_TOO_LONG`); the UI stops recording at 60 s.
       security: [{ bearerAuth: [] }]
@@ -7352,7 +7385,11 @@ paths:
                 $ref: "#/components/schemas/EnvelopeAITranscription"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or `AI_VOICE_DISABLED`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "413":
           description: Audio larger than 5 MB (`AUDIO_TOO_LARGE`)
           content:
@@ -7396,7 +7433,11 @@ paths:
               schema: { type: string, format: binary }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Authenticated but not allowed, `FEATURE_DISABLED` when the organization's plan excludes `ai.enabled`, or `AI_VOICE_DISABLED`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
         "502":
           description: Speaches unreachable or failed (`AI_VOICE_UNAVAILABLE`)
@@ -11628,10 +11669,11 @@ components:
 
     AIStatus:
       type: object
-      required: [available, features, quota, provider, model, tools]
+      required: [available, plan_enabled, features, quota, provider, model, tools]
       properties:
         available: { type: boolean }
-        reason: { type: string, enum: [disabled, not_configured, org_disabled, quota_exceeded] }
+        plan_enabled: { type: boolean }
+        reason: { type: string, enum: [plan_disabled, disabled, not_configured, org_disabled, quota_exceeded] }
         features: { $ref: "#/components/schemas/AIFeatures" }
         quota: { $ref: "#/components/schemas/AIQuota" }
         provider: { type: string }

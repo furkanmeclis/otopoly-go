@@ -28,7 +28,8 @@ export const aiVoiceService = {
       "/v1/tenant/ai/voice/speech",
       { body: { text }, parseAs: "blob", signal },
     );
-    if (!response.ok) throw parseApiError(response.status, error);
+    if (!response.ok)
+      throw parseApiError(response.status, error, { emitLimitEvent: false });
     if (!(data instanceof Blob) || data.size === 0) {
       throw new ApiError({
         status: response.status,

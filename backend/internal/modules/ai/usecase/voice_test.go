@@ -12,6 +12,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/voice"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/voice/voicetest"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 )
 
 func newVoiceHarness(t *testing.T) (*harness, *voicetest.Server) {
@@ -49,6 +50,18 @@ func TestVoiceGate(t *testing.T) {
 	}
 	if _, err := h.svc.Transcribe(authctx.WithPrincipal(context.Background(), authctx.Principal{UserInternal: 42}), clip); !errors.Is(err, ErrNoContext) {
 		t.Fatalf("no scope: err = %v", err)
+	}
+}
+
+func TestVoiceGateRequiresAIPlan(t *testing.T) {
+	h := newHarness(t, nil)
+	h.setAIPlanEnabled(false)
+	if _, err := h.svc.Transcribe(h.ctx, TranscribeInput{Audio: []byte("a"), ContentType: "audio/webm"}); !errors.Is(err, entitlements.ErrFeatureDisabled) {
+		t.Fatalf("transcribe err = %v, want ErrFeatureDisabled", err)
+	}
+	h.setAIPlanEnabled(true)
+	if _, err := h.svc.Transcribe(h.ctx, TranscribeInput{Audio: []byte("a"), ContentType: "audio/webm"}); !errors.Is(err, ErrVoiceDisabled) {
+		t.Fatalf("plan on transcribe err = %v, want ErrVoiceDisabled", err)
 	}
 }
 

@@ -14,7 +14,6 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/provider"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -107,12 +106,8 @@ func (s *Service) PrepareMessage(ctx context.Context, convUUID uuid.UUID, in Sen
 	if err != nil {
 		return nil, err
 	}
-	on, err := s.ent.Enabled(ctx, scope.InternalID, "ai.enabled")
-	if err != nil {
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
 		return nil, err
-	}
-	if !on {
-		return nil, entitlements.ErrFeatureDisabled
 	}
 	if _, err := s.ent.Check(ctx, scope.InternalID, "ai.monthly", 1); err != nil {
 		return nil, err
@@ -271,6 +266,12 @@ func (s *Service) runAgent(ctx context.Context, t *Turn, emit Emitter, history [
 		Principal: t.principal, Scope: t.scope, Now: now, Location: s.loc,
 		LookupResult: func(id string) (string, bool) { v, ok := results[id]; return v, ok },
 	}
+	var recentResults []tools.ToolResultRef
+	env.RecentResults = func() []tools.ToolResultRef {
+		out := make([]tools.ToolResultRef, len(recentResults))
+		copy(out, recentResults)
+		return out
+	}
 
 	ts := &turnState{emit: emit}
 	var turnMsgs []provider.Message
@@ -351,6 +352,13 @@ loop:
 					resultBlocks = append(resultBlocks, *block)
 					if !block.IsError {
 						results[tu.ID] = block.Content
+						if tu.Name != "render_chart" {
+							recentResults = append(recentResults, tools.ToolResultRef{
+								ToolUseID: tu.ID,
+								Name:      tu.Name,
+								Content:   block.Content,
+							})
+						}
 					}
 				}
 				pause = pause || paused

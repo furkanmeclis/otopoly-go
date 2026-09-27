@@ -124,7 +124,7 @@ func TestDataText(t *testing.T) {
 // RequiresConfirmation, of kind write and implementing ActionTool (Propose).
 func TestWriteToolsAlwaysRequireConfirmation(t *testing.T) {
 	r := DefaultRegistry(Deps{
-		Customers: nopStore{}, CariWrite: nopCari{}, FinanceWrite: nopFinance{}, CustomersWrite: nopCustomers{},
+		CustomersSearch: nopStore{}, CariWrite: nopCari{}, FinanceWrite: nopFinance{}, CustomersWrite: nopCustomers{},
 		VehicleCatalog: nopVehicleCatalog{}, VehicleOptions: nopVehicleOptions{}, JobsWrite: nopJobs{},
 		CatalogLookup: nopCatalog{}, SalesWrite: nopSales{}, Todos: nopTodos{},
 	})

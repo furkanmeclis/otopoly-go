@@ -176,7 +176,9 @@ export async function unwrap<T>(
   const { data, error, response } = result;
 
   if (!response.ok || error) {
-    const apiError = parseApiError(response.status, error ?? data);
+    const apiError = parseApiError(response.status, error ?? data, {
+      emitLimitEvent: !options?.silent,
+    });
     if (!options?.silent && apiError.code !== "STEP_UP_REQUIRED") {
       emitApiError(apiError);
     }

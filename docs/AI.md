@@ -17,6 +17,15 @@ read-aloud.
 (migrations 000048/000049). Holding it only opens the chat: every tool also
 requires its own tenant permissions (see [Tools](#tools)).
 
+The organization's active billing plan must also include the `ai.enabled`
+toggle. When it is off, tenant assistant entry points return 403
+`FEATURE_DISABLED`: conversation history/create/update/delete, message streams,
+action confirm/cancel, and voice transcribe/speech. `/v1/tenant/ai/status`
+still returns 200 with `plan_enabled: false` so the UI can hide the launcher,
+shortcut, nav/command entries, and show the billing upgrade card on direct
+`/t/{slug}/assistant` visits. Todos are their own module and are not gated by
+`ai.enabled` unless reached through an assistant tool.
+
 ## Architecture
 
 ```
@@ -46,9 +55,10 @@ Tables: `ai_settings` (singleton), `ai_organization_settings`,
 
 ### Agent loop
 
-1. `PrepareMessage` checks availability (platform chat on, provider configured,
-   org enabled, quota left), message length and the conversation cap before
-   the stream opens, so these fail as normal HTTP errors.
+1. `PrepareMessage` checks plan access (`ai.enabled`), availability (platform
+   chat on, provider configured, org enabled, quota left), message length and
+   the conversation cap before the stream opens, so these fail as normal HTTP
+   errors.
 2. `RunTurn` expires unanswered confirm cards ("user moved on"), recovers
    interrupted actions, stores the user message (with a `<context>` date line)
    and calls `runAgent`.
@@ -146,6 +156,11 @@ confirmed.
 | `create_quick_sale` | write | actions | `tenant.sales.write`, `tenant.catalog.read`, `tenant.finance.read` |
 | `create_todo` | write | todos | `tenant.todos.write` |
 | `complete_todo` | write | todos | `tenant.todos.write` |
+
+`search_customers` accepts an empty or omitted `query`; in that mode it lists
+the organization's most recent customers and returns `total`, the organization's
+customer count. Non-empty queries still require at least 2 characters and match
+name, phone, email or vehicle plate.
 
 Day-based tools use Europe/Istanbul days (`list_jobs` and `get_sales_summary`
 pass explicit Istanbul day ranges, so a UTC server answers "bugün" correctly).
@@ -279,7 +294,9 @@ deadline to 15 minutes.
 - Only the tools the user may use are offered.
 - Tool results are compact JSON with formatted money, row limits and clipped
   text. `render_chart` references an earlier result (`source_tool_use_id` +
-  `rows_path`) instead of the model re-typing data.
+  `rows_path`) instead of the model re-typing data; if a provider cannot reuse
+  the right tool id, it falls back to the latest successful data result in the
+  current assistant turn.
 - History: results of tool calls older than 6 user turns are replaced by a
   placeholder, in steps so the cached prefix moves rarely. At most 40 user turns
   are replayed. Thinking blocks from another model are dropped.

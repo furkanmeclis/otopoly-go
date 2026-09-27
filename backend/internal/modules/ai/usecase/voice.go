@@ -87,6 +87,9 @@ func (s *Service) voiceGate(ctx context.Context) (voiceScope, error) {
 	if err != nil {
 		return voiceScope{}, err
 	}
+	if err := s.requirePlan(ctx, scope.InternalID); err != nil {
+		return voiceScope{}, err
+	}
 	row, err := s.store.GetAISettings(ctx)
 	if err != nil {
 		return voiceScope{}, err
