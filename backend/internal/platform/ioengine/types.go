@@ -44,6 +44,15 @@ type Dataset struct {
 	Info []InfoLine `json:"info,omitempty"`
 	// Totals is rendered as a bold summary row under the table (PDF/XLSX).
 	Totals map[string]any `json:"totals,omitempty"`
+	// Doc carries adapter-specific structured data for DocumentRenderer
+	// adapters (never serialized).
+	Doc any `json:"-"`
+}
+
+// DocumentRenderer is implemented by adapters whose PDF export is a styled
+// document (HTML rendered by Gotenberg) rather than the generic table.
+type DocumentRenderer interface {
+	DocumentHTML(ds Dataset, locale string, lh *Letterhead, title string) (string, error)
 }
 
 // ExportFormat supported for downloads.

@@ -414,6 +414,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		ioadapters.NewReports(deps.Queries),
 	)
 	exportSvc := exportusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
+	exportSvc.SetDocumentPDF(pdfClient)
 	importSvc := importusecase.New(deps.Queries, deps.Storage, ioReg, deps.Queue, notifSvc, activityRec, log)
 	catalogProductsBulk := bulkadapters.NewCatalogProducts(deps.Queries)
 	catalogServicesBulk := bulkadapters.NewCatalogServices(deps.Queries)

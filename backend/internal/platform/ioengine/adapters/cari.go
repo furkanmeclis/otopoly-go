@@ -151,6 +151,14 @@ func (a *CariEntriesAdapter) Export(ctx context.Context, query ioengine.ExportQu
 	currency := account.Currency
 	var totalDebit, totalCredit float64
 	out := make([]map[string]any, 0, len(rows))
+	stmt := &cariStatement{
+		CustomerName:  strings.TrimSpace(account.CustomerName),
+		CustomerPhone: strings.TrimSpace(account.CustomerPhone),
+		TaxID:         strings.TrimSpace(account.CustomerTaxID),
+		TaxOffice:     strings.TrimSpace(account.CustomerTaxOffice),
+		Currency:      currency,
+		Balance:       numericFloat(account.Balance),
+	}
 	for _, row := range rows {
 		amount := numericFloat(row.Amount)
 		debit, credit := "", ""
@@ -171,6 +179,14 @@ func (a *CariEntriesAdapter) Export(ctx context.Context, query ioengine.ExportQu
 		if row.EntryDate.Valid {
 			date = formatStatementDate(row.EntryDate.Time, loc)
 		}
+		entry := cariStatementEntry{
+			Date: date, Type: row.Type, Description: cariEntryDescription(row, loc),
+			Amount: amount, Debit: isDebit, Balance: numericFloat(row.BalanceAfter), Void: row.Status != "posted",
+		}
+		if row.EntryDate.Valid {
+			entry.At = row.EntryDate.Time
+		}
+		stmt.Entries = append(stmt.Entries, entry)
 		out = append(out, map[string]any{
 			"entry_date":    date,
 			"type":          row.Type,
@@ -202,12 +218,14 @@ func (a *CariEntriesAdapter) Export(ctx context.Context, query ioengine.ExportQu
 		"credit":        formatMoney(totalCredit, currency, loc),
 		"balance_after": formatMoney(numericFloat(account.Balance), currency, loc),
 	}
+	stmt.TotalDebit, stmt.TotalCredit = totalDebit, totalCredit
 	return ioengine.Dataset{
 		Resource: ResourceCariEntries,
 		Columns:  a.ExportColumns(),
 		Rows:     out,
 		Info:     info,
 		Totals:   totals,
+		Doc:      stmt,
 	}, nil
 }
 
@@ -318,6 +336,7 @@ func (a *CariEntriesAdapter) RevertRow(_ context.Context, _, _ string, _ map[str
 }
 
 var (
-	_ ioengine.ResourceAdapter = (*CariAccountsAdapter)(nil)
-	_ ioengine.ResourceAdapter = (*CariEntriesAdapter)(nil)
+	_ ioengine.ResourceAdapter  = (*CariAccountsAdapter)(nil)
+	_ ioengine.ResourceAdapter  = (*CariEntriesAdapter)(nil)
+	_ ioengine.DocumentRenderer = (*CariEntriesAdapter)(nil)
 )

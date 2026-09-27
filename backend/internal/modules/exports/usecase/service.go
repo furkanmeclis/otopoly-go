@@ -49,7 +49,17 @@ type Service struct {
 	activity *activity.Recorder
 	log      *slog.Logger
 	syncMode bool
+	pdf      HTMLToPDF
 }
+
+// HTMLToPDF converts HTML to PDF (satisfied by *pdfrender.Client).
+type HTMLToPDF interface {
+	HTMLToPDF(ctx context.Context, html string) ([]byte, error)
+}
+
+// SetDocumentPDF enables styled PDF documents for adapters implementing
+// ioengine.DocumentRenderer (nil keeps the generic table PDF).
+func (s *Service) SetDocumentPDF(r HTMLToPDF) { s.pdf = r }
 
 // New creates an export service.
 func New(
@@ -168,7 +178,10 @@ func (s *Service) ProcessExport(ctx context.Context, jobID int64) error {
 		return s.fail(ctx, jobID, err.Error())
 	}
 	title := ioengine.ExportTitle(job.Locale, job.Resource)
-	data, err := ioengine.EncodeExport(ioengine.ExportFormat(job.Format), ds, job.Locale, &lh, title)
+	data, err := s.renderDocument(ctx, adapter, job.Format, ds, job.Locale, &lh, title)
+	if data == nil {
+		data, err = ioengine.EncodeExport(ioengine.ExportFormat(job.Format), ds, job.Locale, &lh, title)
+	}
 	if err != nil {
 		return s.fail(ctx, jobID, err.Error())
 	}
@@ -383,4 +396,32 @@ func mapExportJob(row db.ExportJob) ExportJobView {
 		UUID: row.Uuid, Resource: row.Resource, Format: row.Format, Status: row.Status,
 		RowCount: row.RowCount, Error: errMsg, Download: dl, CreatedAt: row.CreatedAt.Time,
 	}
+}
+
+// renderDocument returns a styled PDF for document adapters, or nil to use
+// the generic encoder (other formats, no renderer, or Gotenberg failure).
+func (s *Service) renderDocument(
+	ctx context.Context,
+	adapter ioengine.ResourceAdapter,
+	format string,
+	ds ioengine.Dataset,
+	locale string,
+	lh *ioengine.Letterhead,
+	title string,
+) ([]byte, error) {
+	doc, ok := adapter.(ioengine.DocumentRenderer)
+	if !ok || s.pdf == nil || ioengine.ExportFormat(format) != ioengine.ExportPDF {
+		return nil, nil
+	}
+	html, err := doc.DocumentHTML(ds, locale, lh, title)
+	if err != nil {
+		s.log.Warn("export_document_html_failed", "resource", adapter.Resource(), "error", err)
+		return nil, nil
+	}
+	data, err := s.pdf.HTMLToPDF(ctx, html)
+	if err != nil {
+		s.log.Warn("export_document_pdf_failed", "resource", adapter.Resource(), "error", err)
+		return nil, nil
+	}
+	return data, nil
 }

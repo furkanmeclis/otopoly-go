@@ -124,6 +124,7 @@ func main() {
 		ioadapters.NewReports(queries),
 	)
 	exportSvc := exportusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
+	exportSvc.SetDocumentPDF(pdfrender.New(cfg.Gotenberg.URL))
 	importSvc := importusecase.New(queries, store, ioReg, nil, notifSvc, activityRec, log)
 	catalogProductsBulk := bulkadapters.NewCatalogProducts(queries)
 	catalogServicesBulk := bulkadapters.NewCatalogServices(queries)
