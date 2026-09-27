@@ -1182,6 +1182,7 @@ type ServiceJob struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	PaymentStatus  string             `json:"payment_status"`
+	DeliveredAt    pgtype.Timestamptz `json:"delivered_at"`
 }
 
 type ServiceJobConsumption struct {

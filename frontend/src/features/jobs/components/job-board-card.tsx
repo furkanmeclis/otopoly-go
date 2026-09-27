@@ -12,7 +12,12 @@ import {
 } from "@/features/jobs/components/job-service-tags";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { VehicleBrandMark } from "@/features/jobs/components/vehicle-brand-mark";
-import { carryOverDay, initials, isStale } from "@/features/jobs/lib/job-ui";
+import {
+  carryOverDay,
+  deliveredSpanDays,
+  initials,
+  isStale,
+} from "@/features/jobs/lib/job-ui";
 import type { Job } from "@/features/jobs/services/jobs.service";
 import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
@@ -42,6 +47,7 @@ export function JobBoardCard({
   const { t, locale } = useLocale();
   const stale = isStale(job, now);
   const workDay = carryOverDay(job);
+  const spanDays = deliveredSpanDays(job);
   const unpaid = job.payment_status === "unpaid";
 
   return (
@@ -77,6 +83,15 @@ export function JobBoardCard({
             >
               {t("jobs.board.carry_over_day", { n: workDay })}
             </span>
+          ) : spanDays ? (
+            <span
+              className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400"
+              title={t("jobs.board.carry_over_hint", {
+                date: datetime(job.started_at, "dd.MM.yyyy HH:mm", locale),
+              })}
+            >
+              {t("jobs.board.delivered_span", { n: spanDays })}
+            </span>
           ) : null}
         </div>
         <span className="text-sm font-semibold tabular-nums">
@@ -104,7 +119,11 @@ export function JobBoardCard({
           ) : null}
           {job.status === "delivered" ? (
             <span className="text-muted-foreground text-xs tabular-nums">
-              {datetime(job.completed_at ?? job.started_at, "HH:mm", locale)}
+              {datetime(
+                job.delivered_at ?? job.completed_at ?? job.started_at,
+                "HH:mm",
+                locale,
+              )}
             </span>
           ) : (
             <JobElapsed startedAt={job.started_at} now={now} stale={stale} />

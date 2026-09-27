@@ -93,6 +93,14 @@ WHERE j.organization_id = sqlc.arg(organization_id)
       AND j.status IN ('in_progress', 'ready')
       AND j.started_at < sqlc.narg(date_from)
     )
+    -- ...and once handed over they count among the window's delivered cars.
+    OR (
+      sqlc.arg(include_open)::boolean
+      AND j.status = 'delivered'
+      AND j.started_at < sqlc.narg(date_from)
+      AND j.delivered_at >= sqlc.narg(date_from)
+      AND (sqlc.narg(date_to)::timestamptz IS NULL OR j.delivered_at < sqlc.narg(date_to))
+    )
   )
   AND (
     sqlc.narg(q)::text IS NULL
@@ -125,6 +133,14 @@ WHERE j.organization_id = sqlc.arg(organization_id)
       sqlc.arg(include_open)::boolean
       AND j.status IN ('in_progress', 'ready')
       AND j.started_at < sqlc.narg(date_from)
+    )
+    -- ...and once handed over they count among the window's delivered cars.
+    OR (
+      sqlc.arg(include_open)::boolean
+      AND j.status = 'delivered'
+      AND j.started_at < sqlc.narg(date_from)
+      AND j.delivered_at >= sqlc.narg(date_from)
+      AND (sqlc.narg(date_to)::timestamptz IS NULL OR j.delivered_at < sqlc.narg(date_to))
     )
   )
   AND (
@@ -173,7 +189,7 @@ RETURNING *;
 
 -- name: MarkServiceJobDelivered :one
 UPDATE service_jobs
-SET status = 'delivered'
+SET status = 'delivered', delivered_at = NOW()
 WHERE uuid = $1 AND organization_id = $2
   AND status IN ('ready', 'in_progress')
 RETURNING *;
@@ -221,34 +237,40 @@ WHERE uuid = $1 AND organization_id = $2 AND status = 'posted'
 RETURNING *;
 
 -- name: SumServiceJobsDaily :one
+-- Cars are counted on the day they were opened; money on the day it was
+-- taken, so closing a multi-day job lands in that day's till.
 SELECT
-    COUNT(*)::bigint AS job_count,
+    COUNT(*) FILTER (WHERE j.started_at >= sqlc.arg(day_start) AND j.started_at < sqlc.arg(day_end))::bigint AS job_count,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.payment_status = 'paid'
+        WHERE j.payment_status = 'paid' AND j.paid_at >= sqlc.arg(day_start) AND j.paid_at < sqlc.arg(day_end)
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method = 'card'
           )
     ), 0)::numeric AS card_total,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.payment_status = 'paid'
+        WHERE j.payment_status = 'paid' AND j.paid_at >= sqlc.arg(day_start) AND j.paid_at < sqlc.arg(day_end)
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method = 'cari'
           )
     ), 0)::numeric AS cari_total,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.payment_status = 'paid'
+        WHERE j.payment_status = 'paid' AND j.paid_at >= sqlc.arg(day_start) AND j.paid_at < sqlc.arg(day_end)
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method IN ('cash', 'card')
           )
     ), 0)::numeric AS net_total,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS paid_total
+    COALESCE(SUM(j.total_amount) FILTER (
+        WHERE j.payment_status = 'paid' AND j.paid_at >= sqlc.arg(day_start) AND j.paid_at < sqlc.arg(day_end)
+    ), 0)::numeric AS paid_total
 FROM service_jobs j
-WHERE j.organization_id = $1
-  AND j.started_at >= $2
-  AND j.started_at < $3;
+WHERE j.organization_id = sqlc.arg(organization_id)
+  AND (
+    (j.started_at >= sqlc.arg(day_start) AND j.started_at < sqlc.arg(day_end))
+    OR (j.paid_at >= sqlc.arg(day_start) AND j.paid_at < sqlc.arg(day_end))
+  );
 
 -- name: GetCustomerVehicleDetailByUUID :one
 SELECT

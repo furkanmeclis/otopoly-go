@@ -56,6 +56,8 @@ export type Job = {
   services?: JobServiceTag[];
   started_at: string;
   completed_at?: string | null;
+  /** When the car was handed over. */
+  delivered_at?: string | null;
   paid_at?: string | null;
   created_at: string;
   updated_at: string;

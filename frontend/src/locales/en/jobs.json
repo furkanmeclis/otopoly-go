@@ -178,5 +178,6 @@
   "consumptions.from_recipe": "{{service}} recipe",
   "consumptions.added_by_hand": "Added by hand",
   "consumptions.untracked": "not stock-tracked",
-  "consumptions.reverted": "returned to stock"
+  "consumptions.reverted": "returned to stock",
+  "board.delivered_span": "{{n}}-day job"
 }

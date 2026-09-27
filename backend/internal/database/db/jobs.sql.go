@@ -28,6 +28,14 @@ WHERE j.organization_id = $1
       AND j.status IN ('in_progress', 'ready')
       AND j.started_at < $3
     )
+    -- ...and once handed over they count among the window's delivered cars.
+    OR (
+      $5::boolean
+      AND j.status = 'delivered'
+      AND j.started_at < $3
+      AND j.delivered_at >= $3
+      AND ($4::timestamptz IS NULL OR j.delivered_at < $4)
+    )
   )
   AND (
     $6::text IS NULL
@@ -87,7 +95,7 @@ INSERT INTO service_jobs (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type CreateServiceJobParams struct {
@@ -148,6 +156,7 @@ func (q *Queries) CreateServiceJob(ctx context.Context, arg CreateServiceJobPara
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
@@ -332,7 +341,7 @@ func (q *Queries) GetCustomerVehicleDetailByUUID(ctx context.Context, arg GetCus
 }
 
 const getServiceJobByID = `-- name: GetServiceJobByID :one
-SELECT id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status FROM service_jobs
+SELECT id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at FROM service_jobs
 WHERE id = $1 AND organization_id = $2
 `
 
@@ -366,12 +375,13 @@ func (q *Queries) GetServiceJobByID(ctx context.Context, arg GetServiceJobByIDPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
 
 const getServiceJobByUUID = `-- name: GetServiceJobByUUID :one
-SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_name, j.customer_phone, j.plate, j.vehicle_label, j.status, j.currency, j.notes, j.started_at, j.completed_at, j.paid_at, j.assignee_user_id, j.total_amount, j.created_by, j.created_at, j.updated_at, j.payment_status,
+SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_name, j.customer_phone, j.plate, j.vehicle_label, j.status, j.currency, j.notes, j.started_at, j.completed_at, j.paid_at, j.assignee_user_id, j.total_amount, j.created_by, j.created_at, j.updated_at, j.payment_status, j.delivered_at,
        c.uuid AS customer_uuid,
        v.uuid AS vehicle_uuid,
        au.uuid AS assignee_uuid,
@@ -410,6 +420,7 @@ type GetServiceJobByUUIDRow struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	PaymentStatus  string             `json:"payment_status"`
+	DeliveredAt    pgtype.Timestamptz `json:"delivered_at"`
 	CustomerUuid   uuid.UUID          `json:"customer_uuid"`
 	VehicleUuid    uuid.UUID          `json:"vehicle_uuid"`
 	AssigneeUuid   pgtype.UUID        `json:"assignee_uuid"`
@@ -441,6 +452,7 @@ func (q *Queries) GetServiceJobByUUID(ctx context.Context, arg GetServiceJobByUU
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 		&i.CustomerUuid,
 		&i.VehicleUuid,
 		&i.AssigneeUuid,
@@ -778,7 +790,7 @@ func (q *Queries) ListServiceJobServiceTags(ctx context.Context, arg ListService
 }
 
 const listServiceJobs = `-- name: ListServiceJobs :many
-SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_name, j.customer_phone, j.plate, j.vehicle_label, j.status, j.currency, j.notes, j.started_at, j.completed_at, j.paid_at, j.assignee_user_id, j.total_amount, j.created_by, j.created_at, j.updated_at, j.payment_status,
+SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_name, j.customer_phone, j.plate, j.vehicle_label, j.status, j.currency, j.notes, j.started_at, j.completed_at, j.paid_at, j.assignee_user_id, j.total_amount, j.created_by, j.created_at, j.updated_at, j.payment_status, j.delivered_at,
        c.uuid AS customer_uuid,
        v.uuid AS vehicle_uuid,
        au.uuid AS assignee_uuid,
@@ -804,6 +816,14 @@ WHERE j.organization_id = $1
       $5::boolean
       AND j.status IN ('in_progress', 'ready')
       AND j.started_at < $3
+    )
+    -- ...and once handed over they count among the window's delivered cars.
+    OR (
+      $5::boolean
+      AND j.status = 'delivered'
+      AND j.started_at < $3
+      AND j.delivered_at >= $3
+      AND ($4::timestamptz IS NULL OR j.delivered_at < $4)
     )
   )
   AND (
@@ -857,6 +877,7 @@ type ListServiceJobsRow struct {
 	CreatedAt          pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
 	PaymentStatus      string             `json:"payment_status"`
+	DeliveredAt        pgtype.Timestamptz `json:"delivered_at"`
 	CustomerUuid       uuid.UUID          `json:"customer_uuid"`
 	VehicleUuid        uuid.UUID          `json:"vehicle_uuid"`
 	AssigneeUuid       pgtype.UUID        `json:"assignee_uuid"`
@@ -907,6 +928,7 @@ func (q *Queries) ListServiceJobs(ctx context.Context, arg ListServiceJobsParams
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PaymentStatus,
+			&i.DeliveredAt,
 			&i.CustomerUuid,
 			&i.VehicleUuid,
 			&i.AssigneeUuid,
@@ -926,7 +948,7 @@ func (q *Queries) ListServiceJobs(ctx context.Context, arg ListServiceJobsParams
 }
 
 const listServiceJobsByCustomer = `-- name: ListServiceJobsByCustomer :many
-SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_name, j.customer_phone, j.plate, j.vehicle_label, j.status, j.currency, j.notes, j.started_at, j.completed_at, j.paid_at, j.assignee_user_id, j.total_amount, j.created_by, j.created_at, j.updated_at, j.payment_status,
+SELECT j.id, j.uuid, j.organization_id, j.customer_id, j.vehicle_id, j.customer_name, j.customer_phone, j.plate, j.vehicle_label, j.status, j.currency, j.notes, j.started_at, j.completed_at, j.paid_at, j.assignee_user_id, j.total_amount, j.created_by, j.created_at, j.updated_at, j.payment_status, j.delivered_at,
        c.uuid AS customer_uuid,
        v.uuid AS vehicle_uuid
 FROM service_jobs j
@@ -966,6 +988,7 @@ type ListServiceJobsByCustomerRow struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	PaymentStatus  string             `json:"payment_status"`
+	DeliveredAt    pgtype.Timestamptz `json:"delivered_at"`
 	CustomerUuid   uuid.UUID          `json:"customer_uuid"`
 	VehicleUuid    uuid.UUID          `json:"vehicle_uuid"`
 }
@@ -1006,6 +1029,7 @@ func (q *Queries) ListServiceJobsByCustomer(ctx context.Context, arg ListService
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.PaymentStatus,
+			&i.DeliveredAt,
 			&i.CustomerUuid,
 			&i.VehicleUuid,
 		); err != nil {
@@ -1153,7 +1177,7 @@ UPDATE service_jobs
 SET status = 'cancelled', completed_at = COALESCE(completed_at, NOW())
 WHERE uuid = $1 AND organization_id = $2
   AND status IN ('in_progress', 'ready')
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type MarkServiceJobCancelledParams struct {
@@ -1186,16 +1210,17 @@ func (q *Queries) MarkServiceJobCancelled(ctx context.Context, arg MarkServiceJo
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
 
 const markServiceJobDelivered = `-- name: MarkServiceJobDelivered :one
 UPDATE service_jobs
-SET status = 'delivered'
+SET status = 'delivered', delivered_at = NOW()
 WHERE uuid = $1 AND organization_id = $2
   AND status IN ('ready', 'in_progress')
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type MarkServiceJobDeliveredParams struct {
@@ -1228,6 +1253,7 @@ func (q *Queries) MarkServiceJobDelivered(ctx context.Context, arg MarkServiceJo
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
@@ -1237,7 +1263,7 @@ UPDATE service_jobs
 SET status = 'ready', completed_at = COALESCE(completed_at, NOW())
 WHERE uuid = $1 AND organization_id = $2
   AND status = 'in_progress'
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type MarkServiceJobDoneParams struct {
@@ -1270,6 +1296,7 @@ func (q *Queries) MarkServiceJobDone(ctx context.Context, arg MarkServiceJobDone
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
@@ -1282,7 +1309,7 @@ SET payment_status = 'paid',
 WHERE uuid = $1 AND organization_id = $2
   AND payment_status = 'unpaid'
   AND status IN ('in_progress', 'ready', 'delivered')
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type MarkServiceJobPaidParams struct {
@@ -1315,6 +1342,7 @@ func (q *Queries) MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaid
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
@@ -1324,7 +1352,7 @@ UPDATE service_jobs
 SET status = 'voided'
 WHERE uuid = $1 AND organization_id = $2
   AND payment_status = 'paid'
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type MarkServiceJobVoidedParams struct {
@@ -1357,45 +1385,50 @@ func (q *Queries) MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVo
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
 
 const sumServiceJobsDaily = `-- name: SumServiceJobsDaily :one
 SELECT
-    COUNT(*)::bigint AS job_count,
+    COUNT(*) FILTER (WHERE j.started_at >= $1 AND j.started_at < $2)::bigint AS job_count,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.payment_status = 'paid'
+        WHERE j.payment_status = 'paid' AND j.paid_at >= $1 AND j.paid_at < $2
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method = 'card'
           )
     ), 0)::numeric AS card_total,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.payment_status = 'paid'
+        WHERE j.payment_status = 'paid' AND j.paid_at >= $1 AND j.paid_at < $2
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method = 'cari'
           )
     ), 0)::numeric AS cari_total,
     COALESCE(SUM(j.total_amount) FILTER (
-        WHERE j.payment_status = 'paid'
+        WHERE j.payment_status = 'paid' AND j.paid_at >= $1 AND j.paid_at < $2
           AND EXISTS (
               SELECT 1 FROM service_job_payments p
               WHERE p.job_id = j.id AND p.status = 'posted' AND p.method IN ('cash', 'card')
           )
     ), 0)::numeric AS net_total,
-    COALESCE(SUM(j.total_amount) FILTER (WHERE j.payment_status = 'paid'), 0)::numeric AS paid_total
+    COALESCE(SUM(j.total_amount) FILTER (
+        WHERE j.payment_status = 'paid' AND j.paid_at >= $1 AND j.paid_at < $2
+    ), 0)::numeric AS paid_total
 FROM service_jobs j
-WHERE j.organization_id = $1
-  AND j.started_at >= $2
-  AND j.started_at < $3
+WHERE j.organization_id = $3
+  AND (
+    (j.started_at >= $1 AND j.started_at < $2)
+    OR (j.paid_at >= $1 AND j.paid_at < $2)
+  )
 `
 
 type SumServiceJobsDailyParams struct {
+	DayStart       pgtype.Timestamptz `json:"day_start"`
+	DayEnd         pgtype.Timestamptz `json:"day_end"`
 	OrganizationID int64              `json:"organization_id"`
-	StartedAt      pgtype.Timestamptz `json:"started_at"`
-	StartedAt_2    pgtype.Timestamptz `json:"started_at_2"`
 }
 
 type SumServiceJobsDailyRow struct {
@@ -1406,8 +1439,10 @@ type SumServiceJobsDailyRow struct {
 	PaidTotal pgtype.Numeric `json:"paid_total"`
 }
 
+// Cars are counted on the day they were opened; money on the day it was
+// taken, so closing a multi-day job lands in that day's till.
 func (q *Queries) SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error) {
-	row := q.db.QueryRow(ctx, sumServiceJobsDaily, arg.OrganizationID, arg.StartedAt, arg.StartedAt_2)
+	row := q.db.QueryRow(ctx, sumServiceJobsDaily, arg.DayStart, arg.DayEnd, arg.OrganizationID)
 	var i SumServiceJobsDailyRow
 	err := row.Scan(
 		&i.JobCount,
@@ -1424,7 +1459,7 @@ UPDATE service_jobs
 SET assignee_user_id = $1
 WHERE uuid = $2 AND organization_id = $3
   AND status IN ('in_progress', 'ready', 'delivered')
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type UpdateServiceJobAssigneeParams struct {
@@ -1458,6 +1493,7 @@ func (q *Queries) UpdateServiceJobAssignee(ctx context.Context, arg UpdateServic
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }
@@ -1467,7 +1503,7 @@ UPDATE service_jobs
 SET notes = $3
 WHERE uuid = $1 AND organization_id = $2
   AND status IN ('in_progress', 'ready')
-RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status
+RETURNING id, uuid, organization_id, customer_id, vehicle_id, customer_name, customer_phone, plate, vehicle_label, status, currency, notes, started_at, completed_at, paid_at, assignee_user_id, total_amount, created_by, created_at, updated_at, payment_status, delivered_at
 `
 
 type UpdateServiceJobNotesParams struct {
@@ -1501,6 +1537,7 @@ func (q *Queries) UpdateServiceJobNotes(ctx context.Context, arg UpdateServiceJo
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.PaymentStatus,
+		&i.DeliveredAt,
 	)
 	return i, err
 }

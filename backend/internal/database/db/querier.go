@@ -687,6 +687,8 @@ type Querier interface {
 	SumFinanceExpensesByCategory(ctx context.Context, arg SumFinanceExpensesByCategoryParams) ([]SumFinanceExpensesByCategoryRow, error)
 	SumFinanceTransactionsByType(ctx context.Context, arg SumFinanceTransactionsByTypeParams) ([]SumFinanceTransactionsByTypeRow, error)
 	SumProductSalesDaily(ctx context.Context, arg SumProductSalesDailyParams) (SumProductSalesDailyRow, error)
+	// Cars are counted on the day they were opened; money on the day it was
+	// taken, so closing a multi-day job lands in that day's till.
 	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
 	TodoSummary(ctx context.Context, arg TodoSummaryParams) (TodoSummaryRow, error)
 	TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error

@@ -126,8 +126,8 @@ func (s *Service) SummaryIn(ctx context.Context, dateStr string, loc *time.Locat
 	next := nextDay(day)
 	row, err := s.q.SumServiceJobsDaily(ctx, db.SumServiceJobsDailyParams{
 		OrganizationID: orgID,
-		StartedAt:      pgtype.Timestamptz{Time: day, Valid: true},
-		StartedAt_2:    pgtype.Timestamptz{Time: next, Valid: true},
+		DayStart:       pgtype.Timestamptz{Time: day, Valid: true},
+		DayEnd:         pgtype.Timestamptz{Time: next, Valid: true},
 	})
 	if err != nil {
 		return Summary{}, err

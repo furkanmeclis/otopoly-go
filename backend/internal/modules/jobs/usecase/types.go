@@ -56,6 +56,7 @@ type Job struct {
 	Services    []ServiceTag `json:"services,omitempty"`
 	StartedAt   time.Time    `json:"started_at"`
 	CompletedAt *time.Time   `json:"completed_at,omitempty"`
+	DeliveredAt *time.Time   `json:"delivered_at,omitempty"`
 	PaidAt      *time.Time   `json:"paid_at,omitempty"`
 	CreatedAt   time.Time    `json:"created_at"`
 	UpdatedAt   time.Time    `json:"updated_at"`

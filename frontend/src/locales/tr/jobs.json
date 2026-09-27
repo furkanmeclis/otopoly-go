@@ -178,5 +178,6 @@
   "consumptions.from_recipe": "{{service}} reçetesi",
   "consumptions.added_by_hand": "Elle eklendi",
   "consumptions.untracked": "stok takibi yok",
-  "consumptions.reverted": "stoğa iade edildi"
+  "consumptions.reverted": "stoğa iade edildi",
+  "board.delivered_span": "{{n}} günlük iş"
 }

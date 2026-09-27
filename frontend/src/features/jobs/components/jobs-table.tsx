@@ -14,6 +14,7 @@ import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { VehicleBrandMark } from "@/features/jobs/components/vehicle-brand-mark";
 import {
   carryOverDay,
+  deliveredSpanDays,
   isStale,
   paymentTone,
   statusTone,
@@ -125,6 +126,13 @@ export function JobsTable({
                       <StatusChip
                         label={t("jobs.board.carry_over_day", {
                           n: carryOverDay(job) ?? 0,
+                        })}
+                        tone="default"
+                      />
+                    ) : deliveredSpanDays(job) ? (
+                      <StatusChip
+                        label={t("jobs.board.delivered_span", {
+                          n: deliveredSpanDays(job) ?? 0,
                         })}
                         tone="default"
                       />

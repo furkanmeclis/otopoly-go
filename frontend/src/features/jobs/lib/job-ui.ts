@@ -53,6 +53,16 @@ export function carryOverDay(job: Job, today = localToday()): number | null {
   return days > 0 ? days + 1 : null;
 }
 
+/** Delivered multi-day job: how many calendar days it took (null = same day). */
+export function deliveredSpanDays(job: Job): number | null {
+  if (job.status !== "delivered" || !job.delivered_at) return null;
+  const days = calendarDaysBetween(
+    localDateOf(job.started_at),
+    localDateOf(job.delivered_at),
+  );
+  return days > 0 ? days + 1 : null;
+}
+
 export function isStale(job: Job, now: number): boolean {
   // Multi-day work is expected to run long; only same-day jobs get flagged.
   return (

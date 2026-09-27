@@ -325,7 +325,7 @@ func (s *Service) BuildReport(ctx context.Context, orgID int64, day time.Time) (
 	}
 
 	// Same basis as the İşlemler day summary bar.
-	money, err := s.q.SumServiceJobsDaily(ctx, db.SumServiceJobsDailyParams{OrganizationID: orgID, StartedAt: from, StartedAt_2: to})
+	money, err := s.q.SumServiceJobsDaily(ctx, db.SumServiceJobsDailyParams{OrganizationID: orgID, DayStart: from, DayEnd: to})
 	if err != nil {
 		return Report{}, err
 	}
