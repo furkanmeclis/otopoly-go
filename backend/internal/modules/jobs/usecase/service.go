@@ -14,6 +14,7 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
@@ -42,6 +43,7 @@ type Service struct {
 	cari    *cariusecase.Service
 	search  SearchIndexer
 	bus     events.Bus
+	ent     *entitlements.Service
 }
 
 func New(
@@ -56,6 +58,9 @@ func New(
 
 func (s *Service) SetSearchIndexer(idx SearchIndexer) { s.search = idx }
 func (s *Service) SetEventBus(bus events.Bus)         { s.bus = bus }
+func (s *Service) SetEntitlements(e *entitlements.Service) {
+	s.ent = e
+}
 
 func (s *Service) ResourceMeta() resourcemeta.ResourceMeta {
 	return resourcemeta.TenantJobs()
@@ -274,6 +279,11 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 	if len(in.Lines) == 0 {
 		return JobDetail{}, fmt.Errorf("%w: at least one service line is required", ErrInvalidRequest)
 	}
+	for _, key := range []string{"jobs.daily", "jobs.monthly"} {
+		if _, err := s.ent.Check(ctx, orgID, key, 1); err != nil {
+			return JobDetail{}, err
+		}
+	}
 
 	vehicle, err := s.q.GetCustomerVehicleDetailByUUID(ctx, db.GetCustomerVehicleDetailByUUIDParams{
 		Uuid: in.VehicleUUID, OrganizationID: orgID,
@@ -442,6 +452,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 	if err := tx.Commit(ctx); err != nil {
 		return JobDetail{}, err
 	}
+	_ = s.ent.Consume(ctx, orgID, "jobs.daily", 1)
+	_ = s.ent.Consume(ctx, orgID, "jobs.monthly", 1)
 
 	s.recordActivity(ctx, "jobs.create", "jobs.job", &job.Uuid, map[string]any{
 		"plate": job.Plate, "total": financeusecase.NumericToString(job.TotalAmount),
@@ -570,6 +582,7 @@ func (s *Service) Cancel(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	if err := tx.Commit(ctx); err != nil {
 		return JobDetail{}, err
 	}
+	s.giveBackJob(ctx, orgID, row.StartedAt.Time)
 	s.recordActivity(ctx, "jobs.cancel", "jobs.job", &row.Uuid, nil)
 	s.publish(ctx, events.JobsCancelled, map[string]any{"job_uuid": row.Uuid.String()})
 	s.indexJob(ctx, row.Uuid)
@@ -819,6 +832,7 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	if err := tx.Commit(ctx); err != nil {
 		return JobDetail{}, err
 	}
+	s.giveBackJob(ctx, orgID, voidedJob.StartedAt.Time)
 	for _, pair := range financeNotify {
 		s.finance.NotifyIndexed(ctx, pair[0], pair[1])
 	}
@@ -826,6 +840,21 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	s.publish(ctx, events.JobsVoided, map[string]any{"job_uuid": voidedJob.Uuid.String()})
 	s.indexJob(ctx, voidedJob.Uuid)
 	return s.Get(ctx, voidedJob.Uuid)
+}
+
+// giveBackJob returns a cancelled or voided job's slot to today's / this month's counter.
+func (s *Service) giveBackJob(ctx context.Context, orgID int64, startedAt time.Time) {
+	loc, err := time.LoadLocation("Europe/Istanbul")
+	if err != nil {
+		loc = time.FixedZone("TRT", 3*60*60)
+	}
+	now, st := time.Now().In(loc), startedAt.In(loc)
+	if now.Year() == st.Year() && now.YearDay() == st.YearDay() {
+		_ = s.ent.Consume(ctx, orgID, "jobs.daily", -1)
+	}
+	if now.Year() == st.Year() && now.Month() == st.Month() {
+		_ = s.ent.Consume(ctx, orgID, "jobs.monthly", -1)
+	}
 }
 
 func (s *Service) loadDetail(ctx context.Context, orgID int64, row db.GetServiceJobByUUIDRow) (JobDetail, error) {

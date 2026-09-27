@@ -8,9 +8,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/model"
 	storageusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
@@ -457,7 +459,12 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 }
 
 func writeErr(w http.ResponseWriter, r *http.Request, err error) {
+	var le *entitlements.LimitError
 	switch {
+	case errors.As(err, &le):
+		middleware.WriteLimitReached(w, r, le.Decision)
+	case errors.Is(err, entitlements.ErrFeatureDisabled):
+		response.Error(w, r, http.StatusForbidden, response.CodeFeatureDisabled, "This feature is not included in your plan")
 	case errors.Is(err, storageusecase.ErrNotFound):
 		response.NotFound(w, r, "object not found")
 	case errors.Is(err, storageusecase.ErrInvalidKey):

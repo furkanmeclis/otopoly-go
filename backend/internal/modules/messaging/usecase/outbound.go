@@ -14,6 +14,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
@@ -107,6 +108,18 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 	if strings.TrimSpace(req.Phone) == "" || req.OrgID <= 0 {
 		return uuid.Nil, fmt.Errorf("%w: org and phone are required", ErrInvalidRequest)
 	}
+	if channel == model.ChannelWhatsApp {
+		on, err := s.ent.Enabled(ctx, req.OrgID, "whatsapp.enabled")
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if !on {
+			return uuid.Nil, entitlements.ErrFeatureDisabled
+		}
+		if _, err := s.ent.Check(ctx, req.OrgID, "whatsapp.monthly", 1); err != nil {
+			return uuid.Nil, err
+		}
+	}
 	att := req.Attachment
 	if att != nil {
 		cp := *att
@@ -152,13 +165,22 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 		if _, err := s.enq.Enqueue(task, queue.MessagingSendOptions()...); err != nil {
 			return uuid.Nil, fmt.Errorf("QueueSend enqueue: %w", err)
 		}
+		if channel == model.ChannelWhatsApp {
+			_ = s.ent.Consume(ctx, req.OrgID, "whatsapp.monthly", 1)
+		}
 		return row.Uuid, nil
 	}
 	var inline []byte
 	if att != nil && att.ObjectKey == "" {
 		inline = att.Data
 	}
-	return row.Uuid, s.processOutbound(ctx, row.ID, true, inline)
+	if err := s.processOutbound(ctx, row.ID, true, inline); err != nil {
+		return row.Uuid, err
+	}
+	if channel == model.ChannelWhatsApp {
+		_ = s.ent.Consume(ctx, req.OrgID, "whatsapp.monthly", 1)
+	}
+	return row.Uuid, nil
 }
 
 // ProcessOutbound delivers one queued row (asynq handler in the API process).

@@ -8,23 +8,32 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	leadshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads/handler"
 	leadsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 )
 
 // RegisterRoutes mounts /v1/tenant/leads/*.
-func RegisterRoutes(mux *http.ServeMux, svc *leadsusecase.Service, tokens *jwt.Manager, loader middleware.IdentityLoader, q *db.Queries) {
+func RegisterRoutes(
+	mux *http.ServeMux,
+	svc *leadsusecase.Service,
+	tokens *jwt.Manager,
+	loader middleware.IdentityLoader,
+	q *db.Queries,
+	ent *entitlements.Service,
+) {
 	h := leadshandler.New(svc)
 	authn := middleware.Authenticate(tokens, loader)
 	requireOrg := middleware.RequireOrganization(tokens, q)
+	requireFeature := middleware.RequireFeature(ent, "module.quotes")
 	read := func(fn http.HandlerFunc) http.Handler {
-		return middleware.Chain(fn, authn, requireOrg, middleware.RequirePermission(rbac.PermTenantLeadsRead))
+		return middleware.Chain(fn, authn, requireOrg, requireFeature, middleware.RequirePermission(rbac.PermTenantLeadsRead))
 	}
 	write := func(fn http.HandlerFunc) http.Handler {
-		return middleware.Chain(fn, authn, requireOrg, middleware.RequirePermission(rbac.PermTenantLeadsWrite))
+		return middleware.Chain(fn, authn, requireOrg, requireFeature, middleware.RequirePermission(rbac.PermTenantLeadsWrite))
 	}
 	todo := func(fn http.HandlerFunc) http.Handler {
-		return middleware.Chain(fn, authn, requireOrg,
+		return middleware.Chain(fn, authn, requireOrg, requireFeature,
 			middleware.RequirePermission(rbac.PermTenantLeadsWrite),
 			middleware.RequirePermission(rbac.PermTenantTodosWrite))
 	}

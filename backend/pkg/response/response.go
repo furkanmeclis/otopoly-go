@@ -27,6 +27,8 @@ const (
 	CodeOrganizationAccessExpired = "ORGANIZATION_ACCESS_EXPIRED"
 	CodeRealtimeDisabled          = "REALTIME_DISABLED"
 	CodeStepUpRequired            = "STEP_UP_REQUIRED"
+	CodeLimitReached              = "LIMIT_REACHED"
+	CodeFeatureDisabled           = "FEATURE_DISABLED"
 	CodeMFARequired               = "MFA_REQUIRED"
 	CodeMFANotEnrolled            = "MFA_NOT_ENROLLED"
 	CodeRateLimited               = "RATE_LIMITED"

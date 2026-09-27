@@ -20,6 +20,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/provider"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -47,6 +48,7 @@ type Service struct {
 	toolTimeout   time.Duration
 	voiceAPIKey   string
 	voiceHTTP     *http.Client
+	ent           *entitlements.Service
 }
 
 // New creates the service.
@@ -77,6 +79,8 @@ func New(store Store, box Encrypter, registry *tools.Registry, log *slog.Logger)
 
 // SetProviderFactory overrides provider construction (tests, custom transports).
 func (s *Service) SetProviderFactory(f ProviderFactory) { s.newProvider = f }
+
+func (s *Service) SetEntitlements(e *entitlements.Service) { s.ent = e }
 
 // SetConfirmationGate installs a custom confirmation flow for write tools
 // (EnableActions installs the built-in one).

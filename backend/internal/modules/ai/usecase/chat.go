@@ -14,6 +14,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/provider"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -104,6 +105,16 @@ func (t *Turn) ConversationUUID() uuid.UUID { return t.conv.Uuid }
 func (s *Service) PrepareMessage(ctx context.Context, convUUID uuid.UUID, in SendInput) (*Turn, error) {
 	p, scope, err := principalScope(ctx)
 	if err != nil {
+		return nil, err
+	}
+	on, err := s.ent.Enabled(ctx, scope.InternalID, "ai.enabled")
+	if err != nil {
+		return nil, err
+	}
+	if !on {
+		return nil, entitlements.ErrFeatureDisabled
+	}
+	if _, err := s.ent.Check(ctx, scope.InternalID, "ai.monthly", 1); err != nil {
 		return nil, err
 	}
 	text := strings.TrimSpace(in.Content)
@@ -212,6 +223,7 @@ func (s *Service) RunTurn(ctx context.Context, t *Turn, emit Emitter) error {
 	if err != nil {
 		return err
 	}
+	_ = s.ent.Consume(persistCtx, t.scope.InternalID, "ai.monthly", 1)
 	if err := s.store.TouchAIConversation(persistCtx, db.TouchAIConversationParams{ID: convID, Added: 1}); err != nil {
 		s.log.Warn("ai_conversation_touch_failed", "error", err)
 	}

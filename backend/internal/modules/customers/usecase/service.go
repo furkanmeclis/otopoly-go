@@ -12,6 +12,7 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
@@ -30,11 +31,14 @@ type Service struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
 	act  *activity.Recorder
+	ent  *entitlements.Service
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
 	return &Service{pool: pool, q: q, act: act}
 }
+
+func (s *Service) SetEntitlements(e *entitlements.Service) { s.ent = e }
 
 func (s *Service) ResourceMeta() resourcemeta.ResourceMeta {
 	return resourcemeta.TenantCustomers()
@@ -235,6 +239,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (CustomerDetail, e
 	if in.IsActive != nil {
 		active = *in.IsActive
 	}
+	if _, err := s.ent.Check(ctx, orgID, "customers.count", 1); err != nil {
+		return CustomerDetail{}, err
+	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -268,6 +275,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (CustomerDetail, e
 	if err := tx.Commit(ctx); err != nil {
 		return CustomerDetail{}, err
 	}
+	_ = s.ent.Consume(ctx, orgID, "customers.count", 1)
 	s.recordActivity(ctx, "tenant.customer.create", "customer", &row.Uuid, map[string]any{"name": row.Name})
 	return s.Get(ctx, row.Uuid)
 }

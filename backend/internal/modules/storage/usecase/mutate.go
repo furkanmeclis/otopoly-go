@@ -108,6 +108,7 @@ func (s *Service) trashOne(ctx context.Context, actor model.Actor, key string) e
 	if err := s.store.Delete(ctx, key); err != nil {
 		return fmt.Errorf("storage: trash delete: %w", err)
 	}
+	s.consumeStorage(ctx, -mb(info.Size))
 	if s.q != nil {
 		_, err = s.q.InsertStorageTrash(ctx, db.InsertStorageTrashParams{
 			ObjectKey:   trashKey,

@@ -8,6 +8,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	quoteshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/handler"
 	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 )
@@ -20,19 +21,21 @@ func RegisterRoutes(
 	tokens *jwt.Manager,
 	loader middleware.IdentityLoader,
 	q *db.Queries,
+	ent *entitlements.Service,
 ) {
 	h := quoteshandler.New(svc, limiter)
 	authn := middleware.Authenticate(tokens, loader)
 	requireOrg := middleware.RequireOrganization(tokens, q)
+	requireFeature := middleware.RequireFeature(ent, "module.quotes")
 	read := func(fn http.HandlerFunc) http.Handler {
-		return middleware.Chain(fn, authn, requireOrg, middleware.RequirePermission(rbac.PermTenantQuotesRead))
+		return middleware.Chain(fn, authn, requireOrg, requireFeature, middleware.RequirePermission(rbac.PermTenantQuotesRead))
 	}
 	write := func(fn http.HandlerFunc) http.Handler {
-		return middleware.Chain(fn, authn, requireOrg, middleware.RequirePermission(rbac.PermTenantQuotesWrite))
+		return middleware.Chain(fn, authn, requireOrg, requireFeature, middleware.RequirePermission(rbac.PermTenantQuotesWrite))
 	}
 	// Converting creates a job: needs jobs.write too.
 	convert := func(fn http.HandlerFunc) http.Handler {
-		return middleware.Chain(fn, authn, requireOrg,
+		return middleware.Chain(fn, authn, requireOrg, requireFeature,
 			middleware.RequirePermission(rbac.PermTenantQuotesWrite),
 			middleware.RequirePermission(rbac.PermTenantJobsWrite))
 	}

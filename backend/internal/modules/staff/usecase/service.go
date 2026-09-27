@@ -10,6 +10,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/password"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
@@ -30,11 +31,14 @@ type Service struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
 	act  *activity.Recorder
+	ent  *entitlements.Service
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
 	return &Service{pool: pool, q: q, act: act}
 }
+
+func (s *Service) SetEntitlements(e *entitlements.Service) { s.ent = e }
 
 func (s *Service) ResourceMeta() resourcemeta.ResourceMeta {
 	return resourcemeta.TenantStaff()
@@ -199,6 +203,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Member, error) {
 	if len(in.Password) < 8 {
 		return Member{}, fmt.Errorf("%w: password must be at least 8 characters", ErrInvalidRequest)
 	}
+	if _, err := s.ent.Check(ctx, orgID, "staff.count", 1); err != nil {
+		return Member{}, err
+	}
 	if _, err := s.q.GetUserByEmail(ctx, in.Email); err == nil {
 		return Member{}, fmt.Errorf("%w: email already registered", ErrConflict)
 	} else if !errors.Is(err, pgx.ErrNoRows) {
@@ -242,6 +249,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Member, error) {
 	if err := tx.Commit(ctx); err != nil {
 		return Member{}, err
 	}
+	_ = s.ent.Consume(ctx, orgID, "staff.count", 1)
 	m := Member{
 		UUID:      user.Uuid,
 		Email:     user.Email,

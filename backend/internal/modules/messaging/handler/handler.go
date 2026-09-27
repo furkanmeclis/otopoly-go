@@ -5,8 +5,10 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
 	"github.com/google/uuid"
@@ -23,6 +25,15 @@ func New(svc *messagingusecase.Service) *Handler {
 }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
+	var le *entitlements.LimitError
+	if errors.As(err, &le) {
+		middleware.WriteLimitReached(w, r, le.Decision)
+		return
+	}
+	if errors.Is(err, entitlements.ErrFeatureDisabled) {
+		response.Error(w, r, http.StatusForbidden, response.CodeFeatureDisabled, "This feature is not included in your plan")
+		return
+	}
 	var verr *messagingusecase.ValidationError
 	if errors.As(err, &verr) {
 		details := []response.Detail{{Field: verr.Field, Message: verr.Msg, Code: "invalid"}}

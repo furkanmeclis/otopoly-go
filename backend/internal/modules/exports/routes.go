@@ -6,6 +6,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	exporthandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/handler"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/stepup"
@@ -19,6 +20,7 @@ func RegisterRoutes(
 	loader middleware.IdentityLoader,
 	stepUp *stepup.Service,
 	q *db.Queries,
+	ent *entitlements.Service,
 ) {
 	authn := middleware.Authenticate(tokens, loader)
 	require := func(slug string) func(http.Handler) http.Handler {
@@ -55,26 +57,27 @@ func RegisterRoutes(
 	))
 
 	requireOrg := middleware.RequireOrganization(tokens, q)
+	requireReportsFeature := middleware.RequireFeature(ent, "module.reports")
 	tenantExport := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantFinanceExport))
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireReportsFeature, require(rbac.PermTenantFinanceExport))
 	}
 	cariExport := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantCariExport))
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireReportsFeature, require(rbac.PermTenantCariExport))
 	}
 	jobsExport := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantJobsExport))
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireReportsFeature, require(rbac.PermTenantJobsExport))
 	}
 	salesExport := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantSalesExport))
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireReportsFeature, require(rbac.PermTenantSalesExport))
 	}
 	suppliersExport := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantSuppliersExport))
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireReportsFeature, require(rbac.PermTenantSuppliersExport))
 	}
 	purchasesExport := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantPurchasesExport))
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireReportsFeature, require(rbac.PermTenantPurchasesExport))
 	}
 	reportsExport := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, require(rbac.PermTenantReportsExport))
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireReportsFeature, require(rbac.PermTenantReportsExport))
 	}
 	mux.Handle("GET /v1/tenant/exports", tenantExport(h.ListTenant))
 	mux.Handle("GET /v1/tenant/exports/{uuid}", tenantExport(h.GetTenant))

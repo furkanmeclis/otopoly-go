@@ -13,9 +13,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	aiusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
 	"github.com/google/uuid"
@@ -87,7 +89,12 @@ func (h *Handler) rateLimited(w http.ResponseWriter, r *http.Request, action str
 }
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
+	var le *entitlements.LimitError
 	switch {
+	case errors.As(err, &le):
+		middleware.WriteLimitReached(w, r, le.Decision)
+	case errors.Is(err, entitlements.ErrFeatureDisabled):
+		response.Error(w, r, http.StatusForbidden, response.CodeFeatureDisabled, "This feature is not included in your plan")
 	case errors.Is(err, aiusecase.ErrInvalidRequest):
 		response.BadRequest(w, r, response.CodeValidationError, err.Error())
 	case errors.Is(err, aiusecase.ErrNotFound):

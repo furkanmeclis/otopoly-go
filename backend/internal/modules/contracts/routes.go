@@ -7,6 +7,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	contractshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/handler"
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 )
@@ -17,10 +18,12 @@ func RegisterRoutes(
 	tokens *jwt.Manager,
 	loader middleware.IdentityLoader,
 	q *db.Queries,
+	ent *entitlements.Service,
 ) {
 	h := contractshandler.New(svc)
 	authn := middleware.Authenticate(tokens, loader)
 	requireOrg := middleware.RequireOrganization(tokens, q)
+	requireFeature := middleware.RequireFeature(ent, "module.contracts")
 
 	platformRead := middleware.RequirePermission(rbac.PermPlatformContractPresetsRead)
 	platformWrite := middleware.RequirePermission(rbac.PermPlatformContractPresetsWrite)
@@ -35,13 +38,13 @@ func RegisterRoutes(
 		return middleware.Chain(http.HandlerFunc(handler), authn, platformWrite)
 	}
 	tRead := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantRead)
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireFeature, tenantRead)
 	}
 	tWrite := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantWrite)
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireFeature, tenantWrite)
 	}
 	tOwnerWrite := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantWrite, requireOwner)
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, requireFeature, tenantWrite, requireOwner)
 	}
 
 	// Platform presets

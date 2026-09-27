@@ -109,6 +109,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/crypto"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
 	ioadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine/adapters"
@@ -305,11 +306,14 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	cariSvc.SetSearchIndexer(searchIndexer)
 	cariSvc.SetEventBus(eventBus)
 	carimodule.RegisterRoutes(mux, cariSvc, tokens, loader, deps.Queries)
+	entitlementsSvc := entitlements.New(entitlements.NewDBStore(deps.Queries))
 	jobsSvc := jobsusecase.New(deps.DB, deps.Queries, activityRec, financeSvc, cariSvc)
+	jobsSvc.SetEntitlements(entitlementsSvc)
 	jobsSvc.SetSearchIndexer(searchIndexer)
 	jobsSvc.SetEventBus(eventBus)
 	jobsmodule.RegisterRoutes(mux, jobsSvc, tokens, loader, deps.Queries)
 	staffSvc := staffusecase.New(deps.DB, deps.Queries, activityRec)
+	staffSvc.SetEntitlements(entitlementsSvc)
 	staffmodule.RegisterRoutes(mux, staffSvc, tokens, loader, deps.Queries)
 	salesSvc := salesusecase.New(deps.DB, deps.Queries, activityRec, financeSvc, cariSvc)
 	salesSvc.SetSearchIndexer(searchIndexer)
@@ -330,7 +334,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		storagePublicBaseURL(cfg.Storage),
 	)
 	contractsSvc.SetEventBus(eventBus)
-	contractsmodule.RegisterRoutes(mux, contractsSvc, tokens, loader, deps.Queries)
+	contractsmodule.RegisterRoutes(mux, contractsSvc, tokens, loader, deps.Queries, entitlementsSvc)
 	var waClient messagingproviders.WhatsAppClient
 	var messagingSvc *messagingusecase.Service
 	onSession := func(orgID int64, jid, phone, displayName string, connected bool) {
@@ -366,6 +370,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		&messagingproviders.NoopSMSProvider{Log: log},
 	)
 	messagingSvc.SetStorage(deps.Storage)
+	messagingSvc.SetEntitlements(entitlementsSvc)
 	if deps.Queue != nil {
 		messagingSvc.SetQueue(deps.Queue)
 		// This process owns the WhatsApp sessions, so it consumes queued sends.
@@ -386,7 +391,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	purchasesSvc.SetEventBus(eventBus)
 	purchasesmodule.RegisterRoutes(mux, purchasesSvc, tokens, loader, deps.Queries)
 	reportsSvc := reportsusecase.New(deps.Queries)
-	reportsmodule.RegisterRoutes(mux, reportsSvc, tokens, loader, deps.Queries)
+	reportsmodule.RegisterRoutes(mux, reportsSvc, tokens, loader, deps.Queries, entitlementsSvc)
 	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
 
@@ -435,6 +440,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	vehicleSvc.SetSearcher(searchClient)
 	vehiclemodule.RegisterRoutes(mux, vehiclehandler.New(vehicleSvc, deps.Storage), tokens, loader, deps.Queries)
 	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
+	customersSvc.SetEntitlements(entitlementsSvc)
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, deps.Queries)
 	centerSvc := centerusecase.New(deps.Queries, notifSvc, centerMessenger, log).
@@ -462,7 +468,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	// reminded through the notification center (see internal/modules/salesflow).
 	leadsSvc := leadsusecase.New(deps.DB, deps.Queries, activityRec)
 	leadsSvc.SetTodoCreator(leadsusecase.TodosServiceCreator{Todos: todosSvc})
-	leadsmodule.RegisterRoutes(mux, leadsSvc, tokens, loader, deps.Queries)
+	leadsmodule.RegisterRoutes(mux, leadsSvc, tokens, loader, deps.Queries, entitlementsSvc)
 	quotesSvc := quotesusecase.New(deps.DB, deps.Queries, activityRec, deps.Storage, pdfClient, cfg.Auth.FrontendURL)
 	quotesSvc.SetLogger(log)
 	quotesSvc.SetJobCreator(jobsSvc)
@@ -471,7 +477,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	quotesSvc.SetReminderScheduler(sales)
 	quotesSvc.SetNotifier(sales)
 	sales.SetQuotes(quotesSvc)
-	quotesmodule.RegisterRoutes(mux, quotesSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries)
+	quotesmodule.RegisterRoutes(mux, quotesSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries, entitlementsSvc)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:      deps.Queries,
 		Cari:           cariSvc,
@@ -491,6 +497,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		Todos:          todosSvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
+	aiSvc.SetEntitlements(entitlementsSvc)
 	aiSvc.SetActivityRecorder(activityRec)
 	aiSvc.EnableActions()
 	aiSvc.SetVoiceAPIKey(cfg.Speaches.APIKey)
@@ -535,7 +542,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			)
 		}
 	}
-	exportmodule.RegisterRoutes(mux, exporthandler.New(exportSvc), tokens, loader, stepUpSvc, deps.Queries)
+	exportmodule.RegisterRoutes(mux, exporthandler.New(exportSvc), tokens, loader, stepUpSvc, deps.Queries, entitlementsSvc)
 	importmodule.RegisterRoutes(mux, importhandler.New(importSvc), tokens, loader, deps.Queries)
 	bulkmodule.RegisterRoutes(mux, bulkhandler.New(bulkSvc), tokens, loader)
 	settingsmodule.RegisterRoutes(mux, settingshandler.New(settingsusecase.New(deps.Queries), deps.Storage), tokens, loader)
@@ -547,9 +554,11 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	logsmodule.RegisterRoutes(mux, logshandler.New(logsSvc), tokens, loader)
 	searchSvc := searchusecase.New(searchClient, searchReg, deps.Queries, log)
 	searchmodule.RegisterRoutes(mux, searchhandler.New(searchSvc), tokens, loader)
+	storageSvc := storageusecase.New(deps.Storage, deps.Queries, log)
+	storageSvc.SetEntitlements(entitlementsSvc)
 	storagemodule.RegisterRoutes(
 		mux,
-		storagehandler.New(storageusecase.New(deps.Storage, deps.Queries, log)),
+		storagehandler.New(storageSvc),
 		tokens,
 		loader,
 	)

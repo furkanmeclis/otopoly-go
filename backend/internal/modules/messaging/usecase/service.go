@@ -11,6 +11,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/msgtemplate"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
@@ -65,6 +66,7 @@ type Service struct {
 	enq      Enqueuer
 	store    storage.Driver
 	observer OutboundObserver
+	ent      *entitlements.Service
 }
 
 // New builds a messaging service.
@@ -83,6 +85,8 @@ func New(q Querier, wp *providers.WhatsAppProvider, sms *providers.NoopSMSProvid
 	}
 	return s
 }
+
+func (s *Service) SetEntitlements(e *entitlements.Service) { s.ent = e }
 
 // --- WhatsApp Session ---
 

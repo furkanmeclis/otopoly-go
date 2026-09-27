@@ -15,6 +15,8 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/model"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	platstorage "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -36,6 +38,7 @@ type Service struct {
 	store storageDriver
 	q     *db.Queries
 	log   *slog.Logger
+	ent   *entitlements.Service
 
 	usageMu sync.Mutex
 	usageAt time.Time
@@ -51,6 +54,8 @@ func New(store platstorage.Driver, q *db.Queries, log *slog.Logger) *Service {
 	}
 	return &Service{store: store, q: q, log: log}
 }
+
+func (s *Service) SetEntitlements(e *entitlements.Service) { s.ent = e }
 
 func (s *Service) bucket() string {
 	if s.store == nil {
@@ -126,6 +131,9 @@ func (s *Service) Upload(ctx context.Context, actor model.Actor, meta model.Uplo
 	if meta.Size > maxUploadBytes {
 		return model.Object{}, ErrInvalidKey
 	}
+	if err := s.checkStorage(ctx, meta.Size); err != nil {
+		return model.Object{}, err
+	}
 	mime := mimeFromName(baseName(key), meta.ContentType)
 	err = s.store.Upload(ctx, platstorage.File{
 		Body:        body,
@@ -137,6 +145,7 @@ func (s *Service) Upload(ctx context.Context, actor model.Actor, meta model.Uplo
 	if err != nil {
 		return model.Object{}, fmt.Errorf("storage: upload: %w", err)
 	}
+	s.consumeStorage(ctx, mb(meta.Size))
 	s.invalidateUsage()
 	s.record(ctx, actor, key, "file.uploaded", map[string]any{"name": baseName(key), "size": meta.Size})
 	return s.Get(ctx, actor, key)
@@ -179,9 +188,39 @@ func (s *Service) CompleteUpload(ctx context.Context, actor model.Actor, key str
 	if err != nil {
 		return model.Object{}, err
 	}
+	if err := s.checkStorage(ctx, obj.Size); err != nil {
+		return model.Object{}, err
+	}
+	s.consumeStorage(ctx, mb(obj.Size))
 	s.invalidateUsage()
 	s.record(ctx, actor, key, "file.uploaded", map[string]any{"name": obj.Name, "size": obj.Size})
 	return obj, nil
+}
+
+func (s *Service) checkStorage(ctx context.Context, size int64) error {
+	scope, ok := orgctx.ScopeFrom(ctx)
+	if !ok || s.ent == nil || size <= 0 {
+		return nil
+	}
+	_, err := s.ent.Check(ctx, scope.InternalID, "storage.gb", mb(size))
+	return err
+}
+
+func (s *Service) consumeStorage(ctx context.Context, delta int64) {
+	if scope, ok := orgctx.ScopeFrom(ctx); ok && s.ent != nil && delta != 0 {
+		_ = s.ent.Consume(ctx, scope.InternalID, "storage.gb", delta)
+	}
+}
+
+func mb(n int64) int64 {
+	if n <= 0 {
+		return 0
+	}
+	v := n / (1024 * 1024)
+	if v == 0 {
+		return 1
+	}
+	return v
 }
 
 func (s *Service) Open(ctx context.Context, key, versionID string, download bool) (model.OpenObject, error) {
