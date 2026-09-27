@@ -9,6 +9,8 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.43.0
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.30
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.0
+	github.com/furkanmeclis/go-ubltr v0.0.0-20260816110918-5b412e96178d
+	github.com/furkanmeclis/go-ubltr/render v0.0.0-20260816110918-5b412e96178d
 	github.com/go-webauthn/webauthn v0.12.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
@@ -45,8 +47,6 @@ require (
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/elliotchance/orderedmap/v3 v3.1.0 // indirect
-	github.com/furkanmeclis/go-ubltr v0.0.0-20260816110918-5b412e96178d // indirect
-	github.com/furkanmeclis/go-ubltr/render v0.0.0-20260816110918-5b412e96178d // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/go-webauthn/x v0.1.20 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
@@ -68,6 +68,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
 	github.com/rs/zerolog v1.35.1 // indirect
+	github.com/shopspring/decimal v1.4.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/standard-webhooks/standard-webhooks/libraries v0.0.1 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect

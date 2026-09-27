@@ -73,6 +73,8 @@ type Querier interface {
 	CountFinanceTransactions(ctx context.Context, arg CountFinanceTransactionsParams) (int64, error)
 	CountImportJobsForActor(ctx context.Context, actorID int64) (int64, error)
 	CountImportJobsForOrganization(ctx context.Context, organizationID int64) (int64, error)
+	CountInvoices(ctx context.Context, arg CountInvoicesParams) (int64, error)
+	CountInvoicesForOrg(ctx context.Context, organizationID int64) (int64, error)
 	CountLeads(ctx context.Context, arg CountLeadsParams) (int64, error)
 	CountLiveSubscriptionsByPlan(ctx context.Context, planID int64) (int64, error)
 	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
@@ -136,6 +138,7 @@ type Querier interface {
 	CreateFinanceCategory(ctx context.Context, arg CreateFinanceCategoryParams) (FinanceCategory, error)
 	CreateFinanceTransaction(ctx context.Context, arg CreateFinanceTransactionParams) (FinanceTransaction, error)
 	CreateImportJob(ctx context.Context, arg CreateImportJobParams) (ImportJob, error)
+	CreateInvoice(ctx context.Context, arg CreateInvoiceParams) (BillingInvoice, error)
 	CreateJobConsumption(ctx context.Context, arg CreateJobConsumptionParams) (ServiceJobConsumption, error)
 	// Tenant leads and their timeline. Every query is scoped by organization_id.
 	CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, error)
@@ -309,6 +312,10 @@ type Querier interface {
 	GetGitHubAppSettings(ctx context.Context) (GithubAppSetting, error)
 	GetImportJobByID(ctx context.Context, id int64) (ImportJob, error)
 	GetImportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
+	GetInvoiceByOrder(ctx context.Context, orderID int64) (GetInvoiceByOrderRow, error)
+	GetInvoiceByUUID(ctx context.Context, argUuid uuid.UUID) (GetInvoiceByUUIDRow, error)
+	GetInvoiceByUUIDForOrg(ctx context.Context, arg GetInvoiceByUUIDForOrgParams) (GetInvoiceByUUIDForOrgRow, error)
+	GetInvoiceProfile(ctx context.Context, id int64) (GetInvoiceProfileRow, error)
 	GetJobConsumptionForUpdate(ctx context.Context, arg GetJobConsumptionForUpdateParams) (ServiceJobConsumption, error)
 	GetJobOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetJobOrgAndPhoneByUUIDRow, error)
 	GetLatestContractSignerOTP(ctx context.Context, signerID int64) (ContractSignerOtp, error)
@@ -340,6 +347,7 @@ type Querier interface {
 	GetOpenOrderForOrg(ctx context.Context, organizationID int64) (BillingOrder, error)
 	GetOrderByUUID(ctx context.Context, argUuid uuid.UUID) (GetOrderByUUIDRow, error)
 	GetOrderByUUIDForOrg(ctx context.Context, arg GetOrderByUUIDForOrgParams) (GetOrderByUUIDForOrgRow, error)
+	GetOrderForInvoice(ctx context.Context, id int64) (GetOrderForInvoiceRow, error)
 	GetOrderForUpdate(ctx context.Context, argUuid uuid.UUID) (BillingOrder, error)
 	GetOrgCustomerRef(ctx context.Context, arg GetOrgCustomerRefParams) (GetOrgCustomerRefRow, error)
 	GetOrgCustomerVehicleRef(ctx context.Context, arg GetOrgCustomerVehicleRefParams) (GetOrgCustomerVehicleRefRow, error)
@@ -382,6 +390,7 @@ type Querier interface {
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
 	GetSaleOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetSaleOrgAndPhoneByUUIDRow, error)
 	GetScheduledNotificationByKey(ctx context.Context, arg GetScheduledNotificationByKeyParams) (ScheduledNotification, error)
+	GetSellerSettings(ctx context.Context) (GetSellerSettingsRow, error)
 	GetServiceByCode(ctx context.Context, arg GetServiceByCodeParams) (Service, error)
 	GetServiceByID(ctx context.Context, arg GetServiceByIDParams) (Service, error)
 	GetServiceByName(ctx context.Context, arg GetServiceByNameParams) (Service, error)
@@ -518,6 +527,8 @@ type Querier interface {
 	ListImportChangesForJob(ctx context.Context, jobID int64) ([]ImportChange, error)
 	ListImportJobsForActor(ctx context.Context, arg ListImportJobsForActorParams) ([]ImportJob, error)
 	ListImportJobsForOrganization(ctx context.Context, arg ListImportJobsForOrganizationParams) ([]ImportJob, error)
+	ListInvoices(ctx context.Context, arg ListInvoicesParams) ([]ListInvoicesRow, error)
+	ListInvoicesForOrg(ctx context.Context, arg ListInvoicesForOrgParams) ([]ListInvoicesForOrgRow, error)
 	ListJobConsumptions(ctx context.Context, arg ListJobConsumptionsParams) ([]ListJobConsumptionsRow, error)
 	ListLeadEvents(ctx context.Context, arg ListLeadEventsParams) ([]ListLeadEventsRow, error)
 	ListLeadQuotes(ctx context.Context, arg ListLeadQuotesParams) ([]ListLeadQuotesRow, error)
@@ -667,6 +678,9 @@ type Querier interface {
 	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
 	MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicleAlertEventsSentParams) error
 	NextContractInstanceNumber(ctx context.Context, organizationID int64) (int32, error)
+	// Billing invoices, invoice profiles and seller/XSLT settings.
+	// Single atomic upsert: row lock on conflict serialises concurrent callers.
+	NextInvoiceNumber(ctx context.Context, arg NextInvoiceNumberParams) (int64, error)
 	// Tenant quotes (teklifler). Tenant queries are scoped by organization_id;
 	// public queries look up by the unguessable share_token only.
 	NextQuoteNumber(ctx context.Context, arg NextQuoteNumberParams) (int32, error)
@@ -711,6 +725,7 @@ type Querier interface {
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
 	SetContractInstancePDFError(ctx context.Context, arg SetContractInstancePDFErrorParams) error
+	SetInvoiceStatus(ctx context.Context, arg SetInvoiceStatusParams) (BillingInvoice, error)
 	// Used by the quotes module (quoted / won). Never reopens a closed lead
 	// except to mark it won.
 	SetLeadStatusByID(ctx context.Context, arg SetLeadStatusByIDParams) (SetLeadStatusByIDRow, error)
@@ -726,6 +741,7 @@ type Querier interface {
 	SetTodoStatus(ctx context.Context, arg SetTodoStatusParams) (Todo, error)
 	SetUsageCounter(ctx context.Context, arg SetUsageCounterParams) error
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
+	SetXSLT(ctx context.Context, arg SetXSLTParams) (SetXSLTRow, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteAIConversation(ctx context.Context, id int64) error
 	SoftDeleteBillingPlan(ctx context.Context, argUuid uuid.UUID) error
@@ -775,6 +791,8 @@ type Querier interface {
 	UpdateImportJobFileKey(ctx context.Context, arg UpdateImportJobFileKeyParams) (ImportJob, error)
 	UpdateImportJobMapping(ctx context.Context, arg UpdateImportJobMappingParams) (ImportJob, error)
 	UpdateImportJobPreview(ctx context.Context, arg UpdateImportJobPreviewParams) (ImportJob, error)
+	UpdateInvoiceFiles(ctx context.Context, arg UpdateInvoiceFilesParams) (BillingInvoice, error)
+	UpdateInvoiceProfile(ctx context.Context, arg UpdateInvoiceProfileParams) (UpdateInvoiceProfileRow, error)
 	UpdateJobConsumptionQty(ctx context.Context, arg UpdateJobConsumptionQtyParams) (ServiceJobConsumption, error)
 	UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, error)
 	UpdateLogPurgeRule(ctx context.Context, arg UpdateLogPurgeRuleParams) (LogPurgeRule, error)
@@ -786,6 +804,7 @@ type Querier interface {
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateQuoteContent(ctx context.Context, arg UpdateQuoteContentParams) (Quote, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
+	UpdateSellerSettings(ctx context.Context, arg UpdateSellerSettingsParams) (UpdateSellerSettingsRow, error)
 	UpdateService(ctx context.Context, arg UpdateServiceParams) (Service, error)
 	UpdateServiceJobAssignee(ctx context.Context, arg UpdateServiceJobAssigneeParams) (ServiceJob, error)
 	UpdateServiceJobNotes(ctx context.Context, arg UpdateServiceJobNotesParams) (ServiceJob, error)

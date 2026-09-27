@@ -201,6 +201,7 @@ type Order struct {
 	CreatedAt          time.Time         `json:"created_at"`
 	Instructions       *BankInstructions `json:"instructions"`
 	Organization       *OrganizationRef  `json:"organization"`
+	InvoiceUUID        *uuid.UUID        `json:"invoice_uuid"`
 }
 
 type OrderInput struct {
@@ -252,4 +253,64 @@ type AdminSubscriptionPatch struct {
 	EndsAt   *time.Time `json:"ends_at"`
 	PlanUUID *uuid.UUID `json:"plan_uuid"`
 	Note     string     `json:"note"`
+}
+
+type InvoiceProfile struct {
+	InvoiceName      string `json:"invoice_name"`
+	InvoiceTaxID     string `json:"invoice_tax_id"`
+	InvoiceTaxOffice string `json:"invoice_tax_office"`
+	InvoiceAddress   string `json:"invoice_address"`
+	InvoiceCity      string `json:"invoice_city"`
+	InvoiceEmail     string `json:"invoice_email"`
+}
+
+type InvoiceBuyer struct {
+	Name            string `json:"name"`
+	TaxID           string `json:"tax_id"`
+	TaxOffice       string `json:"tax_office"`
+	IsFinalConsumer bool   `json:"is_final_consumer"`
+}
+
+type Invoice struct {
+	UUID           uuid.UUID        `json:"uuid"`
+	Number         string           `json:"number"`
+	IssueDate      string           `json:"issue_date"`
+	Status         string           `json:"status"`
+	OrderUUID      uuid.UUID        `json:"order_uuid"`
+	OrderReference string           `json:"order_reference"`
+	Buyer          InvoiceBuyer     `json:"buyer"`
+	Subtotal       string           `json:"subtotal"`
+	DiscountTotal  string           `json:"discount_total"`
+	VATTotal       string           `json:"vat_total"`
+	GrandTotal     string           `json:"grand_total"`
+	HasXML         bool             `json:"has_xml"`
+	HasPDF         bool             `json:"has_pdf"`
+	Error          string           `json:"error"`
+	CreatedAt      time.Time        `json:"created_at"`
+	Organization   *OrganizationRef `json:"organization"`
+}
+
+type InvoiceList struct {
+	Items  []Invoice `json:"items"`
+	Total  int64     `json:"total"`
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+}
+
+type SellerSettings struct {
+	SellerName      string     `json:"seller_name"`
+	SellerTaxID     string     `json:"seller_tax_id"`
+	SellerTaxOffice string     `json:"seller_tax_office"`
+	SellerAddress   string     `json:"seller_address"`
+	SellerCity      string     `json:"seller_city"`
+	SellerEmail     string     `json:"seller_email"`
+	SellerPhone     string     `json:"seller_phone"`
+	SellerWebsite   string     `json:"seller_website"`
+	InvoiceSeries   string     `json:"invoice_series"`
+	XSLT            XSLTStatus `json:"xslt"`
+}
+
+type XSLTStatus struct {
+	Custom     bool       `json:"custom"`
+	UploadedAt *time.Time `json:"uploaded_at"`
 }

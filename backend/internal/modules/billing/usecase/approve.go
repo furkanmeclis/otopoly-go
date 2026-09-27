@@ -79,6 +79,10 @@ func (s *Service) ApproveOrder(ctx context.Context, id uuid.UUID, note string) (
 	if err := tx.Commit(ctx); err != nil {
 		return Order{}, err
 	}
+	if _, err := s.IssueInvoice(ctx, row.ID); err != nil {
+		// Invoice generation must not roll back an already approved order.
+		fmt.Printf("billing invoice issue failed for order %s: %v\n", row.Uuid, err)
+	}
 	out, err := s.GetOrderAdmin(ctx, id)
 	if err != nil {
 		return Order{}, err

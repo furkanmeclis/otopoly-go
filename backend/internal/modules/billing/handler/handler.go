@@ -28,6 +28,12 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		response.ErrorWithDetails(w, r, http.StatusUnprocessableEntity, "DISCOUNT_INVALID", discount.Message, []response.Detail{{Field: "reason", Message: discount.Reason}})
 	case errors.Is(err, billingusecase.ErrOrderState):
 		response.Conflict(w, r, "ORDER_STATE", "Order state does not allow this operation")
+	case errors.Is(err, billingusecase.ErrInvoiceState):
+		response.Conflict(w, r, "INVOICE_STATE", "Invoice state does not allow this operation")
+	case errors.Is(err, billingusecase.ErrXSLTInvalid):
+		response.Error(w, r, http.StatusUnprocessableEntity, "XSLT_INVALID", err.Error())
+	case errors.Is(err, billingusecase.ErrInvoiceProfile):
+		response.Error(w, r, http.StatusUnprocessableEntity, "INVOICE_PROFILE_INVALID", err.Error())
 	case errors.Is(err, billingusecase.ErrPlanUnavailable):
 		response.Conflict(w, r, "PLAN_UNAVAILABLE", "Plan is unavailable")
 	case errors.Is(err, billingusecase.ErrNotFound):
@@ -535,6 +541,172 @@ func (h *Handler) PlatformUpdateSettings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	out, err := h.svc.UpdatePaymentSettings(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) GetInvoiceProfile(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.GetInvoiceProfile(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) UpdateInvoiceProfile(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.InvoiceProfile
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.UpdateInvoiceProfile(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) ListInvoices(w http.ResponseWriter, r *http.Request) {
+	limit, offset := paging(r)
+	out, err := h.svc.ListInvoicesForOrg(r.Context(), limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) OpenInvoicePDF(w http.ResponseWriter, r *http.Request) {
+	h.openInvoiceFile(w, r, "pdf", false)
+}
+
+func (h *Handler) PlatformListInvoices(w http.ResponseWriter, r *http.Request) {
+	limit, offset := paging(r)
+	out, err := h.svc.ListInvoicesAdmin(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("q"), limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformOpenInvoiceXML(w http.ResponseWriter, r *http.Request) {
+	h.openInvoiceFile(w, r, "xml", true)
+}
+
+func (h *Handler) PlatformOpenInvoicePDF(w http.ResponseWriter, r *http.Request) {
+	h.openInvoiceFile(w, r, "pdf", true)
+}
+
+func (h *Handler) openInvoiceFile(w http.ResponseWriter, r *http.Request, kind string, platform bool) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	body, ctype, filename, _, err := h.svc.OpenInvoiceFile(r.Context(), id, kind, platform)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	defer body.Close()
+	w.Header().Set("Content-Type", ctype)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, filename))
+	w.Header().Set("Cache-Control", "private, no-store")
+	_, _ = io.Copy(w, body)
+}
+
+func (h *Handler) PlatformRegenerateInvoice(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.RegenerateInvoice(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformVoidInvoice(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.VoidInvoice(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformIssueOrderInvoice(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathUUID(w, r)
+	if !ok {
+		return
+	}
+	out, err := h.svc.IssueInvoiceForOrderUUID(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformGetSeller(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.GetSellerSettings(r.Context())
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformUpdateSeller(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.SellerSettings
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.UpdateSellerSettings(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformUploadSellerXSLT(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 2<<20)
+	if err := r.ParseMultipartForm(2 << 20); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid multipart form")
+		return
+	}
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "file is required")
+		return
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, (2<<20)+1))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	out, err := h.svc.UploadXSLT(r.Context(), header.Filename, data)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformResetSellerXSLT(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.ResetXSLT(r.Context())
 	if err != nil {
 		writeError(w, r, err)
 		return

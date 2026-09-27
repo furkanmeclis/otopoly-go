@@ -7720,6 +7720,75 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/tenant/billing/invoice-profile:
+    get:
+      tags: [Tenant]
+      operationId: getTenantBillingInvoiceProfile
+      summary: Get tenant billing invoice profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Invoice profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingInvoiceProfile" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantBillingInvoiceProfile
+      summary: Update tenant billing invoice profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingInvoiceProfile" }
+      responses:
+        "200":
+          description: Invoice profile
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingInvoiceProfile" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/tenant/billing/invoices:
+    get:
+      tags: [Tenant]
+      operationId: listTenantBillingInvoices
+      summary: List tenant billing invoices
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Invoices
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingInvoiceList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/billing/invoices/{uuid}/pdf:
+    get:
+      tags: [Tenant]
+      operationId: getTenantBillingInvoicePDF
+      summary: Stream tenant billing invoice PDF
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Invoice PDF
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/platform/billing/orders:
     get:
       tags: [Platform]
@@ -7838,6 +7907,114 @@ paths:
               schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/orders/{uuid}/invoice:
+    post:
+      tags: [Platform]
+      operationId: issuePlatformBillingOrderInvoice
+      summary: Issue invoice for approved billing order
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingInvoice" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/platform/billing/invoices:
+    get:
+      tags: [Platform]
+      operationId: listPlatformBillingInvoices
+      summary: List platform billing invoices
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [issued, failed, voided] } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Invoices
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingInvoiceList" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/invoices/{uuid}/xml:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingInvoiceXML
+      summary: Stream platform billing invoice XML
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Invoice XML
+          content:
+            application/xml: { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/billing/invoices/{uuid}/pdf:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingInvoicePDF
+      summary: Stream platform billing invoice PDF
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Invoice PDF
+          content:
+            application/pdf: { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/billing/invoices/{uuid}/regenerate:
+    post:
+      tags: [Platform]
+      operationId: regeneratePlatformBillingInvoice
+      summary: Regenerate platform billing invoice artifacts
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingInvoice" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/platform/billing/invoices/{uuid}/void:
+    post:
+      tags: [Platform]
+      operationId: voidPlatformBillingInvoice
+      summary: Void platform billing invoice
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Invoice
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingInvoice" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/platform/billing/subscriptions:
     get:
@@ -8018,6 +8195,78 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeBillingPaymentSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/billing/seller:
+    get:
+      tags: [Platform]
+      operationId: getPlatformBillingSeller
+      summary: Get billing seller settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Seller settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingSellerSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Platform]
+      operationId: updatePlatformBillingSeller
+      summary: Update billing seller settings
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingSellerSettings" }
+      responses:
+        "200":
+          description: Seller settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingSellerSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+
+  /v1/platform/billing/seller/xslt:
+    post:
+      tags: [Platform]
+      operationId: uploadPlatformBillingSellerXSLT
+      summary: Upload billing invoice XSLT
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        "200":
+          description: Seller settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingSellerSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformBillingSellerXSLT
+      summary: Reset billing invoice XSLT
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Seller settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingSellerSettings" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -12105,7 +12354,7 @@ components:
 
     BillingOrder:
       type: object
-      required: [uuid, reference_code, kind, status, channel, plan, period, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_amount, lines, has_receipt, receipt_content_type, report_note, reported_at, reviewed_at, reject_reason, expires_at, created_at, instructions, organization]
+      required: [uuid, reference_code, kind, status, channel, plan, period, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_amount, lines, has_receipt, receipt_content_type, report_note, reported_at, reviewed_at, reject_reason, expires_at, created_at, instructions, organization, invoice_uuid]
       properties:
         uuid: { type: string, format: uuid }
         reference_code: { type: string }
@@ -12135,6 +12384,7 @@ components:
         created_at: { type: string, format: date-time }
         instructions: { anyOf: [{ $ref: "#/components/schemas/BillingBankInstructions" }, { type: "null" }] }
         organization: { anyOf: [{ $ref: "#/components/schemas/BillingOrganizationRef" }, { type: "null" }] }
+        invoice_uuid: { type: [string, "null"], format: uuid }
 
     BillingOrderList:
       type: object
@@ -12153,6 +12403,78 @@ components:
       properties:
         pending_payment: { type: integer, format: int64 }
         payment_reported: { type: integer, format: int64 }
+
+    BillingInvoiceProfile:
+      type: object
+      required: [invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email]
+      properties:
+        invoice_name: { type: string }
+        invoice_tax_id: { type: string }
+        invoice_tax_office: { type: string }
+        invoice_address: { type: string }
+        invoice_city: { type: string }
+        invoice_email: { type: string }
+
+    BillingInvoiceBuyer:
+      type: object
+      required: [name, tax_id, tax_office, is_final_consumer]
+      properties:
+        name: { type: string }
+        tax_id: { type: string }
+        tax_office: { type: string }
+        is_final_consumer: { type: boolean }
+
+    BillingInvoice:
+      type: object
+      required: [uuid, number, issue_date, status, order_uuid, order_reference, buyer, subtotal, discount_total, vat_total, grand_total, has_xml, has_pdf, error, created_at, organization]
+      properties:
+        uuid: { type: string, format: uuid }
+        number: { type: string, example: TWD2026000000001 }
+        issue_date: { type: string, format: date }
+        status: { type: string, enum: [issued, failed, voided] }
+        order_uuid: { type: string, format: uuid }
+        order_reference: { type: string }
+        buyer: { $ref: "#/components/schemas/BillingInvoiceBuyer" }
+        subtotal: { type: string }
+        discount_total: { type: string }
+        vat_total: { type: string }
+        grand_total: { type: string }
+        has_xml: { type: boolean }
+        has_pdf: { type: boolean }
+        error: { type: string }
+        created_at: { type: string, format: date-time }
+        organization: { anyOf: [{ $ref: "#/components/schemas/BillingOrganizationRef" }, { type: "null" }] }
+
+    BillingInvoiceList:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BillingInvoice" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    BillingSellerSettings:
+      type: object
+      required: [seller_name, seller_tax_id, seller_tax_office, seller_address, seller_city, seller_email, seller_phone, seller_website, invoice_series, xslt]
+      properties:
+        seller_name: { type: string }
+        seller_tax_id: { type: string }
+        seller_tax_office: { type: string }
+        seller_address: { type: string }
+        seller_city: { type: string }
+        seller_email: { type: string }
+        seller_phone: { type: string }
+        seller_website: { type: string }
+        invoice_series: { type: string, example: TWD }
+        xslt:
+          type: object
+          required: [custom, uploaded_at]
+          properties:
+            custom: { type: boolean }
+            uploaded_at: { type: [string, "null"], format: date-time }
 
     BillingDiscountCode:
       type: object
@@ -12748,6 +13070,38 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/BillingOrdersSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingInvoiceProfile:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingInvoiceProfile" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingInvoice:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingInvoice" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingInvoiceList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingInvoiceList" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeBillingSellerSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/BillingSellerSettings" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeBillingDiscountCode:

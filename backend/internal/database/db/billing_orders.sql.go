@@ -456,7 +456,7 @@ func (q *Queries) ExpireDueOrders(ctx context.Context) ([]ExpireDueOrdersRow, er
 
 const getBillingSettings = `-- name: GetBillingSettings :one
 
-SELECT id, seller_name, seller_tax_id, seller_tax_office, seller_address, seller_city, seller_email, seller_phone, seller_website, bank_name, account_holder, iban, payment_instructions, order_ttl_days, grace_days, vat_rate, invoice_series, xslt_object_key, reminder_days, updated_at FROM billing_settings WHERE id = 1
+SELECT id, seller_name, seller_tax_id, seller_tax_office, seller_address, seller_city, seller_email, seller_phone, seller_website, bank_name, account_holder, iban, payment_instructions, order_ttl_days, grace_days, vat_rate, invoice_series, xslt_object_key, reminder_days, updated_at, xslt_uploaded_at FROM billing_settings WHERE id = 1
 `
 
 // Billing settings, discounts, orders and admin subscription queries.
@@ -484,6 +484,7 @@ func (q *Queries) GetBillingSettings(ctx context.Context) (BillingSetting, error
 		&i.XsltObjectKey,
 		&i.ReminderDays,
 		&i.UpdatedAt,
+		&i.XsltUploadedAt,
 	)
 	return i, err
 }
@@ -1710,7 +1711,7 @@ SET bank_name = $1,
     grace_days = $6,
     vat_rate = $7
 WHERE id = 1
-RETURNING id, seller_name, seller_tax_id, seller_tax_office, seller_address, seller_city, seller_email, seller_phone, seller_website, bank_name, account_holder, iban, payment_instructions, order_ttl_days, grace_days, vat_rate, invoice_series, xslt_object_key, reminder_days, updated_at
+RETURNING id, seller_name, seller_tax_id, seller_tax_office, seller_address, seller_city, seller_email, seller_phone, seller_website, bank_name, account_holder, iban, payment_instructions, order_ttl_days, grace_days, vat_rate, invoice_series, xslt_object_key, reminder_days, updated_at, xslt_uploaded_at
 `
 
 type UpdatePaymentSettingsParams struct {
@@ -1755,6 +1756,7 @@ func (q *Queries) UpdatePaymentSettings(ctx context.Context, arg UpdatePaymentSe
 		&i.XsltObjectKey,
 		&i.ReminderDays,
 		&i.UpdatedAt,
+		&i.XsltUploadedAt,
 	)
 	return i, err
 }

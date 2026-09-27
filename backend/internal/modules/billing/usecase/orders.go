@@ -605,6 +605,12 @@ func (s *Service) mapOrder(ctx context.Context, rec orderRecord) (Order, error) 
 	if rec.IncludeOrganization {
 		out.Organization = &OrganizationRef{UUID: rec.OrganizationUUID, Slug: rec.OrganizationSlug, Name: rec.OrganizationName}
 	}
+	if inv, err := s.q.GetInvoiceByOrder(ctx, row.ID); err == nil {
+		v := inv.Uuid
+		out.InvoiceUUID = &v
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return Order{}, err
+	}
 	if isOpenOrder(row.Status) {
 		settings, err := s.q.GetBillingSettings(ctx)
 		if err != nil {

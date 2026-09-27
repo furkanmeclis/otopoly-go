@@ -12,12 +12,12 @@
 
 ## Durum (kesinti durumunda buradan devam)
 
-- [ ] Task 1 migration + sorgular
-- [ ] Task 2 invoice paketi (mapper + render) + testler
-- [ ] Task 3 usecase (numara, üretim, onay kancası, yeniden üret, iptal) + DB testi
-- [ ] Task 4 handler/route/OpenAPI
-- [ ] Task 5 frontend işletme (fatura bilgileri formu + faturalar listesi)
-- [ ] Task 6 frontend admin (faturalar sayfası + satıcı ayarları + XSLT yükleme)
+- [x] Task 1 migration + sorgular
+- [x] Task 2 invoice paketi (mapper + render) + testler
+- [x] Task 3 usecase (numara, üretim, onay kancası, yeniden üret, iptal) + DB testi
+- [x] Task 4 handler/route/OpenAPI
+- [x] Task 5 frontend işletme (fatura bilgileri formu + faturalar listesi)
+- [x] Task 6 frontend admin (faturalar sayfası + satıcı ayarları + XSLT yükleme)
 - [ ] Task 7 uçtan uca doğrulama, ekran görüntüleri, Notion
 
 ## Global Constraints

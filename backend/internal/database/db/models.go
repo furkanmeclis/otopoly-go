@@ -206,6 +206,39 @@ type BillingFeature struct {
 	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
 }
 
+type BillingInvoice struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	OrderID        int64              `json:"order_id"`
+	Number         string             `json:"number"`
+	IssueDate      pgtype.Date        `json:"issue_date"`
+	Profile        string             `json:"profile"`
+	Type           string             `json:"type"`
+	Buyer          []byte             `json:"buyer"`
+	Seller         []byte             `json:"seller"`
+	Lines          []byte             `json:"lines"`
+	Subtotal       pgtype.Numeric     `json:"subtotal"`
+	DiscountTotal  pgtype.Numeric     `json:"discount_total"`
+	VatTotal       pgtype.Numeric     `json:"vat_total"`
+	GrandTotal     pgtype.Numeric     `json:"grand_total"`
+	XmlObjectKey   string             `json:"xml_object_key"`
+	PdfObjectKey   string             `json:"pdf_object_key"`
+	XsltVersion    string             `json:"xslt_version"`
+	Status         string             `json:"status"`
+	Error          string             `json:"error"`
+	VoidedAt       pgtype.Timestamptz `json:"voided_at"`
+	VoidedBy       pgtype.Int8        `json:"voided_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BillingInvoiceCounter struct {
+	Series string `json:"series"`
+	Year   int32  `json:"year"`
+	LastNo int64  `json:"last_no"`
+}
+
 type BillingOrder struct {
 	ID                 int64              `json:"id"`
 	Uuid               uuid.UUID          `json:"uuid"`
@@ -306,6 +339,7 @@ type BillingSetting struct {
 	XsltObjectKey       string             `json:"xslt_object_key"`
 	ReminderDays        []int32            `json:"reminder_days"`
 	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	XsltUploadedAt      pgtype.Timestamptz `json:"xslt_uploaded_at"`
 }
 
 type BillingSubscription struct {
@@ -921,28 +955,34 @@ type OauthProviderSetting struct {
 }
 
 type Organization struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	Slug           string             `json:"slug"`
-	Name           string             `json:"name"`
-	City           string             `json:"city"`
-	District       string             `json:"district"`
-	Phone          string             `json:"phone"`
-	Address        string             `json:"address"`
-	LogoObjectKey  pgtype.Text        `json:"logo_object_key"`
-	Status         string             `json:"status"`
-	PlanCode       pgtype.Text        `json:"plan_code"`
-	AccessStartsAt pgtype.Timestamptz `json:"access_starts_at"`
-	AccessEndsAt   pgtype.Timestamptz `json:"access_ends_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
-	Email          string             `json:"email"`
-	Website        string             `json:"website"`
-	Tagline        string             `json:"tagline"`
-	FooterText     string             `json:"footer_text"`
-	PaperSize      string             `json:"paper_size"`
-	PrimaryColor   string             `json:"primary_color"`
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	Slug             string             `json:"slug"`
+	Name             string             `json:"name"`
+	City             string             `json:"city"`
+	District         string             `json:"district"`
+	Phone            string             `json:"phone"`
+	Address          string             `json:"address"`
+	LogoObjectKey    pgtype.Text        `json:"logo_object_key"`
+	Status           string             `json:"status"`
+	PlanCode         pgtype.Text        `json:"plan_code"`
+	AccessStartsAt   pgtype.Timestamptz `json:"access_starts_at"`
+	AccessEndsAt     pgtype.Timestamptz `json:"access_ends_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+	Email            string             `json:"email"`
+	Website          string             `json:"website"`
+	Tagline          string             `json:"tagline"`
+	FooterText       string             `json:"footer_text"`
+	PaperSize        string             `json:"paper_size"`
+	PrimaryColor     string             `json:"primary_color"`
+	InvoiceName      string             `json:"invoice_name"`
+	InvoiceTaxID     string             `json:"invoice_tax_id"`
+	InvoiceTaxOffice string             `json:"invoice_tax_office"`
+	InvoiceAddress   string             `json:"invoice_address"`
+	InvoiceCity      string             `json:"invoice_city"`
+	InvoiceEmail     string             `json:"invoice_email"`
 }
 
 type OrganizationMember struct {

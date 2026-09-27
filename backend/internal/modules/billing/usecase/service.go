@@ -2,6 +2,8 @@ package usecase
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
@@ -24,6 +26,9 @@ var (
 	ErrConflict        = errors.New("conflict")
 	ErrOrderState      = errors.New("order state")
 	ErrPlanUnavailable = errors.New("plan unavailable")
+	ErrInvoiceState    = errors.New("invoice state")
+	ErrXSLTInvalid     = errors.New("xslt invalid")
+	ErrInvoiceProfile  = errors.New("invoice profile invalid")
 )
 
 type OrderOpenError struct {
@@ -47,7 +52,12 @@ type Service struct {
 	act      *activity.Recorder
 	ent      *entitlements.Service
 	store    storage.Driver
+	pdf      PDFRenderer
 	notifier Notifier
+}
+
+type PDFRenderer interface {
+	HTMLToPDF(ctx context.Context, html string) ([]byte, error)
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder, ent *entitlements.Service) *Service {
@@ -55,6 +65,8 @@ func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder, ent *entitle
 }
 
 func (s *Service) SetStorage(d storage.Driver) { s.store = d }
+
+func (s *Service) SetPDFRenderer(r PDFRenderer) { s.pdf = r }
 
 func (s *Service) SetNotifier(n Notifier) { s.notifier = n }
 
@@ -76,6 +88,11 @@ func defaultString(v, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+func sha1Hex(b []byte) string {
+	sum := sha1.Sum(b)
+	return hex.EncodeToString(sum[:])
 }
 
 func numericNonNegative(raw string) (pgtype.Numeric, error) {

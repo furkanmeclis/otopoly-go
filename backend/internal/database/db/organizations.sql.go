@@ -16,7 +16,7 @@ const clearOrganizationLogo = `-- name: ClearOrganizationLogo :one
 UPDATE organizations
 SET logo_object_key = NULL
 WHERE uuid = $1 AND deleted_at IS NULL
-RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color
+RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
 `
 
 func (q *Queries) ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error) {
@@ -45,6 +45,12 @@ func (q *Queries) ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) 
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }
@@ -82,7 +88,7 @@ INSERT INTO organizations (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
-RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color
+RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
 `
 
 type CreateOrganizationParams struct {
@@ -135,6 +141,12 @@ func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganization
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }
@@ -165,7 +177,7 @@ func (q *Queries) CreateOrganizationMember(ctx context.Context, arg CreateOrgani
 }
 
 const getOrganizationByID = `-- name: GetOrganizationByID :one
-SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color FROM organizations
+SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email FROM organizations
 WHERE id = $1 AND deleted_at IS NULL
 `
 
@@ -195,12 +207,18 @@ func (q *Queries) GetOrganizationByID(ctx context.Context, id int64) (Organizati
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }
 
 const getOrganizationBySlug = `-- name: GetOrganizationBySlug :one
-SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color FROM organizations
+SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email FROM organizations
 WHERE slug = $1 AND deleted_at IS NULL
 `
 
@@ -230,12 +248,18 @@ func (q *Queries) GetOrganizationBySlug(ctx context.Context, slug string) (Organ
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }
 
 const getOrganizationByUUID = `-- name: GetOrganizationByUUID :one
-SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color FROM organizations
+SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email FROM organizations
 WHERE uuid = $1 AND deleted_at IS NULL
 `
 
@@ -265,6 +289,12 @@ func (q *Queries) GetOrganizationByUUID(ctx context.Context, argUuid uuid.UUID) 
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }
@@ -580,7 +610,7 @@ func (q *Queries) ListOrganizationMembersByUserID(ctx context.Context, userID in
 }
 
 const listOrganizationsFiltered = `-- name: ListOrganizationsFiltered :many
-SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color
+SELECT id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
 FROM organizations
 WHERE deleted_at IS NULL
   AND ($1::text IS NULL OR status = $1)
@@ -639,6 +669,12 @@ func (q *Queries) ListOrganizationsFiltered(ctx context.Context, arg ListOrganiz
 			&i.FooterText,
 			&i.PaperSize,
 			&i.PrimaryColor,
+			&i.InvoiceName,
+			&i.InvoiceTaxID,
+			&i.InvoiceTaxOffice,
+			&i.InvoiceAddress,
+			&i.InvoiceCity,
+			&i.InvoiceEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -654,7 +690,7 @@ const setOrganizationLogo = `-- name: SetOrganizationLogo :one
 UPDATE organizations
 SET logo_object_key = $2
 WHERE uuid = $1 AND deleted_at IS NULL
-RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color
+RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
 `
 
 type SetOrganizationLogoParams struct {
@@ -688,6 +724,12 @@ func (q *Queries) SetOrganizationLogo(ctx context.Context, arg SetOrganizationLo
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }
@@ -719,7 +761,7 @@ SET name = COALESCE($1, name),
     paper_size = COALESCE($10, paper_size),
     primary_color = COALESCE($11, primary_color)
 WHERE id = $12 AND deleted_at IS NULL
-RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color
+RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
 `
 
 type UpdateOrganizationLetterheadParams struct {
@@ -776,6 +818,12 @@ func (q *Queries) UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOr
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }
@@ -792,7 +840,7 @@ SET name = COALESCE($1, name),
     access_starts_at = COALESCE($8, access_starts_at),
     access_ends_at = $9
 WHERE uuid = $10 AND deleted_at IS NULL
-RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color
+RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
 `
 
 type UpdateOrganizationPlatformParams struct {
@@ -845,6 +893,12 @@ func (q *Queries) UpdateOrganizationPlatform(ctx context.Context, arg UpdateOrga
 		&i.FooterText,
 		&i.PaperSize,
 		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
 	)
 	return i, err
 }

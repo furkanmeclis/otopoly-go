@@ -311,8 +311,10 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	cariSvc.SetEventBus(eventBus)
 	carimodule.RegisterRoutes(mux, cariSvc, tokens, loader, deps.Queries)
 	entitlementsSvc := entitlements.New(entitlements.NewDBStore(deps.Queries))
+	pdfClient := pdfrender.New(cfg.Gotenberg.URL)
 	billingSvc := billingusecase.New(deps.DB, deps.Queries, activityRec, entitlementsSvc)
 	billingSvc.SetStorage(deps.Storage)
+	billingSvc.SetPDFRenderer(pdfClient)
 	billingSvc.SetNotifier(&billingNotifier{pool: deps.DB, notifications: notifSvc, log: log})
 	if err := billingSvc.EnsureBuiltinFeatures(context.Background()); err != nil {
 		log.Warn("billing_builtin_features_failed", "error", err)
@@ -335,7 +337,6 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	suppliersSvc.SetSearchIndexer(searchIndexer)
 	suppliersSvc.SetEventBus(eventBus)
 	suppliersmodule.RegisterRoutes(mux, suppliersSvc, tokens, loader, deps.Queries)
-	pdfClient := pdfrender.New(cfg.Gotenberg.URL)
 	contractsSvc := contractsusecase.New(
 		deps.DB,
 		deps.Queries,
