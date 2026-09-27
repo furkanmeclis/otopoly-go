@@ -18,6 +18,10 @@ const PATHS: Record<LandingLocale, string> = { tr: "/", en: "/en" };
 
 export function landingMetadata(locale: LandingLocale): Metadata {
   const c = getLandingContent(locale);
+  // Turkish uses the root share images, which a page-level openGraph would
+  // otherwise drop. /en has its own opengraph-image/twitter-image files; Next
+  // adds those itself (their URLs carry a route-group hash, so no hardcoding).
+  const images = locale === "tr";
   return {
     title: { absolute: c.meta.title },
     description: c.meta.description,
@@ -34,13 +38,13 @@ export function landingMetadata(locale: LandingLocale): Metadata {
       alternateLocale: locale === "tr" ? ["en_US"] : ["tr_TR"],
       title: c.meta.title,
       description: c.meta.description,
-      images: [ogImage],
+      ...(images ? { images: [ogImage] } : {}),
     },
     twitter: {
       card: "summary_large_image",
       title: c.meta.title,
       description: c.meta.description,
-      images: [{ ...ogImage, url: "/twitter-image" }],
+      ...(images ? { images: [{ ...ogImage, url: "/twitter-image" }] } : {}),
     },
     robots: { index: true, follow: true },
   };

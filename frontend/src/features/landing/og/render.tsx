@@ -15,27 +15,74 @@ import { ogSize } from "@/features/landing/og/meta";
 
 const FONT_DIR = join(process.cwd(), "src/features/landing/og/fonts");
 
-const CHIPS = ["İş emirleri", "WhatsApp", "OTP'li sözleşme", "Cari & kasa"];
+type OgLocale = "tr" | "en";
 
-const BOARD = [
-  {
-    title: "İşlemde",
-    dot: "#FBBF24",
-    cards: [
-      ["34 TKO 34", "Seramik kaplama"],
-      ["06 BRK 061", "İç temizlik"],
+const COPY = {
+  tr: {
+    eyebrow: "OTO YIKAMA · DETAILING · OTO BAKIM",
+    lines: [
+      "Aracın kabulünden",
+      "teslimine, tüm",
+      "işletmeniz",
+      "tek ekranda.",
     ],
+    chips: ["İş emirleri", "WhatsApp", "OTP'li sözleşme", "Cari & kasa"],
+    trial: "14 gün ücretsiz",
+    boardTitle: "Operasyon · Bugün",
+    columns: ["İşlemde", "Hazır", "Teslim"],
+    services: ["Seramik kaplama", "İç temizlik", "İç-dış yıkama", "Pasta cila"],
+    whatsappFrom: "WhatsApp · İşletmeniz",
+    whatsappBody: "35 EGE 35 plakalı aracınız teslime hazır.",
   },
-  { title: "Hazır", dot: "#34D399", cards: [["35 EGE 35", "İç-dış yıkama"]] },
-  { title: "Teslim", dot: "#38BDF8", cards: [["16 BRS 116", "Pasta cila"]] },
-] as const;
+  en: {
+    eyebrow: "CAR WASH · DETAILING · CAR CARE",
+    lines: [
+      "From drop-off to",
+      "hand-over, your",
+      "whole shop on",
+      "one screen.",
+    ],
+    chips: ["Job orders", "WhatsApp", "OTP contracts", "Accounts & cash"],
+    trial: "14 days free",
+    boardTitle: "Operations · Today",
+    columns: ["In progress", "Ready", "Delivered"],
+    services: ["Ceramic coating", "Interior clean", "Full wash", "Polish"],
+    whatsappFrom: "WhatsApp · Your shop",
+    whatsappBody: "Your car 35 EGE 35 is ready for pick-up.",
+  },
+} as const;
+
+function board(locale: OgLocale) {
+  const c = COPY[locale];
+  return [
+    {
+      title: c.columns[0],
+      dot: "#FBBF24",
+      cards: [
+        ["34 TKO 34", c.services[0]],
+        ["06 BRK 061", c.services[1]],
+      ],
+    },
+    {
+      title: c.columns[1],
+      dot: "#34D399",
+      cards: [["35 EGE 35", c.services[2]]],
+    },
+    {
+      title: c.columns[2],
+      dot: "#38BDF8",
+      cards: [["16 BRS 116", c.services[3]]],
+    },
+  ];
+}
 
 /**
  * Social share card (1200×630). Rendered once at build time: the route files
  * that use it have no dynamic inputs, so Next.js prerenders them to static PNGs.
  * Fonts are bundled locally so Turkish glyphs (ş, ğ, ı) render correctly offline.
  */
-export async function renderOgImage() {
+export async function renderOgImage(locale: OgLocale = "tr") {
+  const c = COPY[locale];
   const [display, body] = await Promise.all([
     readFile(join(FONT_DIR, "Outfit-Bold.ttf")),
     readFile(join(FONT_DIR, "PlusJakartaSans-Medium.ttf")),
@@ -119,7 +166,7 @@ export async function renderOgImage() {
               letterSpacing: 1,
             }}
           >
-            OTO YIKAMA · DETAILING · OTO BAKIM
+            {c.eyebrow}
           </div>
           <div
             style={{
@@ -132,10 +179,10 @@ export async function renderOgImage() {
               letterSpacing: -1.5,
             }}
           >
-            <span>Aracın kabulünden</span>
-            <span>teslimine, tüm</span>
-            <span style={{ color: "#F59A6F" }}>işletmeniz</span>
-            <span style={{ color: "#F59A6F" }}>tek ekranda.</span>
+            <span>{c.lines[0]}</span>
+            <span>{c.lines[1]}</span>
+            <span style={{ color: "#F59A6F" }}>{c.lines[2]}</span>
+            <span style={{ color: "#F59A6F" }}>{c.lines[3]}</span>
           </div>
           <div
             style={{
@@ -145,7 +192,7 @@ export async function renderOgImage() {
               marginTop: 28,
             }}
           >
-            {CHIPS.map((chip) => (
+            {c.chips.map((chip) => (
               <div
                 key={chip}
                 style={{
@@ -184,7 +231,7 @@ export async function renderOgImage() {
               fontSize: 20,
             }}
           >
-            14 gün ücretsiz
+            {c.trial}
           </div>
           {host}
         </div>
@@ -229,10 +276,10 @@ export async function renderOgImage() {
               />
             ))}
           </div>
-          Operasyon · Bugün
+          {c.boardTitle}
         </div>
         <div style={{ display: "flex", gap: 10, padding: 14 }}>
-          {BOARD.map((col) => (
+          {board(locale).map((col) => (
             <div
               key={col.title}
               style={{
@@ -316,10 +363,10 @@ export async function renderOgImage() {
         }}
       >
         <div style={{ display: "flex", fontSize: 13, color: "#047857" }}>
-          WhatsApp · İşletmeniz
+          {c.whatsappFrom}
         </div>
         <div style={{ display: "flex", fontSize: 16, marginTop: 4 }}>
-          35 EGE 35 plakalı aracınız teslime hazır.
+          {c.whatsappBody}
         </div>
       </div>
     </div>,
