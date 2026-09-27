@@ -185,10 +185,21 @@ func (q *Queries) BillingSubscriptionStatusCounts(ctx context.Context) (BillingS
 }
 
 const billingTrialConversion = `-- name: BillingTrialConversion :one
+WITH trials AS (
+    SELECT s.organization_id, MIN(s.created_at) AS started_at
+    FROM billing_subscriptions s
+    JOIN billing_plans p ON p.id = s.plan_id AND p.code = 'trial'
+    WHERE s.created_at >= $1
+    GROUP BY s.organization_id
+)
 SELECT
-    COUNT(*) FILTER (WHERE status = 'trial' AND created_at >= $1)::bigint AS trials_90d,
-    COUNT(DISTINCT organization_id) FILTER (WHERE status = 'active' AND created_at >= $1)::bigint AS converted_90d
-FROM billing_subscriptions
+    COUNT(*)::bigint AS trials_90d,
+    COUNT(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM billing_subscriptions s
+        JOIN billing_plans p ON p.id = s.plan_id AND p.code <> 'trial'
+        WHERE s.organization_id = t.organization_id AND s.created_at >= t.started_at
+    ))::bigint AS converted_90d
+FROM trials t
 `
 
 type BillingTrialConversionRow struct {
@@ -196,6 +207,8 @@ type BillingTrialConversionRow struct {
 	Converted90d int64 `json:"converted_90d"`
 }
 
+// Trials started in the window (any current status) and how many of those
+// organizations later moved to a non-trial plan.
 func (q *Queries) BillingTrialConversion(ctx context.Context, sinceAt pgtype.Timestamptz) (BillingTrialConversionRow, error) {
 	row := q.db.QueryRow(ctx, billingTrialConversion, sinceAt)
 	var i BillingTrialConversionRow

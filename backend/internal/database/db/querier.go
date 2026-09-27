@@ -27,6 +27,8 @@ type Querier interface {
 	BillingExpiringCounts(ctx context.Context, arg BillingExpiringCountsParams) (BillingExpiringCountsRow, error)
 	BillingPlanDistribution(ctx context.Context) ([]BillingPlanDistributionRow, error)
 	BillingSubscriptionStatusCounts(ctx context.Context) (BillingSubscriptionStatusCountsRow, error)
+	// Trials started in the window (any current status) and how many of those
+	// organizations later moved to a non-trial plan.
 	BillingTrialConversion(ctx context.Context, sinceAt pgtype.Timestamptz) (BillingTrialConversionRow, error)
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
