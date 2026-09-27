@@ -209,6 +209,7 @@ func mapPlanFeature(row db.ListPlanFeaturesRow) PlanFeatureValue {
 		DisplayText: row.DisplayText, Enforcement: row.Enforcement, TolerancePct: row.TolerancePct,
 		WarnPct: row.WarnPct, MinValue: intPtr(row.MinValue), MaxValue: intPtr(row.MaxValue),
 		Step: intPtr(row.Step), UnitPrice: numericPtr(row.UnitPrice),
+		Kind: row.Kind, Unit: row.Unit, LabelTR: row.LabelTr, LabelEN: row.LabelEn,
 	}
 }
 

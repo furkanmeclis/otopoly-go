@@ -18,11 +18,10 @@ import {
   useBillingOverview,
   useBillingPlans,
 } from "@/features/billing/hooks/use-billing";
-import { meterLabel } from "@/features/billing/lib";
+import { meterLabel, planFeatureLine } from "@/features/billing/lib";
 import type {
   BillingOverview,
   BillingPlan,
-  BillingPlanFeatureValue,
   BillingSubscription,
   BillingUsageMeter,
   SubscriptionPeriod,
@@ -290,7 +289,7 @@ function PlanOffer({
       </div>
       <ul className="text-muted-foreground flex-1 space-y-1 text-xs">
         {plan.features.map((f) => (
-          <li key={f.key}>{featureLine(f)}</li>
+          <li key={f.key}>{planFeatureLine(f, locale, t)}</li>
         ))}
       </ul>
       <Button variant={current ? "secondary" : "default"} disabled>
@@ -298,13 +297,4 @@ function PlanOffer({
       </Button>
     </div>
   );
-}
-
-function featureLine(f: BillingPlanFeatureValue) {
-  if (f.display_text) return f.display_text;
-  if (f.value_bool !== null && f.value_bool !== undefined)
-    return `${f.key}: ${f.value_bool ? "✓" : "—"}`;
-  if (f.value_int !== null && f.value_int !== undefined)
-    return `${f.key}: ${f.value_int}`;
-  return f.key;
 }

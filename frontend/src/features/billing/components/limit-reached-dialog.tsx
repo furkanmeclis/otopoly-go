@@ -36,7 +36,14 @@ export function LimitReachedDialog({ slug }: { slug: string }) {
   const overview = useBillingOverview(canRead);
   const [event, setEvent] = useState<LimitEventDetail | null>(null);
 
-  useEffect(() => subscribeLimitEvents(setEvent), []);
+  useEffect(
+    () =>
+      subscribeLimitEvents((detail) => {
+        // Plan-disabled modules show an inline lock card + toast instead.
+        if (detail.code === "LIMIT_REACHED") setEvent(detail);
+      }),
+    [],
+  );
 
   const meter = event?.feature
     ? overview.data?.meters.find((m) => m.key === event.feature)

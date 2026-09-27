@@ -7402,6 +7402,17 @@ export interface components {
             max_value: number | null;
             /** Format: int64 */
             step: number | null;
+            /**
+             * @description Read-only; catalog kind
+             * @enum {string}
+             */
+            kind?: "limit" | "toggle" | "display";
+            /** @description Read-only; catalog unit */
+            unit?: string;
+            /** @description Read-only; catalog label */
+            label_tr?: string;
+            /** @description Read-only; catalog label */
+            label_en?: string;
             unit_price: string | null;
         };
         BillingPlan: {

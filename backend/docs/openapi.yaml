@@ -11498,6 +11498,10 @@ components:
         min_value: { type: [integer, "null"], format: int64 }
         max_value: { type: [integer, "null"], format: int64 }
         step: { type: [integer, "null"], format: int64 }
+        kind: { type: string, enum: [limit, toggle, display], description: "Read-only; catalog kind" }
+        unit: { type: string, description: "Read-only; catalog unit" }
+        label_tr: { type: string, description: "Read-only; catalog label" }
+        label_en: { type: string, description: "Read-only; catalog label" }
         unit_price: { type: [string, "null"] }
 
     BillingPlan:

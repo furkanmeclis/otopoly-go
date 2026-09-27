@@ -1,5 +1,9 @@
 import type { AppLocale } from "@/config/i18n";
-import type { BillingPlan, BillingUsageMeter } from "@/features/billing/types";
+import type {
+  BillingPlan,
+  BillingPlanFeatureValue,
+  BillingUsageMeter,
+} from "@/features/billing/types";
 
 export function meterLabel(
   meter: { label_tr: string; label_en: string; key: string },
@@ -45,4 +49,29 @@ export function yearlyPrice(
       total = Number.parseFloat(plan.price_yearly) || 0;
   }
   return Math.max(0, total).toFixed(2);
+}
+
+type Translate = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
+
+/** One human line for a plan feature: "Günlük işlem: 50 adet", "Yapay zekâ asistanı: Dahil". */
+export function planFeatureLine(
+  f: BillingPlanFeatureValue,
+  locale: AppLocale,
+  t: Translate,
+): string {
+  if (f.display_text) return f.display_text;
+  const label = (locale === "tr" ? f.label_tr : f.label_en) || f.key;
+  if (f.value_bool !== null && f.value_bool !== undefined) {
+    return `${label}: ${f.value_bool ? t("billing.features.on") : t("billing.features.off")}`;
+  }
+  if (f.value_int !== null && f.value_int !== undefined) {
+    const n = new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
+      f.value_int,
+    );
+    return `${label}: ${n}${f.unit ? ` ${f.unit}` : ""}`;
+  }
+  return `${label}: ${t("billing.usage.unlimited")}`;
 }

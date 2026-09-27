@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { permissions } from "@/config/permissions";
+import { planFeatureLine } from "@/features/billing/lib";
 import type { BillingPlan } from "@/features/billing/types";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { FeaturesDialog } from "@/features/platform-billing/components/features-dialog";
@@ -121,17 +122,13 @@ export function PlansPage() {
                 <ul className="text-muted-foreground flex-1 space-y-0.5 text-xs">
                   {plan.features.slice(0, 4).map((f) => (
                     <li key={f.key}>
-                      {f.key}:{" "}
-                      {f.display_text ||
-                        (f.value_bool !== null && f.value_bool !== undefined
-                          ? f.value_bool
-                            ? "✓"
-                            : "—"
-                          : (f.value_int ?? "∞"))}
-                      {f.enforcement === "soft"
+                      {planFeatureLine(f, locale, t)}
+                      {f.value_int !== null && f.enforcement === "soft"
                         ? ` (${t("billing.admin.plan.feature.soft").toLowerCase()})`
                         : ""}
-                      {f.tolerance_pct ? ` +${f.tolerance_pct}%` : ""}
+                      {f.value_int !== null && f.tolerance_pct
+                        ? ` +%${f.tolerance_pct}`
+                        : ""}
                     </li>
                   ))}
                   {plan.features.length > 4 ? (

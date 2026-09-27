@@ -38,6 +38,11 @@ type PlanFeatureValue struct {
 	MaxValue     *int64  `json:"max_value"`
 	Step         *int64  `json:"step"`
 	UnitPrice    *string `json:"unit_price"`
+	// Catalog fields, filled on reads so clients can label rows.
+	Kind    string `json:"kind,omitempty"`
+	Unit    string `json:"unit,omitempty"`
+	LabelTR string `json:"label_tr,omitempty"`
+	LabelEN string `json:"label_en,omitempty"`
 }
 
 type Plan struct {
