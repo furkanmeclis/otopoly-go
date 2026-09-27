@@ -21,11 +21,14 @@ func New(svc *billingusecase.Service) *Handler { return &Handler{svc: svc} }
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	var open billingusecase.OrderOpenError
 	var discount billingusecase.DiscountError
+	var custom billingusecase.CustomFeaturesError
 	switch {
 	case errors.As(err, &open):
 		response.ErrorWithDetails(w, r, http.StatusConflict, "ORDER_OPEN", "Open order exists", []response.Detail{{Field: "order_uuid", Message: open.OrderUUID.String()}})
 	case errors.As(err, &discount):
 		response.ErrorWithDetails(w, r, http.StatusUnprocessableEntity, "DISCOUNT_INVALID", discount.Message, []response.Detail{{Field: "reason", Message: discount.Reason}})
+	case errors.As(err, &custom):
+		response.ErrorWithDetails(w, r, http.StatusUnprocessableEntity, "CUSTOM_FEATURES_INVALID", custom.Message, []response.Detail{{Field: custom.Field, Message: custom.Message}})
 	case errors.Is(err, billingusecase.ErrOrderState):
 		response.Conflict(w, r, "ORDER_STATE", "Order state does not allow this operation")
 	case errors.Is(err, billingusecase.ErrInvoiceState):
@@ -370,6 +373,19 @@ func (h *Handler) PlatformGetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, out)
+}
+
+func (h *Handler) PlatformCreateOrder(w http.ResponseWriter, r *http.Request) {
+	var in billingusecase.AdminOrderInput
+	if !decode(w, r, &in) {
+		return
+	}
+	out, err := h.svc.CreateOrderAdmin(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusCreated, out)
 }
 
 func (h *Handler) PlatformApproveOrder(w http.ResponseWriter, r *http.Request) {

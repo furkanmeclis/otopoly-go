@@ -7605,6 +7605,7 @@ paths:
               schema: { $ref: "#/components/schemas/EnvelopeBillingOrderPreview" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "422": { $ref: "#/components/responses/BadRequest" }
 
   /v1/tenant/billing/orders:
     get:
@@ -7816,6 +7817,26 @@ paths:
               schema: { $ref: "#/components/schemas/EnvelopeBillingOrderList" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Platform]
+      operationId: createPlatformBillingOrder
+      summary: Create platform billing order with optional special price
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BillingAdminOrderInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeBillingOrder" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/BadRequest" }
 
   /v1/platform/billing/orders/summary:
     get:
@@ -12354,14 +12375,34 @@ components:
         plan_uuid: { type: string, format: uuid }
         period: { type: string, enum: [monthly, yearly] }
         discount_code: { type: string }
+        custom_features:
+          type: object
+          additionalProperties: { type: integer, format: int64 }
+
+    BillingAdminOrderInput:
+      type: object
+      required: [organization_uuid, plan_uuid, period, list_price, note]
+      properties:
+        organization_uuid: { type: string, format: uuid }
+        plan_uuid: { type: string, format: uuid }
+        period: { type: string, enum: [monthly, yearly] }
+        discount_code: { type: string }
+        custom_features:
+          type: object
+          additionalProperties: { type: integer, format: int64 }
+        list_price: { type: string }
+        note: { type: string }
 
     BillingOrderPreview:
       type: object
-      required: [kind, plan, period, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_rate, vat_amount, starts_at, ends_at, lines, discount_error]
+      required: [kind, plan, period, custom_features, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_rate, vat_amount, starts_at, ends_at, lines, discount_error]
       properties:
         kind: { type: string, enum: [new, renew, upgrade, downgrade, period_change] }
         plan: { $ref: "#/components/schemas/BillingPlanRef" }
         period: { type: string, enum: [monthly, yearly] }
+        custom_features:
+          type: object
+          additionalProperties: { type: integer, format: int64 }
         list_price: { type: string }
         proration_credit: { type: string }
         discount_code: { type: [string, "null"] }
@@ -12398,7 +12439,7 @@ components:
 
     BillingOrder:
       type: object
-      required: [uuid, reference_code, kind, status, channel, plan, period, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_amount, lines, has_receipt, receipt_content_type, report_note, reported_at, reviewed_at, reject_reason, expires_at, created_at, instructions, organization, invoice_uuid]
+      required: [uuid, reference_code, kind, status, channel, plan, period, custom_features, list_price, proration_credit, discount_code, discount_amount, credit_applied, credit_surplus, total, vat_amount, lines, has_receipt, receipt_content_type, report_note, reported_at, reviewed_at, reject_reason, expires_at, created_at, instructions, organization, invoice_uuid]
       properties:
         uuid: { type: string, format: uuid }
         reference_code: { type: string }
@@ -12407,6 +12448,9 @@ components:
         channel: { type: string, enum: [bank_transfer] }
         plan: { $ref: "#/components/schemas/BillingPlanRef" }
         period: { type: string, enum: [monthly, yearly] }
+        custom_features:
+          type: object
+          additionalProperties: { type: integer, format: int64 }
         list_price: { type: string }
         proration_credit: { type: string }
         discount_code: { type: [string, "null"] }
@@ -12570,13 +12614,16 @@ components:
 
     BillingAdminSubscription:
       type: object
-      required: [uuid, organization, plan, period, status, starts_at, ends_at, grace_ends_at, days_left, price_paid, credit_balance, source, note, created_at]
+      required: [uuid, organization, plan, period, status, custom_features, starts_at, ends_at, grace_ends_at, days_left, price_paid, credit_balance, source, note, created_at]
       properties:
         uuid: { type: string, format: uuid }
         organization: { $ref: "#/components/schemas/BillingOrganizationRef" }
         plan: { $ref: "#/components/schemas/BillingPlanRef" }
         period: { type: string, enum: [monthly, yearly] }
         status: { type: string }
+        custom_features:
+          type: object
+          additionalProperties: { type: integer, format: int64 }
         starts_at: { type: string, format: date-time }
         ends_at: { type: string, format: date-time }
         grace_ends_at: { type: [string, "null"], format: date-time }

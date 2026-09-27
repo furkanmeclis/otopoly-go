@@ -227,3 +227,60 @@ func TestVATRounding(t *testing.T) {
 		t.Fatalf("vat = %s, want 16.67", got.VATAmount)
 	}
 }
+
+func TestValidateCustom(t *testing.T) {
+	opts := []CustomOption{
+		{Key: "jobs.daily", Label: "Günlük işlem", Unit: "adet", Min: 30, Max: 200, Step: 10, UnitPrice: "50.00"},
+	}
+
+	tests := []struct {
+		name    string
+		sel     map[string]int64
+		want    map[string]int64
+		wantErr bool
+	}{
+		{name: "fills missing with min", sel: nil, want: map[string]int64{"jobs.daily": 30}},
+		{name: "rejects off step", sel: map[string]int64{"jobs.daily": 35}, wantErr: true},
+		{name: "rejects max overflow", sel: map[string]int64{"jobs.daily": 210}, wantErr: true},
+		{name: "rejects unknown key", sel: map[string]int64{"storage.gb": 10}, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ValidateCustom(opts, tt.sel)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error, got nil")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			for key, want := range tt.want {
+				if got[key] != want {
+					t.Fatalf("%s=%d, want %d", key, got[key], want)
+				}
+			}
+		})
+	}
+}
+
+func TestCustomMonthlyBaseValuesAreFree(t *testing.T) {
+	got, err := CustomMonthly("2000.00", []CustomOption{
+		{Key: "jobs.daily", Label: "Günlük işlem", Unit: "adet", Min: 30, Max: 200, Step: 10, UnitPrice: "50.00"},
+		{Key: "staff.count", Label: "Personel", Unit: "kişi", Min: 5, Max: 50, Step: 5, UnitPrice: "100.00"},
+	}, map[string]int64{"jobs.daily": 30, "staff.count": 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "2000.00" {
+		t.Fatalf("monthly=%s, want 2000.00", got)
+	}
+}
+
+func TestCustomYearlyDiscountPercent(t *testing.T) {
+	got := CustomYearly(YearlyRule{Kind: "discount_percent", DiscountValue: "10.00"}, "600.00", "2000.00")
+	if got != "28080.00" {
+		t.Fatalf("yearly=%s, want 28080.00", got)
+	}
+}

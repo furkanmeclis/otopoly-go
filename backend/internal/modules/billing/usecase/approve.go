@@ -64,6 +64,74 @@ func (s *Service) GetOrderAdmin(ctx context.Context, id uuid.UUID) (Order, error
 	return s.orderFromAdminRow(ctx, row)
 }
 
+func (s *Service) CreateOrderAdmin(ctx context.Context, in AdminOrderInput) (Order, error) {
+	if in.OrganizationUUID == uuid.Nil {
+		return Order{}, fmt.Errorf("%w: organization_uuid is required", ErrInvalidRequest)
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Order{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := s.q.WithTx(tx)
+	org, err := organizationByUUID(ctx, tx, in.OrganizationUUID)
+	if err != nil {
+		return Order{}, err
+	}
+	if open, err := qtx.GetOpenOrderForOrg(ctx, org.ID); err == nil {
+		return Order{}, OrderOpenError{OrderUUID: open.Uuid}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return Order{}, err
+	}
+	qr, err := s.quoteFor(ctx, qtx, org.ID, OrderInput{
+		PlanUUID: in.PlanUUID, Period: in.Period, DiscountCode: in.DiscountCode, CustomFeatures: in.CustomFeatures,
+	}, in.ListPrice, true, false)
+	if err != nil {
+		return Order{}, err
+	}
+	settings, err := qtx.GetBillingSettings(ctx)
+	if err != nil {
+		return Order{}, err
+	}
+	ref, err := s.uniqueReferenceCode(ctx, qtx)
+	if err != nil {
+		return Order{}, err
+	}
+	now := time.Now()
+	total, err := numericNonNegative(qr.Preview.Total)
+	if err != nil {
+		return Order{}, err
+	}
+	row, err := qtx.CreateOrder(ctx, db.CreateOrderParams{
+		OrganizationID: org.ID, PlanID: qr.PlanID, Period: qr.Preview.Period, Kind: qr.Preview.Kind,
+		Status: "pending_payment", Channel: "bank_transfer", ReferenceCode: ref,
+		ListPrice: mustNumeric(qr.Preview.ListPrice), ProrationCredit: mustNumeric(qr.Preview.ProrationCredit),
+		DiscountCodeID: qr.DiscountID, DiscountCode: qr.DiscountCode,
+		DiscountAmount: mustNumeric(qr.Preview.DiscountAmount), CreditApplied: mustNumeric(qr.Preview.CreditApplied),
+		CreditSurplus: mustNumeric(qr.Preview.CreditSurplus), Total: total,
+		VatRate: qr.Preview.VATRate, VatAmount: mustNumeric(qr.Preview.VATAmount), Lines: qr.LinesJSON,
+		StartsAt: pgTimeValue(qr.Preview.StartsAt), EndsAt: pgTimeValue(qr.Preview.EndsAt),
+		CustomFeatures: qr.CustomFeaturesJSON, ExpiresAt: pgTimeValue(now.AddDate(0, 0, int(settings.OrderTtlDays))),
+		CreatedBy: currentUserID(ctx),
+	})
+	if err != nil {
+		return Order{}, err
+	}
+	if note := strings.TrimSpace(in.Note); note != "" {
+		if _, err := tx.Exec(ctx, `UPDATE billing_orders SET report_note = $1 WHERE id = $2`, note, row.ID); err != nil {
+			return Order{}, err
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return Order{}, err
+	}
+	if s.notifier != nil {
+		s.notifier.NotifyOrganization(ctx, org.ID, "Ödeme emri oluşturuldu", "Yeni ödeme emriniz hazır.", "/t/"+org.Slug+"/settings/billing")
+	}
+	s.recordActivity(ctx, "platform.billing.order.create", &row.Uuid, map[string]any{"reference_code": ref, "organization_uuid": org.UUID.String()})
+	return s.GetOrderAdmin(ctx, row.Uuid)
+}
+
 func (s *Service) ApproveOrder(ctx context.Context, id uuid.UUID, note string) (Order, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -189,6 +257,7 @@ func (s *Service) approveTx(ctx context.Context, tx pgx.Tx, qtx *db.Queries, id 
 		Source:         "self_service",
 		Note:           "approved order " + order.ReferenceCode,
 		CreatedBy:      order.CreatedBy,
+		CustomFeatures: order.CustomFeatures,
 	})
 	if err != nil {
 		return db.BillingOrder{}, err

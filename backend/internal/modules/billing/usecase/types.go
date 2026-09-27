@@ -151,6 +151,7 @@ type OrderPreview struct {
 	Kind            string                `json:"kind"`
 	Plan            PlanRef               `json:"plan"`
 	Period          string                `json:"period"`
+	CustomFeatures  map[string]int64      `json:"custom_features"`
 	ListPrice       string                `json:"list_price"`
 	ProrationCredit string                `json:"proration_credit"`
 	DiscountCode    *string               `json:"discount_code"`
@@ -183,6 +184,7 @@ type Order struct {
 	Channel            string            `json:"channel"`
 	Plan               PlanRef           `json:"plan"`
 	Period             string            `json:"period"`
+	CustomFeatures     map[string]int64  `json:"custom_features"`
 	ListPrice          string            `json:"list_price"`
 	ProrationCredit    string            `json:"proration_credit"`
 	DiscountCode       *string           `json:"discount_code"`
@@ -206,9 +208,20 @@ type Order struct {
 }
 
 type OrderInput struct {
-	PlanUUID     uuid.UUID `json:"plan_uuid"`
-	Period       string    `json:"period"`
-	DiscountCode string    `json:"discount_code"`
+	PlanUUID       uuid.UUID        `json:"plan_uuid"`
+	Period         string           `json:"period"`
+	DiscountCode   string           `json:"discount_code"`
+	CustomFeatures map[string]int64 `json:"custom_features"`
+}
+
+type AdminOrderInput struct {
+	OrganizationUUID uuid.UUID        `json:"organization_uuid"`
+	PlanUUID         uuid.UUID        `json:"plan_uuid"`
+	Period           string           `json:"period"`
+	DiscountCode     string           `json:"discount_code"`
+	CustomFeatures   map[string]int64 `json:"custom_features"`
+	ListPrice        string           `json:"list_price"`
+	Note             string           `json:"note"`
 }
 
 type ReportInput struct {
@@ -225,20 +238,21 @@ type OrdersSummary struct {
 }
 
 type AdminSubscription struct {
-	UUID          uuid.UUID       `json:"uuid"`
-	Organization  OrganizationRef `json:"organization"`
-	Plan          PlanRef         `json:"plan"`
-	Period        string          `json:"period"`
-	Status        string          `json:"status"`
-	StartsAt      time.Time       `json:"starts_at"`
-	EndsAt        time.Time       `json:"ends_at"`
-	GraceEndsAt   *time.Time      `json:"grace_ends_at"`
-	DaysLeft      int             `json:"days_left"`
-	PricePaid     string          `json:"price_paid"`
-	CreditBalance string          `json:"credit_balance"`
-	Source        string          `json:"source"`
-	Note          string          `json:"note"`
-	CreatedAt     time.Time       `json:"created_at"`
+	UUID           uuid.UUID        `json:"uuid"`
+	Organization   OrganizationRef  `json:"organization"`
+	Plan           PlanRef          `json:"plan"`
+	Period         string           `json:"period"`
+	Status         string           `json:"status"`
+	CustomFeatures map[string]int64 `json:"custom_features"`
+	StartsAt       time.Time        `json:"starts_at"`
+	EndsAt         time.Time        `json:"ends_at"`
+	GraceEndsAt    *time.Time       `json:"grace_ends_at"`
+	DaysLeft       int              `json:"days_left"`
+	PricePaid      string           `json:"price_paid"`
+	CreditBalance  string           `json:"credit_balance"`
+	Source         string           `json:"source"`
+	Note           string           `json:"note"`
+	CreatedAt      time.Time        `json:"created_at"`
 }
 
 type AdminSubscriptionInput struct {

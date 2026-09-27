@@ -10,8 +10,8 @@
 
 ## Durum
 
-- [ ] Task 1 fiyat hesabı + doğrulama (pricing) + testler
-- [ ] Task 2 sipariş/önizleme/onay akışına özel değerler + admin özel fiyatlı sipariş + OpenAPI
+- [x] Task 1 fiyat hesabı + doğrulama (pricing) + testler
+- [x] Task 2 sipariş/önizleme/onay akışına özel değerler + admin özel fiyatlı sipariş + OpenAPI
 - [ ] Task 3 frontend admin plan editörü (min/max/adım/birim fiyat) + özel fiyatlı sipariş dialog'u
 - [ ] Task 4 frontend işletme yapılandırıcı (kaydırıcılar, anlık fiyat)
 - [ ] Task 5 doğrulama, ekran görüntüleri, Notion

@@ -142,6 +142,85 @@ func TestOrdersDBApprovalAndAdminSubscriptions(t *testing.T) {
 	}
 }
 
+func TestOrdersDBCustomFeaturesApprovedEntitlements(t *testing.T) {
+	svc, q, pool, ctx := newOrdersDBFixture(t)
+	plan := createCustomBillingTestPlan(t, svc, pool, "enterprise_limits")
+	org := createBillingTestOrg(t, q, pool)
+	octx := orgctx.WithScope(ctx, orgctx.Scope{InternalID: org.ID, UUID: org.Uuid, Slug: org.Slug, Name: org.Name})
+
+	stored, err := svc.GetPlan(ctx, plan.UUID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sawCustom bool
+	for _, f := range stored.Features {
+		if f.Key == "jobs.daily" && f.MinValue != nil && f.MaxValue != nil && f.Step != nil && f.UnitPrice != nil &&
+			*f.MinValue == 30 && *f.MaxValue == 200 && *f.Step == 10 && *f.UnitPrice == "50.00" {
+			sawCustom = true
+		}
+	}
+	if !sawCustom {
+		t.Fatalf("custom feature values not persisted: %+v", stored.Features)
+	}
+
+	order, err := svc.CreateOrder(octx, OrderInput{
+		PlanUUID: plan.UUID, Period: "monthly", CustomFeatures: map[string]int64{"jobs.daily": 120},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order.CustomFeatures["jobs.daily"] != 120 {
+		t.Fatalf("order custom_features=%+v", order.CustomFeatures)
+	}
+	approved, err := svc.ApproveOrder(ctx, order.UUID, "custom approved")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if approved.Status != "approved" || approved.CustomFeatures["jobs.daily"] != 120 {
+		t.Fatalf("approved=%+v", approved)
+	}
+	decision, err := svc.ent.Check(ctx, org.ID, "jobs.daily", 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decision.Limit != 120 {
+		t.Fatalf("jobs.daily limit=%d, want 120", decision.Limit)
+	}
+}
+
+func TestOrdersDBAdminSpecialPriceDiscount(t *testing.T) {
+	svc, q, pool, ctx := newOrdersDBFixture(t)
+	plan := createCustomBillingTestPlan(t, svc, pool, "enterprise_special")
+	org := createBillingTestOrg(t, q, pool)
+	code := "YAZ10" + strings.ToUpper(uuid.NewString()[:6])
+	discount, err := svc.CreateDiscountCode(ctx, DiscountInput{
+		Code: code, Kind: "percent", Value: "10.00", PlanUUIDs: []uuid.UUID{plan.UUID},
+		Periods: []string{"monthly"}, IsActive: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM billing_discount_uses WHERE discount_code_id = (SELECT id FROM billing_discount_codes WHERE uuid = $1)`, discount.UUID)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM billing_discount_codes WHERE uuid = $1`, discount.UUID)
+	})
+
+	order, err := svc.CreateOrderAdmin(ctx, AdminOrderInput{
+		OrganizationUUID: org.Uuid, PlanUUID: plan.UUID, Period: "monthly",
+		CustomFeatures: map[string]int64{"jobs.daily": 120}, ListPrice: "10000.00", DiscountCode: code,
+		Note: "special",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if order.ListPrice != "10000.00" || order.DiscountAmount != "1000.00" || order.Total != "9000.00" {
+		t.Fatalf("order prices=%+v", order)
+	}
+	if len(order.Lines) == 0 || !strings.Contains(order.Lines[0].Label, "(özel fiyat)") {
+		t.Fatalf("plan label=%+v", order.Lines)
+	}
+}
+
 func newOrdersDBFixture(t *testing.T) (*Service, *db.Queries, *pgxpool.Pool, context.Context) {
 	t.Helper()
 	dsn := os.Getenv("DATABASE_URL")
@@ -183,6 +262,37 @@ func createBillingTestPlan(t *testing.T, svc *Service, suffix, monthly string) P
 	}
 	t.Cleanup(func() {
 		_, _ = svc.pool.Exec(context.Background(), `DELETE FROM billing_plans WHERE uuid = $1`, plan.UUID)
+	})
+	return plan
+}
+
+func createCustomBillingTestPlan(t *testing.T, svc *Service, pool *pgxpool.Pool, suffix string) Plan {
+	t.Helper()
+	if err := svc.EnsureBuiltinFeatures(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	baseLimit := int64(60)
+	minValue := int64(30)
+	maxValue := int64(200)
+	step := int64(10)
+	unitPrice := "50.00"
+	plan, err := svc.CreatePlan(context.Background(), PlanInput{
+		Code: "test_" + suffix + "_" + uuid.NewString()[:8],
+		Name: "Enterprise Test " + suffix, PriceMonthly: "2000.00", YearlyPricing: "discount_percent",
+		YearlyDiscountValue: "10.00", IsPublic: true, IsCustomizable: true, IsActive: true,
+		Features: []PlanFeatureValue{
+			{
+				Key: "jobs.daily", ValueInt: &baseLimit, Enforcement: "hard", TolerancePct: 0, WarnPct: 80,
+				MinValue: &minValue, MaxValue: &maxValue, Step: &step, UnitPrice: &unitPrice,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM billing_plan_features WHERE plan_id = (SELECT id FROM billing_plans WHERE uuid = $1)`, plan.UUID)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM billing_plans WHERE uuid = $1`, plan.UUID)
 	})
 	return plan
 }

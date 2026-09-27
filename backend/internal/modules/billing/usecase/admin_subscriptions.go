@@ -98,6 +98,7 @@ func (s *Service) CreateSubscriptionAdmin(ctx context.Context, in AdminSubscript
 		EndsAt:         pgTimeValue(in.EndsAt),
 		PricePaid:      price,
 		CreditBalance:  mustNumeric("0"),
+		CustomFeatures: []byte(`{}`),
 		Source:         "admin",
 		Note:           strings.TrimSpace(in.Note),
 		CreatedBy:      currentUserID(ctx),
@@ -224,7 +225,8 @@ func adminSubscriptionFromList(row db.ListSubscriptionsAdminRow) AdminSubscripti
 		Plan:         PlanRef{UUID: row.PlanUuid, Code: row.PlanCode, Name: row.PlanName},
 		Period:       row.Period, Status: row.Status, StartsAt: row.StartsAt.Time, EndsAt: row.EndsAt.Time,
 		DaysLeft: daysLeft(row.EndsAt.Time, timeNow()), PricePaid: numericString(row.PricePaid),
-		CreditBalance: numericString(row.CreditBalance), Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
+		CreditBalance: numericString(row.CreditBalance), CustomFeatures: unmarshalCustomFeatures(row.CustomFeatures),
+		Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
 	}
 	if row.GraceEndsAt.Valid {
 		t := row.GraceEndsAt.Time
@@ -240,7 +242,8 @@ func adminSubscriptionFromGet(row db.GetSubscriptionByUUIDRow) AdminSubscription
 		Plan:         PlanRef{UUID: row.PlanUuid, Code: row.PlanCode, Name: row.PlanName},
 		Period:       row.Period, Status: row.Status, StartsAt: row.StartsAt.Time, EndsAt: row.EndsAt.Time,
 		DaysLeft: daysLeft(row.EndsAt.Time, timeNow()), PricePaid: numericString(row.PricePaid),
-		CreditBalance: numericString(row.CreditBalance), Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
+		CreditBalance: numericString(row.CreditBalance), CustomFeatures: unmarshalCustomFeatures(row.CustomFeatures),
+		Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
 	}
 	if row.GraceEndsAt.Valid {
 		t := row.GraceEndsAt.Time
@@ -256,7 +259,8 @@ func adminSubscriptionFromHistory(row db.ListSubscriptionHistoryForOrgRow) Admin
 		Plan:         PlanRef{UUID: row.PlanUuid, Code: row.PlanCode, Name: row.PlanName},
 		Period:       row.Period, Status: row.Status, StartsAt: row.StartsAt.Time, EndsAt: row.EndsAt.Time,
 		DaysLeft: daysLeft(row.EndsAt.Time, timeNow()), PricePaid: numericString(row.PricePaid),
-		CreditBalance: numericString(row.CreditBalance), Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
+		CreditBalance: numericString(row.CreditBalance), CustomFeatures: unmarshalCustomFeatures(row.CustomFeatures),
+		Source: row.Source, Note: row.Note, CreatedAt: row.CreatedAt.Time,
 	}
 	if row.GraceEndsAt.Valid {
 		t := row.GraceEndsAt.Time

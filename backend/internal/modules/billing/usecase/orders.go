@@ -27,16 +27,17 @@ const maxReceiptBytes int64 = 10 << 20
 var safeFileRE = regexp.MustCompile(`[^A-Za-z0-9._-]+`)
 
 type quoteResult struct {
-	Preview      OrderPreview
-	PlanID       int64
-	DiscountID   pgtype.Int8
-	DiscountCode string
-	LinesJSON    []byte
+	Preview            OrderPreview
+	PlanID             int64
+	DiscountID         pgtype.Int8
+	DiscountCode       string
+	LinesJSON          []byte
+	CustomFeaturesJSON []byte
 }
 
 func (s *Service) PreviewOrder(ctx context.Context, in OrderInput) (OrderPreview, error) {
 	scope := orgctx.MustScope(ctx)
-	qr, err := s.quoteFor(ctx, s.q, scope.InternalID, in, true)
+	qr, err := s.quoteFor(ctx, s.q, scope.InternalID, in, "", false, true)
 	if err != nil {
 		return OrderPreview{}, err
 	}
@@ -57,7 +58,7 @@ func (s *Service) CreateOrder(ctx context.Context, in OrderInput) (Order, error)
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return Order{}, err
 	}
-	qr, err := s.quoteFor(ctx, qtx, scope.InternalID, in, false)
+	qr, err := s.quoteFor(ctx, qtx, scope.InternalID, in, "", false, false)
 	if err != nil {
 		return Order{}, err
 	}
@@ -97,7 +98,7 @@ func (s *Service) CreateOrder(ctx context.Context, in OrderInput) (Order, error)
 		Lines:           qr.LinesJSON,
 		StartsAt:        pgTimeValue(qr.Preview.StartsAt),
 		EndsAt:          pgTimeValue(qr.Preview.EndsAt),
-		CustomFeatures:  []byte(`{}`),
+		CustomFeatures:  qr.CustomFeaturesJSON,
 		ExpiresAt:       pgTimeValue(now.AddDate(0, 0, int(settings.OrderTtlDays))),
 		CreatedBy:       createdBy,
 	})
@@ -265,7 +266,7 @@ func (s *Service) ExpireDueOrders(ctx context.Context) (int, error) {
 	return len(rows), nil
 }
 
-func (s *Service) quoteFor(ctx context.Context, q *db.Queries, orgID int64, in OrderInput, allowDiscountError bool) (quoteResult, error) {
+func (s *Service) quoteFor(ctx context.Context, q *db.Queries, orgID int64, in OrderInput, listPriceOverride string, specialPrice bool, allowDiscountError bool) (quoteResult, error) {
 	if in.PlanUUID == uuid.Nil {
 		return quoteResult{}, fmt.Errorf("%w: plan_uuid is required", ErrInvalidRequest)
 	}
@@ -283,6 +284,26 @@ func (s *Service) quoteFor(ctx context.Context, q *db.Queries, orgID int64, in O
 		return quoteResult{}, ErrPlanUnavailable
 	}
 	plan := mapPlan(planRow)
+	featureRows, err := q.ListPlanFeatures(ctx, planRow.ID)
+	if err != nil {
+		return quoteResult{}, err
+	}
+	plan.Features = make([]PlanFeatureValue, 0, len(featureRows))
+	for _, f := range featureRows {
+		plan.Features = append(plan.Features, mapPlanFeature(f))
+	}
+	opts := customOptions(plan.Features)
+	customValues := map[string]int64{}
+	if len(in.CustomFeatures) > 0 || len(opts) > 0 {
+		if !plan.IsCustomizable || len(opts) == 0 {
+			return quoteResult{}, CustomFeaturesError{Field: "custom_features", Message: "plan is not customizable"}
+		}
+		values, err := pricing.ValidateCustom(opts, in.CustomFeatures)
+		if err != nil {
+			return quoteResult{}, customFeatureErr(err)
+		}
+		customValues = values
+	}
 	settings, err := q.GetBillingSettings(ctx)
 	if err != nil {
 		return quoteResult{}, err
@@ -326,28 +347,68 @@ func (s *Service) quoteFor(ctx context.Context, q *db.Queries, orgID int64, in O
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return quoteResult{}, err
 	}
-	listPrice := plan.PriceMonthly
-	if in.Period == "yearly" {
-		listPrice = YearlyPrice(plan)
+	listPrice := strings.TrimSpace(listPriceOverride)
+	if listPrice != "" {
+		if _, err := numericNonNegative(listPrice); err != nil {
+			return quoteResult{}, err
+		}
+	} else if len(opts) > 0 {
+		monthly, err := pricing.CustomMonthly(plan.PriceMonthly, opts, customValues)
+		if err != nil {
+			return quoteResult{}, customFeatureErr(err)
+		}
+		listPrice = monthly
+		if in.Period == "yearly" {
+			extra, err := pricing.CustomMonthlyExtra(opts, customValues)
+			if err != nil {
+				return quoteResult{}, customFeatureErr(err)
+			}
+			listPrice = pricing.CustomYearly(pricing.YearlyRule{
+				Kind:          plan.YearlyPricing,
+				FixedPrice:    plan.PriceYearly,
+				DiscountValue: plan.YearlyDiscountValue,
+			}, extra, plan.PriceMonthly)
+		}
+	} else {
+		listPrice = plan.PriceMonthly
+		if in.Period == "yearly" {
+			listPrice = YearlyPrice(plan)
+		}
+	}
+	planName := plan.Name
+	planLabelFormat := "%s (%s)"
+	if len(opts) > 0 {
+		planName = customPlanLabel(plan.Name, in.Period, opts, customValues)
+		planLabelFormat = "%s"
+	} else if specialPrice {
+		planName = plan.Name + " (" + periodLabel(in.Period) + ")"
+		planLabelFormat = "%s"
+	}
+	if specialPrice {
+		planName += " (özel fiyat)"
 	}
 	qp, err := pricing.Compute(pricing.Input{
 		Now:     time.Now(),
 		Loc:     loc,
 		Current: current,
 		Target: pricing.Target{
-			PlanID: planRow.ID, PlanName: plan.Name, PlanRank: plan.PriceMonthly,
+			PlanID: planRow.ID, PlanName: planName, PlanRank: plan.PriceMonthly,
 			Period: in.Period, ListPrice: listPrice,
 		},
 		Discount: discount,
 		VATRate:  int(settings.VatRate),
 		Labels: pricing.Labels{
-			Plan:      "%s (%s)",
+			Plan:      planLabelFormat,
 			Proration: "Kıst iadesi (mevcut %s dönem, %d gün)",
 			Discount:  "İndirim kodu %s",
 			Credit:    "Alacak bakiyesi",
 			Periods:   map[string]string{"monthly": "Aylık", "yearly": "Yıllık"},
 		},
 	})
+	if err != nil {
+		return quoteResult{}, err
+	}
+	customJSON, err := marshalCustomFeatures(customValues)
 	if err != nil {
 		return quoteResult{}, err
 	}
@@ -365,12 +426,82 @@ func (s *Service) quoteFor(ctx context.Context, q *db.Queries, orgID int64, in O
 	}
 	preview := OrderPreview{
 		Kind: qp.Kind, Plan: PlanRef{UUID: plan.UUID, Code: plan.Code, Name: plan.Name}, Period: in.Period,
-		ListPrice: qp.ListPrice, ProrationCredit: qp.ProrationCredit, DiscountCode: codePtr,
+		CustomFeatures: customValues, ListPrice: qp.ListPrice, ProrationCredit: qp.ProrationCredit, DiscountCode: codePtr,
 		DiscountAmount: qp.DiscountAmount, CreditApplied: qp.CreditApplied, CreditSurplus: qp.CreditSurplus,
 		Total: qp.Total, VATRate: settings.VatRate, VATAmount: qp.VATAmount,
 		StartsAt: qp.StartsAt, EndsAt: qp.EndsAt, Lines: lines, DiscountError: discountPreviewErr,
 	}
-	return quoteResult{Preview: preview, PlanID: planRow.ID, DiscountID: discountID, DiscountCode: discountCode, LinesJSON: linesJSON}, nil
+	return quoteResult{
+		Preview: preview, PlanID: planRow.ID, DiscountID: discountID, DiscountCode: discountCode,
+		LinesJSON: linesJSON, CustomFeaturesJSON: customJSON,
+	}, nil
+}
+
+func customOptions(features []PlanFeatureValue) []pricing.CustomOption {
+	opts := []pricing.CustomOption{}
+	for _, f := range features {
+		if f.Kind != "limit" || f.MinValue == nil || f.MaxValue == nil || f.Step == nil || f.UnitPrice == nil {
+			continue
+		}
+		if *f.Step <= 0 {
+			continue
+		}
+		opts = append(opts, pricing.CustomOption{
+			Key: f.Key, Label: defaultString(f.LabelTR, f.Key), Unit: f.Unit,
+			Min: *f.MinValue, Max: *f.MaxValue, Step: *f.Step, UnitPrice: *f.UnitPrice,
+		})
+	}
+	return opts
+}
+
+func customFeatureErr(err error) error {
+	var cerr pricing.CustomError
+	if errors.As(err, &cerr) {
+		return CustomFeaturesError{Field: cerr.Field, Message: cerr.Message}
+	}
+	return err
+}
+
+func customPlanLabel(planName, period string, opts []pricing.CustomOption, values map[string]int64) string {
+	parts := make([]string, 0, len(opts))
+	for _, opt := range opts {
+		parts = append(parts, fmt.Sprintf("%s %d %s", defaultString(opt.Label, opt.Key), values[opt.Key], opt.Unit))
+	}
+	return fmt.Sprintf("%s (%s) · %s", planName, periodLabel(period), strings.Join(parts, ", "))
+}
+
+func marshalCustomFeatures(values map[string]int64) ([]byte, error) {
+	out := make(map[string]string, len(values))
+	for key, value := range values {
+		out[key] = fmt.Sprintf("%d", value)
+	}
+	if len(out) == 0 {
+		return []byte(`{}`), nil
+	}
+	return json.Marshal(out)
+}
+
+func unmarshalCustomFeatures(raw []byte) map[string]int64 {
+	out := map[string]int64{}
+	if len(raw) == 0 {
+		return out
+	}
+	var values map[string]any
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return out
+	}
+	for key, value := range values {
+		switch v := value.(type) {
+		case string:
+			var n int64
+			if _, err := fmt.Sscan(v, &n); err == nil {
+				out[key] = n
+			}
+		case float64:
+			out[key] = int64(v)
+		}
+	}
+	return out
 }
 
 func (s *Service) uniqueReferenceCode(ctx context.Context, q *db.Queries) (string, error) {
@@ -504,7 +635,8 @@ func (s *Service) orderFromOrgRow(ctx context.Context, row db.GetOrderByUUIDForO
 			VatRate: row.VatRate, VatAmount: row.VatAmount, Lines: row.Lines, StartsAt: row.StartsAt,
 			EndsAt: row.EndsAt, ReceiptObjectKey: row.ReceiptObjectKey, ReceiptContentType: row.ReceiptContentType,
 			ReportNote: row.ReportNote, ReportedAt: row.ReportedAt, ReviewedAt: row.ReviewedAt,
-			RejectReason: row.RejectReason, ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
+			RejectReason: row.RejectReason, CustomFeatures: row.CustomFeatures,
+			ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
 		},
 		PlanUUID: row.PlanUuid, PlanCode: row.PlanCode, PlanName: row.PlanName,
 	})
@@ -521,7 +653,8 @@ func (s *Service) orderFromOrgListRow(ctx context.Context, row db.ListOrdersForO
 			VatRate: row.VatRate, VatAmount: row.VatAmount, Lines: row.Lines, StartsAt: row.StartsAt,
 			EndsAt: row.EndsAt, ReceiptObjectKey: row.ReceiptObjectKey, ReceiptContentType: row.ReceiptContentType,
 			ReportNote: row.ReportNote, ReportedAt: row.ReportedAt, ReviewedAt: row.ReviewedAt,
-			RejectReason: row.RejectReason, ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
+			RejectReason: row.RejectReason, CustomFeatures: row.CustomFeatures,
+			ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
 		},
 		PlanUUID: row.PlanUuid, PlanCode: row.PlanCode, PlanName: row.PlanName,
 	})
@@ -538,7 +671,8 @@ func (s *Service) orderFromAdminRow(ctx context.Context, row db.GetOrderByUUIDRo
 			VatRate: row.VatRate, VatAmount: row.VatAmount, Lines: row.Lines, StartsAt: row.StartsAt,
 			EndsAt: row.EndsAt, ReceiptObjectKey: row.ReceiptObjectKey, ReceiptContentType: row.ReceiptContentType,
 			ReportNote: row.ReportNote, ReportedAt: row.ReportedAt, ReviewedAt: row.ReviewedAt,
-			RejectReason: row.RejectReason, ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
+			RejectReason: row.RejectReason, CustomFeatures: row.CustomFeatures,
+			ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
 		},
 		PlanUUID: row.PlanUuid, PlanCode: row.PlanCode, PlanName: row.PlanName,
 		OrganizationUUID: row.OrganizationUuid, OrganizationSlug: row.OrganizationSlug,
@@ -557,7 +691,8 @@ func (s *Service) orderFromAdminListRow(ctx context.Context, row db.ListOrdersRo
 			VatRate: row.VatRate, VatAmount: row.VatAmount, Lines: row.Lines, StartsAt: row.StartsAt,
 			EndsAt: row.EndsAt, ReceiptObjectKey: row.ReceiptObjectKey, ReceiptContentType: row.ReceiptContentType,
 			ReportNote: row.ReportNote, ReportedAt: row.ReportedAt, ReviewedAt: row.ReviewedAt,
-			RejectReason: row.RejectReason, ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
+			RejectReason: row.RejectReason, CustomFeatures: row.CustomFeatures,
+			ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
 		},
 		PlanUUID: row.PlanUuid, PlanCode: row.PlanCode, PlanName: row.PlanName,
 		OrganizationUUID: row.OrganizationUuid, OrganizationSlug: row.OrganizationSlug,
@@ -576,7 +711,8 @@ func (s *Service) orderFromOrgAdminRow(ctx context.Context, row db.ListOrdersFor
 			VatRate: row.VatRate, VatAmount: row.VatAmount, Lines: row.Lines, StartsAt: row.StartsAt,
 			EndsAt: row.EndsAt, ReceiptObjectKey: row.ReceiptObjectKey, ReceiptContentType: row.ReceiptContentType,
 			ReportNote: row.ReportNote, ReportedAt: row.ReportedAt, ReviewedAt: row.ReviewedAt,
-			RejectReason: row.RejectReason, ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
+			RejectReason: row.RejectReason, CustomFeatures: row.CustomFeatures,
+			ExpiresAt: row.ExpiresAt, CreatedAt: row.CreatedAt,
 		},
 		PlanUUID: row.PlanUuid, PlanCode: row.PlanCode, PlanName: row.PlanName,
 		OrganizationUUID: row.OrganizationUuid, OrganizationSlug: row.OrganizationSlug,
@@ -614,7 +750,8 @@ func (s *Service) mapOrder(ctx context.Context, rec orderRecord) (Order, error) 
 		UUID: row.Uuid, ReferenceCode: row.ReferenceCode, Kind: row.Kind, Status: row.Status,
 		Channel: row.Channel, Plan: PlanRef{UUID: rec.PlanUUID, Code: rec.PlanCode, Name: rec.PlanName},
 		Period: row.Period, ListPrice: numericString(row.ListPrice), ProrationCredit: numericString(row.ProrationCredit),
-		DiscountCode: discountCode, DiscountAmount: numericString(row.DiscountAmount),
+		CustomFeatures: unmarshalCustomFeatures(row.CustomFeatures),
+		DiscountCode:   discountCode, DiscountAmount: numericString(row.DiscountAmount),
 		CreditApplied: numericString(row.CreditApplied), CreditSurplus: numericString(row.CreditSurplus),
 		Total: numericString(row.Total), VATAmount: numericString(row.VatAmount), Lines: lines,
 		HasReceipt: row.ReceiptObjectKey != "", ReceiptContentType: receiptType, ReportNote: row.ReportNote,

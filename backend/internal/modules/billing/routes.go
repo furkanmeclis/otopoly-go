@@ -59,6 +59,7 @@ func RegisterRoutes(
 	mux.Handle("PUT /v1/platform/billing/plans/{uuid}", platformWrite(h.PlatformUpdatePlan))
 	mux.Handle("DELETE /v1/platform/billing/plans/{uuid}", platformWrite(h.PlatformDeletePlan))
 	mux.Handle("GET /v1/platform/billing/orders", platformRead(h.PlatformListOrders))
+	mux.Handle("POST /v1/platform/billing/orders", platformWrite(h.PlatformCreateOrder))
 	mux.Handle("GET /v1/platform/billing/orders/summary", platformRead(h.PlatformOrdersSummary))
 	mux.Handle("GET /v1/platform/billing/orders/{uuid}", platformRead(h.PlatformGetOrder))
 	mux.Handle("GET /v1/platform/billing/orders/{uuid}/receipt", platformRead(h.PlatformOpenReceipt))

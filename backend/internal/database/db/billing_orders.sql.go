@@ -356,11 +356,11 @@ func (q *Queries) CreateOrder(ctx context.Context, arg CreateOrderParams) (Billi
 const createSubscriptionWithCredit = `-- name: CreateSubscriptionWithCredit :one
 INSERT INTO billing_subscriptions (
     organization_id, plan_id, period, status, starts_at, ends_at, price_paid,
-    credit_balance, source, note, created_by
+    credit_balance, custom_features, source, note, created_by
 ) VALUES (
     $1, $2, $3, $4,
     $5, $6, $7, $8,
-    $9, $10, $11
+    $9, $10, $11, $12
 )
 RETURNING id, uuid, organization_id, plan_id, period, status, starts_at, ends_at, grace_ends_at, price_paid, credit_balance, custom_features, source, note, created_by, created_at, updated_at
 `
@@ -374,6 +374,7 @@ type CreateSubscriptionWithCreditParams struct {
 	EndsAt         pgtype.Timestamptz `json:"ends_at"`
 	PricePaid      pgtype.Numeric     `json:"price_paid"`
 	CreditBalance  pgtype.Numeric     `json:"credit_balance"`
+	CustomFeatures []byte             `json:"custom_features"`
 	Source         string             `json:"source"`
 	Note           string             `json:"note"`
 	CreatedBy      pgtype.Int8        `json:"created_by"`
@@ -389,6 +390,7 @@ func (q *Queries) CreateSubscriptionWithCredit(ctx context.Context, arg CreateSu
 		arg.EndsAt,
 		arg.PricePaid,
 		arg.CreditBalance,
+		arg.CustomFeatures,
 		arg.Source,
 		arg.Note,
 		arg.CreatedBy,

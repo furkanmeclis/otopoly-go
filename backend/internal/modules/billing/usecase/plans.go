@@ -262,10 +262,10 @@ func (s *Service) validatePlanInput(ctx context.Context, in PlanInput, requireCo
 	default:
 		return fmt.Errorf("%w: yearly_pricing is invalid", ErrInvalidRequest)
 	}
-	return s.validateFeatureValues(ctx, in.Features)
+	return s.validateFeatureValues(ctx, in.Features, in.IsCustomizable)
 }
 
-func (s *Service) validateFeatureValues(ctx context.Context, values []PlanFeatureValue) error {
+func (s *Service) validateFeatureValues(ctx context.Context, values []PlanFeatureValue, customizable bool) error {
 	features, err := s.q.ListBillingFeatures(ctx, false)
 	if err != nil {
 		return err
@@ -307,8 +307,30 @@ func (s *Service) validateFeatureValues(ctx context.Context, values []PlanFeatur
 				return fmt.Errorf("%w: display features require display_text", ErrInvalidRequest)
 			}
 		}
-		if _, err := optionalNumeric(v.UnitPrice); err != nil {
+		unitPrice, err := optionalNumeric(v.UnitPrice)
+		if err != nil {
 			return err
+		}
+		hasCustomFields := v.MinValue != nil || v.MaxValue != nil || v.Step != nil || v.UnitPrice != nil
+		if hasCustomFields {
+			if !customizable {
+				return fmt.Errorf("%w: custom feature settings require customizable plan", ErrInvalidRequest)
+			}
+			if f.Kind != "limit" {
+				return fmt.Errorf("%w: custom feature settings require limit feature", ErrInvalidRequest)
+			}
+			if v.MinValue == nil || v.MaxValue == nil || v.Step == nil || v.UnitPrice == nil {
+				return fmt.Errorf("%w: custom feature settings require min_value, max_value, step, and unit_price", ErrInvalidRequest)
+			}
+			if *v.MinValue < 0 || *v.MaxValue < *v.MinValue || *v.Step <= 0 {
+				return fmt.Errorf("%w: custom feature bounds are invalid", ErrInvalidRequest)
+			}
+			if (*v.MaxValue-*v.MinValue)%*v.Step != 0 {
+				return fmt.Errorf("%w: custom feature range must align with step", ErrInvalidRequest)
+			}
+			if !unitPrice.Valid {
+				return fmt.Errorf("%w: custom feature unit_price is invalid", ErrInvalidRequest)
+			}
 		}
 	}
 	return nil

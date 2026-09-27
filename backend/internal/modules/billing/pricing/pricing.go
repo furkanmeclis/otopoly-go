@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"sort"
 	"time"
 )
 
@@ -32,6 +33,34 @@ type Discount struct {
 	Code  string
 	Kind  string
 	Value string
+}
+
+type CustomOption struct {
+	Key       string
+	Label     string
+	Unit      string
+	Min       int64
+	Max       int64
+	Step      int64
+	UnitPrice string
+}
+
+type CustomError struct {
+	Field   string
+	Message string
+}
+
+func (e CustomError) Error() string {
+	if e.Field == "" {
+		return e.Message
+	}
+	return e.Field + ": " + e.Message
+}
+
+type YearlyRule struct {
+	Kind          string
+	FixedPrice    string
+	DiscountValue string
 }
 
 type Labels struct {
@@ -90,6 +119,114 @@ func Parse(raw string) (Money, error) {
 
 func Format(m Money) string {
 	return Round2(m).FloatString(2)
+}
+
+func ValidateCustom(opts []CustomOption, sel map[string]int64) (map[string]int64, error) {
+	byKey := make(map[string]CustomOption, len(opts))
+	for _, opt := range opts {
+		if opt.Key == "" {
+			continue
+		}
+		if opt.Step <= 0 {
+			return nil, CustomError{Field: opt.Key, Message: "step must be positive"}
+		}
+		if opt.Min > opt.Max {
+			return nil, CustomError{Field: opt.Key, Message: "min must be less than or equal to max"}
+		}
+		byKey[opt.Key] = opt
+	}
+	for key := range sel {
+		if _, ok := byKey[key]; !ok {
+			return nil, CustomError{Field: key, Message: "unknown custom feature"}
+		}
+	}
+	out := make(map[string]int64, len(byKey))
+	keys := make([]string, 0, len(byKey))
+	for key := range byKey {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		opt := byKey[key]
+		value, ok := sel[key]
+		if !ok {
+			value = opt.Min
+		}
+		if value < opt.Min {
+			return nil, CustomError{Field: key, Message: "value is below min"}
+		}
+		if value > opt.Max {
+			return nil, CustomError{Field: key, Message: "value is above max"}
+		}
+		if (value-opt.Min)%opt.Step != 0 {
+			return nil, CustomError{Field: key, Message: "value does not match step"}
+		}
+		out[key] = value
+	}
+	return out, nil
+}
+
+func CustomMonthly(base string, opts []CustomOption, sel map[string]int64) (string, error) {
+	total, err := parseNonNegative(base)
+	if err != nil {
+		return "", err
+	}
+	values, err := ValidateCustom(opts, sel)
+	if err != nil {
+		return "", err
+	}
+	for _, opt := range opts {
+		unitPrice, err := parseNonNegative(opt.UnitPrice)
+		if err != nil {
+			return "", err
+		}
+		steps := (values[opt.Key] - opt.Min) / opt.Step
+		total.Add(total, new(big.Rat).Mul(big.NewRat(steps, 1), unitPrice))
+	}
+	return Format(total), nil
+}
+
+func CustomMonthlyExtra(opts []CustomOption, sel map[string]int64) (string, error) {
+	return CustomMonthly("0.00", opts, sel)
+}
+
+func CustomYearly(rule YearlyRule, monthlyExtra string, base string) string {
+	extra, err := parseNonNegative(monthlyExtra)
+	if err != nil {
+		return "0.00"
+	}
+	monthly, err := parseNonNegative(base)
+	if err != nil {
+		return "0.00"
+	}
+	switch rule.Kind {
+	case "fixed":
+		fixed, err := parseNonNegative(rule.FixedPrice)
+		if err != nil {
+			return "0.00"
+		}
+		fixed.Add(fixed, new(big.Rat).Mul(extra, big.NewRat(12, 1)))
+		return Format(fixed)
+	case "discount_amount":
+		discount, err := parseNonNegative(rule.DiscountValue)
+		if err != nil {
+			return "0.00"
+		}
+		total := new(big.Rat).Mul(new(big.Rat).Add(monthly, extra), big.NewRat(12, 1))
+		total.Sub(total, discount)
+		return Format(maxRat(total, zero()))
+	case "discount_percent":
+		pct, err := parseNonNegative(rule.DiscountValue)
+		if err != nil {
+			return "0.00"
+		}
+		total := new(big.Rat).Mul(new(big.Rat).Add(monthly, extra), big.NewRat(12, 1))
+		factor := new(big.Rat).Sub(big.NewRat(1, 1), new(big.Rat).Quo(pct, big.NewRat(100, 1)))
+		total.Mul(total, factor)
+		return Format(maxRat(total, zero()))
+	default:
+		return "0.00"
+	}
 }
 
 func Round2(m Money) Money {

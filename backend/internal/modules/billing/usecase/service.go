@@ -29,7 +29,22 @@ var (
 	ErrInvoiceState    = errors.New("invoice state")
 	ErrXSLTInvalid     = errors.New("xslt invalid")
 	ErrInvoiceProfile  = errors.New("invoice profile invalid")
+	ErrCustomFeatures  = errors.New("custom features invalid")
 )
+
+type CustomFeaturesError struct {
+	Field   string
+	Message string
+}
+
+func (e CustomFeaturesError) Error() string {
+	if e.Field == "" {
+		return e.Message
+	}
+	return e.Field + ": " + e.Message
+}
+
+func (e CustomFeaturesError) Unwrap() error { return ErrCustomFeatures }
 
 type OrderOpenError struct {
 	OrderUUID uuid.UUID

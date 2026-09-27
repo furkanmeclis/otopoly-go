@@ -308,10 +308,10 @@ UPDATE billing_subscriptions SET credit_balance = sqlc.arg(credit_balance) WHERE
 -- name: CreateSubscriptionWithCredit :one
 INSERT INTO billing_subscriptions (
     organization_id, plan_id, period, status, starts_at, ends_at, price_paid,
-    credit_balance, source, note, created_by
+    credit_balance, custom_features, source, note, created_by
 ) VALUES (
     sqlc.arg(organization_id), sqlc.arg(plan_id), sqlc.arg(period), sqlc.arg(status),
     sqlc.arg(starts_at), sqlc.arg(ends_at), sqlc.arg(price_paid), sqlc.arg(credit_balance),
-    sqlc.arg(source), sqlc.arg(note), sqlc.narg(created_by)
+    sqlc.arg(custom_features), sqlc.arg(source), sqlc.arg(note), sqlc.narg(created_by)
 )
 RETURNING *;
