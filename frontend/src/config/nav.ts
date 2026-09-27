@@ -30,6 +30,7 @@ import {
   Sparkles,
   Megaphone,
   FileSignature,
+  CreditCard,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -475,6 +476,13 @@ export function tenantNav(slug: string) {
             titleKey: "layout.nav_messaging",
             href: routes.tenant.settings.messaging(slug),
             icon: MessageCircle,
+          },
+          {
+            id: "billing",
+            titleKey: "layout.nav_billing",
+            href: routes.tenant.settings.billing(slug),
+            icon: CreditCard,
+            permission: permissions.billing.read,
           },
         ],
       },
