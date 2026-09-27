@@ -116,6 +116,8 @@ export function usePlatformFeatureMutations() {
 type ListParams = {
   status?: string;
   q?: string;
+  plan_uuid?: string;
+  expiring_within_days?: number;
   limit?: number;
   offset?: number;
 };
