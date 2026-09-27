@@ -37,6 +37,7 @@ func RegisterRoutes(
 		return middleware.Chain(fn, authn, middleware.RequirePermission(rbac.PermPlatformBillingSettings))
 	}
 
+	mux.HandleFunc("GET /v1/public/billing/plans", h.PublicPlans)
 	mux.Handle("GET /v1/tenant/billing/overview", tenantRead(h.TenantOverview))
 	mux.Handle("GET /v1/tenant/billing/plans", tenantRead(h.TenantPlans))
 	mux.Handle("POST /v1/tenant/billing/orders/preview", tenantRead(h.PreviewOrder))

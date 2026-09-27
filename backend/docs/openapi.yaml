@@ -1145,6 +1145,23 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /v1/public/billing/plans:
+    get:
+      tags: [Public]
+      operationId: getPublicBillingPlans
+      summary: Public billing plans
+      description: Lists public active billing plans, excluding the trial plan.
+      security: []
+      responses:
+        "200":
+          description: Plans
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeBillingPlanList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
   /v1/public/organizations/logo/{uuid}:
     get:
       tags: [Public]

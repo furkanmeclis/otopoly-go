@@ -104,6 +104,22 @@ func (h *Handler) TenantPlans(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, r, http.StatusOK, out)
 }
 
+func (h *Handler) PublicPlans(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.ListPlans(r.Context(), true)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	plans := make([]billingusecase.Plan, 0, len(out))
+	for _, plan := range out {
+		if plan.Code == "trial" {
+			continue
+		}
+		plans = append(plans, plan)
+	}
+	response.JSON(w, r, http.StatusOK, plans)
+}
+
 func (h *Handler) PlatformListFeatures(w http.ResponseWriter, r *http.Request) {
 	includeInactive := r.URL.Query().Get("include_inactive") == "true"
 	out, err := h.svc.ListFeatures(r.Context(), includeInactive)
