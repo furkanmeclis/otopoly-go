@@ -1,7 +1,10 @@
 import type { AppLocale } from "@/config/i18n";
 import type { BillingPlan, BillingUsageMeter } from "@/features/billing/types";
 
-export function meterLabel(meter: { label_tr: string; label_en: string; key: string }, locale: AppLocale) {
+export function meterLabel(
+  meter: { label_tr: string; label_en: string; key: string },
+  locale: AppLocale,
+) {
   const label = locale === "tr" ? meter.label_tr : meter.label_en;
   return label || meter.key;
 }
@@ -19,7 +22,15 @@ export function meterTone(meter: BillingUsageMeter): "ok" | "warn" | "over" {
 }
 
 /** Yearly price shown for a plan; mirrors backend YearlyPrice (spec #12). */
-export function yearlyPrice(plan: Pick<BillingPlan, "price_monthly" | "yearly_pricing" | "price_yearly" | "yearly_discount_value">) {
+export function yearlyPrice(
+  plan: Pick<
+    BillingPlan,
+    | "price_monthly"
+    | "yearly_pricing"
+    | "price_yearly"
+    | "yearly_discount_value"
+  >,
+) {
   const monthly = Number.parseFloat(plan.price_monthly) || 0;
   const value = Number.parseFloat(plan.yearly_discount_value) || 0;
   let total: number;

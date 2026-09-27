@@ -41,6 +41,8 @@ import {
   type Lead,
   type LeadListParams,
 } from "@/features/leads/types";
+import { FeatureLocked } from "@/features/billing";
+import { isFeatureDisabledError } from "@/lib/api/limit-events";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { cn } from "@/lib/utils";
 import { date } from "@/lib/utils/format";
@@ -226,6 +228,8 @@ export function LeadsPage({ slug }: { slug: string }) {
             <Skeleton key={i} className="h-20 w-full rounded-2xl" />
           ))}
         </div>
+      ) : list.isError && isFeatureDisabledError(list.error) ? (
+        <FeatureLocked slug={slug} />
       ) : list.isError ? (
         <EmptyState
           title={t("leads.error")}

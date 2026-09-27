@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { routes } from "@/config/routes";
+import { FeatureLocked } from "@/features/billing";
+import { isFeatureDisabledError } from "@/lib/api/limit-events";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import {
@@ -185,6 +187,8 @@ export function QuotesPage({ slug }: { slug: string }) {
             <Skeleton key={i} className="h-16 w-full rounded-2xl" />
           ))}
         </div>
+      ) : list.isError && isFeatureDisabledError(list.error) ? (
+        <FeatureLocked slug={slug} />
       ) : list.isError ? (
         <EmptyState
           title={t("quotes.error")}

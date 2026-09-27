@@ -13,10 +13,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { routes } from "@/config/routes";
-import { useBillingAccess, useBillingOverview } from "@/features/billing/hooks/use-billing";
+import {
+  useBillingAccess,
+  useBillingOverview,
+} from "@/features/billing/hooks/use-billing";
 import { meterLabel } from "@/features/billing/lib";
 import { formatQuantity } from "@/features/finance/lib/format";
-import { subscribeLimitEvents, type LimitEventDetail } from "@/lib/api/limit-events";
+import {
+  subscribeLimitEvents,
+  type LimitEventDetail,
+} from "@/lib/api/limit-events";
 import { useLocale } from "@/providers/locale-provider";
 
 /**
@@ -35,11 +41,16 @@ export function LimitReachedDialog({ slug }: { slug: string }) {
   const meter = event?.feature
     ? overview.data?.meters.find((m) => m.key === event.feature)
     : undefined;
-  const featureName = meter ? meterLabel(meter, locale) : (event?.feature ?? "");
+  const featureName = meter
+    ? meterLabel(meter, locale)
+    : (event?.feature ?? "");
   const disabled = event?.code === "FEATURE_DISABLED";
 
   return (
-    <Dialog open={event !== null} onOpenChange={(open) => !open && setEvent(null)}>
+    <Dialog
+      open={event !== null}
+      onOpenChange={(open) => !open && setEvent(null)}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>

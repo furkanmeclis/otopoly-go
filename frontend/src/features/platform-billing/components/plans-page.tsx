@@ -26,7 +26,9 @@ export function PlansPage() {
   const access = usePlatformBillingAccess();
   const plans = usePlatformPlans(access.canRead);
   const { remove } = usePlatformPlanMutations();
-  const [editing, setEditing] = useState<BillingPlan | null | undefined>(undefined);
+  const [editing, setEditing] = useState<BillingPlan | null | undefined>(
+    undefined,
+  );
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const [deleting, setDeleting] = useState<BillingPlan | null>(null);
 
@@ -59,31 +61,61 @@ export function PlansPage() {
       ) : plans.data && plans.data.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {plans.data.map((plan) => {
-            const blocked = plan.code === "trial" || plan.live_subscriptions > 0;
+            const blocked =
+              plan.code === "trial" || plan.live_subscriptions > 0;
             return (
-              <div key={plan.uuid} className="flex flex-col gap-3 rounded-lg border p-4">
+              <div
+                key={plan.uuid}
+                className="flex flex-col gap-3 rounded-lg border p-4"
+              >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{plan.name}</p>
                     <p className="text-muted-foreground text-xs">{plan.code}</p>
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
-                    {plan.badge ? <Badge variant="secondary">{plan.badge}</Badge> : null}
-                    {!plan.is_active ? <Badge variant="danger">{t("billing.admin.plan.inactive")}</Badge> : null}
+                    {plan.badge ? (
+                      <Badge variant="secondary">{plan.badge}</Badge>
+                    ) : null}
+                    {!plan.is_active ? (
+                      <Badge variant="danger">
+                        {t("billing.admin.plan.inactive")}
+                      </Badge>
+                    ) : null}
                     <Badge variant="outline">
-                      {plan.is_public ? t("billing.admin.plan.public") : t("billing.admin.plan.private")}
+                      {plan.is_public
+                        ? t("billing.admin.plan.public")
+                        : t("billing.admin.plan.private")}
                     </Badge>
-                    {plan.is_customizable ? <Badge variant="warning">{t("billing.admin.plan.customizable")}</Badge> : null}
+                    {plan.is_customizable ? (
+                      <Badge variant="warning">
+                        {t("billing.admin.plan.customizable")}
+                      </Badge>
+                    ) : null}
                   </div>
                 </div>
                 <div className="text-sm">
                   <span className="text-xl font-semibold tabular-nums">
-                    {formatFinanceAmount(plan.price_monthly, plan.currency, locale)}
+                    {formatFinanceAmount(
+                      plan.price_monthly,
+                      plan.currency,
+                      locale,
+                    )}
                   </span>
-                  <span className="text-muted-foreground"> {t("billing.plans.per_month")}</span>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    {t("billing.plans.per_month")}
+                  </span>
                   <p className="text-muted-foreground text-xs tabular-nums">
-                    {formatFinanceAmount(plan.effective_yearly, plan.currency, locale)} {t("billing.plans.per_year")}
-                    {plan.trial_days > 0 ? ` · ${t("billing.plans.trial_days", { days: plan.trial_days })}` : ""}
+                    {formatFinanceAmount(
+                      plan.effective_yearly,
+                      plan.currency,
+                      locale,
+                    )}{" "}
+                    {t("billing.plans.per_year")}
+                    {plan.trial_days > 0
+                      ? ` · ${t("billing.plans.trial_days", { days: plan.trial_days })}`
+                      : ""}
                   </p>
                 </div>
                 <ul className="text-muted-foreground flex-1 space-y-0.5 text-xs">
@@ -92,23 +124,37 @@ export function PlansPage() {
                       {f.key}:{" "}
                       {f.display_text ||
                         (f.value_bool !== null && f.value_bool !== undefined
-                          ? f.value_bool ? "✓" : "—"
+                          ? f.value_bool
+                            ? "✓"
+                            : "—"
                           : (f.value_int ?? "∞"))}
-                      {f.enforcement === "soft" ? ` (${t("billing.admin.plan.feature.soft").toLowerCase()})` : ""}
+                      {f.enforcement === "soft"
+                        ? ` (${t("billing.admin.plan.feature.soft").toLowerCase()})`
+                        : ""}
                       {f.tolerance_pct ? ` +${f.tolerance_pct}%` : ""}
                     </li>
                   ))}
                   {plan.features.length > 4 ? (
-                    <li>{t("billing.admin.plan.more_features", { count: plan.features.length - 4 })}</li>
+                    <li>
+                      {t("billing.admin.plan.more_features", {
+                        count: plan.features.length - 4,
+                      })}
+                    </li>
                   ) : null}
                 </ul>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-muted-foreground text-xs">
-                    {t("billing.admin.plan.live", { count: plan.live_subscriptions })}
+                    {t("billing.admin.plan.live", {
+                      count: plan.live_subscriptions,
+                    })}
                   </span>
                   {access.canWrite ? (
                     <div className="flex gap-1">
-                      <Button size="sm" variant="outline" onClick={() => setEditing(plan)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditing(plan)}
+                      >
                         <Pencil className="size-3.5" />
                         {t("billing.admin.plan.edit")}
                       </Button>
@@ -116,7 +162,11 @@ export function PlansPage() {
                         size="sm"
                         variant="ghost"
                         disabled={blocked}
-                        title={blocked ? t("billing.admin.plan.delete_blocked") : undefined}
+                        title={
+                          blocked
+                            ? t("billing.admin.plan.delete_blocked")
+                            : undefined
+                        }
                         onClick={() => setDeleting(plan)}
                       >
                         <Trash2 className="size-3.5" />
@@ -137,7 +187,11 @@ export function PlansPage() {
         onOpenChange={(open) => !open && setEditing(undefined)}
         plan={editing ?? null}
       />
-      <FeaturesDialog open={featuresOpen} onOpenChange={setFeaturesOpen} canWrite={access.canWrite} />
+      <FeaturesDialog
+        open={featuresOpen}
+        onOpenChange={setFeaturesOpen}
+        canWrite={access.canWrite}
+      />
       <ConfirmDialog
         open={deleting !== null}
         title={t("billing.admin.plan.delete")}

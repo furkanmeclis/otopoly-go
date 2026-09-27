@@ -12,6 +12,8 @@ import {
 import { AppChart } from "@/components/charts/app-chart";
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
+import { FeatureLocked } from "@/features/billing";
+import { isFeatureDisabledError } from "@/lib/api/limit-events";
 import {
   Card,
   CardContent,
@@ -454,7 +456,9 @@ export function ReportsPage({ slug }: { slug: string }) {
         </CardContent>
       </Card>
 
-      {overviewQuery.isError ? (
+      {overviewQuery.isError && isFeatureDisabledError(overviewQuery.error) ? (
+        <FeatureLocked slug={slug} />
+      ) : overviewQuery.isError ? (
         <ErrorState
           title={t("reports.error")}
           description={

@@ -30,6 +30,7 @@ import { useStaff, useStaffMutations } from "@/features/staff/hooks/use-staff";
 import { useTenantStaffAccess } from "@/features/staff/hooks/use-tenant-staff-access";
 import type { StaffMember } from "@/features/staff/services/staff.service";
 import { datetime } from "@/lib/utils/format";
+import { MeterFor } from "@/features/billing";
 import { useLocale } from "@/providers/locale-provider";
 
 export function StaffPage({ slug }: { slug: string }) {
@@ -156,12 +157,15 @@ export function StaffPage({ slug }: { slug: string }) {
         { label: t("staff.title") },
       ]}
       actions={
-        canWrite ? (
-          <EntityCreateButton
-            onClick={() => setCreateOpen(true)}
-            label={t("staff.actions.create")}
-          />
-        ) : null
+        <div className="flex flex-wrap items-center gap-4">
+          <MeterFor keyName="staff.count" />
+          {canWrite ? (
+            <EntityCreateButton
+              onClick={() => setCreateOpen(true)}
+              label={t("staff.actions.create")}
+            />
+          ) : null}
+        </div>
       }
     >
       {listQuery.isLoading ? <Loading label={t("common.loading")} /> : null}
@@ -184,7 +188,9 @@ export function StaffPage({ slug }: { slug: string }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("staff.create.title")}</DialogTitle>
-            <DialogDescription>{t("staff.create.description")}</DialogDescription>
+            <DialogDescription>
+              {t("staff.create.description")}
+            </DialogDescription>
           </DialogHeader>
           <AppForm
             schema={schema}

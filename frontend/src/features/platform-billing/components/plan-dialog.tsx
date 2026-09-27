@@ -36,7 +36,11 @@ import {
 import { useLocale } from "@/providers/locale-provider";
 
 const CODE_RE = /^[a-z0-9_-]{2,32}$/;
-const YEARLY: YearlyPricing[] = ["fixed", "discount_amount", "discount_percent"];
+const YEARLY: YearlyPricing[] = [
+  "fixed",
+  "discount_amount",
+  "discount_percent",
+];
 
 type PlanDialogProps = {
   open: boolean;
@@ -99,17 +103,26 @@ function PlanDialogBody({ onOpenChange, plan }: PlanDialogProps) {
   const { create, update } = usePlatformPlanMutations();
   const pending = create.isPending || update.isPending;
 
-  const set = <K extends keyof BillingPlanInput>(key: K, value: BillingPlanInput[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const set = <K extends keyof BillingPlanInput>(
+    key: K,
+    value: BillingPlanInput[K],
+  ) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!CODE_RE.test(form.code)) e.code = t("billing.validation.code");
     if (!form.name.trim()) e.name = t("billing.validation.required");
-    if (Number.isNaN(Number(form.price_monthly))) e.price_monthly = t("billing.validation.number");
-    if (form.yearly_pricing === "fixed" && Number.isNaN(Number(form.price_yearly)))
+    if (Number.isNaN(Number(form.price_monthly)))
+      e.price_monthly = t("billing.validation.number");
+    if (
+      form.yearly_pricing === "fixed" &&
+      Number.isNaN(Number(form.price_yearly))
+    )
       e.price_yearly = t("billing.validation.number");
-    if (form.yearly_pricing !== "fixed" && Number.isNaN(Number(form.yearly_discount_value)))
+    if (
+      form.yearly_pricing !== "fixed" &&
+      Number.isNaN(Number(form.yearly_discount_value))
+    )
       e.yearly_discount_value = t("billing.validation.number");
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -140,61 +153,144 @@ function PlanDialogBody({ onOpenChange, plan }: PlanDialogProps) {
   return (
     <>
       <DialogHeader>
-        <DialogTitle>{plan ? t("billing.admin.plan.edit") : t("billing.admin.plan.new")}</DialogTitle>
+        <DialogTitle>
+          {plan ? t("billing.admin.plan.edit") : t("billing.admin.plan.new")}
+        </DialogTitle>
       </DialogHeader>
       <div className="grid gap-4 py-2 sm:grid-cols-2">
-        <Field label={t("billing.admin.plan.code")} error={errors.code} hint={t("billing.admin.plan.code_hint")}>
-          <Input value={form.code} readOnly={Boolean(plan)} onChange={(e) => set("code", e.target.value.trim())} />
+        <Field
+          label={t("billing.admin.plan.code")}
+          error={errors.code}
+          hint={t("billing.admin.plan.code_hint")}
+        >
+          <Input
+            value={form.code}
+            readOnly={Boolean(plan)}
+            onChange={(e) => set("code", e.target.value.trim())}
+          />
         </Field>
         <Field label={t("billing.admin.plan.name")} error={errors.name}>
-          <Input value={form.name} onChange={(e) => set("name", e.target.value)} />
+          <Input
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+          />
         </Field>
-        <Field label={t("billing.admin.plan.description")} className="sm:col-span-2">
-          <Textarea rows={2} value={form.description} onChange={(e) => set("description", e.target.value)} />
+        <Field
+          label={t("billing.admin.plan.description")}
+          className="sm:col-span-2"
+        >
+          <Textarea
+            rows={2}
+            value={form.description}
+            onChange={(e) => set("description", e.target.value)}
+          />
         </Field>
-        <Field label={t("billing.admin.plan.price_monthly")} error={errors.price_monthly}>
-          <Input type="number" min={0} step="any" value={form.price_monthly} onChange={(e) => set("price_monthly", e.target.value)} />
+        <Field
+          label={t("billing.admin.plan.price_monthly")}
+          error={errors.price_monthly}
+        >
+          <Input
+            type="number"
+            min={0}
+            step="any"
+            value={form.price_monthly}
+            onChange={(e) => set("price_monthly", e.target.value)}
+          />
         </Field>
         <Field label={t("billing.admin.plan.yearly_pricing")}>
-          <Select value={form.yearly_pricing} onValueChange={(v) => set("yearly_pricing", v as YearlyPricing)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+          <Select
+            value={form.yearly_pricing}
+            onValueChange={(v) => set("yearly_pricing", v as YearlyPricing)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               {YEARLY.map((y) => (
-                <SelectItem key={y} value={y}>{t(`billing.admin.plan.yearly.${y}`)}</SelectItem>
+                <SelectItem key={y} value={y}>
+                  {t(`billing.admin.plan.yearly.${y}`)}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
         {form.yearly_pricing === "fixed" ? (
-          <Field label={t("billing.admin.plan.price_yearly")} error={errors.price_yearly}>
-            <Input type="number" min={0} step="any" value={form.price_yearly} onChange={(e) => set("price_yearly", e.target.value)} />
+          <Field
+            label={t("billing.admin.plan.price_yearly")}
+            error={errors.price_yearly}
+          >
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              value={form.price_yearly}
+              onChange={(e) => set("price_yearly", e.target.value)}
+            />
           </Field>
         ) : (
-          <Field label={t("billing.admin.plan.yearly_discount_value")} error={errors.yearly_discount_value}>
-            <Input type="number" min={0} step="any" value={form.yearly_discount_value} onChange={(e) => set("yearly_discount_value", e.target.value)} />
+          <Field
+            label={t("billing.admin.plan.yearly_discount_value")}
+            error={errors.yearly_discount_value}
+          >
+            <Input
+              type="number"
+              min={0}
+              step="any"
+              value={form.yearly_discount_value}
+              onChange={(e) => set("yearly_discount_value", e.target.value)}
+            />
           </Field>
         )}
         <Field label={t("billing.admin.plan.effective_yearly")}>
           <p className="h-9 py-2 text-sm font-medium tabular-nums">
-            {formatFinanceAmount(effectiveYearly, "TRY", locale)} {t("billing.plans.per_year")}
+            {formatFinanceAmount(effectiveYearly, "TRY", locale)}{" "}
+            {t("billing.plans.per_year")}
           </p>
         </Field>
         <Field label={t("billing.admin.plan.trial_days")}>
-          <Input type="number" min={0} value={form.trial_days} onChange={(e) => set("trial_days", Math.max(0, Number(e.target.value) || 0))} />
+          <Input
+            type="number"
+            min={0}
+            value={form.trial_days}
+            onChange={(e) =>
+              set("trial_days", Math.max(0, Number(e.target.value) || 0))
+            }
+          />
         </Field>
         <Field label={t("billing.admin.plan.badge")}>
-          <Input value={form.badge} onChange={(e) => set("badge", e.target.value)} />
+          <Input
+            value={form.badge}
+            onChange={(e) => set("badge", e.target.value)}
+          />
         </Field>
         <Field label={t("billing.admin.plan.sort_order")}>
-          <Input type="number" value={form.sort_order} onChange={(e) => set("sort_order", Number(e.target.value) || 0)} />
+          <Input
+            type="number"
+            value={form.sort_order}
+            onChange={(e) => set("sort_order", Number(e.target.value) || 0)}
+          />
         </Field>
         <div className="flex flex-col gap-3 sm:col-span-2 sm:flex-row sm:gap-6">
-          <Toggle label={t("billing.admin.plan.is_public")} checked={form.is_public} onChange={(v) => set("is_public", v)} />
-          <Toggle label={t("billing.admin.plan.is_customizable")} checked={form.is_customizable} onChange={(v) => set("is_customizable", v)} />
-          <Toggle label={t("billing.admin.plan.is_active")} checked={form.is_active} onChange={(v) => set("is_active", v)} />
+          <Toggle
+            label={t("billing.admin.plan.is_public")}
+            checked={form.is_public}
+            onChange={(v) => set("is_public", v)}
+          />
+          <Toggle
+            label={t("billing.admin.plan.is_customizable")}
+            checked={form.is_customizable}
+            onChange={(v) => set("is_customizable", v)}
+          />
+          <Toggle
+            label={t("billing.admin.plan.is_active")}
+            checked={form.is_active}
+            onChange={(v) => set("is_active", v)}
+          />
         </div>
         <div className="sm:col-span-2">
-          <Label className="mb-2 block">{t("billing.admin.plan.features")}</Label>
+          <Label className="mb-2 block">
+            {t("billing.admin.plan.features")}
+          </Label>
           <PlanFeaturesEditor
             features={features.data ?? []}
             values={form.features}
@@ -204,7 +300,11 @@ function PlanDialogBody({ onOpenChange, plan }: PlanDialogProps) {
         </div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={pending}
+        >
           {t("billing.admin.plan.cancel")}
         </Button>
         <Button onClick={submit} disabled={pending}>
@@ -232,14 +332,24 @@ function Field({
     <div className={className}>
       <Label className="mb-1 block">{label}</Label>
       {children}
-      {error ? <p className="text-destructive mt-1 text-xs">{error}</p> : hint ? (
+      {error ? (
+        <p className="text-destructive mt-1 text-xs">{error}</p>
+      ) : hint ? (
         <p className="text-muted-foreground mt-1 text-xs">{hint}</p>
       ) : null}
     </div>
   );
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <label className="flex items-center gap-2 text-sm">
       <Switch checked={checked} onCheckedChange={onChange} />

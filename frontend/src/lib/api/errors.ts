@@ -1,4 +1,8 @@
-import { emitLimitEvent, isLimitEventCode, limitDetailFrom } from "./limit-events";
+import {
+  emitLimitEvent,
+  isLimitEventCode,
+  limitDetailFrom,
+} from "./limit-events";
 
 export type ApiErrorDetail = {
   field?: string;

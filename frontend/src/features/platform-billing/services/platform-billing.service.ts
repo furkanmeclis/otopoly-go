@@ -15,7 +15,9 @@ export const platformBillingService = {
     });
   },
   createFeature(body: DisplayFeatureInput) {
-    return platformRequest<BillingFeature>("POST", `${base}/features`, { body });
+    return platformRequest<BillingFeature>("POST", `${base}/features`, {
+      body,
+    });
   },
   setFeatureActive(id: number, isActive: boolean) {
     return platformRequest<BillingFeature>("PATCH", `${base}/features/${id}`, {
@@ -32,7 +34,9 @@ export const platformBillingService = {
     return platformRequest<BillingPlan>("POST", `${base}/plans`, { body });
   },
   updatePlan(uuid: string, body: BillingPlanInput) {
-    return platformRequest<BillingPlan>("PUT", `${base}/plans/${uuid}`, { body });
+    return platformRequest<BillingPlan>("PUT", `${base}/plans/${uuid}`, {
+      body,
+    });
   },
   deletePlan(uuid: string) {
     return platformRequest<void>("DELETE", `${base}/plans/${uuid}`);

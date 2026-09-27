@@ -21,12 +21,15 @@ export function isLimitEventCode(code: string): code is LimitEventCode {
 
 export function emitLimitEvent(detail: LimitEventDetail) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent<LimitEventDetail>(EVENT_NAME, { detail }));
+  window.dispatchEvent(
+    new CustomEvent<LimitEventDetail>(EVENT_NAME, { detail }),
+  );
 }
 
 export function subscribeLimitEvents(cb: (detail: LimitEventDetail) => void) {
   if (typeof window === "undefined") return () => {};
-  const handler = (event: Event) => cb((event as CustomEvent<LimitEventDetail>).detail);
+  const handler = (event: Event) =>
+    cb((event as CustomEvent<LimitEventDetail>).detail);
   window.addEventListener(EVENT_NAME, handler);
   return () => window.removeEventListener(EVENT_NAME, handler);
 }
@@ -53,4 +56,13 @@ export function limitDetailFrom(
     used: numberDetail(map.used),
     tolerance: numberDetail(map.tolerance),
   };
+}
+
+/** True when a query failed because the plan turns the module off. */
+export function isFeatureDisabledError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { code?: string }).code === "FEATURE_DISABLED"
+  );
 }

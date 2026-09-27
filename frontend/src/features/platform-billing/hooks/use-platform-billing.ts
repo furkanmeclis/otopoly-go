@@ -4,7 +4,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { permissions } from "@/config/permissions";
-import type { BillingPlanInput, DisplayFeatureInput } from "@/features/billing/types";
+import type {
+  BillingPlanInput,
+  DisplayFeatureInput,
+} from "@/features/billing/types";
 import { platformBillingService } from "@/features/platform-billing/services/platform-billing.service";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
@@ -43,10 +46,12 @@ export function usePlatformFeatures(enabled = true) {
 export function usePlatformPlanMutations() {
   const qc = useQueryClient();
   const { t } = useLocale();
-  const invalidate = () => qc.invalidateQueries({ queryKey: platformBillingKeys.plans() });
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: platformBillingKeys.plans() });
   return {
     create: useMutation({
-      mutationFn: (body: BillingPlanInput) => platformBillingService.createPlan(body),
+      mutationFn: (body: BillingPlanInput) =>
+        platformBillingService.createPlan(body),
       onSuccess: () => {
         toast.success(t("billing.toast.plan_saved"));
         return invalidate();
@@ -73,10 +78,12 @@ export function usePlatformPlanMutations() {
 export function usePlatformFeatureMutations() {
   const qc = useQueryClient();
   const { t } = useLocale();
-  const invalidate = () => qc.invalidateQueries({ queryKey: platformBillingKeys.all });
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: platformBillingKeys.all });
   return {
     create: useMutation({
-      mutationFn: (body: DisplayFeatureInput) => platformBillingService.createFeature(body),
+      mutationFn: (body: DisplayFeatureInput) =>
+        platformBillingService.createFeature(body),
       onSuccess: () => {
         toast.success(t("billing.toast.feature_saved"));
         return invalidate();

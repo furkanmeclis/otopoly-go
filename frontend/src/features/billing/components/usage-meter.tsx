@@ -14,13 +14,19 @@ type UsageMeterProps = {
   className?: string;
 };
 
-export function UsageMeter({ meter, compact = false, className }: UsageMeterProps) {
+export function UsageMeter({
+  meter,
+  compact = false,
+  className,
+}: UsageMeterProps) {
   const { t, locale } = useLocale();
   const label = meterLabel(meter, locale);
   const unlimited = meterUnlimited(meter);
   const tone = meterTone(meter);
   const limit = unlimited ? 0 : (meter.limit as number);
-  const pct = unlimited ? 0 : Math.min(100, Math.round((meter.used / Math.max(1, limit)) * 100));
+  const pct = unlimited
+    ? 0
+    : Math.min(100, Math.round((meter.used / Math.max(1, limit)) * 100));
   const tolerance = Math.round(limit * (1 + meter.tolerance_pct / 100));
   const indicator =
     tone === "over"
@@ -43,7 +49,12 @@ export function UsageMeter({ meter, compact = false, className }: UsageMeterProp
   return (
     <div className={cn("space-y-1", compact ? "min-w-44" : "", className)}>
       <div className="flex items-center justify-between gap-3 text-xs">
-        <span className={cn("truncate", compact ? "text-muted-foreground" : "font-medium")}>
+        <span
+          className={cn(
+            "truncate",
+            compact ? "text-muted-foreground" : "font-medium",
+          )}
+        >
           {label}
         </span>
         <span className={valueClass}>
@@ -54,14 +65,24 @@ export function UsageMeter({ meter, compact = false, className }: UsageMeterProp
         </span>
       </div>
       {!unlimited ? (
-        <Progress value={pct} className={cn("h-1.5", indicator)} aria-label={label} />
+        <Progress
+          value={pct}
+          className={cn("h-1.5", indicator)}
+          aria-label={label}
+        />
       ) : null}
-      {!compact && !unlimited && (meter.tolerance_pct > 0 || meter.enforcement === "soft") ? (
+      {!compact &&
+      !unlimited &&
+      (meter.tolerance_pct > 0 || meter.enforcement === "soft") ? (
         <p className="text-muted-foreground text-[11px]">
           {meter.tolerance_pct > 0
-            ? t("billing.usage.tolerance", { tolerance: formatQuantity(tolerance, locale) })
+            ? t("billing.usage.tolerance", {
+                tolerance: formatQuantity(tolerance, locale),
+              })
             : null}
-          {meter.tolerance_pct > 0 && meter.enforcement === "soft" ? " · " : null}
+          {meter.tolerance_pct > 0 && meter.enforcement === "soft"
+            ? " · "
+            : null}
           {meter.enforcement === "soft" ? t("billing.usage.soft") : null}
         </p>
       ) : null}

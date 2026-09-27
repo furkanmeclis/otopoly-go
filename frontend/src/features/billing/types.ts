@@ -7,11 +7,7 @@ export type BillingFeatureKind = "limit" | "toggle" | "display";
 export type BillingPeriod = "day" | "month" | "total" | "none";
 export type BillingEnforcement = "hard" | "soft";
 export type SubscriptionStatus =
-  | "trial"
-  | "active"
-  | "grace"
-  | "read_only"
-  | "cancelled";
+  "trial" | "active" | "grace" | "read_only" | "cancelled";
 export type SubscriptionPeriod = "monthly" | "yearly";
 export type YearlyPricing = "fixed" | "discount_amount" | "discount_percent";
 

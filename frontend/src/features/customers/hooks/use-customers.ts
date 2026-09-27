@@ -41,6 +41,7 @@ export function useCustomerMutations() {
       mutationFn: customersService.create,
       onSuccess: () => {
         invalidate();
+        void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("customers.toast.created"));
       },
       onError: (err: Error) =>
@@ -65,6 +66,7 @@ export function useCustomerMutations() {
       mutationFn: customersService.remove,
       onSuccess: () => {
         invalidate();
+        void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("customers.toast.deleted"));
       },
       onError: (err: Error) =>

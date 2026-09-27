@@ -27,12 +27,18 @@ import type {
   BillingUsageMeter,
   SubscriptionPeriod,
 } from "@/features/billing/types";
-import { formatFinanceAmount, formatQuantity } from "@/features/finance/lib/format";
+import {
+  formatFinanceAmount,
+  formatQuantity,
+} from "@/features/finance/lib/format";
 import { cn } from "@/lib/utils";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
-const STATUS_TONE: Record<BillingSubscription["status"], "default" | "success" | "warning" | "danger"> = {
+const STATUS_TONE: Record<
+  BillingSubscription["status"],
+  "default" | "success" | "warning" | "danger"
+> = {
   trial: "default",
   active: "success",
   grace: "warning",
@@ -64,20 +70,32 @@ export function SubscriptionPage() {
           <PlanCard overview={overview.data} />
           <div className="grid gap-6 lg:grid-cols-2">
             <UsageCard meters={overview.data.meters} />
-            <FeaturesCard meters={overview.data.meters} plan={overview.data.plan ?? null} />
+            <FeaturesCard
+              meters={overview.data.meters}
+              plan={overview.data.plan ?? null}
+            />
           </div>
           <EntitySectionCard
             title={t("billing.plans.title")}
             action={
-              <Tabs value={period} onValueChange={(v) => setPeriod(v as SubscriptionPeriod)}>
+              <Tabs
+                value={period}
+                onValueChange={(v) => setPeriod(v as SubscriptionPeriod)}
+              >
                 <TabsList>
-                  <TabsTrigger value="monthly">{t("billing.period.monthly")}</TabsTrigger>
-                  <TabsTrigger value="yearly">{t("billing.period.yearly")}</TabsTrigger>
+                  <TabsTrigger value="monthly">
+                    {t("billing.period.monthly")}
+                  </TabsTrigger>
+                  <TabsTrigger value="yearly">
+                    {t("billing.period.yearly")}
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
             }
           >
-            <p className="text-muted-foreground mb-4 text-sm">{t("billing.plans.description")}</p>
+            <p className="text-muted-foreground mb-4 text-sm">
+              {t("billing.plans.description")}
+            </p>
             {plans.isLoading ? (
               <Skeleton className="h-40 w-full" />
             ) : plans.data && plans.data.length > 0 ? (
@@ -87,7 +105,9 @@ export function SubscriptionPage() {
                     key={plan.uuid}
                     plan={plan}
                     period={period}
-                    current={overview.data?.subscription?.plan_code === plan.code}
+                    current={
+                      overview.data?.subscription?.plan_code === plan.code
+                    }
                   />
                 ))}
               </div>
@@ -115,21 +135,36 @@ function PlanCard({ overview }: { overview: BillingOverview }) {
           <div className="flex items-center gap-2">
             <CreditCard className="text-muted-foreground size-5" />
             <span className="text-xl font-semibold">{sub.plan_name}</span>
-            <StatusChip label={t(`billing.status.${sub.status}`)} tone={STATUS_TONE[sub.status]} />
+            <StatusChip
+              label={t(`billing.status.${sub.status}`)}
+              tone={STATUS_TONE[sub.status]}
+            />
           </div>
           {overview.plan?.description ? (
-            <p className="text-muted-foreground text-sm">{overview.plan.description}</p>
+            <p className="text-muted-foreground text-sm">
+              {overview.plan.description}
+            </p>
           ) : null}
         </div>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
-          <dt className="text-muted-foreground">{t("billing.period." + sub.period)}</dt>
+          <dt className="text-muted-foreground">
+            {t("billing.period." + sub.period)}
+          </dt>
           <dd className="col-span-1 sm:col-span-2">
-            {t("billing.starts_at")}: {date(sub.starts_at, "dd.MM.yyyy", locale)}
+            {t("billing.starts_at")}:{" "}
+            {date(sub.starts_at, "dd.MM.yyyy", locale)}
           </dd>
           <dt className="text-muted-foreground">{t("billing.ends_at")}</dt>
-          <dd className={cn("col-span-1 sm:col-span-2", expired && "text-rose-600 dark:text-rose-400")}>
+          <dd
+            className={cn(
+              "col-span-1 sm:col-span-2",
+              expired && "text-rose-600 dark:text-rose-400",
+            )}
+          >
             {date(sub.ends_at, "dd.MM.yyyy", locale)} ·{" "}
-            {expired ? t("billing.expired") : t("billing.days_left", { days: sub.days_left })}
+            {expired
+              ? t("billing.expired")
+              : t("billing.days_left", { days: sub.days_left })}
           </dd>
         </dl>
       </div>
@@ -143,7 +178,9 @@ function UsageCard({ meters }: { meters: BillingUsageMeter[] }) {
   return (
     <EntitySectionCard title={t("billing.usage.title")}>
       {limits.length === 0 ? (
-        <p className="text-muted-foreground text-sm">{t("billing.usage.empty")}</p>
+        <p className="text-muted-foreground text-sm">
+          {t("billing.usage.empty")}
+        </p>
       ) : (
         <div className="space-y-4">
           {limits.map((m) => (
@@ -155,7 +192,13 @@ function UsageCard({ meters }: { meters: BillingUsageMeter[] }) {
   );
 }
 
-function FeaturesCard({ meters, plan }: { meters: BillingUsageMeter[]; plan: BillingPlan | null }) {
+function FeaturesCard({
+  meters,
+  plan,
+}: {
+  meters: BillingUsageMeter[];
+  plan: BillingPlan | null;
+}) {
   const { t, locale } = useLocale();
   const toggles = meters.filter((m) => m.kind === "toggle");
   const displays = plan?.features.filter((f) => f.display_text) ?? [];
@@ -202,7 +245,8 @@ function PlanOffer({
   current: boolean;
 }) {
   const { t, locale } = useLocale();
-  const price = period === "monthly" ? plan.price_monthly : plan.effective_yearly;
+  const price =
+    period === "monthly" ? plan.price_monthly : plan.effective_yearly;
   const saving =
     period === "yearly" && plan.yearly_pricing !== "fixed"
       ? plan.yearly_pricing === "discount_percent"
@@ -231,9 +275,13 @@ function PlanOffer({
         </span>
         <span className="text-muted-foreground text-sm">
           {" "}
-          {period === "monthly" ? t("billing.plans.per_month") : t("billing.plans.per_year")}
+          {period === "monthly"
+            ? t("billing.plans.per_month")
+            : t("billing.plans.per_year")}
         </span>
-        <p className="text-muted-foreground text-[11px]">{t("billing.plans.vat_included")}</p>
+        <p className="text-muted-foreground text-[11px]">
+          {t("billing.plans.vat_included")}
+        </p>
         {saving ? (
           <Badge variant="success" className="mt-1">
             {t("billing.plans.yearly_saving", { value: saving })}
@@ -254,7 +302,9 @@ function PlanOffer({
 
 function featureLine(f: BillingPlanFeatureValue) {
   if (f.display_text) return f.display_text;
-  if (f.value_bool !== null && f.value_bool !== undefined) return `${f.key}: ${f.value_bool ? "✓" : "—"}`;
-  if (f.value_int !== null && f.value_int !== undefined) return `${f.key}: ${f.value_int}`;
+  if (f.value_bool !== null && f.value_bool !== undefined)
+    return `${f.key}: ${f.value_bool ? "✓" : "—"}`;
+  if (f.value_int !== null && f.value_int !== undefined)
+    return `${f.key}: ${f.value_int}`;
   return f.key;
 }

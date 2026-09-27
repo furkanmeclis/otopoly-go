@@ -25,7 +25,13 @@ type Props = {
 };
 
 export function emptyValue(key: string): BillingPlanFeatureValue {
-  return { key, enforcement: "hard", tolerance_pct: 0, warn_pct: 80, display_text: "" };
+  return {
+    key,
+    enforcement: "hard",
+    tolerance_pct: 0,
+    warn_pct: 80,
+    display_text: "",
+  };
 }
 
 /**
@@ -33,13 +39,22 @@ export function emptyValue(key: string): BillingPlanFeatureValue {
  * a defined row is sent with its numbers, toggles with a bool, display rows
  * with their text.
  */
-export function PlanFeaturesEditor({ features, values, onChange, disabled }: Props) {
+export function PlanFeaturesEditor({
+  features,
+  values,
+  onChange,
+  disabled,
+}: Props) {
   const { t, locale } = useLocale();
   const byKey = new Map(values.map((v) => [v.key, v]));
 
-  const setValue = (key: string, patch: Partial<BillingPlanFeatureValue> | null) => {
+  const setValue = (
+    key: string,
+    patch: Partial<BillingPlanFeatureValue> | null,
+  ) => {
     const next = values.filter((v) => v.key !== key);
-    if (patch !== null) next.push({ ...(byKey.get(key) ?? emptyValue(key)), ...patch });
+    if (patch !== null)
+      next.push({ ...(byKey.get(key) ?? emptyValue(key)), ...patch });
     onChange(next);
   };
 
@@ -51,9 +66,14 @@ export function PlanFeaturesEditor({ features, values, onChange, disabled }: Pro
           const v = byKey.get(f.key);
           const defined = Boolean(v);
           return (
-            <div key={f.key} className="grid gap-2 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div
+              key={f.key}
+              className="grid gap-2 p-3 sm:grid-cols-[1fr_auto] sm:items-center"
+            >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium">{meterLabel(f, locale)}</p>
+                <p className="truncate text-sm font-medium">
+                  {meterLabel(f, locale)}
+                </p>
                 <p className="text-muted-foreground text-xs">
                   {f.key} · {t(`billing.admin.feature.kind.${f.kind}`)}
                   {f.unit ? ` · ${f.unit}` : ""}
@@ -76,7 +96,12 @@ export function PlanFeaturesEditor({ features, values, onChange, disabled }: Pro
                     placeholder={t("billing.admin.plan.feature.display_text")}
                     value={v?.display_text ?? ""}
                     onChange={(e) =>
-                      setValue(f.key, e.target.value ? { display_text: e.target.value } : null)
+                      setValue(
+                        f.key,
+                        e.target.value
+                          ? { display_text: e.target.value }
+                          : null,
+                      )
                     }
                   />
                 ) : (
@@ -103,29 +128,47 @@ export function PlanFeaturesEditor({ features, values, onChange, disabled }: Pro
                           aria-label={t("billing.admin.plan.feature.value")}
                           value={v?.value_int ?? 0}
                           onChange={(e) =>
-                            setValue(f.key, { value_int: Math.max(0, Number(e.target.value) || 0) })
+                            setValue(f.key, {
+                              value_int: Math.max(
+                                0,
+                                Number(e.target.value) || 0,
+                              ),
+                            })
                           }
                         />
                         <Select
                           disabled={disabled}
                           value={v?.enforcement ?? "hard"}
                           onValueChange={(val) =>
-                            setValue(f.key, { enforcement: val as BillingEnforcement })
+                            setValue(f.key, {
+                              enforcement: val as BillingEnforcement,
+                            })
                           }
                         >
-                          <SelectTrigger className="w-28" aria-label={t("billing.admin.plan.feature.enforcement")}>
+                          <SelectTrigger
+                            className="w-28"
+                            aria-label={t(
+                              "billing.admin.plan.feature.enforcement",
+                            )}
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="hard">{t("billing.admin.plan.feature.hard")}</SelectItem>
-                            <SelectItem value="soft">{t("billing.admin.plan.feature.soft")}</SelectItem>
+                            <SelectItem value="hard">
+                              {t("billing.admin.plan.feature.hard")}
+                            </SelectItem>
+                            <SelectItem value="soft">
+                              {t("billing.admin.plan.feature.soft")}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <PctInput
                           label={t("billing.admin.plan.feature.tolerance")}
                           value={v?.tolerance_pct ?? 0}
                           disabled={disabled}
-                          onChange={(n) => setValue(f.key, { tolerance_pct: n })}
+                          onChange={(n) =>
+                            setValue(f.key, { tolerance_pct: n })
+                          }
                         />
                         <PctInput
                           label={t("billing.admin.plan.feature.warn")}
@@ -166,7 +209,9 @@ function PctInput({
         disabled={disabled}
         className="w-16"
         value={value}
-        onChange={(e) => onChange(Math.min(100, Math.max(0, Number(e.target.value) || 0)))}
+        onChange={(e) =>
+          onChange(Math.min(100, Math.max(0, Number(e.target.value) || 0)))
+        }
       />
     </label>
   );

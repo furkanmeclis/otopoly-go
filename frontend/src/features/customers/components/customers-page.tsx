@@ -50,6 +50,7 @@ import {
   type Customer,
 } from "@/features/customers/services/customers.service";
 import { datetime } from "@/lib/utils/format";
+import { MeterFor } from "@/features/billing";
 import { useLocale } from "@/providers/locale-provider";
 
 export function CustomersPage({ slug }: { slug: string }) {
@@ -170,12 +171,15 @@ export function CustomersPage({ slug }: { slug: string }) {
         { label: t("customers.title") },
       ]}
       actions={
-        canWrite ? (
-          <EntityCreateButton
-            onClick={() => setCreateOpen(true)}
-            label={t("customers.new")}
-          />
-        ) : null
+        <div className="flex flex-wrap items-center gap-4">
+          <MeterFor keyName="customers.count" />
+          {canWrite ? (
+            <EntityCreateButton
+              onClick={() => setCreateOpen(true)}
+              label={t("customers.new")}
+            />
+          ) : null}
+        </div>
       }
     >
       <EntityTable

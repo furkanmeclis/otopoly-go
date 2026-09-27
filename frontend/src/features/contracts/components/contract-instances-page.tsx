@@ -7,6 +7,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { FileStack, Plus, Search } from "lucide-react";
 
 import { ErrorState } from "@/components/common/error-state";
+import { FeatureLocked } from "@/features/billing";
+import { isFeatureDisabledError } from "@/lib/api/limit-events";
 import { StatusChip } from "@/components/common/status-chip";
 import {
   EntityActions,
@@ -155,10 +157,11 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
         labelKey: "contracts.fields.signers",
         cell: ({ row }) => {
           const signers = row.original.signers ?? [];
-          if (signers.length === 0) return <span className="text-muted-foreground text-xs">—</span>;
+          if (signers.length === 0)
+            return <span className="text-muted-foreground text-xs">—</span>;
           const signed = signers.filter((s) => s.status === "signed").length;
           return (
-            <span className="text-muted-foreground tabular-nums text-xs">
+            <span className="text-muted-foreground text-xs tabular-nums">
               {signed}/{signers.length}
             </span>
           );
@@ -199,11 +202,7 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
       actions={
         <EntityActions>
           {canWrite ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setCreateOpen(true)}
-            >
+            <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" />
               {t("contracts.instances.create")}
             </Button>
@@ -256,27 +255,31 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
         </TabsList>
       </Tabs>
 
-      <EntityTable
-        columns={columns}
-        data={listQuery.data?.items ?? []}
-        getRowId={(row) => row.uuid}
-        onRowClick={(row) =>
-          router.push(routes.tenant.contracts.instanceDetail(slug, row.uuid))
-        }
-        isLoading={listQuery.isLoading}
-        isError={listQuery.isError}
-        errorDescription={t("contracts.instances.error_description")}
-        onRetry={() => void listQuery.refetch()}
-        emptyTitle={t("contracts.instances.empty_title")}
-        emptyDescription={t("contracts.instances.empty_description")}
-        pageCount={pageCount}
-        state={listState.tableState}
-        manual={{ filtering: true, sorting: true, pagination: true }}
-        features={{
-          persistKey: `tenant-contract-instances-${slug}`,
-          columnFilters: true,
-        }}
-      />
+      {listQuery.isError && isFeatureDisabledError(listQuery.error) ? (
+        <FeatureLocked slug={slug} />
+      ) : (
+        <EntityTable
+          columns={columns}
+          data={listQuery.data?.items ?? []}
+          getRowId={(row) => row.uuid}
+          onRowClick={(row) =>
+            router.push(routes.tenant.contracts.instanceDetail(slug, row.uuid))
+          }
+          isLoading={listQuery.isLoading}
+          isError={listQuery.isError}
+          errorDescription={t("contracts.instances.error_description")}
+          onRetry={() => void listQuery.refetch()}
+          emptyTitle={t("contracts.instances.empty_title")}
+          emptyDescription={t("contracts.instances.empty_description")}
+          pageCount={pageCount}
+          state={listState.tableState}
+          manual={{ filtering: true, sorting: true, pagination: true }}
+          features={{
+            persistKey: `tenant-contract-instances-${slug}`,
+            columnFilters: true,
+          }}
+        />
+      )}
 
       <CreateInstanceDialog
         open={createOpen}
@@ -408,9 +411,7 @@ function CreateInstanceDialog({
           <Button
             type="button"
             disabled={
-              !templateUuid ||
-              !jobUuid ||
-              mutations.createInstance.isPending
+              !templateUuid || !jobUuid || mutations.createInstance.isPending
             }
             onClick={() => void handleCreate()}
           >

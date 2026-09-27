@@ -7,6 +7,8 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { Copy } from "lucide-react";
 
 import { ErrorState } from "@/components/common/error-state";
+import { FeatureLocked } from "@/features/billing";
+import { isFeatureDisabledError } from "@/lib/api/limit-events";
 import { StatusChip } from "@/components/common/status-chip";
 import {
   EntityActions,
@@ -171,33 +173,37 @@ export function ContractTemplatesPage({ slug }: { slug: string }) {
         ) : null
       }
     >
-      <EntityTable
-        columns={columns}
-        data={listQuery.data?.items ?? []}
-        getRowId={(row) => row.uuid}
-        onRowClick={(row) =>
-          router.push(routes.tenant.contracts.templateDetail(slug, row.uuid))
-        }
-        isLoading={listQuery.isLoading}
-        isError={listQuery.isError}
-        errorDescription={t("contracts.templates.error_description")}
-        onRetry={() => void listQuery.refetch()}
-        emptyTitle={t("contracts.templates.empty_title")}
-        emptyDescription={t("contracts.templates.empty_description")}
-        pageCount={pageCount}
-        state={listState.tableState}
-        manual={{ filtering: true, sorting: true, pagination: true }}
-        features={{
-          persistKey: `tenant-contract-templates-${slug}`,
-          columnFilters: true,
-        }}
-        toolbarExtra={
-          <EntityToolbar
-            onRefresh={() => void listQuery.refetch()}
-            refreshDisabled={listQuery.isFetching}
-          />
-        }
-      />
+      {listQuery.isError && isFeatureDisabledError(listQuery.error) ? (
+        <FeatureLocked slug={slug} />
+      ) : (
+        <EntityTable
+          columns={columns}
+          data={listQuery.data?.items ?? []}
+          getRowId={(row) => row.uuid}
+          onRowClick={(row) =>
+            router.push(routes.tenant.contracts.templateDetail(slug, row.uuid))
+          }
+          isLoading={listQuery.isLoading}
+          isError={listQuery.isError}
+          errorDescription={t("contracts.templates.error_description")}
+          onRetry={() => void listQuery.refetch()}
+          emptyTitle={t("contracts.templates.empty_title")}
+          emptyDescription={t("contracts.templates.empty_description")}
+          pageCount={pageCount}
+          state={listState.tableState}
+          manual={{ filtering: true, sorting: true, pagination: true }}
+          features={{
+            persistKey: `tenant-contract-templates-${slug}`,
+            columnFilters: true,
+          }}
+          toolbarExtra={
+            <EntityToolbar
+              onRefresh={() => void listQuery.refetch()}
+              refreshDisabled={listQuery.isFetching}
+            />
+          }
+        />
+      )}
       <ClonePresetDialog
         open={cloneOpen}
         onOpenChange={setCloneOpen}

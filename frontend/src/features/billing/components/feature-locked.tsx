@@ -9,7 +9,13 @@ import { routes } from "@/config/routes";
 import { useLocale } from "@/providers/locale-provider";
 
 /** Shown in place of a module's content when the plan turns it off (403 FEATURE_DISABLED). */
-export function FeatureLocked({ slug, className }: { slug: string; className?: string }) {
+export function FeatureLocked({
+  slug,
+  className,
+}: {
+  slug: string;
+  className?: string;
+}) {
   const { t } = useLocale();
   return (
     <EmptyState

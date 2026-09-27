@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Columns3, List, Plus, Search, ShoppingBag, X } from "lucide-react";
 
 import { DaySummaryBar } from "@/components/common/day-summary-bar";
+import { MeterFor } from "@/features/billing";
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { EntityActions, EntityPage, EntityToolbar } from "@/components/entity";
@@ -252,6 +253,7 @@ export function JobsPage({ slug }: { slug: string }) {
         loading={summaryQuery.isLoading}
         live
       />
+      <MeterFor keyName="jobs.daily" className="mb-4 max-w-xs" />
 
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2">

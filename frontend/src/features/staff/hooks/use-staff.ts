@@ -43,6 +43,7 @@ export function useStaffMutations() {
       mutationFn: (body: CreateStaffInput) => staffService.create(body),
       onSuccess: () => {
         invalidate();
+        void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("staff.toast.created"));
       },
       onError: (err: Error) =>

@@ -81,6 +81,7 @@ export function useJobsMutations() {
       mutationFn: (body: CreateJobInput) => jobsService.create(body),
       onSuccess: (data) => {
         invalidate();
+        void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("jobs.toast.created"), {
           id: `job-created-${data.uuid}`,
         });
@@ -180,6 +181,7 @@ export function useJobsMutations() {
         void queryClient.invalidateQueries({
           queryKey: jobsKeys.detail(data.uuid),
         });
+        void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("jobs.toast.cancelled"));
       },
       onError: (err: Error) =>
@@ -192,6 +194,7 @@ export function useJobsMutations() {
         void queryClient.invalidateQueries({
           queryKey: jobsKeys.detail(data.uuid),
         });
+        void queryClient.invalidateQueries({ queryKey: ["tenant", "billing"] });
         toast.success(t("jobs.toast.voided"));
       },
       onError: (err: Error) =>
