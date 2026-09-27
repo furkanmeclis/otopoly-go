@@ -5,7 +5,7 @@
 
 ## 0. Amaç ve karar özeti
 
-Otopoly'yi Claude benzeri bir abonelik modeline taşımak: birden fazla plan, aylık/yıllık fiyat, planlara bağlı ve sistemde **uygulanan** limitler, indirim kodları, havale/EFT ile self-servis satın alma, admin onayı, `go-ubltr` ile e-Arşiv fatura kaydı ve admin tarafında abonelik takibi.
+Otopoly'yi SaaS abonelik modeline taşımak: birden fazla plan, aylık/yıllık fiyat, planlara bağlı ve sistemde **uygulanan** limitler, indirim kodları, havale/EFT ile self-servis satın alma, admin onayı, `go-ubltr` ile e-Arşiv fatura kaydı ve admin tarafında abonelik takibi.
 
 Soru-cevapta alınan kararlar (değişmez kabul edilir):
 
