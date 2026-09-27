@@ -5,7 +5,10 @@ import { toast } from "sonner";
 
 import { permissions } from "@/config/permissions";
 import { billingService } from "@/features/billing/services/billing.service";
-import type { OrderPreviewInput } from "@/features/billing/types";
+import type {
+  InvoiceProfile,
+  OrderPreviewInput,
+} from "@/features/billing/types";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
 
@@ -15,6 +18,8 @@ export const billingKeys = {
   plans: () => [...billingKeys.all, "plans"] as const,
   preview: (input: OrderPreviewInput) =>
     [...billingKeys.all, "preview", input] as const,
+  invoiceProfile: () => [...billingKeys.all, "invoice-profile"] as const,
+  invoices: () => [...billingKeys.all, "invoices"] as const,
   orders: (status: "open" | "all") =>
     [...billingKeys.all, "orders", status] as const,
 };
@@ -100,4 +105,33 @@ export function useBillingOrderMutations() {
       },
     }),
   };
+}
+
+export function useInvoiceProfile(enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.invoiceProfile(),
+    queryFn: () => billingService.invoiceProfile(),
+    enabled,
+  });
+}
+
+export function useInvoiceProfileMutation() {
+  const qc = useQueryClient();
+  const { t } = useLocale();
+  return useMutation({
+    mutationFn: (body: InvoiceProfile) =>
+      billingService.updateInvoiceProfile(body),
+    onSuccess: (data) => {
+      toast.success(t("billing.profile.saved"));
+      qc.setQueryData(billingKeys.invoiceProfile(), data);
+    },
+  });
+}
+
+export function useBillingInvoices(enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.invoices(),
+    queryFn: () => billingService.invoices(),
+    enabled,
+  });
 }

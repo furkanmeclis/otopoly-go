@@ -13,6 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { permissions } from "@/config/permissions";
 import { CheckoutDialog } from "@/features/billing/components/checkout-dialog";
+import { InvoiceProfileCard } from "@/features/billing/components/invoice-profile-card";
+import { InvoicesCard } from "@/features/billing/components/invoices-card";
 import { OrderStatusCard } from "@/features/billing/components/order-status-card";
 import { OrdersHistory } from "@/features/billing/components/orders-history";
 import { UsageMeter } from "@/features/billing/components/usage-meter";
@@ -139,6 +141,10 @@ export function SubscriptionPage() {
             )}
           </EntitySectionCard>
           <OrdersHistory />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <InvoiceProfileCard canWrite={access.canWrite} />
+            <InvoicesCard />
+          </div>
           <CheckoutDialog
             plan={checkoutPlan}
             defaultPeriod={period}

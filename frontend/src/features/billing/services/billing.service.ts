@@ -2,7 +2,9 @@ import { apiConfig } from "@/config/api";
 import { platformFormRequest } from "@/lib/api/platform-form-request";
 import { platformRequest } from "@/lib/api/platform-request";
 import type {
+  BillingInvoice,
   BillingOrder,
+  InvoiceProfile,
   BillingOverview,
   BillingPlan,
   ListResult,
@@ -50,6 +52,24 @@ export const billingService = {
       "POST",
       `${base}/orders/${uuid}/cancel`,
     );
+  },
+  invoiceProfile() {
+    return platformRequest<InvoiceProfile>("GET", `${base}/invoice-profile`);
+  },
+  updateInvoiceProfile(body: InvoiceProfile) {
+    return platformRequest<InvoiceProfile>("PUT", `${base}/invoice-profile`, {
+      body,
+    });
+  },
+  invoices(limit = 50) {
+    return platformRequest<ListResult<BillingInvoice>>(
+      "GET",
+      `${base}/invoices`,
+      { query: { limit } },
+    );
+  },
+  invoicePdfUrl(uuid: string) {
+    return `${apiConfig.baseUrl.replace(/\/$/, "")}${base}/invoices/${uuid}/pdf`;
   },
   receiptUrl(uuid: string) {
     return `${apiConfig.baseUrl.replace(/\/$/, "")}${base}/orders/${uuid}/receipt`;

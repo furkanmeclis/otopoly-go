@@ -69,5 +69,6 @@
   "nav_billing_payments": "Ödemeler",
   "nav_billing_subscriptions": "Abonelikler",
   "nav_billing_discount_codes": "İndirim kodları",
-  "nav_billing_settings": "Ödeme ayarları"
+  "nav_billing_settings": "Ödeme ayarları",
+  "nav_billing_invoices": "Faturalar"
 }
