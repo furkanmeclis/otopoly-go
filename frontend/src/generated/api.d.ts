@@ -8331,25 +8331,12 @@ export interface components {
                 revenue: string;
             }[];
         };
-        BillingAdminUsageMeter: {
-            key: string;
-            kind: string;
-            unit: string;
-            period: string;
-            period_key: string;
-            /** Format: int64 */
-            used: number;
-            label_tr: string;
-            label_en: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
         BillingAdminSubscriptionDetail: {
             subscription: components["schemas"]["BillingAdminSubscription"];
             history: components["schemas"]["BillingAdminSubscription"][];
             orders: components["schemas"]["BillingOrder"][];
             invoices: components["schemas"]["BillingInvoice"][];
-            meters: components["schemas"]["BillingAdminUsageMeter"][];
+            meters: components["schemas"]["BillingUsageMeter"][];
         };
         BillingPaymentSettings: {
             bank_name: string;

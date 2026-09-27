@@ -23,7 +23,7 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 	sub, err := s.q.GetLiveSubscription(ctx, scope.InternalID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-		return Overview{Meters: []UsageMeter{}, OpenOrder: open}, nil
+			return Overview{Meters: []UsageMeter{}, OpenOrder: open}, nil
 		}
 		return Overview{}, err
 	}

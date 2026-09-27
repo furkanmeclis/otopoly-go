@@ -29,7 +29,10 @@ func TestDBStoreAndRecompute(t *testing.T) {
 	if err := pool.QueryRow(ctx, `INSERT INTO organizations (slug, name) VALUES ($1, 'Ent Test') RETURNING id`, "ent-"+suffix).Scan(&orgID); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _, _ = pool.Exec(context.Background(), `DELETE FROM organizations WHERE id = $1`, orgID) })
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), `DELETE FROM organizations WHERE id = $1`, orgID)
+		_, _ = pool.Exec(context.Background(), `DELETE FROM users WHERE email LIKE 'ent-%@example.test'`)
+	})
 
 	var userID int64
 	if err := pool.QueryRow(ctx, `INSERT INTO users (email, password_hash, name, surname, status)

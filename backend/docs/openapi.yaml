@@ -12669,19 +12669,6 @@ components:
               discount_total: { type: string }
               revenue: { type: string }
 
-    BillingAdminUsageMeter:
-      type: object
-      required: [key, kind, unit, period, period_key, used, label_tr, label_en, updated_at]
-      properties:
-        key: { type: string }
-        kind: { type: string }
-        unit: { type: string }
-        period: { type: string }
-        period_key: { type: string }
-        used: { type: integer, format: int64 }
-        label_tr: { type: string }
-        label_en: { type: string }
-        updated_at: { type: string, format: date-time }
 
     BillingAdminSubscriptionDetail:
       type: object
@@ -12699,7 +12686,7 @@ components:
           items: { $ref: "#/components/schemas/BillingInvoice" }
         meters:
           type: array
-          items: { $ref: "#/components/schemas/BillingAdminUsageMeter" }
+          items: { $ref: "#/components/schemas/BillingUsageMeter" }
 
     BillingPaymentSettings:
       type: object

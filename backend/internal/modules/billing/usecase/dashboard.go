@@ -49,6 +49,8 @@ func (s *Service) Dashboard(ctx context.Context) (BillingDashboard, error) {
 		Orders:            orders,
 		Expiring:          DashboardExpiring{Within7: expiring.Within7, Within30: expiring.Within30},
 		TrialConversion:   DashboardTrialConversion{Trials90d: conversion.Trials90d, Converted90d: conversion.Converted90d},
+		Plans:             []DashboardPlan{},
+		Discounts:         []DashboardDiscount{},
 	}
 	if conversion.Trials90d > 0 {
 		out.TrialConversion.Rate = (float64(conversion.Converted90d) / float64(conversion.Trials90d)) * 100
@@ -84,12 +86,21 @@ func (s *Service) SubscriptionDetail(ctx context.Context, id uuid.UUID) (AdminSu
 	if err != nil {
 		return AdminSubscriptionDetail{}, err
 	}
-	meterRows, err := s.q.ListUsageMetersForOrgAdmin(ctx, row.OrganizationID)
+	meters, err := s.usageMeters(ctx, row.OrganizationID)
 	if err != nil {
 		return AdminSubscriptionDetail{}, err
 	}
-	out := AdminSubscriptionDetail{Subscription: adminSubscriptionFromGet(row)}
+	out := AdminSubscriptionDetail{
+		Subscription: adminSubscriptionFromGet(row),
+		History:      []AdminSubscription{},
+		Orders:       []Order{},
+		Invoices:     []Invoice{},
+		Meters:       meters,
+	}
 	for _, h := range historyRows {
+		if h.Uuid == row.Uuid {
+			continue // the current subscription is shown separately
+		}
 		out.History = append(out.History, adminSubscriptionFromHistory(h))
 	}
 	for _, orderRow := range orderRows {
@@ -101,13 +112,6 @@ func (s *Service) SubscriptionDetail(ctx context.Context, id uuid.UUID) (AdminSu
 	}
 	for _, inv := range invoiceRows {
 		out.Invoices = append(out.Invoices, invoiceFromOrgAdminRow(inv))
-	}
-	for _, meter := range meterRows {
-		out.Meters = append(out.Meters, AdminUsageMeter{
-			Key: meter.FeatureKey, Kind: meter.Kind.String, Unit: meter.Unit.String, Period: meter.Period.String,
-			PeriodKey: meter.PeriodKey, Used: meter.Value, LabelTR: meter.LabelTr.String, LabelEN: meter.LabelEn.String,
-			UpdatedAt: meter.UpdatedAt.Time,
-		})
 	}
 	return out, nil
 }

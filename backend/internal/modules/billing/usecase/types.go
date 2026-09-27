@@ -310,24 +310,12 @@ type BillingDashboard struct {
 	Discounts         []DashboardDiscount      `json:"discounts"`
 }
 
-type AdminUsageMeter struct {
-	Key       string    `json:"key"`
-	Kind      string    `json:"kind"`
-	Unit      string    `json:"unit"`
-	Period    string    `json:"period"`
-	PeriodKey string    `json:"period_key"`
-	Used      int64     `json:"used"`
-	LabelTR   string    `json:"label_tr"`
-	LabelEN   string    `json:"label_en"`
-	UpdatedAt time.Time `json:"updated_at"`
-}
-
 type AdminSubscriptionDetail struct {
 	Subscription AdminSubscription   `json:"subscription"`
 	History      []AdminSubscription `json:"history"`
 	Orders       []Order             `json:"orders"`
 	Invoices     []Invoice           `json:"invoices"`
-	Meters       []AdminUsageMeter   `json:"meters"`
+	Meters       []UsageMeter        `json:"meters"`
 }
 
 type InvoiceProfile struct {

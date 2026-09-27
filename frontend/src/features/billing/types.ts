@@ -130,10 +130,10 @@ export type SellerSettings = S["BillingSellerSettings"];
 
 export type BillingDashboard = S["BillingDashboard"];
 
-export type AdminSubscriptionDetail = {
-  subscription: AdminSubscription & { grace_ends_at?: string | null };
+export type AdminSubscriptionDetail = Omit<
+  S["BillingAdminSubscriptionDetail"],
+  "subscription" | "history"
+> & {
+  subscription: AdminSubscription;
   history: AdminSubscription[];
-  orders: BillingOrder[];
-  invoices: BillingInvoice[];
-  meters: BillingUsageMeter[];
 };

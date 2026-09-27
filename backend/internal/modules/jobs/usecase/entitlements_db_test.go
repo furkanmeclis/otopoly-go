@@ -94,6 +94,7 @@ func setupEntitlementsDB(t *testing.T) *entFixture {
 		_, _ = pool.Exec(c, `DELETE FROM service_jobs WHERE organization_id = $1`, f.orgID)
 		_, _ = pool.Exec(c, `DELETE FROM customers WHERE organization_id = $1`, f.orgID)
 		_, _ = pool.Exec(c, `DELETE FROM organizations WHERE id = $1`, f.orgID)
+		_, _ = pool.Exec(c, `DELETE FROM users WHERE email = $1`, "jobs-ent-"+suffix+"@example.test")
 		_, _ = pool.Exec(c, `DELETE FROM billing_plans WHERE id = $1`, f.planID)
 	})
 
