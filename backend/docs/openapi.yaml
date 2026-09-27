@@ -5097,6 +5097,109 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/tenant/jobs/{uuid}/consumptions:
+    post:
+      tags: [Tenant]
+      operationId: addTenantJobConsumption
+      summary: Add a product used on the job
+      description: Requires `tenant.jobs.write`. Merged into an existing row of the same product; tracked products are taken out of stock. 409 on cancelled / voided jobs.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/JobConsumptionInput" }
+      responses:
+        "200": { description: "Job detail with consumptions and material_cost" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/jobs/{uuid}/consumptions/{consumptionUuid}:
+    patch:
+      tags: [Tenant]
+      operationId: updateTenantJobConsumption
+      summary: Change a used product's quantity (stock follows the difference)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: consumptionUuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [qty]
+              properties:
+                qty: { type: string }
+      responses:
+        "200": { description: "Job detail" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantJobConsumption
+      summary: Remove a used product (returned to stock)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: consumptionUuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: "Job detail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/catalog/services/{uuid}/products:
+    get:
+      tags: [Tenant]
+      operationId: listTenantServiceProducts
+      summary: Products a service uses (recipe)
+      description: Each job line of the service takes qty × line qty of every product out of stock when the job is created; cancelling / voiding the job gives it back.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Recipe
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      items: { type: array, items: { $ref: "#/components/schemas/ServiceProduct" } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: setTenantServiceProducts
+      summary: Replace the products a service uses
+      description: Requires catalog write (owner). Duplicate products are merged; at most 50.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  maxItems: 50
+                  items: { $ref: "#/components/schemas/JobConsumptionInput" }
+      responses:
+        "200": { description: "Saved recipe (same shape as GET)" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /v1/tenant/customers/{uuid}/jobs:
     get:
       tags: [Tenant]
@@ -9883,6 +9986,41 @@ components:
         color: { type: string, description: "Palette key; empty = derived from the name" }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    JobConsumptionInput:
+      type: object
+      required: [product_uuid, qty]
+      properties:
+        product_uuid: { type: string, format: uuid }
+        qty: { type: string, description: "Positive decimal (\",\" accepted)" }
+
+    JobConsumption:
+      type: object
+      required: [uuid, product_uuid, name, unit, qty, unit_cost, total_cost, stock_applied, reverted]
+      properties:
+        uuid: { type: string, format: uuid }
+        product_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit: { type: string }
+        qty: { type: string }
+        unit_cost: { type: string }
+        total_cost: { type: string }
+        service_name: { type: string, description: "Recipe the row came from; omitted when added by hand" }
+        stock_applied: { type: boolean, description: "Taken out of stock (tracked product)" }
+        reverted: { type: boolean, description: "Given back after cancel / void" }
+
+    ServiceProduct:
+      type: object
+      required: [product_uuid, name, unit, qty, cost_price, track_stock, stock_quantity, is_active]
+      properties:
+        product_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit: { type: string }
+        qty: { type: string }
+        cost_price: { type: string }
+        track_stock: { type: boolean }
+        stock_quantity: { type: string }
+        is_active: { type: boolean }
 
     CatalogSummary:
       type: object

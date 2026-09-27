@@ -39,6 +39,7 @@ import {
 } from "@/features/finance/lib/format";
 import { JobContractsSection } from "@/features/contracts";
 import { CloseJobDialog } from "@/features/jobs/components/close-job-dialog";
+import { JobConsumptionsCard } from "@/features/jobs/components/job-consumptions-card";
 import { useJob, useJobsMutations } from "@/features/jobs/hooks/use-jobs";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
 import type {
@@ -353,6 +354,8 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
               </ul>
             )}
           </EntitySectionCard>
+
+          <JobConsumptionsCard job={job} canWrite={canWrite} />
 
           <JobContractsSection slug={slug} jobUuid={job.uuid} />
 

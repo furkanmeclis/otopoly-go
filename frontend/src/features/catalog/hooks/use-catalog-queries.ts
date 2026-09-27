@@ -26,6 +26,8 @@ export const catalogQueryKeys = {
     [...catalogQueryKeys.all, "services", "list", params] as const,
   serviceDetail: (uuid: string) =>
     [...catalogQueryKeys.all, "services", "detail", uuid] as const,
+  serviceProducts: (uuid: string) =>
+    [...catalogQueryKeys.all, "services", "products", uuid] as const,
   categoriesMeta: () =>
     [...catalogQueryKeys.all, "categories", "meta"] as const,
   categoriesList: (params?: unknown) =>
@@ -121,5 +123,13 @@ export function useCatalogCategories(params?: {
   return useQuery<{ items: CatalogCategory[] }>({
     queryKey: catalogQueryKeys.categoriesList(params),
     queryFn: () => catalogService.listCategories(params),
+  });
+}
+
+export function useServiceProducts(uuid: string) {
+  return useQuery({
+    queryKey: catalogQueryKeys.serviceProducts(uuid),
+    queryFn: () => catalogService.listServiceProducts(uuid),
+    enabled: Boolean(uuid),
   });
 }

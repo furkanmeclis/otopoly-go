@@ -73,6 +73,10 @@ type JobDetail struct {
 	Job
 	Lines    []Line    `json:"lines"`
 	Payments []Payment `json:"payments"`
+	// Consumptions are the products used on the job; MaterialCost sums the
+	// active ones at cost price.
+	Consumptions []Consumption `json:"consumptions"`
+	MaterialCost string        `json:"material_cost"`
 }
 
 type Summary struct {

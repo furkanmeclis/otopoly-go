@@ -132,6 +132,34 @@ export function useJobsMutations() {
       onError: (err: Error) =>
         toast.error(err.message || t("jobs.toast.failed")),
     }),
+    consumption: useMutation({
+      mutationFn: (
+        input:
+          | { op: "add"; uuid: string; product_uuid: string; qty: string }
+          | { op: "update"; uuid: string; consumptionUuid: string; qty: string }
+          | { op: "delete"; uuid: string; consumptionUuid: string },
+      ) => {
+        if (input.op === "add")
+          return jobsService.addConsumption(input.uuid, {
+            product_uuid: input.product_uuid,
+            qty: input.qty,
+          });
+        if (input.op === "update")
+          return jobsService.updateConsumption(
+            input.uuid,
+            input.consumptionUuid,
+            input.qty,
+          );
+        return jobsService.deleteConsumption(input.uuid, input.consumptionUuid);
+      },
+      onSuccess: (data) => {
+        queryClient.setQueryData(jobsKeys.detail(data.uuid), data);
+        // Stock levels changed.
+        void queryClient.invalidateQueries({ queryKey: ["tenant", "catalog"] });
+      },
+      onError: (err: Error) =>
+        toast.error(err.message || t("jobs.toast.failed")),
+    }),
     close: useMutation({
       mutationFn: ({ uuid, body }: { uuid: string; body: CloseJobInput }) =>
         jobsService.close(uuid, body),

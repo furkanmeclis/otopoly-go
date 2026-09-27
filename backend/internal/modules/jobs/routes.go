@@ -51,5 +51,8 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/tenant/jobs/{uuid}/close", write(h.Close))
 	mux.Handle("POST /v1/tenant/jobs/{uuid}/cancel", write(h.Cancel))
 	mux.Handle("POST /v1/tenant/jobs/{uuid}/void", ownerWrite(h.Void))
+	mux.Handle("POST /v1/tenant/jobs/{uuid}/consumptions", write(h.AddConsumption))
+	mux.Handle("PATCH /v1/tenant/jobs/{uuid}/consumptions/{consumptionUuid}", write(h.UpdateConsumption))
+	mux.Handle("DELETE /v1/tenant/jobs/{uuid}/consumptions/{consumptionUuid}", write(h.DeleteConsumption))
 	mux.Handle("GET /v1/tenant/customers/{uuid}/jobs", customerJobs(h.ListByCustomer))
 }

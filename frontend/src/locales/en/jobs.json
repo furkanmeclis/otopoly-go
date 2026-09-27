@@ -165,5 +165,18 @@
   "elapsed.days": "{{d}}d",
   "elapsed.days_hours": "{{d}}d {{h}}h",
   "board.carry_over_day": "Day {{n}}",
-  "board.carry_over_hint": "Started {{date}} — stays listed until the job is finished"
+  "board.carry_over_hint": "Started {{date}} — stays listed until the job is finished",
+  "consumptions.title": "Products used",
+  "consumptions.hint": "Filled from service recipes; add anything extra you used. Tracked products leave stock and come back if the job is cancelled.",
+  "consumptions.empty": "No products used on this job.",
+  "consumptions.pick_product": "Add product…",
+  "consumptions.qty": "Qty",
+  "consumptions.add": "Add",
+  "consumptions.material_cost": "Material cost",
+  "consumptions.service_total": "Service total",
+  "consumptions.margin": "Gross margin",
+  "consumptions.from_recipe": "{{service}} recipe",
+  "consumptions.added_by_hand": "Added by hand",
+  "consumptions.untracked": "not stock-tracked",
+  "consumptions.reverted": "returned to stock"
 }

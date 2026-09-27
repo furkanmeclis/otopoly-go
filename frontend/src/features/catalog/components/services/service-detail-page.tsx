@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/routes";
 import { ServiceDialog } from "@/features/catalog/components/services/service-dialog";
+import { ServiceProductsCard } from "@/features/catalog/components/services/service-products-card";
 import { useCatalogServiceDetail } from "@/features/catalog/hooks/use-catalog-queries";
 import { useTenantCatalogAccess } from "@/features/catalog/hooks/use-tenant-catalog-access";
 import { datetime } from "@/lib/utils/format";
@@ -158,6 +159,8 @@ export function ServiceDetailPage({
               </p>
             ) : null}
           </EntitySectionCard>
+
+          <ServiceProductsCard service={service} canWrite={canWrite} />
         </div>
       ) : null}
 

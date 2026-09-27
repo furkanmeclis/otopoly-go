@@ -54,6 +54,18 @@ export type CatalogService = {
   updated_at: string;
 };
 
+/** A product a service uses (recipe line). */
+export type ServiceProduct = {
+  product_uuid: string;
+  name: string;
+  unit: string;
+  qty: string;
+  cost_price: string;
+  track_stock: boolean;
+  stock_quantity: string;
+  is_active: boolean;
+};
+
 export type CatalogSummary = {
   total_products: number;
   active_products: number;
@@ -201,6 +213,22 @@ export const catalogService = {
       "GET",
       "/v1/tenant/catalog/services",
       { query: params },
+    );
+  },
+  listServiceProducts(uuid: string) {
+    return platformRequest<{ items: ServiceProduct[] }>(
+      "GET",
+      `/v1/tenant/catalog/services/${uuid}/products`,
+    );
+  },
+  setServiceProducts(
+    uuid: string,
+    items: { product_uuid: string; qty: string }[],
+  ) {
+    return platformRequest<{ items: ServiceProduct[] }>(
+      "PUT",
+      `/v1/tenant/catalog/services/${uuid}/products`,
+      { body: { items } },
     );
   },
   getService(uuid: string) {

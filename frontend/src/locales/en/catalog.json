@@ -128,5 +128,13 @@
   "services.color": "Card colour",
   "services.color_auto": "Auto",
   "services.color_preview": "Service",
-  "services.color_hint": "Service tags and the stripe on job cards use this colour."
+  "services.color_hint": "Service tags and the stripe on job cards use this colour.",
+  "recipe.title": "Products used (recipe)",
+  "recipe.hint": "Products one service uses. They leave stock automatically when a job is opened and come back if it is cancelled.",
+  "recipe.empty": "No products yet.",
+  "recipe.add": "Add products",
+  "recipe.edit": "Edit",
+  "recipe.cost": "Material cost",
+  "recipe.saved": "Recipe saved.",
+  "recipe.save_failed": "Could not save the recipe."
 }

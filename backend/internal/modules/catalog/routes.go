@@ -67,4 +67,6 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/tenant/catalog/services/{uuid}", tenantRead(h.GetService))
 	mux.Handle("PATCH /v1/tenant/catalog/services/{uuid}", tenantWrite(h.PatchService))
 	mux.Handle("DELETE /v1/tenant/catalog/services/{uuid}", tenantWrite(h.DeleteService))
+	mux.Handle("GET /v1/tenant/catalog/services/{uuid}/products", tenantRead(h.ListServiceProducts))
+	mux.Handle("PUT /v1/tenant/catalog/services/{uuid}/products", tenantWrite(h.SetServiceProducts))
 }

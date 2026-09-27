@@ -631,3 +631,49 @@ func (h *Handler) DeleteService(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, r, http.StatusOK, map[string]any{"deleted": true})
 }
+
+func (h *Handler) ListServiceProducts(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "Invalid service UUID")
+		return
+	}
+	items, err := h.svc.ListServiceProducts(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, catalogusecase.ErrNotFound) {
+			response.NotFound(w, r, "Service not found")
+			return
+		}
+		response.InternalErr(w, r, err, "failed to list service products")
+		return
+	}
+	response.JSON(w, r, http.StatusOK, map[string]any{"items": items})
+}
+
+func (h *Handler) SetServiceProducts(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "Invalid service UUID")
+		return
+	}
+	var body struct {
+		Items []catalogusecase.ServiceProductInput `json:"items"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "Invalid JSON body")
+		return
+	}
+	items, err := h.svc.SetServiceProducts(r.Context(), id, body.Items)
+	if err != nil {
+		switch {
+		case errors.Is(err, catalogusecase.ErrNotFound):
+			response.NotFound(w, r, "Service not found")
+		case errors.Is(err, catalogusecase.ErrInvalidRequest):
+			response.BadRequest(w, r, response.CodeValidationError, err.Error())
+		default:
+			response.InternalErr(w, r, err, "failed to save service products")
+		}
+		return
+	}
+	response.JSON(w, r, http.StatusOK, map[string]any{"items": items})
+}

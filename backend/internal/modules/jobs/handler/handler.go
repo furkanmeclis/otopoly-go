@@ -207,3 +207,57 @@ func (h *Handler) ListByCustomer(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, r, http.StatusOK, apiquery.NewPage(items, total, q.Limit, q.Offset))
 }
+
+func (h *Handler) AddConsumption(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "job uuid is invalid")
+		return
+	}
+	var in jobsusecase.ConsumptionInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	item, err := h.svc.AddConsumption(r.Context(), id, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
+func (h *Handler) UpdateConsumption(w http.ResponseWriter, r *http.Request) {
+	id, err1 := uuid.Parse(r.PathValue("uuid"))
+	cid, err2 := uuid.Parse(r.PathValue("consumptionUuid"))
+	if err1 != nil || err2 != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	var in jobsusecase.ConsumptionInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	item, err := h.svc.UpdateConsumption(r.Context(), id, cid, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
+func (h *Handler) DeleteConsumption(w http.ResponseWriter, r *http.Request) {
+	id, err1 := uuid.Parse(r.PathValue("uuid"))
+	cid, err2 := uuid.Parse(r.PathValue("consumptionUuid"))
+	if err1 != nil || err2 != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "uuid is invalid")
+		return
+	}
+	item, err := h.svc.DeleteConsumption(r.Context(), id, cid)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}

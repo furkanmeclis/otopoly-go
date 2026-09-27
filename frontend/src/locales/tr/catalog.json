@@ -128,5 +128,13 @@
   "services.color": "Kart rengi",
   "services.color_auto": "Otomatik",
   "services.color_preview": "Hizmet",
-  "services.color_hint": "İşlemler panosunda hizmet kartlarındaki etiket ve şerit bu renkte görünür."
+  "services.color_hint": "İşlemler panosunda hizmet kartlarındaki etiket ve şerit bu renkte görünür.",
+  "recipe.title": "Kullanılan ürünler (reçete)",
+  "recipe.hint": "Bu hizmet bir kez yapıldığında kullanılan ürünler. İş açıldığında stoktan otomatik düşer; iş iptal edilirse geri eklenir.",
+  "recipe.empty": "Henüz ürün eklenmedi.",
+  "recipe.add": "Ürün ekle",
+  "recipe.edit": "Düzenle",
+  "recipe.cost": "Malzeme maliyeti",
+  "recipe.saved": "Reçete kaydedildi.",
+  "recipe.save_failed": "Reçete kaydedilemedi."
 }

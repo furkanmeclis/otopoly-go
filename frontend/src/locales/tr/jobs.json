@@ -165,5 +165,18 @@
   "elapsed.days": "{{d}} gün",
   "elapsed.days_hours": "{{d}} gün {{h}} sa",
   "board.carry_over_day": "{{n}}. gün",
-  "board.carry_over_hint": "Başlangıç: {{date}} — iş bitene kadar listede kalır"
+  "board.carry_over_hint": "Başlangıç: {{date}} — iş bitene kadar listede kalır",
+  "consumptions.title": "Kullanılan ürünler",
+  "consumptions.hint": "Hizmet reçetelerinden otomatik gelir; ekstra kullanılan ürünleri ekleyin. Stok takipli ürünler stoktan düşer, iş iptal edilirse geri eklenir.",
+  "consumptions.empty": "Bu işte kullanılan ürün yok.",
+  "consumptions.pick_product": "Ürün ekle…",
+  "consumptions.qty": "Miktar",
+  "consumptions.add": "Ekle",
+  "consumptions.material_cost": "Malzeme maliyeti",
+  "consumptions.service_total": "Hizmet tutarı",
+  "consumptions.margin": "Brüt kâr",
+  "consumptions.from_recipe": "{{service}} reçetesi",
+  "consumptions.added_by_hand": "Elle eklendi",
+  "consumptions.untracked": "stok takibi yok",
+  "consumptions.reverted": "stoğa iade edildi"
 }

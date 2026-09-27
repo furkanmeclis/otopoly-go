@@ -68,9 +68,26 @@ export type JobServiceTag = {
   color: string;
 };
 
+export type JobConsumption = {
+  uuid: string;
+  product_uuid: string;
+  name: string;
+  unit: string;
+  qty: string;
+  unit_cost: string;
+  total_cost: string;
+  /** Recipe the row came from; absent when added by hand. */
+  service_name?: string;
+  stock_applied: boolean;
+  reverted: boolean;
+};
+
 export type JobDetail = Job & {
   lines: JobLine[];
   payments: JobPayment[];
+  /** Products used on the job (service recipes + added by hand). */
+  consumptions: JobConsumption[];
+  material_cost: string;
 };
 
 export type JobsSummary = {
@@ -151,6 +168,26 @@ export const jobsService = {
     return platformRequest<JobDetail>(
       "POST",
       `/v1/tenant/jobs/${uuid}/deliver`,
+    );
+  },
+  addConsumption(uuid: string, body: { product_uuid: string; qty: string }) {
+    return platformRequest<JobDetail>(
+      "POST",
+      `/v1/tenant/jobs/${uuid}/consumptions`,
+      { body },
+    );
+  },
+  updateConsumption(uuid: string, consumptionUuid: string, qty: string) {
+    return platformRequest<JobDetail>(
+      "PATCH",
+      `/v1/tenant/jobs/${uuid}/consumptions/${consumptionUuid}`,
+      { body: { qty } },
+    );
+  },
+  deleteConsumption(uuid: string, consumptionUuid: string) {
+    return platformRequest<JobDetail>(
+      "DELETE",
+      `/v1/tenant/jobs/${uuid}/consumptions/${consumptionUuid}`,
     );
   },
   close(uuid: string, body: CloseJobInput) {

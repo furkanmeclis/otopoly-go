@@ -19,6 +19,7 @@ type Querier interface {
 	AdjustCariAccountBalance(ctx context.Context, arg AdjustCariAccountBalanceParams) (CariAccount, error)
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
 	AdjustProductStock(ctx context.Context, arg AdjustProductStockParams) (Product, error)
+	AdjustProductStockByID(ctx context.Context, arg AdjustProductStockByIDParams) error
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
 	AttachAIPendingActionsToMessage(ctx context.Context, arg AttachAIPendingActionsToMessageParams) error
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
@@ -80,6 +81,7 @@ type Querier interface {
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
 	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
 	CountServiceJobsByCustomer(ctx context.Context, arg CountServiceJobsByCustomerParams) (int64, error)
+	CountServiceProductsByService(ctx context.Context, organizationID int64) ([]CountServiceProductsByServiceRow, error)
 	CountServices(ctx context.Context, arg CountServicesParams) (int64, error)
 	CountStorageActivity(ctx context.Context, objectKey string) (int64, error)
 	CountStorageTrash(ctx context.Context) (int64, error)
@@ -117,6 +119,7 @@ type Querier interface {
 	CreateFinanceCategory(ctx context.Context, arg CreateFinanceCategoryParams) (FinanceCategory, error)
 	CreateFinanceTransaction(ctx context.Context, arg CreateFinanceTransactionParams) (FinanceTransaction, error)
 	CreateImportJob(ctx context.Context, arg CreateImportJobParams) (ImportJob, error)
+	CreateJobConsumption(ctx context.Context, arg CreateJobConsumptionParams) (ServiceJobConsumption, error)
 	// Tenant leads and their timeline. Every query is scoped by organization_id.
 	CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, error)
 	CreateLeadEvent(ctx context.Context, arg CreateLeadEventParams) (LeadEvent, error)
@@ -171,6 +174,7 @@ type Querier interface {
 	DeleteAppLogsByUUIDs(ctx context.Context, uuids []uuid.UUID) (int64, error)
 	DeleteAppLogsMatching(ctx context.Context, arg DeleteAppLogsMatchingParams) (int64, error)
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
+	DeleteJobConsumption(ctx context.Context, arg DeleteJobConsumptionParams) error
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error
 	DeleteMessageTemplateByKey(ctx context.Context, arg DeleteMessageTemplateByKeyParams) (int64, error)
@@ -179,6 +183,7 @@ type Querier interface {
 	DeletePushSubscription(ctx context.Context, arg DeletePushSubscriptionParams) error
 	DeleteQuoteLines(ctx context.Context, arg DeleteQuoteLinesParams) error
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
+	DeleteServiceProducts(ctx context.Context, arg DeleteServiceProductsParams) error
 	DeleteStorageShare(ctx context.Context, argUuid uuid.UUID) error
 	DeleteStorageStar(ctx context.Context, arg DeleteStorageStarParams) error
 	DeleteStorageTrashByUUID(ctx context.Context, argUuid uuid.UUID) error
@@ -216,6 +221,7 @@ type Querier interface {
 	GetAIPendingActionForUser(ctx context.Context, arg GetAIPendingActionForUserParams) (GetAIPendingActionForUserRow, error)
 	GetAISettings(ctx context.Context) (AiSetting, error)
 	GetAIUserDisplay(ctx context.Context, id int64) (GetAIUserDisplayRow, error)
+	GetActiveJobConsumptionByProduct(ctx context.Context, arg GetActiveJobConsumptionByProductParams) (ServiceJobConsumption, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
 	GetAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (AppLog, error)
 	GetAppSettings(ctx context.Context) (AppSetting, error)
@@ -269,6 +275,7 @@ type Querier interface {
 	GetGitHubAppSettings(ctx context.Context) (GithubAppSetting, error)
 	GetImportJobByID(ctx context.Context, id int64) (ImportJob, error)
 	GetImportJobByUUID(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
+	GetJobConsumptionForUpdate(ctx context.Context, arg GetJobConsumptionForUpdateParams) (ServiceJobConsumption, error)
 	GetJobOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetJobOrgAndPhoneByUUIDRow, error)
 	GetLatestContractSignerOTP(ctx context.Context, signerID int64) (ContractSignerOtp, error)
 	GetLeadDetail(ctx context.Context, arg GetLeadDetailParams) (GetLeadDetailRow, error)
@@ -394,6 +401,7 @@ type Querier interface {
 	// reschedule back to the same slot); any other conflict returns no row, which
 	// the caller treats as a duplicate.
 	InsertScheduledNotification(ctx context.Context, arg InsertScheduledNotificationParams) (ScheduledNotification, error)
+	InsertServiceProduct(ctx context.Context, arg InsertServiceProductParams) error
 	InsertStorageActivity(ctx context.Context, arg InsertStorageActivityParams) (StorageActivity, error)
 	InsertStorageLink(ctx context.Context, arg InsertStorageLinkParams) (StorageLink, error)
 	InsertStorageShare(ctx context.Context, arg InsertStorageShareParams) (StorageShare, error)
@@ -461,6 +469,7 @@ type Querier interface {
 	ListImportChangesForJob(ctx context.Context, jobID int64) ([]ImportChange, error)
 	ListImportJobsForActor(ctx context.Context, arg ListImportJobsForActorParams) ([]ImportJob, error)
 	ListImportJobsForOrganization(ctx context.Context, arg ListImportJobsForOrganizationParams) ([]ImportJob, error)
+	ListJobConsumptions(ctx context.Context, arg ListJobConsumptionsParams) ([]ListJobConsumptionsRow, error)
 	ListLeadEvents(ctx context.Context, arg ListLeadEventsParams) ([]ListLeadEventsRow, error)
 	ListLeadQuotes(ctx context.Context, arg ListLeadQuotesParams) ([]ListLeadQuotesRow, error)
 	ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLeadsRow, error)
@@ -513,6 +522,7 @@ type Querier interface {
 	ListQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	ListQuotes(ctx context.Context, arg ListQuotesParams) ([]ListQuotesRow, error)
 	ListRecentFinanceTransactionsByAccount(ctx context.Context, arg ListRecentFinanceTransactionsByAccountParams) ([]ListRecentFinanceTransactionsByAccountRow, error)
+	ListRecipesForServices(ctx context.Context, arg ListRecipesForServicesParams) ([]ListRecipesForServicesRow, error)
 	ListRolePermissionSlugsByRoleUUID(ctx context.Context, argUuid uuid.UUID) ([]string, error)
 	ListRoleUUIDsForBulk(ctx context.Context, q_ pgtype.Text) ([]uuid.UUID, error)
 	ListRolesFiltered(ctx context.Context, arg ListRolesFilteredParams) ([]Role, error)
@@ -527,6 +537,8 @@ type Querier interface {
 	ListServiceJobsByCustomer(ctx context.Context, arg ListServiceJobsByCustomerParams) ([]ListServiceJobsByCustomerRow, error)
 	ListServiceJobsForExport(ctx context.Context, arg ListServiceJobsForExportParams) ([]ListServiceJobsForExportRow, error)
 	ListServiceJobsForSearch(ctx context.Context) ([]ListServiceJobsForSearchRow, error)
+	// Service recipes (products a service uses) and per-job product usage.
+	ListServiceProducts(ctx context.Context, arg ListServiceProductsParams) ([]ListServiceProductsRow, error)
 	ListServiceUUIDsForBulk(ctx context.Context, arg ListServiceUUIDsForBulkParams) ([]uuid.UUID, error)
 	ListServices(ctx context.Context, arg ListServicesParams) ([]ListServicesRow, error)
 	ListServicesForExport(ctx context.Context, arg ListServicesForExportParams) ([]ListServicesForExportRow, error)
@@ -631,6 +643,8 @@ type Querier interface {
 	ResolveTodoQuoteLink(ctx context.Context, arg ResolveTodoQuoteLinkParams) (int64, error)
 	RestoreProduct(ctx context.Context, arg RestoreProductParams) error
 	RestoreService(ctx context.Context, arg RestoreServiceParams) error
+	// Marks the job's usage as given back; returns the rows whose stock must be restored.
+	RevertJobConsumptions(ctx context.Context, arg RevertJobConsumptionsParams) ([]RevertJobConsumptionsRow, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
 	RevokeOtherRefreshTokensForUser(ctx context.Context, arg RevokeOtherRefreshTokensForUserParams) error
 	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
@@ -693,6 +707,7 @@ type Querier interface {
 	UpdateImportJobFileKey(ctx context.Context, arg UpdateImportJobFileKeyParams) (ImportJob, error)
 	UpdateImportJobMapping(ctx context.Context, arg UpdateImportJobMappingParams) (ImportJob, error)
 	UpdateImportJobPreview(ctx context.Context, arg UpdateImportJobPreviewParams) (ImportJob, error)
+	UpdateJobConsumptionQty(ctx context.Context, arg UpdateJobConsumptionQtyParams) (ServiceJobConsumption, error)
 	UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, error)
 	UpdateLogPurgeRule(ctx context.Context, arg UpdateLogPurgeRuleParams) (LogPurgeRule, error)
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)

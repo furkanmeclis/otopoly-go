@@ -432,6 +432,13 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 			return JobDetail{}, err
 		}
 	}
+	recipe := make([]recipeLine, 0, len(prepared))
+	for _, pl := range prepared {
+		recipe = append(recipe, recipeLine{serviceID: pl.serviceID, qty: pl.qty})
+	}
+	if err := s.applyRecipes(ctx, qtx, orgID, job.ID, actorID, recipe); err != nil {
+		return JobDetail{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return JobDetail{}, err
 	}
@@ -541,13 +548,26 @@ func (s *Service) Cancel(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	if err != nil {
 		return JobDetail{}, err
 	}
-	row, err := s.q.MarkServiceJobCancelled(ctx, db.MarkServiceJobCancelledParams{
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return JobDetail{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := s.q.WithTx(tx)
+	row, err := qtx.MarkServiceJobCancelled(ctx, db.MarkServiceJobCancelledParams{
 		Uuid: id, OrganizationID: orgID,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return JobDetail{}, ErrConflict
 		}
+		return JobDetail{}, err
+	}
+	// Products used on the job go back to stock.
+	if err := s.revertConsumptions(ctx, qtx, orgID, row.ID); err != nil {
+		return JobDetail{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return JobDetail{}, err
 	}
 	s.recordActivity(ctx, "jobs.cancel", "jobs.job", &row.Uuid, nil)
@@ -761,6 +781,9 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 		}
 		return JobDetail{}, err
 	}
+	if err := s.revertConsumptions(ctx, qtx, orgID, voidedJob.ID); err != nil {
+		return JobDetail{}, err
+	}
 
 	var financeNotify [][2]uuid.UUID
 	for _, p := range payments {
@@ -830,6 +853,9 @@ func (s *Service) loadDetail(ctx context.Context, orgID int64, row db.GetService
 	}
 	if detail.Payments == nil {
 		detail.Payments = []Payment{}
+	}
+	if detail.Consumptions, detail.MaterialCost, err = s.listConsumptions(ctx, orgID, row.ID); err != nil {
+		return JobDetail{}, err
 	}
 	return detail, nil
 }

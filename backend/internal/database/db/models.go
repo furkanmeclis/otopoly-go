@@ -1184,6 +1184,24 @@ type ServiceJob struct {
 	PaymentStatus  string             `json:"payment_status"`
 }
 
+type ServiceJobConsumption struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	JobID          int64              `json:"job_id"`
+	ProductID      int64              `json:"product_id"`
+	ServiceID      pgtype.Int8        `json:"service_id"`
+	Name           string             `json:"name"`
+	Unit           string             `json:"unit"`
+	Qty            pgtype.Numeric     `json:"qty"`
+	UnitCost       pgtype.Numeric     `json:"unit_cost"`
+	StockApplied   bool               `json:"stock_applied"`
+	RevertedAt     pgtype.Timestamptz `json:"reverted_at"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type ServiceJobLine struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`
@@ -1220,6 +1238,17 @@ type ServiceJobPayment struct {
 	VoidedBy             pgtype.Int8        `json:"voided_by"`
 	CreatedAt            pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ServiceProduct struct {
+	ID             int64              `json:"id"`
+	OrganizationID int64              `json:"organization_id"`
+	ServiceID      int64              `json:"service_id"`
+	ProductID      int64              `json:"product_id"`
+	Qty            pgtype.Numeric     `json:"qty"`
+	SortOrder      int32              `json:"sort_order"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
 type StepupSetting struct {

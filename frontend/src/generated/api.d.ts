@@ -2904,6 +2904,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/jobs/{uuid}/consumptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add a product used on the job
+         * @description Requires `tenant.jobs.write`. Merged into an existing row of the same product; tracked products are taken out of stock. 409 on cancelled / voided jobs.
+         */
+        post: operations["addTenantJobConsumption"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/consumptions/{consumptionUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a used product (returned to stock) */
+        delete: operations["deleteTenantJobConsumption"];
+        options?: never;
+        head?: never;
+        /** Change a used product's quantity (stock follows the difference) */
+        patch: operations["updateTenantJobConsumption"];
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}/products": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Products a service uses (recipe)
+         * @description Each job line of the service takes qty × line qty of every product out of stock when the job is created; cancelling / voiding the job gives it back.
+         */
+        get: operations["listTenantServiceProducts"];
+        /**
+         * Replace the products a service uses
+         * @description Requires catalog write (owner). Duplicate products are merged; at most 50.
+         */
+        put: operations["setTenantServiceProducts"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/customers/{uuid}/jobs": {
         parameters: {
             query?: never;
@@ -6143,6 +6205,40 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        JobConsumptionInput: {
+            /** Format: uuid */
+            product_uuid: string;
+            /** @description Positive decimal ("," accepted) */
+            qty: string;
+        };
+        JobConsumption: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            unit: string;
+            qty: string;
+            unit_cost: string;
+            total_cost: string;
+            /** @description Recipe the row came from; omitted when added by hand */
+            service_name?: string;
+            /** @description Taken out of stock (tracked product) */
+            stock_applied: boolean;
+            /** @description Given back after cancel / void */
+            reverted: boolean;
+        };
+        ServiceProduct: {
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            unit: string;
+            qty: string;
+            cost_price: string;
+            track_stock: boolean;
+            stock_quantity: string;
+            is_active: boolean;
         };
         CatalogSummary: {
             total_products: number;
@@ -13159,6 +13255,144 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    addTenantJobConsumption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobConsumptionInput"];
+            };
+        };
+        responses: {
+            /** @description Job detail with consumptions and material_cost */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteTenantJobConsumption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                consumptionUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    updateTenantJobConsumption: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+                consumptionUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    qty: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Job detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listTenantServiceProducts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recipe */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        success?: boolean;
+                        data?: {
+                            items?: components["schemas"]["ServiceProduct"][];
+                        };
+                    };
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTenantServiceProducts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    items: components["schemas"]["JobConsumptionInput"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved recipe (same shape as GET) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantCustomerJobs: {
