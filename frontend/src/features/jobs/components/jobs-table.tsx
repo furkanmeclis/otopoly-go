@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { CheckCircle2, KeyRound, Loader2 } from "lucide-react";
+import { CheckCircle2, KeyRound, Loader2, Wallet } from "lucide-react";
 
 import { StatusChip } from "@/components/common/status-chip";
 import { Button } from "@/components/ui/button";
@@ -168,6 +168,20 @@ export function JobsTable({
                         <KeyRound className="size-3.5" />
                       )}
                       {t("jobs.board.deliver")}
+                    </Button>
+                  ) : canWrite &&
+                    job.status === "delivered" &&
+                    job.payment_status === "unpaid" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-amber-500/40 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+                      disabled={pending}
+                      onClick={() => onAction(job, "pay")}
+                    >
+                      <Wallet className="size-3.5" />
+                      {t("jobs.actions.close")}
                     </Button>
                   ) : null}
                 </td>

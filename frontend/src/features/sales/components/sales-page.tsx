@@ -33,6 +33,7 @@ import type { Sale, SaleStatus } from "@/features/sales/services/sales.service";
 import { datetime } from "@/lib/utils/format";
 import { localToday } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
+import { toast } from "sonner";
 
 const STATUS_TABS = ["all", "posted", "voided"] as const;
 
@@ -239,7 +240,14 @@ export function SalesPage({ slug }: { slug: string }) {
         open={createOpen}
         onOpenChange={setCreateOpen}
         onSuccess={(created) => {
-          router.push(routes.tenant.sales.detail(slug, created.uuid));
+          toast.success(t("sales.toast.created"), {
+            id: `sale-created-${created.uuid}`,
+            action: {
+              label: t("common.open"),
+              onClick: () =>
+                router.push(routes.tenant.sales.detail(slug, created.uuid)),
+            },
+          });
         }}
       />
     </EntityPage>

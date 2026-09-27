@@ -45,5 +45,6 @@
   "day.live": "Canlı",
   "day.pick": "Gün seçin",
   "choose_file": "Dosya seç",
-  "image_formats": "PNG, JPG, WEBP veya SVG"
+  "image_formats": "PNG, JPG, WEBP veya SVG",
+  "open": "Aç"
 }

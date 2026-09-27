@@ -21,6 +21,7 @@ import {
 import { routes } from "@/config/routes";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { ResourceIOToolbar } from "@/features/io";
+import { CloseJobDialog } from "@/features/jobs/components/close-job-dialog";
 import { CreateJobDialog } from "@/features/jobs/components/create-job-dialog";
 import type { JobQuickAction } from "@/features/jobs/components/job-board-card";
 import { JobsBoard } from "@/features/jobs/components/jobs-board";
@@ -42,6 +43,7 @@ import type { Job } from "@/features/jobs/services/jobs.service";
 import { QuickSaleDialog } from "@/features/sales/components/quick-sale-dialog";
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -77,6 +79,7 @@ export function JobsPage({ slug }: { slug: string }) {
   const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [showClosed, setShowClosed] = useState(false);
   const [pendingUuid, setPendingUuid] = useState<string | null>(null);
+  const [payJob, setPayJob] = useState<Job | null>(null);
   const searchParams = useSearchParams();
   // `?new=1` (dashboard / setup checklist) opens the create dialog once.
   const [createOpen, setCreateOpen] = useState(
@@ -154,10 +157,18 @@ export function JobsPage({ slug }: { slug: string }) {
   const summary = summaryQuery.data;
 
   const runAction = async (job: Job, action: JobQuickAction) => {
+    if (action === "pay") {
+      setPayJob(job);
+      return;
+    }
     setPendingUuid(job.uuid);
     try {
       if (action === "ready") await mutations.done.mutateAsync(job.uuid);
-      else await mutations.deliver.mutateAsync(job.uuid);
+      else {
+        await mutations.deliver.mutateAsync(job.uuid);
+        // Delivered but unpaid: take the payment right here.
+        if (job.payment_status === "unpaid") setPayJob(job);
+      }
     } catch {
       /* toast from mutation */
     } finally {
@@ -486,14 +497,45 @@ export function JobsPage({ slug }: { slug: string }) {
         onSubmit={async (body) => {
           const created = await mutations.create.mutateAsync(body);
           setCreateOpen(false);
-          router.push(routes.tenant.operations.detail(slug, created.uuid));
+          // Stay on the board; the job opens only when staff need it (PPF,
+          // contracts, …).
+          toast.success(t("jobs.toast.created"), {
+            id: `job-created-${created.uuid}`,
+            action: {
+              label: t("common.open"),
+              onClick: () =>
+                router.push(
+                  routes.tenant.operations.detail(slug, created.uuid),
+                ),
+            },
+          });
         }}
       />
       <QuickSaleDialog
         open={quickSaleOpen}
         onOpenChange={setQuickSaleOpen}
         onSuccess={(created) => {
-          router.push(routes.tenant.sales.detail(slug, created.uuid));
+          toast.success(t("sales.toast.created"), {
+            id: `sale-created-${created.uuid}`,
+            action: {
+              label: t("common.open"),
+              onClick: () =>
+                router.push(routes.tenant.sales.detail(slug, created.uuid)),
+            },
+          });
+        }}
+      />
+      <CloseJobDialog
+        open={payJob !== null}
+        onOpenChange={(open) => {
+          if (!open) setPayJob(null);
+        }}
+        job={payJob}
+        pending={mutations.close.isPending}
+        onSubmit={async (body) => {
+          if (!payJob) return;
+          await mutations.close.mutateAsync({ uuid: payJob.uuid, body });
+          setPayJob(null);
         }}
       />
     </EntityPage>

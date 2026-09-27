@@ -45,5 +45,6 @@
   "day.live": "Live",
   "day.pick": "Pick a day",
   "choose_file": "Choose file",
-  "image_formats": "PNG, JPG, WEBP or SVG"
+  "image_formats": "PNG, JPG, WEBP or SVG",
+  "open": "Open"
 }

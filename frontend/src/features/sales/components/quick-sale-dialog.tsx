@@ -120,24 +120,27 @@ export function QuickSaleDialog({
     }));
   }, []);
 
-  const loadProducts = useCallback(async (query: string) => {
-    const result = await catalogService.listProducts({
-      limit: 20,
-      offset: 0,
-      q: query.trim() || undefined,
-      is_active: "true",
-      sort: "name",
-    });
-    return result.items.map((product) => ({
-      value: product.uuid,
-      label: product.sku ? `${product.name} · ${product.sku}` : product.name,
-      description: formatFinanceAmount(
-        product.sale_price,
-        product.currency,
-        locale,
-      ),
-    }));
-  }, [locale]);
+  const loadProducts = useCallback(
+    async (query: string) => {
+      const result = await catalogService.listProducts({
+        limit: 20,
+        offset: 0,
+        q: query.trim() || undefined,
+        is_active: "true",
+        sort: "name",
+      });
+      return result.items.map((product) => ({
+        value: product.uuid,
+        label: product.sku ? `${product.name} · ${product.sku}` : product.name,
+        description: formatFinanceAmount(
+          product.sale_price,
+          product.currency,
+          locale,
+        ),
+      }));
+    },
+    [locale],
+  );
 
   const addProduct = useCallback(
     async (productUuid: string) => {

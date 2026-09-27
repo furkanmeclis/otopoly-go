@@ -3,11 +3,7 @@ import { platformRequest } from "@/lib/api/platform-request";
 import type { ResourceMeta } from "@/features/io/types";
 
 export type JobStatus =
-  | "in_progress"
-  | "ready"
-  | "delivered"
-  | "cancelled"
-  | "voided";
+  "in_progress" | "ready" | "delivered" | "cancelled" | "voided";
 
 export type PaymentStatus = "unpaid" | "paid";
 
@@ -131,10 +127,7 @@ export const jobsService = {
   create(body: CreateJobInput) {
     return platformRequest<JobDetail>("POST", "/v1/tenant/jobs", { body });
   },
-  patch(
-    uuid: string,
-    body: { notes?: string; assignee_uuid?: string | null },
-  ) {
+  patch(uuid: string, body: { notes?: string; assignee_uuid?: string | null }) {
     return platformRequest<JobDetail>("PATCH", `/v1/tenant/jobs/${uuid}`, {
       body,
     });

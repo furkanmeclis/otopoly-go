@@ -10,7 +10,6 @@ import {
   Wallet,
   XCircle,
 } from "lucide-react";
-import { useFormContext } from "react-hook-form";
 import { z } from "zod";
 
 import { ErrorState } from "@/components/common/error-state";
@@ -28,23 +27,21 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { routes } from "@/config/routes";
-import { useFinanceAccounts } from "@/features/finance/hooks/use-finance-queries";
 import {
   formatFinanceAmount,
   formatQuantity,
 } from "@/features/finance/lib/format";
 import { JobContractsSection } from "@/features/contracts";
+import { CloseJobDialog } from "@/features/jobs/components/close-job-dialog";
 import { useJob, useJobsMutations } from "@/features/jobs/hooks/use-jobs";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
 import type {
-  CloseJobInput,
   JobStatus,
   PaymentStatus,
 } from "@/features/jobs/services/jobs.service";
@@ -52,8 +49,6 @@ import { useStaffOptions } from "@/features/staff/hooks/use-staff";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
-
-const CLOSE_METHODS = ["cash", "card", "cari"] as const;
 
 function statusTone(status: JobStatus) {
   switch (status) {
@@ -427,6 +422,7 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
       <CloseJobDialog
         open={closeOpen}
         onOpenChange={setCloseOpen}
+        job={job}
         pending={mutations.close.isPending}
         onSubmit={async (body) => {
           await mutations.close.mutateAsync({ uuid, body });
@@ -515,136 +511,5 @@ function NotesDialog({
         </AppForm>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CloseJobDialog({
-  open,
-  onOpenChange,
-  pending,
-  onSubmit,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  pending?: boolean;
-  onSubmit: (body: CloseJobInput) => Promise<void>;
-}) {
-  const { t } = useLocale();
-  const accountsQuery = useFinanceAccounts({
-    limit: 100,
-    offset: 0,
-    is_active: "true",
-  });
-  const accounts = accountsQuery.data?.items ?? [];
-  const defaultAccountUuid =
-    accounts.find((account) => account.is_default)?.uuid ??
-    accounts[0]?.uuid ??
-    "";
-
-  const schema = useMemo(
-    () =>
-      z
-        .object({
-          method: z.enum(CLOSE_METHODS),
-          finance_account_uuid: z.string().optional(),
-        })
-        .superRefine((values, ctx) => {
-          if (
-            (values.method === "cash" || values.method === "card") &&
-            !values.finance_account_uuid
-          ) {
-            ctx.addIssue({
-              code: "custom",
-              path: ["finance_account_uuid"],
-              message: t("jobs.validation.finance_account"),
-            });
-          }
-        }),
-    [t],
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("jobs.actions.close")}</DialogTitle>
-          <DialogDescription>{t("jobs.close.description")}</DialogDescription>
-        </DialogHeader>
-        <AppForm
-          key={open ? `close-${defaultAccountUuid}` : "close-closed"}
-          schema={schema}
-          defaultValues={{
-            method: "cash",
-            finance_account_uuid: defaultAccountUuid,
-          }}
-          onSubmit={async (values) => {
-            await onSubmit({
-              method: values.method,
-              finance_account_uuid:
-                values.method === "cari"
-                  ? undefined
-                  : values.finance_account_uuid || undefined,
-            });
-          }}
-        >
-          <CloseJobFields
-            accounts={accounts}
-            pending={pending}
-            onCancel={() => onOpenChange(false)}
-          />
-        </AppForm>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function CloseJobFields({
-  accounts,
-  pending,
-  onCancel,
-}: {
-  accounts: { uuid: string; name: string; currency: string }[];
-  pending?: boolean;
-  onCancel: () => void;
-}) {
-  const { t } = useLocale();
-  const form = useFormContext<{
-    method: "cash" | "card" | "cari";
-    finance_account_uuid?: string;
-  }>();
-  const method = form.watch("method");
-
-  return (
-    <>
-      <FieldGroup className="gap-4">
-        <AppSelect
-          name="method"
-          label={t("jobs.close.method")}
-          options={CLOSE_METHODS.map((value) => ({
-            value,
-            label: t(`jobs.payment_method.${value}`),
-          }))}
-        />
-        {method !== "cari" ? (
-          <AppSelect
-            name="finance_account_uuid"
-            label={t("jobs.finance_account")}
-            placeholder={t("jobs.pick_finance_account")}
-            options={accounts.map((account) => ({
-              value: account.uuid,
-              label: `${account.name} (${account.currency})`,
-            }))}
-          />
-        ) : null}
-      </FieldGroup>
-      <DialogFooter className="mt-6">
-        <Button type="button" variant="outline" onClick={onCancel}>
-          {t("common.cancel")}
-        </Button>
-        <Button type="submit" disabled={pending}>
-          {pending ? t("common.saving") : t("jobs.actions.close")}
-        </Button>
-      </DialogFooter>
-    </>
   );
 }

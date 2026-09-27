@@ -79,9 +79,11 @@ export function useJobsMutations() {
   return {
     create: useMutation({
       mutationFn: (body: CreateJobInput) => jobsService.create(body),
-      onSuccess: () => {
+      onSuccess: (data) => {
         invalidate();
-        toast.success(t("jobs.toast.created"));
+        toast.success(t("jobs.toast.created"), {
+          id: `job-created-${data.uuid}`,
+        });
       },
       onError: (err: Error) =>
         toast.error(err.message || t("jobs.toast.failed")),

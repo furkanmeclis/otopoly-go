@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
-export type JobQuickAction = "ready" | "deliver";
+export type JobQuickAction = "ready" | "deliver" | "pay";
 
 /**
  * Compact board card. The whole card links to the job; the footer button
@@ -133,13 +133,15 @@ export function JobBoardCard({
               {t("jobs.board.deliver")}
             </Button>
           ) : job.status === "delivered" && unpaid && canWrite ? (
-            <Link
-              href={href}
-              className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => onAction(job, "pay")}
+              className="flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 hover:bg-amber-500/20 disabled:opacity-60 dark:text-amber-400"
             >
               <Wallet className="size-3" />
               {t("jobs.actions.close")}
-            </Link>
+            </button>
           ) : job.status === "delivered" ? (
             <span
               className={cn(

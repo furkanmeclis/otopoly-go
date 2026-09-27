@@ -63,9 +63,11 @@ export function useSalesMutations() {
   return {
     create: useMutation({
       mutationFn: (body: CreateSaleInput) => salesService.create(body),
-      onSuccess: () => {
+      onSuccess: (data) => {
         invalidate();
-        toast.success(t("sales.toast.created"));
+        toast.success(t("sales.toast.created"), {
+          id: `sale-created-${data.uuid}`,
+        });
       },
       onError: (err: Error) =>
         toast.error(err.message || t("sales.toast.failed")),
