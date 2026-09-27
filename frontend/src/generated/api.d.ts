@@ -4820,6 +4820,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/billing/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Billing lifecycle dashboard */
+        get: operations["getPlatformBillingDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/billing/subscriptions": {
         parameters: {
             query?: never;
@@ -4832,6 +4849,23 @@ export interface paths {
         put?: never;
         /** Create admin subscription */
         post: operations["createPlatformBillingSubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/billing/subscriptions/{uuid}/detail": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get admin subscription detail */
+        get: operations["getPlatformBillingSubscriptionDetail"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7980,6 +8014,7 @@ export interface components {
             plan: components["schemas"]["BillingPlan"] | null;
             meters: components["schemas"]["BillingUsageMeter"][];
             open_order: components["schemas"]["BillingOrder"] | null;
+            read_only: boolean;
         };
         BillingPlanRef: {
             /** Format: uuid */
@@ -8213,6 +8248,8 @@ export interface components {
             starts_at: string;
             /** Format: date-time */
             ends_at: string;
+            /** Format: date-time */
+            grace_ends_at: string | null;
             days_left: number;
             price_paid: string;
             credit_balance: string;
@@ -8248,6 +8285,71 @@ export interface components {
             /** Format: uuid */
             plan_uuid?: string | null;
             note?: string;
+        };
+        BillingDashboard: {
+            counts: {
+                /** Format: int64 */
+                trial: number;
+                /** Format: int64 */
+                active: number;
+                /** Format: int64 */
+                grace: number;
+                /** Format: int64 */
+                read_only: number;
+            };
+            plans: {
+                code: string;
+                name: string;
+                /** Format: int64 */
+                count: number;
+            }[];
+            approved_this_month: {
+                /** Format: int64 */
+                count: number;
+                amount: string;
+            };
+            orders: components["schemas"]["BillingOrdersSummary"];
+            expiring: {
+                /** Format: int64 */
+                within_7: number;
+                /** Format: int64 */
+                within_30: number;
+            };
+            trial_conversion: {
+                /** Format: int64 */
+                trials_90d: number;
+                /** Format: int64 */
+                converted_90d: number;
+                /** Format: double */
+                rate: number;
+            };
+            discounts: {
+                code: string;
+                /** Format: int64 */
+                uses: number;
+                discount_total: string;
+                revenue: string;
+            }[];
+        };
+        BillingAdminUsageMeter: {
+            key: string;
+            kind: string;
+            unit: string;
+            period: string;
+            period_key: string;
+            /** Format: int64 */
+            used: number;
+            label_tr: string;
+            label_en: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        BillingAdminSubscriptionDetail: {
+            subscription: components["schemas"]["BillingAdminSubscription"];
+            history: components["schemas"]["BillingAdminSubscription"][];
+            orders: components["schemas"]["BillingOrder"][];
+            invoices: components["schemas"]["BillingInvoice"][];
+            meters: components["schemas"]["BillingAdminUsageMeter"][];
         };
         BillingPaymentSettings: {
             bank_name: string;
@@ -8750,6 +8852,18 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["BillingAdminSubscription"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingDashboard: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingDashboard"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeBillingAdminSubscriptionDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["BillingAdminSubscriptionDetail"];
             meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeBillingAdminSubscriptionList: {
@@ -17503,6 +17617,8 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeBillingOrder"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
             422: components["responses"]["BadRequest"];
         };
@@ -17527,6 +17643,8 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeBillingOrder"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -17558,6 +17676,8 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeBillingOrder"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -17581,6 +17701,8 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeBillingOrder"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -18022,11 +18144,35 @@ export interface operations {
             409: components["responses"]["Conflict"];
         };
     };
+    getPlatformBillingDashboard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dashboard */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingDashboard"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
     listPlatformBillingSubscriptions: {
         parameters: {
             query?: {
                 status?: string;
                 q?: string;
+                plan_uuid?: string;
+                expiring_within_days?: number;
                 limit?: number;
                 offset?: number;
             };
@@ -18073,6 +18219,31 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformBillingSubscriptionDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Subscription detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeBillingAdminSubscriptionDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     updatePlatformBillingSubscription: {
