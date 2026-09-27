@@ -1,6 +1,8 @@
 import { platformRequest } from "@/lib/api/platform-request";
 import type {
   AdminSubscription,
+  BillingInvoice,
+  SellerSettings,
   AdminSubscriptionInput,
   AdminSubscriptionPatch,
   BillingFeature,
@@ -15,6 +17,7 @@ import type {
   PaymentSettings,
 } from "@/features/billing/types";
 import { apiConfig } from "@/config/api";
+import { platformFormRequest } from "@/lib/api/platform-form-request";
 
 const base = "/v1/platform/billing";
 
@@ -140,5 +143,50 @@ export const platformBillingService = {
     return platformRequest<PaymentSettings>("PUT", `${base}/settings`, {
       body,
     });
+  },
+  listInvoices(params: {
+    status?: string;
+    q?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    return platformRequest<ListResult<BillingInvoice>>(
+      "GET",
+      `${base}/invoices`,
+      { query: params },
+    );
+  },
+  invoiceFileUrl(uuid: string, kind: "xml" | "pdf") {
+    return `${apiConfig.baseUrl.replace(/\/$/, "")}${base}/invoices/${uuid}/${kind}`;
+  },
+  regenerateInvoice(uuid: string) {
+    return platformRequest<BillingInvoice>(
+      "POST",
+      `${base}/invoices/${uuid}/regenerate`,
+    );
+  },
+  voidInvoice(uuid: string) {
+    return platformRequest<BillingInvoice>(
+      "POST",
+      `${base}/invoices/${uuid}/void`,
+    );
+  },
+  getSeller() {
+    return platformRequest<SellerSettings>("GET", `${base}/seller`);
+  },
+  updateSeller(body: Omit<SellerSettings, "xslt">) {
+    return platformRequest<SellerSettings>("PUT", `${base}/seller`, { body });
+  },
+  uploadXslt(file: File) {
+    const form = new FormData();
+    form.append("file", file);
+    return platformFormRequest<SellerSettings>(
+      "POST",
+      `${base}/seller/xslt`,
+      form,
+    );
+  },
+  resetXslt() {
+    return platformRequest<SellerSettings>("DELETE", `${base}/seller/xslt`);
   },
 };

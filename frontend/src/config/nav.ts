@@ -175,6 +175,13 @@ export const platformNav = defineNav({
           permission: permissions.platformBilling.read,
         },
         {
+          id: "billing-invoices",
+          titleKey: "layout.nav_billing_invoices",
+          href: routes.platform.billing.invoices,
+          icon: FileText,
+          permission: permissions.platformBilling.read,
+        },
+        {
           id: "billing-discount-codes",
           titleKey: "layout.nav_billing_discount_codes",
           href: routes.platform.billing.discountCodes,

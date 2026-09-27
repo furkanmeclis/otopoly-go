@@ -183,6 +183,7 @@ export const routes = {
       subscriptions: "/platform/billing/subscriptions",
       discountCodes: "/platform/billing/discount-codes",
       settings: "/platform/billing/settings",
+      invoices: "/platform/billing/invoices",
     },
     access: {
       root: "/platform/access",

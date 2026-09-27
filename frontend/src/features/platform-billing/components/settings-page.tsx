@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { permissions } from "@/config/permissions";
 import type { PaymentSettings } from "@/features/billing/types";
+import { SellerSettingsCards } from "@/features/platform-billing/components/seller-settings-cards";
 import {
   usePaymentSettings,
   usePaymentSettingsMutation,
@@ -38,7 +39,12 @@ export function PaymentSettingsPage() {
       permission={permissions.platformBilling.read}
     >
       {settings.data ? (
-        <SettingsForm initial={settings.data} canEdit={access.canSettings} />
+        <div className="space-y-6">
+          <SettingsForm initial={settings.data} canEdit={access.canSettings} />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <SellerSettingsCards canEdit={access.canSettings} />
+          </div>
+        </div>
       ) : (
         <Skeleton className="h-64 w-full" />
       )}

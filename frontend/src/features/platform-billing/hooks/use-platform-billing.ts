@@ -11,6 +11,7 @@ import type {
   DiscountCodeInput,
   DisplayFeatureInput,
   PaymentSettings,
+  SellerSettings,
 } from "@/features/billing/types";
 import { platformBillingService } from "@/features/platform-billing/services/platform-billing.service";
 import { useLocale } from "@/providers/locale-provider";
@@ -28,6 +29,8 @@ export const platformBillingKeys = {
   discountCodes: (p: object) =>
     [...platformBillingKeys.all, "discount-codes", p] as const,
   settings: () => [...platformBillingKeys.all, "settings"] as const,
+  invoices: (p: object) => [...platformBillingKeys.all, "invoices", p] as const,
+  seller: () => [...platformBillingKeys.all, "seller"] as const,
 };
 
 export function usePlatformBillingAccess() {
@@ -272,4 +275,76 @@ export function usePaymentSettingsMutation() {
       qc.setQueryData(platformBillingKeys.settings(), data);
     },
   });
+}
+
+export function usePlatformInvoices(params: ListParams, enabled = true) {
+  return useQuery({
+    queryKey: platformBillingKeys.invoices(params),
+    queryFn: () => platformBillingService.listInvoices(params),
+    enabled,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function usePlatformInvoiceMutations() {
+  const qc = useQueryClient();
+  const { t } = useLocale();
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: platformBillingKeys.all });
+  return {
+    regenerate: useMutation({
+      mutationFn: (uuid: string) =>
+        platformBillingService.regenerateInvoice(uuid),
+      onSuccess: () => {
+        toast.success(t("billing.invoices.regenerated"));
+        return invalidate();
+      },
+    }),
+    void: useMutation({
+      mutationFn: (uuid: string) => platformBillingService.voidInvoice(uuid),
+      onSuccess: () => {
+        toast.success(t("billing.invoices.voided"));
+        return invalidate();
+      },
+    }),
+  };
+}
+
+export function useSellerSettings(enabled = true) {
+  return useQuery({
+    queryKey: platformBillingKeys.seller(),
+    queryFn: () => platformBillingService.getSeller(),
+    enabled,
+  });
+}
+
+export function useSellerMutations() {
+  const qc = useQueryClient();
+  const { t } = useLocale();
+  const put = (data: SellerSettings) =>
+    qc.setQueryData(platformBillingKeys.seller(), data);
+  return {
+    save: useMutation({
+      mutationFn: (body: Omit<SellerSettings, "xslt">) =>
+        platformBillingService.updateSeller(body),
+      onSuccess: (data) => {
+        toast.success(t("billing.seller.saved"));
+        put(data);
+      },
+    }),
+    upload: useMutation({
+      mutationFn: (file: File) => platformBillingService.uploadXslt(file),
+      onSuccess: (data) => {
+        toast.success(t("billing.xslt.uploaded"));
+        put(data);
+      },
+    }),
+    reset: useMutation({
+      mutationFn: () => platformBillingService.resetXslt(),
+      onSuccess: (data) => {
+        toast.success(t("billing.xslt.reset_done"));
+        put(data);
+      },
+    }),
+  };
 }
