@@ -136,5 +136,10 @@
   "recipe.edit": "Düzenle",
   "recipe.cost": "Malzeme maliyeti",
   "recipe.saved": "Reçete kaydedildi.",
-  "recipe.save_failed": "Reçete kaydedilemedi."
+  "recipe.save_failed": "Reçete kaydedilemedi.",
+  "placeholders.sku": "Örn. CL-500",
+  "placeholders.barcode": "Örn. 869000000000",
+  "placeholders.category_name": "Örn. Şampuanlar",
+  "placeholders.service_code": "Örn. HY-01",
+  "categories.no_parent": "— Üst kategori yok —"
 }

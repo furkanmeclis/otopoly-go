@@ -41,6 +41,7 @@ function CardShell({
   onToggleSelect?: (checked: boolean) => void;
   onClick?: (event: React.MouseEvent<HTMLElement>) => void;
 }) {
+  const { t } = useLocale();
   return (
     <article
       className={cn(
@@ -57,7 +58,7 @@ function CardShell({
           <Checkbox
             checked={selected}
             onCheckedChange={(value) => onToggleSelect?.(Boolean(value))}
-            aria-label="Select row"
+            aria-label={t("table.select_row")}
             className="border-muted-foreground/40 size-5"
           />
         </div>

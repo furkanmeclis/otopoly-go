@@ -136,5 +136,10 @@
   "recipe.edit": "Edit",
   "recipe.cost": "Material cost",
   "recipe.saved": "Recipe saved.",
-  "recipe.save_failed": "Could not save the recipe."
+  "recipe.save_failed": "Could not save the recipe.",
+  "placeholders.sku": "e.g. CL-500",
+  "placeholders.barcode": "e.g. 869000000000",
+  "placeholders.category_name": "e.g. Shampoos",
+  "placeholders.service_code": "e.g. HY-01",
+  "categories.no_parent": "— No parent category —"
 }

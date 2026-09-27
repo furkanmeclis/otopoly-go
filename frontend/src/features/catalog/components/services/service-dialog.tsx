@@ -168,7 +168,7 @@ export function ServiceDialog({
               <AppInput
                 name="code"
                 label={t("catalog.services.code")}
-                placeholder="Örn. HY-01"
+                placeholder={t("catalog.placeholders.service_code")}
               />
             </div>
 

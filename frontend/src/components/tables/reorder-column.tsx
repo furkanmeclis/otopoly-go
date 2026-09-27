@@ -52,7 +52,7 @@ export function createReorderColumnDef<TData extends RowData>(): ColumnDef<
       cellClassName: "w-9 px-1",
       headerClassName: "w-9 px-1",
     },
-    header: () => <span className="sr-only">Reorder</span>,
+    header: () => <ReorderHeader />,
     cell: () => <RowDragHandle />,
   };
 }
@@ -81,4 +81,9 @@ function RowDragHandle() {
       <GripVertical className="size-4" strokeWidth={1.75} aria-hidden />
     </button>
   );
+}
+
+function ReorderHeader() {
+  const { t } = useLocale();
+  return <span className="sr-only">{t("table.reorder")}</span>;
 }

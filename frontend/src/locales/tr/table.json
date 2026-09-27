@@ -51,5 +51,8 @@
   "cell_saved": "Hücre kaydedildi",
   "faceted_empty": "Sonuç yok",
   "faceted_selected": "{{count}} seçili",
-  "bulk": "Toplu"
+  "bulk": "Toplu",
+  "select_all": "Tümünü seç",
+  "select_row": "Satırı seç",
+  "double_click_to_edit": "Düzenlemek için çift tıklayın"
 }

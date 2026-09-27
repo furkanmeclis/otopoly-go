@@ -207,12 +207,12 @@ export function ProductDialog({
                     <AppInput
                       name="sku"
                       label={t("catalog.products.sku")}
-                      placeholder="Örn. CL-500"
+                      placeholder={t("catalog.placeholders.sku")}
                     />
                     <AppInput
                       name="barcode"
                       label={t("catalog.products.barcode")}
-                      placeholder="Örn. 869000000000"
+                      placeholder={t("catalog.placeholders.barcode")}
                     />
                   </div>
 

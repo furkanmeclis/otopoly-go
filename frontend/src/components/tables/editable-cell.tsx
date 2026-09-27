@@ -53,6 +53,7 @@ export function EditableCell<TData>({
   onCancelEdit,
   onCommit,
 }: EditableCellProps<TData>) {
+  const { t } = useLocale();
   const meta = cell.column.columnDef.meta as DataTableColumnMeta | undefined;
   const variant = resolveEditVariant(meta);
   const editable = enabled && Boolean(variant);
@@ -77,7 +78,7 @@ export function EditableCell<TData>({
             onStartEdit();
           }
         }}
-        title="Double-click to edit"
+        title={t("table.double_click_to_edit")}
       >
         {children}
       </div>

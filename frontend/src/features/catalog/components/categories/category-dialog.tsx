@@ -133,7 +133,7 @@ export function CategoryDialog({
           {(form) => {
             const selectedKind = form.watch("kind");
             const parentOptions = [
-              { value: "", label: "— Üst Kategori Yok —" },
+              { value: "", label: t("catalog.categories.no_parent") },
               ...(allCategories?.items || [])
                 .filter(
                   (c) =>
@@ -149,7 +149,7 @@ export function CategoryDialog({
                   <AppInput
                     name="name"
                     label={t("catalog.categories.name")}
-                    placeholder="Örn. Şampuanlar"
+                    placeholder={t("catalog.placeholders.category_name")}
                     required
                   />
 

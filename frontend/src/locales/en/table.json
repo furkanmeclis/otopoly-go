@@ -51,5 +51,8 @@
   "cell_saved": "Cell saved",
   "faceted_empty": "No results",
   "faceted_selected": "{{count}} selected",
-  "bulk": "Bulk"
+  "bulk": "Bulk",
+  "select_all": "Select all",
+  "select_row": "Select row",
+  "double_click_to_edit": "Double-click to edit"
 }

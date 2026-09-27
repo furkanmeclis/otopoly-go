@@ -71,5 +71,6 @@
   "nav_billing_discount_codes": "İndirim kodları",
   "nav_billing_settings": "Ödeme ayarları",
   "nav_billing_invoices": "Faturalar",
-  "nav_billing_dashboard": "Gösterge paneli"
+  "nav_billing_dashboard": "Gösterge paneli",
+  "breadcrumb_label": "Sayfa yolu"
 }
