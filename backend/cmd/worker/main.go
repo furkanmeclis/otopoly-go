@@ -31,6 +31,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
 	ioadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine/adapters"
@@ -171,6 +172,8 @@ func main() {
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
 	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	vehicleAlertsSvc := vausecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
+	entitlementsSvc := entitlements.New(entitlements.NewDBStore(queries))
+	entitlementsRecomputer := entitlements.NewRecomputer(queries, entitlementsSvc)
 	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
 		SetStorage(store).
 		SetAppURL(cfg.Auth.FrontendURL)
@@ -197,6 +200,7 @@ func main() {
 		WithQuoteExpire(quotesSvc.ExpireDue).
 		WithDailySummary(dailySummarySvc.SendDue).
 		WithVehicleAlerts(vehicleAlertsSvc.Flush).
+		WithBillingRecompute(entitlementsRecomputer.RecomputeAll).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -226,6 +230,10 @@ func main() {
 	}
 	if err := queue.RegisterVehicleAlertsSchedule(scheduler); err != nil {
 		log.Error("vehicle_alerts_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterBillingRecomputeSchedule(scheduler); err != nil {
+		log.Error("billing_recompute_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
 	go func() {

@@ -162,6 +162,89 @@ type AuthSetting struct {
 	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
 }
 
+type BillingFeature struct {
+	ID        int64              `json:"id"`
+	Key       string             `json:"key"`
+	Kind      string             `json:"kind"`
+	Unit      string             `json:"unit"`
+	Period    string             `json:"period"`
+	LabelTr   string             `json:"label_tr"`
+	LabelEn   string             `json:"label_en"`
+	SortOrder int32              `json:"sort_order"`
+	IsBuiltin bool               `json:"is_builtin"`
+	IsActive  bool               `json:"is_active"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BillingPlan struct {
+	ID                  int64              `json:"id"`
+	Uuid                uuid.UUID          `json:"uuid"`
+	Code                string             `json:"code"`
+	Name                string             `json:"name"`
+	Description         string             `json:"description"`
+	PriceMonthly        pgtype.Numeric     `json:"price_monthly"`
+	YearlyPricing       string             `json:"yearly_pricing"`
+	PriceYearly         pgtype.Numeric     `json:"price_yearly"`
+	YearlyDiscountValue pgtype.Numeric     `json:"yearly_discount_value"`
+	Currency            string             `json:"currency"`
+	TrialDays           int32              `json:"trial_days"`
+	IsPublic            bool               `json:"is_public"`
+	IsCustomizable      bool               `json:"is_customizable"`
+	Badge               string             `json:"badge"`
+	SortOrder           int32              `json:"sort_order"`
+	IsActive            bool               `json:"is_active"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt           pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type BillingPlanFeature struct {
+	ID           int64              `json:"id"`
+	PlanID       int64              `json:"plan_id"`
+	FeatureID    int64              `json:"feature_id"`
+	ValueInt     pgtype.Int8        `json:"value_int"`
+	ValueBool    pgtype.Bool        `json:"value_bool"`
+	DisplayText  string             `json:"display_text"`
+	Enforcement  string             `json:"enforcement"`
+	TolerancePct int32              `json:"tolerance_pct"`
+	WarnPct      int32              `json:"warn_pct"`
+	MinValue     pgtype.Int8        `json:"min_value"`
+	MaxValue     pgtype.Int8        `json:"max_value"`
+	Step         pgtype.Int8        `json:"step"`
+	UnitPrice    pgtype.Numeric     `json:"unit_price"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BillingSubscription struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	PlanID         int64              `json:"plan_id"`
+	Period         string             `json:"period"`
+	Status         string             `json:"status"`
+	StartsAt       pgtype.Timestamptz `json:"starts_at"`
+	EndsAt         pgtype.Timestamptz `json:"ends_at"`
+	GraceEndsAt    pgtype.Timestamptz `json:"grace_ends_at"`
+	PricePaid      pgtype.Numeric     `json:"price_paid"`
+	CreditBalance  pgtype.Numeric     `json:"credit_balance"`
+	CustomFeatures []byte             `json:"custom_features"`
+	Source         string             `json:"source"`
+	Note           string             `json:"note"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BillingUsageCounter struct {
+	OrganizationID int64              `json:"organization_id"`
+	FeatureKey     string             `json:"feature_key"`
+	PeriodKey      string             `json:"period_key"`
+	Value          int64              `json:"value"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type BulkChange struct {
 	ID           int64              `json:"id"`
 	Uuid         uuid.UUID          `json:"uuid"`
