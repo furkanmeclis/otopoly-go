@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { upstreamConfig } from "@/config/api";
+import { brand } from "@/config/brand";
 import { site } from "@/config/site";
 import { LandingPage } from "@/features/landing/components/landing-page";
 import {
@@ -13,6 +14,12 @@ import { ogAlt, ogSize } from "@/features/landing/og/meta";
 // Page-level openGraph replaces the root one, so reference the generated
 // (build-time) share images explicitly.
 const ogImage = { url: "/opengraph-image", ...ogSize, alt: ogAlt };
+
+/**
+ * The landing opens on the dark hero, so mobile browser chrome (status bar /
+ * toolbar tint) uses the hero colour in both colour schemes.
+ */
+export const landingViewport: Viewport = { themeColor: brand.colors.ink };
 
 const PATHS: Record<LandingLocale, string> = { tr: "/", en: "/en" };
 

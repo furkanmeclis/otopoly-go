@@ -36,6 +36,14 @@
     background: color-mix(in oklch, var(--primary) 22%, transparent);
   }
 
+  /* Landing: page base behind the content wrapper is the hero colour, so
+     browsers that tint their chrome from the page (iOS Safari) and the
+     overscroll area match the dark hero. The wrapper keeps its own background. */
+  html:has([data-landing]),
+  html:has([data-landing]) body {
+    background-color: #1a1412;
+  }
+
   body[data-scroll-locked] {
     overflow: unset !important;
   }

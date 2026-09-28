@@ -45,7 +45,10 @@ export function LandingPage({
   return (
     <LandingContentProvider content={content} plans={plans}>
       <LandingMotionProvider>
-        <div className="bg-background text-foreground min-h-svh overflow-x-clip">
+        <div
+          data-landing
+          className="bg-background text-foreground min-h-svh overflow-x-clip"
+        >
           <LandingNavbar />
           <main>
             <Hero />
