@@ -23,7 +23,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.otopoly.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,7 +35,22 @@
       "expo-secure-store",
       "expo-localization",
       "expo-sharing",
-      "./plugins/with-xcode-cloud"
-    ]
+      "./plugins/with-xcode-cloud",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "17.0"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a5e4bc16-f23b-4735-bd29-81f3355f02a8"
+      }
+    },
+    "owner": "furkanmeclis"
   }
 }
