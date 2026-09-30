@@ -574,6 +574,41 @@ func (q *Queries) ListOrdersForOrgAdmin(ctx context.Context, organizationID int6
 	return items, nil
 }
 
+const listOrganizationOwnersForAlert = `-- name: ListOrganizationOwnersForAlert :many
+SELECT u.id, u.email, u.locale
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND om.role = 'owner'
+ORDER BY u.id
+`
+
+type ListOrganizationOwnersForAlertRow struct {
+	ID     int64  `json:"id"`
+	Email  string `json:"email"`
+	Locale string `json:"locale"`
+}
+
+// Owners receive plan-limit / renewal alerts (never staff).
+func (q *Queries) ListOrganizationOwnersForAlert(ctx context.Context, organizationID int64) ([]ListOrganizationOwnersForAlertRow, error) {
+	rows, err := q.db.Query(ctx, listOrganizationOwnersForAlert, organizationID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListOrganizationOwnersForAlertRow{}
+	for rows.Next() {
+		var i ListOrganizationOwnersForAlertRow
+		if err := rows.Scan(&i.ID, &i.Email, &i.Locale); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSubscriptionHistoryForOrg = `-- name: ListSubscriptionHistoryForOrg :many
 SELECT s.id, s.uuid, s.organization_id, s.plan_id, s.period, s.status, s.starts_at, s.ends_at, s.grace_ends_at, s.price_paid, s.credit_balance, s.custom_features, s.source, s.note, s.created_by, s.created_at, s.updated_at, p.code AS plan_code, p.name AS plan_name, p.uuid AS plan_uuid,
     org.uuid AS organization_uuid, org.slug AS organization_slug, org.name AS organization_name

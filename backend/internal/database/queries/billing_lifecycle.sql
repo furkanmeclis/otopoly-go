@@ -176,3 +176,11 @@ FROM billing_usage_counters c
 LEFT JOIN billing_features f ON f.key = c.feature_key
 WHERE c.organization_id = $1
 ORDER BY c.feature_key ASC, c.period_key DESC;
+
+-- name: ListOrganizationOwnersForAlert :many
+-- Owners receive plan-limit / renewal alerts (never staff).
+SELECT u.id, u.email, u.locale
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND om.role = 'owner'
+ORDER BY u.id;
