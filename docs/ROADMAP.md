@@ -1,0 +1,146 @@
+# Otopoly Mobil — Yol Haritası ve Koordinasyon
+
+> Bu dosya koordinasyonun tek kaynağıdır. Her dalga bittiğinde güncellenir.
+> Yeni bir oturumda devam etmek için en alttaki **Devam promptu** bölümünü kopyalayıp yapıştır.
+
+Son güncelleme: 2026-10-01
+
+## Çalışma modeli
+
+- Claude **koordinatör**: kod yazmaz. İşi alt ajanlara brief'ler, sonuçları kontrol eder, bu dosyayı günceller.
+- Alt ajanlar kendi dallarında çalışır, commit atar, push eder ve GitHub Actions CI yeşil olana kadar düzeltir.
+- **`main`'e merge'ü kullanıcı yapar.** Ajanlar merge etmez, bu adım izin kontrolüne takılıyor.
+  - Mobil repo: dal ve PR (CI PR'da çalışır).
+  - otopoly-go: dal push (CI her dalda çalışır), worktree `../otopoly-go-wt/<ad>`.
+- Bir dalga bitmeden sonraki başlamaz.
+- Repolar:
+  - Mobil: `~/Documents/MobileApps/otopoly-mobile-app`
+  - Backend (Go API) ve web (Next.js + NextAuth v5): `~/Documents/Projects/otopoly-go`
+- iOS build'leri Xcode Cloud'da alınır. Yerelde `pod install`, `expo run:ios` ya da `xcodebuild` çalıştırılmaz. Android önizlemesi EAS'la alınır.
+- Demo: Metro başlatılır, kullanıcı QR'ı okutur.
+
+## Kesinleşen ürün kararları
+
+### Ödeme ve limitler
+- **Uygulama içinde satın alma yok.** Buton, fiyat, "web'den yükseltin" gibi ifadeler ya da satın alma linki kullanılmaz (Apple 3.1.1/3.1.3, Google Play ödeme politikası).
+- Abonelik ekranının yerine salt okunur **"Kullanım ve limitler"** ekranı gelir: plan adı, sayaçlar, dönem sonu.
+- `LIMIT_REACHED` mesajı role göre değişir:
+  - Tenant sahibi: "Aylık {özellik} limitinize ulaştınız (x/y). Ayrıntıları e-posta adresinize gönderdik."
+  - Personel: "İşletmenizin aylık {özellik} limiti doldu. İşletme yöneticinize bilgi verildi."
+- Backend yüzde 80 ve yüzde 100 eşiklerinde ve abonelik bitiminden 7 gün önce **tenant sahibine** kendiliğinden e-posta atar. Her eşik için dönemde bir kez gider. Satın alma linki yalnızca bu e-postada bulunur.
+- `FEATURE_DISABLED` için tek, ortak bir kilit ekranı kullanılır. Mesaj nötrdür.
+
+### Bildirimler
+- Bildirim tercihleri web'dekiyle aynı. Uygulama içinde bir bildirimler ekranı olur: liste, okunmamış rozeti, okundu işaretleme, bildirim üzerindeki aksiyonlar.
+- Push, Expo Push ile gönderilir. Backend'de yeni bir `push_devices` tablosu tutulur. Tarayıcı push'u (`push_subscriptions`) aynen kalır.
+- Bildirim metni her alıcının kendi dilinde (tr/en) hazırlanır. Kilit ekranında hassas veri gösterilmez.
+- Deeplink'ler web'le **aynı adresleri** kullanır (`/t/{slug}/...`, `/q/...`, `/login/qr/...`). `otopoly://` şemasının yanında evrensel link (Universal Links / App Links) kurulur. Link başka bir organizasyona aitse önce o organizasyona geçilir.
+
+### Giriş
+- **Web'de NextAuth kalır.** Mobil, Go API'deki yerel `id_token` endpoint'lerini kullanır.
+- **E-posta ile kod girişi** hem web'de hem mobilde olur:
+  - 6 hane, 10 dakika geçerli, en fazla 5 deneme, veritabanında hash'li saklanır.
+  - Kayıtlı olup olmadığı dışarıdan anlaşılmaz (yanıt her durumda aynı).
+  - Kullanıcıda TOTP açıksa TOTP de sorulur.
+  - Mağaza incelemesi için demo hesaba sabit bir kod tanımlanır.
+- **Apple ve Google ile giriş.** Apple'ın gizli e-postası (`@privaterelay.appleid.com`) gelir ve kullanıcı bulunamazsa uygulama "Hesabım var mı?" diye sorar:
+  - **Var:** Gerçek e-postaya kod gider, doğrulanınca Apple hesabı bağlanır.
+  - **Yok:** Yeni hesap açılır.
+  - Bu akış **yalnızca gizli e-postalar için** geçerlidir. Diğer e-postalarda web'deki davranış aynen uygulanır.
+- **Hesap silme** uygulama içinde bulunur, ama backend hesabı yalnızca **pasife alır, veri silinmez.**
+  - Tüm oturumlar kapatılır, hiçbir giriş yolu çalışmaz.
+  - Hesap Apple'a bağlıysa Apple'daki yetki geri çekilir.
+  - Gizlilik politikasına "yasal saklama yükümlülüğü" açıklaması eklenir.
+- **QR ile giriş:**
+  1. Web giriş sayfası bir QR gösterir.
+  2. Mobilde QR, uygulama içi kamerayla ya da telefonun kendi kamerasıyla okutulur. Evrensel link uygulamayı açar.
+  3. Uygulamada web isteğinin IP'sine göre yaklaşık konum, tarayıcı bilgisi ve Onayla/Reddet çıkar.
+  4. Onaylanınca web sekmesinin girişi açılır.
+  - Web ile backend arasındaki haberleşme **polling ile değil**, o giriş oturumuna ve sekmeye özel, kimlik doğrulama istemeyen **Centrifugo** kanalıyla yapılır.
+  - QR kısa ömürlüdür ve tek kullanımlıktır.
+
+## Dalgalar
+
+### 1. Dalga: backend temeli ve limitler — 🟡 devam ediyor
+| İş paketi | Repo / dal | Kapsam | Durum |
+|---|---|---|---|
+| Giriş yöntemleri | otopoly-go / `feat/auth-otp-native-oauth` | E-posta kodu (API ve web), `/v1/auth/oauth/{provider}/native`, gizli e-posta bağlama akışı, hesabı pasife alma | 🟡 |
+| Push, deeplink, limit e-postaları | otopoly-go / `feat/expo-push-limits` | `push_devices` tablosu ve Expo gönderimi, AASA ve assetlinks, eşik e-postaları, `LIMIT_REACHED` hata detayı, kullanım endpoint'i | 🟡 |
+| Kullanım ve limitler | mobil / `feat/usage-limits` (PR) | Abonelik ekranı yerine limitler ekranı, rol bazlı limit penceresi, ortak kilit ekranı, mock senaryoları | 🟡 |
+
+Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporlarındaki endpoint şemaları bu dosyaya işlenir. Migration numaraları çakışıyorsa merge öncesinde düzeltilir.
+
+### 2. Dalga: mobil bildirimler, mobil giriş, QR ile giriş — ⏸ 1. dalga merge edilince
+- **Mobil bildirimler:**
+  - `expo-notifications` eklenir.
+  - Bildirim izni, açıklama ekranından sonra istenir.
+  - Push cihazı girişte kaydedilir, çıkışta silinir.
+  - Tercihler ekranı ve bildirimler ekranı yapılır.
+  - Web adresleri uygulama ekranlarına eşlenir, gerekirse organizasyon değiştirilir.
+  - Evrensel link ayarları `app.json`'a eklenir (associatedDomains, intentFilters).
+  - Önce mock'la yapılır.
+- **Mobil giriş:**
+  - E-posta kodu ekranı. iOS'ta `oneTimeCode` ile koddan otomatik doldurma.
+  - `expo-apple-authentication` ve yerel Google girişi.
+  - Gizli e-posta akışındaki seçim ekranları.
+  - Profilde "Hesabımı sil" (pasife alma) ve kimlik doğrulama adımı.
+- **QR ile giriş** (backend, web ve mobil):
+  - Backend: QR oturumu oluşturma, kimlik doğrulama istemeyen Centrifugo kanal token'ı, onay/ret endpoint'leri, tek kullanımlık takas token'ı, IP'den yaklaşık konum.
+  - Web: QR bileşeni, kanal aboneliği, NextAuth ile oturum takası.
+  - Mobil: `expo-camera` ile tarayıcı, onay ekranı, `/login/qr/*` evrensel linki.
+- Yeni native modüller (notifications, camera, apple-authentication, google sign-in) development build gerektirir. Build Xcode Cloud ve EAS'ta alınır.
+
+### 3. Dalga: eksik ekranlar ve mağaza denetimi — ⏸
+- **Eksik ekranlar:**
+  - İçe aktarma dosyası yükleme (`expo-document-picker`).
+  - Sözleşmeye fotoğraf/dosya ekleme (`expo-image-picker`).
+  - İş detayında sözleşme bölümü.
+  - Asistanın onay kartları.
+  - Erişimi olmayan, süresi dolmuş ve askıya alınmış hesaplar için ekranlar.
+  - `PORT_CHECKLIST.md` gerçek duruma göre güncellenecek.
+- **Mağaza denetimi** (her ekran Apple ve Google açısından ayrı ayrı; çıktı: ekran / risk / önem / çözüm):
+  - Bilinen riskler:
+    - Hesap silme (2. dalgada çözülüyor).
+    - Yapay zekâ asistanı: veri üçüncü taraf bir modele gidiyorsa açık bilgilendirme ve izin (Apple 5.1.2(i)).
+    - Demo hesabı; mock'a özel demo giriş linki ve test turu canlı sürüme girmemeli.
+    - Gizlilik politikası, Apple gizlilik manifesti, App Store gizlilik etiketleri, Play Data safety formu.
+    - `supportsTablet: true` açık: ya iPad düzeni düzeltilecek ya da iPad desteği kapatılacak (**karar bekliyor**).
+    - WhatsApp yönlendirmesi, sözleşme imzalamadaki OTP, izin açıklama metinleri.
+
+### 4. Dalga: backend'e bağlama — ⏸
+- `docs/backend/MOBILE_API_SPEC.md` ile karşılaştırılır. Her alan (dashboard, işler, müşteriler, finans, ticaret, CRM, katalog, dokümanlar, ayarlar) sırayla mock'tan gerçek API'ye geçirilir.
+- Her alan için mock ile gerçek API'nin aynı sonucu verdiği test edilir.
+- Backend'de eksik endpoint çıkarsa spesifikasyona eklenir.
+
+## Açık sorular
+1. iPad desteği: kapatılacak mı, düzenlenecek mi?
+2. Evrensel link alan adı hangisi olacak: `app.otopoly.com` mu, `otopoly.app` mi? (Backend ajanı raporlayacak.)
+3. Personel gerçekten kullanılıyor mu, yoksa her tenant tek kişi mi? (Rol bazlı mesajlar iki durumda da çalışır.)
+
+## Tamamlananlar
+- 2026-09-30: Yol haritası ve ödeme kararı (uygulamada satın alma yok).
+- 2026-10-01: Bildirimler, giriş yöntemleri, QR ile giriş ve hesap silme kararları. 1. dalga başlatıldı.
+
+---
+
+## Devam promptu
+
+Yeni bir Claude Code oturumunda mobil repo içinde aşağıdakini yapıştır:
+
+```
+Otopoly mobil projesinde koordinatörsün, kod yazmıyorsun. İşleri alt ajanlarla yürütüyorsun.
+Önce docs/ROADMAP.md dosyasını baştan sona oku. Kararlar, dalgalar, çalışma kuralları ve açık sorular orada.
+
+Sonra durumu kontrol et:
+- Mobil repo: `gh pr list`, `gh pr checks <pr>`
+- ~/Documents/Projects/otopoly-go: `git fetch`, `git branch -r`, `gh run list -L 10`, `git worktree list`
+
+Bunlara göre ROADMAP'teki durum sütunlarını güncelle.
+Aktif dalga bitmediyse eksik kalan iş paketlerini yeni alt ajanlarla tamamlat.
+Bittiyse bana özet ver ve merge onayımı bekle. Bir sonraki dalgaya ben söylemeden geçme.
+
+Kurallar:
+- Ajanlar kendi dallarında çalışır, push eder, CI yeşil olana kadar düzeltir, main'e merge etmez.
+- iOS için yerel build ya da pod install yok (Xcode Cloud).
+- Uygulamada satın alma, fiyat ya da satın alma yönlendirmesi yok.
+```
