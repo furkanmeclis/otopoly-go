@@ -43,6 +43,9 @@ type TypeSpec struct {
 	Placeholders []Placeholder `json:"placeholders"`
 	// UserPreference marks staff types that appear in user notification preferences.
 	UserPreference bool `json:"user_preference"`
+	// System types are platform-owned (e.g. billing alerts to the owner):
+	// hidden from the tenant template editor and not overridable.
+	System bool `json:"-"`
 }
 
 // SampleVars returns preview values for a locale.
@@ -133,12 +136,41 @@ func init() {
 		Placeholders:   []Placeholder{phTodoTitle, phDueAt, phDueIn, phAssignee, phNotes, phCustomer, phCompany, phTodoLink},
 		UserPreference: true,
 	})
+
+	// Owner-only plan alerts (billing module). In-app text is neutral; the
+	// e-mail carries the web billing link.
+	billingPh := []Placeholder{
+		{Key: "feature_label", SampleTR: "Günlük işlem", SampleEN: "Daily jobs"},
+		{Key: "used", SampleTR: "8", SampleEN: "8"},
+		{Key: "limit", SampleTR: "10", SampleEN: "10"},
+		{Key: "percent", SampleTR: "80", SampleEN: "80"},
+		{Key: "plan_name", SampleTR: "Başlangıç", SampleEN: "Starter"},
+		{Key: "days_left", SampleTR: "7", SampleEN: "7"},
+		{Key: "ends_at", SampleTR: "30.09.2026", SampleEN: "Sep 30, 2026"},
+		{Key: "billing_link", SampleTR: "https://otopoly.app/t/tech-oto/settings/billing", SampleEN: "https://otopoly.app/t/tech-oto/settings/billing"},
+		phCompany,
+	}
+	for _, t := range []string{"billing.usage_warning", "billing.limit_full", "billing.limit_reached", "billing.subscription_ending"} {
+		Register(TypeSpec{Type: t, Group: "billing", Audience: AudienceStaff,
+			Channels: []string{ChannelInapp, ChannelEmail}, Placeholders: billingPh, System: true})
+	}
 }
 
 // Lookup returns a registered type.
 func Lookup(t string) (TypeSpec, bool) {
 	s, ok := registry[t]
 	return s, ok
+}
+
+// Editable returns the tenant-editable (non-system) types in order.
+func Editable() []TypeSpec {
+	var out []TypeSpec
+	for _, s := range All() {
+		if !s.System {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // All returns registered types in registration order.

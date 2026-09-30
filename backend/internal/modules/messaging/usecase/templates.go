@@ -118,7 +118,7 @@ func (s *Service) TemplateCatalog(ctx context.Context, orgID int64) ([]TemplateT
 	for _, o := range overrides {
 		ovIdx[tplKey{o.EventType, o.Channel, o.Locale}] = o
 	}
-	specs := msgtemplate.All()
+	specs := msgtemplate.Editable()
 	out := make([]TemplateType, 0, len(specs))
 	for _, spec := range specs {
 		tt := TemplateType{
@@ -171,7 +171,7 @@ func (e *ValidationError) Unwrap() error { return ErrInvalidRequest }
 // the organization override.
 func (s *Service) SaveTemplate(ctx context.Context, orgID int64, eventType, channel, locale string, in SaveTemplateInput) (TemplateEntry, error) {
 	spec, ok := msgtemplate.Lookup(eventType)
-	if !ok {
+	if !ok || spec.System {
 		return TemplateEntry{}, fmt.Errorf("%w: unknown template type", ErrInvalidRequest)
 	}
 	if !spec.HasChannel(channel) {

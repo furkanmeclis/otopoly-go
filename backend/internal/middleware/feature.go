@@ -38,6 +38,7 @@ func WriteLimitReached(w http.ResponseWriter, r *http.Request, d entitlements.De
 		{Field: "limit", Message: itoa(d.Limit)},
 		{Field: "used", Message: itoa(d.Used)},
 		{Field: "tolerance", Message: itoa(d.Tolerance)},
+		{Field: "owner_notified", Message: strconv.FormatBool(d.OwnerNotified)},
 	})
 }
 
