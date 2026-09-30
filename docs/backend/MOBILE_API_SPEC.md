@@ -69,7 +69,7 @@ Envelope reminder (all examples below are shown **with** the envelope only once,
 | D5 | `GET /v1/tenant/catalog/products`, `GET /v1/tenant/catalog/services` | App sends `sort=name` (`src/features/sales/queries.ts:10`, via `ServerListParams.sort`). Handler reads **`sort_by`** (`internal/modules/catalog/handler/handler.go:229,471`) and ignores `sort` — also against API_CONVENTIONS (`sort` is the standard). | handler.go | Backend (§3 C6, accept `sort`), mobile may send `sort_by` meanwhile |
 | D6 | `GET /v1/tenant/finance/transactions` | App sends `sort=-transaction_date,-created_at` (`src/app/(app)/(tabs)/finance.tsx:61`); the handler has no sort parameter, the value is ignored silently. | `internal/modules/finance/handler/handler.go` | Backend (§3 C7) or drop on mobile |
 | D7 | `GET /v1/tenant/jobs`, `GET /v1/tenant/jobs/summary`, `GET /v1/tenant/sales/summary` | App sends the **device-local** day (`localToday()` in `src/features/jobs/lib/job-ui.ts`) as `date` / `date_from` / `date_to`. The backend turns it into a range with **`time.Local` of the server** (`internal/modules/jobs/usecase/mappers.go` `parseDay`, `internal/modules/sales/usecase/mappers.go:76`). If the API container runs in UTC, "today" is shifted by 3h for Turkish users (the AI module and daily-summary already hard-code `Europe/Istanbul`, `jobs/usecase/service.go:847`, `dailysummary/usecase/service.go:49`). | mappers.go | Backend (§3 C8: `tz` param / org time zone) |
-| D8 | `GET /v1/tenant/quotes/{uuid}/pdf` (`previewUrl`, `?inline=1`), `GET /v1/tenant/billing/invoices/{uuid}/pdf`, `GET /v1/tenant/billing/orders/{uuid}/receipt` | Mobile builds a bare URL with `apiUrl()` for the viewer/browser. These routes need `Authorization: Bearer`, which a system browser / Quick Look / `Linking.openURL` cannot send → 401. `downloadAndShare` does send the header but does **not** refresh on 401. | `src/features/quotes/services/quotes.service.ts:87`, `billing.service.ts:71-74`, `src/api/files.ts` | Backend (§2.6 signed downloads) |
+| D8 | `GET /v1/tenant/quotes/{uuid}/pdf` (`previewUrl`, `?inline=1`) | Mobile builds a bare URL with `apiUrl()` for the viewer/browser. These routes need `Authorization: Bearer`, which a system browser / Quick Look / `Linking.openURL` cannot send → 401. `downloadAndShare` does send the header but does **not** refresh on 401. | `src/features/quotes/services/quotes.service.ts:87`, `src/api/files.ts` | Backend (§2.6 signed downloads) |
 | D9 | `GET/POST /v1/platform/contract-presets`, `GET /…/meta`, `GET/PATCH/DELETE /…/{uuid}` (6 ops) | Platform admin routes (`internal/modules/contracts/routes.go:51-56`, `platform.*` permission). A tenant user always gets 403. The tenant equivalent the app should use is `GET /v1/tenant/contracts/presets` (already ✅). | contracts/routes.go | **Mobile** (remove `contract-presets.service.ts` or keep for super-admins only) |
 
 Error-code alignment the app should also pick up (mobile-only work, listed for completeness):
@@ -78,7 +78,7 @@ translate yet — `WHATSAPP_NOT_CONNECTED`, `INVALID_TRANSITION`, `VEHICLE_REQUI
 `OTP_REQUIRED`, `INVALID_OTP_CODE`, `OTP_CHANNEL_UNAVAILABLE`, `NO_RECIPIENT_PHONE`,
 `CURRENCY_MISMATCH`, `PDF_UNAVAILABLE`, `PLAN_UNAVAILABLE`, `ORDER_OPEN`, `ORDER_STATE`,
 `INVOICE_PROFILE_INVALID`, `DISCOUNT_INVALID`, `AI_*`. `SUBSCRIPTION_READ_ONLY` (403 from
-`internal/middleware/organization.go:91`) should open the billing screen like `LIMIT_REACHED`.
+`internal/middleware/organization.go:91`) should get a read-only notice like `LIMIT_REACHED` (mobile's global limit dialog, no purchase CTA).
 
 ### 1.3 Existing backend endpoints the app does not use yet (adopt instead of building new)
 
@@ -113,21 +113,13 @@ Legend: ✅ exists and matches · ⚠️ exists, see D-note · ❌ missing (none
 | GET | `/v1/auth/totp` | ✅ | auth.service.ts |
 #### billing
 
+Mobile never sells anything (no in-app purchases, App Store 3.1.1/3.1.3, Play payments policy):
+it only reads usage. Plans, orders, payment reports, receipts, invoices and the invoice profile
+are intentionally **not** called from mobile; the backend e-mails the tenant owner instead.
+
 | Method | Path | Status | Mobile caller |
 |---|---|---|---|
-| GET | `/v1/tenant/billing/invoice-profile` | ✅ | billing.service.ts |
-| PUT | `/v1/tenant/billing/invoice-profile` | ✅ | billing.service.ts |
-| GET | `/v1/tenant/billing/invoices` | ✅ | billing.service.ts |
-| GET | `/v1/tenant/billing/invoices/{uuid}/pdf` | ⚠️ D8 | billing.service.ts |
-| GET | `/v1/tenant/billing/orders` | ✅ | billing.service.ts |
-| POST | `/v1/tenant/billing/orders` | ✅ | billing.service.ts |
-| POST | `/v1/tenant/billing/orders/preview` | ✅ | billing.service.ts |
-| GET | `/v1/tenant/billing/orders/{uuid}` | ✅ | billing.service.ts |
-| POST | `/v1/tenant/billing/orders/{uuid}/cancel` | ✅ | billing.service.ts |
-| GET | `/v1/tenant/billing/orders/{uuid}/receipt` | ⚠️ D8 | billing.service.ts |
-| POST | `/v1/tenant/billing/orders/{uuid}/report` | ✅ | billing.service.ts |
-| GET | `/v1/tenant/billing/overview` | ✅ | billing.service.ts |
-| GET | `/v1/tenant/billing/plans` | ✅ | billing.service.ts |
+| GET | `/v1/tenant/billing/overview` | ✅ | billing.service.ts (Usage & limits screen, staff seat meter) |
 
 #### cari
 
