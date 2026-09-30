@@ -66,7 +66,7 @@ Son güncelleme: 2026-10-01
 |---|---|---|---|
 | Giriş yöntemleri | otopoly-go / `feat/auth-otp-native-oauth` | E-posta kodu (API ve web), `/v1/auth/oauth/{provider}/native`, gizli e-posta bağlama akışı, hesabı pasife alma | 🟡 |
 | Push, deeplink, limit e-postaları | otopoly-go / `feat/expo-push-limits` | `push_devices` tablosu ve Expo gönderimi, AASA ve assetlinks, eşik e-postaları, `LIMIT_REACHED` hata detayı, kullanım endpoint'i | 🟡 |
-| Kullanım ve limitler | mobil / `feat/usage-limits` (PR) | Abonelik ekranı yerine limitler ekranı, rol bazlı limit penceresi, ortak kilit ekranı, mock senaryoları | 🟡 |
+| Kullanım ve limitler | mobil / `feat/usage-limits` ([PR #1](https://github.com/furkanmeclis/otopoly-mobile-app/pull/1)) | Abonelik ekranı yerine limitler ekranı, rol bazlı limit penceresi, ortak kilit ekranı, mock senaryoları | ✅ CI yeşil, merge bekliyor |
 
 Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporlarındaki endpoint şemaları bu dosyaya işlenir. Migration numaraları çakışıyorsa merge öncesinde düzeltilir.
 
@@ -116,10 +116,17 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
 1. iPad desteği: kapatılacak mı, düzenlenecek mi?
 2. Evrensel link alan adı hangisi olacak: `app.otopoly.com` mu, `otopoly.app` mi? (Backend ajanı raporlayacak.)
 3. Personel gerçekten kullanılıyor mu, yoksa her tenant tek kişi mi? (Rol bazlı mesajlar iki durumda da çalışır.)
+4. Teklif oluşturmaya limit konacak mı? Şu an backend'de yok. PR #1'de teklif için örnek, teklifin işe dönüştürülmesi (günlük iş limiti) üzerinden yapıldı.
+5. Plan süresi dolunca (`SUBSCRIPTION_READ_ONLY`) de limit penceresi mi açılsın? Şu an nötr bir bildirim çıkıyor, limitler ekranında da salt okunur uyarısı var.
+6. Teklif ve potansiyel müşteri modülü kapalıyken (`module.quotes`) gösterilecek kilit ekranı henüz yok. 3. dalgaya eklenecek.
 
 ## Tamamlananlar
 - 2026-09-30: Yol haritası ve ödeme kararı (uygulamada satın alma yok).
 - 2026-10-01: Bildirimler, giriş yöntemleri, QR ile giriş ve hesap silme kararları. 1. dalga başlatıldı.
+- 2026-10-01: PR #1 (kullanım ve limitler) hazır, CI yeşil.
+  - Demo: Menü → Tanılama → "Plan senaryosu". Tenant sahibi `demo@otopoly.com`, personel `personel@otopoly.com`, şifre `demo1234`.
+  - Mesajlarda "Aylık / Günlük / Toplam" limitin türüne göre seçiliyor.
+  - Mock'taki saat dilimi hatası da düzeltildi (CI'da UTC 21-24 arasında düşüyordu).
 
 ---
 
