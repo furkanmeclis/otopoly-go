@@ -60,14 +60,11 @@ async function login(email: string) {
   const test = await request<any>('POST', '/v1/tenant/vehicle-alerts/test');
   ok(test.in_app > 0, 'vehicle alerts test');
 
-  console.log('billing');
+  console.log('usage (read-only; purchase routes are not part of the app)');
   const ov = await request<any>('GET', '/v1/tenant/billing/overview');
   ok(ov.subscription.status === 'active' && ov.meters.length > 0, 'overview');
-  const inv = await request<any>('GET', '/v1/tenant/billing/invoices');
-  ok(inv.items.length === 2, 'invoices');
-  const ord = await request<any>('GET', '/v1/tenant/billing/orders', { query: { status: 'all' } });
-  ok(ord.items.length === 2, 'orders');
-  ok((await request<any>('GET', '/v1/tenant/billing/invoice-profile')).invoice_name, 'invoice profile');
+  await expectError(request('GET', '/v1/tenant/billing/invoices'), 'NOT_FOUND', 'invoices not mocked');
+  await expectError(request('GET', '/v1/tenant/billing/orders'), 'NOT_FOUND', 'orders not mocked');
 
   console.log('letterhead');
   const st = await request<any>('GET', '/v1/tenant/settings');
