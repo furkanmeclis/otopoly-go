@@ -19,6 +19,12 @@ import { useTheme } from '@/theme/provider';
 const log = createLogger('screen.profile');
 
 /** Web `AccountProfilePage` (tenant shell). Password and preferences have their own mobile screens. */
+/** Membership role codes → the labels the org switcher uses. */
+const ROLE_LABEL: Record<string, string> = {
+  organization_owner: 'organizations.roles.owner',
+  organization_user: 'organizations.roles.staff',
+};
+
 export default function ProfileScreen() {
   const t = useTheme();
   const { t: tr, locale } = useLocale();
@@ -83,13 +89,13 @@ export default function ProfileScreen() {
             </Row>
           )}
         </InfoRow>
-        <InfoRow label={tr('auth.profile.status')}>{user?.status ? <Badge size="sm" label={user.status} /> : <Txt>—</Txt>}</InfoRow>
+        <InfoRow label={tr('auth.profile.status')}>{user?.status ? <Badge size="sm" tone={user.status === 'active' ? 'success' : 'neutral'} label={['active', 'disabled', 'pending'].includes(user.status) ? tr(`users.status.${user.status}`) : user.status} /> : <Txt>—</Txt>}</InfoRow>
         <InfoRow label={tr('auth.profile.locale')} value={tr(`mobile.language.${locale}`)} />
         <InfoRow label={tr('auth.profile.roles_title')}>
           {me?.roles.length ? (
             <Row gap={4} wrap style={{ justifyContent: 'flex-end', flexShrink: 1 }}>
               {me.roles.map((r) => (
-                <Badge key={r} size="sm" label={r} />
+                <Badge key={r} size="sm" label={ROLE_LABEL[r] ? tr(ROLE_LABEL[r]) : r} />
               ))}
             </Row>
           ) : (
