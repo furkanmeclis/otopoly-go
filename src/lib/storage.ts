@@ -64,5 +64,6 @@ export const StorageKeys = {
   session: 'auth.session',
   activeOrg: 'auth.active_org',
   demoMockDb: 'demo.mock_db',
+  demoPlanScenario: 'demo.plan_scenario',
   dismissedSetup: 'dashboard.setup_dismissed',
 } as const;

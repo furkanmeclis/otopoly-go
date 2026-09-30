@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { History, Lock, MoreHorizontal, SquarePen } from 'lucide-react-native';
+import { History, MoreHorizontal, SquarePen } from 'lucide-react-native';
 import { useCallback, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,10 +9,11 @@ import { ChatEmpty, Composer, MessageBubble } from '@/features/ai/components/cha
 import { unavailableKey } from '@/features/ai/lib/labels';
 import { useAIStatus, useAssistantChat, useConversationList, useDeleteConversation, useRenameConversation } from '@/features/ai/queries';
 import type { AIConversation, AIStatus, ChatMessage } from '@/features/ai/types';
-import { isApiError } from '@/api/errors';
+import { isFeatureDisabled } from '@/api/errors';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { FeatureLockedState } from '@/features/billing/components/feature-locked';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
@@ -46,7 +47,7 @@ function Assistant() {
   }, []);
   const onCreated = useCallback((uuid: string) => router.setParams({ c: uuid }), []);
 
-  const locked = status.data?.plan_enabled === false || (isApiError(status.error) && status.error.code === 'FEATURE_DISABLED');
+  const locked = status.data?.plan_enabled === false || isFeatureDisabled(status.error);
   const ready = status.data?.available && !locked;
 
   return (
@@ -71,7 +72,7 @@ function Assistant() {
           <ListSkeleton rows={4} height={64} />
         </View>
       ) : locked ? (
-        <EmptyState icon={<Lock size={28} color={theme.colors.text} />} title={tr('billing.locked.title')} description={tr('billing.locked.body')} />
+        <FeatureLockedState feature="ai.enabled" />
       ) : status.isError ? (
         <ErrorState onRetry={() => void status.refetch()} />
       ) : !ready ? (

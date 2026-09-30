@@ -87,3 +87,35 @@ export function parseApiError(status: number, payload: unknown, requestId?: stri
     requestId: env.meta?.request_id ?? requestId,
   });
 }
+
+// ─── Plan limits ───────────────────────────────────────────────────────────
+
+/** Numbers a `409 LIMIT_REACHED` carries (backend `middleware.WriteLimitReached`). */
+export type LimitInfo = { feature?: string; limit?: number; used?: number; tolerance?: number };
+
+const toNum = (v: unknown) => {
+  if (v === undefined || v === null || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/**
+ * Reads `feature` / `limit` / `used` / `tolerance` from a limit error. The Go API sends them as a
+ * details list (`[{ field: "feature", message: "jobs.daily" }, …]`); an object payload is accepted too.
+ */
+export function limitInfo(error: ApiError): LimitInfo {
+  const map: Record<string, unknown> = { ...(error.extra ?? {}) };
+  for (const d of error.details) if (d.field && d.message !== undefined) map[d.field] = d.message;
+  return {
+    feature: typeof map.feature === 'string' && map.feature ? map.feature : undefined,
+    limit: toNum(map.limit),
+    used: toNum(map.used),
+    tolerance: toNum(map.tolerance),
+  };
+}
+
+/** `409 LIMIT_REACHED`: a hard plan limit is exhausted. */
+export const isLimitReached = (error: unknown): error is ApiError => isApiError(error) && error.code === 'LIMIT_REACHED';
+
+/** `403 FEATURE_DISABLED`: the organization's plan turns the module off. */
+export const isFeatureDisabled = (error: unknown): error is ApiError => isApiError(error) && error.code === 'FEATURE_DISABLED';

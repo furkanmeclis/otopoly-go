@@ -1,7 +1,9 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Database, Share2, Trash2 } from 'lucide-react-native';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { FlatList, Share, View } from 'react-native';
 
+import { getPlanScenario, PLAN_SCENARIOS, setPlanScenario, subscribePlanScenario, type PlanScenario } from '@/api/mock/scenario';
 import { useToast } from '@/components/feedback/toast';
 import { Badge, Button, EmptyState, FilterChips, Header, Row, Screen, Txt, useConfirm } from '@/components/ui';
 import { env, isMock } from '@/config/env';
@@ -69,6 +71,7 @@ export default function DiagnosticsScreen() {
             { value: 'debug', label: 'Debug' },
           ]}
         />
+        {isMock ? <PlanScenarioSwitch /> : null}
         {isMock ? <Button label={tr('mobile.diagnostics.reset_demo')} size="sm" variant="ghost" icon={<Database size={16} color={t.colors.primary} />} onPress={resetDemo} /> : null}
       </View>
       <FlatList
@@ -99,5 +102,33 @@ export default function DiagnosticsScreen() {
         )}
       />
     </Screen>
+  );
+}
+
+/**
+ * Demo only: switches the mock's plan scenario (usage near / at the limit, modules off) so the
+ * usage screen, the LIMIT_REACHED dialog and the locked states can be shown as owner and as staff.
+ */
+function PlanScenarioSwitch() {
+  const t = useTheme();
+  const { t: tr } = useLocale();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const scenario = useSyncExternalStore(subscribePlanScenario, getPlanScenario);
+  const change = (next: PlanScenario) => {
+    setPlanScenario(next);
+    void qc.invalidateQueries();
+    toast.info(tr('mobile.plan.scenario.changed', { name: tr(`mobile.plan.scenario.${next}`) }));
+  };
+  return (
+    <View style={{ gap: t.spacing.xs }}>
+      <Txt variant="caption" tone="secondary">
+        {tr('mobile.plan.scenario.title')}
+      </Txt>
+      <FilterChips<PlanScenario> value={scenario} onChange={change} options={PLAN_SCENARIOS.map((s) => ({ value: s, label: tr(`mobile.plan.scenario.${s}`) }))} />
+      <Txt variant="caption" tone="muted">
+        {tr('mobile.plan.scenario.hint')}
+      </Txt>
+    </View>
   );
 }

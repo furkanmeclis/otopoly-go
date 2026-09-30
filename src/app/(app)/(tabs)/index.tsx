@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Pressable, View } from 'react-native';
 
 import { request } from '@/api/client';
+import { isFeatureDisabled } from '@/api/errors';
 import { BrandMark } from '@/components/brand';
 import type { ListPage } from '@/api/types';
 import {
@@ -353,6 +354,8 @@ function InsightsSection() {
   const services = (data?.services ?? []).slice(0, 5);
   const customers = (data?.top_customers ?? []).slice(0, 5);
   const receivables = (data?.cari_receivables ?? []).slice(0, 5);
+  // Plan without the reports module: leave the insights out rather than showing zeros.
+  if (isFeatureDisabled(overview.error)) return null;
   const kpiItems = [
     { label: tr('dashboard.tenant.kpi_income'), value: fmt.money(kpis?.total_income) },
     { label: tr('dashboard.tenant.kpi_net'), value: fmt.money(kpis?.net_profit) },

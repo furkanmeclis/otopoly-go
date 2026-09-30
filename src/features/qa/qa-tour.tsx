@@ -30,7 +30,7 @@ export const QA_TOUR: Href[] = [
   '/staff',
   '/profile',
   '/settings/messaging',
-  '/settings/billing',
+  '/settings/usage',
   '/settings/letterhead',
   '/assistant',
   '/contracts',

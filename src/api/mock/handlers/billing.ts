@@ -1,167 +1,190 @@
 /**
- * Subscription / billing. Owned by the settings area. The mobile app is read-only here
- * (App Store 3.1.1), so only the read routes are mocked; purchases happen on the web.
+ * Plan & usage (settings area). Mobile only reads `GET /v1/tenant/billing/overview`; purchases,
+ * orders and invoices are not part of the app, so they are not mocked.
+ *
+ * Plan limits are enforced here the way `internal/platform/entitlements` does on the Go API
+ * (`409 LIMIT_REACHED` with `feature/limit/used/tolerance` details, `403 FEATURE_DISABLED`),
+ * driven by the demo scenario picked on the diagnostics screen (see `../scenario.ts`).
  */
-import type { BillingInvoice, BillingOrder, BillingOverview, BillingPlan, BillingUsageMeter, InvoiceProfile } from '@/features/billing/types';
+import type { BillingOverview, BillingPlan, BillingUsageMeter } from '@/features/billing/types';
 
-import { fail, istanbulDay, paginate, requirePerm, route, type MockCtx } from '../core';
+import { fail, istanbulDay, requirePerm, route, type MockCtx } from '../core';
 import { getDb } from '../db';
+import { getPlanScenario, type PlanScenario } from '../scenario';
 
 const DAY = 86400000;
 const iso = (offsetDays: number) => new Date(Date.now() + offsetDays * DAY).toISOString();
 
-const feature = (
-  key: string,
-  label_tr: string,
-  label_en: string,
-  v: { int?: number | null; bool?: boolean | null; text?: string; unit?: string; kind?: 'limit' | 'toggle' | 'display' },
-): BillingPlan['features'][number] => ({
-  key,
-  value_int: v.int ?? null,
-  value_bool: v.bool ?? null,
-  display_text: v.text ?? '',
-  enforcement: 'hard',
-  tolerance_pct: 0,
-  warn_pct: 80,
-  min_value: null,
-  max_value: null,
-  step: null,
-  kind: v.kind ?? (v.bool !== undefined ? 'toggle' : v.text ? 'display' : 'limit'),
-  unit: v.unit ?? '',
-  label_tr,
-  label_en,
-  unit_price: null,
-});
+type FeatureDef = {
+  key: string;
+  kind: 'limit' | 'toggle';
+  period: 'day' | 'month' | 'total' | 'none';
+  unit: string;
+  label_tr: string;
+  label_en: string;
+  /** Limit (null = unlimited) or toggle value. */
+  value: number | null | boolean;
+};
 
-const PRO_PLAN: BillingPlan = {
+/** Same keys and labels as the backend's `billing_features` seed (migration 000064). */
+const FEATURES: FeatureDef[] = [
+  { key: 'jobs.daily', kind: 'limit', period: 'day', unit: 'adet', label_tr: 'Günlük işlem', label_en: 'Daily jobs', value: 60 },
+  { key: 'jobs.monthly', kind: 'limit', period: 'month', unit: 'adet', label_tr: 'Aylık işlem', label_en: 'Monthly jobs', value: null },
+  { key: 'staff.count', kind: 'limit', period: 'total', unit: 'kişi', label_tr: 'Personel sayısı', label_en: 'Staff members', value: 10 },
+  { key: 'customers.count', kind: 'limit', period: 'total', unit: 'adet', label_tr: 'Müşteri kaydı', label_en: 'Customer records', value: 2500 },
+  { key: 'storage.gb', kind: 'limit', period: 'total', unit: 'GB', label_tr: 'Depolama alanı', label_en: 'Storage', value: 10 },
+  { key: 'whatsapp.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'WhatsApp mesajlaşma', label_en: 'WhatsApp messaging', value: true },
+  { key: 'whatsapp.monthly', kind: 'limit', period: 'month', unit: 'mesaj', label_tr: 'Aylık WhatsApp mesajı', label_en: 'Monthly WhatsApp messages', value: 1000 },
+  { key: 'ai.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Yapay zekâ asistanı', label_en: 'AI assistant', value: true },
+  { key: 'ai.monthly', kind: 'limit', period: 'month', unit: 'istek', label_tr: 'Aylık AI isteği', label_en: 'Monthly AI requests', value: 500 },
+  { key: 'module.contracts', kind: 'toggle', period: 'none', unit: '', label_tr: 'Sözleşme modülü', label_en: 'Contracts module', value: true },
+  { key: 'module.quotes', kind: 'toggle', period: 'none', unit: '', label_tr: 'Teklif ve fırsat modülü', label_en: 'Quotes & leads module', value: true },
+  { key: 'module.reports', kind: 'toggle', period: 'none', unit: '', label_tr: 'Raporlar ve dışa aktarım', label_en: 'Reports & exports', value: true },
+];
+
+/** Modules the `feature_disabled` scenario turns off (each has the shared lock state in the app). */
+const DISABLED_IN_SCENARIO = new Set(['module.contracts', 'module.reports', 'ai.enabled']);
+
+const PLAN: BillingPlan = {
   uuid: 'b111a000-0000-4000-8000-000000000002',
   code: 'pro',
   name: 'Profesyonel',
   description: 'Büyüyen oto yıkama ve detaylandırma işletmeleri için.',
-  price_monthly: '1490.00',
-  yearly_pricing: 'discount_percent',
+  // Prices exist on the API schema but the app never shows them.
+  price_monthly: '0.00',
+  yearly_pricing: 'fixed',
   price_yearly: '0.00',
-  yearly_discount_value: '15',
-  effective_yearly: '15198.00',
+  yearly_discount_value: '0',
+  effective_yearly: '0.00',
   currency: 'TRY',
-  trial_days: 14,
+  trial_days: 0,
   is_public: true,
   is_customizable: false,
   is_active: true,
-  badge: 'Popüler',
+  badge: '',
   sort_order: 2,
   live_subscriptions: 0,
-  features: [
-    feature('jobs_per_day', 'Günlük işlem', 'Jobs per day', { int: 150, unit: 'adet' }),
-    feature('customers', 'Müşteri', 'Customers', { int: 5000 }),
-    feature('staff_users', 'Personel kullanıcısı', 'Staff users', { int: 10 }),
-    feature('ai_tokens', 'Asistan (token/ay)', 'Assistant (tokens/month)', { int: 200000 }),
-    feature('ai_assistant', 'Yapay zekâ asistanı', 'AI assistant', { bool: true }),
-    feature('whatsapp', 'WhatsApp bildirimleri', 'WhatsApp notifications', { bool: true }),
-    feature('contracts', 'Dijital sözleşme', 'Digital contracts', { bool: true }),
-    feature('multi_branch', 'Çoklu şube', 'Multiple branches', { bool: false }),
-    feature('support', '', '', { text: 'Öncelikli destek' }),
-  ],
+  features: FEATURES.map((f) => ({
+    key: f.key,
+    value_int: typeof f.value === 'number' ? f.value : null,
+    value_bool: typeof f.value === 'boolean' ? f.value : null,
+    display_text: '',
+    enforcement: 'hard',
+    tolerance_pct: 0,
+    warn_pct: 80,
+    min_value: null,
+    max_value: null,
+    step: null,
+    kind: f.kind,
+    unit: f.unit,
+    label_tr: f.label_tr,
+    label_en: f.label_en,
+    unit_price: null,
+  })),
 };
 
-function meters(ctx: MockCtx): BillingUsageMeter[] {
+function enabled(key: string, scenario: PlanScenario = getPlanScenario()) {
+  const f = FEATURES.find((x) => x.key === key);
+  if (!f || f.kind !== 'toggle') return true;
+  if (scenario === 'feature_disabled' && DISABLED_IN_SCENARIO.has(key)) return false;
+  return f.value !== false;
+}
+
+/** Current usage per limit key: real counts from the demo DB, pushed up by the scenario. */
+function usage(ctx: MockCtx, scenario: PlanScenario = getPlanScenario()): Record<string, number> {
   const db = getDb();
   const today = istanbulDay();
   const month = today.slice(0, 7);
-  const jobsToday = db.jobs.filter((j) => j._org === ctx.orgUuid && istanbulDay(j.started_at) === today).length;
-  const staff = db.memberships.filter((m) => m.orgUuid === ctx.orgUuid && m.role !== 'owner').length;
-  const limit = (key: string, used: number, lim: number | null, period: string, periodKey: string, extra: Partial<BillingUsageMeter> = {}): BillingUsageMeter => {
-    const f = PRO_PLAN.features.find((x) => x.key === key)!;
-    return {
-      key,
-      kind: 'limit',
-      unit: f.unit ?? '',
-      period,
-      period_key: periodKey,
-      limit: lim,
-      used,
-      warn_pct: 80,
-      tolerance_pct: 0,
-      enforcement: 'hard',
-      enabled: null,
-      label_tr: f.label_tr ?? key,
-      label_en: f.label_en ?? key,
-      ...extra,
-    };
+  const orgJobs = db.jobs.filter((j) => j._org === ctx.orgUuid && j.status !== 'cancelled' && j.status !== 'voided');
+  const real: Record<string, number> = {
+    'jobs.daily': orgJobs.filter((j) => istanbulDay(j.started_at) === today).length,
+    'jobs.monthly': orgJobs.filter((j) => istanbulDay(j.started_at).slice(0, 7) === month).length,
+    'staff.count': db.memberships.filter((m) => m.orgUuid === ctx.orgUuid).length,
+    'customers.count': db.customers.length,
+    'storage.gb': 2,
+    'whatsapp.monthly': 312,
+    'ai.monthly': 118,
   };
-  const toggle = (key: string): BillingUsageMeter => {
-    const f = PRO_PLAN.features.find((x) => x.key === key)!;
-    return { ...limit(key, 0, null, 'none', ''), kind: 'toggle', enabled: f.value_bool };
+  const limitOf = (key: string) => FEATURES.find((f) => f.key === key)?.value as number;
+  // near: ≥ 80 % of the limit; at: exactly the limit.
+  const push = (keys: string[], share: number) => {
+    for (const k of keys) real[k] = Math.max(real[k], Math.ceil(limitOf(k) * share));
   };
-  return [
-    limit('jobs_per_day', jobsToday, 150, 'day', today),
-    limit('customers', db.customers.length, 5000, 'total', ''),
-    limit('staff_users', staff, 10, 'total', ''),
-    limit('ai_tokens', 164250, 200000, 'month', month, { tolerance_pct: 10, enforcement: 'soft' }),
-    toggle('ai_assistant'),
-    toggle('whatsapp'),
-    toggle('contracts'),
-    toggle('multi_branch'),
-  ];
+  if (scenario === 'near_limit') {
+    push(['jobs.daily', 'customers.count', 'whatsapp.monthly'], 0.85);
+    push(['staff.count'], 0.8);
+  }
+  if (scenario === 'at_limit') {
+    for (const k of ['jobs.daily', 'customers.count', 'staff.count', 'whatsapp.monthly']) real[k] = limitOf(k);
+  }
+  return real;
 }
 
-function orders(ctx: MockCtx): BillingOrder[] {
-  const org = getDb().organizations.find((o) => o.uuid === ctx.orgUuid);
-  const ref = { uuid: PRO_PLAN.uuid, code: PRO_PLAN.code, name: PRO_PLAN.name };
-  const make = (i: number, kind: BillingOrder['kind'], period: BillingOrder['period'], total: string, createdDaysAgo: number, invoice: string | null): BillingOrder => ({
-    uuid: `b0de0000-0000-4000-8000-00000000000${i}`,
-    reference_code: `OTP-${(org?.slug ?? 'demo').slice(0, 4).toUpperCase()}-${1040 + i}`,
-    kind,
-    status: 'approved',
-    channel: 'bank_transfer',
-    plan: ref,
-    period,
-    custom_features: {},
-    list_price: total,
-    proration_credit: '0.00',
-    discount_code: null,
-    discount_amount: '0.00',
-    credit_applied: '0.00',
-    credit_surplus: '0.00',
-    total,
-    vat_amount: (Number(total) - Number(total) / 1.2).toFixed(2),
-    lines: [{ kind: 'plan', label: `${PRO_PLAN.name} · ${period === 'monthly' ? 'Aylık' : 'Yıllık'}`, amount: total }],
-    has_receipt: true,
-    receipt_content_type: 'application/pdf',
-    report_note: '',
-    reported_at: iso(-createdDaysAgo + 1),
-    reviewed_at: iso(-createdDaysAgo + 1),
-    reject_reason: '',
-    expires_at: iso(-createdDaysAgo + 7),
-    created_at: iso(-createdDaysAgo),
-    instructions: null,
-    organization: org ? { uuid: org.uuid, slug: org.slug, name: org.name } : null,
-    invoice_uuid: invoice,
-  });
-  return [make(2, 'renew', 'monthly', '1490.00', 12, 'b1f00000-0000-4000-8000-000000000002'), make(1, 'new', 'monthly', '1490.00', 42, 'b1f00000-0000-4000-8000-000000000001')];
-}
-
-function invoices(ctx: MockCtx): BillingInvoice[] {
-  const org = getDb().organizations.find((o) => o.uuid === ctx.orgUuid);
-  return orders(ctx).map((o, i) => ({
-    uuid: o.invoice_uuid!,
-    number: `OTP2026${String(1042 - i).padStart(9, '0')}`,
-    issue_date: istanbulDay(o.reviewed_at ?? o.created_at),
-    status: 'issued',
-    order_uuid: o.uuid,
-    order_reference: o.reference_code,
-    buyer: { name: org?.name ?? '', tax_id: '1234567890', tax_office: 'Kadıköy', is_final_consumer: false },
-    subtotal: (Number(o.total) / 1.2).toFixed(2),
-    discount_total: '0.00',
-    vat_total: o.vat_amount,
-    grand_total: o.total,
-    has_xml: true,
-    has_pdf: i === 0 || i === 1,
-    error: '',
-    created_at: o.reviewed_at ?? o.created_at,
-    organization: o.organization,
+function meters(ctx: MockCtx): BillingUsageMeter[] {
+  const used = usage(ctx);
+  const today = istanbulDay();
+  return FEATURES.map((f) => ({
+    key: f.key,
+    kind: f.kind,
+    unit: f.unit,
+    period: f.period,
+    period_key: f.period === 'day' ? today : f.period === 'month' ? today.slice(0, 7) : '',
+    limit: f.kind === 'limit' ? (f.value as number | null) : null,
+    used: f.kind === 'limit' ? (used[f.key] ?? 0) : 0,
+    warn_pct: 80,
+    tolerance_pct: 0,
+    enforcement: 'hard',
+    enabled: f.kind === 'toggle' ? enabled(f.key) : null,
+    label_tr: f.label_tr,
+    label_en: f.label_en,
   }));
 }
+
+// ─── Enforcement (called by the mock transport before every tenant handler) ──
+
+/** Write routes that consume a limited counter, with the permission the handler checks first. */
+const LIMITED_WRITES: { method: string; pattern: RegExp; feature: string; perm: string }[] = [
+  { method: 'POST', pattern: /^\/v1\/tenant\/jobs$/, feature: 'jobs.daily', perm: 'tenant.jobs.write' },
+  { method: 'POST', pattern: /^\/v1\/tenant\/quotes\/[^/]+\/convert$/, feature: 'jobs.daily', perm: 'tenant.quotes.write' },
+  { method: 'POST', pattern: /^\/v1\/tenant\/customers$/, feature: 'customers.count', perm: 'tenant.customers.write' },
+  { method: 'POST', pattern: /^\/v1\/tenant\/staff$/, feature: 'staff.count', perm: 'tenant.staff.write' },
+];
+
+/** Route prefixes behind `middleware.RequireFeature`. The AI status route reports `plan_enabled` instead. */
+const GATED_PREFIXES: { prefix: string; feature: string }[] = [
+  { prefix: '/v1/tenant/contracts/', feature: 'module.contracts' },
+  { prefix: '/v1/tenant/reports/', feature: 'module.reports' },
+  { prefix: '/v1/tenant/ai/conversations', feature: 'ai.enabled' },
+];
+
+export function enforcePlan(ctx: MockCtx) {
+  const scenario = getPlanScenario();
+  if (scenario === 'normal' || scenario === 'near_limit') return;
+
+  for (const g of GATED_PREFIXES) {
+    if (ctx.path.startsWith(g.prefix) && !enabled(g.feature, scenario)) fail(403, 'FEATURE_DISABLED', 'This feature is not included in your plan');
+  }
+
+  const write = LIMITED_WRITES.find((w) => w.method === ctx.method && w.pattern.test(ctx.path));
+  // Permission errors win, like on the API (RBAC middleware runs before the use case).
+  if (!write || !ctx.permissions.has(write.perm)) return;
+  const f = FEATURES.find((x) => x.key === write.feature)!;
+  const limit = f.value as number | null;
+  const used = usage(ctx, scenario)[write.feature] ?? 0;
+  if (limit !== null && used + 1 > limit) {
+    fail(409, 'LIMIT_REACHED', 'Plan limit reached', [
+      { field: 'feature', message: write.feature },
+      { field: 'limit', message: String(limit) },
+      { field: 'used', message: String(used) },
+      { field: 'tolerance', message: '0' },
+    ]);
+  }
+}
+
+/** Whether the plan includes a toggle feature (used by the AI status mock). */
+export const planFeatureEnabled = (key: string) => enabled(key);
+
+// ─── Routes ────────────────────────────────────────────────────────────────
 
 route('GET', '/v1/tenant/billing/overview', (ctx): BillingOverview => {
   requirePerm(ctx, 'tenant.billing.read');
@@ -170,55 +193,19 @@ route('GET', '/v1/tenant/billing/overview', (ctx): BillingOverview => {
   return {
     subscription: {
       uuid: 'b5b50000-0000-4000-8000-000000000001',
-      plan_code: PRO_PLAN.code,
-      plan_name: PRO_PLAN.name,
+      plan_code: PLAN.code,
+      plan_name: PLAN.name,
       period: 'monthly',
       status: 'active',
       starts_at: iso(-startsDaysAgo),
       ends_at: iso(endsIn),
       grace_ends_at: iso(endsIn + 7),
       days_left: endsIn,
-      credit_balance: '120.00',
-      source: 'self_service',
+      credit_balance: '0.00',
+      source: 'admin',
     },
-    plan: PRO_PLAN,
+    plan: PLAN,
     meters: meters(ctx),
-    open_order: null,
     read_only: false,
   };
-});
-
-route('GET', '/v1/tenant/billing/plans', (ctx) => {
-  requirePerm(ctx, 'tenant.billing.read');
-  return [PRO_PLAN];
-});
-
-route('GET', '/v1/tenant/billing/orders', (ctx) => {
-  requirePerm(ctx, 'tenant.billing.read');
-  const all = orders(ctx);
-  const open = ctx.query.status === 'open' ? all.filter((o) => o.status === 'pending_payment' || o.status === 'payment_reported') : all;
-  return paginate(open, ctx.query);
-});
-
-route('GET', '/v1/tenant/billing/orders/:uuid', (ctx) => {
-  requirePerm(ctx, 'tenant.billing.read');
-  return orders(ctx).find((o) => o.uuid === ctx.params.uuid) ?? fail(404, 'NOT_FOUND', 'Order not found');
-});
-
-route('GET', '/v1/tenant/billing/invoice-profile', (ctx): InvoiceProfile => {
-  requirePerm(ctx, 'tenant.billing.read');
-  const org = getDb().organizations.find((o) => o.uuid === ctx.orgUuid);
-  return {
-    invoice_name: org?.name ?? '',
-    invoice_tax_id: '1234567890',
-    invoice_tax_office: 'Kadıköy',
-    invoice_address: org?.address ?? '',
-    invoice_city: org?.city ?? '',
-    invoice_email: org?.email ?? '',
-  };
-});
-
-route('GET', '/v1/tenant/billing/invoices', (ctx) => {
-  requirePerm(ctx, 'tenant.billing.read');
-  return paginate(invoices(ctx), ctx.query, 50);
 });

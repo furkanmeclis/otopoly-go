@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
+import { LimitReachedHost } from '@/features/billing/components/limit-reached-host';
 import { QaTour } from '@/features/qa/qa-tour';
 import { WidgetSync } from '@/features/widgets/use-widget-sync';
 import { useTheme } from '@/theme/provider';
@@ -12,6 +13,7 @@ export default function AppLayout() {
   return (
     <>
       <WidgetSync />
+      <LimitReachedHost />
       <QaTour />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
         <Stack.Screen name="(tabs)" />

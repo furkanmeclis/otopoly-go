@@ -7,6 +7,7 @@ import type { AIChart, AIConversation, AIConversationDetail, AIMessage, AIStatus
 
 import { fail, istanbulDay, now, num, requirePerm, route, search, str, uuid, validation, type MockCtx } from '../core';
 import { getDb } from '../db';
+import { planFeatureEnabled } from './billing';
 
 type Conv = AIConversationDetail;
 const conversations = new Map<string, Conv[]>(); // `${org}|${user}`
@@ -198,10 +199,11 @@ route('GET', '/v1/tenant/ai/status', (ctx): AIStatus => {
   requirePerm(ctx, 'tenant.ai.use');
   const remaining = Math.max(0, QUOTA - tokensUsed);
   const month = new Date();
+  const planEnabled = planFeatureEnabled('ai.enabled');
   return {
-    available: remaining > 0,
-    plan_enabled: true,
-    ...(remaining > 0 ? {} : { reason: 'quota_exceeded' as const }),
+    available: planEnabled && remaining > 0,
+    plan_enabled: planEnabled,
+    ...(!planEnabled ? { reason: 'plan_disabled' as const } : remaining > 0 ? {} : { reason: 'quota_exceeded' as const }),
     features: { chat: true, actions: false, charts: true, voice: false, todos: false },
     quota: {
       limit: QUOTA,

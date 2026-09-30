@@ -9,6 +9,8 @@ import { createLogger } from '@/lib/logger';
 import { fail, matchRoute, MockHttpError, normalizeQuery, uuid, type MockCtx } from './core';
 import { getDb, loadDb, persist, resetDb } from './db';
 import { decodeAccessToken, permissionsFor } from './handlers/auth';
+import { enforcePlan } from './handlers/billing';
+import { loadPlanScenario, setPlanScenario } from './scenario';
 import { seedDb } from './seed';
 
 import './handlers';
@@ -17,6 +19,8 @@ const log = createLogger('mock');
 let ready: Promise<unknown> | null = null;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const boot = () => Promise.all([loadDb(seedDb), loadPlanScenario()]);
 
 function envelope(status: number, data: unknown) {
   return { status, payload: { success: true, data, meta: { request_id: uuid() } } };
@@ -34,7 +38,7 @@ function errorEnvelope(error: MockHttpError) {
 }
 
 async function handle(method: string, path: string, query: MockCtx['query'], body: unknown, headers: Record<string, string>) {
-  await (ready ??= loadDb(seedDb));
+  await (ready ??= boot());
   const match = matchRoute(method, path);
   if (!match) {
     log.warn('No mock route', { method, path });
@@ -62,6 +66,7 @@ async function handle(method: string, path: string, query: MockCtx['query'], bod
     if (match.route.tenant) {
       if (!orgUuid) fail(403, 'ORGANIZATION_CONTEXT_REQUIRED', 'Organization context required');
       if (!ctx.membership) fail(403, 'NO_TENANT_MEMBERSHIP', 'Not a member of this organization');
+      enforcePlan(ctx);
     }
     const data = await match.route.handler(ctx);
     if (method !== 'GET') persist();
@@ -83,7 +88,7 @@ export const mockTransport: Transport = async (req) => {
 
 export function installMockTransport() {
   setTransport(mockTransport);
-  ready ??= loadDb(seedDb);
+  ready ??= boot();
   log.info('Mock API installed', { latency: env.mockLatency });
   return ready;
 }
@@ -100,5 +105,6 @@ export async function mockFormRequest<T>(method: string, path: string, form: For
 
 export async function resetMockData() {
   await resetDb(seedDb);
+  setPlanScenario('normal');
   ready = Promise.resolve();
 }
