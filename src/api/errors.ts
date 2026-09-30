@@ -12,12 +12,14 @@ export type ApiErrorCode =
   | 'ORGANIZATION_CONTEXT_REQUIRED'
   | 'NO_TENANT_MEMBERSHIP'
   | 'ORGANIZATION_ACCESS_EXPIRED'
+  | 'MFA_REQUIRED'
   | 'TOTP_REQUIRED'
   | 'INVALID_CREDENTIALS'
   | 'STEP_UP_REQUIRED'
   | 'NETWORK_ERROR'
   | 'TIMEOUT'
   | 'INTERNAL'
+  | 'INTERNAL_ERROR'
   | (string & {});
 
 export type ApiErrorDetail = { field?: string; message: string; code?: string };

@@ -26,7 +26,7 @@ jobs:
         run: npm run typecheck
       - name: i18n keys
         run: node scripts/check-i18n.mjs
-      - name: Mock API smoke tests
-        run: npm run test:mock
+      - name: Mock API smoke tests (all suites)
+        run: npm run test:smoke
       - name: Expo config
         run: npx expo config --type public > /dev/null

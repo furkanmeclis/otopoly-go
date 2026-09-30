@@ -181,6 +181,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (s?.refreshToken) {
       try {
         await authService.logout(s.refreshToken);
+        // An expired access token makes the client refresh before replaying logout with the OLD refresh
+        // token, which would leave the rotated one alive server-side — revoke that one as well.
+        const rotated = session.get()?.refreshToken;
+        if (rotated && rotated !== s.refreshToken) await authService.logout(rotated);
       } catch (error) {
         // Local sign-out must always succeed even if the server call fails.
         log.warn('Server logout failed', isApiError(error) ? error.code : error);

@@ -12,6 +12,9 @@ function loadCatalog(locale) {
   const out = {};
   for (const f of fs.readdirSync(dir)) if (f.endsWith('.json')) out[f.slice(0, -5)] = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
   out.mobile = JSON.parse(fs.readFileSync(path.join(root, 'src/locales/mobile', `${locale}.json`), 'utf8'));
+  const areas = path.join(root, 'src/locales/mobile/areas');
+  if (fs.existsSync(areas))
+    for (const f of fs.readdirSync(areas)) if (f.endsWith(`.${locale}.json`)) Object.assign(out.mobile, JSON.parse(fs.readFileSync(path.join(areas, f), 'utf8')));
   return out;
 }
 

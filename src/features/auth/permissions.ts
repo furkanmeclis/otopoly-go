@@ -18,6 +18,8 @@ export const P = {
   salesRead: 'tenant.sales.read',
   salesWrite: 'tenant.sales.write',
   salesExport: 'tenant.sales.export',
+  suppliersExport: 'tenant.suppliers.export',
+  purchasesExport: 'tenant.purchases.export',
   suppliersRead: 'tenant.suppliers.read',
   suppliersWrite: 'tenant.suppliers.write',
   purchasesRead: 'tenant.purchases.read',

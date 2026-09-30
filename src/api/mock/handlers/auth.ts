@@ -2,6 +2,7 @@ import type { Me } from '@/features/account/services/auth.service';
 
 import { fail, now, requireFields, route, str, uuid, type MockCtx, type MockUser } from '../core';
 import { getDb, persist } from '../db';
+import { assertPasswordPolicy } from './account';
 
 /** Exact role → permission sets computed from backend migrations (organization_user / organization_owner). */
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -140,7 +141,7 @@ route(
     const user = getDb().users.find((u) => u.email.toLowerCase() === email);
     if (!user || user.password !== str(ctx.body.password)) fail(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
     if (user!.status !== 'active') fail(403, 'ACCOUNT_DISABLED', 'This account is disabled');
-    if (user!.totpEnabled && !ctx.body.totp_code) fail(401, 'TOTP_REQUIRED', 'Two-factor code required');
+    if (user!.totpEnabled && !ctx.body.totp_code) fail(403, 'MFA_REQUIRED', 'Two-factor code required');
     const slug = str(ctx.body.organization_slug).trim();
     const org = slug ? resolveOrganization(user!, slug) : null;
     return issueTokens(user!, org?.uuid ?? null);
@@ -181,8 +182,10 @@ route('GET', '/v1/auth/me', (ctx) => buildMe(userFromCtx(ctx), ctx.orgUuid));
 
 route('PATCH', '/v1/auth/profile', (ctx) => {
   const user = userFromCtx(ctx);
-  if (ctx.body.name !== undefined) user.name = str(ctx.body.name).trim() || user.name;
-  if (ctx.body.surname !== undefined) user.surname = str(ctx.body.surname).trim() || user.surname;
+  const blank = (['name', 'surname'] as const).filter((f) => ctx.body[f] !== undefined && !str(ctx.body[f]).trim());
+  if (blank.length) fail(400, 'VALIDATION_ERROR', 'Validation failed', blank.map((field) => ({ field, message: 'required', code: 'required' })));
+  if (ctx.body.name !== undefined) user.name = str(ctx.body.name).trim();
+  if (ctx.body.surname !== undefined) user.surname = str(ctx.body.surname).trim();
   if (ctx.body.locale !== undefined) {
     const locale = str(ctx.body.locale);
     if (locale !== 'tr' && locale !== 'en') fail(400, 'VALIDATION_ERROR', 'Unsupported locale', [{ field: 'locale', message: 'must be tr or en' }]);
@@ -198,10 +201,11 @@ route('POST', '/v1/auth/password/change', (ctx) => {
   if (str(ctx.body.current_password) !== user.password) {
     fail(400, 'VALIDATION_ERROR', 'Current password is incorrect', [{ field: 'current_password', message: 'incorrect' }]);
   }
-  if (str(ctx.body.new_password).length < 8) {
-    fail(400, 'VALIDATION_ERROR', 'Password too short', [{ field: 'new_password', message: 'min 8 characters' }]);
-  }
+  assertPasswordPolicy(str(ctx.body.new_password), 'new_password');
   user.password = str(ctx.body.new_password);
+  // Backend revokes every refresh session on password change (the client signs out right after).
+  const db = getDb();
+  db.sessions = db.sessions.filter((s) => s.userUuid !== user.uuid);
   persist();
   return { status: 'ok' };
 });

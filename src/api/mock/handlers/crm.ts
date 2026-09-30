@@ -106,7 +106,9 @@ route('GET', '/v1/tenant/leads', (ctx) => {
   requirePerm(ctx, 'tenant.leads.read');
   const q = ctx.query;
   let items = getDb().leads.map(refreshLead);
-  if (q.status) items = items.filter((l) => q.status.split(',').includes(l.status));
+  // Backend: `status=open` means new/contacted/quoted (leads.sql).
+  const leadStatuses = q.status === 'open' ? ['new', 'contacted', 'quoted'] : q.status ? q.status.split(',') : null;
+  if (leadStatuses) items = items.filter((l) => leadStatuses.includes(l.status));
   if (q.temperature) items = items.filter((l) => l.temperature === q.temperature);
   if (q.source) items = items.filter((l) => l.source === q.source);
   if (q.assignee === 'me') items = items.filter((l) => l.assignee?.uuid === ctx.user?.uuid);
@@ -114,7 +116,10 @@ route('GET', '/v1/tenant/leads', (ctx) => {
   if (q.follow_up) items = items.filter((l) => l.follow_up_state === q.follow_up);
   if (q.customer_uuid) items = items.filter((l) => l.customer_uuid === q.customer_uuid);
   items = search(items, q.q, ['customer_name', 'customer_phone', 'vehicle_plate', 'interest']);
-  const page = paginate(sortBy(items, q.sort, '-last_activity_at'), q, 50);
+  let sorted = sortBy(items, q.sort, '-last_activity_at');
+  // Backend orders undated follow-ups last.
+  if (q.sort === 'follow_up_date') sorted = [...sorted.filter((l) => l.follow_up_date), ...sorted.filter((l) => !l.follow_up_date)];
+  const page = paginate(sorted, q, 50);
   return { ...page, items: page.items.map(leadListItem) };
 });
 
@@ -253,6 +258,14 @@ route('POST', '/v1/tenant/leads/:uuid/todo', (ctx) => {
 
 function todoView(t: Todo): Todo {
   t.overdue = t.status === 'open' && !!t.due_date && t.due_date < istanbulDay();
+  // Date-only todos are due at 09:00 Europe/Istanbul; next_reminder_at = earliest future fire time.
+  if (t.status === 'open' && t.due_date && t.reminder_offsets.length) {
+    const due = new Date(`${t.due_date}T${t.due_time ?? '09:00'}:00+03:00`).getTime();
+    const upcoming = t.reminder_offsets.map((m) => due - m * 60000).filter((at) => at > Date.now());
+    t.next_reminder_at = upcoming.length ? new Date(Math.min(...upcoming)).toISOString() : null;
+  } else {
+    t.next_reminder_at = null;
+  }
   return t;
 }
 
@@ -390,7 +403,23 @@ route('PATCH', '/v1/tenant/todos/:uuid', (ctx) => {
     const c = db.customers.find((x) => x.uuid === b.customer_uuid);
     t.customer = c ? { uuid: c.uuid, label: c.name } : null;
   }
-  if (Array.isArray(b.reminder_offsets)) t.reminder_offsets = (b.reminder_offsets as number[]).slice(0, 5);
+  if (b.job_uuid !== undefined) {
+    const j = db.jobs.find((x) => x.uuid === b.job_uuid);
+    t.job = j ? { uuid: j.uuid, label: j.plate } : null;
+  }
+  if (b.lead_uuid !== undefined) {
+    const l = db.leads.find((x) => x.uuid === b.lead_uuid);
+    t.lead = l ? { uuid: l.uuid, label: l.customer_name } : null;
+  }
+  if (b.quote_uuid !== undefined) {
+    const q = db.quotes.find((x) => x.uuid === b.quote_uuid);
+    t.quote = q ? { uuid: q.uuid, label: q.number } : null;
+  }
+  if (Array.isArray(b.reminder_offsets)) {
+    if (b.reminder_offsets.length && !t.due_date) fail(400, 'VALIDATION_ERROR', 'Reminders require a due date', [{ field: 'reminder_offsets', message: 'requires due_date' }]);
+    t.reminder_offsets = (b.reminder_offsets as number[]).slice(0, 5);
+  }
+  if (!t.due_date) t.reminder_offsets = [];
   t.updated_at = now();
   return todoView(t);
 });
@@ -595,7 +624,7 @@ export function saveQuote(ctx: MockCtx | null, existing: QuoteDetail | null, b: 
   if (!lines.length) fail(400, 'VALIDATION_ERROR', 'At least one line is required', [{ field: 'lines', message: 'required' }]);
   const customer = db.customers.find((c) => c.uuid === b.customer_uuid);
   if (!customer) notFound('Customer');
-  const vehicleInput = (b.vehicle ?? null) as { vehicle_uuid?: string; plate?: string; model_uuid?: string; year?: number } | null;
+  const vehicleInput = (b.vehicle ?? null) as { vehicle_uuid?: string; plate?: string; label?: string; model_uuid?: string; year?: number } | null;
   const vehicle = vehicleInput?.vehicle_uuid ? db.vehicles.find((v) => v.uuid === vehicleInput.vehicle_uuid) : null;
   const model = vehicleInput?.model_uuid ? db.vehicleCatalog.find((m) => m.model_uuid === vehicleInput.model_uuid) : null;
   const pricesIncludeVat = b.prices_include_vat === undefined ? true : Boolean(b.prices_include_vat);
@@ -635,7 +664,9 @@ export function saveQuote(ctx: MockCtx | null, existing: QuoteDetail | null, b: 
     lead_uuid: (b.lead_uuid as string) || null,
     vehicle_uuid: vehicle?.uuid ?? null,
     vehicle_plate: vehicle?.plate ?? str(vehicleInput?.plate).toLocaleUpperCase('tr-TR'),
-    vehicle_label: vehicle ? `${vehicle.brand_name} ${vehicle.model_name} · ${vehicle.year}` : model ? `${model.brand_name} ${model.model_name}` : '',
+    vehicle_label: vehicle
+      ? `${vehicle.brand_name} ${vehicle.model_name} · ${vehicle.year}`
+      : str(vehicleInput?.label).trim() || (model ? `${model.brand_name} ${model.model_name}` : ''),
     vehicle_model_uuid: vehicle?.model_uuid ?? model?.model_uuid ?? null,
     vehicle_model_label: vehicle ? `${vehicle.brand_name} ${vehicle.model_name}` : model ? `${model.brand_name} ${model.model_name}` : '',
     vehicle_year: vehicle?.year ?? vehicleInput?.year ?? null,
@@ -687,7 +718,9 @@ route('GET', '/v1/tenant/quotes', (ctx) => {
   requirePerm(ctx, 'tenant.quotes.read');
   const q = ctx.query;
   let items = getDb().quotes.map(refreshQuote);
-  if (q.status) items = items.filter((x) => q.status.split(',').includes(x.status));
+  // Backend: `status=open` = draft/sent/viewed + accepted not yet converted (quotes.sql).
+  if (q.status === 'open') items = items.filter((x) => ['draft', 'sent', 'viewed'].includes(x.status) || (x.status === 'accepted' && !x.job_uuid));
+  else if (q.status) items = items.filter((x) => q.status.split(',').includes(x.status));
   if (q.customer_uuid) items = items.filter((x) => x.customer_uuid === q.customer_uuid);
   if (q.lead_uuid) items = items.filter((x) => x.lead_uuid === q.lead_uuid);
   items = search(items, q.q, ['number', 'customer_name', 'vehicle_plate']);
@@ -771,17 +804,18 @@ route('POST', '/v1/tenant/quotes/:uuid/send', (ctx) => {
   requirePerm(ctx, 'tenant.quotes.write');
   const q = refreshQuote(findQuote(ctx));
   if (!q.can_send) fail(409, 'CONFLICT', 'Quote cannot be sent in its current status');
-  if (!q.customer_phone) fail(409, 'NO_RECIPIENT', 'Customer has no phone number');
   const at = now();
+  // Backend marks the quote sent even when the messenger fails; the delivery row carries the error.
+  const noPhone = !q.customer_phone;
   const delivery = {
     uuid: uuid(),
     channel: str(ctx.body.channel) || 'whatsapp',
     recipient: q.customer_phone,
-    status: 'sent' as const,
-    error: '',
+    status: (noPhone ? 'failed' : 'sent') as 'sent' | 'failed',
+    error: noPhone ? 'customer_no_phone: the customer has no phone number' : '',
     attempt_count: 1,
     last_attempt_at: at,
-    sent_at: at,
+    sent_at: noPhone ? null : at,
     created_at: at,
   };
   q.deliveries.unshift(delivery);
@@ -800,6 +834,11 @@ route('POST', '/v1/tenant/quotes/:uuid/deliveries/:did/retry', (ctx) => {
   const q = findQuote(ctx);
   const d = q.deliveries.find((x) => x.uuid === ctx.params.did);
   if (!d) notFound('Delivery');
+  if (!q.customer_phone) {
+    d!.attempt_count += 1;
+    d!.last_attempt_at = now();
+    return { quote: refreshQuote(q), delivery: d };
+  }
   d!.status = 'sent';
   d!.error = '';
   d!.attempt_count += 1;

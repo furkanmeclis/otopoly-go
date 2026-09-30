@@ -36,7 +36,7 @@ import { BrandLockup } from '@/components/brand';
 import { Avatar, Badge, Group, Header, ListRow, Row, Screen, Section, Segmented, Txt, useConfirm } from '@/components/ui';
 import { isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
-import { P, type Gate, type Permission } from '@/features/auth/permissions';
+import { ownerOnly, P, type Gate, type Permission } from '@/features/auth/permissions';
 import { useLeadsSummary, useQuotesSummary, useTodosSummary } from '@/features/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { useLocale } from '@/lib/i18n/provider';
@@ -111,8 +111,8 @@ export default function MenuScreen() {
       title: tr('layout.section_io'),
       items: [
         { key: 'exports', title: tr('layout.nav_exports'), icon: ic(Download), href: '/exports', gate: P.financeExport },
-        { key: 'imports', title: tr('layout.nav_imports'), icon: ic(Upload), href: '/imports', gate: P.importsRead },
-        { key: 'export-settings', title: tr('layout.nav_export_settings'), icon: ic(Settings2), href: '/settings/letterhead', gate: P.settingsRead },
+        { key: 'imports', title: tr('layout.nav_imports'), icon: ic(Upload), href: '/imports', gate: ownerOnly(P.importsRead) },
+        { key: 'export-settings', title: tr('layout.nav_export_settings'), icon: ic(Settings2), href: '/settings/letterhead', gate: ownerOnly(P.settingsRead) },
         { key: 'contract-templates', title: tr('layout.nav_contract_templates'), icon: ic(FileText), href: '/contracts/templates', gate: P.contractsRead },
       ],
     },

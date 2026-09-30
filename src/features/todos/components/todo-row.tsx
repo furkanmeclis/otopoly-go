@@ -1,5 +1,6 @@
 import * as Haptics from 'expo-haptics';
-import { CheckCircle2, Circle, Clock, Link2, UserRound } from 'lucide-react-native';
+import { BellRing, Briefcase, CheckCircle2, Circle, Clock, FileText, Sparkles, Target, UserRound, Users } from 'lucide-react-native';
+import type { ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Row, Txt } from '@/components/ui';
@@ -28,24 +29,61 @@ export function useTodoDueLabel() {
   };
 }
 
-export function TodoRow({ todo, canWrite, onPress, last }: { todo: Todo; canWrite: boolean; onPress?: () => void; last?: boolean }) {
+/** Small inline meta item (icon + caption). */
+function Meta({ icon, label, tone = 'muted', strong }: { icon: ReactNode; label: string; tone?: 'muted' | 'danger' | 'warning' | 'primary'; strong?: boolean }) {
+  return (
+    <Row gap={4} style={{ maxWidth: '100%' }}>
+      {icon}
+      <Txt variant="caption" tone={tone} numberOfLines={1} style={{ fontWeight: strong ? '700' : '500', flexShrink: 1 }}>
+        {label}
+      </Txt>
+    </Row>
+  );
+}
+
+/**
+ * One todo (web `todo-item.tsx`). Tapping the circle completes / reopens it.
+ * Existing callers (dashboard, customer detail) only pass `todo/canWrite/onPress/last`;
+ * `onLongPress`, `showNotes` and `showLinks` are optional additions for the todos screen.
+ */
+export function TodoRow({
+  todo,
+  canWrite,
+  onPress,
+  onLongPress,
+  last,
+  showNotes = false,
+  showLinks = true,
+}: {
+  todo: Todo;
+  canWrite: boolean;
+  onPress?: () => void;
+  onLongPress?: () => void;
+  last?: boolean;
+  showNotes?: boolean;
+  showLinks?: boolean;
+}) {
   const t = useTheme();
-  const { t: tr } = useLocale();
+  const { t: tr, fmt } = useLocale();
   const dueLabel = useTodoDueLabel();
   const done = todo.status === 'done';
   const toggle = useApiMutation({
     key: done ? 'todos.reopen' : 'todos.complete',
     fn: () => (done ? todosService.reopen(todo.uuid) : todosService.complete(todo.uuid)),
-    invalidate: [qk.todos],
+    invalidate: [qk.todos, qk.leads, qk.quotes],
     toastValidation: true,
   });
   const due = dueLabel(todo);
-  const link = todo.customer?.label ?? todo.lead?.label ?? todo.quote?.label ?? todo.job?.label;
+  const dueToday = todo.status === 'open' && todo.due_date === localToday();
+  const dueTone = todo.overdue ? 'danger' : dueToday ? 'warning' : 'muted';
+  const dueColor = todo.overdue ? t.colors.danger : dueToday ? t.colors.warning : t.colors.textMuted;
+  const muted = t.colors.textMuted;
 
   return (
     <Pressable
       onPress={onPress}
-      disabled={!onPress}
+      onLongPress={onLongPress}
+      disabled={!onPress && !onLongPress}
       accessibilityRole="button"
       accessibilityLabel={todo.title}
       style={({ pressed }) => ({
@@ -76,31 +114,20 @@ export function TodoRow({ todo, canWrite, onPress, last }: { todo: Todo; canWrit
           {todo.title}
         </Txt>
         <Row gap={10} wrap>
-          {due ? (
-            <Row gap={4}>
-              <Clock size={12} color={todo.overdue ? t.colors.danger : t.colors.textMuted} />
-              <Txt variant="caption" tone={todo.overdue ? 'danger' : 'muted'} style={{ fontWeight: todo.overdue ? '700' : '500' }}>
-                {due}
-              </Txt>
-            </Row>
-          ) : null}
-          {todo.assignee ? (
-            <Row gap={4}>
-              <UserRound size={12} color={t.colors.textMuted} />
-              <Txt variant="caption" tone="muted" numberOfLines={1}>
-                {todo.assignee.label}
-              </Txt>
-            </Row>
-          ) : null}
-          {link ? (
-            <Row gap={4}>
-              <Link2 size={12} color={t.colors.textMuted} />
-              <Txt variant="caption" tone="muted" numberOfLines={1}>
-                {link}
-              </Txt>
-            </Row>
-          ) : null}
+          {due ? <Meta icon={<Clock size={12} color={dueColor} />} label={due} tone={dueTone} strong={todo.overdue} /> : null}
+          {todo.assignee ? <Meta icon={<UserRound size={12} color={muted} />} label={todo.assignee.label} /> : null}
+          {showLinks && todo.customer ? <Meta icon={<Users size={12} color={muted} />} label={todo.customer.label} /> : null}
+          {showLinks && todo.job ? <Meta icon={<Briefcase size={12} color={muted} />} label={todo.job.label} /> : null}
+          {showLinks && todo.lead ? <Meta icon={<Target size={12} color={muted} />} label={todo.lead.label} /> : null}
+          {showLinks && todo.quote ? <Meta icon={<FileText size={12} color={muted} />} label={todo.quote.label} /> : null}
+          {todo.next_reminder_at && !done ? <Meta icon={<BellRing size={12} color={muted} />} label={`${fmt.date(todo.next_reminder_at, 'short')} ${fmt.time(todo.next_reminder_at)}`} /> : null}
+          {todo.via_ai ? <Meta icon={<Sparkles size={12} color={t.colors.primary} />} label={tr('todos.via_ai_short')} tone="primary" /> : null}
         </Row>
+        {showNotes && todo.notes ? (
+          <Txt variant="caption" tone="secondary" numberOfLines={3}>
+            {todo.notes}
+          </Txt>
+        ) : null}
       </View>
     </Pressable>
   );

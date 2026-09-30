@@ -90,13 +90,20 @@ route('POST', '/v1/tenant/finance/accounts', (ctx) => {
   requireFields(ctx.body, ['name', 'type']);
   const type = str(ctx.body.type);
   if (type !== 'cash' && type !== 'bank') fail(400, 'VALIDATION_ERROR', 'Invalid type', [{ field: 'type', message: 'invalid' }]);
+  // Backend: currency must be a 3-letter ISO code (upper-cased), names are unique among active accounts.
+  const currency = (str(ctx.body.currency, 'TRY') || 'TRY').trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) fail(400, 'VALIDATION_ERROR', 'currency must be ISO 4217 code', [{ field: 'currency', message: 'invalid' }]);
   const opening = num(ctx.body.opening_balance);
   const db = getDb();
+  const name = str(ctx.body.name).trim();
+  if (db.financeAccounts.some((x) => x.is_active && x.name.toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr'))) {
+    fail(409, 'CONFLICT', 'Account name already exists', [{ field: 'name', message: 'duplicate' }]);
+  }
   const a: FinanceAccount = {
     uuid: uuid(),
-    name: str(ctx.body.name).trim(),
+    name,
     type: type as FinanceAccount['type'],
-    currency: str(ctx.body.currency, 'TRY') || 'TRY',
+    currency,
     opening_balance: money(opening),
     current_balance: money(opening),
     is_default: bool(ctx.body.is_default),
@@ -108,7 +115,7 @@ route('POST', '/v1/tenant/finance/accounts', (ctx) => {
     created_at: now(),
     updated_at: now(),
   };
-  if (a.is_default) for (const x of db.financeAccounts) if (x.type === a.type) x.is_default = false;
+  if (a.is_default) for (const x of db.financeAccounts) x.is_default = false;
   db.financeAccounts.push(a);
   return a;
 });
@@ -150,7 +157,7 @@ route('PATCH', '/v1/tenant/finance/accounts/:uuid', (ctx) => {
   if (b.notes !== undefined) a.notes = str(b.notes);
   if (b.is_active !== undefined) a.is_active = bool(b.is_active);
   if (b.is_default !== undefined) {
-    if (bool(b.is_default)) for (const x of db.financeAccounts) if (x.type === a.type) x.is_default = false;
+    if (bool(b.is_default)) for (const x of db.financeAccounts) x.is_default = false;
     a.is_default = bool(b.is_default);
   }
   a.updated_at = now();
@@ -231,6 +238,40 @@ route('GET', '/v1/tenant/finance/categories/:uuid', (ctx) => {
   return findCategory(ctx);
 });
 
+route('PATCH', '/v1/tenant/finance/categories/:uuid', (ctx) => {
+  requireOwner(ctx, write);
+  const c = findCategory(ctx);
+  const db = getDb();
+  const b = ctx.body;
+  if (b.name !== undefined) {
+    const name = str(b.name).trim();
+    if (!name) fail(400, 'VALIDATION_ERROR', 'Validation failed', [{ field: 'name', message: 'required' }]);
+    if (db.financeCategories.some((x) => x !== c && x.kind === c.kind && x.name.toLocaleLowerCase('tr') === name.toLocaleLowerCase('tr'))) {
+      fail(409, 'CONFLICT', 'Category already exists', [{ field: 'name', message: 'duplicate' }]);
+    }
+    c.name = name;
+  }
+  if (b.sort_order !== undefined) c.sort_order = Math.trunc(num(b.sort_order));
+  if (b.is_active !== undefined) c.is_active = bool(b.is_active);
+  if (b.parent_uuid !== undefined) {
+    const parent = str(b.parent_uuid);
+    if (parent === c.uuid) fail(400, 'VALIDATION_ERROR', 'category cannot be its own parent', [{ field: 'parent_uuid', message: 'invalid' }]);
+    if (parent && !db.financeCategories.some((x) => x.uuid === parent)) notFound('Parent category');
+    c.parent_uuid = parent || null;
+  }
+  for (const t of db.transactions) if (t.category_uuid === c.uuid) t.category_name = c.name;
+  return c;
+});
+
+route('DELETE', '/v1/tenant/finance/categories/:uuid', (ctx) => {
+  requireOwner(ctx, write);
+  const c = findCategory(ctx);
+  const db = getDb();
+  // Backend soft-deletes; posted rows keep their category name snapshot.
+  db.financeCategories = db.financeCategories.filter((x) => x !== c);
+  return { deleted: true };
+});
+
 // ─── Transactions ──────────────────────────────────────────────────────────
 
 route('GET', '/v1/tenant/finance/transactions/meta', (ctx) => {
@@ -247,6 +288,7 @@ route('GET', '/v1/tenant/finance/transactions', (ctx) => {
   if (q.account_uuid) items = items.filter((t) => t.account_uuid === q.account_uuid || t.counter_account_uuid === q.account_uuid);
   if (q.category_uuid) items = items.filter((t) => t.category_uuid === q.category_uuid);
   if (q.source_type) items = items.filter((t) => t.source_type === q.source_type);
+  if (q.currency) items = items.filter((t) => t.currency.toUpperCase() === q.currency.trim().toUpperCase());
   if (q.date_from || q.date_to) items = items.filter((t) => inDayRange(t.transaction_date + 'T12:00:00Z', q.date_from, q.date_to));
   items = search(items, q.q, ['description', 'reference_no', 'account_name', 'category_name']);
   return paginate(sortBy(items, q.sort, '-transaction_date,-created_at'), q);
@@ -363,7 +405,13 @@ route('POST', '/v1/tenant/finance/transfers', (ctx) => {
   if (b.from_account_uuid && b.from_account_uuid === b.to_account_uuid) errors.push({ field: 'to_account_uuid', message: 'must differ' });
   if (!(num(b.amount) > 0)) errors.push({ field: 'amount', message: 'must be > 0' });
   if (errors.length) fail(400, 'VALIDATION_ERROR', 'Validation failed', errors);
-  return postFinance(getDb(), {
+  const db = getDb();
+  const from = db.financeAccounts.find((a) => a.uuid === b.from_account_uuid);
+  const to = db.financeAccounts.find((a) => a.uuid === b.to_account_uuid);
+  if (!from) notFound('Source account');
+  if (!to) notFound('Destination account');
+  if (from!.currency !== to!.currency) fail(400, 'CURRENCY_MISMATCH', 'Accounts must share the same currency');
+  return postFinance(db, {
     type: 'transfer',
     accountUuid: str(b.from_account_uuid),
     counterAccountUuid: str(b.to_account_uuid),

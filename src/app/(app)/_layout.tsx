@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
+import { QaTour } from '@/features/qa/qa-tour';
 import { WidgetSync } from '@/features/widgets/use-widget-sync';
 import { useTheme } from '@/theme/provider';
 
@@ -11,6 +12,7 @@ export default function AppLayout() {
   return (
     <>
       <WidgetSync />
+      <QaTour />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
         <Stack.Screen name="(tabs)" />
       </Stack>

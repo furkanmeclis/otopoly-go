@@ -87,6 +87,9 @@ export const authService = {
   revokeOtherSessions() {
     return request<{ status: string }>("POST", "/v1/auth/sessions/revoke-others");
   },
+  requestEmailVerify(email?: string) {
+    return request<{ status: string }>("POST", "/v1/auth/email/verify-request", { body: email ? { email } : {} });
+  },
   getTOTPStatus() {
     return request<TOTPStatus>("GET", "/v1/auth/totp");
   },

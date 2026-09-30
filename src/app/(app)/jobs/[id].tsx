@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import { Ban, CheckCircle2, KeyRound, Minus, PackagePlus, Plus, Trash2, Undo2, Wallet } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Ban, CheckCircle2, FileSignature, KeyRound, Minus, PackagePlus, Plus, Trash2, Undo2, Wallet } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -12,6 +12,7 @@ import {
   Group,
   Header,
   InfoRow,
+  ListRow,
   ListSkeleton,
   PlateBadge,
   Row,
@@ -132,6 +133,18 @@ function JobDetailContent() {
       </Card>
 
       <LiveActivityCard job={d} />
+
+      {can(P.contractsWrite) && (status === 'in_progress' || status === 'ready') ? (
+        <Group>
+          <ListRow
+            title={tr('contracts.instances.create_title')}
+            subtitle={tr('contracts.instances.create_description')}
+            left={<FileSignature size={20} color={t.colors.primary} />}
+            onPress={() => router.push({ pathname: '/contracts', params: { job_uuid: d.uuid } })}
+            last
+          />
+        </Group>
+      ) : null}
 
       <Section title={tr('jobs.detail.info')} action={canEdit ? { label: tr('jobs.actions.edit_notes'), onPress: () => setNotesOpen(true) } : undefined}>
         <Card padded={false} style={{ paddingHorizontal: t.spacing.lg }}>

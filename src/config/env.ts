@@ -14,6 +14,9 @@ export const env = {
   /** Simulated network latency for the mock adapter (ms). */
   mockLatency: Number(process.env.EXPO_PUBLIC_MOCK_LATENCY ?? 350),
   requestTimeoutMs: 20000,
+  /** QA only (mock builds): sign in as the demo owner and walk through the main screens. */
+  qaTour: process.env.EXPO_PUBLIC_QA_TOUR === '1',
 } as const;
 
 export const isMock = env.apiMode === 'mock';
+export const qaTourEnabled = isMock && env.qaTour;

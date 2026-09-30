@@ -9,3 +9,8 @@ import './commerce';
 import './reports';
 import './crm';
 import './settings';
+import './contracts';
+import './io';
+import './billing';
+import './ai';
+import './account';

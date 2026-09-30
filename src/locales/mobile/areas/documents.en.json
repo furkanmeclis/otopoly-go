@@ -1,0 +1,15 @@
+{
+  "documents.signature_pad": "Signature pad",
+  "documents.signature_pad_hint": "Draw the signature in this area with your finger.",
+  "documents.signature_placeholder": "Sign here",
+  "documents.feature_locked": "The contracts module is not included in your current plan. Use the web panel to upgrade.",
+  "documents.finalize": "Finalize contract",
+  "documents.finalized": "Contract finalized.",
+  "documents.media_upload_web": "Uploading photos and files is available on the web panel for now.",
+  "documents.template_body_web_only": "The contract text is shown as a preview. Edit the text on the web panel; saving here does not change it.",
+  "documents.new_export": "New export",
+  "documents.date_from": "Start date",
+  "documents.date_to": "End date",
+  "documents.export_share_hint": "The file is downloaded and the share sheet opens, where you can save, preview or send it.",
+  "documents.import_upload_web": "New imports (file upload and column mapping) can be started from the web panel for now."
+}

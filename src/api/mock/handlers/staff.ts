@@ -1,5 +1,6 @@
 import { fail, notFound, now, requireFields, requireOwner, requirePerm, route, str, uuid } from '../core';
 import { getDb } from '../db';
+import { assertPasswordPolicy } from './account';
 
 function staffView(userUuid: string, orgUuid: string) {
   const db = getDb();
@@ -29,7 +30,7 @@ route('POST', '/v1/tenant/staff', (ctx) => {
   const email = str(ctx.body.email).trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email)) fail(400, 'VALIDATION_ERROR', 'Invalid email', [{ field: 'email', message: 'invalid' }]);
   if (db.users.some((u) => u.email.toLowerCase() === email)) fail(409, 'CONFLICT', 'Email already in use', [{ field: 'email', message: 'taken' }]);
-  if (str(ctx.body.password).length < 8) fail(400, 'VALIDATION_ERROR', 'Password too short', [{ field: 'password', message: 'min 8 characters' }]);
+  assertPasswordPolicy(str(ctx.body.password), 'password');
   const user = {
     uuid: uuid(),
     email,
@@ -67,7 +68,7 @@ route('POST', '/v1/tenant/staff/:uuid/reset-password', (ctx) => {
   const m = db.memberships.find((x) => x.userUuid === ctx.params.uuid && x.orgUuid === ctx.orgUuid);
   if (!m) notFound('Staff member');
   if (m!.role === 'owner') fail(409, 'CONFLICT', 'Use profile settings to change the owner password');
-  if (str(ctx.body.password).length < 8) fail(400, 'VALIDATION_ERROR', 'Password too short', [{ field: 'password', message: 'min 8 characters' }]);
+  assertPasswordPolicy(str(ctx.body.password), 'password');
   db.users.find((x) => x.uuid === ctx.params.uuid)!.password = str(ctx.body.password);
   return { ok: true };
 });

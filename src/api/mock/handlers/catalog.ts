@@ -23,6 +23,23 @@ function decimal(field: string, v: unknown, fallback = '0') {
   return String(n);
 }
 
+const same = (a: string, b: string) => a.trim().toLocaleLowerCase('tr') === b.trim().toLocaleLowerCase('tr');
+
+/** Backend unique indexes: product name, SKU and barcode per organization (409 CONFLICT). */
+function assertProductUnique(p: Pick<CatalogProduct, 'name' | 'sku' | 'barcode'>, selfUuid?: string) {
+  const others = getDb().products.filter((x) => x.uuid !== selfUuid);
+  if (others.some((x) => same(x.name, p.name))) fail(409, 'CONFLICT', 'product with this name already exists', [{ field: 'name', message: 'taken' }]);
+  if (p.sku.trim() && others.some((x) => x.sku && same(x.sku, p.sku))) fail(409, 'CONFLICT', 'product with this SKU already exists', [{ field: 'sku', message: 'taken' }]);
+  if (p.barcode.trim() && others.some((x) => x.barcode && same(x.barcode, p.barcode))) fail(409, 'CONFLICT', 'product with this barcode already exists', [{ field: 'barcode', message: 'taken' }]);
+}
+
+/** Backend unique index: category name per kind. */
+function assertCategoryUnique(name: string, kind: string, selfUuid?: string) {
+  if (getDb().catalogCategories.some((c) => c.uuid !== selfUuid && c.kind === kind && same(c.name, name))) {
+    fail(409, 'CONFLICT', 'category with this name and kind already exists', [{ field: 'name', message: 'taken' }]);
+  }
+}
+
 function stockStatus(p: CatalogProduct): CatalogProduct['stock_status'] {
   if (!p.track_stock) return 'untracked';
   const q = num(p.stock_quantity);
@@ -101,6 +118,7 @@ route('POST', '/v1/tenant/catalog/products', (ctx) => {
     updated_at: now(),
   };
   p.stock_status = stockStatus(p);
+  assertProductUnique(p);
   getDb().products.push(p);
   return p;
 });
@@ -114,19 +132,27 @@ route('PATCH', '/v1/tenant/catalog/products/:uuid', (ctx) => {
   requireOwner(ctx, writePerm);
   const p = findProduct(ctx);
   const b = ctx.body;
-  if (b.name !== undefined) {
-    if (!str(b.name).trim()) fail(400, 'VALIDATION_ERROR', 'Name is required', [{ field: 'name', message: 'required' }]);
-    p.name = str(b.name).trim();
-  }
+  // Validate everything before touching the row so a failed PATCH leaves it unchanged.
+  if (b.name !== undefined && !str(b.name).trim()) fail(400, 'VALIDATION_ERROR', 'Name is required', [{ field: 'name', message: 'required' }]);
+  const next = {
+    name: b.name !== undefined ? str(b.name).trim() : p.name,
+    sku: b.sku !== undefined ? str(b.sku) : p.sku,
+    barcode: b.barcode !== undefined ? str(b.barcode) : p.barcode,
+  };
+  assertProductUnique(next, p.uuid);
+  const cost = b.cost_price !== undefined ? money(num(decimal('cost_price', b.cost_price))) : p.cost_price;
+  const sale = b.sale_price !== undefined ? money(num(decimal('sale_price', b.sale_price))) : p.sale_price;
+  const vat = b.vat_rate !== undefined ? decimal('vat_rate', b.vat_rate) : p.vat_rate;
+  // Backend PATCH accepts an absolute stock_quantity too (the web edit dialog sends it).
+  const qty = b.stock_quantity !== undefined ? decimal('stock_quantity', b.stock_quantity) : p.stock_quantity;
+  const min = b.min_stock_alert !== undefined ? decimal('min_stock_alert', b.min_stock_alert) : p.min_stock_alert;
+
+  Object.assign(p, next, { cost_price: cost, sale_price: sale, vat_rate: vat, stock_quantity: qty, min_stock_alert: min });
   if (b.category_uuid !== undefined) {
     p.category_uuid = (b.category_uuid as string) || null;
     p.category_name = categoryName(p.category_uuid);
   }
-  for (const k of ['sku', 'barcode', 'unit', 'description'] as const) if (b[k] !== undefined) p[k] = str(b[k]);
-  if (b.cost_price !== undefined) p.cost_price = money(num(decimal('cost_price', b.cost_price)));
-  if (b.sale_price !== undefined) p.sale_price = money(num(decimal('sale_price', b.sale_price)));
-  if (b.vat_rate !== undefined) p.vat_rate = decimal('vat_rate', b.vat_rate);
-  if (b.min_stock_alert !== undefined) p.min_stock_alert = decimal('min_stock_alert', b.min_stock_alert);
+  for (const k of ['unit', 'description'] as const) if (b[k] !== undefined) p[k] = str(b[k]);
   if (b.track_stock !== undefined) p.track_stock = bool(b.track_stock);
   if (b.is_active !== undefined) p.is_active = bool(b.is_active);
   p.stock_status = stockStatus(p);
@@ -300,6 +326,7 @@ route('POST', '/v1/tenant/catalog/categories', (ctx) => {
   requireFields(ctx.body, ['name', 'kind']);
   const kind = str(ctx.body.kind);
   if (kind !== 'product' && kind !== 'service') fail(400, 'VALIDATION_ERROR', 'Invalid kind', [{ field: 'kind', message: 'invalid' }]);
+  assertCategoryUnique(str(ctx.body.name), kind);
   const db = getDb();
   const parent = ctx.body.parent_uuid ? db.catalogCategories.find((c) => c.uuid === ctx.body.parent_uuid) : null;
   const c: CatalogCategory = {
@@ -326,7 +353,17 @@ route('PATCH', '/v1/tenant/catalog/categories/:uuid', (ctx) => {
   requireOwner(ctx, writePerm);
   const c = findCategory(ctx);
   const db = getDb();
-  if (ctx.body.name !== undefined) c.name = str(ctx.body.name).trim() || c.name;
+  let kind = c.kind;
+  if (ctx.body.kind !== undefined) {
+    const k = str(ctx.body.kind);
+    if (k !== 'product' && k !== 'service') fail(400, 'VALIDATION_ERROR', 'Invalid kind', [{ field: 'kind', message: 'invalid' }]);
+    kind = k as CatalogCategory['kind'];
+  }
+  const name = (ctx.body.name !== undefined ? str(ctx.body.name).trim() : '') || c.name;
+  assertCategoryUnique(name, kind, c.uuid);
+  if (ctx.body.parent_uuid && ctx.body.parent_uuid === c.uuid) fail(400, 'VALIDATION_ERROR', 'A category cannot be its own parent', [{ field: 'parent_uuid', message: 'invalid' }]);
+  c.kind = kind;
+  c.name = name;
   if (ctx.body.sort_order !== undefined) c.sort_order = num(ctx.body.sort_order);
   if (ctx.body.is_active !== undefined) c.is_active = bool(ctx.body.is_active);
   if (ctx.body.parent_uuid !== undefined) {

@@ -36,6 +36,13 @@ export const qk = {
   leads: ['leads'] as const,
   quotes: ['quotes'] as const,
   todos: ['todos'] as const,
+  contracts: ['contracts'] as const,
+  messaging: ['messaging'] as const,
+  billing: ['billing'] as const,
+  io: ['io'] as const,
+  ai: ['ai'] as const,
+  account: ['account'] as const,
+  settings: ['settings'] as const,
 };
 
 /** Everything money-related a document write can change. */
@@ -45,7 +52,7 @@ type Params = Record<string, string | number | undefined>;
 const PAGE = 20;
 
 /** Infinite list with `limit/offset` pagination (API_CONVENTIONS "Lists"). */
-function useInfiniteList<T>(key: readonly unknown[], fetchPage: (p: Params) => Promise<ListPage<T>>, params: Params, enabled = true) {
+export function useInfiniteList<T>(key: readonly unknown[], fetchPage: (p: Params) => Promise<ListPage<T>>, params: Params, enabled = true) {
   const query = useInfiniteQuery({
     queryKey: [...key, 'list', params],
     queryFn: ({ pageParam }) => fetchPage({ ...params, limit: PAGE, offset: pageParam }),

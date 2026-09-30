@@ -2,7 +2,6 @@ import type { ServerListParams } from "@/api/types";
 import type { ResourceMeta } from "@/features/io/types";
 import { platformRequest } from "@/api/client";
 
-// TODO(finance): Add patchCategory, deleteCategory, getCategory service methods when edit flows ship.
 
 export type FinanceAccount = {
   uuid: string;
@@ -215,6 +214,21 @@ export const financeService = {
       `/v1/tenant/finance/categories/${uuid}`,
     );
   },
+  /** Backend: PATCH /v1/tenant/finance/categories/{uuid} (name, sort_order, is_active, parent_uuid). */
+  patchCategory(uuid: string, body: Record<string, unknown>) {
+    return platformRequest<FinanceCategory>(
+      "PATCH",
+      `/v1/tenant/finance/categories/${uuid}`,
+      { body },
+    );
+  },
+  /** Backend: DELETE /v1/tenant/finance/categories/{uuid} (soft delete). */
+  deleteCategory(uuid: string) {
+    return platformRequest<{ deleted: boolean }>(
+      "DELETE",
+      `/v1/tenant/finance/categories/${uuid}`,
+    );
+  },
   getCategoryDetail(uuid: string, params?: { limit?: number }) {
     return platformRequest<FinanceCategoryDetail>(
       "GET",
@@ -234,6 +248,7 @@ export const financeService = {
       status?: string;
       account_uuid?: string;
       category_uuid?: string;
+      currency?: string;
       date_from?: string;
       date_to?: string;
     },

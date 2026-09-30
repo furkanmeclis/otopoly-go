@@ -1,13 +1,13 @@
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { Bug, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, UserCog, UserRound } from 'lucide-react-native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { isApiError } from '@/api/errors';
 import { BrandMark } from '@/components/brand';
 import { Button, Card, Row, TextField, Txt } from '@/components/ui';
-import { isMock } from '@/config/env';
+import { isMock, qaTourEnabled } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
@@ -30,6 +30,17 @@ export default function LoginScreen() {
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; totp?: string }>({});
   const passwordRef = useRef<TextInput>(null);
 
+  // Demo builds only: `otopoly://login?demo=owner|staff` signs in with a demo account (QA screenshots, demos).
+  const { demo: demoParam } = useLocalSearchParams<{ demo?: string }>();
+  const demoLinkUsed = useRef(false);
+  useEffect(() => {
+    const who = qaTourEnabled ? 'owner' : demoParam;
+    if (!isMock || demoLinkUsed.current || (who !== 'owner' && who !== 'staff')) return;
+    demoLinkUsed.current = true;
+    log.info('Demo sign-in', { as: who, qaTour: qaTourEnabled });
+    login(DEMO[who], DEMO.password).catch((err) => log.warn('Demo deep-link sign-in failed', err));
+  }, [demoParam, login]);
+
   const submit = async (overrideEmail?: string, overridePassword?: string) => {
     const e = (overrideEmail ?? email).trim();
     const p = overridePassword ?? password;
@@ -47,7 +58,7 @@ export default function LoginScreen() {
     } catch (err) {
       const code = isApiError(err) ? err.code : 'UNKNOWN';
       log.warn('Login failed', { code });
-      if (code === 'TOTP_REQUIRED') {
+      if (code === 'MFA_REQUIRED' || code === 'TOTP_REQUIRED') {
         setNeedsTotp(true);
         return;
       }

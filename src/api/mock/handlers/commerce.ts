@@ -60,6 +60,7 @@ route('GET', '/v1/tenant/cari', (ctx) => {
   let items = getDb().cariAccounts;
   if (ctx.query.is_active) items = items.filter((a) => String(a.is_active) === ctx.query.is_active);
   if (ctx.query.has_balance === 'true') items = items.filter((a) => num(a.balance) !== 0);
+  if (ctx.query.has_balance === 'false') items = items.filter((a) => num(a.balance) === 0);
   items = search(items, ctx.query.q, ['customer_name', 'customer_phone']);
   return paginate(sortBy(items, ctx.query.sort, '-balance'), ctx.query);
 });
@@ -69,6 +70,7 @@ route('POST', '/v1/tenant/cari/entries/:uuid/void', (ctx) => {
   const db = getDb();
   const entry = db.cariEntries.find((e) => e.uuid === ctx.params.uuid);
   if (!entry) notFound('Entry');
+  if (entry!.status === 'void') fail(409, 'CONFLICT', 'entry already void');
   if (entry!.type === 'charge' && db.jobs.some((j) => j.payments.some((p) => p.cari_entry_uuid === entry!.uuid))) {
     fail(409, 'CONFLICT', 'Void the job instead');
   }

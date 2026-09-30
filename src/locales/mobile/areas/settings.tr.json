@@ -1,0 +1,9 @@
+{
+  "settings.ai_renamed": "Sohbet yeniden adlandırıldı",
+  "settings.owner_only": "WhatsApp bağlantısını yalnızca işletme sahibi yönetebilir.",
+  "settings.wa_scan_other_device": "Bu kodu WhatsApp Business'ın kurulu olduğu başka bir telefondan okutun: WhatsApp → Bağlı cihazlar → Cihaz bağla.",
+  "settings.billing_web_note": "Abonelik ve ödemeler web panelinden işletme sahibi tarafından yönetilir. Bu ekran yalnızca bilgi amaçlıdır.",
+  "settings.billing_credit": "Alacak",
+  "settings.invalid_color": "#RRGGBB biçiminde bir renk girin.",
+  "settings.logo_on_web": "Logo yükleme web panelinden yapılır; burada mevcut logo önizlenir ve kaldırılabilir."
+}
