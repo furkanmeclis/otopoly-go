@@ -34,6 +34,13 @@ const (
 	CodeMFANotEnrolled            = "MFA_NOT_ENROLLED"
 	CodeRateLimited               = "RATE_LIMITED"
 	CodeInvalidMFACode            = "INVALID_MFA_CODE"
+	CodeAccountDeactivated        = "ACCOUNT_DEACTIVATED"
+	CodeInvalidEmailCode          = "INVALID_EMAIL_CODE"
+	CodeInvalidIDToken            = "INVALID_ID_TOKEN"
+	CodeOAuthAccountNotLinked     = "OAUTH_ACCOUNT_NOT_LINKED"
+	CodeOAuthLinkChoiceRequired   = "OAUTH_LINK_CHOICE_REQUIRED"
+	CodeInvalidLinkTicket         = "INVALID_LINK_TICKET"
+	CodeOAuthProviderDisabled     = "OAUTH_PROVIDER_DISABLED"
 )
 
 // RequestIDFunc resolves the correlation id from request context.

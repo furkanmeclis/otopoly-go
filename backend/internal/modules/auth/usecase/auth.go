@@ -31,6 +31,9 @@ var (
 	ErrLastSuperAdmin       = errors.New("cannot demote the last super admin")
 	ErrSystemRole           = errors.New("system role cannot be modified")
 	ErrAlreadyImpersonating = errors.New("already impersonating another user")
+	// ErrAccountDeactivated wraps ErrUserDisabled: the user deleted (deactivated)
+	// their own account. Handlers report it with a dedicated error code.
+	ErrAccountDeactivated = fmt.Errorf("%w: account deactivated", ErrUserDisabled)
 )
 
 // Repository is the persistence port for auth use cases.
@@ -77,6 +80,8 @@ type Repository interface {
 	UpdatePasskeyName(ctx context.Context, userUUID, passkeyUUID uuid.UUID, name *string) (model.PasskeyRecord, error)
 	DeletePasskeyByCredentialID(ctx context.Context, credentialID string) error
 	DeletePasskeyByUUID(ctx context.Context, userUUID, passkeyUUID uuid.UUID) error
+	DeactivateUser(ctx context.Context, userID int64) (model.User, error)
+	UpdateOAuthAccountRefreshToken(ctx context.Context, accountID int64, refreshTokenEnc, clientID *string) error
 	GetOAuthAccountByProviderAccount(ctx context.Context, provider, providerAccountID string) (model.OAuthAccountRecord, error)
 	GetOAuthAccountByUserProvider(ctx context.Context, userID int64, provider string) (model.OAuthAccountRecord, error)
 	ListOAuthAccountsByUserID(ctx context.Context, userID int64) ([]model.OAuthAccountRecord, error)
@@ -113,6 +118,9 @@ type AuthUseCase struct {
 	box          SecretBox
 	totpIssuer   string
 	orgResolver  OrganizationResolver
+	// reviewAccounts maps email -> fixed sign-in code (app store review).
+	reviewAccounts map[string]string
+	native         NativeOAuthConfig
 }
 
 // SecretBox encrypts at-rest secrets (TOTP).
@@ -318,53 +326,13 @@ func (u *AuthUseCase) Login(ctx context.Context, email, rawPassword, totpCode, o
 	if err != nil || !ok {
 		return model.Tokens{}, ErrInvalidCredentials
 	}
-	if user.Status != "active" {
-		return model.Tokens{}, ErrUserDisabled
-	}
-
-	hasTOTP, err := u.UserHasEnabledTOTP(ctx, user.ID)
-	if err != nil {
+	if err := userStatusError(user); err != nil {
 		return model.Tokens{}, err
 	}
-	requirePolicy := false
-	if u.accessPolicy != nil {
-		requirePolicy, err = u.accessPolicy.PasswordLoginTOTPRequired(ctx)
-		if err != nil {
-			return model.Tokens{}, err
-		}
-	}
-	if requirePolicy && !hasTOTP {
-		return model.Tokens{}, ErrMFANotEnrolled
-	}
-	if hasTOTP {
-		code := strings.TrimSpace(totpCode)
-		if code == "" {
-			return model.Tokens{}, ErrMFARequired
-		}
-		valid, _, err := u.verifyUserTOTPCode(ctx, user.ID, code, true)
-		if err != nil {
-			return model.Tokens{}, err
-		}
-		if !valid {
-			return model.Tokens{}, ErrInvalidMFACode
-		}
-	}
-
-	if err := u.repo.UpdateLastLogin(ctx, user.ID); err != nil {
+	if err := u.checkLoginMFA(ctx, user.ID, totpCode, true); err != nil {
 		return model.Tokens{}, err
 	}
-	var orgUUID *uuid.UUID
-	if strings.TrimSpace(organizationSlug) != "" {
-		if u.orgResolver == nil {
-			return model.Tokens{}, ErrNoTenantMembership
-		}
-		resolved, err := u.orgResolver.ResolveLoginOrganization(ctx, user.ID, organizationSlug)
-		if err != nil {
-			return model.Tokens{}, mapOrganizationError(err)
-		}
-		orgUUID = &resolved
-	}
-	return u.issueTokensForUser(ctx, user, meta, orgUUID)
+	return u.completeLogin(ctx, user, organizationSlug, meta)
 }
 
 // Refresh rotates an opaque refresh token.
@@ -387,7 +355,7 @@ func (u *AuthUseCase) Refresh(ctx context.Context, rawToken string, meta model.S
 		return model.Tokens{}, ErrInvalidCredentials
 	}
 	if user.Status == "disabled" {
-		return model.Tokens{}, ErrUserDisabled
+		return model.Tokens{}, userStatusError(user)
 	}
 	meta.ImpersonatorUserID = session.ImpersonatorUserID
 
