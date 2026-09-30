@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Pressable, View } from 'react-native';
 
 import { request } from '@/api/client';
+import { BrandMark } from '@/components/brand';
 import type { ListPage } from '@/api/types';
 import {
   Avatar,
@@ -87,9 +88,12 @@ export default function DashboardScreen() {
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
       <View style={{ gap: 4, paddingTop: t.spacing.sm }}>
-        <Txt variant="caption" tone="secondary">
-          {fmt.date(new Date(), 'long')}
-        </Txt>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <Txt variant="caption" tone="secondary">
+            {fmt.date(new Date(), 'long')}
+          </Txt>
+          <BrandMark height={22} />
+        </Row>
         <Txt variant="display" numberOfLines={2}>
           {firstName ? tr(greetingKey(new Date().getHours()), { name: firstName }) : (organization?.name ?? '')}
         </Txt>

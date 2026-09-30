@@ -196,3 +196,17 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Safe areas, keyboard, small screen (SE) and tablet layout
 - [ ] Touch targets ≥ 44pt, accessibility labels on icon buttons
 - [ ] `npx expo lint` and `npx tsc --noEmit` clean
+
+## Brand & iOS widgets
+
+- [x] Brand assets in `assets/brand/` (mark, reversed mark for dark mode, app-icon tile, widget tile)
+- [x] Brand mark on native splash (light/dark), boot view, login, org picker, dashboard, menu footer
+- [x] `expo-widgets` config: extension `com.otopoly.app.widgets`, App Group `group.com.otopoly.app`, iOS 17.0
+- [x] **Otopoly · Bugün** home-screen widget: small / medium / large, light & dark, live queue timers, deep links
+- [x] **Otopoly · Kilit Ekranı** lock-screen widget: circular / rectangular / inline
+- [x] **Job Live Activity** (Lock Screen + Dynamic Island) with toggle on job detail; auto-updated on status change, ended on delivery/cancel/void
+- [x] Widgets use the dashboard queries (no extra requests); `jobs.read` gate → "no access" card
+- [x] Sign-out wipes widget figures and ends Live Activities; org switch ends Live Activities
+- [x] Expo Go / Android: bridge is a no-op (native module check), no crash
+- [x] Stringified widget code verified: parses, self-contained, renders 80 family/scheme/state combinations
+- [ ] Device QA on TestFlight: add each widget size, Lock Screen widgets, Live Activity start → ready → deliver

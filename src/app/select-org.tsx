@@ -2,6 +2,7 @@ import { Building2, Clock, LogOut } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
+import { BrandMark } from '@/components/brand';
 import { isApiError } from '@/api/errors';
 import { useToast } from '@/components/feedback/toast';
 import { Badge, Button, EmptyState, Group, Header, ListRow, Screen, Txt } from '@/components/ui';
@@ -41,6 +42,7 @@ export default function SelectOrganizationScreen() {
         <EmptyState icon={<Building2 size={28} color={t.colors.textMuted} />} title={tr('mobile.org.none_title')} description={tr('mobile.org.none_description')} />
       ) : (
         <View style={{ gap: t.spacing.md }}>
+          <BrandMark height={36} />
           <Txt tone="secondary">{tr('mobile.org.pick_description')}</Txt>
           <Group>
             {orgs.map((org, i) => {

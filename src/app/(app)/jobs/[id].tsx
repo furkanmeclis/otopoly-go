@@ -33,6 +33,7 @@ import { MONEY_KEYS, qk, useJob, useProducts, useStaffOptions } from '@/features
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
+import { LiveActivityCard } from '@/features/widgets/live-activity-card';
 import { useTheme } from '@/theme/provider';
 
 export default function JobDetailScreen() {
@@ -129,6 +130,8 @@ function JobDetailContent() {
         </Row>
         <ServiceTags services={d.lines.map((l) => ({ uuid: l.service_uuid, name: l.name, color: '' }))} max={6} />
       </Card>
+
+      <LiveActivityCard job={d} />
 
       <Section title={tr('jobs.detail.info')} action={canEdit ? { label: tr('jobs.actions.edit_notes'), onPress: () => setNotesOpen(true) } : undefined}>
         <Card padded={false} style={{ paddingHorizontal: t.spacing.lg }}>

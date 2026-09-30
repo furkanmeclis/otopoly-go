@@ -64,7 +64,8 @@ function useInfiniteList<T>(key: readonly unknown[], fetchPage: (p: Params) => P
 export const useJobs = (params: Params, enabled = true) =>
   useQuery({ queryKey: [...qk.jobs, 'list', params], queryFn: () => jobsService.list(params as never), enabled, placeholderData: keepPreviousData });
 export const useJobsInfinite = (params: Params) => useInfiniteList(qk.jobs, (p) => jobsService.list(p as never), params);
-export const useJobsSummary = (date?: string) => useQuery({ queryKey: [...qk.jobs, 'summary', date], queryFn: () => jobsService.summary(date) });
+export const useJobsSummary = (date?: string, enabled = true) =>
+  useQuery({ queryKey: [...qk.jobs, 'summary', date], queryFn: () => jobsService.summary(date), enabled });
 export const useJob = (uuid: string) => useQuery({ queryKey: [...qk.jobs, 'detail', uuid], queryFn: () => jobsService.get(uuid), enabled: Boolean(uuid) });
 export const useCustomerJobs = (uuid: string) =>
   useQuery({ queryKey: [...qk.jobs, 'by-customer', uuid], queryFn: () => jobsService.listByCustomer(uuid, { limit: 10, offset: 0 }), enabled: Boolean(uuid) });

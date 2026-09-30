@@ -9,6 +9,7 @@ import { authService, type Me, type OrganizationMembership } from '@/features/ac
 import { useLocale } from '@/lib/i18n/provider';
 import { isSupportedLocale } from '@/lib/i18n/translate';
 import { createLogger } from '@/lib/logger';
+import { clearWidgetsForSignOut } from '@/features/widgets/bridge';
 
 import type { Gate, Permission } from './permissions';
 
@@ -55,6 +56,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (reason: string) => {
       await session.clear(reason);
       queryClient.clear();
+      // No business figures may stay on the Home / Lock Screen after sign-out.
+      clearWidgetsForSignOut();
       setMe(null);
       setOrgSlug(null);
       setStatus('signedOut');

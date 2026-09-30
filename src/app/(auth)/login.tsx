@@ -1,10 +1,11 @@
 import { Link, router } from 'expo-router';
-import { Bug, Car, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, UserCog, UserRound } from 'lucide-react-native';
+import { Bug, Eye, EyeOff, KeyRound, Lock, Mail, ShieldCheck, UserCog, UserRound } from 'lucide-react-native';
 import { useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { isApiError } from '@/api/errors';
+import { BrandMark } from '@/components/brand';
 import { Button, Card, Row, TextField, Txt } from '@/components/ui';
 import { isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -77,19 +78,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: t.spacing.xxl, gap: t.spacing.xxl }} keyboardShouldPersistTaps="handled">
           <View style={{ alignItems: 'center', gap: t.spacing.md }}>
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 22,
-                backgroundColor: t.colors.primary,
-                alignItems: 'center',
-                justifyContent: 'center',
-                ...t.shadow.md,
-              }}
-            >
-              <Car size={36} color={t.colors.onPrimary} />
-            </View>
+            <BrandMark height={64} style={{ marginBottom: t.spacing.sm }} />
             <Txt variant="display">Otopoly</Txt>
             <Txt tone="secondary" style={{ textAlign: 'center' }}>
               {needsTotp ? tr('auth.totp.login_description') : tr('organizations.login.description')}

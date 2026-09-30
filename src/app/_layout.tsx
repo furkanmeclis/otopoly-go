@@ -1,11 +1,13 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider, usePathname } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { BrandMark, MARK_RATIO } from '@/components/brand';
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
 import { ToastProvider } from '@/components/feedback/toast';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
@@ -16,6 +18,9 @@ import { createQueryClient } from '@/lib/query';
 import { ThemeProvider, useTheme } from '@/theme/provider';
 
 installGlobalErrorHandlers();
+
+// Keep the native splash (brand mark) up until the stored session has been restored.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export { RouteErrorBoundary as ErrorBoundary };
 
@@ -48,10 +53,22 @@ function RootNavigator() {
     };
   }, [theme]);
 
+  useEffect(() => {
+    if (status !== 'booting') {
+      SplashScreen.hide();
+      return;
+    }
+    // Never trap the user behind the splash if restoring hangs; the boot view takes over.
+    const timer = setTimeout(() => SplashScreen.hide(), 4000);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   if (status === 'booting') {
+    // Same layout as the native splash, so the hand-off is seamless if restoring takes a moment.
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
-        <ActivityIndicator color={theme.colors.primary} size="large" />
+        <BrandMark height={180 / MARK_RATIO} />
+        <ActivityIndicator color={theme.colors.primary} style={{ position: 'absolute', bottom: '22%' }} />
       </View>
     );
   }

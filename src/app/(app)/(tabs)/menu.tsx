@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router, type Href } from 'expo-router';
 import {
   Bug,
@@ -31,6 +32,7 @@ import {
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
 
+import { BrandLockup } from '@/components/brand';
 import { Avatar, Badge, Group, Header, ListRow, Row, Screen, Section, Segmented, Txt, useConfirm } from '@/components/ui';
 import { isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -206,9 +208,9 @@ export default function MenuScreen() {
           />
         </Group>
       </Section>
-      <Txt variant="caption" tone="muted" style={{ textAlign: 'center' }}>
-        Otopoly Mobile · {isMock ? 'demo' : 'live'}
-      </Txt>
+      <View style={{ alignItems: 'center', paddingVertical: t.spacing.md }}>
+        <BrandLockup height={22} caption={`v${Constants.expoConfig?.version ?? ''} · ${isMock ? 'demo' : 'live'}`} />
+      </View>
     </Screen>
   );
 }

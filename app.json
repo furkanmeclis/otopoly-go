@@ -14,7 +14,11 @@
       "config": {
         "usesNonExemptEncryption": false
       },
-      "icon": "./assets/AppIcon.icon"
+      "icon": "./assets/AppIcon.icon",
+      "infoPlist": {
+        "NSSupportsLiveActivities": true
+      },
+      "deploymentTarget": "17.0"
     },
     "android": {
       "adaptiveIcon": {
@@ -36,12 +40,60 @@
       "expo-localization",
       "expo-sharing",
       "./plugins/with-xcode-cloud",
+      "./plugins/with-scene-lifecycle",
       [
         "expo-build-properties",
         {
           "ios": {
             "deploymentTarget": "17.0"
           }
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/brand/mark.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#FBF7F4",
+          "dark": {
+            "image": "./assets/brand/mark-dark.png",
+            "backgroundColor": "#120E0C"
+          }
+        }
+      ],
+      "expo-asset",
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.otopoly.app.widgets",
+          "groupIdentifier": "group.com.otopoly.app",
+          "widgets": [
+            {
+              "name": "OtopolyToday",
+              "displayName": "Otopoly · Bugün",
+              "description": "İşlemdeki, hazır ve teslim edilen araçlar ile günün tahsilatı.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium",
+                  "systemLarge"
+                ]
+              }
+            },
+            {
+              "name": "OtopolyGlance",
+              "displayName": "Otopoly · Kilit Ekranı",
+              "description": "Kilit ekranında aktif iş sayısı ve günün tahsilatı.",
+              "ios": {
+                "supportedFamilies": [
+                  "accessoryCircular",
+                  "accessoryRectangular",
+                  "accessoryInline"
+                ]
+              }
+            }
+          ]
         }
       ]
     ],
