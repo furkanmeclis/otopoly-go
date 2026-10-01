@@ -61,16 +61,36 @@ Son güncelleme: 2026-10-01
 
 ## Dalgalar
 
-### 1. Dalga: backend temeli ve limitler — 🟡 devam ediyor
+### 1. Dalga: backend temeli ve limitler — ✅ bitti, merge bekliyor
 | İş paketi | Repo / dal | Kapsam | Durum |
 |---|---|---|---|
-| Giriş yöntemleri | otopoly-go / `feat/auth-otp-native-oauth` | E-posta kodu (API ve web), `/v1/auth/oauth/{provider}/native`, gizli e-posta bağlama akışı, hesabı pasife alma | 🟡 |
-| Push, deeplink, limit e-postaları | otopoly-go / `feat/expo-push-limits` | `push_devices` tablosu ve Expo gönderimi, AASA ve assetlinks, eşik e-postaları, `LIMIT_REACHED` hata detayı, kullanım endpoint'i | 🟡 |
+| Giriş yöntemleri | otopoly-go / `feat/auth-otp-native-oauth` | E-posta kodu (API ve web), `/v1/auth/oauth/{provider}/native`, gizli e-posta bağlama akışı, hesabı pasife alma | ✅ CI yeşil (önce bu merge edilmeli, migration 000068) |
+| Push, deeplink, limit e-postaları | otopoly-go / `feat/expo-push-limits` | `push_devices` tablosu ve Expo gönderimi, AASA ve assetlinks, eşik e-postaları, `LIMIT_REACHED` hata detayı, kullanım endpoint'i | ✅ CI yeşil (migration'lar 000069 ve 000070 olarak yeniden numaralanıyor) |
 | Kullanım ve limitler | mobil / `feat/usage-limits` ([PR #1](https://github.com/furkanmeclis/otopoly-mobile-app/pull/1)) | Abonelik ekranı yerine limitler ekranı, rol bazlı limit penceresi, ortak kilit ekranı, mock senaryoları | ✅ CI yeşil, merge bekliyor |
+
+Endpoint şemaları: `docs/backend/WAVE1_CONTRACTS.md`.
+
+**⚠️ Merge öncesinde bilinmesi gerekenler:**
+- otopoly-go CI'ındaki `auto-pr` job'u yeşil olan her dalı `main`'e kendiliğinden merge ediyor. Ajanların her commit mesajında `[no-automerge]` olmalı.
+- Merge sırası: önce giriş yöntemleri (auth), sonra push ve limit e-postaları.
+- Auth dalındaki `frontend/src/generated/api.d.ts` elle düzenlendi. Merge sonrasında `pnpm api:generate` bir kez çalıştırılmalı.
+- `compose.prod.yml` dosyasına yeni env değişkenleri elle eklenmeli. Ajanlar prod ayarlarına dokunmadı.
+  - Backend: `AUTH_REVIEW_ACCOUNTS`, `AUTH_APPLE_NATIVE_CLIENT_IDS`, `AUTH_GOOGLE_NATIVE_CLIENT_IDS`, `AUTH_APPLE_TEAM_ID`, `AUTH_APPLE_KEY_ID`, `AUTH_APPLE_PRIVATE_KEY`, `EXPO_ACCESS_TOKEN`
+  - Frontend: `APPLE_TEAM_ID`, `IOS_BUNDLE_ID`, `ANDROID_PACKAGE_NAME`, `ANDROID_SHA256_CERT_FINGERPRINTS`
+- Konsol ayarları:
+  - Apple:
+    - App ID'de Sign in with Apple ve Associated Domains açılmalı.
+    - Sign in with Apple için bir .p8 anahtarı oluşturulmalı.
+    - Gizli e-posta adreslerine posta gidebilmesi için gönderen alan adı Apple'ın Private Email Relay ayarlarına kaydedilmeli.
+  - Google: iOS ve Android için OAuth client'ları oluşturulmalı.
+  - Expo/EAS: APNs anahtarı ve FCM V1 anahtarı yüklenmeli.
+- Bilinen açıklar:
+  - IP bazlı istek sınırları `X-Forwarded-For` başlığını okuyor. Mobil API'ye doğrudan bağlandığı için bu başlık taklit edilebilir. E-posta bazlı sınırlar etkilenmiyor.
+  - Tarayıcı push'u hâlâ bildirimin tam metnini gönderiyor. Kilit ekranına uygun kısa metin sadece Expo push'ta kullanılıyor.
 
 Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporlarındaki endpoint şemaları bu dosyaya işlenir. Migration numaraları çakışıyorsa merge öncesinde düzeltilir.
 
-### 2. Dalga: mobil bildirimler, mobil giriş, QR ile giriş — ⏸ 1. dalga merge edilince
+### 2. Dalga: mobil bildirimler, mobil giriş, QR ile giriş — 🟡 başlatıldı (kullanıcı 2026-10-01 gece tüm aşamalara durmadan devam edilmesini istedi; dallar merge edilmemiş 1. dalga dallarının üzerine kuruluyor)
 - **Mobil bildirimler:**
   - `expo-notifications` eklenir.
   - Bildirim izni, açıklama ekranından sonra istenir.
@@ -114,7 +134,7 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
 
 ## Açık sorular
 1. iPad desteği: kapatılacak mı, düzenlenecek mi?
-2. Evrensel link alan adı hangisi olacak: `app.otopoly.com` mu, `otopoly.app` mi? (Backend ajanı raporlayacak.)
+2. ~~Evrensel link alan adı~~ → `otopoly.app` (API: `api.otopoly.app`).
 3. Personel gerçekten kullanılıyor mu, yoksa her tenant tek kişi mi? (Rol bazlı mesajlar iki durumda da çalışır.)
 4. Teklif oluşturmaya limit konacak mı? Şu an backend'de yok. PR #1'de teklif için örnek, teklifin işe dönüştürülmesi (günlük iş limiti) üzerinden yapıldı.
 5. Plan süresi dolunca (`SUBSCRIPTION_READ_ONLY`) de limit penceresi mi açılsın? Şu an nötr bir bildirim çıkıyor, limitler ekranında da salt okunur uyarısı var.
