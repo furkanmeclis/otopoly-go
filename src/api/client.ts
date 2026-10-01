@@ -27,7 +27,7 @@ export type TransportRequest = {
   headers: Record<string, string>;
 };
 
-export type TransportResponse = { status: number; payload: unknown; requestId?: string };
+export type TransportResponse = { status: number; payload: unknown; requestId?: string; /** `Retry-After` seconds (429). */ retryAfter?: number };
 export type Transport = (req: TransportRequest) => Promise<TransportResponse>;
 
 let requestSeq = 0;
@@ -53,7 +53,13 @@ const liveTransport: Transport = async (req) => {
       signal: controller.signal,
     });
     const payload = await response.json().catch(() => undefined);
-    return { status: response.status, payload, requestId: response.headers.get('X-Request-ID') ?? undefined };
+    const retryAfter = Number(response.headers.get('Retry-After'));
+    return {
+      status: response.status,
+      payload,
+      requestId: response.headers.get('X-Request-ID') ?? undefined,
+      retryAfter: Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined,
+    };
   } catch (error) {
     const aborted = (error as Error)?.name === 'AbortError';
     throw new ApiError({
@@ -195,7 +201,7 @@ export async function request<T>(method: string, path: string, options: RequestO
       return e.data as T;
     }
 
-    const error = parseApiError(res.status, res.payload, requestId);
+    const error = parseApiError(res.status, res.payload, requestId, res.retryAfter);
     log.warn(`${tag} → ${res.status} ${error.code}`, { id, ms, requestId, message: error.message, details: error.details });
     if (!options.silent) emitApiEvent(error);
     throw error;

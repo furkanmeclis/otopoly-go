@@ -16,6 +16,9 @@ export type MockUser = {
   roles: string[];
   totpEnabled: boolean;
   created_at: string;
+  /** Set by account deletion (`/v1/auth/account/deactivate`): every sign-in answers ACCOUNT_DEACTIVATED. */
+  deactivatedAt?: string | null;
+  isSuperAdmin?: boolean;
 };
 
 export type MockMembership = {
@@ -44,6 +47,8 @@ export class MockHttpError extends Error {
     readonly code: string,
     message: string,
     readonly details?: unknown,
+    /** `Retry-After` seconds for 429 responses. */
+    readonly retryAfter?: number,
   ) {
     super(message);
   }

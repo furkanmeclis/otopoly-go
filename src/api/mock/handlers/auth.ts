@@ -1,6 +1,7 @@
 import type { Me } from '@/features/account/services/auth.service';
 
 import { fail, now, requireFields, route, str, uuid, type MockCtx, type MockUser } from '../core';
+import { DEMO_TOTP_CODE } from '../demo-auth';
 import { getDb, persist } from '../db';
 import { assertPasswordPolicy } from './account';
 
@@ -52,7 +53,7 @@ export function decodeAccessToken(token: string | undefined) {
   return { userUuid, orgUuid: org === '-' ? null : org };
 }
 
-function issueTokens(user: MockUser, orgUuid: string | null, previousRefresh?: string) {
+export function issueTokens(user: MockUser, orgUuid: string | null, previousRefresh?: string) {
   const db = getDb();
   if (previousRefresh) db.sessions = db.sessions.filter((s) => s.token !== previousRefresh);
   const refresh = `mock-rt.${uuid()}`;
@@ -78,7 +79,7 @@ function issueTokens(user: MockUser, orgUuid: string | null, previousRefresh?: s
 }
 
 /** Membership + access validation, same errors as backend ResolveLoginOrganization. */
-function resolveOrganization(user: MockUser, slug: string) {
+export function resolveOrganization(user: MockUser, slug: string) {
   const db = getDb();
   const org = db.organizations.find((o) => o.slug === slug);
   const membership = org && db.memberships.find((m) => m.orgUuid === org.uuid && m.userUuid === user.uuid);
@@ -127,6 +128,17 @@ export function buildMe(user: MockUser, orgUuid: string | null): Me {
   } as unknown as Me;
 }
 
+/**
+ * Authenticator round-trip shared by every sign-in path: no `totp_code` → 403 MFA_REQUIRED,
+ * wrong one → 401 INVALID_MFA_CODE. The demo authenticator always shows DEMO_TOTP_CODE.
+ */
+export function checkMfa(user: MockUser, totpCode: unknown) {
+  if (!user.totpEnabled) return;
+  const code = str(totpCode).replace(/\s/g, '');
+  if (!code) fail(403, 'MFA_REQUIRED', 'Two-factor code required');
+  if (code !== DEMO_TOTP_CODE) fail(401, 'INVALID_MFA_CODE', 'Invalid two-factor code');
+}
+
 function userFromCtx(ctx: MockCtx) {
   if (!ctx.user) fail(401, 'UNAUTHENTICATED', 'Authentication required');
   return ctx.user!;
@@ -140,8 +152,9 @@ route(
     const email = str(ctx.body.email).trim().toLowerCase();
     const user = getDb().users.find((u) => u.email.toLowerCase() === email);
     if (!user || user.password !== str(ctx.body.password)) fail(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
+    if (user!.deactivatedAt) fail(403, 'ACCOUNT_DEACTIVATED', 'This account has been deleted');
     if (user!.status !== 'active') fail(403, 'ACCOUNT_DISABLED', 'This account is disabled');
-    if (user!.totpEnabled && !ctx.body.totp_code) fail(403, 'MFA_REQUIRED', 'Two-factor code required');
+    checkMfa(user!, ctx.body.totp_code);
     const slug = str(ctx.body.organization_slug).trim();
     const org = slug ? resolveOrganization(user!, slug) : null;
     return issueTokens(user!, org?.uuid ?? null);
@@ -158,6 +171,7 @@ route(
     const s = db.sessions.find((x) => x.token === token);
     if (!s || new Date(s.expires_at).getTime() < Date.now()) fail(401, 'UNAUTHENTICATED', 'Refresh token invalid');
     const user = db.users.find((u) => u.uuid === s!.userUuid);
+    if (user?.deactivatedAt) fail(403, 'ACCOUNT_DEACTIVATED', 'This account has been deleted');
     if (!user || user.status !== 'active') fail(401, 'UNAUTHENTICATED', 'User disabled');
     return issueTokens(user!, s!.orgUuid, token);
   },

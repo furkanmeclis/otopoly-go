@@ -29,6 +29,7 @@ function envelope(status: number, data: unknown) {
 function errorEnvelope(error: MockHttpError) {
   return {
     status: error.status,
+    retryAfter: error.retryAfter,
     payload: {
       success: false,
       error: { code: error.code, message: error.message, details: error.details },
@@ -47,7 +48,8 @@ async function handle(method: string, path: string, query: MockCtx['query'], bod
 
   const db = getDb();
   const token = decodeAccessToken(headers.Authorization?.replace(/^Bearer /, ''));
-  const user = token ? (db.users.find((u) => u.uuid === token.userUuid) ?? null) : null;
+  // A deactivated user's access tokens stop working on the next request (backend identity loader).
+  const user = token ? (db.users.find((u) => u.uuid === token.userUuid && !u.deactivatedAt) ?? null) : null;
   const orgUuid = token?.orgUuid ?? null;
   const ctx: MockCtx = {
     method,
@@ -83,7 +85,7 @@ export const mockTransport: Transport = async (req) => {
   // Round-trip through JSON so handlers never share object references with the UI cache.
   const body = req.body === undefined ? undefined : JSON.parse(JSON.stringify(req.body));
   const res = await handle(req.method, req.path, normalizeQuery(req.query), body, req.headers);
-  return { status: res.status, payload: JSON.parse(JSON.stringify(res.payload)) };
+  return { status: res.status, payload: JSON.parse(JSON.stringify(res.payload)), retryAfter: 'retryAfter' in res ? res.retryAfter : undefined };
 };
 
 export function installMockTransport() {

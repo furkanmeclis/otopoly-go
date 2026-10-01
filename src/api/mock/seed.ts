@@ -55,6 +55,8 @@ function sid(prefix: string) {
 export const DEMO_PASSWORD = 'demo1234';
 export const DEMO_OWNER_EMAIL = 'demo@otopoly.com';
 export const DEMO_STAFF_EMAIL = 'personel@otopoly.com';
+/** Staff member with authenticator 2FA (code in `demo-auth.ts`). */
+export const DEMO_TOTP_EMAIL = 'ali@parlakoto.com';
 
 const FIRST = ['Mehmet', 'Ayşe', 'Mustafa', 'Fatma', 'Emre', 'Zeynep', 'Burak', 'Elif', 'Can', 'Selin', 'Oğuz', 'Deniz', 'Kerem', 'Ece', 'Hakan', 'Büşra', 'Serkan', 'Gizem', 'Tolga', 'Merve', 'Onur', 'Esra', 'Barış', 'Cansu', 'Umut', 'Sibel', 'Volkan', 'Pınar', 'Cem', 'Derya'];
 const LAST = ['Yılmaz', 'Kaya', 'Demir', 'Şahin', 'Çelik', 'Yıldız', 'Aydın', 'Öztürk', 'Arslan', 'Doğan', 'Kılıç', 'Aslan', 'Çetin', 'Koç', 'Kurt', 'Özdemir', 'Polat', 'Erdoğan', 'Güneş', 'Aksoy'];
@@ -140,7 +142,8 @@ export function seedDb(): MockDb {
   });
   const owner = mkUser('Ahmet', 'Yılmaz', DEMO_OWNER_EMAIL, ['organization_user', 'organization_owner']);
   const staff1 = mkUser('Mehmet', 'Kaya', DEMO_STAFF_EMAIL, ['organization_user']);
-  const staff2 = mkUser('Ali', 'Demir', 'ali@parlakoto.com', ['organization_user']);
+  const staff2 = mkUser('Ali', 'Demir', DEMO_TOTP_EMAIL, ['organization_user']);
+  staff2.totpEnabled = true;
   const staff3 = mkUser('Hasan', 'Çelik', 'hasan@parlakoto.com', ['organization_user']);
   staff3.status = 'inactive';
   const users = [owner, staff1, staff2, staff3];
