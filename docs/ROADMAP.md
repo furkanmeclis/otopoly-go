@@ -65,7 +65,7 @@ Son güncelleme: 2026-10-01
 | İş paketi | Repo / dal | Kapsam | Durum |
 |---|---|---|---|
 | Giriş yöntemleri | otopoly-go / `feat/auth-otp-native-oauth` | E-posta kodu (API ve web), `/v1/auth/oauth/{provider}/native`, gizli e-posta bağlama akışı, hesabı pasife alma | ✅ CI yeşil (önce bu merge edilmeli, migration 000068) |
-| Push, deeplink, limit e-postaları | otopoly-go / `feat/expo-push-limits` | `push_devices` tablosu ve Expo gönderimi, AASA ve assetlinks, eşik e-postaları, `LIMIT_REACHED` hata detayı, kullanım endpoint'i | ✅ CI yeşil (migration'lar 000069 ve 000070 olarak yeniden numaralanıyor) |
+| Push, deeplink, limit e-postaları | otopoly-go / `feat/expo-push-limits` | `push_devices` tablosu ve Expo gönderimi, AASA ve assetlinks, eşik e-postaları, `LIMIT_REACHED` hata detayı, kullanım endpoint'i | ✅ CI yeşil (head 569bc63, migration'lar 000069 ve 000070; auth'tan sonra merge) |
 | Kullanım ve limitler | mobil / `feat/usage-limits` ([PR #1](https://github.com/furkanmeclis/otopoly-mobile-app/pull/1)) | Abonelik ekranı yerine limitler ekranı, rol bazlı limit penceresi, ortak kilit ekranı, mock senaryoları | ✅ CI yeşil, merge bekliyor |
 
 Endpoint şemaları: `docs/backend/WAVE1_CONTRACTS.md`.
