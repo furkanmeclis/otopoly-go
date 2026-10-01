@@ -110,6 +110,17 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
   - Mobil: `expo-camera` ile tarayıcı, onay ekranı, `/login/qr/*` evrensel linki.
 - Yeni native modüller (notifications, camera, apple-authentication, google sign-in) development build gerektirir. Build Xcode Cloud ve EAS'ta alınır.
 
+**2. dalganın durumu:**
+- [PR #2](https://github.com/furkanmeclis/otopoly-mobile-app/pull/2) (bildirimler): ✅ CI yeşil.
+  - Demo: Tanılama → "Deneme bildirimi gönder".
+- Mobil giriş: 🟡
+- QR ile giriş: 🟡
+
+**Merge sonrasında yapılacak entegrasyon işleri:**
+- Hesap silme akışı, token'lar temizlenmeden önce `unregisterPushDevice()` çağırmalı.
+- `/login/qr/[token]` sayfası şimdilik "yakında" diyen bir taslak. QR PR'ının sayfası bunun yerine geçecek.
+- Kullanılmayan `mobile.catalog.push_mobile_hint` çeviri anahtarı silinecek.
+
 ### 3. Dalga: eksik ekranlar ve mağaza denetimi — ⏸
 - **Eksik ekranlar:**
   - İçe aktarma dosyası yükleme (`expo-document-picker`).
