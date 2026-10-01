@@ -18,6 +18,10 @@
       "infoPlist": {
         "NSSupportsLiveActivities": true
       },
+      "associatedDomains": [
+        "applinks:otopoly.app",
+        "webcredentials:otopoly.app"
+      ],
       "deploymentTarget": "17.0"
     },
     "android": {
@@ -28,7 +32,19 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.otopoly.app"
+      "package": "com.otopoly.app",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "otopoly.app", "pathPrefix": "/t/" },
+            { "scheme": "https", "host": "otopoly.app", "pathPrefix": "/q/" },
+            { "scheme": "https", "host": "otopoly.app", "pathPrefix": "/login/qr/" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -39,6 +55,13 @@
       "expo-secure-store",
       "expo-localization",
       "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#EA6E43",
+          "defaultChannel": "default"
+        }
+      ],
       "./plugins/with-xcode-cloud",
       "./plugins/with-scene-lifecycle",
       [

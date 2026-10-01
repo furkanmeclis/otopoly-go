@@ -8,6 +8,7 @@ import { useToast } from '@/components/feedback/toast';
 import { Badge, Button, EmptyState, FilterChips, Header, Row, Screen, Txt, useConfirm } from '@/components/ui';
 import { env, isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
+import { TestNotificationButton } from '@/features/notifications/components/test-notification-button';
 import { useLocale } from '@/lib/i18n/provider';
 import { clearLogEntries, formatLogsForExport, getLogEntries, subscribeLogs, type LogLevel } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
@@ -72,6 +73,7 @@ export default function DiagnosticsScreen() {
           ]}
         />
         {isMock ? <PlanScenarioSwitch /> : null}
+        {isMock && status === 'ready' ? <TestNotificationButton /> : null}
         {isMock ? <Button label={tr('mobile.diagnostics.reset_demo')} size="sm" variant="ghost" icon={<Database size={16} color={t.colors.primary} />} onPress={resetDemo} /> : null}
       </View>
       <FlatList

@@ -11,6 +11,7 @@ import { BrandMark, MARK_RATIO } from '@/components/brand';
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
 import { ToastProvider } from '@/components/feedback/toast';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
+import { NotificationResponseObserver } from '@/features/notifications/components/notification-response-observer';
 import { LocaleProvider } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { installGlobalErrorHandlers } from '@/lib/logger/global-handlers';
@@ -77,6 +78,7 @@ function RootNavigator() {
     <NavThemeProvider value={navTheme}>
       <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
       <NavigationLogger />
+      <NotificationResponseObserver />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
         <Stack.Protected guard={status === 'signedOut'}>
           <Stack.Screen name="(auth)" />

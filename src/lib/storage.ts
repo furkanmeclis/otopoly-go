@@ -66,4 +66,8 @@ export const StorageKeys = {
   demoMockDb: 'demo.mock_db',
   demoPlanScenario: 'demo.plan_scenario',
   dismissedSetup: 'dashboard.setup_dismissed',
+  /** Expo push token last registered with the backend (unregistered on logout). */
+  pushToken: 'push.token',
+  /** Per-user flag: the in-app push explanation was shown (`push.prompted.<userUuid>`). */
+  pushPrompted: 'push.prompted',
 } as const;

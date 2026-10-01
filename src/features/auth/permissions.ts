@@ -47,6 +47,8 @@ export const P = {
   settingsRead: 'tenant.settings.read',
   settingsWrite: 'tenant.settings.write',
   importsRead: 'tenant.imports.read',
+  /** User-level inbox (`/v1/notifications*`). */
+  notificationsRead: 'notifications.read',
 } as const;
 
 export type Permission = (typeof P)[keyof typeof P];
