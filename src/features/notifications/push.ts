@@ -151,10 +151,15 @@ export async function enablePush(): Promise<RegisterResult> {
 /**
  * Removes this device from the signed-in user. Must run while the access token is still valid
  * (logout calls it before clearing the session). Never throws.
+ * `localOnly`: the server already revoked the session (account deletion) — only forget the token here.
  */
-export async function unregisterPushDevice() {
+export async function unregisterPushDevice(options?: { localOnly?: boolean }) {
   const token = await prefs.get<string | null>(StorageKeys.pushToken, null);
   if (!token) return;
+  if (options?.localOnly) {
+    await prefs.remove(StorageKeys.pushToken);
+    return;
+  }
   try {
     await pushDevicesService.unregister(token);
     log.info('Push device unregistered');

@@ -3,14 +3,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { setAuthFailureHandler } from '@/api/client';
 import { isApiError } from '@/api/errors';
-import { session } from '@/api/session';
+import { session, type Tokens } from '@/api/session';
 import { isMock } from '@/config/env';
 import { authService, type Me, type OrganizationMembership } from '@/features/account/services/auth.service';
 import { useLocale } from '@/lib/i18n/provider';
 import { isSupportedLocale } from '@/lib/i18n/translate';
 import { createLogger } from '@/lib/logger';
 import { clearWidgetsForSignOut } from '@/features/widgets/bridge';
-import { unregisterPushDevice } from '@/features/notifications/push';
+import { registerPushDevice, unregisterPushDevice } from '@/features/notifications/push';
 
 import type { Gate, Permission } from './permissions';
 
@@ -29,9 +29,12 @@ type AuthContextValue = {
   permissions: ReadonlySet<string>;
   can: (gate: Permission | Gate | undefined) => boolean;
   login: (email: string, password: string, totpCode?: string) => Promise<void>;
+  /** Finishes any sign-in (password, e-mail code, Apple / Google, account linking) with its token pair. */
+  completeSignIn: (tokens: Tokens) => Promise<void>;
   selectOrganization: (slug: string) => Promise<void>;
   switchOrganization: () => void;
-  logout: () => Promise<void>;
+  /** `serverRevoked`: the server already ended every session (account deletion), only clear locally. */
+  logout: (options?: { serverRevoked?: boolean }) => Promise<void>;
   refreshMe: () => Promise<void>;
   orgBlock: (org: OrganizationMembership) => OrgBlock;
 };
@@ -143,22 +146,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setAuthFailureHandler(null);
   }, [queryClient]);
 
-  const login = useCallback(
-    async (email: string, password: string, totpCode?: string) => {
-      log.info('Login attempt', { email });
-      const tokens = await authService.login({ email: email.trim(), password, ...(totpCode ? { totp_code: totpCode } : {}) });
+  const completeSignIn = useCallback(
+    async (tokens: Tokens) => {
       await session.setTokens(tokens, null);
       try {
         const profile = await authService.getMe();
         syncLocale(profile);
         await route(profile, null);
         log.info('Login succeeded', { organizations: profile.organizations?.length ?? 0 });
+        // Never prompts and never throws; the in-app explanation sheet handles first-time permission.
+        void registerPushDevice();
       } catch (error) {
         await reset('post_login_failed');
         throw error;
       }
     },
     [reset, route, syncLocale],
+  );
+
+  const login = useCallback(
+    async (email: string, password: string, totpCode?: string) => {
+      log.info('Login attempt', { email });
+      const tokens = await authService.login({ email: email.trim(), password, ...(totpCode ? { totp_code: totpCode } : {}) });
+      await completeSignIn(tokens);
+    },
+    [completeSignIn],
   );
 
   const selectOrganization = useCallback(
@@ -177,11 +189,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus('selectOrg');
   }, [queryClient]);
 
-  const logout = useCallback(async () => {
-    // Push device must go while the access token is still valid (never throws).
-    await unregisterPushDevice();
+  const logout = useCallback(async (options?: { serverRevoked?: boolean }) => {
+    // Push device must go while the access token is still valid (never throws). When the server already
+    // revoked every session (account deletion) the caller unregistered beforehand; only forget it locally.
+    await unregisterPushDevice({ localOnly: options?.serverRevoked });
     const s = session.get();
-    if (s?.refreshToken) {
+    if (s?.refreshToken && !options?.serverRevoked) {
       try {
         await authService.logout(s.refreshToken);
         // An expired access token makes the client refresh before replaying logout with the OLD refresh
@@ -221,13 +234,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       permissions,
       can,
       login,
+      completeSignIn,
       selectOrganization,
       switchOrganization,
       logout,
       refreshMe,
       orgBlock,
     };
-  }, [status, me, orgSlug, login, selectOrganization, switchOrganization, logout, refreshMe]);
+  }, [status, me, orgSlug, login, completeSignIn, selectOrganization, switchOrganization, logout, refreshMe]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

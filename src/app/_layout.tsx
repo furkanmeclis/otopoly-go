@@ -89,6 +89,10 @@ function RootNavigator() {
         <Stack.Protected guard={status === 'ready'}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
+        {/* Account deletion: from the profile, and from the org picker for users without a business. */}
+        <Stack.Protected guard={status === 'ready' || status === 'selectOrg'}>
+          <Stack.Screen name="delete-account" />
+        </Stack.Protected>
         <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
       </Stack>
     </NavThemeProvider>

@@ -10,6 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.otopoly.app",
+      "usesAppleSignIn": true,
       "buildNumber": "1",
       "config": {
         "usesNonExemptEncryption": false
@@ -117,6 +118,13 @@
               }
             }
           ]
+        }
+      ],
+      "expo-apple-authentication",
+      [
+        "react-native-nitro-google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.REPLACE-WITH-IOS-CLIENT-ID"
         }
       ]
     ],

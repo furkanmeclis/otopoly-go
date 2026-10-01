@@ -50,6 +50,7 @@ import trTodos from './tr/todos.json';
 import trUsers from './tr/users.json';
 import trVehicleBrands from './tr/vehicle_brands.json';
 import trMobile from './mobile/tr.json';
+import trMobileAuth from './mobile/areas/auth.tr.json';
 import trMobileCatalog from './mobile/areas/catalog.tr.json';
 import trMobileCommerce from './mobile/areas/commerce.tr.json';
 import trMobileCrm from './mobile/areas/crm.tr.json';
@@ -107,6 +108,7 @@ import enTodos from './en/todos.json';
 import enUsers from './en/users.json';
 import enVehicleBrands from './en/vehicle_brands.json';
 import enMobile from './mobile/en.json';
+import enMobileAuth from './mobile/areas/auth.en.json';
 import enMobileCatalog from './mobile/areas/catalog.en.json';
 import enMobileCommerce from './mobile/areas/commerce.en.json';
 import enMobileCrm from './mobile/areas/crm.en.json';
@@ -166,7 +168,7 @@ export const catalogs = {
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobilePlan, ...trMobileSettings },
+    mobile: { ...trMobile, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobilePlan, ...trMobileSettings },
   },
   en: {
     access: enAccess,
@@ -217,7 +219,7 @@ export const catalogs = {
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobilePlan, ...enMobileSettings },
+    mobile: { ...enMobile, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobilePlan, ...enMobileSettings },
   },
 } as const;
 

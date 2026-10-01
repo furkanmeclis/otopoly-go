@@ -31,6 +31,8 @@ export class ApiError extends Error {
   readonly requestId?: string;
   /** Extra payload (e.g. LIMIT_REACHED feature/limit/used). */
   readonly extra?: Record<string, unknown>;
+  /** Seconds from the `Retry-After` header (429 RATE_LIMITED). */
+  readonly retryAfter?: number;
 
   constructor(init: {
     status: number;
@@ -39,6 +41,7 @@ export class ApiError extends Error {
     details?: ApiErrorDetail[];
     requestId?: string;
     extra?: Record<string, unknown>;
+    retryAfter?: number;
   }) {
     super(init.message);
     this.name = 'ApiError';
@@ -47,6 +50,7 @@ export class ApiError extends Error {
     this.details = init.details ?? [];
     this.requestId = init.requestId;
     this.extra = init.extra;
+    this.retryAfter = init.retryAfter;
   }
 
   /** Field → message map for forms. */
@@ -75,7 +79,7 @@ type ErrorEnvelope = {
   meta?: { request_id?: string };
 };
 
-export function parseApiError(status: number, payload: unknown, requestId?: string): ApiError {
+export function parseApiError(status: number, payload: unknown, requestId?: string, retryAfter?: number): ApiError {
   const env = (payload ?? {}) as ErrorEnvelope;
   const details = env.error?.details;
   return new ApiError({
@@ -85,6 +89,7 @@ export function parseApiError(status: number, payload: unknown, requestId?: stri
     details: Array.isArray(details) ? details : [],
     extra: details && !Array.isArray(details) ? details : undefined,
     requestId: env.meta?.request_id ?? requestId,
+    retryAfter,
   });
 }
 
@@ -112,6 +117,14 @@ export function limitInfo(error: ApiError): LimitInfo {
     used: toNum(map.used),
     tolerance: toNum(map.tolerance),
   };
+}
+
+/** `details` list (`[{ field, message }]`) or object payload → flat string map. */
+export function detailMap(error: ApiError): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const [k, v] of Object.entries(error.extra ?? {})) if (v !== undefined && v !== null) map[k] = String(v);
+  for (const d of error.details) if (d.field && d.message !== undefined) map[d.field] = String(d.message);
+  return map;
 }
 
 /** `409 LIMIT_REACHED`: a hard plan limit is exhausted. */
