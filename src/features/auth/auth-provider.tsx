@@ -10,6 +10,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { isSupportedLocale } from '@/lib/i18n/translate';
 import { createLogger } from '@/lib/logger';
 import { clearWidgetsForSignOut } from '@/features/widgets/bridge';
+import { unregisterPushDevice } from '@/features/notifications/push';
 
 import type { Gate, Permission } from './permissions';
 
@@ -177,6 +178,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const logout = useCallback(async () => {
+    // Push device must go while the access token is still valid (never throws).
+    await unregisterPushDevice();
     const s = session.get();
     if (s?.refreshToken) {
       try {

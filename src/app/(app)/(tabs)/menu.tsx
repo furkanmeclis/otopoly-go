@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import { router, type Href } from 'expo-router';
 import {
+  Bell,
   Bug,
   Building2,
   ChartColumn,
@@ -37,6 +38,7 @@ import { Avatar, Badge, Group, Header, ListRow, Row, Screen, Section, Segmented,
 import { isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
 import { ownerOnly, P, type Gate, type Permission } from '@/features/auth/permissions';
+import { useUnreadCount } from '@/features/notifications/queries';
 import { useLeadsSummary, useQuotesSummary, useTodosSummary } from '@/features/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { useLocale } from '@/lib/i18n/provider';
@@ -58,6 +60,7 @@ export default function MenuScreen() {
   const todos = useTodosSummary(can(P.todosRead));
   const leads = useLeadsSummary(can(P.leadsRead));
   const quotes = useQuotesSummary(can(P.quotesRead));
+  const unread = useUnreadCount(can(P.notificationsRead));
   const ic = (Icon: typeof Wrench) => <Icon size={20} color={t.colors.primary} />;
 
   const todoDue = (todos.data?.overdue ?? 0) + (todos.data?.today ?? 0);
@@ -193,6 +196,14 @@ export default function MenuScreen() {
               ]}
             />
           </View>
+          {can(P.notificationsRead) ? (
+            <ListRow
+              title={tr('notifications.inbox.title')}
+              left={<Bell size={20} color={t.colors.textSecondary} />}
+              right={unread.data ? <Badge size="sm" tone="danger" label={String(unread.data)} /> : undefined}
+              onPress={() => router.push('/notifications')}
+            />
+          ) : null}
           <ListRow title={tr('layout.nav_profile')} left={<UserRound size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/profile')} />
           {(me?.organizations?.length ?? 0) > 1 ? <ListRow title={tr('mobile.org.switch')} left={<Repeat size={20} color={t.colors.textSecondary} />} onPress={switchOrganization} /> : null}
           <ListRow title={tr('mobile.diagnostics.title')} subtitle={isMock ? tr('mobile.demo.banner') : undefined} left={<Bug size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/diagnostics')} />

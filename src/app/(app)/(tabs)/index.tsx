@@ -57,6 +57,7 @@ import {
   useTodos,
 } from '@/features/queries';
 import { TodoRow } from '@/features/todos/components/todo-row';
+import { NotificationBell } from '@/features/notifications/components/notification-parts';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { prefs, StorageKeys } from '@/lib/storage';
@@ -93,7 +94,10 @@ export default function DashboardScreen() {
           <Txt variant="caption" tone="secondary">
             {fmt.date(new Date(), 'long')}
           </Txt>
-          <BrandMark height={22} />
+          <Row gap={t.spacing.sm}>
+            <BrandMark height={22} />
+            <NotificationBell />
+          </Row>
         </Row>
         <Txt variant="display" numberOfLines={2}>
           {firstName ? tr(greetingKey(new Date().getHours()), { name: firstName }) : (organization?.name ?? '')}
