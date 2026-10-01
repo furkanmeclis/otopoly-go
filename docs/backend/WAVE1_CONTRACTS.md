@@ -100,3 +100,32 @@ Uses the existing `GET /v1/tenant/billing/overview` (`meters[]`, `subscription`)
 - In `app.json`:
   - iOS: `ios.associatedDomains: ["applinks:otopoly.app", "webcredentials:otopoly.app"]`
   - Android: `intentFilters` for `https://otopoly.app` with `autoVerify` on the same paths.
+
+## QR login (`feat/qr-login`, stacked on auth)
+
+The QR login session state lives in Redis.
+
+### Endpoints
+- **`POST /v1/auth/qr/sessions`** (public). Called by the web.
+  - Returns `{session_id, qr_url, browser_secret, expires_at, realtime:{ws_url, connection_token, subscription_token, channel}}`.
+  - The session expires after 120 seconds.
+- **`GET /v1/auth/qr/sessions/{id}`** (Bearer). Called by the mobile app.
+  - Returns the browser, version, OS and device type, the IP, the location (or `null`), and the session's creation and expiry times.
+  - The first account to open the session claims it.
+- **`POST /v1/auth/qr/sessions/{id}/approve`** and **`POST /v1/auth/qr/sessions/{id}/reject`** (Bearer).
+  - Approve uses the caller's active organization.
+- **`POST /v1/auth/qr/sessions/{id}/state {browser_secret}`**. Called once by the web after it re-subscribes, so it doesn't miss a missed event.
+- **`POST /v1/auth/qr/exchange {session_id, browser_secret, exchange_token}`**. Called by the NextAuth `qr-login` provider.
+  - Returns a token pair and `user`.
+
+### Errors
+- `404 QR_SESSION_NOT_FOUND`
+- `409 QR_SESSION_CLAIMED`
+- `409 QR_SESSION_RESOLVED`
+- `400 QR_LOGIN_INVALID`
+- `403 ACCOUNT_DEACTIVATED`
+- `503 REALTIME_DISABLED`
+
+### Realtime channel
+- Channel name: `qrlogin:{random}`. Clients subscribe anonymously with a subscription token.
+- Events: `approved {exchange_token}` and `rejected`.

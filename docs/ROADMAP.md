@@ -88,9 +88,11 @@ Endpoint şemaları: `docs/backend/WAVE1_CONTRACTS.md`.
   - IP bazlı istek sınırları `X-Forwarded-For` başlığını okuyor. Mobil API'ye doğrudan bağlandığı için bu başlık taklit edilebilir. E-posta bazlı sınırlar etkilenmiyor.
   - Tarayıcı push'u hâlâ bildirimin tam metnini gönderiyor. Kilit ekranına uygun kısa metin sadece Expo push'ta kullanılıyor.
 
+**otopoly-go merge sırası:** önce `feat/auth-otp-native-oauth`, sonra `feat/qr-login` (auth'un üzerine kurulu), en son `feat/expo-push-limits`.
+
 Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporlarındaki endpoint şemaları bu dosyaya işlenir. Migration numaraları çakışıyorsa merge öncesinde düzeltilir.
 
-### 2. Dalga: mobil bildirimler, mobil giriş, QR ile giriş — 🟡 başlatıldı (kullanıcı 2026-10-01 gece tüm aşamalara durmadan devam edilmesini istedi; dallar merge edilmemiş 1. dalga dallarının üzerine kuruluyor)
+### 2. Dalga: mobil bildirimler, mobil giriş, QR ile giriş — ✅ bitti, merge bekliyor. Başlangıçta (kullanıcı 2026-10-01 gece tüm aşamalara durmadan devam edilmesini istedi; dallar merge edilmemiş 1. dalga dallarının üzerine kuruluyor)
 - **Mobil bildirimler:**
   - `expo-notifications` eklenir.
   - Bildirim izni, açıklama ekranından sonra istenir.
@@ -119,7 +121,13 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
   - Mock modunda Apple ve Google butonları bir demo kimlik seçici açıyor.
   - Google girişi `react-native-nitro-google-signin` ile yapıldı.
   - Yeni bir dev build gerekiyor.
-- QR ile giriş: 🟡
+- QR ile giriş: ✅ CI yeşil.
+  - otopoly-go dalı: `feat/qr-login`. Auth dalının üzerine kurulu, migration yok, durum Redis'te tutuluyor.
+  - Mobil: [PR #4](https://github.com/furkanmeclis/otopoly-mobile-app/pull/4).
+  - Centrifugo'ya `qrlogin` namespace'i eklendi. Deploy sırasında Centrifugo'nun yeniden başlatılması gerekiyor.
+  - İsteğe bağlı env değişkenleri: `AUTH_QR_TRUST_GEO_HEADERS` (yalnızca Cloudflare arkasında) ve `AUTH_QR_GEOIP_DB`.
+  - Web'de QR, "QR kod ile giriş" butonuna basınca açılıyor. Böylece giriş sayfasını açan her ziyaretçi için bir oturum ve websocket açılmamış oluyor.
+  - Gerçek bir Centrifugo sunucusuna karşı uçtan uca denenmedi.
 
 **Merge sonrasında yapılacak entegrasyon işleri:**
 - Hesap silme akışı, token'lar temizlenmeden önce `unregisterPushDevice()` çağırmalı.
@@ -129,7 +137,7 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
 - Mobil env: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` ve `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. Xcode Cloud ve EAS'ta tanımlanacak.
 - Google iOS yönlendirmesi ile SceneDelegate birlikte cihazda doğrulanmadı. Gerekirse bunun için bir config plugin yazılacak.
 
-### 3. Dalga: eksik ekranlar ve mağaza denetimi — ⏸
+### 3. Dalga: eksik ekranlar ve mağaza denetimi — 🟡 başladı. İlk adım: mobil PR #1–#4 tek bir `integration/wave1-2` dalında birleştirilecek, sonra eksik ekranlar ve denetim bu dalın üzerine kurulacak.
 - **Eksik ekranlar:**
   - İçe aktarma dosyası yükleme (`expo-document-picker`).
   - Sözleşmeye fotoğraf/dosya ekleme (`expo-image-picker`).
