@@ -77,6 +77,9 @@ export interface paths {
         /**
          * Login
          * @description Authenticates with email/password and returns a token pair.
+         *     A self-deleted account returns `403 ACCOUNT_DEACTIVATED` (after the
+         *     password is verified); `/v1/auth/refresh` and every other sign-in path
+         *     do the same.
          */
         post: operations["postAuthLogin"];
         delete?: never;
@@ -1149,7 +1152,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request an email sign-in code */
+        /**
+         * Request an email sign-in code
+         * @description Emails a 6-digit one-time sign-in code (valid 10 minutes, 5 attempts,
+         *     single use, stored hashed). The response is identical whether or not the
+         *     email belongs to an account. Rate limited per IP and per email.
+         *
+         *     App review: emails listed in `AUTH_REVIEW_ACCOUNTS` receive no email;
+         *     their fixed code works for that email only.
+         */
         post: operations["postAuthEmailCodeRequest"];
         delete?: never;
         options?: never;
@@ -1166,7 +1177,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sign in with an email code */
+        /**
+         * Sign in with an email code
+         * @description Exchanges an email code for the same token pair as `/v1/auth/login`.
+         *     When the user has authenticator 2FA, a call without `totp_code` returns
+         *     `403 MFA_REQUIRED` and the email code stays valid; retry with the same
+         *     `code` plus `totp_code`. A wrong `totp_code` (`401 INVALID_MFA_CODE`)
+         *     counts against the code's 5 attempts.
+         *
+         *     Errors: `400 INVALID_EMAIL_CODE` (wrong / expired / used / exhausted),
+         *     `403 MFA_REQUIRED`, `401 INVALID_MFA_CODE`, `403 ACCOUNT_DEACTIVATED`,
+         *     `403 FORBIDDEN` (disabled by an admin), `403 NO_TENANT_MEMBERSHIP`,
+         *     `429 RATE_LIMITED`.
+         */
         post: operations["postAuthEmailCodeVerify"];
         delete?: never;
         options?: never;
@@ -1183,7 +1206,32 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Sign in with a native Apple / Google id_token */
+        /**
+         * Sign in with a native Apple / Google id_token
+         * @description For mobile apps using the platform SDKs. The `id_token` signature is
+         *     verified against the provider JWKS (cached), plus `iss`, `exp`, `aud`
+         *     (Apple: `AUTH_APPLE_NATIVE_CLIENT_IDS`, default `com.otopoly.app`;
+         *     Google: `AUTH_GOOGLE_NATIVE_CLIENT_IDS` plus the web client id from
+         *     OAuth settings) and `nonce` when sent (raw nonce, or its hex SHA-256
+         *     in the token).
+         *
+         *     - Identity already linked → tokens (same shape as `/v1/auth/login`,
+         *       including the `MFA_REQUIRED` / `totp_code` round-trip).
+         *     - Not linked, an account with the same email exists →
+         *       `409 OAUTH_ACCOUNT_NOT_LINKED` (same policy as the web: sign in with
+         *       the existing method and link from the profile).
+         *     - Not linked, Apple private-relay email (`@privaterelay.appleid.com`),
+         *       no account → `409 OAUTH_LINK_CHOICE_REQUIRED`; `error.details`
+         *       carries `link_ticket`, `provider`, `expires_in` (seconds, 900) and
+         *       `register_allowed` (`"true"`/`"false"`). Continue with
+         *       `/v1/auth/oauth/link/*`.
+         *     - Not linked, no account → the account is created (OAuth sign-up; needs
+         *       registration enabled, else `403 FORBIDDEN`) and tokens returned.
+         *
+         *     Apple: send `authorization_code` so the server can store a refresh
+         *     token (revoked on account deletion; needs `AUTH_APPLE_*` key config),
+         *     and `given_name` / `family_name` on the first sign-in.
+         */
         post: operations["postAuthOAuthNative"];
         delete?: never;
         options?: never;
@@ -1200,7 +1248,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Email a link code to an existing account */
+        /**
+         * Email a link code to an existing account
+         * @description "Yes, I have an account": emails a 6-digit link code (10 minutes) to
+         *     `email` if an account exists. Always `200 accepted` for a valid ticket
+         *     (no enumeration). `400 INVALID_LINK_TICKET` when the ticket is
+         *     tampered or expired.
+         */
         post: operations["postAuthOAuthLinkRequest"];
         delete?: never;
         options?: never;
@@ -1217,7 +1271,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Link the provider identity to an existing account and sign in */
+        /**
+         * Link the provider identity to an existing account and sign in
+         * @description Verifies the link code, links the ticket's identity to the account and
+         *     returns tokens. Same `MFA_REQUIRED` / `totp_code` round-trip as login
+         *     (the code stays valid until it succeeds). Errors: `400 INVALID_LINK_TICKET`,
+         *     `400 INVALID_EMAIL_CODE`, `409 CONFLICT` (identity linked elsewhere or
+         *     the account already has another identity for this provider),
+         *     `403 ACCOUNT_DEACTIVATED`.
+         */
         post: operations["postAuthOAuthLinkVerify"];
         delete?: never;
         options?: never;
@@ -1234,7 +1296,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Create a new account for the provider identity and sign in */
+        /**
+         * Create a new account for the provider identity and sign in
+         * @description "No, I don't have an account": creates the account exactly like an
+         *     OAuth sign-up (registration policy, default role, welcome email) with
+         *     the ticket's relay email, links the identity and returns tokens.
+         *     Retrying with the same ticket signs into the account created by the
+         *     first call. Errors: `400 INVALID_LINK_TICKET`, `403 FORBIDDEN`
+         *     (registration disabled), `409 CONFLICT` (email registered meanwhile).
+         */
         post: operations["postAuthOAuthLinkCreate"];
         delete?: never;
         options?: never;
@@ -1251,7 +1321,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Email an account-deletion confirmation code */
+        /**
+         * Email an account-deletion confirmation code
+         * @description Sends a 6-digit confirmation code (10 minutes) to the caller's email.
+         *     Intended for passwordless accounts (Apple / Google / email code) that
+         *     cannot complete a password / passkey / TOTP step-up.
+         */
         post: operations["postAuthAccountDeactivateRequest"];
         delete?: never;
         options?: never;
@@ -1268,8 +1343,184 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Delete (deactivate) own account */
+        /**
+         * Delete (deactivate) own account
+         * @description Account deletion keeps all data: the user becomes `disabled` with
+         *     `deactivated_at`, every refresh session is revoked, stored Apple
+         *     refresh tokens are revoked via Apple `/auth/revoke` (best effort), and
+         *     every sign-in path returns `403 ACCOUNT_DEACTIVATED` afterwards.
+         *     Organizations the user owns are kept as-is (other members keep access).
+         *
+         *     Confirm with either a recent step-up grant (`/v1/auth/step-up/*`,
+         *     send `{}`) or `code` from `/v1/auth/account/deactivate/request`.
+         *     Without either → `403 STEP_UP_REQUIRED`. Wrong code →
+         *     `400 INVALID_EMAIL_CODE`. The last super admin gets `409 CONFLICT`.
+         *     Refused while impersonating (`403 FORBIDDEN`). A platform admin can
+         *     reactivate the user by setting status `active`.
+         */
         post: operations["postAuthAccountDeactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a QR sign-in (web login page)
+         * @description Creates a short-lived (120 s) QR sign-in session for the calling browser
+         *     tab. Render `qr_url` (`{frontend}/login/qr/{session_id}`) as a QR; the
+         *     signed-in mobile app opens it (universal link or in-app scanner).
+         *
+         *     Keep `browser_secret` in the tab only: it is required to read the state
+         *     and to exchange an approval. `realtime` holds an **anonymous** Centrifugo
+         *     connection token (`sub: ""`) and a subscription token for exactly one
+         *     private channel `qrlogin:{random}` (unrelated to the session id). Both
+         *     expire 30 s after the session. Channel events (`data.type`):
+         *     `scanned`, `approved` (with `exchange_token`), `rejected`.
+         *
+         *     The request's User-Agent and client IP (first `X-Forwarded-For` hop) are
+         *     stored for the approval screen. Errors: `429 RATE_LIMITED` (60 / 15 min
+         *     per IP), `503 REALTIME_DISABLED`.
+         */
+        post: operations["postAuthQRSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * QR sign-in details (mobile)
+         * @description Shows who is asking to sign in: browser / OS parsed from the web
+         *     request's User-Agent, its IP and approximate location (`null` when
+         *     unknown), created / expiry time. The first signed-in viewer claims the
+         *     session; other accounts then get `409 QR_SESSION_CLAIMED`.
+         *
+         *     Errors: `404 QR_SESSION_NOT_FOUND` (unknown / expired / used),
+         *     `409 QR_SESSION_CLAIMED`, `429 RATE_LIMITED`.
+         */
+        get: operations["getAuthQRSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a QR sign-in (mobile)
+         * @description Signs the waiting browser tab in as the caller, scoped to the caller's
+         *     active organization (the token's `oid`, re-validated at exchange).
+         *     Publishes `{type: "approved", exchange_token}` to the tab's channel;
+         *     the exchange window is 60 s. Exactly one approve / reject succeeds.
+         *
+         *     Errors: `403 ACCOUNT_DEACTIVATED`, `403 FORBIDDEN` (impersonating or
+         *     disabled), `404 QR_SESSION_NOT_FOUND`, `409 QR_SESSION_RESOLVED`,
+         *     `409 QR_SESSION_CLAIMED`, `429 RATE_LIMITED`.
+         */
+        post: operations["postAuthQRSessionApprove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a QR sign-in (mobile)
+         * @description Publishes `{type: "rejected"}` to the tab's channel. Errors as approve
+         *     (no account-state check).
+         */
+        post: operations["postAuthQRSessionReject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * QR sign-in state for the owning tab
+         * @description Read once after the tab (re)subscribes to its channel so an event sent
+         *     while the socket was down is not lost. Not meant for polling. Wrong
+         *     secrets count against 5 attempts, after which the session is deleted.
+         *
+         *     Errors: `400 QR_LOGIN_INVALID`, `404 QR_SESSION_NOT_FOUND`,
+         *     `429 RATE_LIMITED`.
+         */
+        post: operations["postAuthQRSessionState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem an approved QR sign-in (web server)
+         * @description Called by the web server (NextAuth `qr-login` credentials provider), not
+         *     by browser JS (the BFF blocks it). Needs the session id, the tab's
+         *     `browser_secret` and the `exchange_token` from the approval event.
+         *     Single use: the session is deleted on success. Returns the same token
+         *     pair as `/v1/auth/login` plus the signed-in user. The session row keeps
+         *     the User-Agent / IP of the browser that showed the QR.
+         *
+         *     Errors: `400 QR_LOGIN_INVALID` (wrong secret / token, not approved yet),
+         *     `404 QR_SESSION_NOT_FOUND`, `403 ACCOUNT_DEACTIVATED`,
+         *     `403 NO_TENANT_MEMBERSHIP`, `403 ORGANIZATION_ACCESS_EXPIRED`,
+         *     `429 RATE_LIMITED`.
+         */
+        post: operations["postAuthQRExchange"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5742,6 +5993,17 @@ export interface components {
              * @example CONFLICT
              * @example PASSWORD_RESET_FAILED
              * @example INTERNAL_ERROR
+             * @example MFA_REQUIRED
+             * @example INVALID_MFA_CODE
+             * @example RATE_LIMITED
+             * @example STEP_UP_REQUIRED
+             * @example ACCOUNT_DEACTIVATED
+             * @example INVALID_EMAIL_CODE
+             * @example INVALID_ID_TOKEN
+             * @example OAUTH_ACCOUNT_NOT_LINKED
+             * @example OAUTH_LINK_CHOICE_REQUIRED
+             * @example INVALID_LINK_TICKET
+             * @example OAUTH_PROVIDER_DISABLED
              */
             code: string;
             message: string;
@@ -6449,6 +6711,108 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["ImpersonationResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginCreated: {
+            /** @description 43-char base64url id (in the QR) */
+            session_id: string;
+            /**
+             * Format: uri
+             * @example https://otopoly.app/login/qr/Zm9v...
+             */
+            qr_url: string;
+            /** @description Keep in the tab only */
+            browser_secret: string;
+            /** Format: date-time */
+            expires_at: string;
+            /**
+             * Format: int64
+             * @example 120
+             */
+            expires_in: number;
+            realtime: {
+                ws_url: string;
+                /** @description Anonymous Centrifugo connection JWT */
+                connection_token: string;
+                /** @description Subscription JWT for `channel` only */
+                subscription_token: string;
+                /** @example qrlogin:4Hq... */
+                channel: string;
+            };
+        };
+        EnvelopeQRLoginCreated: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginCreated"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginDetails: {
+            session_id: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            client: {
+                /** @example Chrome */
+                browser: string;
+                /** @example 128 */
+                browser_version: string;
+                /** @example Windows */
+                os: string;
+                /** @enum {string} */
+                device_type: "desktop" | "mobile" | "tablet";
+                user_agent: string;
+            };
+            ip: string;
+            location: null | {
+                /** @example TR */
+                country_code?: string;
+                /** @description English name (GeoIP only) */
+                country?: string;
+                region?: string;
+                city?: string;
+                /** @enum {string} */
+                source?: "edge" | "geoip";
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        EnvelopeQRLoginDetails: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginDetails"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginState: {
+            /** @enum {string} */
+            status: "pending" | "scanned" | "approved" | "rejected";
+            /** @description Present when approved */
+            exchange_token?: string;
+        };
+        EnvelopeQRLoginState: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginState"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginExchangeRequest: {
+            session_id: string;
+            browser_secret: string;
+            exchange_token: string;
+        };
+        QRLoginExchanged: components["schemas"]["Tokens"] & {
+            user: {
+                /** Format: uuid */
+                uuid: string;
+                /** Format: email */
+                email: string;
+                name: string;
+            };
+        };
+        EnvelopeQRLoginExchanged: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginExchanged"];
             meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeStatus: {
@@ -9355,6 +9719,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description QR sign-in session id (from the QR URL) */
+        QRSessionID: string;
         /** @description Resource UUID */
         ResourceUUID: string;
         Limit: number;
@@ -11493,10 +11859,64 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description `INVALID_ID_TOKEN` or `INVALID_MFA_CODE` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `MFA_REQUIRED`, `ACCOUNT_DEACTIVATED`, `OAUTH_PROVIDER_DISABLED`, `FORBIDDEN` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            /** @description `OAUTH_ACCOUNT_NOT_LINKED` or `OAUTH_LINK_CHOICE_REQUIRED` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "OAUTH_LINK_CHOICE_REQUIRED",
+                     *         "message": "Choose whether to link this sign-in to an existing account or create a new one",
+                     *         "details": [
+                     *           {
+                     *             "field": "link_ticket",
+                     *             "message": "<opaque>"
+                     *           },
+                     *           {
+                     *             "field": "provider",
+                     *             "message": "apple"
+                     *           },
+                     *           {
+                     *             "field": "expires_in",
+                     *             "message": "900"
+                     *           },
+                     *           {
+                     *             "field": "register_allowed",
+                     *             "message": "true"
+                     *           }
+                     *         ]
+                     *       },
+                     *       "meta": {
+                     *         "request_id": "00000000-0000-0000-0000-000000000000"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };
@@ -11637,6 +12057,182 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description QR session created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginCreated"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+            /** @description Realtime disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAuthQRSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginDetails"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSessionApprove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSessionReject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSessionState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    browser_secret: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginState"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRExchange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QRLoginExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Authenticated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginExchanged"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };
