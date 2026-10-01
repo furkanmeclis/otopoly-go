@@ -3,6 +3,9 @@
  *
  *   EXPO_PUBLIC_API_MODE=mock|live   (default: mock until the backend is wired)
  *   EXPO_PUBLIC_API_URL=https://api.otopoly.com   (Go API origin, without /v1)
+ *   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=…apps.googleusercontent.com   (Google sign-in; Android Credential Manager)
+ *   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=…apps.googleusercontent.com   (Google sign-in on iOS; its reversed form is
+ *                                                                  the URL scheme in app.config.js)
  */
 export type ApiMode = 'mock' | 'live';
 
@@ -14,6 +17,9 @@ export const env = {
   /** Simulated network latency for the mock adapter (ms). */
   mockLatency: Number(process.env.EXPO_PUBLIC_MOCK_LATENCY ?? 350),
   requestTimeoutMs: 20000,
+  /** Google OAuth client ids. Native Google sign-in is hidden until they are set. */
+  googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || null,
+  googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || null,
   /** QA only (mock builds): sign in as the demo owner and walk through the main screens. */
   qaTour: process.env.EXPO_PUBLIC_QA_TOUR === '1',
 } as const;

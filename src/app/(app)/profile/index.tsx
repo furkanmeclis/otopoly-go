@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Bell, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react-native';
+import { Bell, Fingerprint, KeyRound, ShieldCheck, UserX } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
@@ -122,7 +122,14 @@ export default function ProfileScreen() {
             right={totp.data ? <Badge size="sm" tone={totp.data.enabled ? 'success' : 'neutral'} label={totp.data.enabled ? tr('auth.totp.status_on') : tr('auth.totp.status_off')} /> : undefined}
             chevron={false}
           />
-          <ListRow title={tr('auth.passkey.title')} subtitle={tr('mobile.common.not_available_mobile')} left={<Fingerprint size={20} color={t.colors.textSecondary} />} chevron={false} last />
+          <ListRow title={tr('auth.passkey.title')} subtitle={tr('mobile.common.not_available_mobile')} left={<Fingerprint size={20} color={t.colors.textSecondary} />} chevron={false} />
+          <ListRow
+            title={tr('mobile.auth.delete.row_title')}
+            subtitle={tr('mobile.auth.delete.row_subtitle')}
+            left={<UserX size={20} color={t.colors.danger} />}
+            onPress={() => router.push('/delete-account')}
+            last
+          />
         </Group>
       </Section>
 
