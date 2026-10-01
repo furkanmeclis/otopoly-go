@@ -873,6 +873,19 @@ entity gone), `410` with code `LINK_EXPIRED`. Re-checks that the org is not susp
 
 ---
 
+### 2.7 QR sign-in (otopoly-go `feat/qr-login`)
+
+Web login page shows a QR for `https://otopoly.app/login/qr/{session_id}` (43-char base64url id, 120 s). The app opens it from the in-app scanner (`/qr-scan`) or the universal link and shows `/login/qr/[id]`. All Bearer calls use the active organization; the web session is scoped to it.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/v1/auth/qr/sessions/{id}` | `{session_id, status: pending\|approved\|rejected, client:{browser, browser_version, os, device_type, user_agent}, ip, location:{country_code?, country?, region?, city?, source?}\|null, created_at, expires_at}`. First viewer claims the session. |
+| `POST` | `/v1/auth/qr/sessions/{id}/approve` | `{status:"approved"}`. `403 ACCOUNT_DEACTIVATED`, `403 FORBIDDEN` (impersonating). |
+| `POST` | `/v1/auth/qr/sessions/{id}/reject` | `{status:"rejected"}` |
+
+Errors: `404 QR_SESSION_NOT_FOUND` (unknown / expired / used), `409 QR_SESSION_CLAIMED` (another account scanned it), `409 QR_SESSION_RESOLVED` (already answered), `429 RATE_LIMITED`.
+Web-only (anonymous, mocked for the demo / smoke test): `POST /v1/auth/qr/sessions`, `POST /v1/auth/qr/sessions/{id}/state {browser_secret}`, `POST /v1/auth/qr/exchange {session_id, browser_secret, exchange_token}`.
+
 ## 3. Changes to existing endpoints
 
 | Ref | Endpoint | Change | Fixes |

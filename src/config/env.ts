@@ -3,10 +3,16 @@
  *
  *   EXPO_PUBLIC_API_MODE=mock|live   (default: mock until the backend is wired)
  *   EXPO_PUBLIC_API_URL=https://api.otopoly.com   (Go API origin, without /v1)
+ *   EXPO_PUBLIC_WEB_URL=http://192.168.1.5:3000   (optional dev web origin whose /login/qr/* QR codes are accepted)
  */
 export type ApiMode = 'mock' | 'live';
 
 const rawMode = process.env.EXPO_PUBLIC_API_MODE;
+
+function hostOf(url: string | undefined) {
+  const match = url ? /^https?:\/\/([^/?#]+)/i.exec(url.trim()) : null;
+  return match ? match[1].toLowerCase() : null;
+}
 
 export const env = {
   apiMode: (rawMode === 'live' ? 'live' : 'mock') as ApiMode,
@@ -14,6 +20,8 @@ export const env = {
   /** Simulated network latency for the mock adapter (ms). */
   mockLatency: Number(process.env.EXPO_PUBLIC_MOCK_LATENCY ?? 350),
   requestTimeoutMs: 20000,
+  /** Extra web host (host[:port]) accepted by the QR sign-in scanner; production uses otopoly.app. */
+  webHost: hostOf(process.env.EXPO_PUBLIC_WEB_URL),
   /** QA only (mock builds): sign in as the demo owner and walk through the main screens. */
   qaTour: process.env.EXPO_PUBLIC_QA_TOUR === '1',
 } as const;

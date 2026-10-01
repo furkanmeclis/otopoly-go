@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Bell, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react-native';
+import { Bell, Fingerprint, KeyRound, ScanQrCode, ShieldCheck } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
@@ -114,6 +114,7 @@ export default function ProfileScreen() {
       <Section title={tr('mobile.catalog.profile_security')}>
         <Group>
           <ListRow title={tr('auth.password.title')} subtitle={tr('auth.profile.change_password_body')} left={<KeyRound size={20} color={t.colors.primary} />} onPress={() => router.push('/profile/password')} />
+          <ListRow title={tr('mobile.qr.menu_title')} subtitle={tr('mobile.qr.menu_subtitle')} left={<ScanQrCode size={20} color={t.colors.primary} />} onPress={() => router.push('/qr-scan')} />
           <ListRow title={tr('auth.preferences.title')} subtitle={tr('auth.preferences.description')} left={<Bell size={20} color={t.colors.primary} />} onPress={() => router.push('/profile/preferences')} />
           <ListRow
             title={tr('auth.totp.title')}

@@ -39,6 +39,15 @@
       "expo-secure-store",
       "expo-localization",
       "expo-sharing",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Otopoly, web oturumunu onaylamak için QR kodu okutmak üzere kameranızı kullanır.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
       "./plugins/with-xcode-cloud",
       "./plugins/with-scene-lifecycle",
       [

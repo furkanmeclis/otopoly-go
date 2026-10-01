@@ -14,3 +14,4 @@ import './io';
 import './billing';
 import './ai';
 import './account';
+import './qr-login';
