@@ -81,7 +81,7 @@ const PURCHASE_WORDS = /yükselt|satın|fiyat|ödeme|abone ol|upgrade|purchase|b
 
   console.log('resolveWebPath (public / QR)');
   ok(href('https://otopoly.app/q/abc123') === 'quote /q/abc123', '/q/{token} → public quote screen');
-  ok(href('/login/qr/s3ss10n') === 'qr /login/qr/s3ss10n', '/login/qr/{id} → QR sign-in stub');
+  ok(href('/login/qr/s3ss10n') === 'qr /login/qr/s3ss10n', '/login/qr/{id} → QR sign-in screen');
   ok(resolveWebPath('/q') === null && resolveWebPath('/platform/users') === null && resolveWebPath('/login') === null, 'non-app web pages → null');
 
   console.log('+native-intent rewrite');

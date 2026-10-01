@@ -30,9 +30,6 @@
   "notifications.quote_link.copy": "Bağlantıyı kopyala",
   "notifications.quote_link.copied": "Bağlantı kopyalandı",
   "notifications.quote_link.open_quotes": "Tekliflere git",
-  "notifications.qr.title": "QR ile giriş",
-  "notifications.qr.soon_title": "Yakında",
-  "notifications.qr.soon_body": "Web'e telefonunuzla QR kod okutarak giriş yapma özelliği yakında bu ekranda olacak.",
   "notifications.test.button": "Deneme bildirimi gönder",
   "notifications.test.sent": "Deneme bildirimi oluşturuldu",
   "notifications.test.scheduled": "Bildirim {{seconds}} saniye sonra gelecek. Uygulamayı arka plana alıp bildirime dokunabilirsiniz."

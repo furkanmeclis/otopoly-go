@@ -58,6 +58,7 @@ import trMobileDocuments from './mobile/areas/documents.tr.json';
 import trMobileFinance from './mobile/areas/finance.tr.json';
 import trMobileNotifications from './mobile/areas/notifications.tr.json';
 import trMobilePlan from './mobile/areas/plan.tr.json';
+import trMobileQr from './mobile/areas/qr.tr.json';
 import trMobileSettings from './mobile/areas/settings.tr.json';
 import enAccess from './en/access.json';
 import enActivity from './en/activity.json';
@@ -116,6 +117,7 @@ import enMobileDocuments from './mobile/areas/documents.en.json';
 import enMobileFinance from './mobile/areas/finance.en.json';
 import enMobileNotifications from './mobile/areas/notifications.en.json';
 import enMobilePlan from './mobile/areas/plan.en.json';
+import enMobileQr from './mobile/areas/qr.en.json';
 import enMobileSettings from './mobile/areas/settings.en.json';
 
 export const catalogs = {
@@ -168,7 +170,7 @@ export const catalogs = {
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobilePlan, ...trMobileSettings },
+    mobile: { ...trMobile, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobilePlan, ...trMobileQr, ...trMobileSettings },
   },
   en: {
     access: enAccess,
@@ -219,7 +221,7 @@ export const catalogs = {
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobilePlan, ...enMobileSettings },
+    mobile: { ...enMobile, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobilePlan, ...enMobileQr, ...enMobileSettings },
   },
 } as const;
 

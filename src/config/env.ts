@@ -6,10 +6,16 @@
  *   EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=…apps.googleusercontent.com   (Google sign-in; Android Credential Manager)
  *   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=…apps.googleusercontent.com   (Google sign-in on iOS; its reversed form is
  *                                                                  the URL scheme in app.config.js)
+ *   EXPO_PUBLIC_WEB_URL=http://192.168.1.5:3000   (optional dev web origin whose /login/qr/* QR codes are accepted)
  */
 export type ApiMode = 'mock' | 'live';
 
 const rawMode = process.env.EXPO_PUBLIC_API_MODE;
+
+function hostOf(url: string | undefined) {
+  const match = url ? /^https?:\/\/([^/?#]+)/i.exec(url.trim()) : null;
+  return match ? match[1].toLowerCase() : null;
+}
 
 export const env = {
   apiMode: (rawMode === 'live' ? 'live' : 'mock') as ApiMode,
@@ -20,6 +26,8 @@ export const env = {
   /** Google OAuth client ids. Native Google sign-in is hidden until they are set. */
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || null,
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || null,
+  /** Extra web host (host[:port]) accepted by the QR sign-in scanner; production uses otopoly.app. */
+  webHost: hostOf(process.env.EXPO_PUBLIC_WEB_URL),
   /** QA only (mock builds): sign in as the demo owner and walk through the main screens. */
   qaTour: process.env.EXPO_PUBLIC_QA_TOUR === '1',
 } as const;

@@ -39,7 +39,7 @@ export default function SelectOrganizationScreen() {
       header={<Header back={false} title={tr('mobile.org.pick_title')} subtitle={me ? `${me.user.name} ${me.user.surname}` : undefined} />}
       footer={
         <>
-          <Button label={tr('common.logout')} variant="outline" icon={<LogOut size={18} color={t.colors.text} />} onPress={logout} />
+          <Button label={tr('common.logout')} variant="outline" icon={<LogOut size={18} color={t.colors.text} />} onPress={() => void logout()} />
           <Button label={tr('mobile.auth.delete.row_title')} variant="ghost" size="sm" onPress={() => router.push('/delete-account')} />
         </>
       }

@@ -25,6 +25,5 @@
   "catalog.kind_service_short": "Service",
   "catalog.staff_you": "(you)",
   "catalog.staff_deactivate_confirm": "Deactivate {{name}}? Their open sessions end and they can no longer sign in.",
-  "catalog.profile_security": "Security",
-  "catalog.push_mobile_hint": "Mobile push notifications are coming soon. Manage browser notifications from the web panel."
+  "catalog.profile_security": "Security"
 }

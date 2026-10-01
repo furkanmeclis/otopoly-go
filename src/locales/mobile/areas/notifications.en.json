@@ -30,9 +30,6 @@
   "notifications.quote_link.copy": "Copy link",
   "notifications.quote_link.copied": "Link copied",
   "notifications.quote_link.open_quotes": "Go to quotes",
-  "notifications.qr.title": "QR sign-in",
-  "notifications.qr.soon_title": "Coming soon",
-  "notifications.qr.soon_body": "Signing in to the web by scanning a QR code with your phone will be available on this screen soon.",
   "notifications.test.button": "Send a test notification",
   "notifications.test.sent": "Test notification created",
   "notifications.test.scheduled": "It will arrive in {{seconds}} seconds. Put the app in the background and tap the notification."

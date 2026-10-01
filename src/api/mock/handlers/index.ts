@@ -16,3 +16,4 @@ import './billing';
 import './ai';
 import './account';
 import './notifications';
+import './qr-login';

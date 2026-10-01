@@ -19,6 +19,7 @@ import {
   Package,
   Receipt,
   Repeat,
+  ScanQrCode,
   ScrollText,
   Settings2,
   ShoppingBag,
@@ -205,6 +206,7 @@ export default function MenuScreen() {
             />
           ) : null}
           <ListRow title={tr('layout.nav_profile')} left={<UserRound size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/profile')} />
+          <ListRow title={tr('mobile.qr.menu_title')} subtitle={tr('mobile.qr.menu_subtitle')} left={<ScanQrCode size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/qr-scan')} />
           {(me?.organizations?.length ?? 0) > 1 ? <ListRow title={tr('mobile.org.switch')} left={<Repeat size={20} color={t.colors.textSecondary} />} onPress={switchOrganization} /> : null}
           <ListRow title={tr('mobile.diagnostics.title')} subtitle={isMock ? tr('mobile.demo.banner') : undefined} left={<Bug size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/diagnostics')} />
           <ListRow
