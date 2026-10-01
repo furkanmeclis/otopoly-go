@@ -4,7 +4,7 @@ import {
   Bug,
   Building2,
   ChartColumn,
-  CreditCard,
+  Gauge,
   Download,
   FileSignature,
   FileText,
@@ -121,7 +121,7 @@ export default function MenuScreen() {
       title: tr('layout.section_settings'),
       items: [
         { key: 'messaging', title: tr('layout.nav_messaging'), icon: ic(MessageCircle), href: '/settings/messaging' },
-        { key: 'billing', title: tr('layout.nav_billing'), icon: ic(CreditCard), href: '/settings/billing', gate: P.billingRead },
+        { key: 'usage', title: tr('mobile.plan.title'), icon: ic(Gauge), href: '/settings/usage', gate: P.billingRead },
       ],
     },
   ];

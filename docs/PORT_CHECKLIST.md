@@ -29,7 +29,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Owner-membership gate (`role === "owner"`) for voids, catalog/finance/cari/purchases/suppliers writes, staff write
 - [ ] `usePermission()`, `<Can>` component, route-level `RequirePermission` screen with forbidden state
 - [ ] Hidden nav items for missing permissions (same as web nav)
-- [ ] `409 LIMIT_REACHED` → global limit dialog; `403 FEATURE_DISABLED` → feature-locked state
+- [x] `409 LIMIT_REACHED` → global limit dialog (`LimitReachedHost`, API error bus; owner/staff copy, Close + "Kullanımı gör"); `403 FEATURE_DISABLED` → shared `FeatureLockedState` (reports, contracts, contract templates, assistant)
 
 ### API layer
 - [ ] `request(method, path, {query, body})` — same signature as web `platformRequest`
@@ -73,7 +73,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Tabs: Ana Sayfa · İşlemler · Müşteriler · Finans · Menü (items filtered by permission)
 - [ ] Menü mirrors web nav groups: Tenant / Finans / Müşteriler / Katalog / İçe-Dışa aktarım / Ayarlar
 - [ ] Nav badges: todos (overdue/today), leads, quotes (web `*NavAdornment`)
-- [ ] Subscription banner (trial/expiring) + limit-reached dialog
+- [~] Subscription banner (trial/expiring) + limit-reached dialog — dialog done; no banner (no purchase CTA allowed)
 - [ ] Assistant launcher (if `tenant.ai.use`)
 
 ## 2. Dashboard (`/t/{slug}`) — `tenant-dashboard.tsx`
@@ -169,7 +169,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 ## 17. Settings
 - [ ] Letterhead / export settings **O** (`tenant.settings.*`)
 - [ ] Messaging (WhatsApp session, templates, notification rules, daily summary, vehicle alerts)
-- [ ] Billing: overview, plans, usage meters, checkout/order, report payment, invoices, invoice profile
+- [x] Usage & limits (`/settings/usage`, read-only): plan name/status, period end, usage meters (warn ≥ 80 %, full at 100 %, unlimited), included modules
+- [x] ~~Plans, checkout/order, report payment, invoices, invoice profile~~ — removed for good: no in-app purchases (App Store 3.1.1/3.1.3, Play payments policy); backend e-mails the owner
 
 ## 18. I/O
 - [ ] Exports list + detail (download/share)
@@ -210,3 +211,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Expo Go / Android: bridge is a no-op (native module check), no crash
 - [x] Stringified widget code verified: parses, self-contained, renders 80 family/scheme/state combinations
 - [ ] Device QA on TestFlight: add each widget size, Lock Screen widgets, Live Activity start → ready → deliver
+
+## Plan limits (no in-app purchases)
+
+- [x] Mobile shows no prices, purchase / upgrade / subscribe CTAs or links to buy; dead billing code (orders, invoices, invoice profile, plans) removed
+- [x] Usage screen `src/app/(app)/settings/usage.tsx`, gated by `tenant.billing.read`; menu entry "Kullanım ve limitler"
+- [x] Global `LIMIT_REACHED` dialog with role-based copy and translated feature names (`mobile.plan.*`)
+- [x] Shared `FEATURE_DISABLED` lock state, neutral owner/staff copy; dashboard insights hidden when reports are off
+- [x] Mock scenarios on the diagnostics screen: normal / near limit / at limit / module off (owner and staff)
+- [x] `scripts/smoke/plan.smoke.ts` covers meters, limit errors, lock errors, copy and role gates
+- [ ] Live check against the Go API (LIMIT_REACHED details list, AI `plan_disabled`)
+- [ ] Device QA: dialog on iOS/Android, lock states in light/dark, tr/en

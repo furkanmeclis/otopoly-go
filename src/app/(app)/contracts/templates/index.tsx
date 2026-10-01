@@ -4,10 +4,11 @@ import { useDeferredValue, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { isApiError } from '@/api/errors';
+import { isFeatureDisabled } from '@/api/errors';
 import { Badge, Button, Card, EmptyState, ErrorState, FilterChips, Header, IconButton, ListSkeleton, Row, SearchBar, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { FeatureLockedState } from '@/features/billing/components/feature-locked';
 import { CONTRACT_VARIABLES, DEFAULT_SIGNER_SLOTS } from '@/features/contract-presets/services/contract-presets.service';
 import { ClonePresetSheet } from '@/features/contracts/components/contract-sheets';
 import { useContractsAccess } from '@/features/contracts/lib/access';
@@ -37,7 +38,7 @@ function TemplatesList() {
   const [cloneOpen, setCloneOpen] = useState(false);
   const query = useDeferredValue(q.trim());
   const list = useContractTemplatesInfinite({ q: query || undefined, is_active: active === 'all' ? undefined : active, sort: 'title' });
-  const featureLocked = list.isError && isApiError(list.error) && list.error.code === 'FEATURE_DISABLED';
+  const featureLocked = list.isError && isFeatureDisabled(list.error);
 
   const createBlank = useApiMutation({
     key: 'contracts.templates.create',
@@ -64,7 +65,7 @@ function TemplatesList() {
         title={tr('contracts.templates.title')}
         subtitle={list.total ? tr('common.items_other', { count: list.total }) : tr('contracts.templates.description')}
         right={
-          canManage ? (
+          canManage && !featureLocked ? (
             <>
               <IconButton label={tr('contracts.templates.clone')} icon={<Copy size={18} color={t.colors.text} />} onPress={() => setCloneOpen(true)} />
               <IconButton
@@ -104,7 +105,7 @@ function TemplatesList() {
           list.isLoading ? (
             <ListSkeleton rows={5} height={68} />
           ) : featureLocked ? (
-            <EmptyState title={tr('errors.codes.FEATURE_DISABLED')} description={tr('mobile.documents.feature_locked')} />
+            <FeatureLockedState feature="module.contracts" />
           ) : list.isError ? (
             <ErrorState description={tr('contracts.templates.error_description')} onRetry={() => list.refetch()} />
           ) : (

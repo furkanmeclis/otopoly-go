@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
 import { KeyRound, Plus, Power, UserCog } from 'lucide-react-native';
 import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
@@ -8,7 +7,8 @@ import { Avatar, Badge, Button, Card, EmptyState, ErrorState, Header, IconButton
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { ownerOnly, P } from '@/features/auth/permissions';
-import { billingService } from '@/features/billing/services/billing.service';
+import { UsageMeter } from '@/features/billing/components/usage-meter';
+import { useBillingOverview } from '@/features/billing/queries';
 import { qk, useStaff } from '@/features/queries';
 import { ResetPasswordSheet, StaffCreateSheet } from '@/features/staff/components/staff-sheets';
 import { staffService, type StaffMember } from '@/features/staff/services/staff.service';
@@ -30,7 +30,7 @@ export default function StaffScreen() {
 
 function StaffList() {
   const t = useTheme();
-  const { t: tr, fmt, locale } = useLocale();
+  const { t: tr, fmt } = useLocale();
   const { can, me } = useAuth();
   const confirm = useConfirm();
   const canWrite = can(STAFF_WRITE);
@@ -39,7 +39,7 @@ function StaffList() {
   const [resetFor, setResetFor] = useState<StaffMember | null>(null);
 
   // Web `MeterFor keyName="staff.count"`: plan seat usage, only when billing is readable.
-  const billing = useQuery({ queryKey: [...qk.billing, 'overview'], queryFn: () => billingService.overview(), enabled: can(P.billingRead), retry: false });
+  const billing = useBillingOverview(can(P.billingRead));
   const meter = billing.data?.meters.find((m) => m.key === 'staff.count' && m.kind === 'limit');
 
   const patch = useApiMutation({
@@ -71,24 +71,8 @@ function StaffList() {
         contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.xxxl, gap: t.spacing.sm }}
         ListHeaderComponent={
           meter ? (
-            <Card style={{ gap: 6, marginBottom: t.spacing.sm }}>
-              <Row style={{ justifyContent: 'space-between' }}>
-                <Txt variant="caption" tone="secondary">
-                  {locale === 'en' ? meter.label_en : meter.label_tr}
-                </Txt>
-                <Txt variant="bodyStrong">{meter.limit != null ? `${meter.used} / ${meter.limit}` : String(meter.used)}</Txt>
-              </Row>
-              {meter.limit ? (
-                <View style={{ height: 6, borderRadius: 3, backgroundColor: t.colors.surfaceSunken, overflow: 'hidden' }}>
-                  <View
-                    style={{
-                      width: `${Math.min(100, (meter.used / meter.limit) * 100)}%`,
-                      height: 6,
-                      backgroundColor: meter.used >= meter.limit ? t.colors.danger : (meter.used / meter.limit) * 100 >= meter.warn_pct ? t.colors.warning : t.colors.primary,
-                    }}
-                  />
-                </View>
-              ) : null}
+            <Card style={{ marginBottom: t.spacing.sm }}>
+              <UsageMeter meter={meter} />
             </Card>
           ) : null
         }

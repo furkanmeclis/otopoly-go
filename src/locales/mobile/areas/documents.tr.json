@@ -2,7 +2,6 @@
   "documents.signature_pad": "İmza alanı",
   "documents.signature_pad_hint": "İmzayı parmağınızla bu alana çizin.",
   "documents.signature_placeholder": "Buraya imzalayın",
-  "documents.feature_locked": "Sözleşmeler modülü mevcut paketinizde kapalı. Paketinizi yükseltmek için web panelini kullanın.",
   "documents.finalize": "Sözleşmeyi tamamla",
   "documents.finalized": "Sözleşme tamamlandı.",
   "documents.media_upload_web": "Fotoğraf ve dosya yükleme şimdilik web panelinden yapılabilir.",

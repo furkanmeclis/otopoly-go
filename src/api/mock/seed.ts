@@ -94,11 +94,13 @@ function plate() {
 
 const phone = () => `05${pick(['32', '33', '35', '42', '44', '52', '53', '55'])} ${int(100, 999)} ${int(10, 99)} ${int(10, 99)}`;
 
+/**
+ * Istanbul wall-clock time `daysAgo` days back. The API buckets days in Europe/Istanbul (UTC+3, no DST),
+ * so seeding in the process time zone would leave "today" empty on a UTC machine between 21:00 and 24:00.
+ */
 function at(daysAgo: number, hour: number, minute = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() - daysAgo);
-  d.setHours(hour, minute, int(0, 59), 0);
-  return d;
+  const [y, m, d] = istanbulDay().split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d - daysAgo, hour - 3, minute, int(0, 59)));
 }
 
 // ─── Seed ──────────────────────────────────────────────────────────────────

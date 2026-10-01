@@ -3,10 +3,11 @@ import { ArrowUpRight, ChartColumn, ShoppingBag, SlidersHorizontal, Users, Walle
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { BarChart, EmptyState, ErrorState, FilterChips, ForbiddenState, Header, IconButton, KpiTile, Row, Screen, Section, Skeleton, Sparkline, Txt } from '@/components/ui';
-import { isApiError } from '@/api/errors';
+import { BarChart, EmptyState, ErrorState, FilterChips, Header, IconButton, KpiTile, Row, Screen, Section, Skeleton, Sparkline, Txt } from '@/components/ui';
+import { isApiError, isFeatureDisabled } from '@/api/errors';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { FeatureLockedState } from '@/features/billing/components/feature-locked';
 import { financeMonthStart, financeToday } from '@/features/finance/lib';
 import { defaultDraft, ReportFilterSheet, toQuery, type ReportDraft } from '@/features/reports/components/report-filters';
 import { Legend, NamedTable, RankChart, ReportCard } from '@/features/reports/components/report-parts';
@@ -73,7 +74,7 @@ function Reports() {
     [series, fmt],
   );
   const net = series.map((p) => toNumber(p.net));
-  const featureLocked = overviewQuery.isError && isApiError(overviewQuery.error) && overviewQuery.error.code === 'FEATURE_DISABLED';
+  const featureLocked = overviewQuery.isError && isFeatureDisabled(overviewQuery.error);
 
   const k = overview?.kpis;
   const kpis = k
@@ -128,7 +129,7 @@ function Reports() {
       </View>
 
       {featureLocked ? (
-        <ForbiddenState description={tr('billing.limit.feature_disabled')} />
+        <FeatureLockedState feature="module.reports" />
       ) : overviewQuery.isError ? (
         <ErrorState description={isApiError(overviewQuery.error) ? overviewQuery.error.message : tr('reports.error')} onRetry={() => overviewQuery.refetch()} />
       ) : overviewQuery.isLoading && !overview ? (
