@@ -175,6 +175,8 @@ func main() {
 	// to the API process (owner of the WhatsApp sessions) via QueueMessaging.
 	queueClient := queue.NewClient(cfg.Redis)
 	defer func() { _ = queueClient.Close() }()
+	// Deliveries run inline here; mobile pushes go through the queue (retries).
+	notifSvc.WithPushQueue(queueClient)
 	messagingSvc := messagingusecase.New(queries, nil, nil).SetQueue(queueClient).SetStorage(store)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
 	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
