@@ -113,13 +113,21 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
 **2. dalganın durumu:**
 - [PR #2](https://github.com/furkanmeclis/otopoly-mobile-app/pull/2) (bildirimler): ✅ CI yeşil.
   - Demo: Tanılama → "Deneme bildirimi gönder".
-- Mobil giriş: 🟡
+- [PR #3](https://github.com/furkanmeclis/otopoly-mobile-app/pull/3) (mobil giriş): ✅ CI yeşil.
+  - E-posta kodu demo kodu: `246810`.
+  - TOTP açık demo kullanıcı: `ali@parlakoto.com` (TOTP kodu `123456`).
+  - Mock modunda Apple ve Google butonları bir demo kimlik seçici açıyor.
+  - Google girişi `react-native-nitro-google-signin` ile yapıldı.
+  - Yeni bir dev build gerekiyor.
 - QR ile giriş: 🟡
 
 **Merge sonrasında yapılacak entegrasyon işleri:**
 - Hesap silme akışı, token'lar temizlenmeden önce `unregisterPushDevice()` çağırmalı.
 - `/login/qr/[token]` sayfası şimdilik "yakında" diyen bir taslak. QR PR'ının sayfası bunun yerine geçecek.
 - Kullanılmayan `mobile.catalog.push_mobile_hint` çeviri anahtarı silinecek.
+- PR #2 ile PR #3 birlikte merge edilince push kaydı ve silme işlemleri `completeSignIn(tokens)` ve `logout({serverRevoked})` fonksiyonlarına bağlanacak. `select-org` ve `_layout` dosyalarında çakışma beklenir.
+- Mobil env: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` ve `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. Xcode Cloud ve EAS'ta tanımlanacak.
+- Google iOS yönlendirmesi ile SceneDelegate birlikte cihazda doğrulanmadı. Gerekirse bunun için bir config plugin yazılacak.
 
 ### 3. Dalga: eksik ekranlar ve mağaza denetimi — ⏸
 - **Eksik ekranlar:**
@@ -127,6 +135,8 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
   - Sözleşmeye fotoğraf/dosya ekleme (`expo-image-picker`).
   - İş detayında sözleşme bölümü.
   - Asistanın onay kartları.
+  - Profilde "Bağlı hesaplar" ekranı: Apple ve Google bağlama/kaldırma (`/v1/auth/identities`). `OAUTH_ACCOUNT_NOT_LINKED` mesajı kullanıcıyı buraya yönlendiriyor.
+  - Teklif ve potansiyel müşteri modülü kapalıyken gösterilecek kilit ekranı (`module.quotes`).
   - Erişimi olmayan, süresi dolmuş ve askıya alınmış hesaplar için ekranlar.
   - `PORT_CHECKLIST.md` gerçek duruma göre güncellenecek.
 - **Mağaza denetimi** (her ekran Apple ve Google açısından ayrı ayrı; çıktı: ekran / risk / önem / çözüm):
