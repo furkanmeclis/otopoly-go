@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, Divider, ErrorState, Header, Row, Screen, Section, Segmented, Skeleton, SwitchRow, TextField, Txt } from '@/components/ui';
+import { Badge, Button, Card, Divider, ErrorState, Header, Row, Screen, Section, Segmented, Skeleton, SwitchRow, TextField, Txt } from '@/components/ui';
 import { accountKeys, useNotificationPreferences, useTenantNotificationPreferences } from '@/features/account/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { notificationPreferencesService, type NotificationPreferences } from '@/features/account/services/notification-preferences.service';
@@ -12,7 +12,10 @@ import {
   type NotificationTypePreferences,
 } from '@/features/account/services/tenant-notification-preferences.service';
 import { useToast } from '@/components/feedback/toast';
+import { useProviderName } from '@/features/ai/components/consent';
+import { useAIConsent } from '@/features/ai/consent';
 import { useAuth } from '@/features/auth/auth-provider';
+import { P } from '@/features/auth/permissions';
 import { enablePush, isExpoGo, pushAvailable } from '@/features/notifications/push';
 import { useLocale } from '@/lib/i18n/provider';
 import type { AppLocale } from '@/lib/i18n/translate';
@@ -57,6 +60,8 @@ export default function PreferencesScreen() {
           <TenantPrefsForm key={JSON.stringify(tenant.data)} data={tenant.data} />
         )}
       </Section>
+
+      <AIConsentCard />
     </Screen>
   );
 }
@@ -187,5 +192,41 @@ function TenantPrefsForm({ data }: { data: NotificationTypePreferences }) {
       </Txt>
       <Button label={save.isPending ? tr('messaging.prefs.saving') : tr('messaging.prefs.save')} loading={save.isPending} disabled={needsPhone} onPress={() => save.mutate(undefined)} />
     </Card>
+  );
+}
+
+/**
+ * Assistant data sharing (App Store 5.1.2(i)): shows whether the user agreed to send data to the AI
+ * provider and lets them withdraw it. Withdrawing blocks the assistant until they agree again.
+ */
+function AIConsentCard() {
+  const t = useTheme();
+  const { t: tr, fmt } = useLocale();
+  const { me, can } = useAuth();
+  const toast = useToast();
+  const consent = useAIConsent(me?.user.uuid);
+  const provider = useProviderName(consent.consent?.provider);
+  if (!can(P.aiUse) || !consent.loaded) return null;
+  const given = consent.consent;
+  const revoke = async () => {
+    await consent.revoke();
+    log.info('AI consent withdrawn from preferences');
+    toast.success(tr('mobile.ai.consent.revoked'));
+  };
+  return (
+    <Section title={tr('mobile.ai.consent.prefs_title')}>
+      <Card style={{ gap: t.spacing.md }}>
+        <Row gap={t.spacing.sm} style={{ justifyContent: 'space-between' }}>
+          <Txt variant="bodyStrong" style={{ flex: 1 }}>
+            {tr('mobile.ai.consent.prefs_label')}
+          </Txt>
+          <Badge size="sm" tone={given ? 'success' : 'neutral'} label={given ? tr('mobile.ai.consent.status_on') : tr('mobile.ai.consent.status_off')} />
+        </Row>
+        <Txt variant="caption" tone="secondary">
+          {given ? tr('mobile.ai.consent.prefs_given', { provider, date: fmt.dateTime(given.accepted_at) }) : tr('mobile.ai.consent.prefs_none')}
+        </Txt>
+        {given ? <Button label={tr('mobile.ai.consent.revoke')} variant="outline" size="sm" onPress={() => void revoke()} /> : null}
+      </Card>
+    </Section>
   );
 }

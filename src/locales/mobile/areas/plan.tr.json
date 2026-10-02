@@ -43,5 +43,10 @@
   "plan.scenario.near_limit": "Limite yakın",
   "plan.scenario.at_limit": "Limit dolu",
   "plan.scenario.feature_disabled": "Modül kapalı",
-  "plan.scenario.changed": "Plan senaryosu: {{name}}"
+  "plan.scenario.changed": "Plan senaryosu: {{name}}",
+  "plan.read_only_dialog.title": "Yeni kayıt açılamıyor",
+  "plan.read_only_dialog.owner": "Plan dönemi sona erdiği için şu an yeni kayıt açılamıyor; mevcut kayıtlarınızı görüntüleyebilirsiniz. Ayrıntıları e-posta adresinize gönderdik.",
+  "plan.read_only_dialog.staff": "İşletmenizin plan dönemi sona erdiği için şu an yeni kayıt açılamıyor; mevcut kayıtları görüntüleyebilirsiniz. Sorularınız için işletme yöneticinize başvurabilirsiniz.",
+  "plan.scenario.quotes_disabled": "Teklif modülü kapalı",
+  "plan.scenario.read_only": "Salt okunur"
 }

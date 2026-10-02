@@ -26,7 +26,7 @@ export const PLAN_FEATURES = [
 export type PlanFeatureKey = (typeof PLAN_FEATURES)[number];
 
 /** Modules that can be switched off by the plan and show the shared lock state. */
-export type LockedModule = 'module.contracts' | 'module.reports' | 'ai.enabled';
+export type LockedModule = 'module.contracts' | 'module.reports' | 'module.quotes' | 'ai.enabled';
 
 /** Warn from this share of the limit on when the meter doesn't say otherwise. */
 export const DEFAULT_WARN_PCT = 80;
@@ -88,6 +88,14 @@ export function featurePeriod(key: string | undefined, meterPeriod?: string): 'd
  */
 export function limitReachedMessageKey(isOwner: boolean, period: 'day' | 'month' | 'total') {
   return `mobile.plan.limit.${isOwner ? 'owner' : 'staff'}_${period}` as const;
+}
+
+/**
+ * `403 SUBSCRIPTION_READ_ONLY` dialog body: the plan period ended, records can still be viewed.
+ * Same tone as the limit dialog; nothing about renewing or buying.
+ */
+export function readOnlyMessageKey(isOwner: boolean) {
+  return `mobile.plan.read_only_dialog.${isOwner ? 'owner' : 'staff'}` as const;
 }
 
 /** Translation key for the FEATURE_DISABLED lock state body. */

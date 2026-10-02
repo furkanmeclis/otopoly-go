@@ -8,9 +8,9 @@ import { createLogger } from '@/lib/logger';
 
 import { fail, matchRoute, MockHttpError, normalizeQuery, uuid, type MockCtx } from './core';
 import { getDb, loadDb, persist, resetDb } from './db';
-import { decodeAccessToken, permissionsFor } from './handlers/auth';
+import { decodeAccessToken, enforceOrgAccess, permissionsFor } from './handlers/auth';
 import { enforcePlan } from './handlers/billing';
-import { loadPlanScenario, setPlanScenario } from './scenario';
+import { loadAccessScenario, loadPlanScenario, setAccessScenario, setPlanScenario } from './scenario';
 import { seedDb } from './seed';
 
 import './handlers';
@@ -20,7 +20,7 @@ let ready: Promise<unknown> | null = null;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const boot = () => Promise.all([loadDb(seedDb), loadPlanScenario()]);
+const boot = () => Promise.all([loadDb(seedDb), loadPlanScenario(), loadAccessScenario()]);
 
 function envelope(status: number, data: unknown) {
   return { status, payload: { success: true, data, meta: { request_id: uuid() } } };
@@ -68,6 +68,7 @@ async function handle(method: string, path: string, query: MockCtx['query'], bod
     if (match.route.tenant) {
       if (!orgUuid) fail(403, 'ORGANIZATION_CONTEXT_REQUIRED', 'Organization context required');
       if (!ctx.membership) fail(403, 'NO_TENANT_MEMBERSHIP', 'Not a member of this organization');
+      enforceOrgAccess(orgUuid!);
       enforcePlan(ctx);
     }
     const data = await match.route.handler(ctx);
@@ -108,5 +109,6 @@ export async function mockFormRequest<T>(method: string, path: string, form: For
 export async function resetMockData() {
   await resetDb(seedDb);
   setPlanScenario('normal');
+  setAccessScenario('normal');
   ready = Promise.resolve();
 }

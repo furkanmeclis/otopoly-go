@@ -6,6 +6,7 @@ import { Linking, Pressable, View } from 'react-native';
 
 import { Badge, Button, Card, Divider, EmptyState, Group, Header, IconButton, InfoRow, ListRow, ListSkeleton, PlateBadge, Row, Screen, Section, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
+import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { localToday } from '@/features/jobs/lib/job-ui';
 import { ActionMenu, Notice, Stepper, type MenuAction } from '@/features/leads/components/crm-ui';
@@ -23,7 +24,9 @@ export default function QuoteDetailScreen() {
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.quotesRead} title={tr('quotes.title')}>
-      <QuoteDetailContent />
+      <QuotesModuleGate area="quotes" title={tr('quotes.title')}>
+        <QuoteDetailContent />
+      </QuotesModuleGate>
     </RequirePermission>
   );
 }

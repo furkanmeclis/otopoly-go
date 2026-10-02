@@ -45,7 +45,7 @@ Every screen has pull-to-refresh (except the chat), skeletons, `ErrorState` with
 ## Intentionally left out
 - **Anything that sells (final product decision):** prices, plans to compare, checkout, orders, invoices, payment details, upgrade / subscribe wording and links to buy. App Store 3.1.1 / 3.1.3 and Google Play payments policy. The backend e-mails the tenant owner instead.
 - **Logo upload:** the app has no image or document picker dependency and I could not add one. Mobile shows the logo and lets you remove it. Upload stays on the web.
-- **Assistant voice and confirm actions:** push-to-talk and read-aloud are left out (the mock reports `voice: false`). Confirm cards and plan checklists (`actions`/`todos` features) are not rendered. The mock status reports both features as off.
+- **Assistant voice:** push-to-talk and read-aloud are left out (the mock reports `voice: false`). Confirm cards and plan checklists were added in wave 3b (see `account.md`).
 - **Colour picker:** the web uses a native colour input. Mobile uses a hex field plus 8 preset colours.
 
 ## Known issues

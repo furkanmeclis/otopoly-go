@@ -4,7 +4,18 @@ import { useMemo, useState, useSyncExternalStore } from 'react';
 import { FlatList, Share, View } from 'react-native';
 
 import { DEMO_EMAIL_CODE, DEMO_REVIEW_EMAILS, DEMO_TOTP_CODE, getIssuedCodes, subscribeIssuedCodes } from '@/api/mock/demo-auth';
-import { getPlanScenario, PLAN_SCENARIOS, setPlanScenario, subscribePlanScenario, type PlanScenario } from '@/api/mock/scenario';
+import {
+  ACCESS_SCENARIOS,
+  getAccessScenario,
+  getPlanScenario,
+  PLAN_SCENARIOS,
+  setAccessScenario,
+  setPlanScenario,
+  subscribeAccessScenario,
+  subscribePlanScenario,
+  type AccessScenario,
+  type PlanScenario,
+} from '@/api/mock/scenario';
 import { useToast } from '@/components/feedback/toast';
 import { Badge, Button, EmptyState, FilterChips, Header, Row, Screen, Txt, useConfirm } from '@/components/ui';
 import { env, isMock } from '@/config/env';
@@ -74,6 +85,7 @@ export default function DiagnosticsScreen() {
           ]}
         />
         {isMock ? <PlanScenarioSwitch /> : null}
+        {isMock ? <AccessScenarioSwitch /> : null}
         {isMock && status === 'ready' ? <TestNotificationButton /> : null}
         {isMock ? <DemoAuthCodes /> : null}
         {isMock ? <Button label={tr('mobile.diagnostics.reset_demo')} size="sm" variant="ghost" icon={<Database size={16} color={t.colors.primary} />} onPress={resetDemo} /> : null}
@@ -132,6 +144,34 @@ function PlanScenarioSwitch() {
       <FilterChips<PlanScenario> value={scenario} onChange={change} options={PLAN_SCENARIOS.map((s) => ({ value: s, label: tr(`mobile.plan.scenario.${s}`) }))} />
       <Txt variant="caption" tone="muted">
         {tr('mobile.plan.scenario.hint')}
+      </Txt>
+    </View>
+  );
+}
+
+/**
+ * Demo only: the organization's access state (web `TenantRouteGuard`): ended, paused, no membership.
+ * Signed in, the profile is reloaded right away so the access screen shows (or goes away).
+ */
+function AccessScenarioSwitch() {
+  const t = useTheme();
+  const { t: tr } = useLocale();
+  const toast = useToast();
+  const { status, refreshMe } = useAuth();
+  const scenario = useSyncExternalStore(subscribeAccessScenario, getAccessScenario);
+  const change = (next: AccessScenario) => {
+    setAccessScenario(next);
+    if (status === 'ready' || status === 'selectOrg') refreshMe().catch(() => {});
+    toast.info(tr('mobile.access.scenario.changed', { name: tr(`mobile.access.scenario.${next}`) }));
+  };
+  return (
+    <View style={{ gap: t.spacing.xs }}>
+      <Txt variant="caption" tone="secondary">
+        {tr('mobile.access.scenario.title')}
+      </Txt>
+      <FilterChips<AccessScenario> value={scenario} onChange={change} options={ACCESS_SCENARIOS.map((s) => ({ value: s, label: tr(`mobile.access.scenario.${s}`) }))} />
+      <Txt variant="caption" tone="muted">
+        {tr('mobile.access.scenario.hint')}
       </Txt>
     </View>
   );

@@ -50,6 +50,7 @@ import trTodos from './tr/todos.json';
 import trUsers from './tr/users.json';
 import trVehicleBrands from './tr/vehicle_brands.json';
 import trMobile from './mobile/tr.json';
+import trMobileAccount from './mobile/areas/account.tr.json';
 import trMobileAuth from './mobile/areas/auth.tr.json';
 import trMobileCatalog from './mobile/areas/catalog.tr.json';
 import trMobileCommerce from './mobile/areas/commerce.tr.json';
@@ -109,6 +110,7 @@ import enTodos from './en/todos.json';
 import enUsers from './en/users.json';
 import enVehicleBrands from './en/vehicle_brands.json';
 import enMobile from './mobile/en.json';
+import enMobileAccount from './mobile/areas/account.en.json';
 import enMobileAuth from './mobile/areas/auth.en.json';
 import enMobileCatalog from './mobile/areas/catalog.en.json';
 import enMobileCommerce from './mobile/areas/commerce.en.json';
@@ -170,7 +172,7 @@ export const catalogs = {
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobilePlan, ...trMobileQr, ...trMobileSettings },
+    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobilePlan, ...trMobileQr, ...trMobileSettings },
   },
   en: {
     access: enAccess,
@@ -221,7 +223,7 @@ export const catalogs = {
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobilePlan, ...enMobileQr, ...enMobileSettings },
+    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobilePlan, ...enMobileQr, ...enMobileSettings },
   },
 } as const;
 

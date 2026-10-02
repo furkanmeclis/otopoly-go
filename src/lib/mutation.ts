@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 
-import { isApiError, isLimitReached } from '@/api/errors';
+import { isApiError, isPlanBlocked } from '@/api/errors';
 import { useApiErrorMessage, useToast } from '@/components/feedback/toast';
 import { useLocale } from '@/lib/i18n/provider';
 
@@ -41,8 +41,8 @@ export function useApiMutation<TVars, TData>({
       if (isApiError(error) && error.code === 'VALIDATION_ERROR' && !toastValidation && error.details.some((d) => d.field)) return;
       // Network/5xx are already toasted globally by the API event bus.
       if (isApiError(error) && (error.isNetwork || error.status >= 500)) return;
-      // Plan limits get the shared dialog (LimitReachedHost), not a toast.
-      if (isLimitReached(error)) return;
+      // Plan limits and read-only mode get the shared dialog (LimitReachedHost), not a toast.
+      if (isPlanBlocked(error)) return;
       toast.error(t('common.error_generic'), toMessage(error));
     },
   });

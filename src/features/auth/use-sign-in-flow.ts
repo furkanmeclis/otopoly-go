@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 
 import { isApiError } from '@/api/errors';
+import { setLinkIntent } from '@/features/account/link-intent';
 import type { Tokens } from '@/api/session';
 import { useAuth } from '@/features/auth/auth-provider';
 import { authErrorMessage, isMfaRequired, linkChoiceFrom, type LinkChoice } from '@/features/auth/lib/auth-errors';
@@ -56,6 +57,8 @@ export function useSignInFlow() {
         if (code === 'OAUTH_ACCOUNT_NOT_LINKED') {
           setMfa(null);
           setNotLinked(provider ?? 'apple');
+          // After the usual sign-in, open Profile → Linked accounts for this provider.
+          setLinkIntent(provider ?? 'apple');
           return null;
         }
         // A wrong authenticator code keeps the TOTP step open; anything else ends it.
@@ -90,7 +93,13 @@ export function useSignInFlow() {
     linkChoice,
     closeLinkChoice: useCallback(() => setLinkChoice(null), []),
     notLinked,
-    clearNotLinked: useCallback(() => setNotLinked(null), []),
+    /** Dismissing the notice also drops the "open linked accounts after sign-in" hint. */
+    clearNotLinked: useCallback(() => {
+      setNotLinked(null);
+      setLinkIntent(null);
+    }, []),
+    /** Hides the notice but keeps the hint (the user goes on to sign in the usual way). */
+    hideNotLinked: useCallback(() => setNotLinked(null), []),
   };
 }
 

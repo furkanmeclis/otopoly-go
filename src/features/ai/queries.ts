@@ -2,8 +2,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { isApiError } from '@/api/errors';
+import { replaceCard } from '@/features/ai/lib/blocks';
 import { aiService } from '@/features/ai/services/ai.service';
-import type { AIConversationDetail, AIMessage, ChatMessage } from '@/features/ai/types';
+import type { AIConversationDetail, AIMessage, AIUIBlock, ChatMessage } from '@/features/ai/types';
 import { qk } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
@@ -146,6 +147,56 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
     setTyping((cur) => (cur ? { ...cur, shown: cur.total } : cur));
   }, [pending]);
 
+  /** Puts a confirm card (and its tool chip) in its new state in the cached conversation. */
+  const setCard = useCallback(
+    (uuid: string, card: AIUIBlock, append?: AIMessage) => {
+      qc.setQueryData<AIConversationDetail>(aiKeys.detail(uuid), (old) =>
+        old ? { ...old, messages: [...replaceCard(old.messages, card), ...(append ? [append] : [])] } : old,
+      );
+    },
+    [qc],
+  );
+
+  /** Runs an action the assistant proposed (web `confirmAction`), with optional edited fields. */
+  const confirmAction = useCallback(
+    async (card: AIUIBlock, edits?: Record<string, string>) => {
+      const uuid = conversationUuid;
+      if (!uuid || !card.id) return;
+      setCard(uuid, { ...card, status: 'executing' });
+      try {
+        const res = await aiService.confirmAction(card.id, edits, locale);
+        setCard(uuid, res.block, res.message);
+        if (res.message) setTyping({ uuid: res.message.uuid, shown: 0, total: textLength(res.message.blocks) });
+        log.info('Assistant action confirmed', { action: card.id, status: res.block.status });
+        // The plan checklist of the proposing message moves on too: take the server's copy.
+        void qc.invalidateQueries({ queryKey: aiKeys.detail(uuid) });
+      } catch (error) {
+        // Not executed (or unknown): reload so the card shows the server's status.
+        void qc.invalidateQueries({ queryKey: aiKeys.detail(uuid) });
+        throw error;
+      } finally {
+        void qc.invalidateQueries({ queryKey: aiKeys.status });
+      }
+    },
+    [conversationUuid, locale, qc, setCard],
+  );
+
+  const cancelAction = useCallback(
+    async (card: AIUIBlock) => {
+      const uuid = conversationUuid;
+      if (!uuid || !card.id) return;
+      try {
+        const res = await aiService.cancelAction(card.id);
+        setCard(uuid, res.block);
+        log.info('Assistant action cancelled', { action: card.id });
+      } catch (error) {
+        void qc.invalidateQueries({ queryKey: aiKeys.detail(uuid) });
+        throw error;
+      }
+    },
+    [conversationUuid, qc, setCard],
+  );
+
   const reset = useCallback(() => {
     turn.current += 1;
     setLive({ conv: null, messages: [] });
@@ -157,6 +208,8 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
     send,
     stop,
     reset,
+    confirmAction,
+    cancelAction,
     busy: pending || animating,
     loading: detail.isLoading,
     loadError: detail.isError,

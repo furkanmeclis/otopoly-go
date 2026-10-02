@@ -3,6 +3,7 @@ import type { Me } from '@/features/account/services/auth.service';
 import { fail, now, requireFields, route, str, uuid, type MockCtx, type MockUser } from '../core';
 import { DEMO_TOTP_CODE } from '../demo-auth';
 import { getDb, persist } from '../db';
+import { getAccessScenario } from '../scenario';
 import { assertPasswordPolicy } from './account';
 
 /** Exact role → permission sets computed from backend migrations (organization_user / organization_owner). */
@@ -83,16 +84,41 @@ export function resolveOrganization(user: MockUser, slug: string) {
   const db = getDb();
   const org = db.organizations.find((o) => o.slug === slug);
   const membership = org && db.memberships.find((m) => m.orgUuid === org.uuid && m.userUuid === user.uuid);
-  if (!org || !membership) fail(403, 'NO_TENANT_MEMBERSHIP', 'You are not a member of this organization');
-  const expired = org!.access_ends_at && new Date(org!.access_ends_at).getTime() <= Date.now();
-  if (org!.status === 'suspended' || expired) fail(403, 'ORGANIZATION_ACCESS_EXPIRED', 'Organization access has ended');
+  if (!org || !membership || getAccessScenario() === 'removed') fail(403, 'NO_TENANT_MEMBERSHIP', 'You are not a member of this organization');
+  const view = orgAccessView(org!);
+  const expired = view.access_ends_at && new Date(view.access_ends_at).getTime() <= Date.now();
+  if (view.status === 'suspended' || expired) fail(403, 'ORGANIZATION_ACCESS_EXPIRED', 'Organization access has ended');
   return org!;
+}
+
+/**
+ * Organization status / access end as the demo access scenario shows them (diagnostics screen):
+ * `expired` moves `access_ends_at` to yesterday, `suspended` sets the status.
+ */
+export function orgAccessView<T extends { status: string; access_ends_at?: string | null }>(org: T): { status: string; access_ends_at: string | null } {
+  const scenario = getAccessScenario();
+  return {
+    status: scenario === 'suspended' ? 'suspended' : org.status,
+    access_ends_at: scenario === 'expired' ? new Date(Date.now() - 86400000).toISOString() : (org.access_ends_at ?? null),
+  };
+}
+
+/** Tenant-route access check, same order and codes as backend `middleware.RequireOrganization`. */
+export function enforceOrgAccess(orgUuid: string) {
+  const scenario = getAccessScenario();
+  if (scenario === 'removed') fail(403, 'NO_TENANT_MEMBERSHIP', 'You are not a member of this organization');
+  const org = getDb().organizations.find((o) => o.uuid === orgUuid);
+  if (!org) return;
+  const view = orgAccessView(org);
+  if (view.status === 'suspended') fail(403, 'FORBIDDEN', 'Organization is suspended');
+  const ended = view.access_ends_at && new Date(view.access_ends_at).getTime() <= Date.now();
+  if (view.status === 'expired' || ended) fail(403, 'ORGANIZATION_ACCESS_EXPIRED', 'Organization access has expired');
 }
 
 export function buildMe(user: MockUser, orgUuid: string | null): Me {
   const db = getDb();
   const orgs = db.memberships
-    .filter((m) => m.userUuid === user.uuid)
+    .filter((m) => m.userUuid === user.uuid && getAccessScenario() !== 'removed')
     .map((m) => {
       const o = db.organizations.find((x) => x.uuid === m.orgUuid)!;
       return {
@@ -101,8 +127,7 @@ export function buildMe(user: MockUser, orgUuid: string | null): Me {
         name: o.name,
         role: m.role,
         logo_url: o.logo_url,
-        status: o.status,
-        access_ends_at: o.access_ends_at,
+        ...orgAccessView(o),
       };
     });
   const session = db.sessions.find((s) => s.userUuid === user.uuid && s.orgUuid === orgUuid);

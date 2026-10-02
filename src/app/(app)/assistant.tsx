@@ -1,11 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { History, MoreHorizontal, SquarePen } from 'lucide-react-native';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, FlatList, KeyboardAvoidingView, Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, EmptyState, ErrorState, Header, IconButton, ListRow, ListSkeleton, Screen, SearchBar, Sheet, TextField, Txt, useConfirm } from '@/components/ui';
+import { ChatActionsProvider } from '@/features/ai/components/action-blocks';
 import { ChatEmpty, Composer, MessageBubble } from '@/features/ai/components/chat';
+import { AIConsentGate } from '@/features/ai/components/consent';
+import { consentValid, useAIConsent } from '@/features/ai/consent';
 import { unavailableKey } from '@/features/ai/lib/labels';
 import { useAIStatus, useAssistantChat, useConversationList, useDeleteConversation, useRenameConversation } from '@/features/ai/queries';
 import type { AIConversation, AIStatus, ChatMessage } from '@/features/ai/types';
@@ -32,8 +35,9 @@ export default function AssistantScreen() {
 function Assistant() {
   const theme = useTheme();
   const { t: tr } = useLocale();
-  const { can } = useAuth();
+  const { can, me } = useAuth();
   const status = useAIStatus(can(P.aiUse));
+  const consent = useAIConsent(me?.user.uuid);
   const { c } = useLocalSearchParams<{ c?: string }>();
   const conversation = typeof c === 'string' && c ? c : null;
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -49,6 +53,8 @@ function Assistant() {
 
   const locked = status.data?.plan_enabled === false || isFeatureDisabled(status.error);
   const ready = status.data?.available && !locked;
+  // App Store 5.1.2(i): nothing goes to the AI provider before the user agreed to the disclosure.
+  const consented = consentValid(consent.consent, status.data?.provider);
 
   return (
     <Screen
@@ -57,7 +63,7 @@ function Assistant() {
         <Header
           title={tr('ai.assistant.title')}
           right={
-            ready ? (
+            ready && consented ? (
               <>
                 <IconButton label={tr('ai.assistant.history')} icon={<History size={20} color={theme.colors.text} />} onPress={() => setHistoryOpen(true)} />
                 <IconButton label={tr('ai.assistant.new_chat')} icon={<SquarePen size={20} color={theme.colors.text} />} onPress={() => select(null)} />
@@ -77,10 +83,16 @@ function Assistant() {
         <ErrorState onRetry={() => void status.refetch()} />
       ) : !ready ? (
         <EmptyState title={tr('ai.unavailable.title')} description={tr(unavailableKey(status.data?.reason))} />
+      ) : !consent.loaded ? (
+        <View style={{ padding: 16 }}>
+          <ListSkeleton rows={3} height={64} />
+        </View>
+      ) : !consented ? (
+        <AIConsentGate provider={status.data?.provider} onAccept={() => consent.accept(status.data?.provider ?? '')} />
       ) : (
         <Chat key={selected.key} conversation={selected.uuid} status={status.data ?? null} onConversationCreated={onCreated} />
       )}
-      <HistorySheet visible={historyOpen} onClose={() => setHistoryOpen(false)} active={selected.uuid} onSelect={select} />
+      <HistorySheet visible={historyOpen && Boolean(consented)} onClose={() => setHistoryOpen(false)} active={selected.uuid} onSelect={select} />
     </Screen>
   );
 }
@@ -98,44 +110,47 @@ function Chat({ conversation, status, onConversationCreated }: { conversation: s
       onConversationCreated(uuid);
     },
   });
+  const actions = useMemo(() => ({ confirm: chat.confirmAction, cancel: chat.cancelAction, busy: chat.busy }), [chat.confirmAction, chat.cancelAction, chat.busy]);
   const quota = status?.quota;
   const showQuota = quota && !quota.unlimited && quota.limit > 0;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {chat.loadError ? (
-        <ErrorState description={tr('ai.assistant.load_failed')} onRetry={() => void chat.refetch()} />
-      ) : chat.loading && convUuid ? (
-        <View style={{ padding: t.spacing.lg }}>
-          <ListSkeleton rows={3} height={56} />
-        </View>
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={chat.messages}
-          keyExtractor={(m) => m.uuid}
-          renderItem={({ item }) => <MessageBubble message={item} />}
-          contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.xl, flexGrow: 1 }}
-          ListEmptyComponent={<ChatEmpty onPick={(text) => void chat.send(text)} disabled={chat.busy} />}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="interactive"
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-        />
-      )}
-      <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, paddingBottom: Math.max(insets.bottom, t.spacing.sm), borderTopWidth: 1, borderTopColor: t.colors.border, backgroundColor: t.colors.background, gap: 6 }}>
-        <Composer onSend={(text) => void chat.send(text)} onStop={chat.stop} busy={chat.busy} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: t.spacing.md }}>
-          <Txt variant="caption" tone="muted" style={{ fontSize: 11, flexShrink: 1 }}>
-            {tr('ai.assistant.disclaimer')}
-          </Txt>
-          {showQuota ? (
-            <Txt variant="caption" tone="muted" style={{ fontSize: 11 }}>
-              {tr('ai.assistant.quota_left', { remaining: quota.remaining.toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-US') })}
+    <ChatActionsProvider value={actions}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {chat.loadError ? (
+          <ErrorState description={tr('ai.assistant.load_failed')} onRetry={() => void chat.refetch()} />
+        ) : chat.loading && convUuid ? (
+          <View style={{ padding: t.spacing.lg }}>
+            <ListSkeleton rows={3} height={56} />
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={chat.messages}
+            keyExtractor={(m) => m.uuid}
+            renderItem={({ item }) => <MessageBubble message={item} />}
+            contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.xl, flexGrow: 1 }}
+            ListEmptyComponent={<ChatEmpty onPick={(text) => void chat.send(text)} disabled={chat.busy} />}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+          />
+        )}
+        <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, paddingBottom: Math.max(insets.bottom, t.spacing.sm), borderTopWidth: 1, borderTopColor: t.colors.border, backgroundColor: t.colors.background, gap: 6 }}>
+          <Composer onSend={(text) => void chat.send(text)} onStop={chat.stop} busy={chat.busy} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: t.spacing.md }}>
+            <Txt variant="caption" tone="muted" style={{ fontSize: 11, flexShrink: 1 }}>
+              {tr('ai.assistant.disclaimer')}
             </Txt>
-          ) : null}
+            {showQuota ? (
+              <Txt variant="caption" tone="muted" style={{ fontSize: 11 }}>
+                {tr('ai.assistant.quota_left', { remaining: quota.remaining.toLocaleString(locale === 'tr' ? 'tr-TR' : 'en-US') })}
+              </Txt>
+            ) : null}
+          </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ChatActionsProvider>
   );
 }
 

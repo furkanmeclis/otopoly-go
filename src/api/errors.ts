@@ -12,6 +12,7 @@ export type ApiErrorCode =
   | 'ORGANIZATION_CONTEXT_REQUIRED'
   | 'NO_TENANT_MEMBERSHIP'
   | 'ORGANIZATION_ACCESS_EXPIRED'
+  | 'SUBSCRIPTION_READ_ONLY'
   | 'MFA_REQUIRED'
   | 'TOTP_REQUIRED'
   | 'INVALID_CREDENTIALS'
@@ -132,3 +133,9 @@ export const isLimitReached = (error: unknown): error is ApiError => isApiError(
 
 /** `403 FEATURE_DISABLED`: the organization's plan turns the module off. */
 export const isFeatureDisabled = (error: unknown): error is ApiError => isApiError(error) && error.code === 'FEATURE_DISABLED';
+
+/** `403 SUBSCRIPTION_READ_ONLY`: the plan period ended; reads work, writes don't. */
+export const isReadOnly = (error: unknown): error is ApiError => isApiError(error) && error.code === 'SUBSCRIPTION_READ_ONLY';
+
+/** Plan blocks that get the shared plan dialog instead of an error toast. */
+export const isPlanBlocked = (error: unknown): error is ApiError => isLimitReached(error) || isReadOnly(error);
