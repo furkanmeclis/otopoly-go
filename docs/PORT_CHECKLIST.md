@@ -18,7 +18,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] `POST /v1/auth/organization-context {organization_slug}` → tokens with `oid`
 - [ ] Tokens in `expo-secure-store`; refresh (`POST /v1/auth/refresh`) single-flight on 401
 - [ ] Re-issue org context on `403 ORGANIZATION_CONTEXT_REQUIRED`
-- [ ] Guards (same as web `TenantRouteGuard`): not signed in → login; no membership → denied screen; `access_ends_at` passed or status suspended/expired → expired screen
+- [x] Guards (same as web `TenantRouteGuard`): not signed in → login; no membership → denied screen; `access_ends_at` passed or status suspended/expired → expired / paused screen (`TenantAccessGate`, neutral owner/staff copy, no purchase wording; blocked orgs in the picker open the same state)
 - [ ] Logout (`POST /v1/auth/logout`) clears tokens + query cache
 - [ ] Forgot password (`POST /v1/auth/password/forgot`)
 - [ ] 2FA prompt when login returns TOTP required
@@ -29,7 +29,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Owner-membership gate (`role === "owner"`) for voids, catalog/finance/cari/purchases/suppliers writes, staff write
 - [ ] `usePermission()`, `<Can>` component, route-level `RequirePermission` screen with forbidden state
 - [ ] Hidden nav items for missing permissions (same as web nav)
-- [x] `409 LIMIT_REACHED` → global limit dialog (`LimitReachedHost`, API error bus; owner/staff copy, Close + "Kullanımı gör"); `403 FEATURE_DISABLED` → shared `FeatureLockedState` (reports, contracts, contract templates, assistant)
+- [x] `409 LIMIT_REACHED` → global limit dialog (`LimitReachedHost`, API error bus; owner/staff copy, Close + "Kullanımı gör"); `403 FEATURE_DISABLED` → shared `FeatureLockedState` (reports, contracts, contract templates, assistant, quotes + leads via `QuotesModuleGate`); `403 SUBSCRIPTION_READ_ONLY` → same plan dialog with read-only copy
 
 ### API layer
 - [ ] `request(method, path, {query, body})` — same signature as web `platformRequest`
@@ -92,6 +92,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Board card: plate, brand mark, services color tags, elapsed time, assignee, amount, paid badge
 - [ ] Create job **W**: customer picker (+ inline create), vehicle picker (+ add vehicle from catalog), services (catalog), price/qty override, assignee, notes, start time
 - [ ] Detail: info, lines, payments, consumptions (material cost), contracts section, linked todos
+  - [x] Contracts section (web `JobContractsSection`): job's contracts (status, signed/total, PDF), create with vehicle photos (camera/library) → sign every pending signer in one sheet
 - [ ] Actions **W**: ready, deliver, close (cash/card → account, cari), cancel, edit notes, change assignee
 - [ ] Void **O**
 - [ ] Consumptions **W**: add product, change qty, remove
@@ -162,8 +163,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Export (reports.export) — share file
 
 ## 16. Contracts — `tenant.contracts.*`
-- [ ] Instances list + detail (signers, status, PDF)
-- [ ] On-site signing with signature pad, WhatsApp OTP verify
+- [x] Instances list + detail (signers, status, PDF)
+- [x] On-site signing with signature pad, WhatsApp OTP verify
+- [x] Gallery media upload: camera, photo library, Files (`expo-image-picker` / `expo-document-picker`; JPEG/PNG/WebP/GIF/PDF, 12 MB) with caption; delete while open
 - [ ] Templates list/detail; clone preset **O**; void **O**
 
 ## 17. Settings
@@ -174,15 +176,20 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ## 18. I/O
 - [ ] Exports list + detail (download/share)
-- [ ] Imports list + detail **O** (wizard is desktop-heavy — mobile: view + status)
+- [x] Imports list + detail **O**, rollback inside the 24 h window
+- [x] Import wizard **O** (`/imports/new`, `expo-document-picker`): upload → column mapping (auto-match) → defaults → preview → confirm; sample files via share sheet; resume an unconfirmed job from its detail. Finance accounts/categories only (catalog has no tenant upload route)
 
 ## 19. Profile
 - [ ] Profile edit (name, surname, locale), change password
 - [ ] Preferences: theme, language, notification preferences (`/v1/tenant/notification-preferences`)
 - [ ] Sessions (list, revoke, revoke others), 2FA status
+- [x] Linked accounts (`/profile/linked-accounts`): list, link Apple / Google with the native sheet, unlink; last sign-in method of a password-less account can't be removed; `OAUTH_ACCOUNT_NOT_LINKED` sends the user here after sign-in (mock; native link route proposed, see port-reports/account.md)
+- [x] Preferences: AI data-sharing consent status + withdraw
 
 ## 20. Assistant — `tenant.ai.use`
-- [ ] Conversations list, chat (SSE stream), confirm cards, tool activity
+- [~] Conversations list, chat, tool activity — done on mock JSON; live SSE reader still open
+- [x] Confirm cards (edit / confirm / cancel, result + record link) and plan checklists (`actions` / `todos` features) — mock JSON; live confirm is SSE too
+- [x] First-use AI data disclosure + explicit consent (App Store 5.1.2(i)): provider named from `/ai/status`, what is / isn't sent, stored per user, sending blocked until accepted, withdraw in Preferences
 
 ---
 
@@ -218,7 +225,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Usage screen `src/app/(app)/settings/usage.tsx`, gated by `tenant.billing.read`; menu entry "Kullanım ve limitler"
 - [x] Global `LIMIT_REACHED` dialog with role-based copy and translated feature names (`mobile.plan.*`)
 - [x] Shared `FEATURE_DISABLED` lock state, neutral owner/staff copy; dashboard insights hidden when reports are off
-- [x] Mock scenarios on the diagnostics screen: normal / near limit / at limit / module off (owner and staff)
+- [x] Mock scenarios on the diagnostics screen: normal / near limit / at limit / module off / quotes module off / read-only (owner and staff), plus an organization access switch (normal / ended / paused / no membership)
+- [x] `module.quotes` lock on quotes + leads list, detail and form screens; dashboard pipeline hidden when off
+- [x] `SUBSCRIPTION_READ_ONLY` uses the shared plan dialog (owner: details e-mailed, staff: ask the manager); no toast
+- [x] `scripts/smoke/account.smoke.ts` covers linked accounts, access states, quotes lock, read-only, assistant actions and consent
 - [x] `scripts/smoke/plan.smoke.ts` covers meters, limit errors, lock errors, copy and role gates
 - [ ] Live check against the Go API (LIMIT_REACHED details list, AI `plan_disabled`)
 - [ ] Device QA: dialog on iOS/Android, lock states in light/dark, tr/en

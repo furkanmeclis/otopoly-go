@@ -10,6 +10,7 @@ import { Pressable, View } from 'react-native';
 
 import { Button, Card, EmptyState, Field, Header, IconButton, InfoRow, ListSkeleton, Row, Screen, Section, Segmented, SelectField, SwitchRow, TextField, Txt, DateField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
+import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { catalogService, type CatalogProduct, type CatalogService } from '@/features/catalog/services/catalog.service';
 import { CustomerPicker, VehicleModelPicker } from '@/features/customers/components/pickers';
@@ -115,7 +116,9 @@ export default function QuoteFormScreen() {
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.quotesWrite} title={tr('quotes.editor.new_title')}>
-      <QuoteFormEntry />
+      <QuotesModuleGate area="quotes" title={tr('quotes.editor.new_title')}>
+        <QuoteFormEntry />
+      </QuotesModuleGate>
     </RequirePermission>
   );
 }

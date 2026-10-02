@@ -66,10 +66,18 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Otopoly, web oturumunu onaylamak için QR kodu okutmak üzere kameranızı kullanır.",
+          "cameraPermission": "Otopoly, web oturumunu onaylamak için QR kodu okutmak ve sözleşmelere araç fotoğrafı eklemek üzere kameranızı kullanır.",
           "microphonePermission": false,
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Otopoly, seçtiğiniz araç fotoğraflarını ve belgeleri sözleşmelere eklemek için fotoğraf arşivinize erişir.",
+          "cameraPermission": "Otopoly, web oturumunu onaylamak için QR kodu okutmak ve sözleşmelere araç fotoğrafı eklemek üzere kameranızı kullanır.",
+          "microphonePermission": false
         }
       ],
       "./plugins/with-xcode-cloud",

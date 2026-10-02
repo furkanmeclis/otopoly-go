@@ -9,6 +9,22 @@ export type AIConversationDetail = Schemas['AIConversationDetail'];
 export type AIMessage = Schemas['AIMessage'];
 export type AIUIBlock = Schemas['AIUIBlock'];
 export type AIChart = Schemas['AIChart'];
+export type AIConfirmCard = Schemas['AIConfirmCard'];
+export type AIEditField = Schemas['AIEditField'];
+export type AIActionLink = Schemas['AIActionLink'];
+export type AIPlan = Schemas['AIPlan'];
+export type AIPlanItem = Schemas['AIPlanItem'];
+/** `confirm` block status (web `AIActionStatus`). */
+export type AIActionStatus = 'pending' | 'executing' | 'confirmed' | 'failed' | 'cancelled' | 'expired';
+
+/**
+ * Result of confirming a proposed action. The live API streams it (SSE `action` event, then the
+ * assistant's follow-up message); the mock returns both as JSON.
+ */
+export type AIActionResultPayload = {
+  block: AIUIBlock;
+  message?: AIMessage;
+};
 
 export type AIConversationPage = {
   items: AIConversation[];

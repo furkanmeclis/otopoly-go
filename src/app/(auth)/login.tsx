@@ -113,7 +113,7 @@ export default function LoginScreen() {
                 <NotLinkedNotice
                   provider={flow.notLinked}
                   onUseCode={() => {
-                    flow.clearNotLinked();
+                    flow.hideNotLinked();
                     setMode('code');
                   }}
                   onDismiss={flow.clearNotLinked}

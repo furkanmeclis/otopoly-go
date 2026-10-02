@@ -93,7 +93,7 @@ const en = (key: string, params?: Record<string, string | number>) => translate(
   await expectCode(api.nativeOAuth('google', idt('apple-linked')), 'INVALID_ID_TOKEN', 'token from another provider');
   await expectCode(api.nativeOAuth('apple', { id_token: '' }), 'VALIDATION_ERROR', 'missing id_token');
   const notLinked = await expectCode(api.nativeOAuth('google', idt('google-unlinked')), 'OAUTH_ACCOUNT_NOT_LINKED', 'Google email has an unlinked account');
-  ok(notLinked?.status === 409 && authErrorMessage(tr, notLinked, 'google').includes('profilinizden'), 'not-linked copy tells to link from profile');
+  ok(notLinked?.status === 409 && authErrorMessage(tr, notLinked, 'google').includes('Bağlı hesaplar'), 'not-linked copy points to Profile → Bağlı hesaplar');
   (getDb() as any)._oauthDisabled = { google: true };
   await expectCode(api.nativeOAuth('google', idt('google-unlinked')), 'OAUTH_PROVIDER_DISABLED', 'provider disabled');
   (getDb() as any)._oauthDisabled = {};

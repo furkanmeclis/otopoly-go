@@ -6,7 +6,9 @@ import { ActivityIndicator, View } from 'react-native';
 import { BrandMark } from '@/components/brand';
 import { isApiError } from '@/api/errors';
 import { useToast } from '@/components/feedback/toast';
-import { Badge, Button, EmptyState, Group, Header, ListRow, Screen, Txt } from '@/components/ui';
+import { Badge, Button, EmptyState, Group, Header, ListRow, Screen, Sheet, Txt } from '@/components/ui';
+import type { OrganizationMembership } from '@/features/account/services/auth.service';
+import { TenantAccessState } from '@/features/auth/components/tenant-access-state';
 import { orgBlock, useAuth } from '@/features/auth/auth-provider';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
@@ -17,6 +19,9 @@ export default function SelectOrganizationScreen() {
   const { me, selectOrganization, logout } = useAuth();
   const toast = useToast();
   const [busy, setBusy] = useState<string | null>(null);
+  // A blocked organization opens its access state (expired / suspended) instead of doing nothing.
+  const [blocked, setBlocked] = useState<OrganizationMembership | null>(null);
+  const blockedState = blocked ? orgBlock(blocked) : null;
   const orgs = me?.organizations ?? [];
 
   const choose = async (slug: string, name: string) => {
@@ -25,10 +30,9 @@ export default function SelectOrganizationScreen() {
       await selectOrganization(slug);
     } catch (error) {
       const code = isApiError(error) ? error.code : '';
-      toast.error(
-        code === 'ORGANIZATION_ACCESS_EXPIRED' ? tr('organizations.access.expired_title') : tr('common.error_generic'),
-        code === 'ORGANIZATION_ACCESS_EXPIRED' ? tr('organizations.access.expired_description', { name }) : undefined,
-      );
+      const org = orgs.find((o) => o.slug === slug);
+      if (code === 'ORGANIZATION_ACCESS_EXPIRED' && org) setBlocked({ ...org, status: org.status === 'suspended' ? org.status : 'expired' });
+      else toast.error(code === 'NO_TENANT_MEMBERSHIP' ? tr('organizations.access.denied_title') : tr('common.error_generic'), code === 'NO_TENANT_MEMBERSHIP' ? tr('organizations.access.denied_description') : name);
     } finally {
       setBusy(null);
     }
@@ -59,7 +63,7 @@ export default function SelectOrganizationScreen() {
                   title={org.name}
                   subtitle={
                     block
-                      ? tr('organizations.access.expired_title')
+                      ? tr(block === 'suspended' ? 'mobile.access.suspended_title' : 'organizations.access.expired_title')
                       : org.access_ends_at
                         ? `${tr(`organizations.roles.${org.role}`)} · ${fmt.date(org.access_ends_at)}`
                         : tr(`organizations.roles.${org.role}`)
@@ -69,9 +73,8 @@ export default function SelectOrganizationScreen() {
                       <Building2 size={20} color={t.colors.primary} />
                     </View>
                   }
-                  right={busy === org.slug ? <ActivityIndicator color={t.colors.primary} /> : block ? <Badge tone="danger" label={tr('organizations.access.expired_title')} icon={<Clock size={12} color={t.colors.danger} />} /> : undefined}
-                  onPress={block || busy ? undefined : () => choose(org.slug, org.name)}
-                  disabled={Boolean(block)}
+                  right={busy === org.slug ? <ActivityIndicator color={t.colors.primary} /> : block ? <Badge tone="neutral" label={tr(block === 'suspended' ? 'mobile.access.suspended_badge' : 'mobile.access.expired_badge')} icon={<Clock size={12} color={t.colors.textMuted} />} /> : undefined}
+                  onPress={busy ? undefined : block ? () => setBlocked(org) : () => choose(org.slug, org.name)}
                   last={i === orgs.length - 1}
                 />
               );
@@ -79,6 +82,16 @@ export default function SelectOrganizationScreen() {
           </Group>
         </View>
       )}
+      <Sheet visible={Boolean(blockedState)} onClose={() => setBlocked(null)} title={blocked?.name ?? ''}>
+        {blocked && blockedState ? (
+          <TenantAccessState
+            state={blockedState}
+            orgName={blocked.name}
+            isOwner={blocked.role === 'owner'}
+            actions={<Button label={tr('common.close')} variant="outline" onPress={() => setBlocked(null)} />}
+          />
+        ) : null}
+      </Sheet>
     </Screen>
   );
 }

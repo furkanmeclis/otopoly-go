@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, EmptyState, ErrorState, FilterChips, Header, IconButton, ListSkeleton, PlateBadge, Row, SearchBar, Skeleton, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
+import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { useQuotesSummary } from '@/features/queries';
 import { isOpenQuote, quoteAccent, quoteStatusTone } from '@/features/quotes/lib/quote-ui';
@@ -22,7 +23,9 @@ export default function QuotesScreen() {
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.quotesRead} title={tr('quotes.title')}>
-      <QuotesList />
+      <QuotesModuleGate area="quotes" title={tr('quotes.title')}>
+        <QuotesList />
+      </QuotesModuleGate>
     </RequirePermission>
   );
 }

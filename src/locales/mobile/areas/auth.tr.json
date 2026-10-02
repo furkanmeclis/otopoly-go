@@ -26,7 +26,7 @@
   "auth.error.link_conflict": "Bu {{provider}} hesabı başka bir hesaba bağlı ya da hesabınızda zaten bir {{provider}} bağlantısı var.",
   "auth.error.registration_closed": "Şu anda yeni hesap açılamıyor.",
   "auth.not_linked.title": "{{provider}} hesabınız bağlı değil",
-  "auth.not_linked.body": "Bu e-posta adresiyle kayıtlı bir Otopoly hesabı var, ancak {{provider}} hesabınız ona bağlı değil. Her zamanki yönteminizle (şifre ya da e-posta kodu) giriş yapın, ardından {{provider}} hesabınızı profilinizden bağlayın.",
+  "auth.not_linked.body": "Bu e-posta adresiyle kayıtlı bir Otopoly hesabı var, ancak {{provider}} hesabınız ona bağlı değil. Her zamanki yönteminizle (şifre ya da e-posta kodu) giriş yapın, ardından Profil → Bağlı hesaplar ekranından {{provider}} hesabınızı bağlayın. Giriş yapınca sizi bu ekrana götüreceğiz.",
   "auth.not_linked.use_code": "E-posta koduyla giriş yap",
   "auth.link.title": "Hesabınız var mı?",
   "auth.link.body": "Apple ile girişte e-posta adresinizi gizlediniz. Otopoly'de zaten bir hesabınız varsa Apple ile girişi o hesaba bağlayalım. Yoksa sizin için yeni bir hesap açalım.",

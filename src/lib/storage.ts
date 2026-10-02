@@ -65,6 +65,9 @@ export const StorageKeys = {
   activeOrg: 'auth.active_org',
   demoMockDb: 'demo.mock_db',
   demoPlanScenario: 'demo.plan_scenario',
+  demoAccessScenario: 'demo.access_scenario',
+  /** Per-user AI assistant data-sharing consent (`ai.consent.<userUuid>`). */
+  aiConsent: 'ai.consent',
   dismissedSetup: 'dashboard.setup_dismissed',
   /** Expo push token last registered with the backend (unregistered on logout). */
   pushToken: 'push.token',

@@ -3,14 +3,16 @@
  * the same envelopes, status codes and error codes as the Go API.
  */
 import { setTransport, type Transport } from '@/api/client';
+import { parseApiError } from '@/api/errors';
+import { session } from '@/api/session';
 import { env } from '@/config/env';
 import { createLogger } from '@/lib/logger';
 
 import { fail, matchRoute, MockHttpError, normalizeQuery, uuid, type MockCtx } from './core';
 import { getDb, loadDb, persist, resetDb } from './db';
-import { decodeAccessToken, permissionsFor } from './handlers/auth';
+import { decodeAccessToken, enforceOrgAccess, permissionsFor } from './handlers/auth';
 import { enforcePlan } from './handlers/billing';
-import { loadPlanScenario, setPlanScenario } from './scenario';
+import { loadAccessScenario, loadPlanScenario, setAccessScenario, setPlanScenario } from './scenario';
 import { seedDb } from './seed';
 
 import './handlers';
@@ -20,7 +22,7 @@ let ready: Promise<unknown> | null = null;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const boot = () => Promise.all([loadDb(seedDb), loadPlanScenario()]);
+const boot = () => Promise.all([loadDb(seedDb), loadPlanScenario(), loadAccessScenario()]);
 
 function envelope(status: number, data: unknown) {
   return { status, payload: { success: true, data, meta: { request_id: uuid() } } };
@@ -68,6 +70,7 @@ async function handle(method: string, path: string, query: MockCtx['query'], bod
     if (match.route.tenant) {
       if (!orgUuid) fail(403, 'ORGANIZATION_CONTEXT_REQUIRED', 'Organization context required');
       if (!ctx.membership) fail(403, 'NO_TENANT_MEMBERSHIP', 'Not a member of this organization');
+      enforceOrgAccess(orgUuid!);
       enforcePlan(ctx);
     }
     const data = await match.route.handler(ctx);
@@ -95,18 +98,24 @@ export function installMockTransport() {
   return ready;
 }
 
-/** Multipart uploads in demo mode: accept and delegate to the JSON route with file metadata. */
+/**
+ * Multipart uploads in demo mode: accept and delegate to the JSON route with file metadata
+ * (`{ uri, name, type }` for file parts). Sends the session token like the live upload does.
+ */
 export async function mockFormRequest<T>(method: string, path: string, form: FormData): Promise<T> {
   const fields: Record<string, unknown> = {};
-  (form as unknown as { _parts?: [string, unknown][] })._parts?.forEach(([k, v]) => (fields[k] = v));
-  const res = await mockTransport({ method, path, body: fields, headers: {} });
-  const payload = res.payload as { data?: T; error?: { message?: string } };
-  if (res.status >= 400) throw new Error(payload.error?.message ?? 'Upload failed');
-  return payload.data as T;
+  const parts = (form as unknown as { _parts?: [string, unknown][] })._parts;
+  if (parts) parts.forEach(([k, v]) => (fields[k] = v));
+  else form.forEach((v, k) => (fields[k] = v));
+  const token = session.get()?.accessToken;
+  const res = await mockTransport({ method, path, body: fields, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (res.status >= 400) throw parseApiError(res.status, res.payload, undefined, res.retryAfter);
+  return (res.payload as { data?: T }).data as T;
 }
 
 export async function resetMockData() {
   await resetDb(seedDb);
   setPlanScenario('normal');
+  setAccessScenario('normal');
   ready = Promise.resolve();
 }

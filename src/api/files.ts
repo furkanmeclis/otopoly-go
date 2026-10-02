@@ -11,7 +11,8 @@ import { session } from './session';
 const log = createLogger('files');
 
 /** A file picked on the device, ready for multipart upload. */
-export type UploadFile = { uri: string; name: string; type: string };
+/** `size` (bytes, when the picker knows it) is only used for client-side limit checks. */
+export type UploadFile = { uri: string; name: string; type: string; size?: number };
 
 /**
  * Multipart upload (`FormData`) to the Go API. Mobile counterpart of the web `platformFormRequest`.

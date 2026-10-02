@@ -269,7 +269,8 @@ function todoView(t: Todo): Todo {
   return t;
 }
 
-function createTodo(ctx: MockCtx, b: Record<string, unknown>) {
+/** Shared with the assistant mock (`create_todo` confirm cards set `via_ai`). */
+export function createTodo(ctx: MockCtx, b: Record<string, unknown>) {
   const db = getDb();
   const title = str(b.title).trim();
   if (!title) fail(400, 'VALIDATION_ERROR', 'Title is required', [{ field: 'title', message: 'required' }]);
@@ -296,7 +297,7 @@ function createTodo(ctx: MockCtx, b: Record<string, unknown>) {
     quote: quote ? { uuid: quote.uuid, label: quote.number } : null,
     reminder_offsets: offsets,
     next_reminder_at: null,
-    via_ai: false,
+    via_ai: b.via_ai === true,
     created_by_name: actorName(ctx),
     completed_at: null,
     created_at: at,
