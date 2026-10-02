@@ -75,6 +75,20 @@ export function requireFields(body: Record<string, unknown>, fields: string[]) {
 
 export type Handler = (ctx: MockCtx) => unknown | Promise<unknown>;
 
+/**
+ * A `text/event-stream` answer (AI chat / action confirm). The mock transport serializes the events
+ * exactly like the Go `sseWriter` and streams them with a small delay, so mock and live share the
+ * app's SSE reader. `thinkMs` delays the first event (the "thinking…" state).
+ */
+export class MockSse {
+  constructor(
+    readonly events: { event: string; data: unknown }[],
+    readonly thinkMs = 0,
+  ) {}
+}
+
+export const sse = (events: MockSse['events'], thinkMs = 0) => new MockSse(events, thinkMs);
+
 type RouteDef = {
   method: string;
   /** Registered path template (`/v1/tenant/jobs/:uuid`). */

@@ -1,16 +1,18 @@
 /**
  * AI assistant conversations. Owned by the settings area.
- * The real backend streams SSE; the mock answers deterministically from the demo DB and returns the whole
- * assistant message as JSON (`{ conversation, user_message, message }`) — the app animates the typing.
+ * The mock answers deterministically from the demo DB and, like the Go API, streams the answer as
+ * server-sent events (`message_start`, `tool_start`/`tool_result`, `chart`, `plan`, `confirm`,
+ * `text_delta`…, `message_done`, `title`), so the app's SSE reader is the same in mock and live mode.
  *
  * Write actions (`actions` / `todos` features): a reminder / todo request ("yarın lastik siparişini
  * hatırlat") answers with a plan checklist, a pending `create_todo` tool chip and a confirm card.
- * `POST /v1/tenant/ai/actions/:uuid/confirm` creates the todo (edits applied) and returns
- * `{ block, message }`; `/cancel` returns `{ block }`. Cards expire after 15 minutes like the API.
+ * `POST /v1/tenant/ai/actions/:uuid/confirm` creates the todo (edits applied) and streams `action`
+ * then the resumed follow-up message; `/cancel` returns `{ block }` as JSON. Cards expire after
+ * 15 minutes like the API.
  */
 import type { AIChart, AIConfirmCard, AIConversation, AIConversationDetail, AIMessage, AIPlan, AIStatus, AIUIBlock } from '@/features/ai/types';
 
-import { fail, istanbulDay, now, num, requirePerm, route, search, str, uuid, validation, type MockCtx } from '../core';
+import { fail, istanbulDay, MockSse, now, num, requirePerm, route, search, sse, str, uuid, validation, type MockCtx } from '../core';
 import { getDb } from '../db';
 import { planFeatureEnabled } from './billing';
 import { createTodo } from './crm';
@@ -336,19 +338,66 @@ route('DELETE', '/v1/tenant/ai/conversations/:uuid', (ctx) => {
   return { deleted: true };
 });
 
-route('POST', '/v1/tenant/ai/conversations/:uuid/messages', async (ctx) => {
+// ─── SSE ────────────────────────────────────────────────────────────────────
+
+/** Splits text into small deltas (a few words each) like a model's token stream. */
+function deltas(t: string) {
+  return t.match(/\S+\s*|\s+/g)?.reduce<string[]>((out, word, i) => {
+    if (i % 3 === 0) out.push(word);
+    else out[out.length - 1] += word;
+    return out;
+  }, []) ?? [];
+}
+
+/**
+ * The events the Go agent loop emits for a finished assistant message (`usecase/chat.go`):
+ * tool_start → tool_result per tool, chart, plan, confirm, text_delta chunks, message_done.
+ */
+function messageEvents(message: AIMessage, content: string): MockSse['events'] {
+  const events: MockSse['events'] = [];
+  for (const b of message.blocks) {
+    if (b.type === 'text') for (const d of deltas(b.text ?? '')) events.push({ event: 'text_delta', data: { text: d } });
+    else if (b.type === 'tool') {
+      events.push({ event: 'tool_start', data: { id: b.id, name: b.name } });
+      if (b.status === 'done' || b.status === 'error')
+        events.push({ event: 'tool_result', data: { id: b.id, name: b.name, ok: b.status === 'done', summary_key: b.summary_key ?? '', summary_params: b.summary_params ?? {} } });
+    } else if (b.type === 'chart') events.push({ event: 'chart', data: { id: b.id, chart: b.chart } });
+    else if (b.type === 'todo_list') events.push({ event: 'plan', data: { block: b } });
+    else if (b.type === 'confirm') events.push({ event: 'confirm', data: { block: b } });
+    else if (b.type === 'error') events.push({ event: 'error', data: { code: b.code, message: b.message ?? '' } });
+  }
+  const paused = message.blocks.some((b) => b.type === 'confirm' && b.status === 'pending');
+  events.push({
+    event: 'message_done',
+    data: {
+      message_uuid: message.uuid,
+      status: message.status,
+      stop_reason: paused ? 'tool_use' : 'end_turn',
+      usage: { input_tokens: 1200 + content.length * 3, output_tokens: 150 + Math.round(JSON.stringify(message.blocks).length / 4) },
+    },
+  });
+  return events;
+}
+
+route('POST', '/v1/tenant/ai/conversations/:uuid/messages', (ctx) => {
   requirePerm(ctx, 'tenant.ai.use');
+  // Checked before the stream opens (regular JSON errors), like `PrepareMessage`.
   const content = str(ctx.body.content).trim();
-  if (!content) validation([{ field: 'content', message: 'required', code: 'required' }]);
-  if (content.length > 4000) validation([{ field: 'content', message: 'too long', code: 'max_length' }]);
-  if (tokensUsed >= QUOTA) fail(429, 'AI_QUOTA_EXCEEDED', 'Monthly assistant quota exceeded');
+  if (!content) validation([{ field: 'content', message: 'content is required', code: 'required' }]);
+  if (content.length > 8000) validation([{ field: 'content', message: 'content is too long (max 8000 characters)', code: 'max_length' }]);
   const conv = findConv(ctx);
-  if (conv.messages.length >= 200) fail(409, 'AI_CONVERSATION_LIMIT', 'Conversation is too long');
-  // "Thinking" delay before the answer (the app shows the typing indicator meanwhile).
-  await new Promise((r) => setTimeout(r, 450));
-  const loc: Locale = str(ctx.body.locale) === 'en' ? 'en' : 'tr';
+  if (tokensUsed >= QUOTA) fail(403, 'AI_QUOTA_EXCEEDED', 'Monthly assistant quota exceeded');
+  if (conv.messages.length >= 400) fail(409, 'AI_CONVERSATION_LIMIT', 'this conversation is too long; start a new one');
+  const loc: Locale = str(ctx.body.locale) === 'en' ? 'en' : str(ctx.body.locale) === 'tr' ? 'tr' : ctx.user?.locale === 'en' ? 'en' : 'tr';
+  const untitled = !conv.title;
   const { user, assistant } = appendExchange(ctx, conv, content, loc);
-  return { conversation: summary(conv), user_message: user, message: assistant };
+  const events: MockSse['events'] = [
+    { event: 'message_start', data: { conversation_uuid: conv.uuid, user_message_uuid: user.uuid } },
+    ...messageEvents(assistant, content),
+  ];
+  if (untitled) events.push({ event: 'title', data: { conversation_uuid: conv.uuid, title: conv.title } });
+  // "Thinking" before the first token (the app shows the waiting indicator meanwhile).
+  return sse(events, 450);
 });
 
 // ─── Action confirm / cancel ────────────────────────────────────────────────
@@ -420,7 +469,15 @@ route('POST', '/v1/tenant/ai/actions/:uuid/confirm', (ctx) => {
   entry.conv.message_count = entry.conv.messages.length;
   entry.conv.last_message_at = at;
   entry.conv.updated_at = at;
-  return { block: next, message: follow };
+  // `RunConfirm`: the action result, then the model's continuation as a resumed message.
+  return sse(
+    [
+      { event: 'action', data: { action_uuid: block.id, status: next.status, tool_use_id: card.tool_use_id, block: next } },
+      { event: 'message_start', data: { conversation_uuid: entry.conv.uuid, resumed: true, action_uuid: block.id } },
+      ...messageEvents(follow, title),
+    ],
+    250,
+  );
 });
 
 route('POST', '/v1/tenant/ai/actions/:uuid/cancel', (ctx) => {

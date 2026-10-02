@@ -17,27 +17,11 @@ export type AIPlanItem = Schemas['AIPlanItem'];
 /** `confirm` block status (web `AIActionStatus`). */
 export type AIActionStatus = 'pending' | 'executing' | 'confirmed' | 'failed' | 'cancelled' | 'expired';
 
-/**
- * Result of confirming a proposed action. The live API streams it (SSE `action` event, then the
- * assistant's follow-up message); the mock returns both as JSON.
- */
-export type AIActionResultPayload = {
-  block: AIUIBlock;
-  message?: AIMessage;
-};
-
 export type AIConversationPage = {
   items: AIConversation[];
   total: number;
   limit: number;
   offset: number;
-};
-
-/** Result of one chat turn (mock JSON transport; the live backend streams the same blocks via SSE). */
-export type AISendResult = {
-  conversation: AIConversation;
-  user_message: AIMessage;
-  message: AIMessage;
 };
 
 /** A chat message as rendered by the UI (server messages + the live one). */
@@ -46,8 +30,8 @@ export type ChatMessage = {
   role: AIMessage['role'];
   status: AIMessage['status'];
   blocks: AIUIBlock[];
-  /** Waiting for the answer ("thinking…"). */
+  /** Waiting for the first event of the answer ("thinking…"). */
   pending?: boolean;
-  /** Characters of text revealed so far while the typing animation runs. */
-  typing?: boolean;
+  /** Events are still arriving (tokens render as they stream in). */
+  streaming?: boolean;
 };

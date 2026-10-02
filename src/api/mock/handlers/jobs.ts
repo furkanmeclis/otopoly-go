@@ -48,7 +48,7 @@ function applyJobFilters(ctx: MockCtx, items: Row[]) {
     const set = new Set(q.status.split(','));
     out = out.filter((j) => set.has(j.status));
   }
-  if (q.payment_status) out = out.filter((j) => j.payment_status === q.payment_status);
+  // `payment_status` is a deprecated query param the Go API ignores; the app filters unpaid jobs itself.
   if (q.assignee_uuid) out = out.filter((j) => j.assignee_uuid === q.assignee_uuid);
   if (q.date_from || q.date_to) {
     const includeOpen = q.include_open === 'true' || q.include_open === '1';

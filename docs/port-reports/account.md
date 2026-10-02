@@ -33,7 +33,7 @@ Provider check: `backend/internal/modules/ai/provider` supports `anthropic` (def
    - The web links through NextAuth, so this endpoint doesn't exist yet.
 2. **`has_password` on `GET /v1/auth/identities`**, and a `409 LAST_SIGN_IN_METHOD` guard on `DELETE /v1/auth/identities/{provider}`. Without them the client enables unlink and the server decides.
 3. **AI consent server-side (optional):** consent is device-local today. A per-user record would survive reinstalls and other devices.
-4. **Live assistant:** `/messages` and `/actions/{uuid}/confirm` stream SSE. The mobile services expect JSON (as before for `/messages`).
+4. **Live assistant:** `/messages` and `/actions/{uuid}/confirm` stream SSE; the app reads them with its SSE client (`aiService.streamMessage` / `streamConfirm`).
 
 ## Open items
 

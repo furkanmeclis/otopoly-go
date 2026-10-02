@@ -16,6 +16,9 @@ import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import YAML from 'yaml';
 
+import { buildSseContract, validateSse } from './sse.mjs';
+import { sseSelfTest } from './sse-selftest.mjs';
+
 const METHODS = ['get', 'post', 'put', 'patch', 'delete'];
 
 /** Error codes produced by middleware on any route (not repeated per operation in the spec). */
@@ -123,7 +126,19 @@ export function validateRecords({ specPath, allowlistPath, errorCodesPath, backe
   };
   const byShape = new Map(ops.map((o) => [`${o.method} ${shape(o.template)}`, o]));
 
-  const issues = [];
+  // SSE operations: event schemas from the operation descriptions (see sse.mjs).
+  const sseOps = buildSseContract(spec);
+  const sseCompiled = new Map();
+  const sseValidator = (event, schema) => {
+    const key = JSON.stringify(schema);
+    if (!sseCompiled.has(key)) sseCompiled.set(key, ajv.compile(schema));
+    return sseCompiled.get(key);
+  };
+  let sseEvents = 0;
+  const sseSeen = new Set();
+  const sseSelf = sseSelfTest(spec, ajv);
+
+  const issues = sseSelf.map((message) => ({ severity: 'error', kind: 'sse-selftest', endpoint: 'SSE validator', suite: 'self-test', tag: '', status: 0, message }));
   const endpoints = new Map();
   const endpointKey = (method, template) => `${method} ${template}`;
   const touch = (method, template, extra = {}) => {
@@ -206,7 +221,8 @@ export function validateRecords({ specPath, allowlistPath, errorCodesPath, backe
         const s = deref(mp.schema) ?? {};
         const props = s.properties ?? {};
         const sent = Object.keys(rec.body ?? {});
-        for (const r of s.required ?? []) if (!sent.includes(r)) add('error', 'request', rec, o.template, `multipart field "${r}" required by spec, not sent`);
+        // A rejected upload (e.g. the "file is required" probe) may legitimately lack a required field.
+        if (!negative) for (const r of s.required ?? []) if (!sent.includes(r)) add('error', 'request', rec, o.template, `multipart field "${r}" required by spec, not sent`);
         if (Object.keys(props).length) for (const k of sent) if (!(k in props)) add('error', 'request', rec, o.template, `multipart field "${k}" not in spec`);
         touch(rec.method, o.template).requestSchema = true;
       }
@@ -236,6 +252,19 @@ export function validateRecords({ specPath, allowlistPath, errorCodesPath, backe
     else if (!documented && !(rec.status >= 400 && CROSS_CUTTING.has(code)))
       add('error', 'undocumented-status', rec, o.template, `status ${status}${code ? ` ${code}` : ''} not documented (spec: ${Object.keys(o.op.responses ?? {}).join(', ')})`);
     const payload = rec.payload;
+    if (rec.status < 400 && rec.contentType === 'text/event-stream') {
+      // Server-sent events: no JSON envelope; each event is validated against the documented shape.
+      const res = deref(documented);
+      const contract = sseOps.get(`${rec.method} ${o.template}`);
+      if (!res?.content?.['text/event-stream'] || !contract) add('error', 'response-content-type', rec, o.template, `mock streams text/event-stream, spec documents ${Object.keys(res?.content ?? {}).join(', ') || 'no content'} for ${status}`);
+      else {
+        touch(rec.method, o.template).responseSchema = true;
+        sseEvents += rec.events?.length ?? 0;
+        for (const ev of rec.events ?? []) sseSeen.add(`${o.template} ${ev.event}`);
+        for (const p of validateSse(rec, contract, sseValidator)) add('error', 'sse', rec, o.template, p);
+      }
+      continue;
+    }
     if (rec.status < 400) {
       if (!payload || payload.success !== true || !('data' in payload) || typeof payload.meta?.request_id !== 'string')
         add('error', 'envelope', rec, o.template, 'success envelope {success:true,data,meta.request_id} violated');
@@ -306,6 +335,14 @@ export function validateRecords({ specPath, allowlistPath, errorCodesPath, backe
   if (gaps.length) {
     console.log(`\nSpec gaps / live blockers (${gaps.length}, warnings):`);
     for (const g of gaps) console.log(`  ${g.endpoint}: ${g.message}`);
+  }
+  if (sseOps.size) {
+    console.log(`\nSSE: ${sseEvents} streamed events validated against the event shapes in openapi.yaml`);
+    for (const [key, c] of sseOps) {
+      const template = key.split(' ')[1];
+      const missed = [...c.events.keys()].filter((ev) => !sseSeen.has(`${template} ${ev}`));
+      console.log(`  ${key}: ${c.events.size - missed.length}/${c.events.size} event types seen${missed.length ? ` (not emitted by the mock: ${missed.join(', ')})` : ''}`);
+    }
   }
   if (unexercised.length) {
     console.log(`\nNot exercised (${unexercised.length}):`);

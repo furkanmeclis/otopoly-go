@@ -13,6 +13,7 @@ import { identitiesService } from '@/features/account/services/identities.servic
 import { AI_CONSENT_VERSION, consentValid, loadConsent, providerLabelKey, revokeConsent, saveConsent } from '@/features/ai/consent';
 import { actionErrorKey, confirmFieldKey, confirmStatusKey, toolLabelKey } from '@/features/ai/lib/labels';
 import { replaceCard } from '@/features/ai/lib/blocks';
+import { toServerMessage } from '@/features/ai/lib/stream';
 import { aiService } from '@/features/ai/services/ai.service';
 import type { AIConfirmCard, AIPlan, AIUIBlock } from '@/features/ai/types';
 import { accessCopyKeys, orgBlock } from '@/features/auth/lib/access';
@@ -193,7 +194,7 @@ const neutral = (keys: string[], msg: string) => {
   ok(cancelled.block.status === 'cancelled', 'cancel → cancelled');
   await expectCode(aiService.cancelAction(card2.id!), 'AI_ACTION_RESOLVED', 'cancel twice');
   await expectCode(aiService.confirmAction('00000000-0000-4000-8000-000000000000', undefined, 'tr'), 'NOT_FOUND', 'unknown action');
-  const replaced = replaceCard([turn.message], { ...card!, status: 'cancelled' } as AIUIBlock);
+  const replaced = replaceCard([toServerMessage(turn.message)],{ ...card!, status: 'cancelled' } as AIUIBlock);
   ok(replaced[0].blocks.find((b) => b.type === 'tool' && b.name === 'create_todo')?.status === 'cancelled', 'client replaceCard updates the tool chip');
   allKeys(
     [toolLabelKey('create_todo'), toolLabelKey('update_plan'), confirmFieldKey('title'), confirmFieldKey('due_date'), confirmFieldKey('zzz'), confirmStatusKey('executing'), actionErrorKey('AI_ACTION_EXPIRED'), actionErrorKey('SUBSCRIPTION_READ_ONLY'), 'ai.plan.progress', 'ai.confirm.save_confirm'].concat(

@@ -577,6 +577,8 @@ route('PATCH', '/v1/tenant/settings', (ctx) => {
 
 route('PUT', '/v1/tenant/settings/logo', (ctx) => {
   requireOwner(ctx, 'tenant.settings.write');
+  // Go reads the multipart part `logo` (`r.FormFile("logo")`).
+  if (!ctx.body.logo) validation([{ field: 'logo', message: 'logo file is required', code: 'required' }]);
   const s = settingsFor(ctx);
   s.logo_url = `/v1/tenant/settings/logo/${uuid()}`;
   return s;

@@ -477,7 +477,7 @@ async function settingsArea() {
   console.log('settings');
   await ok('settings get', () => exportSettingsService.get());
   await ok('settings patch', () => exportSettingsService.patch({ paper_size: 'A4' } as never));
-  await ok('logo upload', () => mockFormRequest('PUT', '/v1/tenant/settings/logo', (() => { const f = new FormData(); f.append('file', file('logo.png', 'image/png') as unknown as Blob); return f; })()));
+  await ok('logo upload', () => mockFormRequest('PUT', '/v1/tenant/settings/logo', (() => { const f = new FormData(); f.append('logo', file('logo.png', 'image/png') as unknown as Blob); return f; })()));
   await ok('logo delete', () => exportSettingsService.deleteLogo());
   await ok('staff meta', () => staffService.meta());
   await ok('staff list', () => staffService.list());
@@ -514,13 +514,17 @@ async function aiArea() {
   await ok('ai conversations', () => aiService.listConversations({ q: '' }));
   const conv = await ok('ai create', () => aiService.createConversation('Contract'));
   await ok('ai rename', () => aiService.renameConversation(conv.uuid, 'Contract 2'));
-  const turn = await ok('ai send', () => aiService.sendMessage(conv.uuid, 'Bugün kaç iş var?', 'tr'));
-  await ok('ai send action', () => aiService.sendMessage(conv.uuid, 'Yeni müşteri ekle: Contract AI, 05551234567', 'tr'));
+  // SSE: every streamed event is recorded and validated against the event shapes the spec documents.
+  for (const q of ['Bugün kaç iş var?', 'Bu ayın gelir grafiği', 'Stoğu azalan ürünler hangileri?']) await ok(`ai send ${q}`, () => aiService.sendMessage(conv.uuid, q, 'tr'));
+  await ok('ai send action', () => aiService.sendMessage(conv.uuid, 'Yarın lastik siparişini hatırlat', 'tr'));
   const detail = await ok('ai get', () => aiService.getConversation(conv.uuid));
-  const blocks = (detail?.messages ?? []).flatMap((m) => (m as { blocks?: { type: string; data?: { action_uuid?: string; status?: string } }[] }).blocks ?? []);
-  const card = blocks.find((b) => b.data?.action_uuid && b.data?.status === 'pending');
-  if (card?.data?.action_uuid) await ok('ai confirm', () => aiService.confirmAction(card.data!.action_uuid!, undefined, 'tr'));
-  void turn;
+  const blocks = (detail?.messages ?? []).flatMap((m) => m.blocks);
+  const card = blocks.find((b) => b.type === 'confirm' && b.status === 'pending');
+  if (card?.id) await ok('ai confirm', () => aiService.confirmAction(card.id!, { title: 'Contract lastik' }, 'tr'));
+  await err('ai send empty', 'VALIDATION_ERROR', () => aiService.sendMessage(conv.uuid, ' ', 'tr'));
+  if (card?.id) await err('ai confirm twice', 'AI_ACTION_RESOLVED', () => aiService.confirmAction(card.id!, undefined, 'tr'));
+  const fresh = await ok('ai create untitled', () => aiService.createConversation());
+  if (fresh) await ok('ai send titled', () => aiService.sendMessage(fresh.uuid, 'Kasalarda ne kadar para var?', 'en'));
   await ok('ai delete', () => aiService.deleteConversation(conv.uuid));
 }
 

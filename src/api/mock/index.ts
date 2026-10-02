@@ -2,13 +2,14 @@
  * Mock transport: resolves `/v1/*` calls against the in-memory DB with realistic latency,
  * the same envelopes, status codes and error codes as the Go API.
  */
-import { setTransport, type Transport } from '@/api/client';
-import { parseApiError } from '@/api/errors';
+import { ABORTED, setTransport, type Transport } from '@/api/client';
+import { ApiError , parseApiError } from '@/api/errors';
+import { formatSseEvent } from '@/api/sse';
 import { session } from '@/api/session';
 import { env } from '@/config/env';
 import { createLogger } from '@/lib/logger';
 
-import { fail, matchRoute, MockHttpError, normalizeQuery, uuid, type MockCtx } from './core';
+import { fail, matchRoute, MockHttpError, MockSse, normalizeQuery, uuid, type MockCtx } from './core';
 import { getDb, loadDb, persist, resetDb } from './db';
 import { decodeAccessToken, enforceOrgAccess, permissionsFor } from './handlers/auth';
 import { enforcePlan } from './handlers/billing';
@@ -24,6 +25,23 @@ let ready: Promise<unknown> | null = null;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const boot = () => Promise.all([loadDb(seedDb), loadPlanScenario(), loadAccessScenario()]);
+
+/**
+ * Areas whose Go structs mark optional pointer fields `omitempty` (`jobs.Job`, `customers.Customer`,
+ * `sales.SaleDetail`, `purchases.Purchase`, `cari.Entry`, …): the API leaves those keys out instead of
+ * sending `null`, and the spec types them non-nullable. The demo DB keeps `null`s; they are dropped here.
+ */
+const OMITEMPTY_ROUTES = /^\/v1\/tenant\/(jobs|customers|customer-vehicles|sales|purchases|suppliers|cari|staff)(\/|$)/;
+
+function dropNulls(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((v) => dropNulls(v));
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) if (v !== null && v !== undefined) out[k] = dropNulls(v);
+    return out;
+  }
+  return value;
+}
 
 function envelope(status: number, data: unknown) {
   return { status, payload: { success: true, data, meta: { request_id: uuid() } } };
@@ -76,6 +94,8 @@ async function handle(method: string, path: string, query: MockCtx['query'], bod
     }
     const data = await match.route.handler(ctx);
     if (method !== 'GET') persist();
+    if (data instanceof MockSse) return { status: 200, payload: undefined, sse: data };
+    if (OMITEMPTY_ROUTES.test(path)) return envelope(SUCCESS_STATUS[`${method} ${match.route.path}`] ?? 200, dropNulls(data));
     return envelope(SUCCESS_STATUS[`${method} ${match.route.path}`] ?? 200, data);
   } catch (error) {
     if (error instanceof MockHttpError) return errorEnvelope(error);
@@ -89,8 +109,34 @@ export const mockTransport: Transport = async (req) => {
   // Round-trip through JSON so handlers never share object references with the UI cache.
   const body = req.body === undefined ? undefined : JSON.parse(JSON.stringify(req.body));
   const res = await handle(req.method, req.path, normalizeQuery(req.query), body, req.headers);
-  return { status: res.status, payload: JSON.parse(JSON.stringify(res.payload)), retryAfter: 'retryAfter' in res ? res.retryAfter : undefined };
+  if ('sse' in res && res.sse) return { status: res.status, payload: undefined, stream: sseBytes(res.sse, req.signal) };
+  return { status: res.status, payload: res.payload === undefined ? undefined : JSON.parse(JSON.stringify(res.payload)), retryAfter: 'retryAfter' in res ? res.retryAfter : undefined };
 };
+
+/**
+ * Serializes a mock SSE answer like the Go handler (`: stream open`, `event:`/`data:` frames, `: ping`)
+ * and yields it as UTF-8 bytes in uneven chunks — frames are split mid-way, sometimes inside a multi-byte
+ * character — so the app's SSE reader is exercised the same way as on a real network.
+ */
+async function* sseBytes(answer: MockSse, signal?: AbortSignal): AsyncGenerator<Uint8Array> {
+  const encoder = new TextEncoder();
+  const step = Math.min(45, env.mockLatency / 8);
+  const check = () => {
+    if (signal?.aborted) throw new ApiError({ status: 0, code: ABORTED, message: 'Request cancelled' });
+  };
+  yield encoder.encode(': stream open\n\n');
+  if (answer.thinkMs && env.mockLatency) await sleep(answer.thinkMs);
+  for (const [i, ev] of answer.events.entries()) {
+    check();
+    if (i === 1) yield encoder.encode(': ping\n\n');
+    const bytes = encoder.encode(formatSseEvent(ev.event, ev.data));
+    const cut = Math.max(1, Math.floor(bytes.length / 2) + (i % 3));
+    yield bytes.slice(0, cut);
+    if (step) await sleep(step);
+    check();
+    yield bytes.slice(cut);
+  }
+}
 
 export function installMockTransport() {
   setTransport(mockTransport);

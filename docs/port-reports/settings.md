@@ -49,7 +49,7 @@ Every screen has pull-to-refresh (except the chat), skeletons, `ErrorState` with
 - **Colour picker:** the web uses a native colour input. Mobile uses a hex field plus 8 preset colours.
 
 ## Known issues
-- **Live assistant streaming:** the Go API answers `/messages` with SSE. The mobile service expects JSON, which is what the mock returns. Live mode needs an SSE reader built on `expo/fetch` streaming.
+- **Live assistant streaming:** done. `/messages` and `/actions/{uuid}/confirm` are read as SSE (`src/api/sse.ts`, `requestStream` in `src/api/client.ts`) on the `expo/fetch` streaming body; the mock streams the same events through the same reader.
 - **Markdown:** the renderer is minimal (paragraphs, headings, lists, bold/italic/code). The web renderer also handles tables and links.
 - **Mock state:** messaging, AI and letterhead state is kept in memory per handler module. It resets when the app restarts and is not written to the persisted mock DB, because `db.ts` is shared and I could not edit it.
 - **QR encoder:** I checked `qr.ts` against the `toqr` package that ships with `@expo/cli`. The matrices match module-for-module when the same mask is used; only the automatic mask choice differs, and any mask is valid.

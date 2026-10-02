@@ -2,6 +2,28 @@
 
 Date: 2026-10-02 · Branch: `feat/contract-conformance` (on top of `feat/store-audit`, PR #8)
 
+## Update (`feat/ai-sse`, on top of PR #9)
+
+- **Spec refreshed** from `feat/openapi-gaps` @ `9f9ed3c` (identity-native-link + spec fixes) merged with
+  `feat/expo-push-limits` @ `569bc63`, base `887d7d5`. The merge is now **structural** (`merge-spec.mjs` on the
+  parsed YAML): the line-based `git merge-file` spliced a path block into `components.responses` without
+  reporting a conflict. The one real conflict (`POST /v1/tenant/jobs` 409) resolves to `LimitReached`.
+- **Allowlist is empty**: the 4 undocumented statuses and the `AIUIBlock` `oneOf` fix are in the spec now; the
+  2 finance-category routes and the multipart/JSON bodies are documented too.
+- **New response schemas** (jobs, customers, sales, purchases, suppliers, staff, cari) are validated at runtime and,
+  via `src/api/contract-types.ts`, at compile time (generated schema must be assignable to the app type).
+  Fixes they surfaced: the mock dropped `omitempty` keys as `null` for those areas (now omitted, like Go),
+  finance categories lacked `created_at`/`updated_at`, the contract driver uploaded the logo as `file` (Go reads
+  `logo`), the mock filtered jobs by the deprecated `payment_status` query param (Go ignores it; the app never sent it).
+- **AI SSE is no longer a live blocker**: the app reads `text/event-stream` (`src/api/sse.ts`,
+  `requestStream`), the mock streams the same events, and the contract test validates every streamed event
+  against the event shapes in the operation descriptions (`scripts/contract/sse.mjs`, with a self-test), plus
+  order (`message_start` … `message_done` → `title`; confirm: `action` → resumed `message_start`).
+- Result: 774 exchanges, 246 endpoints (all in the spec), 245 exercised, **0 errors, 0 warnings**,
+  196 SSE events validated. The mock never emits the `error` event (provider failures).
+- `owner_notified=false` follow-up done: owner and staff limit dialogs have a neutral tr/en variant that claims
+  neither the e-mail nor the manager notice.
+
 ## What was checked
 
 `npm run test:contract` (also in CI) proves, without a running backend, that the mock API and the feature

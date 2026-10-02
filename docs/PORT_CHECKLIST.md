@@ -187,8 +187,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Preferences: AI data-sharing consent status + withdraw
 
 ## 20. Assistant — `tenant.ai.use`
-- [~] Conversations list, chat, tool activity — done on mock JSON; live SSE reader still open
-- [x] Confirm cards (edit / confirm / cancel, result + record link) and plan checklists (`actions` / `todos` features) — mock JSON; live confirm is SSE too
+- [x] Conversations list, chat, tool activity — SSE streaming (tokens render as they arrive), same reader for mock and live
+- [x] Confirm cards (edit / confirm / cancel, result + record link) and plan checklists (`actions` / `todos` features) — confirm streams the `action` result and the follow-up over SSE
 - [x] First-use AI data disclosure + explicit consent (App Store 5.1.2(i)): provider named from `/ai/status`, what is / isn't sent, stored per user, sending blocked until accepted, withdraw in Preferences
 
 ---

@@ -197,6 +197,8 @@ route('POST', '/v1/tenant/finance/categories', (ctx) => {
     parent_uuid: (ctx.body.parent_uuid as string) || null,
     sort_order: num(ctx.body.sort_order) || db.financeCategories.length,
     is_active: bool(ctx.body.is_active, true),
+    created_at: now(),
+    updated_at: now(),
   };
   db.financeCategories.push(c);
   return c;
@@ -241,6 +243,7 @@ route('PATCH', '/v1/tenant/finance/categories/:uuid', (ctx) => {
     c.parent_uuid = parent || null;
   }
   for (const t of db.transactions) if (t.category_uuid === c.uuid) t.category_name = c.name;
+  c.updated_at = now();
   return c;
 });
 

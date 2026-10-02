@@ -3,6 +3,7 @@
 import { request } from '@/api/client';
 import { installMockTransport } from '@/api/mock';
 import { session } from '@/api/session';
+import { aiService } from '@/features/ai/services/ai.service';
 
 let failures = 0;
 const ok = (cond: unknown, msg: string) => {
@@ -78,8 +79,8 @@ async function login(email: string) {
   ok(status.available, 'assistant available');
   const conv = await request<any>('POST', '/v1/tenant/ai/conversations', { body: {} });
   for (const q of ['Bugün kaç araç teslim ettik?', 'Bu ayın gelir grafiği', 'Kasalarda ne kadar para var?', 'Stoğu azalan ürünler hangileri?', 'En yüksek cari borcu olan müşteriler kimler?', 'merhaba']) {
-    const res = await request<any>('POST', `/v1/tenant/ai/conversations/${conv.uuid}/messages`, { body: { content: q, locale: 'tr' } });
-    ok(res.message.blocks.some((b: any) => b.type === 'text' && b.text), `answer: ${q} → ${res.message.blocks.map((b: any) => b.type).join(',')}`);
+    const res = await aiService.sendMessage(conv.uuid, q, 'tr');
+    ok(res.message.blocks.some((b: any) => b.type === 'text' && b.text), `answer (streamed): ${q} → ${res.message.blocks.map((b: any) => b.type).join(',')}`);
   }
   const list = await request<any>('GET', '/v1/tenant/ai/conversations');
   ok(list.items.length >= 2, `conversations: ${list.items.length}`);
