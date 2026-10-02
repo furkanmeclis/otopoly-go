@@ -68,12 +68,21 @@ const PURCHASE_WORDS = /yükselt|satın|fiyat|ödeme|abone ol|upgrade|purchase|b
     ok(!plan.some(([, v]) => PURCHASE_WORDS.test(v)), `${locale}: no purchase / upgrade wording in plan copy`);
     ok(moduleName(t, 'module.contracts') !== 'module.contracts', `${locale}: module name resolves`);
   }
-  const owner = limitReachedMessage(tr('tr'), { isOwner: true, feature: 'jobs.monthly', used: 300, limit: 300 });
+  const owner = limitReachedMessage(tr('tr'), { isOwner: true, feature: 'jobs.monthly', used: 300, limit: 300, ownerNotified: true });
   ok(owner === 'Aylık işlem limitinize ulaştınız (300/300). Ayrıntıları e-posta adresinize gönderdik.', `owner tr: ${owner}`);
-  const staff = limitReachedMessage(tr('tr'), { isOwner: false, feature: 'whatsapp.monthly', used: 1000, limit: 1000 });
+  const staff = limitReachedMessage(tr('tr'), { isOwner: false, feature: 'whatsapp.monthly', used: 1000, limit: 1000, ownerNotified: true });
   ok(staff === 'İşletmenizin aylık WhatsApp mesajı limiti doldu. İşletme yöneticinize bilgi verildi.', `staff tr: ${staff}`);
-  ok(limitReachedMessage(tr('en'), { isOwner: true, feature: 'customers.count', used: 2500, limit: 2500 }).startsWith("You've reached your total customer record limit (2500/2500)"), 'owner en (total)');
-  ok(limitReachedMessage(tr('tr'), { isOwner: true, feature: 'jobs.daily', used: 60, limit: 60 }).startsWith('Günlük işlem limitinize'), 'owner tr (daily)');
+  ok(limitReachedMessage(tr('en'), { isOwner: true, feature: 'customers.count', used: 2500, limit: 2500, ownerNotified: true }).startsWith("You've reached your total customer record limit (2500/2500)"), 'owner en (total)');
+  ok(limitReachedMessage(tr('tr'), { isOwner: true, feature: 'jobs.daily', used: 60, limit: 60, ownerNotified: true }).startsWith('Günlük işlem limitinize'), 'owner tr (daily)');
+  // owner_notified "false" (or missing): nobody was e-mailed, so neither copy may claim it.
+  for (const locale of ['tr', 'en'] as const) {
+    for (const isOwner of [true, false]) {
+      for (const ownerNotified of [false, undefined]) {
+        const text = limitReachedMessage(tr(locale), { isOwner, feature: 'jobs.monthly', used: 300, limit: 300, ownerNotified });
+        ok(!/e-posta|email|bilgi verildi|notified/i.test(text) && !text.includes('mobile.plan'), `${locale} ${isOwner ? 'owner' : 'staff'} owner_notified=${ownerNotified}: ${text}`);
+      }
+    }
+  }
 
   await login('demo@otopoly.com');
   const customers = await request<any>('GET', '/v1/tenant/customers', { query: { limit: 5 } });

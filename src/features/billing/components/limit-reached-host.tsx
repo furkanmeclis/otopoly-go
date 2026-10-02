@@ -24,8 +24,10 @@ const log = createLogger('plan.limit');
  * `403 SUBSCRIPTION_READ_ONLY` (plan period ended, writes refused) uses the same dialog with its own
  * neutral copy, so every plan block looks the same wherever it happens.
  *
- * Copy depends on the membership role: the owner is told the details were e-mailed, staff that the
- * manager was informed. Only "Close" and, with `tenant.billing.read`, "View usage". Nothing to buy.
+ * Copy depends on the membership role and on `owner_notified`: when the API reports the owner was
+ * notified, the owner is told the details were e-mailed and staff that the manager was informed;
+ * otherwise a neutral variant claims neither. Only "Close" and, with `tenant.billing.read`,
+ * "View usage". Nothing to buy.
  */
 export function LimitReachedHost() {
   const qc = useQueryClient();
