@@ -4,6 +4,7 @@
  * Sessions are ephemeral (like Redis) and are not persisted with the demo DB.
  */
 import { fail, now, route, str, type MockCtx } from '../core';
+import { getDb } from '../db';
 
 const SESSION_TTL_MS = 120_000;
 const EXCHANGE_TTL_MS = 60_000;
@@ -111,7 +112,8 @@ route('POST', '/v1/auth/qr/exchange', (ctx) => {
   }
   if (s!.status !== 'approved') invalid();
   sessions.delete(s!.id);
-  return { access_token: 'mock-web-at', refresh_token: 'mock-web-rt', token_type: 'Bearer', expires_in: 900, refresh_expires_at: now(), user: { uuid: s!.claimedBy, email: '', name: '' } };
+  const user = getDb().users.find((u) => u.uuid === s!.claimedBy);
+  return { access_token: 'mock-web-at', refresh_token: 'mock-web-rt', token_type: 'Bearer', expires_in: 900, refresh_expires_at: now(), user: { uuid: s!.claimedBy, email: user?.email ?? '', name: user ? `${user.name} ${user.surname}` : '' } };
 }, { anonymous: true });
 
 route(

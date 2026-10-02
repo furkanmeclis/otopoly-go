@@ -154,7 +154,7 @@ function seed(ctx: MockCtx) {
 
 /** Advance a queued export by elapsed time (the worker in the real backend). */
 function tick(row: ExportRow) {
-  if (row.status !== 'pending' && row.status !== 'processing') return;
+  if (row.status !== 'queued' && row.status !== 'processing') return;
   const age = Date.now() - Date.parse(row.created_at);
   if (age >= COMPLETED_AFTER_MS) {
     row.status = 'completed';
@@ -212,7 +212,7 @@ route('GET', '/v1/tenant/exports/:uuid/download', (ctx) => {
   const { s, org } = seed(ctx);
   const row = s.exports.find((x) => x.uuid === ctx.params.uuid && x._org === org) ?? (notFound('Export job') as never);
   tick(row);
-  if (row.status !== 'completed') fail(409, 'CONFLICT', 'export is not ready');
+  if (row.status !== 'completed') fail(404, 'NOT_FOUND', 'export job not found');
   return { url: `/v1/tenant/exports/${row.uuid}/download` };
 });
 
@@ -240,7 +240,7 @@ for (const [path, resource, perm] of EXPORT_ROUTES) {
       uuid: uuid(),
       resource,
       format,
-      status: 'pending',
+      status: 'queued',
       row_count: 0,
       error: null,
       download_url: null,
@@ -315,7 +315,7 @@ const asStringMap = (v: unknown) =>
 
 route('PATCH', '/v1/tenant/imports/:uuid/mapping', (ctx) => {
   const row = findImport(ctx);
-  if (!['uploaded', 'mapped', 'previewed'].includes(row.status)) fail(409, 'CONFLICT', 'import job is not editable');
+  if (!['uploaded', 'mapped', 'previewed'].includes(row.status)) fail(400, 'VALIDATION_ERROR', 'import job is not editable');
   const fields = new Set((IMPORT_SCHEMA[row.resource as IoResource] ?? []).map((f) => f.key));
   const mapping = asStringMap(ctx.body.mapping);
   const unknown = Object.values(mapping).find((field) => field && !fields.has(field));
@@ -329,7 +329,7 @@ route('PATCH', '/v1/tenant/imports/:uuid/mapping', (ctx) => {
 
 route('POST', '/v1/tenant/imports/:uuid/preview', (ctx) => {
   const row = findImport(ctx);
-  if (row.status !== 'mapped' && row.status !== 'previewed') fail(409, 'CONFLICT', 'map columns before previewing');
+  if (row.status !== 'mapped' && row.status !== 'previewed') fail(400, 'VALIDATION_ERROR', 'map columns before previewing');
   const schema = IMPORT_SCHEMA[row.resource as IoResource] ?? [];
   const mapped = new Set(Object.values(row.mapping ?? {}));
   const missing = schema.filter((f) => f.required && !mapped.has(f.key) && !row.defaults?.[f.key]?.trim());
@@ -349,7 +349,7 @@ route('POST', '/v1/tenant/imports/:uuid/preview', (ctx) => {
 
 route('POST', '/v1/tenant/imports/:uuid/confirm', (ctx) => {
   const row = findImport(ctx);
-  if (row.status !== 'previewed') fail(409, 'CONFLICT', 'preview the import before confirming');
+  if (row.status !== 'previewed') fail(400, 'VALIDATION_ERROR', 'preview the import before confirming');
   row.status = 'queued';
   row._confirmedAt = now();
   return toImport(row);
@@ -360,8 +360,8 @@ route('POST', '/v1/tenant/imports/:uuid/rollback', (ctx) => {
   const { s, org } = seed(ctx);
   const row = s.imports.find((x) => x.uuid === ctx.params.uuid && x._org === org) ?? (notFound('Import job') as never);
   tickImport(row);
-  if (row.status !== 'applied') fail(409, 'CONFLICT', 'only applied imports can be rolled back');
-  if (!row.rollback_until || Date.parse(row.rollback_until) < Date.now()) fail(409, 'CONFLICT', 'rollback window has expired');
+  if (row.status !== 'applied') fail(400, 'VALIDATION_ERROR', 'only applied imports can be rolled back');
+  if (!row.rollback_until || Date.parse(row.rollback_until) < Date.now()) fail(400, 'VALIDATION_ERROR', 'rollback window has expired');
   row.status = 'rolled_back';
   row.rollback_until = null;
   return toImport(row);

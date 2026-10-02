@@ -77,6 +77,8 @@ export type Handler = (ctx: MockCtx) => unknown | Promise<unknown>;
 
 type RouteDef = {
   method: string;
+  /** Registered path template (`/v1/tenant/jobs/:uuid`). */
+  path: string;
   pattern: RegExp;
   keys: string[];
   handler: Handler;
@@ -103,12 +105,18 @@ export function route(method: string, path: string, handler: Handler, opts: { an
   const { pattern, keys } = compile(path);
   routes.push({
     method,
+    path,
     pattern,
     keys,
     handler,
     anonymous: Boolean(opts.anonymous),
     tenant: path.startsWith('/v1/tenant/'),
   });
+}
+
+/** Every registered mock route (contract test coverage). */
+export function listRoutes() {
+  return routes.map((r) => ({ method: r.method, path: r.path, anonymous: r.anonymous }));
 }
 
 export function matchRoute(method: string, path: string) {
@@ -140,6 +148,30 @@ export function requirePerm(ctx: MockCtx, permission: string) {
 export function requireOwner(ctx: MockCtx, permission?: string) {
   if (permission) requirePerm(ctx, permission);
   if (ctx.membership?.role !== 'owner') fail(403, 'FORBIDDEN', 'Only the organization owner can do this');
+}
+
+// ─── Resource meta ─────────────────────────────────────────────────────────
+
+const CAPABILITY_KEYS = ['create', 'read', 'update', 'delete', 'search', 'filter', 'sort', 'export', 'import', 'bulk'] as const;
+
+/**
+ * `GET …/meta` payload in the backend `resourcemeta.ResourceMeta` shape: every key is always present
+ * (empty arrays, all ten capability flags), `resource` is the backend id (`tenant.jobs`).
+ */
+export function resourceMeta(resource: string, defaultSort: string, capabilities: Partial<Record<(typeof CAPABILITY_KEYS)[number], boolean>>, fields: { searchable?: string[]; sortable?: string[]; filterable?: string[] } = {}) {
+  return {
+    resource,
+    default_sort: defaultSort,
+    default_fields: [] as string[],
+    capabilities: Object.fromEntries(CAPABILITY_KEYS.map((k) => [k, Boolean(capabilities[k])])),
+    searchable_fields: fields.searchable ?? [],
+    sortable_fields: fields.sortable ?? [],
+    filterable_fields: fields.filterable ?? [],
+    columns: [] as unknown[],
+    filters: [] as unknown[],
+    includes: [] as string[],
+    bulk_actions: [] as string[],
+  };
 }
 
 // ─── Lists ─────────────────────────────────────────────────────────────────
@@ -202,6 +234,13 @@ export function uuid() {
     const r = (Math.random() * 16) | 0;
     return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
   });
+}
+
+/** Drops `null` values of the given keys — Go `*T ... json:",omitempty"` fields are absent, never `null`. */
+export function omitNulls<T extends object>(obj: T, keys: readonly (keyof T)[]): T {
+  const out = { ...obj };
+  for (const k of keys) if (out[k] === null) delete out[k];
+  return out;
 }
 
 export const now = () => new Date().toISOString();

@@ -44,7 +44,7 @@ const file = (name: string, type: string, size = 1000) => ({ uri: `file:///cache
   ok(Object.values(job.mapping).includes('name'), `server suggested mapping: ${Object.keys(job.mapping).length} columns`);
   await expectError(mockFormRequest('POST', '/v1/tenant/finance/accounts/import', rnForm([['format', 'csv']])), 'VALIDATION_ERROR', 'file is required');
   await expectError(mockFormRequest('POST', '/v1/tenant/finance/categories/import', rnForm([['file', file('a.doc', 'application/msword')], ['format', 'doc']])), 'VALIDATION_ERROR', 'unsupported format');
-  await expectError(request('POST', `/v1/tenant/imports/${job.uuid}/preview`), 'CONFLICT', 'preview before mapping');
+  await expectError(request('POST', `/v1/tenant/imports/${job.uuid}/preview`), 'VALIDATION_ERROR', 'preview before mapping');
   await expectError(request('PATCH', `/v1/tenant/imports/${job.uuid}/mapping`, { body: { mapping: { X: 'nope' } } }), 'VALIDATION_ERROR', 'unknown target field');
 
   // Leave the required `type` unmapped and without a default → every row fails.
@@ -55,12 +55,12 @@ const file = (name: string, type: string, size = 1000) => ({ uri: `file:///cache
 
   const mapped = await request<any>('PATCH', `/v1/tenant/imports/${job.uuid}/mapping`, { body: { mapping: noType, defaults: { type: 'cash' } } });
   ok(mapped.status === 'mapped' && mapped.defaults.type === 'cash' && !mapped.preview_summary, 'remap resets preview');
-  await expectError(request('POST', `/v1/tenant/imports/${job.uuid}/confirm`), 'CONFLICT', 'confirm before preview');
+  await expectError(request('POST', `/v1/tenant/imports/${job.uuid}/confirm`), 'VALIDATION_ERROR', 'confirm before preview');
   const pv = await request<any>('POST', `/v1/tenant/imports/${job.uuid}/preview`);
   ok(pv.preview_summary.valid === pv.preview_summary.total - 1 && pv.preview_summary.invalid === 1, `preview ${pv.preview_summary.valid}/${pv.preview_summary.total} valid`);
   const queued = await request<any>('POST', `/v1/tenant/imports/${job.uuid}/confirm`);
   ok(queued.status === 'queued', 'confirm queues the job');
-  await expectError(request('PATCH', `/v1/tenant/imports/${job.uuid}/mapping`, { body: { mapping: noType } }), 'CONFLICT', 'queued job is not editable');
+  await expectError(request('PATCH', `/v1/tenant/imports/${job.uuid}/mapping`, { body: { mapping: noType } }), 'VALIDATION_ERROR', 'queued job is not editable');
 
   const realNow = Date.now;
   Date.now = () => realNow() + 2000;

@@ -97,7 +97,14 @@ export function parseApiError(status: number, payload: unknown, requestId?: stri
 // ─── Plan limits ───────────────────────────────────────────────────────────
 
 /** Numbers a `409 LIMIT_REACHED` carries (backend `middleware.WriteLimitReached`). */
-export type LimitInfo = { feature?: string; limit?: number; used?: number; tolerance?: number };
+export type LimitInfo = {
+  feature?: string;
+  limit?: number;
+  used?: number;
+  tolerance?: number;
+  /** `owner_notified` detail: the owner was e-mailed about this limit in the current billing period. */
+  ownerNotified?: boolean;
+};
 
 const toNum = (v: unknown) => {
   if (v === undefined || v === null || v === '') return undefined;
@@ -117,6 +124,7 @@ export function limitInfo(error: ApiError): LimitInfo {
     limit: toNum(map.limit),
     used: toNum(map.used),
     tolerance: toNum(map.tolerance),
+    ownerNotified: map.owner_notified === undefined ? undefined : String(map.owner_notified) === 'true',
   };
 }
 

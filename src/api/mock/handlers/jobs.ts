@@ -1,23 +1,6 @@
 import type { Job, JobDetail, JobsSummary } from '@/features/jobs/services/jobs.service';
 
-import {
-  fail,
-  inDayRange,
-  istanbulDay,
-  money,
-  notFound,
-  now,
-  num,
-  paginate,
-  requireOwner,
-  requirePerm,
-  route,
-  search,
-  sortBy,
-  str,
-  uuid,
-  type MockCtx,
-} from '../core';
+import { fail, inDayRange, istanbulDay, type MockCtx, money, notFound, now, num, paginate, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid } from '../core';
 import { getDb, type MockDb } from '../db';
 import {
   chargeFromSource,
@@ -32,11 +15,6 @@ import {
 } from '../ops';
 
 type Row = MockDb['jobs'][number];
-
-const meta = (resource: string, extra: Record<string, unknown> = {}) => ({
-  resource,
-  capabilities: { read: true, search: true, filter: true, sort: true, export: true, ...extra },
-});
 
 export function toListItem(job: Row): Job {
   const { lines: _l, payments: _p, consumptions: _c, material_cost: _m, _org, ...rest } = job;
@@ -86,7 +64,7 @@ function applyJobFilters(ctx: MockCtx, items: Row[]) {
 
 route('GET', '/v1/tenant/jobs/meta', (ctx) => {
   requirePerm(ctx, 'tenant.jobs.read');
-  return meta('jobs', { create: ctx.permissions.has('tenant.jobs.write') });
+  return resourceMeta('tenant.jobs', '-started_at', { read: true, create: ctx.permissions.has('tenant.jobs.write'), update: ctx.permissions.has('tenant.jobs.write'), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/jobs/summary', (ctx) => {

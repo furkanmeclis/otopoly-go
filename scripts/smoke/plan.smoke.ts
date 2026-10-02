@@ -85,7 +85,7 @@ const PURCHASE_WORDS = /yükselt|satın|fiyat|ödeme|abone ol|upgrade|purchase|b
   console.log('scenario: normal');
   setPlanScenario('normal');
   let ov = await request<any>('GET', '/v1/tenant/billing/overview');
-  ok(ov.subscription.plan_name && !('open_order' in ov), 'overview has plan, no order');
+  ok(ov.subscription.plan_name && ov.open_order === null, 'overview has plan, open_order null (backend always sends the key)');
   ok(PLAN_FEATURES.every((k) => meter(ov, k)), 'every backend feature key has a meter');
   ok(meter(ov, 'jobs.monthly').limit === null, 'jobs.monthly unlimited');
   ok(ov.meters.filter((m: any) => m.kind === 'limit').every((m: any) => meterTone(m) === 'ok'), 'all limits ok');

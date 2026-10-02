@@ -369,7 +369,7 @@ route('POST', '/v1/auth/identities/:provider/native', (ctx) => {
   if (parsed!.nonce && parsed!.nonce !== str(ctx.body.nonce)) fail(401, 'INVALID_ID_TOKEN', 'The identity token nonce does not match');
   const all = identities();
   const owner = all.find((i) => i.provider === provider && i.sub === parsed!.identity.sub);
-  if (owner && owner.userUuid !== user.uuid) fail(409, 'IDENTITY_ALREADY_LINKED', 'This identity is linked to another account');
+  if (owner && owner.userUuid !== user.uuid) fail(409, 'CONFLICT', 'this sign-in is already linked to another account');
   const mine = all.find((i) => i.provider === provider && i.userUuid === user.uuid);
   if (mine && mine.sub !== parsed!.identity.sub) fail(409, 'CONFLICT', 'The account already has an identity for this provider');
   if (!owner) link(provider, parsed!.identity.sub, user);

@@ -5,7 +5,7 @@ import type {
   CatalogSummary,
 } from '@/features/catalog/services/catalog.service';
 
-import { bool, fail, money, notFound, now, num, paginate, requireFields, requireOwner, requirePerm, route, search, sortBy, str, uuid, type MockCtx } from '../core';
+import { bool, fail, type MockCtx, money, notFound, now, num, paginate, requireFields, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid } from '../core';
 import { getDb } from '../db';
 import { moveStock } from '../ops';
 
@@ -70,7 +70,7 @@ route('GET', '/v1/tenant/catalog/summary', (ctx) => {
 
 route('GET', '/v1/tenant/catalog/products/meta', (ctx) => {
   requirePerm(ctx, readPerm);
-  return { resource: 'catalog.products', capabilities: { read: true, create: ctx.permissions.has(writePerm), search: true, filter: true, export: true } };
+  return resourceMeta('tenant.catalog.products', 'name', { read: true, create: ctx.permissions.has(writePerm), update: ctx.permissions.has(writePerm), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/catalog/products', (ctx) => {
@@ -183,7 +183,7 @@ route('DELETE', '/v1/tenant/catalog/products/:uuid', (ctx) => {
 
 route('GET', '/v1/tenant/catalog/services/meta', (ctx) => {
   requirePerm(ctx, readPerm);
-  return { resource: 'catalog.services', capabilities: { read: true, create: ctx.permissions.has(writePerm), search: true, filter: true, export: true } };
+  return resourceMeta('tenant.catalog.services', 'name', { read: true, create: ctx.permissions.has(writePerm), update: ctx.permissions.has(writePerm), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/catalog/services', (ctx) => {
@@ -303,7 +303,7 @@ route('DELETE', '/v1/tenant/catalog/services/:uuid', (ctx) => {
 
 route('GET', '/v1/tenant/catalog/categories/meta', (ctx) => {
   requirePerm(ctx, readPerm);
-  return { resource: 'catalog.categories', capabilities: { read: true, create: ctx.permissions.has(writePerm), search: true, filter: true } };
+  return resourceMeta('tenant.catalog.categories', 'sort_order', { read: true, create: ctx.permissions.has(writePerm), update: ctx.permissions.has(writePerm), search: true, filter: true, sort: true });
 });
 
 route('GET', '/v1/tenant/catalog/categories', (ctx) => {

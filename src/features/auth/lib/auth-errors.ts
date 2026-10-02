@@ -49,8 +49,6 @@ export function authErrorMessage(tr: Translate, error: unknown, provider?: OAuth
       return tr('auth.totp.login_invalid');
     case 'ACCOUNT_DEACTIVATED':
       return tr('mobile.auth.error.account_deactivated');
-    case 'ACCOUNT_DISABLED':
-      return tr('mobile.auth.error.account_disabled');
     case 'FORBIDDEN':
       // Native sign-up / link/create: registration closed. Elsewhere: disabled by an admin.
       return provider ? tr('mobile.auth.error.registration_closed') : tr('mobile.auth.error.account_disabled');

@@ -66,5 +66,6 @@
   "account.legal.open_failed": "Bağlantı açılamadı. Adres: {{url}}",
   "account.legal.login_notice": "Giriş yaparak Kullanım Koşulları'nı ve Gizlilik Politikası'nı kabul etmiş olursunuz.",
   "account.legal.delete_hint": "Hangi kayıtların hangi yasal gerekçeyle ve ne kadar süre saklandığı Gizlilik Politikası'nda açıklanır.",
-  "account.legal.ai_hint": "Asistanın veri işleme koşullarının tamamı Gizlilik Politikası'nda yer alır."
+  "account.legal.ai_hint": "Asistanın veri işleme koşullarının tamamı Gizlilik Politikası'nda yer alır.",
+  "account.password.current_incorrect": "Mevcut şifre hatalı"
 }

@@ -193,6 +193,8 @@ export function enforcePlan(ctx: MockCtx) {
       { field: 'limit', message: String(limit) },
       { field: 'used', message: String(used) },
       { field: 'tolerance', message: '0' },
+      // The 100 % threshold notice goes to the owner with the first refusal of the period.
+      { field: 'owner_notified', message: 'true' },
     ]);
   }
 }
@@ -222,6 +224,7 @@ route('GET', '/v1/tenant/billing/overview', (ctx): BillingOverview => {
     },
     plan: PLAN,
     meters: meters(ctx),
+    open_order: null,
     read_only: getPlanScenario() === 'read_only',
   };
 });

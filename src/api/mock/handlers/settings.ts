@@ -514,7 +514,7 @@ route('POST', '/v1/tenant/vehicle-alerts/test', (ctx) => {
   requireOwner(ctx, 'tenant.messaging.write');
   const s = alertsFor(ctx);
   const members = orgMembers(ctx).filter((m) => s.recipient_user_uuids.includes(m.uuid));
-  if (!members.length) fail(409, 'NO_RECIPIENTS', 'No recipients selected');
+  if (!members.length) fail(400, 'VALIDATION_ERROR', 'select and save at least one recipient');
   const connected = sessionFor(ctx).status === 'connected';
   const viaWhatsApp = members.filter((m) => !m.has_push && m.has_phone);
   return {

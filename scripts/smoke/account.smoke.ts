@@ -92,7 +92,8 @@ const neutral = (keys: string[], msg: string) => {
   ok(list.has_password === false && list.total === 1, 'new Apple account: no password, one identity');
   ok(unlinkBlock(list, 'apple') === 'last_method', 'client blocks removing the last sign-in method');
   await expectCode(identitiesService.unlink('apple'), 'LAST_SIGN_IN_METHOD', 'server refuses it too');
-  await expectCode(identitiesService.linkNative('apple', idt('apple-linked')), 'IDENTITY_ALREADY_LINKED', "someone else's Apple identity");
+  const inUse = await expectCode(identitiesService.linkNative('apple', idt('apple-linked')), 'CONFLICT', "someone else's Apple identity");
+  ok(identityErrorKey(inUse?.code, inUse?.message) === 'mobile.account.linked.error_in_use', 'in-use conflict maps to the in-use copy');
   await identitiesService.linkNative('google', idt('google-unlinked'));
   list = await identitiesService.list();
   ok(unlinkBlock(list, 'apple') === null, 'with Google linked, Apple can go');
@@ -100,7 +101,7 @@ const neutral = (keys: string[], msg: string) => {
   ok(unlinkBlock(await identitiesService.list(), 'google') === 'last_method', 'Google is now the last method');
   ok(unlinkBlock({ items: [{ provider: 'apple', linked_at: '' }], total: 1 }, 'apple') === null, 'no has_password from the server → server decides');
   allKeys(
-    ['IDENTITY_ALREADY_LINKED', 'CONFLICT', 'LAST_SIGN_IN_METHOD', 'INVALID_ID_TOKEN', 'OAUTH_PROVIDER_DISABLED', 'NOT_FOUND', 'NETWORK_ERROR', 'X'].map(identityErrorKey),
+    [...['CONFLICT', 'LAST_SIGN_IN_METHOD', 'INVALID_ID_TOKEN', 'OAUTH_PROVIDER_DISABLED', 'NOT_FOUND', 'NETWORK_ERROR', 'X'].map((c) => identityErrorKey(c)), identityErrorKey('CONFLICT', 'already linked to another account')],
     'link / unlink error copy exists',
   );
   ok(translate('tr', 'mobile.auth.not_linked.body', { provider: 'Apple' }).includes('Bağlı hesaplar'), 'not-linked notice points to Profile → Bağlı hesaplar');

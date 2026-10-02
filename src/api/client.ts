@@ -178,7 +178,10 @@ export async function request<T>(method: string, path: string, options: RequestO
   try {
     let { res, env: e } = await attempt();
 
-    if (!options.anonymous && res.status === 401 && session.get()) {
+    // Only an expired/invalid access token is worth a refresh; 401 INVALID_CREDENTIALS (wrong current
+    // password), INVALID_MFA_CODE etc. are answers about the request itself.
+    const code401 = res.status === 401 ? (res.payload as { error?: { code?: string } })?.error?.code : undefined;
+    if (!options.anonymous && res.status === 401 && (!code401 || code401 === 'UNAUTHENTICATED') && session.get()) {
       if (await refreshTokens()) ({ res, env: e } = await attempt());
       else {
         await session.clear('refresh_failed');

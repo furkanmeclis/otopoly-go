@@ -32,7 +32,7 @@ async function login(email: string) {
   console.log('dashboard data');
   const summary = await request<any>('GET', '/v1/tenant/jobs/summary');
   ok(summary.job_count > 0, `today jobs: ${summary.job_count}, net ${summary.net_total}`);
-  const board = await request<any>('GET', '/v1/tenant/jobs', { query: { status: 'in_progress,ready', limit: 100 } });
+  const board = await request<any>('GET', '/v1/tenant/jobs', { query: { status: 'in_progress', limit: 100 } });
   ok(board.items.length > 0, `open board jobs: ${board.items.length}`);
   const overview = await request<any>('GET', '/v1/tenant/reports/overview');
   ok(overview.timeseries.length === 30, `30-day series (${overview.timeseries.length}), income ${overview.kpis.total_income}`);

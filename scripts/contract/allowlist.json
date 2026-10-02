@@ -1,0 +1,20 @@
+{
+  "_doc": "Known, reasoned exceptions for scripts/contract (npm run test:contract). Every entry needs a reason; remove it once the backend spec is fixed.",
+  "missingInBackend": {},
+  "undocumentedStatus": {
+    "POST /v1/tenant/customers 400": "Go handler answers 400 VALIDATION_ERROR (empty name); spec lists only 201/401/403/409",
+    "POST /v1/tenant/catalog/categories 409": "Go catalog handler maps ErrConflict (duplicate name) to 409 CONFLICT; spec omits it",
+    "POST /v1/tenant/catalog/products 409": "Go catalog handler maps ErrConflict (duplicate SKU/barcode) to 409 CONFLICT; spec omits it",
+    "POST /v1/tenant/jobs/export 400": "Go exports handler answers 400 VALIDATION_ERROR for an unknown format; spec omits 400"
+  },
+  "specFixes": [
+    {
+      "path": "components.schemas.AIUIBlock.properties.data",
+      "rename": {
+        "from": "oneOf",
+        "to": "anyOf"
+      },
+      "reason": "Spec bug: `oneOf [AIConfirmCard, AIPlan, {type:object}]` can never pass for a confirm card or plan (it also matches the catch-all object). anyOf is the intended meaning."
+    }
+  ]
+}

@@ -146,7 +146,7 @@ export function buildMe(user: MockUser, orgUuid: string | null): Me {
     roles: user.roles,
     permissions: [...permissionsFor(user)].sort(),
     organizations: orgs,
-    links: {},
+    links: { profile: '/v1/auth/profile', change_password: '/v1/auth/password/change', notification_preferences: '/v1/notification-preferences' },
     channels: {},
     realtime: { enabled: false, user_channel: `user:${user.uuid}` },
     ...(session ? {} : {}),
@@ -178,7 +178,7 @@ route(
     const user = getDb().users.find((u) => u.email.toLowerCase() === email);
     if (!user || user.password !== str(ctx.body.password)) fail(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
     if (user!.deactivatedAt) fail(403, 'ACCOUNT_DEACTIVATED', 'This account has been deleted');
-    if (user!.status !== 'active') fail(403, 'ACCOUNT_DISABLED', 'This account is disabled');
+    if (user!.status !== 'active') fail(403, 'FORBIDDEN', 'User is disabled');
     checkMfa(user!, ctx.body.totp_code);
     const slug = str(ctx.body.organization_slug).trim();
     const org = slug ? resolveOrganization(user!, slug) : null;
@@ -238,7 +238,8 @@ route('POST', '/v1/auth/password/change', (ctx) => {
   const user = userFromCtx(ctx);
   requireFields(ctx.body, ['current_password', 'new_password']);
   if (str(ctx.body.current_password) !== user.password) {
-    fail(400, 'VALIDATION_ERROR', 'Current password is incorrect', [{ field: 'current_password', message: 'incorrect' }]);
+    // Backend usecase.ErrInvalidCredentials → 401 INVALID_CREDENTIALS (not a field validation error).
+    fail(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect');
   }
   assertPasswordPolicy(str(ctx.body.new_password), 'new_password');
   user.password = str(ctx.body.new_password);
@@ -258,7 +259,7 @@ route(
     const org = getDb().organizations.find((o) => o.slug === ctx.params.slug);
     if (!org) fail(404, 'NOT_FOUND', 'Organization not found');
     const accessOk = org!.status === 'active' && (!org!.access_ends_at || new Date(org!.access_ends_at).getTime() > Date.now());
-    return { uuid: org!.uuid, slug: org!.slug, name: org!.name, logo_url: org!.logo_url, access_ok: accessOk };
+    return { uuid: org!.uuid, slug: org!.slug, name: org!.name, status: org!.status, logo_url: org!.logo_url, access_ok: accessOk };
   },
   { anonymous: true },
 );

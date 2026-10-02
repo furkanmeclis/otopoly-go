@@ -1,4 +1,4 @@
-import { fail, notFound, now, requireFields, requireOwner, requirePerm, route, str, uuid } from '../core';
+import { fail, notFound, now, requireFields, requireOwner, requirePerm, resourceMeta, route, str, uuid } from '../core';
 import { getDb } from '../db';
 import { assertPasswordPolicy } from './account';
 
@@ -11,7 +11,7 @@ function staffView(userUuid: string, orgUuid: string) {
 
 route('GET', '/v1/tenant/staff/meta', (ctx) => {
   requirePerm(ctx, 'tenant.staff.read');
-  return { resource: 'staff', capabilities: { read: true, create: ctx.permissions.has('tenant.staff.write') } };
+  return resourceMeta('tenant.staff', 'created_at', { read: true, create: ctx.permissions.has('tenant.staff.write'), update: ctx.permissions.has('tenant.staff.write'), search: true, sort: true });
 });
 
 route('GET', '/v1/tenant/staff', (ctx) => {

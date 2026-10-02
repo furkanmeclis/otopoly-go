@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { isApiError } from '@/api/errors';
 import { Button, Header, Screen, TextField, Txt } from '@/components/ui';
 import { authService } from '@/features/account/services/auth.service';
 import { useAuth } from '@/features/auth/auth-provider';
@@ -28,7 +29,8 @@ export default function ChangePasswordScreen() {
       logout().catch((error) => log.warn('Logout after password change failed', error));
     },
   });
-  const errs = { ...fieldErrors(change.error), ...local };
+  const wrongCurrent = isApiError(change.error) && change.error.code === 'INVALID_CREDENTIALS';
+  const errs: Record<string, string> = { ...fieldErrors(change.error), ...(wrongCurrent ? { current_password: tr('mobile.account.password.current_incorrect') } : {}), ...local };
 
   const submit = () => {
     const e: Record<string, string> = {};

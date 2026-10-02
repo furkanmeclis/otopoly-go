@@ -14,6 +14,7 @@ import { decodeAccessToken, enforceOrgAccess, permissionsFor } from './handlers/
 import { enforcePlan } from './handlers/billing';
 import { loadAccessScenario, loadPlanScenario, setAccessScenario, setPlanScenario } from './scenario';
 import { seedDb } from './seed';
+import { SUCCESS_STATUS } from './status';
 
 import './handlers';
 
@@ -75,11 +76,11 @@ async function handle(method: string, path: string, query: MockCtx['query'], bod
     }
     const data = await match.route.handler(ctx);
     if (method !== 'GET') persist();
-    return envelope(method === 'POST' && /\/(jobs|customers|sales|purchases|suppliers|leads|quotes|todos|staff)$/.test(path) ? 201 : 200, data);
+    return envelope(SUCCESS_STATUS[`${method} ${match.route.path}`] ?? 200, data);
   } catch (error) {
     if (error instanceof MockHttpError) return errorEnvelope(error);
     log.error('Mock handler crashed', { method, path, error });
-    return errorEnvelope(new MockHttpError(500, 'INTERNAL', 'Internal server error'));
+    return errorEnvelope(new MockHttpError(500, 'INTERNAL_ERROR', 'Unexpected server error'));
   }
 }
 

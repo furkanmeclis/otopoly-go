@@ -20,12 +20,12 @@ export function unlinkBlock(list: IdentityList | undefined, provider: string): U
 }
 
 /** Translation key for a failed link / unlink (static keys, so check-i18n can verify them). */
-export function identityErrorKey(code: string | undefined) {
+export function identityErrorKey(code: string | undefined, message?: string) {
   switch (code) {
-    case 'IDENTITY_ALREADY_LINKED':
-      return 'mobile.account.linked.error_in_use';
+    // Backend answers 409 CONFLICT both when the sign-in belongs to another account and when this account
+    // already has a different Apple/Google sign-in; the message tells them apart.
     case 'CONFLICT':
-      return 'mobile.account.linked.error_conflict';
+      return message && /another account/i.test(message) ? 'mobile.account.linked.error_in_use' : 'mobile.account.linked.error_conflict';
     case 'LAST_SIGN_IN_METHOD':
       return 'mobile.account.linked.last_method';
     case 'INVALID_ID_TOKEN':

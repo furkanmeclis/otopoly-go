@@ -66,5 +66,6 @@
   "account.legal.open_failed": "Couldn't open the link. Address: {{url}}",
   "account.legal.login_notice": "By signing in you agree to the Terms of Use and the Privacy Policy.",
   "account.legal.delete_hint": "The Privacy Policy explains which records are kept, on what legal basis and for how long.",
-  "account.legal.ai_hint": "The assistant's full data processing terms are in the Privacy Policy."
+  "account.legal.ai_hint": "The assistant's full data processing terms are in the Privacy Policy.",
+  "account.password.current_incorrect": "Current password is incorrect"
 }

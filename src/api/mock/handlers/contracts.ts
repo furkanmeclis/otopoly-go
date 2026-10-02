@@ -8,7 +8,7 @@
 import type { ContractPreset, SignerSlot } from '@/features/contract-presets/services/contract-presets.service';
 import type { ContractInstance, ContractMedia, ContractSigner, ContractTemplate } from '@/features/contracts/services/contracts.service';
 
-import { bool, fail, notFound, now, paginate, requireOwner, requirePerm, route, search, sortBy, str, uuid, validation, type MockCtx } from '../core';
+import { bool, fail, type MockCtx, notFound, now, paginate, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid, validation } from '../core';
 import { getDb, type MockDb } from '../db';
 
 const READ = 'tenant.contracts.read';
@@ -212,9 +212,6 @@ function buildInstance(org: string, tpl: TemplateRow, jobUuid: string, actorName
         phone: slot.role === 'customer' ? job.customer_phone : '',
         otp_required: tpl.otp_required && slot.role === 'customer',
         otp_verified: false,
-        otp_verified_at: null,
-        otp_channel: '',
-        otp_phone_masked: '',
         created_at: at,
         updated_at: at,
       })),
@@ -323,7 +320,7 @@ function templateBody(ctx: MockCtx, partial: boolean) {
 
 route('GET', '/v1/tenant/contracts/templates/meta', (ctx) => {
   requirePerm(ctx, READ);
-  return { resource: 'tenant.contracts.templates', capabilities: { read: true, create: true, update: true, delete: true, search: true, filter: true, sort: true }, sortable: ['title', 'created_at'], filterable: ['is_active'] };
+  return resourceMeta('tenant.contracts', '-created_at', { read: true, create: true, update: true, delete: true, search: true, filter: true, sort: true }, { searchable: ['title'], sortable: ['title', 'created_at'], filterable: ['is_active'] });
 });
 
 route('GET', '/v1/tenant/contracts/presets', (ctx) => {

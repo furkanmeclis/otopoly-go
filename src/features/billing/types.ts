@@ -27,4 +27,6 @@ export type BillingOverview = Omit<
   "subscription" | "open_order"
 > & {
   subscription: BillingSubscription | null;
+  /** Unpaid web order, if any (always present, `null` when none). Not shown in the app (no purchases). */
+  open_order: unknown | null;
 };

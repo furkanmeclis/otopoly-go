@@ -43,7 +43,7 @@ export default function LinkedAccountsScreen() {
 
   const fail = (error: unknown, fallback: string) => {
     const code = isApiError(error) ? error.code : undefined;
-    const key = identityErrorKey(code);
+    const key = identityErrorKey(code, isApiError(error) ? error.message : undefined);
     toast.error(fallback, key === 'common.error_generic' ? undefined : tr(key));
   };
 
