@@ -58,5 +58,13 @@
   "ai.plan_status.pending": "bekliyor",
   "ai.plan_status.in_progress": "devam ediyor",
   "ai.plan_status.done": "tamamlandı",
-  "ai.plan_status.skipped": "atlandı"
+  "ai.plan_status.skipped": "atlandı",
+  "account.legal.section": "Yasal",
+  "account.legal.privacy": "Gizlilik Politikası",
+  "account.legal.privacy_subtitle": "Hangi verileri topladığımız, nasıl kullandığımız ve ne kadar sakladığımız",
+  "account.legal.terms": "Kullanım Koşulları",
+  "account.legal.open_failed": "Bağlantı açılamadı. Adres: {{url}}",
+  "account.legal.login_notice": "Giriş yaparak Kullanım Koşulları'nı ve Gizlilik Politikası'nı kabul etmiş olursunuz.",
+  "account.legal.delete_hint": "Hangi kayıtların hangi yasal gerekçeyle ve ne kadar süre saklandığı Gizlilik Politikası'nda açıklanır.",
+  "account.legal.ai_hint": "Asistanın veri işleme koşullarının tamamı Gizlilik Politikası'nda yer alır."
 }

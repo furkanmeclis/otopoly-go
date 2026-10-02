@@ -5,6 +5,7 @@ import { View } from 'react-native';
 
 import { Avatar, Badge, Button, Card, Group, Header, InfoRow, ListRow, Row, Screen, Section, TextField, Txt } from '@/components/ui';
 import { useToast } from '@/components/feedback/toast';
+import { LegalGroup } from '@/features/account/components/legal-links';
 import { SessionList } from '@/features/account/components/session-list';
 import { accountKeys, useTotpStatus } from '@/features/account/queries';
 import { authService } from '@/features/account/services/auth.service';
@@ -133,6 +134,10 @@ export default function ProfileScreen() {
             last
           />
         </Group>
+      </Section>
+
+      <Section title={tr('mobile.account.legal.section')}>
+        <LegalGroup />
       </Section>
 
       <Section title={tr('auth.sessions.title')}>

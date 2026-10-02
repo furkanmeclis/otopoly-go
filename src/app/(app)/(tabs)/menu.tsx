@@ -36,7 +36,7 @@ import { View } from 'react-native';
 
 import { BrandLockup } from '@/components/brand';
 import { Avatar, Badge, Group, Header, ListRow, Row, Screen, Section, Segmented, Txt, useConfirm } from '@/components/ui';
-import { isMock } from '@/config/env';
+import { devToolsEnabled, isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
 import { ownerOnly, P, type Gate, type Permission } from '@/features/auth/permissions';
 import { useUnreadCount } from '@/features/notifications/queries';
@@ -208,7 +208,9 @@ export default function MenuScreen() {
           <ListRow title={tr('layout.nav_profile')} left={<UserRound size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/profile')} />
           <ListRow title={tr('mobile.qr.menu_title')} subtitle={tr('mobile.qr.menu_subtitle')} left={<ScanQrCode size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/qr-scan')} />
           {(me?.organizations?.length ?? 0) > 1 ? <ListRow title={tr('mobile.org.switch')} left={<Repeat size={20} color={t.colors.textSecondary} />} onPress={switchOrganization} /> : null}
-          <ListRow title={tr('mobile.diagnostics.title')} subtitle={isMock ? tr('mobile.demo.banner') : undefined} left={<Bug size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/diagnostics')} />
+          {devToolsEnabled ? (
+            <ListRow title={tr('mobile.diagnostics.title')} subtitle={isMock ? tr('mobile.demo.banner') : undefined} left={<Bug size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/diagnostics')} />
+          ) : null}
           <ListRow
             title={tr('common.logout')}
             destructive
@@ -222,7 +224,7 @@ export default function MenuScreen() {
         </Group>
       </Section>
       <View style={{ alignItems: 'center', paddingVertical: t.spacing.md }}>
-        <BrandLockup height={22} caption={`v${Constants.expoConfig?.version ?? ''} · ${isMock ? 'demo' : 'live'}`} />
+        <BrandLockup height={22} caption={devToolsEnabled ? `v${Constants.expoConfig?.version ?? ''} · ${isMock ? 'demo' : 'live'}` : `v${Constants.expoConfig?.version ?? ''}`} />
       </View>
     </Screen>
   );

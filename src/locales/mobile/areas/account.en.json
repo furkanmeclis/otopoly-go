@@ -58,5 +58,13 @@
   "ai.plan_status.pending": "pending",
   "ai.plan_status.in_progress": "in progress",
   "ai.plan_status.done": "done",
-  "ai.plan_status.skipped": "skipped"
+  "ai.plan_status.skipped": "skipped",
+  "account.legal.section": "Legal",
+  "account.legal.privacy": "Privacy Policy",
+  "account.legal.privacy_subtitle": "What data we collect, how we use it and how long we keep it",
+  "account.legal.terms": "Terms of Use",
+  "account.legal.open_failed": "Couldn't open the link. Address: {{url}}",
+  "account.legal.login_notice": "By signing in you agree to the Terms of Use and the Privacy Policy.",
+  "account.legal.delete_hint": "The Privacy Policy explains which records are kept, on what legal basis and for how long.",
+  "account.legal.ai_hint": "The assistant's full data processing terms are in the Privacy Policy."
 }

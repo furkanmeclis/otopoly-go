@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { subscribeApiEvents } from '@/api/events';
 import { BrandMark } from '@/components/brand';
 import { Button } from '@/components/ui';
-import { isMock } from '@/config/env';
+import { devToolsEnabled, isMock } from '@/config/env';
 import { orgBlock, useAuth } from '@/features/auth/auth-provider';
 import { TenantAccessState, type TenantAccess } from '@/features/auth/components/tenant-access-state';
 import { useLocale } from '@/lib/i18n/provider';
@@ -88,7 +88,9 @@ export function TenantAccessGate({ children }: { children: ReactNode }) {
                   {others.length ? <Button label={tr('mobile.access.switch')} icon={<Building2 size={18} color={t.colors.onPrimary} />} onPress={switchOrganization} /> : null}
                   <Button label={tr('mobile.access.retry')} variant="outline" icon={<RefreshCw size={18} color={t.colors.text} />} loading={refreshing} onPress={() => void retry()} />
                   <Button label={tr('common.logout')} variant="ghost" icon={<LogOut size={18} color={t.colors.primary} />} onPress={() => void logout()} />
-                  {isMock ? <Button label={tr('mobile.access.diagnostics')} variant="ghost" size="sm" onPress={() => router.push('/diagnostics')} /> : null}
+                  {/* Users locked out of their business can still delete their account (App Store 5.1.1(v)). */}
+                  <Button label={tr('mobile.auth.delete.row_title')} variant="ghost" size="sm" onPress={() => router.push('/delete-account')} />
+                  {isMock && devToolsEnabled ? <Button label={tr('mobile.access.diagnostics')} variant="ghost" size="sm" onPress={() => router.push('/diagnostics')} /> : null}
                 </>
               }
             />

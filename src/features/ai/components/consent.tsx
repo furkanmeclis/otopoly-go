@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Button, Card, Row, Txt } from '@/components/ui';
+import { LegalLinks } from '@/features/account/components/legal-links';
 import { providerLabelKey } from '@/features/ai/consent';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
@@ -71,6 +72,7 @@ export function AIConsentGate({ provider, onAccept }: { provider: string | null 
       <Txt variant="caption" tone="muted">
         {tr('mobile.ai.consent.footnote')}
       </Txt>
+      <LegalLinks notice={tr('mobile.account.legal.ai_hint')} docs={['privacy']} />
       <View style={{ gap: t.spacing.sm }}>
         <Button label={tr('mobile.ai.consent.accept')} size="lg" loading={saving} onPress={() => void accept()} />
         <Button label={tr('mobile.ai.consent.decline')} variant="ghost" disabled={saving} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
