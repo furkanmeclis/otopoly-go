@@ -3300,9 +3300,17 @@ paths:
         - name: kind
           in: query
           schema: { type: string, enum: [income, expense] }
+        - name: is_active
+          in: query
+          description: "`true` / `false`; omitted = all"
+          schema: { type: string, enum: ["true", "false"] }
       responses:
         "200":
           description: Categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceCategoryList"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -3324,12 +3332,18 @@ paths:
       responses:
         "201":
           description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceCategory"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -3352,6 +3366,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceCategory"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantFinanceCategory
+      summary: Update finance category
+      description: Partial update. A category cannot be its own parent; the parent must exist in the organization.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFinanceCategoryRequest"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceCategory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantFinanceCategory
+      summary: Delete finance category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -3426,6 +3503,9 @@ paths:
         - name: status
           in: query
           schema: { type: string }
+        - name: currency
+          in: query
+          schema: { type: string, description: ISO 4217 code }
         - name: account_uuid
           in: query
           schema: { type: string, format: uuid }
@@ -3650,6 +3730,12 @@ paths:
       summary: Upload finance accounts import
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImportUploadRequest"
       responses:
         "201":
           description: Import job created
@@ -3700,6 +3786,12 @@ paths:
       summary: Upload finance categories import
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImportUploadRequest"
       responses:
         "201":
           description: Import job created
@@ -3864,6 +3956,7 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409": { $ref: "#/components/responses/Conflict" }
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -4069,6 +4162,7 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409": { $ref: "#/components/responses/Conflict" }
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -4532,6 +4626,15 @@ paths:
       summary: Upload organization letterhead logo
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [logo]
+              properties:
+                logo: { type: string, format: binary, description: "PNG / JPEG / WebP (sniffed from content), max 2 MiB" }
       responses:
         "200":
           description: Updated letterhead
@@ -4633,6 +4736,12 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportMappingRequest"
       responses:
         "200":
           description: Import job
@@ -5098,7 +5207,12 @@ paths:
       summary: Service jobs list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5113,7 +5227,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Summary totals }
+        "200":
+          description: Summary totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobsSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5137,6 +5257,8 @@ paths:
             enum: [in_progress, ready, delivered, cancelled, voided]
         - name: payment_status
           in: query
+          deprecated: true
+          description: Not applied — the Go handler does not read this parameter (jobs.ListFilters has no payment_status filter).
           schema:
             type: string
             enum: [unpaid, paid]
@@ -5151,7 +5273,13 @@ paths:
           description: Also return in_progress/ready jobs started before date_from (multi-day work still going on).
           schema: { type: boolean }
       responses:
-        "200": { description: "Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) and services [{uuid, name, color}] for the card tags" }
+        "200":
+          description: "Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) and services [{uuid, name, color}] for the card tags"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -5184,10 +5312,17 @@ paths:
                       unit_price: { type: string }
                       qty: { type: string }
       responses:
-        "201": { description: Job created }
+        "201":
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/export:
     post:
@@ -5196,18 +5331,19 @@ paths:
       summary: Export service jobs
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5223,7 +5359,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job detail }
+        "200":
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -5249,7 +5391,12 @@ paths:
                   type: [string, "null"]
                   format: uuid
       responses:
-        "200": { description: Job updated }
+        "200":
+          description: Job updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5268,9 +5415,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job marked ready }
+        "200":
+          description: Job marked ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/done:
@@ -5285,9 +5439,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job marked ready }
+        "200":
+          description: Job marked ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/deliver:
@@ -5302,9 +5463,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job delivered }
+        "200":
+          description: Job delivered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/close:
@@ -5329,10 +5497,16 @@ paths:
                 method: { type: string, enum: [cash, card, cari] }
                 finance_account_uuid: { type: string, format: uuid }
       responses:
-        "200": { description: Job payment recorded }
+        "200":
+          description: Job payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/cancel:
@@ -5347,9 +5521,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job cancelled }
+        "200":
+          description: Job cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/void:
@@ -5364,9 +5545,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job voided }
+        "200":
+          description: Job voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/staff/meta:
@@ -5376,7 +5564,12 @@ paths:
       summary: Staff resource meta
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5387,7 +5580,12 @@ paths:
       summary: Active organization members for assignee pickers
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Member options }
+        "200":
+          description: Member options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffOptions"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5398,7 +5596,12 @@ paths:
       summary: List staff members
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Staff page }
+        "200":
+          description: Staff page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffPage"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -5419,7 +5622,12 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 8 }
       responses:
-        "201": { description: Staff created }
+        "201":
+          description: Staff created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffMember"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5446,7 +5654,12 @@ paths:
               properties:
                 status: { type: string, enum: [active, inactive] }
       responses:
-        "200": { description: Staff updated }
+        "200":
+          description: Staff updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffMember"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5474,7 +5687,12 @@ paths:
               properties:
                 password: { type: string, minLength: 8 }
       responses:
-        "200": { description: Password reset }
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOkResult"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5925,7 +6143,12 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/JobConsumptionInput" }
       responses:
-        "200": { description: "Job detail with consumptions and material_cost" }
+        "200":
+          description: "Job detail with consumptions and material_cost"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5950,8 +6173,15 @@ paths:
               properties:
                 qty: { type: string }
       responses:
-        "200": { description: "Job detail" }
+        "200":
+          description: "Job detail"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
@@ -5963,7 +6193,15 @@ paths:
         - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: consumptionUuid, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        "200": { description: "Job detail" }
+        "200":
+          description: "Job detail"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
   /v1/tenant/catalog/services/{uuid}/products:
@@ -6027,7 +6265,13 @@ paths:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
-        "200": { description: Jobs page }
+        "200":
+          description: Jobs page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6039,7 +6283,12 @@ paths:
       summary: Product sales list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6054,7 +6303,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Summary totals }
+        "200":
+          description: Summary totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSalesSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6083,7 +6338,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Sales page }
+        "200":
+          description: Sales page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSalePage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -6116,10 +6377,16 @@ paths:
                       unit_price: { type: string }
                       qty: { type: string }
       responses:
-        "201": { description: Sale created }
+        "201":
+          description: Sale created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSaleDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/sales/export:
@@ -6129,18 +6396,19 @@ paths:
       summary: Export product sales
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6156,7 +6424,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Sale detail }
+        "200":
+          description: Sale detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSaleDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6173,9 +6447,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Sale voided }
+        "200":
+          description: Sale voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSaleDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/suppliers/meta:
@@ -6185,7 +6466,12 @@ paths:
       summary: Suppliers list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6206,7 +6492,13 @@ paths:
           in: query
           schema: { type: boolean }
       responses:
-        "200": { description: Suppliers page }
+        "200":
+          description: Suppliers page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplierPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -6229,7 +6521,12 @@ paths:
                 notes: { type: string }
                 is_active: { type: boolean }
       responses:
-        "201": { description: Supplier created }
+        "201":
+          description: Supplier created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplier"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -6241,18 +6538,19 @@ paths:
       summary: Export suppliers
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6268,7 +6566,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Supplier }
+        "200":
+          description: Supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplier"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6296,7 +6600,12 @@ paths:
                 notes: { type: string }
                 is_active: { type: boolean }
       responses:
-        "200": { description: Supplier updated }
+        "200":
+          description: Supplier updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplier"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -6312,7 +6621,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Deleted }
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6325,7 +6640,12 @@ paths:
       summary: Purchases list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6354,7 +6674,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: "Purchases page; each item includes its `lines` (product, qty, unit_cost, line_total)" }
+        "200":
+          description: "Purchases page; each item includes its `lines` (product, qty, unit_cost, line_total)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchasePage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -6387,10 +6713,16 @@ paths:
                       unit_cost: { type: string }
                       qty: { type: string }
       responses:
-        "201": { description: Purchase created }
+        "201":
+          description: Purchase created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/purchases/export:
     post:
@@ -6399,18 +6731,19 @@ paths:
       summary: Export purchases
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6426,7 +6759,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Purchase detail }
+        "200":
+          description: Purchase detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6443,9 +6782,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Purchase voided }
+        "200":
+          description: Purchase voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/reports/meta:
@@ -7091,7 +7437,12 @@ paths:
       summary: Cari account list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -7102,7 +7453,12 @@ paths:
       summary: Cari receivable summary
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Summary totals }
+        "200":
+          description: Summary totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariSummary"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -7126,7 +7482,13 @@ paths:
           in: query
           schema: { type: string }
       responses:
-        "200": { description: Cari account page }
+        "200":
+          description: Cari account page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariAccountPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -7137,18 +7499,19 @@ paths:
       summary: Export cari accounts
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -7164,7 +7527,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Cari account detail }
+        "200":
+          description: Cari account detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariAccountDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -7196,7 +7565,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Entry page }
+        "200":
+          description: Entry page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntryPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -7213,18 +7588,19 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -7252,7 +7628,13 @@ paths:
                 description: { type: string }
                 reference_no: { type: string }
       responses:
-        "201": { description: Created entry }
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -7283,7 +7665,13 @@ paths:
                 payment_method: { type: string, enum: [cash, card, transfer, other] }
                 finance_account_uuid: { type: string, format: uuid }
       responses:
-        "201": { description: Created entry }
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -7313,7 +7701,13 @@ paths:
                 description: { type: string }
                 reference_no: { type: string }
       responses:
-        "201": { description: Created entry }
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -7330,7 +7724,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Voided entry }
+        "200":
+          description: Voided entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -7343,7 +7743,12 @@ paths:
       summary: Customer list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -7367,7 +7772,13 @@ paths:
           in: query
           schema: { type: string }
       responses:
-        "200": { description: Customer page }
+        "200":
+          description: Customer page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -7399,7 +7810,13 @@ paths:
                     model_uuid: { type: string, format: uuid }
                     year: { type: integer }
       responses:
-        "201": { description: Created customer }
+        "201":
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -7416,7 +7833,15 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Customer detail }
+        "200":
+          description: Customer detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Tenant]
@@ -7428,8 +7853,22 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchCustomerRequest"
       responses:
-        "200": { description: Updated customer }
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     delete:
       tags: [Tenant]
@@ -7442,8 +7881,17 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Deleted }
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/customers/{uuid}/vehicles:
     post:
@@ -7468,7 +7916,15 @@ paths:
                 model_uuid: { type: string, format: uuid }
                 year: { type: integer }
       responses:
-        "201": { description: Created vehicle }
+        "201":
+          description: Created vehicle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerVehicle"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
@@ -7484,7 +7940,15 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Deleted }
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/ai/status:
@@ -11616,7 +12080,7 @@ components:
 
     FinanceCategory:
       type: object
-      required: [uuid, name, kind, is_active]
+      required: [uuid, name, kind, sort_order, is_active, created_at, updated_at]
       properties:
         uuid: { type: string, format: uuid }
         name: { type: string }
@@ -11624,6 +12088,8 @@ components:
         parent_uuid: { type: [string, "null"], format: uuid }
         sort_order: { type: integer }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     CreateFinanceTransactionRequest:
       type: object
@@ -12621,7 +13087,7 @@ components:
         message: { type: string }
         data:
           description: AIConfirmCard for `confirm`, AIPlan for `todo_list`.
-          oneOf:
+          anyOf:
             - $ref: "#/components/schemas/AIConfirmCard"
             - $ref: "#/components/schemas/AIPlan"
             - type: object
@@ -14505,4 +14971,702 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/PublicQuote" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Shared small envelopes
+    # ---------------------------------------------------------------------
+    DeletedResult:
+      type: object
+      required: [deleted]
+      properties:
+        deleted: { type: boolean, enum: [true] }
+
+    EnvelopeDeletedResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/DeletedResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    OkResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+
+    EnvelopeOkResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/OkResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceCategoryList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/FinanceCategory" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PatchFinanceCategoryRequest:
+      type: object
+      description: Partial update; omitted fields are left unchanged. `kind` cannot be changed.
+      properties:
+        name: { type: string }
+        parent_uuid: { type: string, format: uuid }
+        sort_order: { type: integer, format: int32 }
+        is_active: { type: boolean }
+
+    ImportUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        file: { type: string, format: binary, description: "Import file (max 10 MiB)" }
+        format:
+          type: string
+          enum: [csv, tsv, xlsx, json]
+          description: Defaults to `csv`.
+        locale:
+          type: string
+          description: Header / value locale; defaults to `tr`.
+
+    ImportMappingRequest:
+      type: object
+      properties:
+        mapping:
+          type: object
+          description: Target field → source column header.
+          additionalProperties: { type: string }
+        defaults:
+          type: object
+          description: Target field → constant value used when the column is absent / empty.
+          additionalProperties: { type: string }
+
+    # ---------------------------------------------------------------------
+    # Service jobs (internal/modules/jobs/usecase/types.go)
+    # ---------------------------------------------------------------------
+    JobServiceTag:
+      type: object
+      required: [name, color]
+      properties:
+        uuid: { type: string, format: uuid, description: "Omitted for lines without a catalog service" }
+        name: { type: string }
+        color: { type: string, description: 'Palette key, or "" (UI derives one from the name)' }
+
+    Job:
+      type: object
+      required:
+        [uuid, customer_uuid, vehicle_uuid, customer_name, customer_phone, plate, vehicle_label,
+         status, payment_status, currency, notes, total_amount, started_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        vehicle_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        plate: { type: string }
+        vehicle_label: { type: string }
+        status: { type: string, enum: [in_progress, ready, delivered, cancelled, voided] }
+        payment_status: { type: string, enum: [unpaid, paid] }
+        currency: { type: string }
+        notes: { type: string }
+        total_amount: { type: string, description: Decimal string }
+        assignee_uuid: { type: string, format: uuid }
+        assignee_name: { type: string }
+        brand_name: { type: string, description: List rows only }
+        brand_logo_url: { type: string, description: "List rows only; public vehicle brand logo stream, omitted when none" }
+        services:
+          type: array
+          description: List rows only (card tags); omitted when empty.
+          items: { $ref: "#/components/schemas/JobServiceTag" }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        delivered_at: { type: string, format: date-time }
+        paid_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    JobLine:
+      type: object
+      required: [uuid, line_type, name, unit_price, qty, vat_rate, line_total, currency, sort_order]
+      properties:
+        uuid: { type: string, format: uuid }
+        line_type: { type: string, enum: [service, product] }
+        service_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit_price: { type: string }
+        qty: { type: string }
+        vat_rate: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+        sort_order: { type: integer }
+
+    JobPayment:
+      type: object
+      required: [uuid, method, amount, currency, status, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        method: { type: string, enum: [cash, card, cari] }
+        amount: { type: string }
+        currency: { type: string }
+        status: { type: string, enum: [posted, void] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        cari_entry_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    JobDetail:
+      allOf:
+        - $ref: "#/components/schemas/Job"
+        - type: object
+          required: [lines, payments, consumptions, material_cost]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/JobLine" }
+            payments:
+              type: array
+              items: { $ref: "#/components/schemas/JobPayment" }
+            consumptions:
+              type: array
+              items: { $ref: "#/components/schemas/JobConsumption" }
+            material_cost: { type: string, description: "Sum of active consumptions at cost price" }
+
+    JobsSummary:
+      type: object
+      required: [job_count, card_total, cari_total, net_total, paid_total, date]
+      properties:
+        job_count: { type: integer, format: int64 }
+        card_total: { type: string }
+        cari_total: { type: string }
+        net_total: { type: string }
+        paid_total: { type: string }
+        date: { type: string, format: date }
+
+    EnvelopeJobPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Job" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeJobDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/JobDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeJobsSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/JobsSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Customers (internal/modules/customers/usecase/types.go)
+    # ---------------------------------------------------------------------
+    Customer:
+      type: object
+      required:
+        [uuid, name, phone, email, kind, notes, tax_id, tax_office, is_active, vehicle_count, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        kind: { type: string, enum: [individual, company] }
+        notes: { type: string }
+        tax_id: { type: string }
+        tax_office: { type: string }
+        is_active: { type: boolean }
+        vehicle_count: { type: integer, format: int64 }
+        cari_account_uuid: { type: string, format: uuid }
+        cari_balance: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CustomerVehicle:
+      type: object
+      required: [uuid, plate, brand_uuid, brand_name, model_uuid, model_name, year, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        plate: { type: string }
+        brand_uuid: { type: string, format: uuid }
+        brand_name: { type: string }
+        logo_url: { type: string, description: "Public brand logo stream; omitted when none" }
+        model_uuid: { type: string, format: uuid }
+        model_name: { type: string }
+        year: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    CustomerDetail:
+      allOf:
+        - $ref: "#/components/schemas/Customer"
+        - type: object
+          required: [vehicles]
+          properties:
+            vehicles:
+              type: array
+              items: { $ref: "#/components/schemas/CustomerVehicle" }
+
+    PatchCustomerRequest:
+      type: object
+      description: Partial update; omitted fields are left unchanged.
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        kind: { type: string, enum: [individual, company] }
+        notes: { type: string }
+        tax_id: { type: string }
+        tax_office: { type: string }
+        is_active: { type: boolean }
+
+    EnvelopeCustomerPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Customer" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCustomerDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCustomerVehicle:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerVehicle" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Product sales (internal/modules/sales/usecase/types.go)
+    # ---------------------------------------------------------------------
+    SaleLine:
+      type: object
+      required: [uuid, product_uuid, name, unit_price, qty, vat_rate, line_total, currency, sort_order]
+      properties:
+        uuid: { type: string, format: uuid }
+        product_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit_price: { type: string }
+        qty: { type: string }
+        vat_rate: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+        sort_order: { type: integer }
+
+    Sale:
+      type: object
+      required:
+        [uuid, customer_name, customer_phone, status, currency, total_amount, method, notes, sold_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid, description: Omitted for walk-in sales }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        status: { type: string, enum: [posted, voided] }
+        currency: { type: string }
+        total_amount: { type: string }
+        method: { type: string, enum: [cash, card, cari] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        cari_entry_uuid: { type: string, format: uuid }
+        notes: { type: string }
+        sold_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    SaleDetail:
+      allOf:
+        - $ref: "#/components/schemas/Sale"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/SaleLine" }
+
+    SalesSummary:
+      type: object
+      required: [sale_count, card_total, cari_total, net_total, paid_total, date]
+      properties:
+        sale_count: { type: integer, format: int64 }
+        card_total: { type: string }
+        cari_total: { type: string }
+        net_total: { type: string }
+        paid_total: { type: string }
+        date: { type: string, format: date }
+
+    EnvelopeSalePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Sale" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSaleDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SaleDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSalesSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SalesSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Suppliers (internal/modules/suppliers/usecase/types.go)
+    # ---------------------------------------------------------------------
+    Supplier:
+      type: object
+      required: [uuid, name, phone, email, tax_id, notes, is_active, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        tax_id: { type: string }
+        notes: { type: string }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    EnvelopeSupplierPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Supplier" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSupplier:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/Supplier" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Purchases (internal/modules/purchases/usecase/types.go)
+    # ---------------------------------------------------------------------
+    PurchaseLine:
+      type: object
+      required: [uuid, product_uuid, name, unit_cost, qty, line_total, currency, sort_order]
+      properties:
+        uuid: { type: string, format: uuid }
+        product_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit_cost: { type: string }
+        qty: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+        sort_order: { type: integer }
+
+    Purchase:
+      type: object
+      required:
+        [uuid, supplier_uuid, supplier_name, status, currency, total_amount, method, notes, purchased_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        supplier_uuid: { type: string, format: uuid }
+        supplier_name: { type: string }
+        status: { type: string, enum: [posted, voided] }
+        currency: { type: string }
+        total_amount: { type: string }
+        method: { type: string, enum: [cash, card] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        notes: { type: string }
+        purchased_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    PurchaseDetail:
+      allOf:
+        - $ref: "#/components/schemas/Purchase"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/PurchaseLine" }
+
+    EnvelopePurchasePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              description: List rows include their `lines`.
+              items: { $ref: "#/components/schemas/PurchaseDetail" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopePurchaseDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PurchaseDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Staff (internal/modules/staff/usecase/service.go)
+    # ---------------------------------------------------------------------
+    StaffMember:
+      type: object
+      required: [uuid, email, name, surname, status, role, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        surname: { type: string }
+        status: { type: string, enum: [active, inactive] }
+        role: { type: string }
+        created_at: { type: string, format: date-time }
+
+    StaffMemberOption:
+      type: object
+      required: [uuid, email, name, surname, role, label]
+      properties:
+        uuid: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        surname: { type: string }
+        role: { type: string }
+        label: { type: string }
+
+    EnvelopeStaffPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          description: Not paginated; `limit` = `total` = number of items, `offset` = 0.
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/StaffMember" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeStaffOptions:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/StaffMemberOption" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeStaffMember:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/StaffMember" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Cari (internal/modules/cari/usecase/types.go)
+    # ---------------------------------------------------------------------
+    CariAccount:
+      type: object
+      required:
+        [uuid, customer_uuid, customer_name, customer_phone, currency, balance, is_active, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        customer_kind: { type: string, enum: [individual, company] }
+        currency: { type: string }
+        balance: { type: string, description: "Receivable balance (decimal string)" }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CariAccountDetail:
+      allOf:
+        - $ref: "#/components/schemas/CariAccount"
+        - type: object
+          required: [customer_email, customer_is_active]
+          properties:
+            customer_email: { type: string }
+            customer_tax_id: { type: string }
+            customer_tax_office: { type: string }
+            customer_is_active: { type: boolean }
+
+    CariEntry:
+      type: object
+      required:
+        [uuid, account_uuid, type, status, amount, balance_after, entry_date, description, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        account_uuid: { type: string, format: uuid }
+        type: { type: string, enum: [charge, payment, adjustment, opening] }
+        status: { type: string, enum: [posted, void] }
+        amount: { type: string }
+        balance_after: { type: string }
+        entry_date: { type: string, format: date }
+        description: { type: string }
+        reference_no: { type: string }
+        payment_method: { type: string, enum: [cash, card, transfer, other] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    CariSummary:
+      type: object
+      required: [total_receivable, account_count, with_balance_count]
+      properties:
+        total_receivable: { type: string }
+        account_count: { type: integer, format: int64 }
+        with_balance_count: { type: integer, format: int64 }
+
+    EnvelopeCariAccountPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CariAccount" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariAccountDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CariAccountDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariEntryPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CariEntry" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariEntry:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CariEntry" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CariSummary" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

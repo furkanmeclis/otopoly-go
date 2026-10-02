@@ -1987,10 +1987,15 @@ export interface paths {
         get: operations["getTenantFinanceCategory"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete finance category */
+        delete: operations["deleteTenantFinanceCategory"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update finance category
+         * @description Partial update. A category cannot be its own parent; the parent must exist in the organization.
+         */
+        patch: operations["patchTenantFinanceCategory"];
         trace?: never;
     };
     "/v1/tenant/finance/categories/{uuid}/detail": {
@@ -7247,8 +7252,12 @@ export interface components {
             kind: "income" | "expense";
             /** Format: uuid */
             parent_uuid?: string | null;
-            sort_order?: number;
+            sort_order: number;
             is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         CreateFinanceTransactionRequest: {
             /** @enum {string} */
@@ -9696,6 +9705,586 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["PublicQuote"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        DeletedResult: {
+            /** @enum {boolean} */
+            deleted: true;
+        };
+        EnvelopeDeletedResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["DeletedResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        OkResult: {
+            /** @enum {boolean} */
+            ok: true;
+        };
+        EnvelopeOkResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OkResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceCategoryList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["FinanceCategory"][];
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Partial update; omitted fields are left unchanged. `kind` cannot be changed. */
+        PatchFinanceCategoryRequest: {
+            name?: string;
+            /** Format: uuid */
+            parent_uuid?: string;
+            /** Format: int32 */
+            sort_order?: number;
+            is_active?: boolean;
+        };
+        ImportUploadRequest: {
+            /**
+             * Format: binary
+             * @description Import file (max 10 MiB)
+             */
+            file: string;
+            /**
+             * @description Defaults to `csv`.
+             * @enum {string}
+             */
+            format?: "csv" | "tsv" | "xlsx" | "json";
+            /** @description Header / value locale; defaults to `tr`. */
+            locale?: string;
+        };
+        ImportMappingRequest: {
+            /** @description Target field → source column header. */
+            mapping?: {
+                [key: string]: string;
+            };
+            /** @description Target field → constant value used when the column is absent / empty. */
+            defaults?: {
+                [key: string]: string;
+            };
+        };
+        JobServiceTag: {
+            /**
+             * Format: uuid
+             * @description Omitted for lines without a catalog service
+             */
+            uuid?: string;
+            name: string;
+            /** @description Palette key, or "" (UI derives one from the name) */
+            color: string;
+        };
+        Job: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            /** Format: uuid */
+            vehicle_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            plate: string;
+            vehicle_label: string;
+            /** @enum {string} */
+            status: "in_progress" | "ready" | "delivered" | "cancelled" | "voided";
+            /** @enum {string} */
+            payment_status: "unpaid" | "paid";
+            currency: string;
+            notes: string;
+            /** @description Decimal string */
+            total_amount: string;
+            /** Format: uuid */
+            assignee_uuid?: string;
+            assignee_name?: string;
+            /** @description List rows only */
+            brand_name?: string;
+            /** @description List rows only; public vehicle brand logo stream, omitted when none */
+            brand_logo_url?: string;
+            /** @description List rows only (card tags); omitted when empty. */
+            services?: components["schemas"]["JobServiceTag"][];
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at?: string;
+            /** Format: date-time */
+            delivered_at?: string;
+            /** Format: date-time */
+            paid_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        JobLine: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            line_type: "service" | "product";
+            /** Format: uuid */
+            service_uuid?: string;
+            name: string;
+            unit_price: string;
+            qty: string;
+            vat_rate: string;
+            line_total: string;
+            currency: string;
+            sort_order: number;
+        };
+        JobPayment: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            method: "cash" | "card" | "cari";
+            amount: string;
+            currency: string;
+            /** @enum {string} */
+            status: "posted" | "void";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            /** Format: uuid */
+            cari_entry_uuid?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        JobDetail: components["schemas"]["Job"] & {
+            lines: components["schemas"]["JobLine"][];
+            payments: components["schemas"]["JobPayment"][];
+            consumptions: components["schemas"]["JobConsumption"][];
+            /** @description Sum of active consumptions at cost price */
+            material_cost: string;
+        };
+        JobsSummary: {
+            /** Format: int64 */
+            job_count: number;
+            card_total: string;
+            cari_total: string;
+            net_total: string;
+            paid_total: string;
+            /** Format: date */
+            date: string;
+        };
+        EnvelopeJobPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Job"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeJobDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["JobDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeJobsSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["JobsSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        Customer: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            phone: string;
+            email: string;
+            /** @enum {string} */
+            kind: "individual" | "company";
+            notes: string;
+            tax_id: string;
+            tax_office: string;
+            is_active: boolean;
+            /** Format: int64 */
+            vehicle_count: number;
+            /** Format: uuid */
+            cari_account_uuid?: string;
+            cari_balance?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CustomerVehicle: {
+            /** Format: uuid */
+            uuid: string;
+            plate: string;
+            /** Format: uuid */
+            brand_uuid: string;
+            brand_name: string;
+            /** @description Public brand logo stream; omitted when none */
+            logo_url?: string;
+            /** Format: uuid */
+            model_uuid: string;
+            model_name: string;
+            year: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CustomerDetail: components["schemas"]["Customer"] & {
+            vehicles: components["schemas"]["CustomerVehicle"][];
+        };
+        /** @description Partial update; omitted fields are left unchanged. */
+        PatchCustomerRequest: {
+            name?: string;
+            phone?: string;
+            email?: string;
+            /** @enum {string} */
+            kind?: "individual" | "company";
+            notes?: string;
+            tax_id?: string;
+            tax_office?: string;
+            is_active?: boolean;
+        };
+        EnvelopeCustomerPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Customer"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerVehicle: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerVehicle"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        SaleLine: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            unit_price: string;
+            qty: string;
+            vat_rate: string;
+            line_total: string;
+            currency: string;
+            sort_order: number;
+        };
+        Sale: {
+            /** Format: uuid */
+            uuid: string;
+            /**
+             * Format: uuid
+             * @description Omitted for walk-in sales
+             */
+            customer_uuid?: string;
+            customer_name: string;
+            customer_phone: string;
+            /** @enum {string} */
+            status: "posted" | "voided";
+            currency: string;
+            total_amount: string;
+            /** @enum {string} */
+            method: "cash" | "card" | "cari";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            /** Format: uuid */
+            cari_entry_uuid?: string;
+            notes: string;
+            /** Format: date-time */
+            sold_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        SaleDetail: components["schemas"]["Sale"] & {
+            lines: components["schemas"]["SaleLine"][];
+        };
+        SalesSummary: {
+            /** Format: int64 */
+            sale_count: number;
+            card_total: string;
+            cari_total: string;
+            net_total: string;
+            paid_total: string;
+            /** Format: date */
+            date: string;
+        };
+        EnvelopeSalePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Sale"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSaleDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SaleDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSalesSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SalesSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        Supplier: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            phone: string;
+            email: string;
+            tax_id: string;
+            notes: string;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        EnvelopeSupplierPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Supplier"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSupplier: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["Supplier"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PurchaseLine: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            unit_cost: string;
+            qty: string;
+            line_total: string;
+            currency: string;
+            sort_order: number;
+        };
+        Purchase: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            supplier_uuid: string;
+            supplier_name: string;
+            /** @enum {string} */
+            status: "posted" | "voided";
+            currency: string;
+            total_amount: string;
+            /** @enum {string} */
+            method: "cash" | "card";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            notes: string;
+            /** Format: date-time */
+            purchased_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        PurchaseDetail: components["schemas"]["Purchase"] & {
+            lines: components["schemas"]["PurchaseLine"][];
+        };
+        EnvelopePurchasePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                /** @description List rows include their `lines`. */
+                items: components["schemas"]["PurchaseDetail"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePurchaseDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PurchaseDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StaffMember: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            surname: string;
+            /** @enum {string} */
+            status: "active" | "inactive";
+            role: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        StaffMemberOption: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            surname: string;
+            role: string;
+            label: string;
+        };
+        EnvelopeStaffPage: {
+            /** @enum {boolean} */
+            success: true;
+            /** @description Not paginated; `limit` = `total` = number of items, `offset` = 0. */
+            data: {
+                items: components["schemas"]["StaffMember"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeStaffOptions: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["StaffMemberOption"][];
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeStaffMember: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["StaffMember"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        CariAccount: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            /** @enum {string} */
+            customer_kind?: "individual" | "company";
+            currency: string;
+            /** @description Receivable balance (decimal string) */
+            balance: string;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CariAccountDetail: components["schemas"]["CariAccount"] & {
+            customer_email: string;
+            customer_tax_id?: string;
+            customer_tax_office?: string;
+            customer_is_active: boolean;
+        };
+        CariEntry: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            account_uuid: string;
+            /** @enum {string} */
+            type: "charge" | "payment" | "adjustment" | "opening";
+            /** @enum {string} */
+            status: "posted" | "void";
+            amount: string;
+            balance_after: string;
+            /** Format: date */
+            entry_date: string;
+            description: string;
+            reference_no?: string;
+            /** @enum {string} */
+            payment_method?: "cash" | "card" | "transfer" | "other";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        CariSummary: {
+            total_receivable: string;
+            /** Format: int64 */
+            account_count: number;
+            /** Format: int64 */
+            with_balance_count: number;
+        };
+        EnvelopeCariAccountPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["CariAccount"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariAccountDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CariAccountDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariEntryPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["CariEntry"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariEntry: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CariEntry"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CariSummary"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -13019,6 +13608,8 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: "income" | "expense";
+                /** @description `true` / `false`; omitted = all */
+                is_active?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -13031,7 +13622,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceCategoryList"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -13056,11 +13649,15 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceCategory"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -13084,6 +13681,64 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceCategory"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deleteTenantFinanceCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchTenantFinanceCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchFinanceCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated category */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceCategory"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -13147,6 +13802,7 @@ export interface operations {
                 q?: components["parameters"]["Q"];
                 type?: string;
                 status?: string;
+                currency?: string;
                 account_uuid?: string;
                 category_uuid?: string;
                 date_from?: string;
@@ -13366,7 +14022,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
+            };
+        };
         responses: {
             /** @description Import job created */
             201: {
@@ -13416,7 +14076,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
+            };
+        };
         responses: {
             /** @description Import job created */
             201: {
@@ -13588,6 +14252,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -13788,6 +14453,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -14255,7 +14921,17 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description PNG / JPEG / WebP (sniffed from content), max 2 MiB
+                     */
+                    logo: string;
+                };
+            };
+        };
         responses: {
             /** @description Updated letterhead */
             200: {
@@ -14357,7 +15033,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportMappingRequest"];
+            };
+        };
         responses: {
             /** @description Import job */
             200: {
@@ -14897,7 +15577,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -14919,8 +15601,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobsSummary"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -14933,6 +15618,10 @@ export interface operations {
                 q?: components["parameters"]["Q"];
                 sort?: string;
                 status?: "in_progress" | "ready" | "delivered" | "cancelled" | "voided";
+                /**
+                 * @deprecated
+                 * @description Not applied — the Go handler does not read this parameter (jobs.ListFilters has no payment_status filter).
+                 */
                 payment_status?: "unpaid" | "paid";
                 date_from?: string;
                 date_to?: string;
@@ -14950,8 +15639,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -14990,11 +15682,15 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     exportTenantJobs: {
@@ -15004,15 +15700,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -15021,8 +15711,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15043,8 +15736,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15074,7 +15770,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15099,10 +15797,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15122,10 +15824,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15145,10 +15851,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15177,11 +15887,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15201,10 +15914,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15224,10 +15941,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15245,7 +15966,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -15265,7 +15988,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffOptions"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -15285,7 +16010,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffPage"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -15315,7 +16042,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffMember"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15346,7 +16075,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffMember"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15377,7 +16108,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOkResult"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15983,7 +16716,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -16009,8 +16744,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -16038,9 +16778,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -16120,8 +16864,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16141,7 +16888,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -16163,8 +16912,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSalesSummary"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16191,8 +16943,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSalePage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16231,11 +16986,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSaleDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -16246,15 +17004,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -16263,8 +17015,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16285,8 +17040,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSaleDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16308,10 +17066,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSaleDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -16329,7 +17091,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -16355,8 +17119,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplierPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16386,7 +17153,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplier"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -16400,15 +17169,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -16417,8 +17180,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16439,8 +17205,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplier"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16462,8 +17231,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16497,7 +17269,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplier"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -16519,7 +17293,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -16547,8 +17323,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchasePage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16587,11 +17366,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     exportTenantPurchases: {
@@ -16601,15 +17383,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -16618,8 +17394,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16640,8 +17419,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16663,10 +17445,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -17449,7 +18235,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -17469,7 +18257,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariSummary"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -17496,8 +18286,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariAccountPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -17509,15 +18302,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -17526,8 +18313,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -17548,8 +18338,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariAccountDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -17579,8 +18372,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntryPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -17595,15 +18391,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -17612,8 +18402,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -17644,8 +18437,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -17681,8 +18477,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -17716,8 +18515,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -17739,8 +18541,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -17761,7 +18566,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -17788,8 +18595,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -17828,8 +18638,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
@@ -17851,8 +18664,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -17872,9 +18690,15 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     patchTenantCustomer: {
@@ -17886,15 +18710,24 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchCustomerRequest"];
+            };
+        };
         responses: {
             /** @description Updated customer */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -17923,8 +18756,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerVehicle"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -17945,8 +18783,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
