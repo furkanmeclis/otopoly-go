@@ -88,7 +88,7 @@ Endpoint şemaları: `docs/backend/WAVE1_CONTRACTS.md`.
   - IP bazlı istek sınırları `X-Forwarded-For` başlığını okuyor. Mobil API'ye doğrudan bağlandığı için bu başlık taklit edilebilir. E-posta bazlı sınırlar etkilenmiyor.
   - Tarayıcı push'u hâlâ bildirimin tam metnini gönderiyor. Kilit ekranına uygun kısa metin sadece Expo push'ta kullanılıyor.
 
-**otopoly-go merge sırası:** önce `feat/auth-otp-native-oauth`, sonra `feat/qr-login`, sonra `feat/identity-native-link` (her biri bir öncekinin üzerine kurulu), en son `feat/expo-push-limits`.
+**otopoly-go merge sırası:** `feat/auth-otp-native-oauth` → `feat/qr-login` → `feat/identity-native-link` → `feat/openapi-gaps`. Her biri bir öncekinin üzerine kurulu. En son `feat/expo-push-limits` merge edilir.
 
 Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporlarındaki endpoint şemaları bu dosyaya işlenir. Migration numaraları çakışıyorsa merge öncesinde düzeltilir.
 
@@ -165,10 +165,25 @@ Bilinen küçük açık: Migration'dan önce Apple ya da Google ile kayıt olup 
    - WhatsApp'ı QR ile "bağlı cihaz" olarak eklemeye dayanan entegrasyon.
    - Apple ile yeni kayıt olan ve henüz işletmesi olmayan kullanıcının karşısına çıkan boş ekran.
 
-### 4. Dalga: backend'e bağlama — 🟡 başladı
-- İlk adım bir **sözleşme uygunluk testi**: Mock'ların verdiği yanıtlar, birleştirilmiş backend dallarındaki OpenAPI şemalarına göre otomatik olarak kontrol edilir. Uyumsuzluklar düzeltilir, backend'de eksik endpoint'ler listelenir. Bunun için backend'in çalışıyor olması gerekmez.
-- Sonra her alan (dashboard, işler, müşteriler, finans, ticaret, CRM, katalog, dokümanlar, ayarlar) sırayla mock'tan gerçek API'ye geçirilir.
-- Gerçek API'ye karşı uçtan uca deneme, staging ortamında ya da yerelde `docker compose` ile, kullanıcıyla birlikte yapılacak.
+### 4. Dalga: backend'e bağlama — 🟡 kullanıcı olmadan yapılabilecek kısım bitti
+| İş | Yer | Durum |
+|---|---|---|
+| Sözleşme uygunluk testi (`npm run test:contract`, CI'da): 246/246 endpoint, 0 hata. Bulunan hatalar: export takibi `pending` yerine `queued` bekliyordu; yanlış şifrede gelen 401 yüzünden token yenilenmeye çalışılıyordu; 43 endpoint'te durum kodu yanlıştı | mobil [PR #9](https://github.com/furkanmeclis/otopoly-mobile-app/pull/9) | ✅ CI yeşil |
+| Asistanda akış (SSE) okuma: mock ve canlı aynı kod yolunu kullanıyor. `owner_notified=false` olduğunda nötr limit metni. Spec yenilendi, istisna listesi boşaltıldı | mobil [PR #10](https://github.com/furkanmeclis/otopoly-mobile-app/pull/10) | ✅ CI yeşil |
+| OpenAPI'deki eksikler: iş emri, müşteri, ticaret, personel ve cari yanıt şemaları; finans kategorilerinin düzenleme ve silme endpoint'leri; dosya yükleme istekleri; eksik hata durum kodları. Go kodunda değişiklik yok | otopoly-go `feat/openapi-gaps` (identity-native-link'in üzerine kurulu) | ✅ CI yeşil |
+
+Ayrıntılar `docs/backend/CONTRACT_REPORT.md` dosyasında.
+
+**Mock'tan gerçek API'ye geçiş sırası:** giriş, QR, bildirimler ve limitler → dashboard ve katalog → CRM → müşteriler ve işler → finans ve ticaret → ayarlar ve dokümanlar → asistan.
+
+**Kullanıcıyla birlikte yapılacaklar:**
+- Dallar merge edildikten sonra staging ortamında ya da yerelde `docker compose` ile gerçek API'ye karşı uçtan uca deneme.
+- Yeni native modüller için dev build: notifications, camera, apple-auth, google-signin, image-picker, document-picker.
+- Cihazda kontrol edilecekler: push, universal link'ler, kamera, Google'ın iOS'ta uygulamaya geri dönüşü, QR akışında Centrifugo.
+
+**Kod ile dokümantasyonun uyuşmadığı noktalar:**
+- `GET /v1/tenant/jobs` dokümanındaki `payment_status` filtresi backend'de okunmuyor. Dokümanda "kullanımdan kalkacak" olarak işaretlendi.
+- Platform yönetim endpoint'lerinden yaklaşık 70 tanesi dokümante edilmemiş. Mobilin kapsamı dışında.
 
 ## Açık sorular
 1. iPad desteği: kapatılacak mı, düzenlenecek mi? Denetimin önerisi: kapatılsın (`false`).
@@ -198,7 +213,7 @@ Otopoly mobil projesinde koordinatörsün, kod yazmıyorsun. İşleri alt ajanla
 Önce docs/ROADMAP.md dosyasını baştan sona oku. Kararlar, dalgalar, çalışma kuralları ve açık sorular orada.
 
 Sonra durumu kontrol et:
-- Mobil repo: `gh pr list` (önce PR #6–#8 `integration/wave1-2` dalına, sonra PR #5 `main`'e merge edilir), `gh pr checks <pr>`
+- Mobil repo: `gh pr list` (PR #6–#10 `integration/wave1-2` dalına zincir halinde açıldı: #8 → #6 ve #7'yi içeriyor, #9 → #8'in üzerine, #10 → #9'un üzerine. En pratiği #10'u merge etmek, sonra PR #5'i `main`'e merge etmek), `gh pr checks <pr>`
 - ~/Documents/Projects/otopoly-go: `git fetch`, `git branch -r`, `gh run list -L 10`, `git worktree list`
 
 Bunlara göre ROADMAP'teki durum sütunlarını güncelle.
