@@ -88,7 +88,7 @@ Endpoint şemaları: `docs/backend/WAVE1_CONTRACTS.md`.
   - IP bazlı istek sınırları `X-Forwarded-For` başlığını okuyor. Mobil API'ye doğrudan bağlandığı için bu başlık taklit edilebilir. E-posta bazlı sınırlar etkilenmiyor.
   - Tarayıcı push'u hâlâ bildirimin tam metnini gönderiyor. Kilit ekranına uygun kısa metin sadece Expo push'ta kullanılıyor.
 
-**otopoly-go merge sırası:** önce `feat/auth-otp-native-oauth`, sonra `feat/qr-login` (auth'un üzerine kurulu), en son `feat/expo-push-limits`.
+**otopoly-go merge sırası:** önce `feat/auth-otp-native-oauth`, sonra `feat/qr-login`, sonra `feat/identity-native-link` (her biri bir öncekinin üzerine kurulu), en son `feat/expo-push-limits`.
 
 Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporlarındaki endpoint şemaları bu dosyaya işlenir. Migration numaraları çakışıyorsa merge öncesinde düzeltilir.
 
@@ -137,37 +137,47 @@ Dalga bittiğinde: PR ve dalları kullanıcı inceleyip merge eder. Ajan raporla
 - Mobil env: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` ve `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`. Xcode Cloud ve EAS'ta tanımlanacak.
 - Google iOS yönlendirmesi ile SceneDelegate birlikte cihazda doğrulanmadı. Gerekirse bunun için bir config plugin yazılacak.
 
-### 3. Dalga: eksik ekranlar ve mağaza denetimi — 🟡 başladı. İlk adım: mobil PR #1–#4 tek bir `integration/wave1-2` dalında birleştirilecek, sonra eksik ekranlar ve denetim bu dalın üzerine kurulacak.
-- **Eksik ekranlar:**
-  - İçe aktarma dosyası yükleme (`expo-document-picker`).
-  - Sözleşmeye fotoğraf/dosya ekleme (`expo-image-picker`).
-  - İş detayında sözleşme bölümü.
-  - Asistanın onay kartları.
-  - Profilde "Bağlı hesaplar" ekranı: Apple ve Google bağlama/kaldırma (`/v1/auth/identities`). `OAUTH_ACCOUNT_NOT_LINKED` mesajı kullanıcıyı buraya yönlendiriyor.
-  - Teklif ve potansiyel müşteri modülü kapalıyken gösterilecek kilit ekranı (`module.quotes`).
-  - Erişimi olmayan, süresi dolmuş ve askıya alınmış hesaplar için ekranlar.
-  - `PORT_CHECKLIST.md` gerçek duruma göre güncellenecek.
-- **Mağaza denetimi** (her ekran Apple ve Google açısından ayrı ayrı; çıktı: ekran / risk / önem / çözüm):
-  - Bilinen riskler:
-    - Hesap silme (2. dalgada çözülüyor).
-    - Yapay zekâ asistanı: veri üçüncü taraf bir modele gidiyorsa açık bilgilendirme ve izin (Apple 5.1.2(i)).
-    - Demo hesabı; mock'a özel demo giriş linki ve test turu canlı sürüme girmemeli.
-    - Gizlilik politikası, Apple gizlilik manifesti, App Store gizlilik etiketleri, Play Data safety formu.
-    - `supportsTablet: true` açık: ya iPad düzeni düzeltilecek ya da iPad desteği kapatılacak (**karar bekliyor**).
-    - WhatsApp yönlendirmesi, sözleşme imzalamadaki OTP, izin açıklama metinleri.
+### 3. Dalga: eksik ekranlar ve mağaza denetimi — ✅ bitti, merge bekliyor
+Mobil PR'lar `integration/wave1-2` dalına açıldı. Bu dal, PR #1–#4'ün toplandığı [PR #5](https://github.com/furkanmeclis/otopoly-mobile-app/pull/5)'in dalı.
 
-### 4. Dalga: backend'e bağlama — ⏸
-- `docs/backend/MOBILE_API_SPEC.md` ile karşılaştırılır. Her alan (dashboard, işler, müşteriler, finans, ticaret, CRM, katalog, dokümanlar, ayarlar) sırayla mock'tan gerçek API'ye geçirilir.
-- Her alan için mock ile gerçek API'nin aynı sonucu verdiği test edilir.
-- Backend'de eksik endpoint çıkarsa spesifikasyona eklenir.
+| PR | Kapsam | Durum |
+|---|---|---|
+| [#6](https://github.com/furkanmeclis/otopoly-mobile-app/pull/6) | İçe aktarma sihirbazı (document-picker), sözleşmeye fotoğraf/dosya ekleme (image-picker), iş detayında sözleşme bölümü | ✅ CI yeşil |
+| [#7](https://github.com/furkanmeclis/otopoly-mobile-app/pull/7) | Bağlı hesaplar, tenant erişim durumu ekranları, `module.quotes` kilidi, asistanın onay kartları, yapay zekâ veri onayı | ✅ CI yeşil |
+| [#8](https://github.com/furkanmeclis/otopoly-mobile-app/pull/8) | Mağaza denetimi ve düzeltmeleri (#6 ve #7'yi de içeriyor): `docs/STORE_AUDIT.md`, `EXPO_PUBLIC_APP_ENV=production` canlı sürüm bayrağı, gizlilik manifesti, gizlilik ve kullanım koşulları linkleri, Android izinlerinin daraltılması | ✅ CI yeşil |
+
+**Backend:** otopoly-go'da `feat/identity-native-link` dalı (qr-login dalının üzerine kurulu, migration 000071). İçeriği:
+- `POST /v1/auth/identities/{provider}/native`
+- Kimlik listesinde `has_password`
+- Son giriş yöntemi kaldırılırken `409 LAST_SIGN_IN_METHOD`
+
+Bilinen küçük açık: Migration'dan önce Apple ya da Google ile kayıt olup şifresini sıfırlamış kullanıcılar `has_password=false` görünüyor.
+
+**Mağaza denetiminin kullanıcıdan istedikleri:**
+1. 🔴 **Hesap silme kararı yeniden ele alınmalı.** Apple ve Google'ın güncel kurallarına göre hesabı sadece pasife almak hesap silme sayılmıyor. Apple: "Only offering to temporarily deactivate or disable an account is insufficient". Google: deactivating does "not qualify".
+   - **Koordinatörün önerisi:** İşletme verileri (işler, faturalar, müşteri kayıtları) tenant'a ait oldukları için silinmesin. **Kullanıcının kişisel verileri** (ad, e-posta, telefon, bağlı hesaplar, oturumlar, push cihazları) anonimleştirilsin. Yasal saklama zorunluluğu gizlilik politikasında belirtilsin. Böylece "işletme verisi silinmesin" kararı korunur, mağaza kuralı da karşılanır. **Kullanıcının onayını bekliyor.**
+2. Xcode Cloud'daki App Store workflow'una `EXPO_PUBLIC_APP_ENV=production` eklenmeli. Bu değişken olmadan alınan build'ler hâlâ mock modunda açılıyor.
+3. Web'de `otopoly.app/privacy`, `/terms` ve `/account/delete` sayfaları yayınlanmalı. `/account/delete`, Play'in istediği web üzerinden silme talebi sayfası.
+4. Backend: Yapay zekâ sağlayıcısının gerçek adı `/ai/status` yanıtında dönmeli. `AUTH_REVIEW_ACCOUNTS` tanımlanmalı ve demo veriyle doldurulmuş bir inceleme hesabı açılmalı.
+5. iPad: Denetimin önerisi `supportsTablet: false`. Gerekçesi: iPad desteğiyle yayınlanan bir uygulamadan bu destek sonradan kaldırılamıyor, ama desteği olmayan bir uygulamaya sonradan eklenebiliyor.
+6. App Store gizlilik etiketleri, Play Data safety formu ve inceleme notları `STORE_AUDIT.md`'deki taslaklardan doldurulmalı.
+7. Henüz çözülmemiş riskler:
+   - WhatsApp'ı QR ile "bağlı cihaz" olarak eklemeye dayanan entegrasyon.
+   - Apple ile yeni kayıt olan ve henüz işletmesi olmayan kullanıcının karşısına çıkan boş ekran.
+
+### 4. Dalga: backend'e bağlama — 🟡 başladı
+- İlk adım bir **sözleşme uygunluk testi**: Mock'ların verdiği yanıtlar, birleştirilmiş backend dallarındaki OpenAPI şemalarına göre otomatik olarak kontrol edilir. Uyumsuzluklar düzeltilir, backend'de eksik endpoint'ler listelenir. Bunun için backend'in çalışıyor olması gerekmez.
+- Sonra her alan (dashboard, işler, müşteriler, finans, ticaret, CRM, katalog, dokümanlar, ayarlar) sırayla mock'tan gerçek API'ye geçirilir.
+- Gerçek API'ye karşı uçtan uca deneme, staging ortamında ya da yerelde `docker compose` ile, kullanıcıyla birlikte yapılacak.
 
 ## Açık sorular
-1. iPad desteği: kapatılacak mı, düzenlenecek mi?
+1. iPad desteği: kapatılacak mı, düzenlenecek mi? Denetimin önerisi: kapatılsın (`false`).
 2. ~~Evrensel link alan adı~~ → `otopoly.app` (API: `api.otopoly.app`).
 3. Personel gerçekten kullanılıyor mu, yoksa her tenant tek kişi mi? (Rol bazlı mesajlar iki durumda da çalışır.)
-4. Teklif oluşturmaya limit konacak mı? Şu an backend'de yok. PR #1'de teklif için örnek, teklifin işe dönüştürülmesi (günlük iş limiti) üzerinden yapıldı.
-5. Plan süresi dolunca (`SUBSCRIPTION_READ_ONLY`) de limit penceresi mi açılsın? Şu an nötr bir bildirim çıkıyor, limitler ekranında da salt okunur uyarısı var.
-6. Teklif ve potansiyel müşteri modülü kapalıyken (`module.quotes`) gösterilecek kilit ekranı henüz yok. 3. dalgaya eklenecek.
+4. Teklif oluşturmaya limit konacak mı? Şu an backend'de yok.
+5. ~~`SUBSCRIPTION_READ_ONLY`~~ → PR #7'de ortak limit penceresi kullanılıyor.
+6. **Hesap silme: pasife alma mı, kişisel verileri anonimleştirme mi?** (Yukarıda, 🔴)
+7. Yapay zekâ veri onayı şimdilik sadece cihazda saklanıyor. Sunucuda da kaydı tutulsun mu?
 
 ## Tamamlananlar
 - 2026-09-30: Yol haritası ve ödeme kararı (uygulamada satın alma yok).
@@ -188,7 +198,7 @@ Otopoly mobil projesinde koordinatörsün, kod yazmıyorsun. İşleri alt ajanla
 Önce docs/ROADMAP.md dosyasını baştan sona oku. Kararlar, dalgalar, çalışma kuralları ve açık sorular orada.
 
 Sonra durumu kontrol et:
-- Mobil repo: `gh pr list`, `gh pr checks <pr>`
+- Mobil repo: `gh pr list` (önce PR #6–#8 `integration/wave1-2` dalına, sonra PR #5 `main`'e merge edilir), `gh pr checks <pr>`
 - ~/Documents/Projects/otopoly-go: `git fetch`, `git branch -r`, `gh run list -L 10`, `git worktree list`
 
 Bunlara göre ROADMAP'teki durum sütunlarını güncelle.
