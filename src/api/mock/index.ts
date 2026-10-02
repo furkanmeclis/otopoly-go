@@ -3,6 +3,8 @@
  * the same envelopes, status codes and error codes as the Go API.
  */
 import { setTransport, type Transport } from '@/api/client';
+import { parseApiError } from '@/api/errors';
+import { session } from '@/api/session';
 import { env } from '@/config/env';
 import { createLogger } from '@/lib/logger';
 
@@ -95,14 +97,19 @@ export function installMockTransport() {
   return ready;
 }
 
-/** Multipart uploads in demo mode: accept and delegate to the JSON route with file metadata. */
+/**
+ * Multipart uploads in demo mode: accept and delegate to the JSON route with file metadata
+ * (`{ uri, name, type }` for file parts). Sends the session token like the live upload does.
+ */
 export async function mockFormRequest<T>(method: string, path: string, form: FormData): Promise<T> {
   const fields: Record<string, unknown> = {};
-  (form as unknown as { _parts?: [string, unknown][] })._parts?.forEach(([k, v]) => (fields[k] = v));
-  const res = await mockTransport({ method, path, body: fields, headers: {} });
-  const payload = res.payload as { data?: T; error?: { message?: string } };
-  if (res.status >= 400) throw new Error(payload.error?.message ?? 'Upload failed');
-  return payload.data as T;
+  const parts = (form as unknown as { _parts?: [string, unknown][] })._parts;
+  if (parts) parts.forEach(([k, v]) => (fields[k] = v));
+  else form.forEach((v, k) => (fields[k] = v));
+  const token = session.get()?.accessToken;
+  const res = await mockTransport({ method, path, body: fields, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (res.status >= 400) throw parseApiError(res.status, res.payload, undefined, res.retryAfter);
+  return (res.payload as { data?: T }).data as T;
 }
 
 export async function resetMockData() {

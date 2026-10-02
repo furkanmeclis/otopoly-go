@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import { Undo2 } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { ArrowRight, Undo2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -7,6 +7,8 @@ import { Badge, Button, Card, ErrorState, Header, InfoRow, ListSkeleton, Row, Sc
 import { RequirePermission } from '@/features/auth/guard';
 import { apiMappingToUi, formatImportFormat, formatImportStatus, formatResource, importStatusTone, rollbackWindowOpen } from '@/features/io/lib/display';
 import { IMPORTS_GATE } from '@/features/io/lib/gates';
+import { TENANT_IMPORTS } from '@/features/io/lib/import-resources';
+import { useAuth } from '@/features/auth/auth-provider';
 import { ioKeys, useImportJob } from '@/features/io/queries';
 import { importsService } from '@/features/io/services/imports.service';
 import { IMPORT_SCHEMA, type IoResource } from '@/features/io/types';
@@ -28,6 +30,7 @@ function ImportDetail() {
   const { t: tr, fmt } = useLocale();
   const { id } = useLocalSearchParams<{ id: string }>();
   const query = useImportJob(id);
+  const { can } = useAuth();
   const [nowMs] = useState(() => Date.now());
   const job = query.data;
 
@@ -61,6 +64,9 @@ function ImportDetail() {
   const schema = IMPORT_SCHEMA[job.resource as IoResource] ?? [];
   const preview = job.preview_summary;
   const defaults = Object.entries(job.defaults ?? {});
+  // Uploaded but never confirmed: the wizard can pick it up again (upload routes need finance.import).
+  const resumable =
+    ['uploaded', 'mapped', 'previewed'].includes(job.status) && TENANT_IMPORTS.some((r) => r.resource === job.resource && can(r.perm));
 
   return (
     <Screen
@@ -72,6 +78,13 @@ function ImportDetail() {
       <Txt variant="caption" tone="secondary">
         {tr('imports.detail.description')}
       </Txt>
+      {resumable ? (
+        <Button
+          label={tr('mobile.uploads.import_resume')}
+          icon={<ArrowRight size={18} color={t.colors.onPrimary} />}
+          onPress={() => router.push({ pathname: '/imports/new', params: { uuid: job.uuid } })}
+        />
+      ) : null}
 
       <Section title={tr('imports.detail.summary')}>
         <Card padded={false} style={{ paddingHorizontal: t.spacing.lg }}>

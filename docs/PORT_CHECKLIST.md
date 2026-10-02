@@ -92,6 +92,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Board card: plate, brand mark, services color tags, elapsed time, assignee, amount, paid badge
 - [ ] Create job **W**: customer picker (+ inline create), vehicle picker (+ add vehicle from catalog), services (catalog), price/qty override, assignee, notes, start time
 - [ ] Detail: info, lines, payments, consumptions (material cost), contracts section, linked todos
+  - [x] Contracts section (web `JobContractsSection`): job's contracts (status, signed/total, PDF), create with vehicle photos (camera/library) → sign every pending signer in one sheet
 - [ ] Actions **W**: ready, deliver, close (cash/card → account, cari), cancel, edit notes, change assignee
 - [ ] Void **O**
 - [ ] Consumptions **W**: add product, change qty, remove
@@ -162,8 +163,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Export (reports.export) — share file
 
 ## 16. Contracts — `tenant.contracts.*`
-- [ ] Instances list + detail (signers, status, PDF)
-- [ ] On-site signing with signature pad, WhatsApp OTP verify
+- [x] Instances list + detail (signers, status, PDF)
+- [x] On-site signing with signature pad, WhatsApp OTP verify
+- [x] Gallery media upload: camera, photo library, Files (`expo-image-picker` / `expo-document-picker`; JPEG/PNG/WebP/GIF/PDF, 12 MB) with caption; delete while open
 - [ ] Templates list/detail; clone preset **O**; void **O**
 
 ## 17. Settings
@@ -174,7 +176,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ## 18. I/O
 - [ ] Exports list + detail (download/share)
-- [ ] Imports list + detail **O** (wizard is desktop-heavy — mobile: view + status)
+- [x] Imports list + detail **O**, rollback inside the 24 h window
+- [x] Import wizard **O** (`/imports/new`, `expo-document-picker`): upload → column mapping (auto-match) → defaults → preview → confirm; sample files via share sheet; resume an unconfirmed job from its detail. Finance accounts/categories only (catalog has no tenant upload route)
 
 ## 19. Profile
 - [ ] Profile edit (name, surname, locale), change password

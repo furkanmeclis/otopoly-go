@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
-import { Upload } from 'lucide-react-native';
+import { Plus, Upload } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, EmptyState, ErrorState, Header, ListSkeleton, Row, Txt } from '@/components/ui';
+import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
+import { TENANT_IMPORTS } from '@/features/io/lib/import-resources';
 import { IMPORTS_GATE } from '@/features/io/lib/gates';
 import { formatImportFormat, formatImportStatus, formatResource, importStatusTone, isImportRunning, rollbackWindowOpen } from '@/features/io/lib/display';
 import { IO_POLL_MS, ioKeys, useImportJobsInfinite } from '@/features/io/queries';
@@ -27,6 +29,8 @@ function ImportsList() {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const list = useImportJobsInfinite();
+  const { can } = useAuth();
+  const canUpload = TENANT_IMPORTS.some((r) => can(r.perm));
   const [nowMs] = useState(() => Date.now());
   const running = list.items.some((j) => isImportRunning(j.status));
   const { refetch } = list;
@@ -57,9 +61,14 @@ function ImportsList() {
             <Txt variant="caption" tone="secondary">
               {tr('imports.tenant_description')}
             </Txt>
-            <Txt variant="caption" tone="muted">
-              {tr('mobile.documents.import_upload_web')}
-            </Txt>
+            {canUpload ? (
+              <Button
+                label={tr('mobile.uploads.new_import')}
+                icon={<Plus size={18} color={t.colors.onPrimary} />}
+                onPress={() => router.push('/imports/new')}
+                style={{ marginTop: t.spacing.xs }}
+              />
+            ) : null}
           </View>
         }
         onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
