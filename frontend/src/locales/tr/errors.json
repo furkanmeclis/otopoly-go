@@ -65,6 +65,7 @@
   "codes.OAUTH_LINK_CHOICE_REQUIRED": "Mevcut bir hesaba bağlamayı veya yeni hesap oluşturmayı seçin.",
   "codes.INVALID_LINK_TICKET": "Giriş oturumunun süresi doldu. Lütfen tekrar giriş yapın.",
   "codes.OAUTH_PROVIDER_DISABLED": "Bu giriş yöntemi etkin değil.",
+  "codes.LAST_SIGN_IN_METHOD": "Son giriş yönteminizi kaldırmadan önce bir şifre belirleyin veya geçiş anahtarı ekleyin.",
   "http.401": "Oturum gerekli",
   "http.403": "Yetkisiz",
   "http.404": "Bulunamadı",

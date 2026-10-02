@@ -697,6 +697,8 @@ type Querier interface {
 	MarkServiceJobDone(ctx context.Context, arg MarkServiceJobDoneParams) (ServiceJob, error)
 	MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaidParams) (ServiceJob, error)
 	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
+	// OAuth sign-up stores a random hash; the user never chose a password.
+	MarkUserPasswordUnset(ctx context.Context, id int64) error
 	MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicleAlertEventsSentParams) error
 	MoveToGrace(ctx context.Context, arg MoveToGraceParams) (BillingSubscription, error)
 	MoveToReadOnly(ctx context.Context, id int64) (BillingSubscription, error)
