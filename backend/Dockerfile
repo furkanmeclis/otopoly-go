@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.26-alpine AS builder
+# Compile on the build machine's own architecture; GOARCH below targets the
+# amd64 server, so a cross-build needs no emulation.
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
 
 WORKDIR /src
 

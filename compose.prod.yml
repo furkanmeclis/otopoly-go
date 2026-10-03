@@ -1,24 +1,17 @@
 name: ${COMPOSE_PROJECT_NAME:-${NAME_PREFIX:-app}-prod}
 
+# Images are built on a developer machine and shipped to the server with
+# scripts/ship-images.sh — the server never builds. A Next.js build next to
+# ~40 running projects exhausted the host's memory on 2026-10-03. Dokploy runs
+# `up -d --build`; without build sections that only (re)starts containers
+# from the images already loaded on the host.
 x-backend-image: &backend-image
   image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
-  build:
-    context: ./backend
-    dockerfile: Dockerfile
+  pull_policy: never
 
 x-frontend-image: &frontend-image
   image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
-  build:
-    context: .
-    dockerfile: frontend/Dockerfile
-    # Build one image at a time: the frontend waits for the backend image
-    # (see the build-gate stage in frontend/Dockerfile). Running the Go and
-    # Next.js builds together exhausts memory on the host.
-    additional_contexts:
-      build-gate: service:backend
-    args:
-      # Landing SEO/OG URLs are baked at build time; defaults to AUTH_URL.
-      SITE_URL: ${SITE_URL:-${AUTH_URL:-}}
+  pull_policy: never
 
 x-backend-environment: &backend-environment
   APP_NAME: ${APP_NAME:-api}
