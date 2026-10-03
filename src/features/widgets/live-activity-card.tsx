@@ -1,5 +1,5 @@
 import { Radio } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
 import { useToast } from '@/components/feedback/toast';
@@ -28,6 +28,8 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
   const [tracking, setTracking] = useState(false);
   const [busy, setBusy] = useState(false);
   const orgName = organization?.name ?? '';
+  /** Last props pushed to the activity: a refetch that changes nothing visible must not update it again. */
+  const pushed = useRef<string | null>(null);
 
   useEffect(() => {
     if (!available) return;
@@ -40,11 +42,15 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
 
   // Mirror status changes made on this screen (ready, deliver, cancel) straight away.
   useEffect(() => {
-    if (!available || !tracking) return;
+    if (!available || !tracking) {
+      pushed.current = null;
+      return;
+    }
     let alive = true;
     (async () => {
       const activity = await findJobActivity(job.uuid);
       const props = buildJobActivityProps(job, orgName, tr);
+      const key = props ? JSON.stringify(props) : null;
       if (!activity) {
         if (alive) setTracking(false);
         return;
@@ -54,7 +60,10 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
         if (alive) setTracking(false);
         return;
       }
-      await updateJobActivity(activity, props);
+      if (key !== pushed.current) {
+        await updateJobActivity(activity, props);
+        pushed.current = key;
+      }
       if (alive && (props.status === 'delivered' || props.status === 'cancelled')) setTracking(false);
     })();
     return () => {

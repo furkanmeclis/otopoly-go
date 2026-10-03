@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { ChevronLeft, ChevronRight, ClipboardList, Plus, ShoppingBag, SlidersHorizontal } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
@@ -79,13 +79,15 @@ function OperationsBoard() {
   const [pendingUuid, setPendingUuid] = useState<string | null>(null);
   const [payJob, setPayJob] = useState<Job | null>(null);
   const isToday = date === localToday();
+  // The tab stays mounted all session: poll only while it is on screen (AppState pauses it in the background).
+  const focused = useIsFocused();
 
   // Whole day once; filter client-side so counts stay visible (web behaviour).
   const params = { limit: 100, offset: 0, sort: '-started_at', date_from: date, date_to: date, include_open: isToday ? 'true' : undefined };
   const list = useQuery({
     queryKey: [...qk.jobs, 'list', params],
     queryFn: () => jobsService.list(params),
-    refetchInterval: isToday ? LIVE_REFRESH_MS : false,
+    refetchInterval: isToday && focused ? LIVE_REFRESH_MS : false,
     placeholderData: keepPreviousData,
   });
   const summary = useJobsSummary(date);

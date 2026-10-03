@@ -1,7 +1,7 @@
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { Plus, Upload } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, EmptyState, ErrorState, Header, ListSkeleton, Row, Txt } from '@/components/ui';
@@ -34,12 +34,16 @@ function ImportsList() {
   const [nowMs] = useState(() => Date.now());
   const running = list.items.some((j) => isImportRunning(j.status));
   const { refetch } = list;
+  const focused = useIsFocused();
 
   useEffect(() => {
-    if (!running) return;
-    const id = setInterval(() => refetch(), IO_POLL_MS);
+    // Only while this screen is visible and the app is in the foreground (it refetches every loaded page).
+    if (!running || !focused) return;
+    const id = setInterval(() => {
+      if (AppState.currentState === 'active') void refetch();
+    }, IO_POLL_MS);
     return () => clearInterval(id);
-  }, [running, refetch]);
+  }, [running, focused, refetch]);
 
   const rollback = useApiMutation({
     key: 'imports.rollback',

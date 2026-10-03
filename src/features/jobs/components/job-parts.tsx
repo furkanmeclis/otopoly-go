@@ -1,3 +1,4 @@
+import { useIsFocused } from 'expo-router';
 import { Car, CheckCircle2, KeyRound, Wallet } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
@@ -10,13 +11,23 @@ import { useTheme } from '@/theme/provider';
 
 import { carryOverDay, isStale, localDateOf, minutesSince, statusTone } from '../lib/job-ui';
 
-/** Re-renders every 30 s so elapsed timers tick without refetching. */
+/**
+ * Re-renders every 30 s so elapsed timers tick without refetching. Only while the screen is focused:
+ * the tab screens using it stay mounted all session, and re-rendering their job lists in the background
+ * is wasted work. Coming back refreshes `now` right away.
+ */
 export function useNow(intervalMs = 30_000) {
   const [now, setNow] = useState(() => Date.now());
+  const focused = useIsFocused();
   useEffect(() => {
+    if (!focused) return;
+    const kick = setTimeout(() => setNow(Date.now()), 0);
     const id = setInterval(() => setNow(Date.now()), intervalMs);
-    return () => clearInterval(id);
-  }, [intervalMs]);
+    return () => {
+      clearTimeout(kick);
+      clearInterval(id);
+    };
+  }, [intervalMs, focused]);
   return now;
 }
 

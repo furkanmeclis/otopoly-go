@@ -18,6 +18,7 @@ import { createLogger } from '@/lib/logger';
 import { installGlobalErrorHandlers } from '@/lib/logger/global-handlers';
 import { initSentry, navigationIntegration, Sentry, sentryEnabled } from '@/lib/monitoring/sentry';
 import { createQueryClient } from '@/lib/query';
+import { useAppStateQueryFocus } from '@/lib/query-focus';
 import { ThemeProvider, useTheme } from '@/theme/provider';
 
 // No EXPO_PUBLIC_SENTRY_DSN → no-op (see docs/SENTRY.md).
@@ -118,6 +119,7 @@ function RootNavigator() {
 
 function RootLayout() {
   const [queryClient] = useState(createQueryClient);
+  useAppStateQueryFocus();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
