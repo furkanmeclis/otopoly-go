@@ -83,7 +83,7 @@ export default function DeleteAccountScreen() {
       const c = isApiError(err) ? err.code : 'UNKNOWN';
       log.warn('Deactivation failed', { code: c });
       // Still signed in: put this device back (never prompts, never throws).
-      void registerPushDevice();
+      void registerPushDevice({ force: true });
       setCode('');
       setError(
         c === 'STEP_UP_REQUIRED'

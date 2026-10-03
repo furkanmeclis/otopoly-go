@@ -111,21 +111,44 @@ function deviceInfo() {
 
 export type RegisterResult = 'registered' | 'unavailable' | 'denied' | 'failed';
 
+/** Skip re-registering the same token for this long (the backend keeps it until rotation or logout). */
+const REREGISTER_AFTER_MS = 12 * 60 * 60 * 1000;
+/** After a failed attempt, automatic calls wait this long before trying again. */
+const RETRY_AFTER_FAILURE_MS = 5 * 60 * 1000;
+
+let inFlight: Promise<RegisterResult> | null = null;
+let lastRegistered: { token: string; at: number } | null = null;
+let lastFailureAt = 0;
+
 /**
  * Registers this device for the signed-in user. Never prompts: returns `denied` / `unavailable`
- * when permission isn't granted yet. Safe to call repeatedly (backend upserts by token).
+ * when permission isn't granted yet. Concurrent calls share one request, and the same token is
+ * not sent again within REREGISTER_AFTER_MS. `force` (sign-in, account switch) always sends it.
  */
-export async function registerPushDevice(): Promise<RegisterResult> {
+export function registerPushDevice(options?: { force?: boolean }): Promise<RegisterResult> {
+  inFlight ??= doRegister(options?.force ?? false).finally(() => {
+    inFlight = null;
+  });
+  return inFlight;
+}
+
+async function doRegister(force: boolean): Promise<RegisterResult> {
   const N = notificationsModule();
   if (!N || !pushAvailable()) return 'unavailable';
+  if (!force && Date.now() - lastFailureAt < RETRY_AFTER_FAILURE_MS) return 'failed';
   const permission = await getPushPermission();
   if (permission !== 'granted') return permission === 'unavailable' ? 'unavailable' : 'denied';
   try {
     const token = await expoPushToken(N);
     if (!token) return 'unavailable';
+    if (!force && lastRegistered?.token === token && Date.now() - lastRegistered.at < REREGISTER_AFTER_MS) {
+      return 'registered';
+    }
     const previous = await prefs.get<string | null>(StorageKeys.pushToken, null);
     await pushDevicesService.register({ token, ...deviceInfo() });
     await prefs.set(StorageKeys.pushToken, token);
+    lastRegistered = { token, at: Date.now() };
+    lastFailureAt = 0;
     if (previous && previous !== token) {
       // Token rotated: drop the stale one so the backend stops sending to it.
       pushDevicesService.unregister(previous).catch(() => {});
@@ -134,9 +157,26 @@ export async function registerPushDevice(): Promise<RegisterResult> {
     return 'registered';
   } catch (error) {
     // Simulators without APNs and devices without Play services end up here.
+    lastFailureAt = Date.now();
     log.warn('Push registration failed', error);
     return 'failed';
   }
+}
+
+let lastDeviceToken: string | null = null;
+
+/**
+ * Re-registers only when the native device token really changes. Fetching the Expo token
+ * (inside registerPushDevice) fires the push-token event again on iOS; registering on every
+ * event looped forever (~200k POST /v1/push-devices on 2026-10-03, phones heating up).
+ */
+export function onDevicePushTokenChanged(deviceToken: unknown) {
+  const value = typeof deviceToken === 'string' ? deviceToken : JSON.stringify(deviceToken ?? null);
+  if (value === lastDeviceToken) return;
+  const first = lastDeviceToken === null;
+  lastDeviceToken = value;
+  // The first event of a session is the token we just fetched, not a rotation.
+  void registerPushDevice({ force: !first });
 }
 
 /** Prompts if needed, then registers (used by the explanation sheet and the preferences toggle). */
@@ -145,7 +185,7 @@ export async function enablePush(): Promise<RegisterResult> {
   if (permission === 'unavailable') return 'unavailable';
   if (permission === 'undetermined') permission = await requestPushPermission();
   if (permission !== 'granted') return permission === 'unavailable' ? 'unavailable' : 'denied';
-  return registerPushDevice();
+  return registerPushDevice({ force: true });
 }
 
 /**
@@ -154,6 +194,7 @@ export async function enablePush(): Promise<RegisterResult> {
  * `localOnly`: the server already revoked the session (account deletion) — only forget the token here.
  */
 export async function unregisterPushDevice(options?: { localOnly?: boolean }) {
+  lastRegistered = null;
   const token = await prefs.get<string | null>(StorageKeys.pushToken, null);
   if (!token) return;
   if (options?.localOnly) {
