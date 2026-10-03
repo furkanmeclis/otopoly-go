@@ -12,7 +12,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 )
 
-// Owner alert kinds (notification center, system templates in 000070).
+// Owner alert kinds (notification center, system templates in 000074).
 const (
 	KindUsageWarning        = "billing.usage_warning"
 	KindLimitFull           = "billing.limit_full"
