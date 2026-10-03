@@ -22,7 +22,7 @@ import { useTheme } from '@/theme/provider';
 
 import { linkHref } from '../deep-links';
 import { takePendingLink } from '../pending-link';
-import { enablePush, getPushPermission, notificationsModule, pushAvailable, registerPushDevice } from '../push';
+import { enablePush, getPushPermission, notificationsModule, onDevicePushTokenChanged, pushAvailable, registerPushDevice } from '../push';
 import { notificationKeys } from '../queries';
 
 const log = createLogger('notifications.host');
@@ -74,7 +74,7 @@ export function NotificationsHost() {
     const N = notificationsModule();
     const subs: { remove: () => void }[] = [];
     if (N) {
-      if (pushAvailable()) subs.push(N.addPushTokenListener(() => void registerPushDevice()));
+      if (pushAvailable()) subs.push(N.addPushTokenListener((t) => onDevicePushTokenChanged(t.data)));
       subs.push(
         N.addNotificationReceivedListener(() => {
           void qc.invalidateQueries({ queryKey: notificationKeys.all });

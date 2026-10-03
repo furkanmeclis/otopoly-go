@@ -155,7 +155,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await route(profile, null);
         log.info('Login succeeded', { organizations: profile.organizations?.length ?? 0 });
         // Never prompts and never throws; the in-app explanation sheet handles first-time permission.
-        void registerPushDevice();
+        void registerPushDevice({ force: true });
       } catch (error) {
         await reset('post_login_failed');
         throw error;
