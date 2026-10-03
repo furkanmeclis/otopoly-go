@@ -34,6 +34,8 @@ func RegisterRoutes(
 
 	mux.HandleFunc("POST /v1/public/organizations/register", h.PublicRegister)
 	mux.HandleFunc("GET /v1/public/organizations/by-slug/{slug}", h.PublicBySlug)
+	// Self-serve business creation for a signed-in user (no org context yet).
+	mux.Handle("POST /v1/auth/organizations", middleware.Chain(http.HandlerFunc(h.CreateOwnedOrganization), authn))
 	mux.HandleFunc("GET /v1/public/organizations/logo/{uuid}", h.PublicStreamLogo)
 
 	mux.Handle("GET /v1/platform/organizations/meta", middleware.Chain(
