@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, type Href } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
 import {
   AlarmClock,
   CarFront,
@@ -58,6 +58,7 @@ import {
 } from '@/features/queries';
 import { TodoRow } from '@/features/todos/components/todo-row';
 import { NotificationBell } from '@/features/notifications/components/notification-parts';
+import { isWelcomePending } from '@/features/onboarding/state';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { prefs, StorageKeys } from '@/lib/storage';
@@ -489,6 +490,10 @@ function SetupChecklist() {
   const t = useTheme();
   const { t: tr } = useLocale();
   const { organization } = useAuth();
+  // `?welcome=1` after creating the business in the app (create-business); the in-memory flag covers a
+  // hand-off where the param got lost while the navigator switched to the app.
+  const { welcome } = useLocalSearchParams<{ welcome?: string }>();
+  const isWelcome = welcome === '1' || isWelcomePending(organization?.slug);
   const storageKey = `${StorageKeys.dismissedSetup}.${organization?.slug}`;
   const [dismissed, setDismissed] = useState<boolean | null>(null);
   useEffect(() => {
@@ -519,7 +524,7 @@ function SetupChecklist() {
           <Sparkles size={20} color={t.colors.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Txt variant="heading">{tr('dashboard.tenant.setup.title')}</Txt>
+          <Txt variant="heading">{isWelcome ? tr('dashboard.tenant.setup.welcome_title') : tr('dashboard.tenant.setup.title')}</Txt>
           <Txt variant="caption" tone="secondary">
             {tr('dashboard.tenant.setup.progress', { done: doneCount, total: items.length })}
           </Txt>

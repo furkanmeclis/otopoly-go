@@ -12,6 +12,7 @@ import { createLogger } from '@/lib/logger';
 import { setMonitoringUser } from '@/lib/monitoring';
 import { clearWidgetsForSignOut } from '@/features/widgets/bridge';
 import { registerPushDevice, unregisterPushDevice } from '@/features/notifications/push';
+import { loadIntroSeen, markIntroSeen as persistIntroSeen, subscribeIntroReset } from '@/features/onboarding/state';
 
 import { orgBlock as accessBlock } from './lib/access';
 import type { Gate, Permission } from './permissions';
@@ -34,6 +35,15 @@ type AuthContextValue = {
   /** Finishes any sign-in (password, e-mail code, Apple / Google, account linking) with its token pair. */
   completeSignIn: (tokens: Tokens) => Promise<void>;
   selectOrganization: (slug: string) => Promise<void>;
+  /**
+   * Enters an organization the user just got (created in the app): reloads `/v1/auth/me` first, since
+   * the cached profile doesn't list it yet. `prepare` runs with the organization token before the app
+   * opens (e.g. adding starter services while the progress screen is still up).
+   */
+  enterNewOrganization: (slug: string, prepare?: () => Promise<void>) => Promise<void>;
+  /** The intro carousel was shown on this device (read during boot, so there is no flicker). */
+  introSeen: boolean;
+  markIntroSeen: () => void;
   switchOrganization: () => void;
   /** `serverRevoked`: the server already ended every session (account deletion), only clear locally. */
   logout: (options?: { serverRevoked?: boolean }) => Promise<void>;
@@ -54,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('booting');
   const [me, setMe] = useState<Me | null>(null);
   const [orgSlug, setOrgSlug] = useState<string | null>(null);
+  const [introSeen, setIntroSeen] = useState(false);
   const booted = useRef(false);
 
   const reset = useCallback(
@@ -79,11 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const enterOrganization = useCallback(
-    async (profile: Me, slug: string) => {
+    async (profile: Me, slug: string, prepare?: () => Promise<void>) => {
       const membership = profile.organizations?.find((o) => o.slug === slug);
       if (!membership) throw new Error('NO_TENANT_MEMBERSHIP');
       const tokens = await authService.switchOrganizationContext(slug);
       await session.setTokens(tokens, slug);
+      if (prepare) await prepare();
       const scoped = await authService.getMe();
       setMe(scoped);
       setOrgSlug(slug);
@@ -116,6 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     booted.current = true;
     (async () => {
       try {
+        // Read before leaving `booting`, so a signed-out launch opens on the right screen at once.
+        setIntroSeen(await loadIntroSeen());
         if (isMock) {
           const { installMockTransport } = await import('@/api/mock');
           await installMockTransport();
@@ -135,6 +149,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [reset, route, syncLocale]);
 
+  useEffect(() => subscribeIntroReset(() => setIntroSeen(false)), []);
+
   useEffect(() => {
     setAuthFailureHandler(() => {
       log.warn('Auth failure — signing out');
@@ -153,6 +169,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profile = await authService.getMe();
         syncLocale(profile);
         await route(profile, null);
+        // Signed in once (also via a deep link that skipped it): the intro never needs to show again.
+        setIntroSeen(true);
+        void persistIntroSeen();
         log.info('Login succeeded', { organizations: profile.organizations?.length ?? 0 });
         // Never prompts and never throws; the in-app explanation sheet handles first-time permission.
         void registerPushDevice({ force: true });
@@ -181,6 +200,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [enterOrganization, me, queryClient],
   );
+
+  const enterNewOrganization = useCallback(
+    async (slug: string, prepare?: () => Promise<void>) => {
+      const profile = await authService.getMe();
+      setMe(profile);
+      await enterOrganization(profile, slug, prepare);
+      queryClient.clear();
+    },
+    [enterOrganization, queryClient],
+  );
+
+  const markIntroSeen = useCallback(() => {
+    setIntroSeen(true);
+    void persistIntroSeen();
+  }, []);
 
   const switchOrganization = useCallback(() => {
     log.info('Switch organization requested');
@@ -242,12 +276,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       completeSignIn,
       selectOrganization,
+      enterNewOrganization,
+      introSeen,
+      markIntroSeen,
       switchOrganization,
       logout,
       refreshMe,
       orgBlock,
     };
-  }, [status, me, orgSlug, login, completeSignIn, selectOrganization, switchOrganization, logout, refreshMe]);
+  }, [status, me, orgSlug, login, completeSignIn, selectOrganization, enterNewOrganization, introSeen, markIntroSeen, switchOrganization, logout, refreshMe]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

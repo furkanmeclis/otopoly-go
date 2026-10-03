@@ -3,6 +3,7 @@
  * OpenAPI spec. Every other route answers 200. Kept honest by `npm run test:contract` (undocumented statuses fail).
  */
 export const SUCCESS_STATUS: Record<string, number> = {
+  'POST /v1/auth/organizations': 201,
   'POST /v1/tenant/leads': 201,
   'POST /v1/tenant/leads/:uuid/notes': 201,
   'POST /v1/tenant/leads/:uuid/todo': 201,

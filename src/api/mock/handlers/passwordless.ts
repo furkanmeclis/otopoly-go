@@ -129,8 +129,9 @@ route(
     assertEmail('email', email);
     rateLimited(`email-code:${email}`);
     // Same answer whether or not the account exists (no enumeration). Deactivated users still get
-    // a code so verify can report ACCOUNT_DEACTIVATED once the mailbox is proven.
-    if (findUser(email)) issueCode('login', email, email);
+    // a code so verify can report ACCOUNT_DEACTIVATED once the mailbox is proven; an unknown address
+    // gets one too: verifying it creates the account (signed in, no organization yet).
+    issueCode('login', email, email);
     return { status: 'accepted' };
   },
   { anonymous: true },
@@ -145,9 +146,14 @@ route(
     const missing = [!email && 'email', !code && 'code'].filter(Boolean) as string[];
     if (missing.length) validation(missing.map((field) => ({ field, message: 'required', code: 'required' })));
     const user = findUser(email);
-    if (!user) fail(400, 'INVALID_EMAIL_CODE', 'The code is invalid or has expired');
     const checked = checkCode('login', email, code);
-    return finishWithCode(user!, ctx, checked);
+    if (user) return finishWithCode(user, ctx, checked);
+    // Unknown e-mail with a proven mailbox: sign-up (same result as a new Apple / Google user).
+    if (ext()._registrationEnabled === false) fail(403, 'FORBIDDEN', 'Registration is disabled');
+    checked.consume();
+    const created = createOAuthUser(email);
+    log.info('Demo account created by e-mail code', { email });
+    return issueTokens(created, null);
   },
   { anonymous: true },
 );

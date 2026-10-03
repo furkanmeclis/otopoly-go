@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, Banknote, Landmark, Layers, Receipt, ScrollText } from 'lucide-react-native';
+import { ArrowDownLeft, ArrowRightLeft, ArrowUpRight, Banknote, Landmark, Layers, Plus, Receipt, ScrollText } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -26,6 +26,7 @@ import {
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { AccountSheet } from '@/features/finance/components/account-sheet';
 import { accountTypeKey, TransactionRow } from '@/features/finance/components/finance-parts';
 import { localToday, shiftDate } from '@/features/jobs/lib/job-ui';
 import { qk, useFinanceSummary, useTransactionsInfinite } from '@/features/queries';
@@ -55,6 +56,7 @@ function FinanceSummary() {
   const { can } = useAuth();
   const qc = useQueryClient();
   const canWrite = can({ perm: P.financeWrite, owner: true });
+  const [accountOpen, setAccountOpen] = useState(false);
   const [preset, setPreset] = useState<Preset>('month');
   const [range, setRange] = useState({ date_from: monthStart(), date_to: localToday() });
   const summary = useFinanceSummary(range);
@@ -144,7 +146,15 @@ function FinanceSummary() {
                   <ListSkeleton rows={2} height={40} />
                 </View>
               ) : (s?.accounts ?? []).length === 0 ? (
-                <EmptyState title={tr('finance.summary.no_accounts')} description={tr('finance.summary.no_accounts_description')} />
+                <EmptyState
+                  title={tr('finance.summary.no_accounts')}
+                  description={tr('finance.summary.no_accounts_description')}
+                  action={
+                    canWrite ? (
+                      <Button size="sm" label={tr('finance.accounts.create')} icon={<Plus size={16} color={t.colors.onPrimary} />} onPress={() => setAccountOpen(true)} />
+                    ) : undefined
+                  }
+                />
               ) : (
                 (s?.accounts ?? []).map((a, i, arr) => (
                   <ListRow
@@ -201,6 +211,7 @@ function FinanceSummary() {
           </Section>
         </>
       )}
+      {canWrite ? <AccountSheet visible={accountOpen} onClose={() => setAccountOpen(false)} /> : null}
     </Screen>
   );
 }

@@ -100,6 +100,8 @@ function RootNavigator() {
         </Stack.Protected>
         <Stack.Protected guard={status === 'selectOrg'}>
           <Stack.Screen name="select-org" />
+          {/* Self-service business creation for a signed-in user without one. */}
+          <Stack.Screen name="create-business" />
         </Stack.Protected>
         <Stack.Protected guard={status === 'ready'}>
           <Stack.Screen name="(app)" />

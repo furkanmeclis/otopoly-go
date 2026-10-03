@@ -1,6 +1,17 @@
 {
   "_doc": "Known, reasoned exceptions for scripts/contract (npm run test:contract). Every entry needs a reason; remove it once the backend spec is fixed.",
-  "missingInBackend": {},
+  "missingInBackend": {
+    "POST /v1/auth/organizations": "Self-service business creation (mobile onboarding, feat/onboarding). Backend endpoint is being implemented in parallel in otopoly-go: bearer, no organization context, body {organization_name (2-120), phone?, city?, district?, address?} → 201 {organization: {uuid, slug, name}}; 400 VALIDATION_ERROR, 401, 403 (self-registration disabled), 409 CONFLICT (already owns a business), 429 RATE_LIMITED. Remove once it is in openapi.yaml."
+  },
   "undocumentedStatus": {},
-  "specFixes": []
+  "specFixes": [
+    {
+      "path": "paths./v1/app/config.get.responses.200.content.application/json",
+      "rename": {
+        "from": "schema",
+        "to": "x-spec-bug-schema"
+      },
+      "reason": "Spec bug: GET /v1/app/config is documented as EnvelopeStatus (data.status required), but the Go handler (httpserver.handleAppConfig) answers {mode, name, registration_enabled, auth_methods, letterhead, ...} without `status`. The response schema is skipped until the spec documents the real payload."
+    }
+  ]
 }
