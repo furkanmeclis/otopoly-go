@@ -1,5 +1,6 @@
+import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Building2, Clock, LogOut } from 'lucide-react-native';
+import { Building2, Clock, LogOut, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
@@ -10,6 +11,7 @@ import { Badge, Button, EmptyState, Group, Header, ListRow, Screen, Sheet, Txt }
 import type { OrganizationMembership } from '@/features/account/services/auth.service';
 import { TenantAccessState } from '@/features/auth/components/tenant-access-state';
 import { orgBlock, useAuth } from '@/features/auth/auth-provider';
+import { onboardingService, registrationOpen } from '@/features/onboarding/services/onboarding.service';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 
@@ -23,6 +25,11 @@ export default function SelectOrganizationScreen() {
   const [blocked, setBlocked] = useState<OrganizationMembership | null>(null);
   const blockedState = blocked ? orgBlock(blocked) : null;
   const orgs = me?.organizations ?? [];
+  const none = orgs.length === 0;
+  // Hide "Create business" only when the server says self-registration is off (unknown → show; the API decides).
+  const config = useQuery({ queryKey: ['app', 'config'], queryFn: () => onboardingService.appConfig(), enabled: none, staleTime: 5 * 60 * 1000 });
+  const canCreate = registrationOpen(config.data);
+  const email = me?.user.email ?? '';
 
   const choose = async (slug: string, name: string) => {
     setBusy(slug);
@@ -40,7 +47,7 @@ export default function SelectOrganizationScreen() {
 
   return (
     <Screen
-      header={<Header back={false} title={tr('mobile.org.pick_title')} subtitle={me ? `${me.user.name} ${me.user.surname}` : undefined} />}
+      header={<Header back={false} title={tr(none ? 'mobile.onboarding.org.welcome_title' : 'mobile.org.pick_title')} subtitle={me ? `${me.user.name} ${me.user.surname}`.trim() : undefined} />}
       footer={
         <>
           <Button label={tr('common.logout')} variant="outline" icon={<LogOut size={18} color={t.colors.text} />} onPress={() => void logout()} />
@@ -48,8 +55,29 @@ export default function SelectOrganizationScreen() {
         </>
       }
     >
-      {orgs.length === 0 ? (
-        <EmptyState icon={<Building2 size={28} color={t.colors.textMuted} />} title={tr('mobile.org.none_title')} description={tr('mobile.org.none_description')} />
+      {none ? (
+        <View style={{ gap: t.spacing.lg }}>
+          <BrandMark height={36} />
+          <EmptyState
+            icon={<Building2 size={28} color={t.colors.primary} />}
+            title={tr('mobile.onboarding.org.none_title')}
+            description={tr(canCreate ? 'mobile.onboarding.org.none_description' : 'mobile.org.none_description')}
+            action={
+              config.isLoading ? (
+                <ActivityIndicator color={t.colors.primary} />
+              ) : canCreate ? (
+                <Button
+                  label={tr('mobile.onboarding.org.create')}
+                  icon={<Plus size={18} color={t.colors.onPrimary} />}
+                  onPress={() => router.push('/create-business')}
+                />
+              ) : undefined
+            }
+          />
+          <Txt tone="secondary" variant="caption" style={{ textAlign: 'center' }}>
+            {canCreate ? tr('mobile.onboarding.org.invited', { email }) : tr('mobile.onboarding.org.invited_closed', { email })}
+          </Txt>
+        </View>
       ) : (
         <View style={{ gap: t.spacing.md }}>
           <BrandMark height={36} />

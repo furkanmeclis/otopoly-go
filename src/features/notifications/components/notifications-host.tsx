@@ -20,6 +20,8 @@ import { createLogger } from '@/lib/logger';
 import { prefs, StorageKeys } from '@/lib/storage';
 import { useTheme } from '@/theme/provider';
 
+import { markDeepLinkReplayed, waitForFirstRunSettled } from '@/features/onboarding/state';
+
 import { linkHref } from '../deep-links';
 import { takePendingLink } from '../pending-link';
 import { enablePush, getPushPermission, notificationsModule, onDevicePushTokenChanged, pushAvailable, registerPushDevice } from '../push';
@@ -29,6 +31,8 @@ const log = createLogger('notifications.host');
 
 /** Delay before the explanation sheet so it doesn't cover the first frame after sign-in. */
 const PROMPT_DELAY_MS = 1500;
+/** Longest wait for the first-run sheet (FirstRunHost) before explaining push anyway. */
+const FIRST_RUN_SAFETY_MS = 45_000;
 
 export function NotificationsHost() {
   const qc = useQueryClient();
@@ -41,6 +45,8 @@ export function NotificationsHost() {
     const pending = takePendingLink();
     if (pending) {
       log.info('Replaying pending link');
+      // The first-run sheet stays out of the way of a link the user tapped.
+      markDeepLinkReplayed();
       router.push(linkHref(pending));
     }
   }, []);
@@ -61,6 +67,9 @@ export function NotificationsHost() {
       if (permission !== 'undetermined') return;
       const key = `${StorageKeys.pushPrompted}.${userUuid}`;
       if (await prefs.get(key, false)) return;
+      // Never two sheets at once: wait until the first-run sheet is closed or not shown.
+      await waitForFirstRunSettled(FIRST_RUN_SAFETY_MS);
+      if (cancelled) return;
       timer = setTimeout(() => !cancelled && setExplain(true), PROMPT_DELAY_MS);
     })();
     return () => {

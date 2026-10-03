@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Database, Share2, Trash2 } from 'lucide-react-native';
+import { Database, RotateCcw, Share2, Trash2 } from 'lucide-react-native';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { FlatList, Share, View } from 'react-native';
 
@@ -21,6 +21,7 @@ import { Badge, Button, EmptyState, FilterChips, Header, Row, Screen, Txt, useCo
 import { env, isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
 import { TestNotificationButton } from '@/features/notifications/components/test-notification-button';
+import { resetOnboardingFlags } from '@/features/onboarding/state';
 import { useLocale } from '@/lib/i18n/provider';
 import { clearLogEntries, formatLogsForExport, getLogEntries, subscribeLogs, type LogLevel } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
@@ -88,6 +89,16 @@ export default function DiagnosticsScreen() {
         {isMock ? <AccessScenarioSwitch /> : null}
         {isMock && status === 'ready' ? <TestNotificationButton /> : null}
         {isMock ? <DemoAuthCodes /> : null}
+        <Button
+          label={tr('mobile.onboarding.diagnostics.reset')}
+          size="sm"
+          variant="ghost"
+          icon={<RotateCcw size={16} color={t.colors.primary} />}
+          onPress={async () => {
+            await resetOnboardingFlags();
+            toast.success(tr('mobile.onboarding.diagnostics.reset_done'));
+          }}
+        />
         {isMock ? <Button label={tr('mobile.diagnostics.reset_demo')} size="sm" variant="ghost" icon={<Database size={16} color={t.colors.primary} />} onPress={resetDemo} /> : null}
       </View>
       <FlatList

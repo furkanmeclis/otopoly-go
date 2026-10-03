@@ -73,4 +73,8 @@ export const StorageKeys = {
   pushToken: 'push.token',
   /** Per-user flag: the in-app push explanation was shown (`push.prompted.<userUuid>`). */
   pushPrompted: 'push.prompted',
+  /** The intro carousel was shown on this device (before the first sign-in). */
+  onboardingIntroSeen: 'onboarding.intro_seen',
+  /** First-run sheets already shown: `{ "<userUuid>:<orgSlug>": true }`. */
+  onboardingFirstRun: 'onboarding.first_run',
 } as const;

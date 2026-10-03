@@ -32,6 +32,8 @@ export const DEMO_IDENTITIES: readonly DemoIdentity[] = [
   { sub: 'apple-linked', provider: 'apple', email: 'demo@otopoly.com', linkedTo: 'demo@otopoly.com', labelKey: 'mobile.auth.demo.apple_linked' },
   { sub: 'apple-relay-new', provider: 'apple', email: 'k7x2p9qz4m@privaterelay.appleid.com', given_name: 'Deniz', family_name: 'Aksoy', labelKey: 'mobile.auth.demo.apple_relay' },
   { sub: 'apple-relay-closed', provider: 'apple', email: 'w3n8d5t1rb@privaterelay.appleid.com', registerAllowed: false, labelKey: 'mobile.auth.demo.apple_relay_closed' },
+  // Brand-new owner: signed in with zero organizations → "Create business" on the organization picker.
+  { sub: 'apple-new-owner', provider: 'apple', email: 'selin.arslan@icloud.com', given_name: 'Selin', family_name: 'Arslan', labelKey: 'mobile.onboarding.demo.apple_new_owner' },
   { sub: 'google-unlinked', provider: 'google', email: 'personel@otopoly.com', labelKey: 'mobile.auth.demo.google_unlinked' },
 ] as const;
 

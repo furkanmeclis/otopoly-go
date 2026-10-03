@@ -79,13 +79,13 @@ export function createFormatters(locale: AppLocale) {
     relative(value: string | Date | null | undefined) {
       if (!value) return '—';
       const d = typeof value === 'string' ? new Date(value) : value;
+      if (Number.isNaN(d.getTime())) return '—';
       const diffSec = Math.round((d.getTime() - Date.now()) / 1000);
-      const rtf = new Intl.RelativeTimeFormat(tag, { numeric: 'auto' });
       const abs = Math.abs(diffSec);
-      if (abs < 60) return rtf.format(diffSec, 'second');
-      if (abs < 3600) return rtf.format(Math.round(diffSec / 60), 'minute');
-      if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), 'hour');
-      if (abs < 86400 * 30) return rtf.format(Math.round(diffSec / 86400), 'day');
+      if (abs < 60) return relativeText(locale, tag, diffSec, 'second');
+      if (abs < 3600) return relativeText(locale, tag, Math.round(diffSec / 60), 'minute');
+      if (abs < 86400) return relativeText(locale, tag, Math.round(diffSec / 3600), 'hour');
+      if (abs < 86400 * 30) return relativeText(locale, tag, Math.round(diffSec / 86400), 'day');
       return this.date(d);
     },
     /** Elapsed "1s 25dk" style duration from minutes. */
@@ -97,4 +97,31 @@ export function createFormatters(locale: AppLocale) {
       return h ? `${h}h ${rest}m` : `${rest}m`;
     },
   };
+}
+
+type RelativeUnit = 'second' | 'minute' | 'hour' | 'day';
+
+const RELATIVE_WORDS: Record<'tr' | 'en', Record<RelativeUnit, [string, string]>> = {
+  tr: { second: ['saniye', 'saniye'], minute: ['dakika', 'dakika'], hour: ['saat', 'saat'], day: ['gün', 'gün'] },
+  en: { second: ['second', 'seconds'], minute: ['minute', 'minutes'], hour: ['hour', 'hours'], day: ['day', 'days'] },
+};
+
+/**
+ * Relative time text. Hermes has no Intl.RelativeTimeFormat (`new` on it threw
+ * "undefined cannot be used as a constructor" and crashed the notification list),
+ * so tr/en are built by hand when the API is missing.
+ */
+function relativeText(locale: string, tag: string, value: number, unit: RelativeUnit): string {
+  if (typeof Intl !== 'undefined' && typeof Intl.RelativeTimeFormat === 'function') {
+    return new Intl.RelativeTimeFormat(tag, { numeric: 'auto' }).format(value, unit);
+  }
+  const tr = locale === 'tr';
+  if (unit === 'second' || value === 0) return tr ? 'şimdi' : 'now';
+  if (unit === 'day' && value === -1) return tr ? 'dün' : 'yesterday';
+  if (unit === 'day' && value === 1) return tr ? 'yarın' : 'tomorrow';
+  const n = Math.abs(value);
+  const [one, many] = RELATIVE_WORDS[tr ? 'tr' : 'en'][unit];
+  const word = n === 1 ? one : many;
+  if (tr) return value < 0 ? `${n} ${word} önce` : `${n} ${word} sonra`;
+  return value < 0 ? `${n} ${word} ago` : `in ${n} ${word}`;
 }

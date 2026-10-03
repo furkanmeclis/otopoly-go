@@ -5,6 +5,7 @@ import { LinkIntentHost } from '@/features/account/components/link-intent-host';
 import { TenantAccessGate } from '@/features/auth/components/tenant-access-gate';
 import { LimitReachedHost } from '@/features/billing/components/limit-reached-host';
 import { NotificationsHost } from '@/features/notifications/components/notifications-host';
+import { FirstRunHost } from '@/features/onboarding/components/first-run-host';
 import { QaTour } from '@/features/qa/qa-tour';
 import { WidgetSync } from '@/features/widgets/use-widget-sync';
 import { useTheme } from '@/theme/provider';
@@ -17,6 +18,8 @@ export default function AppLayout() {
     <>
       <WidgetSync />
       <LimitReachedHost />
+      {/* Before NotificationsHost: resets the "first-run settled" signal the push sheet waits for. */}
+      <FirstRunHost />
       <NotificationsHost />
       <LinkIntentHost />
       <QaTour />
