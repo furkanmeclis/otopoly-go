@@ -9,19 +9,15 @@ import Passkey from "next-auth/providers/passkey";
 import { NextResponse } from "next/server";
 
 import { routes } from "@/config/routes";
-import {
-  InvalidMFACodeError,
-  MFANotEnrolledError,
-  MFARequiredError,
-  NoTenantMembershipError,
-  OrganizationAccessExpiredError,
-} from "@/lib/auth/credentials-errors";
+import { credentialsErrorFor } from "@/lib/auth/credentials-errors";
 import { goAdapter } from "@/lib/auth/go-adapter";
 import {
   adapterGetOAuthConfig,
   adapterGetOAuthAccountUser,
   adapterGetUserByEmail,
   adapterIssueSession,
+  exchangeQRLogin,
+  loginWithEmailCode,
   loginWithPassword,
   type OAuthConfigPayload,
 } from "@/lib/auth/go-adapter-client";
@@ -85,7 +81,13 @@ function isOAuthProvider(
 // PROVIDERS_CACHE_TTL ms so repeated session/CSRF requests don't re-issue all
 // those HTTP round-trips on every hit.
 const PROVIDERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-let _providersCache: { providers: Provider[]; builtAt: number } | null = null;
+// Generated client secrets (Apple signing key, valid 24h) must never outlive
+// the cache: rebuild at least this long before the earliest expiry.
+const SECRET_EXPIRY_MARGIN = 10 * 60 * 1000; // 10 minutes
+let _providersCache: { providers: Provider[]; expiresAt: number } | null =
+  null;
+// Earliest client_secret_expires_at seen while building providers.
+let _buildSecretExpiry: number | null = null;
 let _providersBuildPromise: Promise<Provider[]> | null = null;
 
 async function loadOAuthConfig(
@@ -94,6 +96,16 @@ async function loadOAuthConfig(
   try {
     const config = await adapterGetOAuthConfig(provider);
     if (config.enabled && config.client_id && config.client_secret) {
+      if (config.client_secret_expires_at) {
+        const exp = Date.parse(config.client_secret_expires_at);
+        if (Number.isFinite(exp)) {
+          if (exp - SECRET_EXPIRY_MARGIN <= Date.now()) {
+            return null; // already (nearly) expired: never hand it to NextAuth
+          }
+          _buildSecretExpiry =
+            _buildSecretExpiry === null ? exp : Math.min(_buildSecretExpiry, exp);
+        }
+      }
       return config;
     }
   } catch {
@@ -174,27 +186,106 @@ async function _doBuildProviders(): Promise<Provider[]> {
               message: error instanceof Error ? error.message : String(error),
               status: (error as Error & { status?: number }).status,
             });
-            if (code === "MFA_REQUIRED") {
-              throw new MFARequiredError();
-            }
-            if (code === "INVALID_MFA_CODE") {
-              throw new InvalidMFACodeError();
-            }
-            if (code === "MFA_NOT_ENROLLED") {
-              throw new MFANotEnrolledError();
-            }
-            if (code === "NO_TENANT_MEMBERSHIP") {
-              throw new NoTenantMembershipError();
-            }
-            if (code === "ORGANIZATION_ACCESS_EXPIRED") {
-              throw new OrganizationAccessExpiredError();
-            }
+            const mapped = credentialsErrorFor(code);
+            if (mapped) throw mapped;
             return null;
           }
         },
       }),
     );
   }
+
+  // Email one-time code sign-in (always available; the Go API owns policy).
+  providers.push(
+    Credentials({
+      id: "email-code",
+      name: "Email code",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        code: { label: "Code", type: "text" },
+        totp_code: { label: "Authenticator code", type: "text" },
+        organization_slug: { label: "Organization slug", type: "text" },
+      },
+      async authorize(credentials, request) {
+        const email = String(credentials?.email ?? "").trim();
+        const code = String(credentials?.code ?? "").trim();
+        const totpCode = String(credentials?.totp_code ?? "").trim();
+        const organizationSlug = String(
+          credentials?.organization_slug ?? "",
+        ).trim();
+        if (!email || !code) return null;
+        try {
+          const tokens = await loginWithEmailCode(
+            email,
+            code,
+            totpCode || undefined,
+            organizationSlug || undefined,
+            request instanceof Request
+              ? clientIpFromHeaders(request.headers)
+              : null,
+          );
+          const user = await adapterGetUserByEmail(email);
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresIn: tokens.expires_in,
+          };
+        } catch (error) {
+          const errCode = (error as Error & { code?: string }).code;
+          const mapped = credentialsErrorFor(errCode);
+          if (mapped) throw mapped;
+          return null;
+        }
+      },
+    }),
+  );
+
+  // QR sign-in: the tab redeems an approval made in the mobile app. Needs
+  // the tab's browser secret plus the one-time exchange token from its
+  // private realtime channel; the Go API enforces single use and expiry.
+  providers.push(
+    Credentials({
+      id: "qr-login",
+      name: "QR code",
+      credentials: {
+        session_id: { label: "Session", type: "text" },
+        browser_secret: { label: "Browser secret", type: "text" },
+        exchange_token: { label: "Exchange token", type: "text" },
+      },
+      async authorize(credentials, request) {
+        const sessionId = String(credentials?.session_id ?? "").trim();
+        const browserSecret = String(credentials?.browser_secret ?? "").trim();
+        const exchangeToken = String(credentials?.exchange_token ?? "").trim();
+        if (!sessionId || !browserSecret || !exchangeToken) return null;
+        try {
+          const result = await exchangeQRLogin(
+            sessionId,
+            browserSecret,
+            exchangeToken,
+            request instanceof Request
+              ? clientIpFromHeaders(request.headers)
+              : null,
+          );
+          return {
+            id: result.user.uuid,
+            email: result.user.email,
+            name: result.user.name,
+            accessToken: result.access_token,
+            refreshToken: result.refresh_token,
+            expiresIn: result.expires_in,
+          };
+        } catch (error) {
+          const errCode = (error as Error & { code?: string }).code;
+          const mapped = credentialsErrorFor(errCode);
+          if (mapped) throw mapped;
+          return null;
+        }
+      },
+    }),
+  );
 
   if (passkeyLogin) {
     providers.push(Passkey({}));
@@ -241,14 +332,22 @@ async function _doBuildProviders(): Promise<Provider[]> {
 
 async function buildProviders(): Promise<Provider[]> {
   const now = Date.now();
-  if (_providersCache && now - _providersCache.builtAt < PROVIDERS_CACHE_TTL) {
+  if (_providersCache && now < _providersCache.expiresAt) {
     return _providersCache.providers;
   }
   // Deduplicate concurrent calls while the first build is in flight.
   if (!_providersBuildPromise) {
+    _buildSecretExpiry = null;
     _providersBuildPromise = _doBuildProviders()
       .then((providers) => {
-        _providersCache = { providers, builtAt: Date.now() };
+        let expiresAt = Date.now() + PROVIDERS_CACHE_TTL;
+        if (_buildSecretExpiry !== null) {
+          expiresAt = Math.min(
+            expiresAt,
+            _buildSecretExpiry - SECRET_EXPIRY_MARGIN,
+          );
+        }
+        _providersCache = { providers, expiresAt };
         _providersBuildPromise = null;
         return providers;
       })

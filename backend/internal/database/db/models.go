@@ -950,16 +950,20 @@ type OauthAccount struct {
 	GithubLogin       pgtype.Text        `json:"github_login"`
 	CreatedAt         pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+	ClientID          pgtype.Text        `json:"client_id"`
 }
 
 type OauthProviderSetting struct {
-	Provider        string             `json:"provider"`
-	LoginEnabled    bool               `json:"login_enabled"`
-	RegisterEnabled bool               `json:"register_enabled"`
-	ClientID        string             `json:"client_id"`
-	ClientSecretEnc pgtype.Text        `json:"client_secret_enc"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	Provider           string             `json:"provider"`
+	LoginEnabled       bool               `json:"login_enabled"`
+	RegisterEnabled    bool               `json:"register_enabled"`
+	ClientID           string             `json:"client_id"`
+	ClientSecretEnc    pgtype.Text        `json:"client_secret_enc"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	AppleTeamID        string             `json:"apple_team_id"`
+	AppleKeyID         string             `json:"apple_key_id"`
+	ApplePrivateKeyEnc pgtype.Text        `json:"apple_private_key_enc"`
 }
 
 type Organization struct {
@@ -1594,6 +1598,8 @@ type User struct {
 	CreatedAt       pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	DeactivatedAt   pgtype.Timestamptz `json:"deactivated_at"`
+	PasswordSet     bool               `json:"password_set"`
 }
 
 type UserRole struct {

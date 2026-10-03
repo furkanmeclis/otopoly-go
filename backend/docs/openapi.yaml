@@ -127,6 +127,9 @@ paths:
       summary: Login
       description: |
         Authenticates with email/password and returns a token pair.
+        A self-deleted account returns `403 ACCOUNT_DEACTIVATED` (after the
+        password is verified); `/v1/auth/refresh` and every other sign-in path
+        do the same.
       security: []
       requestBody:
         required: true
@@ -847,6 +850,9 @@ paths:
       tags: [Auth]
       operationId: deleteAuthIdentity
       summary: Unlink an OAuth identity
+      description: |
+        `409 LAST_SIGN_IN_METHOD` when the user has no password
+        (`has_password: false`), no passkey and this is the last linked identity.
       security:
         - bearerAuth: []
       parameters:
@@ -867,6 +873,74 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: "`LAST_SIGN_IN_METHOD`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/identities/{provider}/native:
+    post:
+      tags: [Auth]
+      operationId: postAuthIdentityNative
+      summary: Link a native Apple / Google id_token to the current user
+      description: |
+        Mobile "linked accounts" screen. The `id_token` is verified exactly like
+        `POST /v1/auth/oauth/{provider}/native` (JWKS, `iss`, `exp`, `aud`,
+        `nonce`). Idempotent when the identity is already linked to the
+        caller. `409 CONFLICT` when the identity is linked to another user or
+        the caller already has a different identity for this provider.
+        Apple: send `authorization_code` to store a refresh token (revoked on
+        account deletion).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [apple, google]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NativeIdentityLinkRequest"
+      responses:
+        "200":
+          description: Linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLinkedIdentity"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: "`UNAUTHENTICATED` or `INVALID_ID_TOKEN`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "`OAUTH_PROVIDER_DISABLED`, `ACCOUNT_DEACTIVATED`, `FORBIDDEN`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "`CONFLICT`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -1992,6 +2066,569 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/auth/email-code/request:
+    post:
+      tags: [Auth]
+      operationId: postAuthEmailCodeRequest
+      summary: Request an email sign-in code
+      description: |
+        Emails a 6-digit one-time sign-in code (valid 10 minutes, 5 attempts,
+        single use, stored hashed). The response is identical whether or not the
+        email belongs to an account. Rate limited per IP and per email.
+
+        App review: emails listed in `AUTH_REVIEW_ACCOUNTS` receive no email;
+        their fixed code works for that email only.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailCodeRequest"
+      responses:
+        "200":
+          description: Accepted (always, for any well-formed email)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/email-code/verify:
+    post:
+      tags: [Auth]
+      operationId: postAuthEmailCodeVerify
+      summary: Sign in with an email code
+      description: |
+        Exchanges an email code for the same token pair as `/v1/auth/login`.
+        When the user has authenticator 2FA, a call without `totp_code` returns
+        `403 MFA_REQUIRED` and the email code stays valid; retry with the same
+        `code` plus `totp_code`. A wrong `totp_code` (`401 INVALID_MFA_CODE`)
+        counts against the code's 5 attempts.
+
+        Errors: `400 INVALID_EMAIL_CODE` (wrong / expired / used / exhausted),
+        `403 MFA_REQUIRED`, `401 INVALID_MFA_CODE`, `403 ACCOUNT_DEACTIVATED`,
+        `403 FORBIDDEN` (disabled by an admin), `403 NO_TENANT_MEMBERSHIP`,
+        `429 RATE_LIMITED`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailCodeVerifyRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/oauth/{provider}/native:
+    post:
+      tags: [Auth]
+      operationId: postAuthOAuthNative
+      summary: Sign in with a native Apple / Google id_token
+      description: |
+        For mobile apps using the platform SDKs. The `id_token` signature is
+        verified against the provider JWKS (cached), plus `iss`, `exp`, `aud`
+        (Apple: `AUTH_APPLE_NATIVE_CLIENT_IDS`, default `com.otopoly.app`;
+        Google: `AUTH_GOOGLE_NATIVE_CLIENT_IDS` plus the web client id from
+        OAuth settings) and `nonce` when sent (raw nonce, or its hex SHA-256
+        in the token).
+
+        - Identity already linked → tokens (same shape as `/v1/auth/login`,
+          including the `MFA_REQUIRED` / `totp_code` round-trip).
+        - Not linked, an account with the same email exists →
+          `409 OAUTH_ACCOUNT_NOT_LINKED` (same policy as the web: sign in with
+          the existing method and link from the profile).
+        - Not linked, Apple private-relay email (`@privaterelay.appleid.com`),
+          no account → `409 OAUTH_LINK_CHOICE_REQUIRED`; `error.details`
+          carries `link_ticket`, `provider`, `expires_in` (seconds, 900) and
+          `register_allowed` (`"true"`/`"false"`). Continue with
+          `/v1/auth/oauth/link/*`.
+        - Not linked, no account → the account is created (OAuth sign-up; needs
+          registration enabled, else `403 FORBIDDEN`) and tokens returned.
+
+        Apple: send `authorization_code` so the server can store a refresh
+        token (revoked on account deletion; needs `AUTH_APPLE_*` key config),
+        and `given_name` / `family_name` on the first sign-in.
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [apple, google]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NativeOAuthRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          description: "`INVALID_ID_TOKEN` or `INVALID_MFA_CODE`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: "`MFA_REQUIRED`, `ACCOUNT_DEACTIVATED`, `OAUTH_PROVIDER_DISABLED`, `FORBIDDEN`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "`OAUTH_ACCOUNT_NOT_LINKED` or `OAUTH_LINK_CHOICE_REQUIRED`"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                success: false
+                error:
+                  code: OAUTH_LINK_CHOICE_REQUIRED
+                  message: Choose whether to link this sign-in to an existing account or create a new one
+                  details:
+                    - { field: link_ticket, message: "<opaque>" }
+                    - { field: provider, message: apple }
+                    - { field: expires_in, message: "900" }
+                    - { field: register_allowed, message: "true" }
+                meta: { request_id: "00000000-0000-0000-0000-000000000000" }
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/oauth/link/request:
+    post:
+      tags: [Auth]
+      operationId: postAuthOAuthLinkRequest
+      summary: Email a link code to an existing account
+      description: |
+        "Yes, I have an account": emails a 6-digit link code (10 minutes) to
+        `email` if an account exists. Always `200 accepted` for a valid ticket
+        (no enumeration). `400 INVALID_LINK_TICKET` when the ticket is
+        tampered or expired.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthLinkRequest"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/oauth/link/verify:
+    post:
+      tags: [Auth]
+      operationId: postAuthOAuthLinkVerify
+      summary: Link the provider identity to an existing account and sign in
+      description: |
+        Verifies the link code, links the ticket's identity to the account and
+        returns tokens. Same `MFA_REQUIRED` / `totp_code` round-trip as login
+        (the code stays valid until it succeeds). Errors: `400 INVALID_LINK_TICKET`,
+        `400 INVALID_EMAIL_CODE`, `409 CONFLICT` (identity linked elsewhere or
+        the account already has another identity for this provider),
+        `403 ACCOUNT_DEACTIVATED`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthLinkVerifyRequest"
+      responses:
+        "200":
+          description: Linked and authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/oauth/link/create:
+    post:
+      tags: [Auth]
+      operationId: postAuthOAuthLinkCreate
+      summary: Create a new account for the provider identity and sign in
+      description: |
+        "No, I don't have an account": creates the account exactly like an
+        OAuth sign-up (registration policy, default role, welcome email) with
+        the ticket's relay email, links the identity and returns tokens.
+        Retrying with the same ticket signs into the account created by the
+        first call. Errors: `400 INVALID_LINK_TICKET`, `403 FORBIDDEN`
+        (registration disabled), `409 CONFLICT` (email registered meanwhile).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OAuthLinkCreateRequest"
+      responses:
+        "200":
+          description: Created and authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTokens"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/account/deactivate/request:
+    post:
+      tags: [Auth]
+      operationId: postAuthAccountDeactivateRequest
+      summary: Email an account-deletion confirmation code
+      description: |
+        Sends a 6-digit confirmation code (10 minutes) to the caller's email.
+        Intended for passwordless accounts (Apple / Google / email code) that
+        cannot complete a password / passkey / TOTP step-up.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/account/deactivate:
+    post:
+      tags: [Auth]
+      operationId: postAuthAccountDeactivate
+      summary: Delete (deactivate) own account
+      description: |
+        Account deletion keeps all data: the user becomes `disabled` with
+        `deactivated_at`, every refresh session is revoked, stored Apple
+        refresh tokens are revoked via Apple `/auth/revoke` (best effort), and
+        every sign-in path returns `403 ACCOUNT_DEACTIVATED` afterwards.
+        Organizations the user owns are kept as-is (other members keep access).
+
+        Confirm with either a recent step-up grant (`/v1/auth/step-up/*`,
+        send `{}`) or `code` from `/v1/auth/account/deactivate/request`.
+        Without either → `403 STEP_UP_REQUIRED`. Wrong code →
+        `400 INVALID_EMAIL_CODE`. The last super admin gets `409 CONFLICT`.
+        Refused while impersonating (`403 FORBIDDEN`). A platform admin can
+        reactivate the user by setting status `active`.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountDeactivateRequest"
+      responses:
+        "200":
+          description: Deactivated (`data.status = deactivated`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/qr/sessions:
+    post:
+      tags: [Auth]
+      operationId: postAuthQRSession
+      summary: Start a QR sign-in (web login page)
+      description: |
+        Creates a short-lived (120 s) QR sign-in session for the calling browser
+        tab. Render `qr_url` (`{frontend}/login/qr/{session_id}`) as a QR; the
+        signed-in mobile app opens it (universal link or in-app scanner).
+
+        Keep `browser_secret` in the tab only: it is required to read the state
+        and to exchange an approval. `realtime` holds an **anonymous** Centrifugo
+        connection token (`sub: ""`) and a subscription token for exactly one
+        private channel `qrlogin:{random}` (unrelated to the session id). Both
+        expire 30 s after the session. Channel events (`data.type`):
+        `scanned`, `approved` (with `exchange_token`), `rejected`.
+
+        The request's User-Agent and client IP (first `X-Forwarded-For` hop) are
+        stored for the approval screen. Errors: `429 RATE_LIMITED` (60 / 15 min
+        per IP), `503 REALTIME_DISABLED`.
+      security: []
+      responses:
+        "201":
+          description: QR session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQRLoginCreated"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "503":
+          description: Realtime disabled
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/qr/sessions/{id}:
+    get:
+      tags: [Auth]
+      operationId: getAuthQRSession
+      summary: QR sign-in details (mobile)
+      description: |
+        Shows who is asking to sign in: browser / OS parsed from the web
+        request's User-Agent, its IP and approximate location (`null` when
+        unknown), created / expiry time. The first signed-in viewer claims the
+        session; other accounts then get `409 QR_SESSION_CLAIMED`.
+
+        Errors: `404 QR_SESSION_NOT_FOUND` (unknown / expired / used),
+        `409 QR_SESSION_CLAIMED`, `429 RATE_LIMITED`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/QRSessionID"
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQRLoginDetails"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/qr/sessions/{id}/approve:
+    post:
+      tags: [Auth]
+      operationId: postAuthQRSessionApprove
+      summary: Approve a QR sign-in (mobile)
+      description: |
+        Signs the waiting browser tab in as the caller, scoped to the caller's
+        active organization (the token's `oid`, re-validated at exchange).
+        Publishes `{type: "approved", exchange_token}` to the tab's channel;
+        the exchange window is 60 s. Exactly one approve / reject succeeds.
+
+        Errors: `403 ACCOUNT_DEACTIVATED`, `403 FORBIDDEN` (impersonating or
+        disabled), `404 QR_SESSION_NOT_FOUND`, `409 QR_SESSION_RESOLVED`,
+        `409 QR_SESSION_CLAIMED`, `429 RATE_LIMITED`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/QRSessionID"
+      responses:
+        "200":
+          description: Approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/qr/sessions/{id}/reject:
+    post:
+      tags: [Auth]
+      operationId: postAuthQRSessionReject
+      summary: Reject a QR sign-in (mobile)
+      description: |
+        Publishes `{type: "rejected"}` to the tab's channel. Errors as approve
+        (no account-state check).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/QRSessionID"
+      responses:
+        "200":
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/qr/sessions/{id}/state:
+    post:
+      tags: [Auth]
+      operationId: postAuthQRSessionState
+      summary: QR sign-in state for the owning tab
+      description: |
+        Read once after the tab (re)subscribes to its channel so an event sent
+        while the socket was down is not lost. Not meant for polling. Wrong
+        secrets count against 5 attempts, after which the session is deleted.
+
+        Errors: `400 QR_LOGIN_INVALID`, `404 QR_SESSION_NOT_FOUND`,
+        `429 RATE_LIMITED`.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/QRSessionID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [browser_secret]
+              additionalProperties: false
+              properties:
+                browser_secret: { type: string }
+      responses:
+        "200":
+          description: Current state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQRLoginState"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/qr/exchange:
+    post:
+      tags: [Auth]
+      operationId: postAuthQRExchange
+      summary: Redeem an approved QR sign-in (web server)
+      description: |
+        Called by the web server (NextAuth `qr-login` credentials provider), not
+        by browser JS (the BFF blocks it). Needs the session id, the tab's
+        `browser_secret` and the `exchange_token` from the approval event.
+        Single use: the session is deleted on success. Returns the same token
+        pair as `/v1/auth/login` plus the signed-in user. The session row keeps
+        the User-Agent / IP of the browser that showed the QR.
+
+        Errors: `400 QR_LOGIN_INVALID` (wrong secret / token, not approved yet),
+        `404 QR_SESSION_NOT_FOUND`, `403 ACCOUNT_DEACTIVATED`,
+        `403 NO_TENANT_MEMBERSHIP`, `403 ORGANIZATION_ACCESS_EXPIRED`,
+        `429 RATE_LIMITED`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QRLoginExchangeRequest"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeQRLoginExchanged"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/notifications:
     get:
       tags: [Notifications]
@@ -2663,9 +3300,17 @@ paths:
         - name: kind
           in: query
           schema: { type: string, enum: [income, expense] }
+        - name: is_active
+          in: query
+          description: "`true` / `false`; omitted = all"
+          schema: { type: string, enum: ["true", "false"] }
       responses:
         "200":
           description: Categories
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceCategoryList"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2687,12 +3332,18 @@ paths:
       responses:
         "201":
           description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceCategory"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -2715,6 +3366,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EnvelopeFinanceCategory"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantFinanceCategory
+      summary: Update finance category
+      description: Partial update. A category cannot be its own parent; the parent must exist in the organization.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchFinanceCategoryRequest"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeFinanceCategory"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantFinanceCategory
+      summary: Delete finance category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2789,6 +3503,9 @@ paths:
         - name: status
           in: query
           schema: { type: string }
+        - name: currency
+          in: query
+          schema: { type: string, description: ISO 4217 code }
         - name: account_uuid
           in: query
           schema: { type: string, format: uuid }
@@ -3013,6 +3730,12 @@ paths:
       summary: Upload finance accounts import
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImportUploadRequest"
       responses:
         "201":
           description: Import job created
@@ -3063,6 +3786,12 @@ paths:
       summary: Upload finance categories import
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImportUploadRequest"
       responses:
         "201":
           description: Import job created
@@ -3227,6 +3956,7 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409": { $ref: "#/components/responses/Conflict" }
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -3432,6 +4162,7 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "409": { $ref: "#/components/responses/Conflict" }
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -3895,6 +4626,15 @@ paths:
       summary: Upload organization letterhead logo
       security:
         - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [logo]
+              properties:
+                logo: { type: string, format: binary, description: "PNG / JPEG / WebP (sniffed from content), max 2 MiB" }
       responses:
         "200":
           description: Updated letterhead
@@ -3996,6 +4736,12 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportMappingRequest"
       responses:
         "200":
           description: Import job
@@ -4461,7 +5207,12 @@ paths:
       summary: Service jobs list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -4476,7 +5227,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Summary totals }
+        "200":
+          description: Summary totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobsSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -4500,6 +5257,8 @@ paths:
             enum: [in_progress, ready, delivered, cancelled, voided]
         - name: payment_status
           in: query
+          deprecated: true
+          description: Not applied — the Go handler does not read this parameter (jobs.ListFilters has no payment_status filter).
           schema:
             type: string
             enum: [unpaid, paid]
@@ -4514,7 +5273,13 @@ paths:
           description: Also return in_progress/ready jobs started before date_from (multi-day work still going on).
           schema: { type: boolean }
       responses:
-        "200": { description: "Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) and services [{uuid, name, color}] for the card tags" }
+        "200":
+          description: "Jobs page; rows include brand_name and brand_logo_url (public vehicle brand logo stream, omitted when none) and services [{uuid, name, color}] for the card tags"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -4547,10 +5312,17 @@ paths:
                       unit_price: { type: string }
                       qty: { type: string }
       responses:
-        "201": { description: Job created }
+        "201":
+          description: Job created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/export:
     post:
@@ -4559,18 +5331,19 @@ paths:
       summary: Export service jobs
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -4586,7 +5359,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job detail }
+        "200":
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -4612,7 +5391,12 @@ paths:
                   type: [string, "null"]
                   format: uuid
       responses:
-        "200": { description: Job updated }
+        "200":
+          description: Job updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -4631,9 +5415,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job marked ready }
+        "200":
+          description: Job marked ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/done:
@@ -4648,9 +5439,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job marked ready }
+        "200":
+          description: Job marked ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/deliver:
@@ -4665,9 +5463,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job delivered }
+        "200":
+          description: Job delivered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/close:
@@ -4692,10 +5497,16 @@ paths:
                 method: { type: string, enum: [cash, card, cari] }
                 finance_account_uuid: { type: string, format: uuid }
       responses:
-        "200": { description: Job payment recorded }
+        "200":
+          description: Job payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/cancel:
@@ -4710,9 +5521,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job cancelled }
+        "200":
+          description: Job cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/jobs/{uuid}/void:
@@ -4727,9 +5545,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Job voided }
+        "200":
+          description: Job voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/staff/meta:
@@ -4739,7 +5564,12 @@ paths:
       summary: Staff resource meta
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -4750,7 +5580,12 @@ paths:
       summary: Active organization members for assignee pickers
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Member options }
+        "200":
+          description: Member options
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffOptions"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -4761,7 +5596,12 @@ paths:
       summary: List staff members
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Staff page }
+        "200":
+          description: Staff page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffPage"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -4782,7 +5622,12 @@ paths:
                 email: { type: string, format: email }
                 password: { type: string, minLength: 8 }
       responses:
-        "201": { description: Staff created }
+        "201":
+          description: Staff created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffMember"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -4809,7 +5654,12 @@ paths:
               properties:
                 status: { type: string, enum: [active, inactive] }
       responses:
-        "200": { description: Staff updated }
+        "200":
+          description: Staff updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStaffMember"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -4837,7 +5687,12 @@ paths:
               properties:
                 password: { type: string, minLength: 8 }
       responses:
-        "200": { description: Password reset }
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOkResult"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5288,7 +6143,12 @@ paths:
           application/json:
             schema: { $ref: "#/components/schemas/JobConsumptionInput" }
       responses:
-        "200": { description: "Job detail with consumptions and material_cost" }
+        "200":
+          description: "Job detail with consumptions and material_cost"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5313,8 +6173,15 @@ paths:
               properties:
                 qty: { type: string }
       responses:
-        "200": { description: "Job detail" }
+        "200":
+          description: "Job detail"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
     delete:
@@ -5326,7 +6193,15 @@ paths:
         - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: consumptionUuid, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
-        "200": { description: "Job detail" }
+        "200":
+          description: "Job detail"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
   /v1/tenant/catalog/services/{uuid}/products:
@@ -5390,7 +6265,13 @@ paths:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
       responses:
-        "200": { description: Jobs page }
+        "200":
+          description: Jobs page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -5402,7 +6283,12 @@ paths:
       summary: Product sales list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5417,7 +6303,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Summary totals }
+        "200":
+          description: Summary totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSalesSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5446,7 +6338,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Sales page }
+        "200":
+          description: Sales page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSalePage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -5479,10 +6377,16 @@ paths:
                       unit_price: { type: string }
                       qty: { type: string }
       responses:
-        "201": { description: Sale created }
+        "201":
+          description: Sale created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSaleDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/sales/export:
@@ -5492,18 +6396,19 @@ paths:
       summary: Export product sales
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5519,7 +6424,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Sale detail }
+        "200":
+          description: Sale detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSaleDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -5536,9 +6447,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Sale voided }
+        "200":
+          description: Sale voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSaleDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/suppliers/meta:
@@ -5548,7 +6466,12 @@ paths:
       summary: Suppliers list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5569,7 +6492,13 @@ paths:
           in: query
           schema: { type: boolean }
       responses:
-        "200": { description: Suppliers page }
+        "200":
+          description: Suppliers page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplierPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -5592,7 +6521,12 @@ paths:
                 notes: { type: string }
                 is_active: { type: boolean }
       responses:
-        "201": { description: Supplier created }
+        "201":
+          description: Supplier created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplier"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5604,18 +6538,19 @@ paths:
       summary: Export suppliers
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5631,7 +6566,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Supplier }
+        "200":
+          description: Supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplier"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -5659,7 +6600,12 @@ paths:
                 notes: { type: string }
                 is_active: { type: boolean }
       responses:
-        "200": { description: Supplier updated }
+        "200":
+          description: Supplier updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplier"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -5675,7 +6621,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Deleted }
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -5688,7 +6640,12 @@ paths:
       summary: Purchases list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5717,7 +6674,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: "Purchases page; each item includes its `lines` (product, qty, unit_cost, line_total)" }
+        "200":
+          description: "Purchases page; each item includes its `lines` (product, qty, unit_cost, line_total)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchasePage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -5750,10 +6713,16 @@ paths:
                       unit_cost: { type: string }
                       qty: { type: string }
       responses:
-        "201": { description: Purchase created }
+        "201":
+          description: Purchase created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/purchases/export:
     post:
@@ -5762,18 +6731,19 @@ paths:
       summary: Export purchases
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -5789,7 +6759,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Purchase detail }
+        "200":
+          description: Purchase detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -5806,9 +6782,16 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Purchase voided }
+        "200":
+          description: Purchase voided
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/reports/meta:
@@ -6454,7 +7437,12 @@ paths:
       summary: Cari account list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6465,7 +7453,12 @@ paths:
       summary: Cari receivable summary
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Summary totals }
+        "200":
+          description: Summary totals
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariSummary"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6489,7 +7482,13 @@ paths:
           in: query
           schema: { type: string }
       responses:
-        "200": { description: Cari account page }
+        "200":
+          description: Cari account page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariAccountPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6500,18 +7499,19 @@ paths:
       summary: Export cari accounts
       security: [{ bearerAuth: [] }]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6527,7 +7527,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Cari account detail }
+        "200":
+          description: Cari account detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariAccountDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6559,7 +7565,13 @@ paths:
           in: query
           schema: { type: string, format: date }
       responses:
-        "200": { description: Entry page }
+        "200":
+          description: Entry page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntryPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6576,18 +7588,19 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                format: { type: string }
-                query:
-                  type: object
-                  additionalProperties: { type: string }
-                locale: { type: string }
+              $ref: "#/components/schemas/ExportRequest"
       responses:
-        "202": { description: Export job accepted }
+        "202":
+          description: Export job accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeExportJob"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6615,7 +7628,13 @@ paths:
                 description: { type: string }
                 reference_no: { type: string }
       responses:
-        "201": { description: Created entry }
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6646,7 +7665,13 @@ paths:
                 payment_method: { type: string, enum: [cash, card, transfer, other] }
                 finance_account_uuid: { type: string, format: uuid }
       responses:
-        "201": { description: Created entry }
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6676,7 +7701,13 @@ paths:
                 description: { type: string }
                 reference_no: { type: string }
       responses:
-        "201": { description: Created entry }
+        "201":
+          description: Created entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6693,7 +7724,13 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Voided entry }
+        "200":
+          description: Voided entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCariEntry"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -6706,7 +7743,12 @@ paths:
       summary: Customer list metadata
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6730,7 +7772,13 @@ paths:
           in: query
           schema: { type: string }
       responses:
-        "200": { description: Customer page }
+        "200":
+          description: Customer page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     post:
@@ -6762,7 +7810,13 @@ paths:
                     model_uuid: { type: string, format: uuid }
                     year: { type: integer }
       responses:
-        "201": { description: Created customer }
+        "201":
+          description: Created customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -6779,7 +7833,15 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Customer detail }
+        "200":
+          description: Customer detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     patch:
       tags: [Tenant]
@@ -6791,8 +7853,22 @@ paths:
           in: path
           required: true
           schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchCustomerRequest"
       responses:
-        "200": { description: Updated customer }
+        "200":
+          description: Updated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
     delete:
       tags: [Tenant]
@@ -6805,8 +7881,17 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Deleted }
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
 
   /v1/tenant/customers/{uuid}/vehicles:
     post:
@@ -6831,7 +7916,15 @@ paths:
                 model_uuid: { type: string, format: uuid }
                 year: { type: integer }
       responses:
-        "201": { description: Created vehicle }
+        "201":
+          description: Created vehicle
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerVehicle"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
@@ -6847,7 +7940,15 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200": { description: Deleted }
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeDeletedResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/ai/status:
@@ -9137,6 +10238,12 @@ components:
       bearerFormat: JWT
 
   parameters:
+    QRSessionID:
+      name: id
+      in: path
+      required: true
+      description: QR sign-in session id (from the QR URL)
+      schema: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
     ResourceUUID:
       name: uuid
       in: path
@@ -9297,6 +10404,17 @@ components:
             - CONFLICT
             - PASSWORD_RESET_FAILED
             - INTERNAL_ERROR
+            - MFA_REQUIRED
+            - INVALID_MFA_CODE
+            - RATE_LIMITED
+            - STEP_UP_REQUIRED
+            - ACCOUNT_DEACTIVATED
+            - INVALID_EMAIL_CODE
+            - INVALID_ID_TOKEN
+            - OAUTH_ACCOUNT_NOT_LINKED
+            - OAUTH_LINK_CHOICE_REQUIRED
+            - INVALID_LINK_TICKET
+            - OAUTH_PROVIDER_DISABLED
         message:
           type: string
         details:
@@ -9902,6 +11020,91 @@ components:
           type: string
           enum: [tr, en]
 
+    EmailCodeRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+
+    EmailCodeVerifyRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email: { type: string, format: email }
+        code:
+          type: string
+          description: 6-digit code from the email
+          maxLength: 32
+        totp_code:
+          type: string
+          description: Authenticator or recovery code when 2FA is enabled
+          maxLength: 32
+        organization_slug:
+          type: string
+          description: When set, login is scoped to this organization membership
+
+    NativeOAuthRequest:
+      type: object
+      required: [id_token]
+      properties:
+        id_token:
+          type: string
+          description: Provider id_token from the native SDK
+        nonce:
+          type: string
+          description: Raw nonce passed to the SDK (token may carry it raw or SHA-256 hex)
+        given_name:
+          type: string
+          description: Apple first sign-in only (Apple sends the name to the app, not in the token)
+        family_name:
+          type: string
+        authorization_code:
+          type: string
+          description: Apple authorization code; exchanged for a refresh token that is revoked on account deletion
+        totp_code:
+          type: string
+          maxLength: 32
+        organization_slug:
+          type: string
+
+    OAuthLinkRequest:
+      type: object
+      required: [link_ticket, email]
+      properties:
+        link_ticket:
+          type: string
+          description: From `OAUTH_LINK_CHOICE_REQUIRED` error details (valid 15 minutes)
+        email:
+          type: string
+          format: email
+          description: Email of the existing account
+
+    OAuthLinkVerifyRequest:
+      type: object
+      required: [link_ticket, email, code]
+      properties:
+        link_ticket: { type: string }
+        email: { type: string, format: email }
+        code: { type: string, maxLength: 32 }
+        totp_code: { type: string, maxLength: 32 }
+        organization_slug: { type: string }
+
+    OAuthLinkCreateRequest:
+      type: object
+      required: [link_ticket]
+      properties:
+        link_ticket: { type: string }
+        totp_code: { type: string, maxLength: 32 }
+        organization_slug: { type: string }
+
+    AccountDeactivateRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Code from `/v1/auth/account/deactivate/request`; omit to use a step-up grant
+          maxLength: 32
+
     ForgotPasswordRequest:
       type: object
       required: [email]
@@ -10078,6 +11281,22 @@ components:
         register_enabled: { type: boolean }
         client_id: { type: string }
         client_secret_configured: { type: boolean }
+        team_id:
+          type: string
+          description: Apple only. Apple Developer Team ID of the signing key.
+        key_id:
+          type: string
+          description: Apple only. Key ID of the uploaded .p8 signing key.
+        private_key_configured:
+          type: boolean
+          description: Apple only. True when a .p8 signing key is stored (encrypted). The key is never returned.
+        private_key_source:
+          type: string
+          enum: [db, env, none]
+          description: >-
+            Apple only. Signing key in use at runtime: the uploaded key (db),
+            the AUTH_APPLE_* env fallback (env) or none. With a key, the web
+            client_secret is generated automatically.
 
     PatchOAuthProviderSettingsRequest:
       type: object
@@ -10085,7 +11304,29 @@ components:
         login_enabled: { type: boolean }
         register_enabled: { type: boolean }
         client_id: { type: string }
-        client_secret: { type: string }
+        client_secret:
+          type: string
+          description: >-
+            Write-only. For Apple it is optional when a signing key is
+            configured (the secret is then generated from the key).
+        team_id:
+          type: string
+          pattern: "^([A-Za-z0-9]{10})?$"
+          description: Apple only. 10-character Team ID (stored upper-case).
+        key_id:
+          type: string
+          pattern: "^([A-Za-z0-9]{10})?$"
+          description: Apple only. 10-character Key ID (the KEYID in AuthKey_KEYID.p8).
+        private_key:
+          type: string
+          writeOnly: true
+          description: >-
+            Apple only. Contents of the .p8 file (PEM, PKCS#8, EC P-256).
+            Requires team_id and key_id (sent or already stored). Stored
+            encrypted; never returned.
+        remove_private_key:
+          type: boolean
+          description: Apple only. Deletes the stored signing key (and its key_id). Cannot be combined with private_key.
 
     EnvelopeOAuthProviderSettings:
       type: object
@@ -10105,12 +11346,37 @@ components:
 
     IdentityList:
       type: object
-      required: [items, total]
+      required: [items, total, has_password]
       properties:
         items:
           type: array
           items: { $ref: "#/components/schemas/LinkedIdentity" }
         total: { type: integer, format: int64 }
+        has_password:
+          type: boolean
+          description: False when the user never chose a password (OAuth sign-up)
+
+    EnvelopeLinkedIdentity:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LinkedIdentity" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    NativeIdentityLinkRequest:
+      type: object
+      required: [id_token]
+      properties:
+        id_token:
+          type: string
+          description: Provider id_token from the native SDK
+        nonce:
+          type: string
+          description: Raw nonce passed to the SDK
+        authorization_code:
+          type: string
+          description: Apple authorization code; exchanged for a refresh token
 
     EnvelopeIdentityList:
       type: object
@@ -10288,6 +11554,115 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/ImpersonationResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    QRLoginCreated:
+      type: object
+      required: [session_id, qr_url, browser_secret, expires_at, expires_in, realtime]
+      properties:
+        session_id: { type: string, description: "43-char base64url id (in the QR)" }
+        qr_url: { type: string, format: uri, examples: ["https://otopoly.app/login/qr/Zm9v..."] }
+        browser_secret: { type: string, description: Keep in the tab only }
+        expires_at: { type: string, format: date-time }
+        expires_in: { type: integer, format: int64, examples: [120] }
+        realtime:
+          type: object
+          required: [ws_url, connection_token, subscription_token, channel]
+          properties:
+            ws_url: { type: string }
+            connection_token: { type: string, description: Anonymous Centrifugo connection JWT }
+            subscription_token: { type: string, description: Subscription JWT for `channel` only }
+            channel: { type: string, examples: ["qrlogin:4Hq..."] }
+
+    EnvelopeQRLoginCreated:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QRLoginCreated" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    QRLoginDetails:
+      type: object
+      required: [session_id, status, client, ip, location, created_at, expires_at]
+      properties:
+        session_id: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        client:
+          type: object
+          required: [browser, browser_version, os, device_type, user_agent]
+          properties:
+            browser: { type: string, examples: [Chrome] }
+            browser_version: { type: string, examples: ["128"] }
+            os: { type: string, examples: [Windows] }
+            device_type: { type: string, enum: [desktop, mobile, tablet] }
+            user_agent: { type: string }
+        ip: { type: string }
+        location:
+          oneOf:
+            - type: "null"
+            - type: object
+              properties:
+                country_code: { type: string, examples: [TR] }
+                country: { type: string, description: English name (GeoIP only) }
+                region: { type: string }
+                city: { type: string }
+                source: { type: string, enum: [edge, geoip] }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+
+    EnvelopeQRLoginDetails:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QRLoginDetails" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    QRLoginState:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [pending, scanned, approved, rejected] }
+        exchange_token: { type: string, description: Present when approved }
+
+    EnvelopeQRLoginState:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QRLoginState" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    QRLoginExchangeRequest:
+      type: object
+      required: [session_id, browser_secret, exchange_token]
+      additionalProperties: false
+      properties:
+        session_id: { type: string }
+        browser_secret: { type: string }
+        exchange_token: { type: string }
+
+    QRLoginExchanged:
+      allOf:
+        - $ref: "#/components/schemas/Tokens"
+        - type: object
+          required: [user]
+          properties:
+            user:
+              type: object
+              required: [uuid, email, name]
+              properties:
+                uuid: { type: string, format: uuid }
+                email: { type: string, format: email }
+                name: { type: string }
+
+    EnvelopeQRLoginExchanged:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/QRLoginExchanged" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeStatus:
@@ -10743,7 +12118,7 @@ components:
 
     FinanceCategory:
       type: object
-      required: [uuid, name, kind, is_active]
+      required: [uuid, name, kind, sort_order, is_active, created_at, updated_at]
       properties:
         uuid: { type: string, format: uuid }
         name: { type: string }
@@ -10751,6 +12126,8 @@ components:
         parent_uuid: { type: [string, "null"], format: uuid }
         sort_order: { type: integer }
         is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     CreateFinanceTransactionRequest:
       type: object
@@ -11748,7 +13125,7 @@ components:
         message: { type: string }
         data:
           description: AIConfirmCard for `confirm`, AIPlan for `todo_list`.
-          oneOf:
+          anyOf:
             - $ref: "#/components/schemas/AIConfirmCard"
             - $ref: "#/components/schemas/AIPlan"
             - type: object
@@ -13632,4 +15009,702 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/PublicQuote" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Shared small envelopes
+    # ---------------------------------------------------------------------
+    DeletedResult:
+      type: object
+      required: [deleted]
+      properties:
+        deleted: { type: boolean, enum: [true] }
+
+    EnvelopeDeletedResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/DeletedResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    OkResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean, enum: [true] }
+
+    EnvelopeOkResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/OkResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceCategoryList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/FinanceCategory" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PatchFinanceCategoryRequest:
+      type: object
+      description: Partial update; omitted fields are left unchanged. `kind` cannot be changed.
+      properties:
+        name: { type: string }
+        parent_uuid: { type: string, format: uuid }
+        sort_order: { type: integer, format: int32 }
+        is_active: { type: boolean }
+
+    ImportUploadRequest:
+      type: object
+      required: [file]
+      properties:
+        file: { type: string, format: binary, description: "Import file (max 10 MiB)" }
+        format:
+          type: string
+          enum: [csv, tsv, xlsx, json]
+          description: Defaults to `csv`.
+        locale:
+          type: string
+          description: Header / value locale; defaults to `tr`.
+
+    ImportMappingRequest:
+      type: object
+      properties:
+        mapping:
+          type: object
+          description: Target field → source column header.
+          additionalProperties: { type: string }
+        defaults:
+          type: object
+          description: Target field → constant value used when the column is absent / empty.
+          additionalProperties: { type: string }
+
+    # ---------------------------------------------------------------------
+    # Service jobs (internal/modules/jobs/usecase/types.go)
+    # ---------------------------------------------------------------------
+    JobServiceTag:
+      type: object
+      required: [name, color]
+      properties:
+        uuid: { type: string, format: uuid, description: "Omitted for lines without a catalog service" }
+        name: { type: string }
+        color: { type: string, description: 'Palette key, or "" (UI derives one from the name)' }
+
+    Job:
+      type: object
+      required:
+        [uuid, customer_uuid, vehicle_uuid, customer_name, customer_phone, plate, vehicle_label,
+         status, payment_status, currency, notes, total_amount, started_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        vehicle_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        plate: { type: string }
+        vehicle_label: { type: string }
+        status: { type: string, enum: [in_progress, ready, delivered, cancelled, voided] }
+        payment_status: { type: string, enum: [unpaid, paid] }
+        currency: { type: string }
+        notes: { type: string }
+        total_amount: { type: string, description: Decimal string }
+        assignee_uuid: { type: string, format: uuid }
+        assignee_name: { type: string }
+        brand_name: { type: string, description: List rows only }
+        brand_logo_url: { type: string, description: "List rows only; public vehicle brand logo stream, omitted when none" }
+        services:
+          type: array
+          description: List rows only (card tags); omitted when empty.
+          items: { $ref: "#/components/schemas/JobServiceTag" }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        delivered_at: { type: string, format: date-time }
+        paid_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    JobLine:
+      type: object
+      required: [uuid, line_type, name, unit_price, qty, vat_rate, line_total, currency, sort_order]
+      properties:
+        uuid: { type: string, format: uuid }
+        line_type: { type: string, enum: [service, product] }
+        service_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit_price: { type: string }
+        qty: { type: string }
+        vat_rate: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+        sort_order: { type: integer }
+
+    JobPayment:
+      type: object
+      required: [uuid, method, amount, currency, status, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        method: { type: string, enum: [cash, card, cari] }
+        amount: { type: string }
+        currency: { type: string }
+        status: { type: string, enum: [posted, void] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        cari_entry_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    JobDetail:
+      allOf:
+        - $ref: "#/components/schemas/Job"
+        - type: object
+          required: [lines, payments, consumptions, material_cost]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/JobLine" }
+            payments:
+              type: array
+              items: { $ref: "#/components/schemas/JobPayment" }
+            consumptions:
+              type: array
+              items: { $ref: "#/components/schemas/JobConsumption" }
+            material_cost: { type: string, description: "Sum of active consumptions at cost price" }
+
+    JobsSummary:
+      type: object
+      required: [job_count, card_total, cari_total, net_total, paid_total, date]
+      properties:
+        job_count: { type: integer, format: int64 }
+        card_total: { type: string }
+        cari_total: { type: string }
+        net_total: { type: string }
+        paid_total: { type: string }
+        date: { type: string, format: date }
+
+    EnvelopeJobPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Job" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeJobDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/JobDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeJobsSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/JobsSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Customers (internal/modules/customers/usecase/types.go)
+    # ---------------------------------------------------------------------
+    Customer:
+      type: object
+      required:
+        [uuid, name, phone, email, kind, notes, tax_id, tax_office, is_active, vehicle_count, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        kind: { type: string, enum: [individual, company] }
+        notes: { type: string }
+        tax_id: { type: string }
+        tax_office: { type: string }
+        is_active: { type: boolean }
+        vehicle_count: { type: integer, format: int64 }
+        cari_account_uuid: { type: string, format: uuid }
+        cari_balance: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CustomerVehicle:
+      type: object
+      required: [uuid, plate, brand_uuid, brand_name, model_uuid, model_name, year, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        plate: { type: string }
+        brand_uuid: { type: string, format: uuid }
+        brand_name: { type: string }
+        logo_url: { type: string, description: "Public brand logo stream; omitted when none" }
+        model_uuid: { type: string, format: uuid }
+        model_name: { type: string }
+        year: { type: integer }
+        created_at: { type: string, format: date-time }
+
+    CustomerDetail:
+      allOf:
+        - $ref: "#/components/schemas/Customer"
+        - type: object
+          required: [vehicles]
+          properties:
+            vehicles:
+              type: array
+              items: { $ref: "#/components/schemas/CustomerVehicle" }
+
+    PatchCustomerRequest:
+      type: object
+      description: Partial update; omitted fields are left unchanged.
+      properties:
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        kind: { type: string, enum: [individual, company] }
+        notes: { type: string }
+        tax_id: { type: string }
+        tax_office: { type: string }
+        is_active: { type: boolean }
+
+    EnvelopeCustomerPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Customer" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCustomerDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCustomerVehicle:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerVehicle" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Product sales (internal/modules/sales/usecase/types.go)
+    # ---------------------------------------------------------------------
+    SaleLine:
+      type: object
+      required: [uuid, product_uuid, name, unit_price, qty, vat_rate, line_total, currency, sort_order]
+      properties:
+        uuid: { type: string, format: uuid }
+        product_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit_price: { type: string }
+        qty: { type: string }
+        vat_rate: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+        sort_order: { type: integer }
+
+    Sale:
+      type: object
+      required:
+        [uuid, customer_name, customer_phone, status, currency, total_amount, method, notes, sold_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid, description: Omitted for walk-in sales }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        status: { type: string, enum: [posted, voided] }
+        currency: { type: string }
+        total_amount: { type: string }
+        method: { type: string, enum: [cash, card, cari] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        cari_entry_uuid: { type: string, format: uuid }
+        notes: { type: string }
+        sold_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    SaleDetail:
+      allOf:
+        - $ref: "#/components/schemas/Sale"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/SaleLine" }
+
+    SalesSummary:
+      type: object
+      required: [sale_count, card_total, cari_total, net_total, paid_total, date]
+      properties:
+        sale_count: { type: integer, format: int64 }
+        card_total: { type: string }
+        cari_total: { type: string }
+        net_total: { type: string }
+        paid_total: { type: string }
+        date: { type: string, format: date }
+
+    EnvelopeSalePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Sale" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSaleDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SaleDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSalesSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SalesSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Suppliers (internal/modules/suppliers/usecase/types.go)
+    # ---------------------------------------------------------------------
+    Supplier:
+      type: object
+      required: [uuid, name, phone, email, tax_id, notes, is_active, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string }
+        tax_id: { type: string }
+        notes: { type: string }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    EnvelopeSupplierPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Supplier" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSupplier:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/Supplier" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Purchases (internal/modules/purchases/usecase/types.go)
+    # ---------------------------------------------------------------------
+    PurchaseLine:
+      type: object
+      required: [uuid, product_uuid, name, unit_cost, qty, line_total, currency, sort_order]
+      properties:
+        uuid: { type: string, format: uuid }
+        product_uuid: { type: string, format: uuid }
+        name: { type: string }
+        unit_cost: { type: string }
+        qty: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+        sort_order: { type: integer }
+
+    Purchase:
+      type: object
+      required:
+        [uuid, supplier_uuid, supplier_name, status, currency, total_amount, method, notes, purchased_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        supplier_uuid: { type: string, format: uuid }
+        supplier_name: { type: string }
+        status: { type: string, enum: [posted, voided] }
+        currency: { type: string }
+        total_amount: { type: string }
+        method: { type: string, enum: [cash, card] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        notes: { type: string }
+        purchased_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    PurchaseDetail:
+      allOf:
+        - $ref: "#/components/schemas/Purchase"
+        - type: object
+          required: [lines]
+          properties:
+            lines:
+              type: array
+              items: { $ref: "#/components/schemas/PurchaseLine" }
+
+    EnvelopePurchasePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              description: List rows include their `lines`.
+              items: { $ref: "#/components/schemas/PurchaseDetail" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopePurchaseDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PurchaseDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Staff (internal/modules/staff/usecase/service.go)
+    # ---------------------------------------------------------------------
+    StaffMember:
+      type: object
+      required: [uuid, email, name, surname, status, role, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        surname: { type: string }
+        status: { type: string, enum: [active, inactive] }
+        role: { type: string }
+        created_at: { type: string, format: date-time }
+
+    StaffMemberOption:
+      type: object
+      required: [uuid, email, name, surname, role, label]
+      properties:
+        uuid: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        surname: { type: string }
+        role: { type: string }
+        label: { type: string }
+
+    EnvelopeStaffPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          description: Not paginated; `limit` = `total` = number of items, `offset` = 0.
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/StaffMember" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeStaffOptions:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/StaffMemberOption" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeStaffMember:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/StaffMember" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Cari (internal/modules/cari/usecase/types.go)
+    # ---------------------------------------------------------------------
+    CariAccount:
+      type: object
+      required:
+        [uuid, customer_uuid, customer_name, customer_phone, currency, balance, is_active, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        customer_kind: { type: string, enum: [individual, company] }
+        currency: { type: string }
+        balance: { type: string, description: "Receivable balance (decimal string)" }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CariAccountDetail:
+      allOf:
+        - $ref: "#/components/schemas/CariAccount"
+        - type: object
+          required: [customer_email, customer_is_active]
+          properties:
+            customer_email: { type: string }
+            customer_tax_id: { type: string }
+            customer_tax_office: { type: string }
+            customer_is_active: { type: boolean }
+
+    CariEntry:
+      type: object
+      required:
+        [uuid, account_uuid, type, status, amount, balance_after, entry_date, description, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        account_uuid: { type: string, format: uuid }
+        type: { type: string, enum: [charge, payment, adjustment, opening] }
+        status: { type: string, enum: [posted, void] }
+        amount: { type: string }
+        balance_after: { type: string }
+        entry_date: { type: string, format: date }
+        description: { type: string }
+        reference_no: { type: string }
+        payment_method: { type: string, enum: [cash, card, transfer, other] }
+        finance_account_uuid: { type: string, format: uuid }
+        finance_account_name: { type: string }
+        finance_transaction_uuid: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        voided_at: { type: string, format: date-time }
+
+    CariSummary:
+      type: object
+      required: [total_receivable, account_count, with_balance_count]
+      properties:
+        total_receivable: { type: string }
+        account_count: { type: integer, format: int64 }
+        with_balance_count: { type: integer, format: int64 }
+
+    EnvelopeCariAccountPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CariAccount" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariAccountDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CariAccountDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariEntryPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/CariEntry" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariEntry:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CariEntry" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCariSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CariSummary" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

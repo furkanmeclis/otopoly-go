@@ -6,6 +6,9 @@ export const CREDENTIAL_ERROR_CODES = {
   MFA_NOT_ENROLLED: "MFA_NOT_ENROLLED",
   NO_TENANT_MEMBERSHIP: "NO_TENANT_MEMBERSHIP",
   ORGANIZATION_ACCESS_EXPIRED: "ORGANIZATION_ACCESS_EXPIRED",
+  ACCOUNT_DEACTIVATED: "ACCOUNT_DEACTIVATED",
+  INVALID_EMAIL_CODE: "INVALID_EMAIL_CODE",
+  RATE_LIMITED: "RATE_LIMITED",
 } as const;
 
 export type CredentialErrorCode =
@@ -29,6 +32,44 @@ export class NoTenantMembershipError extends CredentialsSignin {
 
 export class OrganizationAccessExpiredError extends CredentialsSignin {
   code = CREDENTIAL_ERROR_CODES.ORGANIZATION_ACCESS_EXPIRED;
+}
+
+export class AccountDeactivatedError extends CredentialsSignin {
+  code = CREDENTIAL_ERROR_CODES.ACCOUNT_DEACTIVATED;
+}
+
+export class InvalidEmailCodeError extends CredentialsSignin {
+  code = CREDENTIAL_ERROR_CODES.INVALID_EMAIL_CODE;
+}
+
+export class RateLimitedError extends CredentialsSignin {
+  code = CREDENTIAL_ERROR_CODES.RATE_LIMITED;
+}
+
+/** Maps a Go API error code to the matching NextAuth credentials error. */
+export function credentialsErrorFor(
+  code: string | undefined,
+): CredentialsSignin | null {
+  switch (code) {
+    case CREDENTIAL_ERROR_CODES.MFA_REQUIRED:
+      return new MFARequiredError();
+    case CREDENTIAL_ERROR_CODES.INVALID_MFA_CODE:
+      return new InvalidMFACodeError();
+    case CREDENTIAL_ERROR_CODES.MFA_NOT_ENROLLED:
+      return new MFANotEnrolledError();
+    case CREDENTIAL_ERROR_CODES.NO_TENANT_MEMBERSHIP:
+      return new NoTenantMembershipError();
+    case CREDENTIAL_ERROR_CODES.ORGANIZATION_ACCESS_EXPIRED:
+      return new OrganizationAccessExpiredError();
+    case CREDENTIAL_ERROR_CODES.ACCOUNT_DEACTIVATED:
+      return new AccountDeactivatedError();
+    case CREDENTIAL_ERROR_CODES.INVALID_EMAIL_CODE:
+      return new InvalidEmailCodeError();
+    case CREDENTIAL_ERROR_CODES.RATE_LIMITED:
+      return new RateLimitedError();
+    default:
+      return null;
+  }
 }
 
 export type CredentialSignInResult = {

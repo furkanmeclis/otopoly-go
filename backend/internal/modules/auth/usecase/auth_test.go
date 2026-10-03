@@ -48,6 +48,7 @@ func (r *memRepo) CreateUser(_ context.Context, u model.User, emailVerified bool
 	r.nextID++
 	u.ID = r.nextID
 	u.UUID = uuid.New()
+	u.PasswordSet = true // DB default
 	if emailVerified {
 		u.EmailVerified = true
 	}
@@ -89,6 +90,19 @@ func (r *memRepo) UpdatePassword(_ context.Context, userID int64, hash string) e
 		return repository.ErrNotFound
 	}
 	u.PasswordHash = hash
+	u.PasswordSet = true
+	r.users[userID] = u
+	r.byEmail[u.Email] = u
+	r.byUUID[u.UUID] = u
+	return nil
+}
+
+func (r *memRepo) MarkPasswordUnset(_ context.Context, userID int64) error {
+	u, ok := r.users[userID]
+	if !ok {
+		return repository.ErrNotFound
+	}
+	u.PasswordSet = false
 	r.users[userID] = u
 	r.byEmail[u.Email] = u
 	r.byUUID[u.UUID] = u
@@ -333,6 +347,25 @@ func (r *memRepo) UpdatePasskeyCounter(context.Context, string, int64) error { r
 func (r *memRepo) UpdatePasskeyName(context.Context, uuid.UUID, uuid.UUID, *string) (model.PasskeyRecord, error) {
 	return model.PasskeyRecord{}, repository.ErrNotFound
 }
+
+func (r *memRepo) DeactivateUser(_ context.Context, userID int64) (model.User, error) {
+	u, ok := r.users[userID]
+	if !ok {
+		return model.User{}, repository.ErrNotFound
+	}
+	now := time.Now().UTC()
+	u.Status = "disabled"
+	u.DeactivatedAt = &now
+	r.users[u.ID] = u
+	r.byEmail[u.Email] = u
+	r.byUUID[u.UUID] = u
+	return u, nil
+}
+
+func (r *memRepo) UpdateOAuthAccountRefreshToken(context.Context, int64, *string, *string) error {
+	return nil
+}
+
 func (r *memRepo) DeletePasskeyByCredentialID(context.Context, string) error       { return nil }
 func (r *memRepo) DeletePasskeyByUUID(context.Context, uuid.UUID, uuid.UUID) error { return nil }
 
