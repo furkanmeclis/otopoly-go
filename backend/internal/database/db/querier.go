@@ -51,7 +51,7 @@ type Querier interface {
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
 	CloseSubscription(ctx context.Context, arg CloseSubscriptionParams) error
 	ConfirmUserTOTP(ctx context.Context, arg ConfirmUserTOTPParams) (UserTotp, error)
-	ConsumeOTP(ctx context.Context, id int64) error
+	ConsumeOTP(ctx context.Context, id int64) (int64, error)
 	ConsumeUsage(ctx context.Context, arg ConsumeUsageParams) (int64, error)
 	CountAIConversations(ctx context.Context, arg CountAIConversationsParams) (int64, error)
 	CountActiveJobsInRange(ctx context.Context, arg CountActiveJobsInRangeParams) (int64, error)
@@ -203,6 +203,8 @@ type Querier interface {
 	// Vehicles per service for the day ("12 × Yıkama, 1 × PPF").
 	DailySummaryServiceBreakdown(ctx context.Context, arg DailySummaryServiceBreakdownParams) ([]DailySummaryServiceBreakdownRow, error)
 	DeactivateDiscountCode(ctx context.Context, argUuid uuid.UUID) error
+	// Self-service account deletion: keep every row, mark the user disabled.
+	DeactivateUser(ctx context.Context, id int64) (User, error)
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteAppLogsByUUIDs(ctx context.Context, uuids []uuid.UUID) (int64, error)
 	DeleteAppLogsMatching(ctx context.Context, arg DeleteAppLogsMatchingParams) (int64, error)
@@ -707,6 +709,8 @@ type Querier interface {
 	MarkServiceJobDone(ctx context.Context, arg MarkServiceJobDoneParams) (ServiceJob, error)
 	MarkServiceJobPaid(ctx context.Context, arg MarkServiceJobPaidParams) (ServiceJob, error)
 	MarkServiceJobVoided(ctx context.Context, arg MarkServiceJobVoidedParams) (ServiceJob, error)
+	// OAuth sign-up stores a random hash; the user never chose a password.
+	MarkUserPasswordUnset(ctx context.Context, id int64) error
 	MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicleAlertEventsSentParams) error
 	MoveToGrace(ctx context.Context, arg MoveToGraceParams) (BillingSubscription, error)
 	MoveToReadOnly(ctx context.Context, id int64) (BillingSubscription, error)
@@ -829,6 +833,7 @@ type Querier interface {
 	UpdateJobConsumptionQty(ctx context.Context, arg UpdateJobConsumptionQtyParams) (ServiceJobConsumption, error)
 	UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, error)
 	UpdateLogPurgeRule(ctx context.Context, arg UpdateLogPurgeRuleParams) (LogPurgeRule, error)
+	UpdateOAuthAccountRefreshToken(ctx context.Context, arg UpdateOAuthAccountRefreshTokenParams) error
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)
 	UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOrganizationLetterheadParams) (Organization, error)
 	UpdateOrganizationPlatform(ctx context.Context, arg UpdateOrganizationPlatformParams) (Organization, error)
@@ -848,6 +853,7 @@ type Querier interface {
 	UpdateUserLastLogin(ctx context.Context, id int64) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPasswordByID(ctx context.Context, arg UpdateUserPasswordByIDParams) error
+	// Re-activating a user (status -> active) clears a self-service deactivation.
 	UpdateUserPlatform(ctx context.Context, arg UpdateUserPlatformParams) (User, error)
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	UpdateUserProfileBasics(ctx context.Context, arg UpdateUserProfileBasicsParams) error

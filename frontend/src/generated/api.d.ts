@@ -77,6 +77,9 @@ export interface paths {
         /**
          * Login
          * @description Authenticates with email/password and returns a token pair.
+         *     A self-deleted account returns `403 ACCOUNT_DEACTIVATED` (after the
+         *     password is verified); `/v1/auth/refresh` and every other sign-in path
+         *     do the same.
          */
         post: operations["postAuthLogin"];
         delete?: never;
@@ -509,8 +512,38 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Unlink an OAuth identity */
+        /**
+         * Unlink an OAuth identity
+         * @description `409 LAST_SIGN_IN_METHOD` when the user has no password
+         *     (`has_password: false`), no passkey and this is the last linked identity.
+         */
         delete: operations["deleteAuthIdentity"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/identities/{provider}/native": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link a native Apple / Google id_token to the current user
+         * @description Mobile "linked accounts" screen. The `id_token` is verified exactly like
+         *     `POST /v1/auth/oauth/{provider}/native` (JWKS, `iss`, `exp`, `aud`,
+         *     `nonce`). Idempotent when the identity is already linked to the
+         *     caller. `409 CONFLICT` when the identity is linked to another user or
+         *     the caller already has a different identity for this provider.
+         *     Apple: send `authorization_code` to store a refresh token (revoked on
+         *     account deletion).
+         */
+        post: operations["postAuthIdentityNative"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1140,6 +1173,390 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/email-code/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request an email sign-in code
+         * @description Emails a 6-digit one-time sign-in code (valid 10 minutes, 5 attempts,
+         *     single use, stored hashed). The response is identical whether or not the
+         *     email belongs to an account. Rate limited per IP and per email.
+         *
+         *     App review: emails listed in `AUTH_REVIEW_ACCOUNTS` receive no email;
+         *     their fixed code works for that email only.
+         */
+        post: operations["postAuthEmailCodeRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/email-code/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in with an email code
+         * @description Exchanges an email code for the same token pair as `/v1/auth/login`.
+         *     When the user has authenticator 2FA, a call without `totp_code` returns
+         *     `403 MFA_REQUIRED` and the email code stays valid; retry with the same
+         *     `code` plus `totp_code`. A wrong `totp_code` (`401 INVALID_MFA_CODE`)
+         *     counts against the code's 5 attempts.
+         *
+         *     Errors: `400 INVALID_EMAIL_CODE` (wrong / expired / used / exhausted),
+         *     `403 MFA_REQUIRED`, `401 INVALID_MFA_CODE`, `403 ACCOUNT_DEACTIVATED`,
+         *     `403 FORBIDDEN` (disabled by an admin), `403 NO_TENANT_MEMBERSHIP`,
+         *     `429 RATE_LIMITED`.
+         */
+        post: operations["postAuthEmailCodeVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/oauth/{provider}/native": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sign in with a native Apple / Google id_token
+         * @description For mobile apps using the platform SDKs. The `id_token` signature is
+         *     verified against the provider JWKS (cached), plus `iss`, `exp`, `aud`
+         *     (Apple: `AUTH_APPLE_NATIVE_CLIENT_IDS`, default `com.otopoly.app`;
+         *     Google: `AUTH_GOOGLE_NATIVE_CLIENT_IDS` plus the web client id from
+         *     OAuth settings) and `nonce` when sent (raw nonce, or its hex SHA-256
+         *     in the token).
+         *
+         *     - Identity already linked → tokens (same shape as `/v1/auth/login`,
+         *       including the `MFA_REQUIRED` / `totp_code` round-trip).
+         *     - Not linked, an account with the same email exists →
+         *       `409 OAUTH_ACCOUNT_NOT_LINKED` (same policy as the web: sign in with
+         *       the existing method and link from the profile).
+         *     - Not linked, Apple private-relay email (`@privaterelay.appleid.com`),
+         *       no account → `409 OAUTH_LINK_CHOICE_REQUIRED`; `error.details`
+         *       carries `link_ticket`, `provider`, `expires_in` (seconds, 900) and
+         *       `register_allowed` (`"true"`/`"false"`). Continue with
+         *       `/v1/auth/oauth/link/*`.
+         *     - Not linked, no account → the account is created (OAuth sign-up; needs
+         *       registration enabled, else `403 FORBIDDEN`) and tokens returned.
+         *
+         *     Apple: send `authorization_code` so the server can store a refresh
+         *     token (revoked on account deletion; needs `AUTH_APPLE_*` key config),
+         *     and `given_name` / `family_name` on the first sign-in.
+         */
+        post: operations["postAuthOAuthNative"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/oauth/link/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email a link code to an existing account
+         * @description "Yes, I have an account": emails a 6-digit link code (10 minutes) to
+         *     `email` if an account exists. Always `200 accepted` for a valid ticket
+         *     (no enumeration). `400 INVALID_LINK_TICKET` when the ticket is
+         *     tampered or expired.
+         */
+        post: operations["postAuthOAuthLinkRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/oauth/link/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link the provider identity to an existing account and sign in
+         * @description Verifies the link code, links the ticket's identity to the account and
+         *     returns tokens. Same `MFA_REQUIRED` / `totp_code` round-trip as login
+         *     (the code stays valid until it succeeds). Errors: `400 INVALID_LINK_TICKET`,
+         *     `400 INVALID_EMAIL_CODE`, `409 CONFLICT` (identity linked elsewhere or
+         *     the account already has another identity for this provider),
+         *     `403 ACCOUNT_DEACTIVATED`.
+         */
+        post: operations["postAuthOAuthLinkVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/oauth/link/create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a new account for the provider identity and sign in
+         * @description "No, I don't have an account": creates the account exactly like an
+         *     OAuth sign-up (registration policy, default role, welcome email) with
+         *     the ticket's relay email, links the identity and returns tokens.
+         *     Retrying with the same ticket signs into the account created by the
+         *     first call. Errors: `400 INVALID_LINK_TICKET`, `403 FORBIDDEN`
+         *     (registration disabled), `409 CONFLICT` (email registered meanwhile).
+         */
+        post: operations["postAuthOAuthLinkCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/account/deactivate/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email an account-deletion confirmation code
+         * @description Sends a 6-digit confirmation code (10 minutes) to the caller's email.
+         *     Intended for passwordless accounts (Apple / Google / email code) that
+         *     cannot complete a password / passkey / TOTP step-up.
+         */
+        post: operations["postAuthAccountDeactivateRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/account/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Delete (deactivate) own account
+         * @description Account deletion keeps all data: the user becomes `disabled` with
+         *     `deactivated_at`, every refresh session is revoked, stored Apple
+         *     refresh tokens are revoked via Apple `/auth/revoke` (best effort), and
+         *     every sign-in path returns `403 ACCOUNT_DEACTIVATED` afterwards.
+         *     Organizations the user owns are kept as-is (other members keep access).
+         *
+         *     Confirm with either a recent step-up grant (`/v1/auth/step-up/*`,
+         *     send `{}`) or `code` from `/v1/auth/account/deactivate/request`.
+         *     Without either → `403 STEP_UP_REQUIRED`. Wrong code →
+         *     `400 INVALID_EMAIL_CODE`. The last super admin gets `409 CONFLICT`.
+         *     Refused while impersonating (`403 FORBIDDEN`). A platform admin can
+         *     reactivate the user by setting status `active`.
+         */
+        post: operations["postAuthAccountDeactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a QR sign-in (web login page)
+         * @description Creates a short-lived (120 s) QR sign-in session for the calling browser
+         *     tab. Render `qr_url` (`{frontend}/login/qr/{session_id}`) as a QR; the
+         *     signed-in mobile app opens it (universal link or in-app scanner).
+         *
+         *     Keep `browser_secret` in the tab only: it is required to read the state
+         *     and to exchange an approval. `realtime` holds an **anonymous** Centrifugo
+         *     connection token (`sub: ""`) and a subscription token for exactly one
+         *     private channel `qrlogin:{random}` (unrelated to the session id). Both
+         *     expire 30 s after the session. Channel events (`data.type`):
+         *     `scanned`, `approved` (with `exchange_token`), `rejected`.
+         *
+         *     The request's User-Agent and client IP (first `X-Forwarded-For` hop) are
+         *     stored for the approval screen. Errors: `429 RATE_LIMITED` (60 / 15 min
+         *     per IP), `503 REALTIME_DISABLED`.
+         */
+        post: operations["postAuthQRSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * QR sign-in details (mobile)
+         * @description Shows who is asking to sign in: browser / OS parsed from the web
+         *     request's User-Agent, its IP and approximate location (`null` when
+         *     unknown), created / expiry time. The first signed-in viewer claims the
+         *     session; other accounts then get `409 QR_SESSION_CLAIMED`.
+         *
+         *     Errors: `404 QR_SESSION_NOT_FOUND` (unknown / expired / used),
+         *     `409 QR_SESSION_CLAIMED`, `429 RATE_LIMITED`.
+         */
+        get: operations["getAuthQRSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a QR sign-in (mobile)
+         * @description Signs the waiting browser tab in as the caller, scoped to the caller's
+         *     active organization (the token's `oid`, re-validated at exchange).
+         *     Publishes `{type: "approved", exchange_token}` to the tab's channel;
+         *     the exchange window is 60 s. Exactly one approve / reject succeeds.
+         *
+         *     Errors: `403 ACCOUNT_DEACTIVATED`, `403 FORBIDDEN` (impersonating or
+         *     disabled), `404 QR_SESSION_NOT_FOUND`, `409 QR_SESSION_RESOLVED`,
+         *     `409 QR_SESSION_CLAIMED`, `429 RATE_LIMITED`.
+         */
+        post: operations["postAuthQRSessionApprove"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a QR sign-in (mobile)
+         * @description Publishes `{type: "rejected"}` to the tab's channel. Errors as approve
+         *     (no account-state check).
+         */
+        post: operations["postAuthQRSessionReject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/sessions/{id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * QR sign-in state for the owning tab
+         * @description Read once after the tab (re)subscribes to its channel so an event sent
+         *     while the socket was down is not lost. Not meant for polling. Wrong
+         *     secrets count against 5 attempts, after which the session is deleted.
+         *
+         *     Errors: `400 QR_LOGIN_INVALID`, `404 QR_SESSION_NOT_FOUND`,
+         *     `429 RATE_LIMITED`.
+         */
+        post: operations["postAuthQRSessionState"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/qr/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Redeem an approved QR sign-in (web server)
+         * @description Called by the web server (NextAuth `qr-login` credentials provider), not
+         *     by browser JS (the BFF blocks it). Needs the session id, the tab's
+         *     `browser_secret` and the `exchange_token` from the approval event.
+         *     Single use: the session is deleted on success. Returns the same token
+         *     pair as `/v1/auth/login` plus the signed-in user. The session row keeps
+         *     the User-Agent / IP of the browser that showed the QR.
+         *
+         *     Errors: `400 QR_LOGIN_INVALID` (wrong secret / token, not approved yet),
+         *     `404 QR_SESSION_NOT_FOUND`, `403 ACCOUNT_DEACTIVATED`,
+         *     `403 NO_TENANT_MEMBERSHIP`, `403 ORGANIZATION_ACCESS_EXPIRED`,
+         *     `429 RATE_LIMITED`.
+         */
+        post: operations["postAuthQRExchange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications": {
         parameters: {
             query?: never;
@@ -1635,10 +2052,15 @@ export interface paths {
         get: operations["getTenantFinanceCategory"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete finance category */
+        delete: operations["deleteTenantFinanceCategory"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Update finance category
+         * @description Partial update. A category cannot be its own parent; the parent must exist in the organization.
+         */
+        patch: operations["patchTenantFinanceCategory"];
         trace?: never;
     };
     "/v1/tenant/finance/categories/{uuid}/detail": {
@@ -5730,6 +6152,17 @@ export interface components {
              * @example CONFLICT
              * @example PASSWORD_RESET_FAILED
              * @example INTERNAL_ERROR
+             * @example MFA_REQUIRED
+             * @example INVALID_MFA_CODE
+             * @example RATE_LIMITED
+             * @example STEP_UP_REQUIRED
+             * @example ACCOUNT_DEACTIVATED
+             * @example INVALID_EMAIL_CODE
+             * @example INVALID_ID_TOKEN
+             * @example OAUTH_ACCOUNT_NOT_LINKED
+             * @example OAUTH_LINK_CHOICE_REQUIRED
+             * @example INVALID_LINK_TICKET
+             * @example OAUTH_PROVIDER_DISABLED
              */
             code: string;
             message: string;
@@ -6103,6 +6536,59 @@ export interface components {
             /** @enum {string} */
             locale?: "tr" | "en";
         };
+        EmailCodeRequest: {
+            /** Format: email */
+            email: string;
+        };
+        EmailCodeVerifyRequest: {
+            /** Format: email */
+            email: string;
+            /** @description 6-digit code from the email */
+            code: string;
+            /** @description Authenticator or recovery code when 2FA is enabled */
+            totp_code?: string;
+            /** @description When set, login is scoped to this organization membership */
+            organization_slug?: string;
+        };
+        NativeOAuthRequest: {
+            /** @description Provider id_token from the native SDK */
+            id_token: string;
+            /** @description Raw nonce passed to the SDK (token may carry it raw or SHA-256 hex) */
+            nonce?: string;
+            /** @description Apple first sign-in only (Apple sends the name to the app, not in the token) */
+            given_name?: string;
+            family_name?: string;
+            /** @description Apple authorization code; exchanged for a refresh token that is revoked on account deletion */
+            authorization_code?: string;
+            totp_code?: string;
+            organization_slug?: string;
+        };
+        OAuthLinkRequest: {
+            /** @description From `OAUTH_LINK_CHOICE_REQUIRED` error details (valid 15 minutes) */
+            link_ticket: string;
+            /**
+             * Format: email
+             * @description Email of the existing account
+             */
+            email: string;
+        };
+        OAuthLinkVerifyRequest: {
+            link_ticket: string;
+            /** Format: email */
+            email: string;
+            code: string;
+            totp_code?: string;
+            organization_slug?: string;
+        };
+        OAuthLinkCreateRequest: {
+            link_ticket: string;
+            totp_code?: string;
+            organization_slug?: string;
+        };
+        AccountDeactivateRequest: {
+            /** @description Code from `/v1/auth/account/deactivate/request`; omit to use a step-up grant */
+            code?: string;
+        };
         ForgotPasswordRequest: {
             /** Format: email */
             email: string;
@@ -6232,12 +6718,32 @@ export interface components {
             register_enabled: boolean;
             client_id: string;
             client_secret_configured: boolean;
+            /** @description Apple only. Apple Developer Team ID of the signing key. */
+            team_id?: string;
+            /** @description Apple only. Key ID of the uploaded .p8 signing key. */
+            key_id?: string;
+            /** @description Apple only. True when a .p8 signing key is stored (encrypted). The key is never returned. */
+            private_key_configured?: boolean;
+            /**
+             * @description Apple only. Signing key in use at runtime: the uploaded key (db), the AUTH_APPLE_* env fallback (env) or none. With a key, the web client_secret is generated automatically.
+             * @enum {string}
+             */
+            private_key_source?: "db" | "env" | "none";
         };
         PatchOAuthProviderSettingsRequest: {
             login_enabled?: boolean;
             register_enabled?: boolean;
             client_id?: string;
+            /** @description Write-only. For Apple it is optional when a signing key is configured (the secret is then generated from the key). */
             client_secret?: string;
+            /** @description Apple only. 10-character Team ID (stored upper-case). */
+            team_id?: string;
+            /** @description Apple only. 10-character Key ID (the KEYID in AuthKey_KEYID.p8). */
+            key_id?: string;
+            /** @description Apple only. Contents of the .p8 file (PEM, PKCS#8, EC P-256). Requires team_id and key_id (sent or already stored). Stored encrypted; never returned. */
+            private_key?: string;
+            /** @description Apple only. Deletes the stored signing key (and its key_id). Cannot be combined with private_key. */
+            remove_private_key?: boolean;
         };
         EnvelopeOAuthProviderSettings: {
             /** @enum {boolean} */
@@ -6256,6 +6762,22 @@ export interface components {
             items: components["schemas"]["LinkedIdentity"][];
             /** Format: int64 */
             total: number;
+            /** @description False when the user never chose a password (OAuth sign-up) */
+            has_password: boolean;
+        };
+        EnvelopeLinkedIdentity: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LinkedIdentity"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        NativeIdentityLinkRequest: {
+            /** @description Provider id_token from the native SDK */
+            id_token: string;
+            /** @description Raw nonce passed to the SDK */
+            nonce?: string;
+            /** @description Apple authorization code; exchanged for a refresh token */
+            authorization_code?: string;
         };
         EnvelopeIdentityList: {
             /** @enum {boolean} */
@@ -6384,6 +6906,108 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["ImpersonationResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginCreated: {
+            /** @description 43-char base64url id (in the QR) */
+            session_id: string;
+            /**
+             * Format: uri
+             * @example https://otopoly.app/login/qr/Zm9v...
+             */
+            qr_url: string;
+            /** @description Keep in the tab only */
+            browser_secret: string;
+            /** Format: date-time */
+            expires_at: string;
+            /**
+             * Format: int64
+             * @example 120
+             */
+            expires_in: number;
+            realtime: {
+                ws_url: string;
+                /** @description Anonymous Centrifugo connection JWT */
+                connection_token: string;
+                /** @description Subscription JWT for `channel` only */
+                subscription_token: string;
+                /** @example qrlogin:4Hq... */
+                channel: string;
+            };
+        };
+        EnvelopeQRLoginCreated: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginCreated"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginDetails: {
+            session_id: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            client: {
+                /** @example Chrome */
+                browser: string;
+                /** @example 128 */
+                browser_version: string;
+                /** @example Windows */
+                os: string;
+                /** @enum {string} */
+                device_type: "desktop" | "mobile" | "tablet";
+                user_agent: string;
+            };
+            ip: string;
+            location: null | {
+                /** @example TR */
+                country_code?: string;
+                /** @description English name (GeoIP only) */
+                country?: string;
+                region?: string;
+                city?: string;
+                /** @enum {string} */
+                source?: "edge" | "geoip";
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        EnvelopeQRLoginDetails: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginDetails"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginState: {
+            /** @enum {string} */
+            status: "pending" | "scanned" | "approved" | "rejected";
+            /** @description Present when approved */
+            exchange_token?: string;
+        };
+        EnvelopeQRLoginState: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginState"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        QRLoginExchangeRequest: {
+            session_id: string;
+            browser_secret: string;
+            exchange_token: string;
+        };
+        QRLoginExchanged: components["schemas"]["Tokens"] & {
+            user: {
+                /** Format: uuid */
+                uuid: string;
+                /** Format: email */
+                email: string;
+                name: string;
+            };
+        };
+        EnvelopeQRLoginExchanged: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["QRLoginExchanged"];
             meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeStatus: {
@@ -6772,8 +7396,12 @@ export interface components {
             kind: "income" | "expense";
             /** Format: uuid */
             parent_uuid?: string | null;
-            sort_order?: number;
+            sort_order: number;
             is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         CreateFinanceTransactionRequest: {
             /** @enum {string} */
@@ -9223,6 +9851,586 @@ export interface components {
             data: components["schemas"]["PublicQuote"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        DeletedResult: {
+            /** @enum {boolean} */
+            deleted: true;
+        };
+        EnvelopeDeletedResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["DeletedResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        OkResult: {
+            /** @enum {boolean} */
+            ok: true;
+        };
+        EnvelopeOkResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OkResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceCategoryList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["FinanceCategory"][];
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Partial update; omitted fields are left unchanged. `kind` cannot be changed. */
+        PatchFinanceCategoryRequest: {
+            name?: string;
+            /** Format: uuid */
+            parent_uuid?: string;
+            /** Format: int32 */
+            sort_order?: number;
+            is_active?: boolean;
+        };
+        ImportUploadRequest: {
+            /**
+             * Format: binary
+             * @description Import file (max 10 MiB)
+             */
+            file: string;
+            /**
+             * @description Defaults to `csv`.
+             * @enum {string}
+             */
+            format?: "csv" | "tsv" | "xlsx" | "json";
+            /** @description Header / value locale; defaults to `tr`. */
+            locale?: string;
+        };
+        ImportMappingRequest: {
+            /** @description Target field → source column header. */
+            mapping?: {
+                [key: string]: string;
+            };
+            /** @description Target field → constant value used when the column is absent / empty. */
+            defaults?: {
+                [key: string]: string;
+            };
+        };
+        JobServiceTag: {
+            /**
+             * Format: uuid
+             * @description Omitted for lines without a catalog service
+             */
+            uuid?: string;
+            name: string;
+            /** @description Palette key, or "" (UI derives one from the name) */
+            color: string;
+        };
+        Job: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            /** Format: uuid */
+            vehicle_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            plate: string;
+            vehicle_label: string;
+            /** @enum {string} */
+            status: "in_progress" | "ready" | "delivered" | "cancelled" | "voided";
+            /** @enum {string} */
+            payment_status: "unpaid" | "paid";
+            currency: string;
+            notes: string;
+            /** @description Decimal string */
+            total_amount: string;
+            /** Format: uuid */
+            assignee_uuid?: string;
+            assignee_name?: string;
+            /** @description List rows only */
+            brand_name?: string;
+            /** @description List rows only; public vehicle brand logo stream, omitted when none */
+            brand_logo_url?: string;
+            /** @description List rows only (card tags); omitted when empty. */
+            services?: components["schemas"]["JobServiceTag"][];
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at?: string;
+            /** Format: date-time */
+            delivered_at?: string;
+            /** Format: date-time */
+            paid_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        JobLine: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            line_type: "service" | "product";
+            /** Format: uuid */
+            service_uuid?: string;
+            name: string;
+            unit_price: string;
+            qty: string;
+            vat_rate: string;
+            line_total: string;
+            currency: string;
+            sort_order: number;
+        };
+        JobPayment: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            method: "cash" | "card" | "cari";
+            amount: string;
+            currency: string;
+            /** @enum {string} */
+            status: "posted" | "void";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            /** Format: uuid */
+            cari_entry_uuid?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        JobDetail: components["schemas"]["Job"] & {
+            lines: components["schemas"]["JobLine"][];
+            payments: components["schemas"]["JobPayment"][];
+            consumptions: components["schemas"]["JobConsumption"][];
+            /** @description Sum of active consumptions at cost price */
+            material_cost: string;
+        };
+        JobsSummary: {
+            /** Format: int64 */
+            job_count: number;
+            card_total: string;
+            cari_total: string;
+            net_total: string;
+            paid_total: string;
+            /** Format: date */
+            date: string;
+        };
+        EnvelopeJobPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Job"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeJobDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["JobDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeJobsSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["JobsSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        Customer: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            phone: string;
+            email: string;
+            /** @enum {string} */
+            kind: "individual" | "company";
+            notes: string;
+            tax_id: string;
+            tax_office: string;
+            is_active: boolean;
+            /** Format: int64 */
+            vehicle_count: number;
+            /** Format: uuid */
+            cari_account_uuid?: string;
+            cari_balance?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CustomerVehicle: {
+            /** Format: uuid */
+            uuid: string;
+            plate: string;
+            /** Format: uuid */
+            brand_uuid: string;
+            brand_name: string;
+            /** @description Public brand logo stream; omitted when none */
+            logo_url?: string;
+            /** Format: uuid */
+            model_uuid: string;
+            model_name: string;
+            year: number;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CustomerDetail: components["schemas"]["Customer"] & {
+            vehicles: components["schemas"]["CustomerVehicle"][];
+        };
+        /** @description Partial update; omitted fields are left unchanged. */
+        PatchCustomerRequest: {
+            name?: string;
+            phone?: string;
+            email?: string;
+            /** @enum {string} */
+            kind?: "individual" | "company";
+            notes?: string;
+            tax_id?: string;
+            tax_office?: string;
+            is_active?: boolean;
+        };
+        EnvelopeCustomerPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Customer"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerVehicle: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerVehicle"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        SaleLine: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            unit_price: string;
+            qty: string;
+            vat_rate: string;
+            line_total: string;
+            currency: string;
+            sort_order: number;
+        };
+        Sale: {
+            /** Format: uuid */
+            uuid: string;
+            /**
+             * Format: uuid
+             * @description Omitted for walk-in sales
+             */
+            customer_uuid?: string;
+            customer_name: string;
+            customer_phone: string;
+            /** @enum {string} */
+            status: "posted" | "voided";
+            currency: string;
+            total_amount: string;
+            /** @enum {string} */
+            method: "cash" | "card" | "cari";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            /** Format: uuid */
+            cari_entry_uuid?: string;
+            notes: string;
+            /** Format: date-time */
+            sold_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        SaleDetail: components["schemas"]["Sale"] & {
+            lines: components["schemas"]["SaleLine"][];
+        };
+        SalesSummary: {
+            /** Format: int64 */
+            sale_count: number;
+            card_total: string;
+            cari_total: string;
+            net_total: string;
+            paid_total: string;
+            /** Format: date */
+            date: string;
+        };
+        EnvelopeSalePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Sale"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSaleDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SaleDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSalesSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SalesSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        Supplier: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            phone: string;
+            email: string;
+            tax_id: string;
+            notes: string;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        EnvelopeSupplierPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Supplier"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSupplier: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["Supplier"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PurchaseLine: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            unit_cost: string;
+            qty: string;
+            line_total: string;
+            currency: string;
+            sort_order: number;
+        };
+        Purchase: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            supplier_uuid: string;
+            supplier_name: string;
+            /** @enum {string} */
+            status: "posted" | "voided";
+            currency: string;
+            total_amount: string;
+            /** @enum {string} */
+            method: "cash" | "card";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            notes: string;
+            /** Format: date-time */
+            purchased_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        PurchaseDetail: components["schemas"]["Purchase"] & {
+            lines: components["schemas"]["PurchaseLine"][];
+        };
+        EnvelopePurchasePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                /** @description List rows include their `lines`. */
+                items: components["schemas"]["PurchaseDetail"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePurchaseDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PurchaseDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StaffMember: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            surname: string;
+            /** @enum {string} */
+            status: "active" | "inactive";
+            role: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        StaffMemberOption: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            surname: string;
+            role: string;
+            label: string;
+        };
+        EnvelopeStaffPage: {
+            /** @enum {boolean} */
+            success: true;
+            /** @description Not paginated; `limit` = `total` = number of items, `offset` = 0. */
+            data: {
+                items: components["schemas"]["StaffMember"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeStaffOptions: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["StaffMemberOption"][];
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeStaffMember: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["StaffMember"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        CariAccount: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            /** @enum {string} */
+            customer_kind?: "individual" | "company";
+            currency: string;
+            /** @description Receivable balance (decimal string) */
+            balance: string;
+            is_active: boolean;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        CariAccountDetail: components["schemas"]["CariAccount"] & {
+            customer_email: string;
+            customer_tax_id?: string;
+            customer_tax_office?: string;
+            customer_is_active: boolean;
+        };
+        CariEntry: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            account_uuid: string;
+            /** @enum {string} */
+            type: "charge" | "payment" | "adjustment" | "opening";
+            /** @enum {string} */
+            status: "posted" | "void";
+            amount: string;
+            balance_after: string;
+            /** Format: date */
+            entry_date: string;
+            description: string;
+            reference_no?: string;
+            /** @enum {string} */
+            payment_method?: "cash" | "card" | "transfer" | "other";
+            /** Format: uuid */
+            finance_account_uuid?: string;
+            finance_account_name?: string;
+            /** Format: uuid */
+            finance_transaction_uuid?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            voided_at?: string;
+        };
+        CariSummary: {
+            total_receivable: string;
+            /** Format: int64 */
+            account_count: number;
+            /** Format: int64 */
+            with_balance_count: number;
+        };
+        EnvelopeCariAccountPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["CariAccount"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariAccountDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CariAccountDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariEntryPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["CariEntry"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariEntry: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CariEntry"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCariSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CariSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
     };
     responses: {
         /** @description Validation or malformed request */
@@ -9342,6 +10550,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description QR sign-in session id (from the QR URL) */
+        QRSessionID: string;
         /** @description Resource UUID */
         ResourceUUID: string;
         Limit: number;
@@ -10192,6 +11402,72 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             404: components["responses"]["NotFound"];
+            /** @description `LAST_SIGN_IN_METHOD` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthIdentityNative: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: "apple" | "google";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativeIdentityLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Linked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLinkedIdentity"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description `UNAUTHENTICATED` or `INVALID_ID_TOKEN` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `OAUTH_PROVIDER_DISABLED`, `ACCOUNT_DEACTIVATED`, `FORBIDDEN` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `CONFLICT` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -11399,6 +12675,465 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    postAuthEmailCodeRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted (always, for any well-formed email) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthEmailCodeVerify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Authenticated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTokens"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthOAuthNative: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                provider: "apple" | "google";
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativeOAuthRequest"];
+            };
+        };
+        responses: {
+            /** @description Authenticated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTokens"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description `INVALID_ID_TOKEN` or `INVALID_MFA_CODE` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description `MFA_REQUIRED`, `ACCOUNT_DEACTIVATED`, `OAUTH_PROVIDER_DISABLED`, `FORBIDDEN` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description `OAUTH_ACCOUNT_NOT_LINKED` or `OAUTH_LINK_CHOICE_REQUIRED` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    /**
+                     * @example {
+                     *       "success": false,
+                     *       "error": {
+                     *         "code": "OAUTH_LINK_CHOICE_REQUIRED",
+                     *         "message": "Choose whether to link this sign-in to an existing account or create a new one",
+                     *         "details": [
+                     *           {
+                     *             "field": "link_ticket",
+                     *             "message": "<opaque>"
+                     *           },
+                     *           {
+                     *             "field": "provider",
+                     *             "message": "apple"
+                     *           },
+                     *           {
+                     *             "field": "expires_in",
+                     *             "message": "900"
+                     *           },
+                     *           {
+                     *             "field": "register_allowed",
+                     *             "message": "true"
+                     *           }
+                     *         ]
+                     *       },
+                     *       "meta": {
+                     *         "request_id": "00000000-0000-0000-0000-000000000000"
+                     *       }
+                     *     }
+                     */
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthOAuthLinkRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthLinkRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthOAuthLinkVerify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthLinkVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Linked and authenticated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTokens"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthOAuthLinkCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OAuthLinkCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created and authenticated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTokens"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthAccountDeactivateRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthAccountDeactivate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountDeactivateRequest"];
+            };
+        };
+        responses: {
+            /** @description Deactivated (`data.status = deactivated`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description QR session created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginCreated"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+            /** @description Realtime disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAuthQRSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginDetails"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSessionApprove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSessionReject: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Rejected */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRSessionState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description QR sign-in session id (from the QR URL) */
+                id: components["parameters"]["QRSessionID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    browser_secret: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Current state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginState"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthQRExchange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QRLoginExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Authenticated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeQRLoginExchanged"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     getNotifications: {
         parameters: {
             query?: {
@@ -12119,6 +13854,8 @@ export interface operations {
         parameters: {
             query?: {
                 kind?: "income" | "expense";
+                /** @description `true` / `false`; omitted = all */
+                is_active?: "true" | "false";
             };
             header?: never;
             path?: never;
@@ -12131,7 +13868,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceCategoryList"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -12156,11 +13895,15 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceCategory"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -12184,6 +13927,64 @@ export interface operations {
                     "application/json": components["schemas"]["EnvelopeFinanceCategory"];
                 };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deleteTenantFinanceCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchTenantFinanceCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchFinanceCategoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated category */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceCategory"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -12247,6 +14048,7 @@ export interface operations {
                 q?: components["parameters"]["Q"];
                 type?: string;
                 status?: string;
+                currency?: string;
                 account_uuid?: string;
                 category_uuid?: string;
                 date_from?: string;
@@ -12466,7 +14268,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
+            };
+        };
         responses: {
             /** @description Import job created */
             201: {
@@ -12516,7 +14322,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["ImportUploadRequest"];
+            };
+        };
         responses: {
             /** @description Import job created */
             201: {
@@ -12688,6 +14498,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -12888,6 +14699,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -13355,7 +15167,17 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description PNG / JPEG / WebP (sniffed from content), max 2 MiB
+                     */
+                    logo: string;
+                };
+            };
+        };
         responses: {
             /** @description Updated letterhead */
             200: {
@@ -13457,7 +15279,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportMappingRequest"];
+            };
+        };
         responses: {
             /** @description Import job */
             200: {
@@ -13997,7 +15823,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -14019,8 +15847,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobsSummary"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -14033,6 +15864,10 @@ export interface operations {
                 q?: components["parameters"]["Q"];
                 sort?: string;
                 status?: "in_progress" | "ready" | "delivered" | "cancelled" | "voided";
+                /**
+                 * @deprecated
+                 * @description Not applied — the Go handler does not read this parameter (jobs.ListFilters has no payment_status filter).
+                 */
                 payment_status?: "unpaid" | "paid";
                 date_from?: string;
                 date_to?: string;
@@ -14050,8 +15885,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -14090,11 +15928,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["LimitReached"];
         };
     };
@@ -14105,15 +15946,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -14122,8 +15957,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -14144,8 +15982,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -14175,7 +16016,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -14200,10 +16043,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -14223,10 +16070,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -14246,10 +16097,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -14278,11 +16133,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -14302,10 +16160,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -14325,10 +16187,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -14346,7 +16212,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -14366,7 +16234,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffOptions"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -14386,7 +16256,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffPage"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -14416,7 +16288,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffMember"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -14447,7 +16321,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStaffMember"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -14478,7 +16354,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOkResult"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15084,7 +16962,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15110,8 +16990,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -15139,9 +17024,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -15221,8 +17110,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15242,7 +17134,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -15264,8 +17158,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSalesSummary"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15292,8 +17189,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSalePage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15332,11 +17232,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSaleDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15347,15 +17250,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -15364,8 +17261,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15386,8 +17286,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSaleDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15409,10 +17312,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSaleDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -15430,7 +17337,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -15456,8 +17365,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplierPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15487,7 +17399,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplier"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15501,15 +17415,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -15518,8 +17426,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15540,8 +17451,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplier"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15563,8 +17477,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15598,7 +17515,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplier"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -15620,7 +17539,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -15648,8 +17569,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchasePage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15688,11 +17612,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     exportTenantPurchases: {
@@ -15702,15 +17629,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -15719,8 +17640,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -15741,8 +17665,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -15764,10 +17691,14 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
     };
@@ -16550,7 +18481,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -16570,7 +18503,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariSummary"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -16597,8 +18532,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariAccountPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16610,15 +18548,9 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -16627,8 +18559,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16649,8 +18584,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariAccountDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16680,8 +18618,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntryPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16696,15 +18637,9 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
+        requestBody: {
             content: {
-                "application/json": {
-                    format?: string;
-                    query?: {
-                        [key: string]: string;
-                    };
-                    locale?: string;
-                };
+                "application/json": components["schemas"]["ExportRequest"];
             };
         };
         responses: {
@@ -16713,8 +18648,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeExportJob"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16745,8 +18683,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16782,8 +18723,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16817,8 +18761,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16840,8 +18787,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCariEntry"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
@@ -16862,7 +18812,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -16889,8 +18841,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerPage"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16929,8 +18884,11 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
@@ -16952,8 +18910,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -16973,9 +18936,15 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     patchTenantCustomer: {
@@ -16987,15 +18956,24 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchCustomerRequest"];
+            };
+        };
         responses: {
             /** @description Updated customer */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerDetail"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -17024,8 +19002,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerVehicle"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
         };
@@ -17046,8 +19029,13 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeDeletedResult"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

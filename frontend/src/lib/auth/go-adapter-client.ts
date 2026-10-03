@@ -80,6 +80,8 @@ export type GitHubOAuthConfigPayload = {
   register_allowed?: boolean;
   client_id: string;
   client_secret: string;
+  /** Set when the secret is generated (Apple signing key); RFC 3339. */
+  client_secret_expires_at?: string;
 };
 
 export type OAuthConfigPayload = GitHubOAuthConfigPayload;
@@ -282,4 +284,55 @@ export async function loginWithPassword(
     }),
   });
   return unwrap<GoTokensPayload>(result);
+}
+
+export async function loginWithEmailCode(
+  email: string,
+  code: string,
+  totpCode?: string,
+  organizationSlug?: string,
+  clientIp?: string | null,
+) {
+  const result = await fetchUpstream("auth/email-code/verify", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+    },
+    body: JSON.stringify({
+      email,
+      code,
+      ...(totpCode ? { totp_code: totpCode } : {}),
+      ...(organizationSlug ? { organization_slug: organizationSlug } : {}),
+    }),
+  });
+  return unwrap<GoTokensPayload>(result);
+}
+
+export type QRLoginExchangePayload = GoTokensPayload & {
+  user: { uuid: string; email: string; name: string };
+};
+
+/** Redeems an approved QR sign-in (server-side only; see auth.ts). */
+export async function exchangeQRLogin(
+  sessionId: string,
+  browserSecret: string,
+  exchangeToken: string,
+  clientIp?: string | null,
+) {
+  const result = await fetchUpstream("auth/qr/exchange", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(clientIp ? { "X-Forwarded-For": clientIp } : {}),
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+      browser_secret: browserSecret,
+      exchange_token: exchangeToken,
+    }),
+  });
+  return unwrap<QRLoginExchangePayload>(result);
 }

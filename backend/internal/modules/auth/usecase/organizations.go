@@ -42,8 +42,8 @@ func (u *AuthUseCase) SwitchOrganizationContext(
 		}
 		return model.Tokens{}, err
 	}
-	if user.Status != "active" {
-		return model.Tokens{}, ErrUserDisabled
+	if err := userStatusError(user); err != nil {
+		return model.Tokens{}, err
 	}
 	if u.orgResolver == nil {
 		return model.Tokens{}, ErrNoTenantMembership
@@ -64,8 +64,8 @@ func (u *AuthUseCase) IssueSessionForOrganization(ctx context.Context, userUUID,
 		}
 		return model.Tokens{}, err
 	}
-	if user.Status != "active" {
-		return model.Tokens{}, ErrUserDisabled
+	if err := userStatusError(user); err != nil {
+		return model.Tokens{}, err
 	}
 	if err := u.repo.UpdateLastLogin(ctx, user.ID); err != nil {
 		return model.Tokens{}, err

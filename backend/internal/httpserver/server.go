@@ -81,6 +81,7 @@ import (
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	purchasesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases"
 	purchasesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/purchases/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/qrlogin"
 	quotesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes"
 	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
 	reportsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports"
@@ -109,6 +110,7 @@ import (
 	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
 	vehicleusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/appleauth"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/crypto"
@@ -118,6 +120,7 @@ import (
 	ioadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/mail"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/oidc"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/outbox"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
@@ -293,6 +296,22 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	uc.SetAccessPolicy(stepUpSvc)
 	uc.SetSecretBox(secretBox, cfg.App.Name)
 	oauthUC := authusecase.NewOAuth(repo, secretBox)
+	uc.SetReviewAccounts(cfg.Auth.ReviewAccounts)
+	// Apple signing key: admin-uploaded .p8 (DB) first, AUTH_APPLE_* env fallback.
+	appleClient, err := appleauth.NewResolver(oauthProvSvc, appleauth.Config{
+		TeamID: cfg.Auth.AppleTeamID, KeyID: cfg.Auth.AppleKeyID, PrivateKey: cfg.Auth.ApplePrivateKey,
+	}, nil)
+	if err != nil {
+		return nil, fmt.Errorf("httpserver: apple sign-in key: %w", err)
+	}
+	oauthProvSvc.SetAppleKeys(appleClient)
+	uc.SetNativeOAuth(authusecase.NativeOAuthConfig{
+		Verifier:        oidc.New(oidc.DefaultProviders(), nil),
+		Apple:           appleClient,
+		Clients:         oauthProvSvc,
+		AppleClientIDs:  cfg.Auth.AppleNativeClientIDs,
+		GoogleClientIDs: cfg.Auth.GoogleNativeClientIDs,
+	})
 	s.githubSvc = githubSvc
 	s.oauthProvSvc = oauthProvSvc
 	s.authSettings = authSettingsSvc
@@ -408,6 +427,18 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	reportsmodule.RegisterRoutes(mux, reportsSvc, tokens, loader, deps.Queries, entitlementsSvc)
 	catalogSvc := catalogusecase.New(deps.DB, deps.Queries, activityRec)
 	realtime.RegisterRoutes(mux, realtime.NewHandler(rtIssuer, uc), tokens, loader)
+
+	qrGeo, err := qrlogin.NewLocator(cfg.Auth.QRGeoIPDB, cfg.Auth.QRTrustGeoHeaders)
+	if err != nil {
+		// Location is a hint only: keep QR sign-in up and show the IP.
+		log.Warn("qrlogin_geoip_unavailable", "error", err)
+	}
+	var qrIssuer qrlogin.TokenIssuer
+	if rtIssuer != nil {
+		qrIssuer = rtIssuer
+	}
+	qrSvc := qrlogin.NewService(qrlogin.NewStore(deps.Redis, cfg.App.Env), uc, qrIssuer, deps.Realtime, cfg.Auth.FrontendURL, log)
+	qrlogin.RegisterRoutes(mux, qrlogin.NewHandler(qrSvc, qrGeo, ratelimit.New(deps.Redis, cfg.App.Env)), tokens, loader)
 
 	nh := notifhandler.New(notifSvc)
 	notifmodule.RegisterRoutes(mux, nh, tokens, loader)
