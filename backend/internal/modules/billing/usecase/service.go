@@ -69,6 +69,8 @@ type Service struct {
 	store    storage.Driver
 	pdf      PDFRenderer
 	notifier Notifier
+	center   CenterDispatcher
+	appURL   string
 }
 
 type PDFRenderer interface {

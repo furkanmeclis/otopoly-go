@@ -1,0 +1,37 @@
+-- Owner-only plan alerts sent through the notification center (TR + EN).
+-- In-app texts are neutral (the mobile app shows them and never links to a
+-- purchase); e-mails carry usage numbers and the web billing link.
+INSERT INTO message_template_defaults (event_type, channel, locale, subject, body) VALUES
+('billing.usage_warning', 'inapp', 'tr', 'Kullanım uyarısı: {{feature_label}}',
+ '{{feature_label}} kullanımı plan limitinin %{{percent}} seviyesine ulaştı ({{used}}/{{limit}}).'),
+('billing.usage_warning', 'inapp', 'en', 'Usage notice: {{feature_label}}',
+ '{{feature_label}} usage reached {{percent}}% of the plan limit ({{used}}/{{limit}}).'),
+('billing.usage_warning', 'email', 'tr', '{{feature_label}} kullanımı limitin %{{percent}} seviyesinde',
+ E'Merhaba,\n\n{{company_name}} hesabında {{feature_label}} kullanımı {{used}}/{{limit}} oldu ({{plan_name}} planı, %{{percent}}).\nLimit dolduğunda bu alanda yeni kayıt açılamaz.\n\nPlanınızı yükseltmek veya kullanımınızı görmek için: {{billing_link}}\n\nOtopoly'),
+('billing.usage_warning', 'email', 'en', '{{feature_label}} usage is at {{percent}}% of your limit',
+ E'Hello,\n\n{{feature_label}} usage for {{company_name}} is {{used}}/{{limit}} ({{plan_name}} plan, {{percent}}%).\nOnce the limit is reached, new records cannot be created here.\n\nUpgrade your plan or review your usage: {{billing_link}}\n\nOtopoly'),
+('billing.limit_full', 'inapp', 'tr', 'Limit doldu: {{feature_label}}',
+ '{{feature_label}} için plan limitine ulaşıldı ({{used}}/{{limit}}).'),
+('billing.limit_full', 'inapp', 'en', 'Limit reached: {{feature_label}}',
+ 'The plan limit for {{feature_label}} has been reached ({{used}}/{{limit}}).'),
+('billing.limit_full', 'email', 'tr', '{{feature_label}} limitiniz doldu',
+ E'Merhaba,\n\n{{company_name}} hesabında {{feature_label}} kullanımı plan limitine ulaştı ({{used}}/{{limit}}, {{plan_name}} planı).\nBu dönem için yeni kayıtlar engellenecek.\n\nPlanınızı yükseltmek için: {{billing_link}}\n\nOtopoly'),
+('billing.limit_full', 'email', 'en', 'Your {{feature_label}} limit is used up',
+ E'Hello,\n\n{{feature_label}} usage for {{company_name}} reached the plan limit ({{used}}/{{limit}}, {{plan_name}} plan).\nNew records will be blocked for this period.\n\nUpgrade your plan: {{billing_link}}\n\nOtopoly'),
+('billing.limit_reached', 'inapp', 'tr', 'İşlem limit nedeniyle engellendi: {{feature_label}}',
+ '{{feature_label}} plan limiti dolu olduğu için bir işlem yapılamadı ({{used}}/{{limit}}).'),
+('billing.limit_reached', 'inapp', 'en', 'Action blocked by limit: {{feature_label}}',
+ 'An action could not be completed because the {{feature_label}} plan limit is full ({{used}}/{{limit}}).'),
+('billing.limit_reached', 'email', 'tr', '{{feature_label}} limiti nedeniyle işlem engellendi',
+ E'Merhaba,\n\n{{company_name}} hesabında {{feature_label}} limiti dolu olduğu için bir işlem reddedildi ({{used}}/{{limit}}, {{plan_name}} planı).\n\nEkibinizin çalışmaya devam edebilmesi için planınızı yükseltebilirsiniz: {{billing_link}}\n\nOtopoly'),
+('billing.limit_reached', 'email', 'en', 'An action was blocked by your {{feature_label}} limit',
+ E'Hello,\n\nAn action in {{company_name}} was rejected because the {{feature_label}} limit is full ({{used}}/{{limit}}, {{plan_name}} plan).\n\nUpgrade your plan so your team can keep working: {{billing_link}}\n\nOtopoly'),
+('billing.subscription_ending', 'inapp', 'tr', 'Abonelik süresi {{days_left}} gün içinde doluyor',
+ '{{plan_name}} planının süresi {{ends_at}} tarihinde doluyor.'),
+('billing.subscription_ending', 'inapp', 'en', 'Subscription ends in {{days_left}} days',
+ 'The {{plan_name}} plan ends on {{ends_at}}.'),
+('billing.subscription_ending', 'email', 'tr', 'Aboneliğiniz {{days_left}} gün içinde sona eriyor',
+ E'Merhaba,\n\n{{company_name}} hesabının {{plan_name}} aboneliği {{ends_at}} tarihinde sona erecek.\nKesintisiz kullanım için aboneliğinizi yenileyin: {{billing_link}}\n\nOtopoly'),
+('billing.subscription_ending', 'email', 'en', 'Your subscription ends in {{days_left}} days',
+ E'Hello,\n\nThe {{plan_name}} subscription of {{company_name}} ends on {{ends_at}}.\nRenew to keep using Otopoly without interruption: {{billing_link}}\n\nOtopoly')
+ON CONFLICT (event_type, channel, locale) DO NOTHING;

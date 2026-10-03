@@ -216,7 +216,9 @@ type Querier interface {
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
 	DeleteOAuthAccountByUserProvider(ctx context.Context, arg DeleteOAuthAccountByUserProviderParams) error
 	DeletePlanFeatures(ctx context.Context, planID int64) error
+	DeletePushDeviceForUser(ctx context.Context, arg DeletePushDeviceForUserParams) (int64, error)
 	DeletePushSubscription(ctx context.Context, arg DeletePushSubscriptionParams) error
+	DeletePushTickets(ctx context.Context, ids []int64) error
 	DeleteQuoteLines(ctx context.Context, arg DeleteQuoteLinesParams) error
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
 	DeleteServiceProducts(ctx context.Context, arg DeleteServiceProductsParams) error
@@ -231,8 +233,12 @@ type Querier interface {
 	DeleteWebAuthnCredentialByUUID(ctx context.Context, arg DeleteWebAuthnCredentialByUUIDParams) error
 	DescribeTodoLeadLinks(ctx context.Context, arg DescribeTodoLeadLinksParams) ([]DescribeTodoLeadLinksRow, error)
 	DescribeTodoQuoteLinks(ctx context.Context, arg DescribeTodoQuoteLinksParams) ([]DescribeTodoQuoteLinksRow, error)
+	DisablePushDevice(ctx context.Context, arg DisablePushDeviceParams) error
 	// Lines older than the cutoff are not worth a late WhatsApp (line was down).
 	DropStaleVehicleAlertEvents(ctx context.Context, arg DropStaleVehicleAlertEventsParams) error
+	// First device registration opts the user into push (the OS permission
+	// prompt is the consent). An existing preference row is left untouched.
+	EnsureNotificationPreferencesPushDefault(ctx context.Context, userID int64) error
 	// Expires pending actions of a conversation: all of them (the user moved on)
 	// or only those past expires_at.
 	ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error)
@@ -444,6 +450,7 @@ type Querier interface {
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
 	GetWhatsAppSession(ctx context.Context, organizationID int64) (WhatsappSession, error)
+	HasActivePushDevices(ctx context.Context, userID int64) (bool, error)
 	IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error)
 	IncrementOTPAttempts(ctx context.Context, id int64) (OtpCode, error)
 	IncrementQuoteViews(ctx context.Context, id int64) error
@@ -459,6 +466,7 @@ type Querier interface {
 	InsertOutboundMessage(ctx context.Context, arg InsertOutboundMessageParams) (OutboundMessage, error)
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) (OutboxEvent, error)
 	InsertPlanFeature(ctx context.Context, arg InsertPlanFeatureParams) error
+	InsertPushTicket(ctx context.Context, arg InsertPushTicketParams) error
 	InsertQueuedOutboundMessage(ctx context.Context, arg InsertQueuedOutboundMessageParams) (OutboundMessage, error)
 	InsertReminderLog(ctx context.Context, arg InsertReminderLogParams) (int64, error)
 	InsertRolePermission(ctx context.Context, arg InsertRolePermissionParams) error
@@ -489,6 +497,7 @@ type Querier interface {
 	ListAIUsageByOrganization(ctx context.Context, arg ListAIUsageByOrganizationParams) ([]ListAIUsageByOrganizationRow, error)
 	ListActivePublicKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActivePublicLinks(ctx context.Context) ([]StorageLink, error)
+	ListActivePushDevicesByUser(ctx context.Context, userID int64) ([]PushDevice, error)
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID int64) ([]RefreshToken, error)
 	ListActivityEvents(ctx context.Context, arg ListActivityEventsParams) ([]ActivityEvent, error)
 	ListAllBulkJobs(ctx context.Context, arg ListAllBulkJobsParams) ([]BulkJob, error)
@@ -521,6 +530,7 @@ type Querier interface {
 	// Active organization members with their notification phone (may be empty).
 	ListDailySummaryMembers(ctx context.Context, organizationID int64) ([]ListDailySummaryMembersRow, error)
 	ListDiscountCodes(ctx context.Context, arg ListDiscountCodesParams) ([]ListDiscountCodesRow, error)
+	ListDuePushTickets(ctx context.Context, arg ListDuePushTicketsParams) ([]ListDuePushTicketsRow, error)
 	ListEnabledDailySummarySettings(ctx context.Context) ([]DailySummarySetting, error)
 	ListEnabledLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
 	ListExportJobsForActor(ctx context.Context, arg ListExportJobsForActorParams) ([]ExportJob, error)
@@ -564,6 +574,8 @@ type Querier interface {
 	ListOrganizationMemberOptions(ctx context.Context, organizationID int64) ([]ListOrganizationMemberOptionsRow, error)
 	ListOrganizationMembers(ctx context.Context, organizationID int64) ([]ListOrganizationMembersRow, error)
 	ListOrganizationMembersByUserID(ctx context.Context, userID int64) ([]ListOrganizationMembersByUserIDRow, error)
+	// Owners receive plan-limit / renewal alerts (never staff).
+	ListOrganizationOwnersForAlert(ctx context.Context, organizationID int64) ([]ListOrganizationOwnersForAlertRow, error)
 	ListOrganizationsFiltered(ctx context.Context, arg ListOrganizationsFilteredParams) ([]Organization, error)
 	ListOrgsWithPendingVehicleAlerts(ctx context.Context) ([]VehicleAlertSetting, error)
 	// Pending reminder fire times for a page of subjects (no N+1 in lists).
@@ -860,6 +872,10 @@ type Querier interface {
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)
 	UpsertNotificationRule(ctx context.Context, arg UpsertNotificationRuleParams) (NotificationRule, error)
 	UpsertNotificationTypePreference(ctx context.Context, arg UpsertNotificationTypePreferenceParams) (NotificationTypePreference, error)
+	// Mobile push devices (Expo) and their pending push tickets.
+	// A token moves to the calling user when the device switches accounts and is
+	// re-enabled on every registration.
+	UpsertPushDevice(ctx context.Context, arg UpsertPushDeviceParams) (PushDevice, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error)

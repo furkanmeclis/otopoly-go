@@ -102,6 +102,7 @@ func main() {
 		PrivateKey: cfg.VAPID.PrivateKey,
 		Subject:    cfg.VAPID.Subject,
 	})
+	notifSvc.WithExpo(notifusecase.ExpoConfig{AccessToken: cfg.Expo.AccessToken})
 
 	eventBus := events.NewBus(log)
 	notifmodule.RegisterEventHandlers(eventBus, notifSvc, log)
@@ -174,6 +175,8 @@ func main() {
 	// to the API process (owner of the WhatsApp sessions) via QueueMessaging.
 	queueClient := queue.NewClient(cfg.Redis)
 	defer func() { _ = queueClient.Close() }()
+	// Deliveries run inline here; mobile pushes go through the queue (retries).
+	notifSvc.WithPushQueue(queueClient)
 	messagingSvc := messagingusecase.New(queries, nil, nil).SetQueue(queueClient).SetStorage(store)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
 	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
@@ -187,6 +190,8 @@ func main() {
 		SetStorage(store).
 		SetAppURL(cfg.Auth.FrontendURL)
 	centerSvc.RegisterGuard("todo", todosusecase.New(queries, nil).ReminderGuard)
+	billingSvc.SetOwnerAlerts(centerSvc, cfg.Auth.FrontendURL)
+	entitlementsSvc.SetAlerter(billingSvc)
 	// Quote reminders fire from this sweep: same preparer / sent hook as the
 	// API; expiry cancels their scheduled notifications.
 	sales := salesflow.New(centerSvc, centerMessenger, queries, log)
@@ -219,6 +224,7 @@ func main() {
 			}, err
 		}).
 		WithBillingDigest(billingSvc.SendAdminDigest).
+		WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -264,6 +270,10 @@ func main() {
 	}
 	if err := queue.RegisterBillingDigestSchedule(scheduler); err != nil {
 		log.Error("billing_digest_scheduler_failed", "error", err)
+		os.Exit(1)
+	}
+	if err := queue.RegisterPushReceiptsSchedule(scheduler); err != nil {
+		log.Error("push_receipts_scheduler_failed", "error", err)
 		os.Exit(1)
 	}
 	go func() {

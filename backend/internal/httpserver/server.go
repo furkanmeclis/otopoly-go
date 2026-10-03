@@ -228,6 +228,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		PrivateKey: cfg.VAPID.PrivateKey,
 		Subject:    cfg.VAPID.Subject,
 	})
+	notifSvc.WithExpo(notifusecase.ExpoConfig{AccessToken: cfg.Expo.AccessToken})
 
 	repo := authrepo.NewPostgres(deps.DB, deps.Queries)
 	uc := authusecase.New(repo, tokens)
@@ -491,6 +492,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		SetStorage(deps.Storage).
 		SetAppURL(cfg.Auth.FrontendURL)
 	notifycentermodule.RegisterRoutes(mux, centerSvc, tokens, loader, deps.Queries)
+	// Plan-limit thresholds / renewal: owner e-mail + neutral in-app notice.
+	billingSvc.SetOwnerAlerts(centerSvc, cfg.Auth.FrontendURL)
+	entitlementsSvc.SetAlerter(billingSvc)
 	// Leads & quotes ↔ notification center / todos integration.
 	sales := salesflow.New(centerSvc, centerMessenger, deps.Queries, log)
 	sales.Register(centerSvc)
@@ -568,7 +572,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithQuoteExpire(quotesSvc.ExpireDue).
 			WithDailySummary(dailySummarySvc.SendDue).
 			WithVehicleAlerts(vehicleAlertsSvc.Flush).
-			WithBillingOrdersExpire(billingSvc.ExpireDueOrders)
+			WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
+			WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts)
 		if sched, err := queue.StartReminderScheduler(cfg, log); err != nil {
 			log.Error("reminder_scheduler_init_failed", "error", err)
 		} else {
@@ -583,6 +588,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			}
 			if err := queue.RegisterBillingOrdersExpireSchedule(sched); err != nil {
 				log.Error("billing_orders_expire_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterPushReceiptsSchedule(sched); err != nil {
+				log.Error("push_receipts_scheduler_failed", "error", err)
 			}
 			s.reminderSched = sched
 		}

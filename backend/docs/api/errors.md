@@ -28,6 +28,8 @@ Branch on `error.code`, not on message text. `details` is optional (field-level 
 | `FORBIDDEN` | 403 | Missing permission or disabled user |
 | `NOT_FOUND` | 404 | Resource does not exist or is not visible |
 | `CONFLICT` | 409 | Unique constraint / duplicate (e.g. email already registered) |
+| `LIMIT_REACHED` | 409 | Plan limit exhausted; `details`: `feature`, `limit`, `used`, `tolerance`, `owner_notified` (`"true"`/`"false"`) |
+| `FEATURE_DISABLED` | 403 | The organization's plan turns the feature/module off |
 | `RATE_LIMITED` | 429 | Auth endpoints: login, register, forgot-password, reset-password |
 | `PASSWORD_RESET_FAILED` | 500 | Forgot/reset persist or enqueue failure |
 | `INTERNAL_ERROR` | 500 | Unexpected server failure |

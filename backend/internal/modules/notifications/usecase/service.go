@@ -66,6 +66,8 @@ type Service struct {
 	log          *slog.Logger
 	syncMode     bool // when queue is nil, deliver inline
 	vapid        *VAPIDConfig
+	expo         *expoClient
+	pushQueue    Enqueuer
 	actionSecret []byte
 	actionTTL    time.Duration
 }
@@ -282,6 +284,11 @@ func (s *Service) Deliver(ctx context.Context, id int64) error {
 		if rp, ok := s.providers[model.ChannelRealtime]; ok && userUUID != nil {
 			_, _ = rp.Deliver(ctx, row, userUUID)
 		}
+	}
+	// Push fan-out: browser Web Push (VAPID) + mobile devices (Expo). In-app
+	// rows are mirrored; explicit push-channel rows use the same path.
+	if row.Channel == model.ChannelInapp || row.Channel == model.ChannelPush {
+		s.scheduleMobilePush(ctx, row)
 		if row.UserID.Valid {
 			data := map[string]any{
 				"notification_uuid": row.Uuid.String(),

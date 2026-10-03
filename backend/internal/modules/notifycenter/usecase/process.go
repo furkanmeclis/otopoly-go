@@ -12,6 +12,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	notifmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/model"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/pushtext"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/msgtemplate"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
@@ -172,7 +173,7 @@ func (s *Service) deliver(ctx context.Context, row db.ScheduledNotification) (de
 		attempted++
 		title := msgtemplate.Render(tpl.Subject, vars)
 		body := msgtemplate.Render(tpl.Body, vars)
-		if err := s.send(ctx, row, ch, rcpt, title, body, att); err != nil {
+		if err := s.send(ctx, row, ch, rcpt, title, body, att, vars); err != nil {
 			errs = append(errs, ch+": "+err.Error())
 			continue
 		}
@@ -293,9 +294,21 @@ func FilterChannels(wanted []string, spec msgtemplate.TypeSpec, isUser bool, pho
 	return out
 }
 
-func (s *Service) send(ctx context.Context, row db.ScheduledNotification, ch string, r recipient, title, body string, att model.Attachment) error {
+func (s *Service) send(ctx context.Context, row db.ScheduledNotification, ch string, r recipient, title, body string, att model.Attachment, vars map[string]string) error {
 	payload := map[string]any{
 		"kind": row.Kind, "subject_type": row.SubjectType, "notification_uuid": row.Uuid.String(),
+	}
+	if ch == model.ChannelInapp {
+		// Lock-screen-safe variables for the mobile push mirror (pushtext).
+		pv := map[string]string{}
+		for _, k := range pushtext.SafeVars {
+			if v := vars[k]; v != "" {
+				pv[k] = v
+			}
+		}
+		if len(pv) > 0 {
+			payload["push_vars"] = pv
+		}
 	}
 	switch ch {
 	case model.ChannelInapp, model.ChannelEmail:

@@ -1738,6 +1738,71 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/push-devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register a mobile push device (Expo)
+         * @description Upserts the caller's Expo push token (call after login and on app start).
+         *     The token is unique: a token already registered by another account on the
+         *     same phone moves to the caller. Refreshes `locale`, `app_version`,
+         *     `device_name` and `last_seen_at`, and re-enables a token that Expo had
+         *     reported as `DeviceNotRegistered`.
+         *
+         *     Devices are **user-level** (not per organization): every in-app
+         *     notification of the user is mirrored as a push to all active devices,
+         *     in addition to browser Web Push. The first registration creates the
+         *     user's preference row with `push_enabled=true`; an existing preference
+         *     is left untouched and returned as `push_enabled` (toggle it with
+         *     `PUT /v1/notification-preferences`). Per-type in-app switches
+         *     (`/v1/tenant/notification-preferences`) also gate the push, since the
+         *     push mirrors the in-app row.
+         *
+         *     Push payload (Expo message) — lock-screen safe, no amounts / phone
+         *     numbers / customer names; rendered in the user's locale (`users.locale`,
+         *     falling back to the device `locale`):
+         *     `{ "title": "...", "body": "...", "sound": "default", "priority": "high",
+         *     "data": { "url": "/t/{slug}/quotes/{uuid}", "notification_uuid": "uuid", "kind": "quote.team_accepted" } }`.
+         *     `data.url` is the same relative web path the in-app notification links to
+         *     (omitted when the notification has no link); `kind` is omitted for
+         *     notifications that do not come from the notification center.
+         */
+        post: operations["registerPushDevice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/push-devices/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Unregister a mobile push device
+         * @description Removes the caller's device (call on logout, before dropping the access
+         *     token). The token must be URL-encoded (`ExponentPushToken%5B...%5D`).
+         *     Idempotent: unknown tokens or tokens of another user return 200 and
+         *     change nothing.
+         */
+        delete: operations["deletePushDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/platform/notifications": {
         parameters: {
             query?: never;
@@ -4913,7 +4978,13 @@ export interface paths {
         };
         /**
          * Tenant billing overview
-         * @description Requires `tenant.billing.read`.
+         * @description Requires `tenant.billing.read` (owners and staff). Read-only usage
+         *     source for the mobile "Kullanım ve limitler" screen:
+         *     `subscription.plan_name`, `subscription.status`, `subscription.ends_at`
+         *     / `days_left` (period end), and `meters[]` with `used` / `limit`
+         *     (`null` = unlimited), `period` (`day` | `month` | `total`),
+         *     `period_key` and TR/EN labels. `storage.gb` meters are reported in GB.
+         *     Toggle features appear with `kind=toggle` and `enabled`.
          */
         get: operations["getTenantBillingOverview"];
         put?: never;
@@ -6008,6 +6079,59 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["SearchHitsData"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PushDeviceInput: {
+            /**
+             * @description Expo push token (`ExponentPushToken[...]` or `ExpoPushToken[...]`)
+             * @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+             */
+            token: string;
+            /** @enum {string} */
+            platform: "ios" | "android";
+            /**
+             * @description Device locale (`tr`, `en`, `tr-TR`, ...); stored as `tr` | `en` | empty
+             * @example tr-TR
+             */
+            locale?: string;
+            /** @example 1.4.0 (57) */
+            app_version?: string;
+            /** @example iPhone 16 */
+            device_name?: string;
+        };
+        PushDevice: {
+            /** Format: uuid */
+            uuid: string;
+            token: string;
+            /** @enum {string} */
+            platform: "ios" | "android";
+            /** @enum {string} */
+            locale: "tr" | "en" | "";
+            app_version: string;
+            device_name: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        PushDeviceRegistration: {
+            device: components["schemas"]["PushDevice"];
+            /** @description Current `push_enabled` preference of the user */
+            push_enabled: boolean;
+        };
+        EnvelopePushDeviceRegistration: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PushDeviceRegistration"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeStatusOK: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                /** @enum {string} */
+                status: "ok";
+            };
             meta: components["schemas"]["ResponseMeta"];
         };
         ErrorDetail: {
@@ -10363,6 +10487,58 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /**
+         * @description `LIMIT_REACHED` — a hard plan limit is exhausted. `error.details` is a
+         *     list of `{field, message}` pairs whose `message` is a string value:
+         *     `feature` (feature key, e.g. `jobs.daily`), `limit`, `used`,
+         *     `tolerance` (integers as strings; `storage.gb` in MB) and
+         *     `owner_notified` (`"true"` | `"false"`: the organization owner has been
+         *     e-mailed and got an in-app notice about this limit in the current
+         *     billing period). Clients show role-based text (owner: "upgrade on the
+         *     web"; staff: "your manager has been notified" when `owner_notified`).
+         */
+        LimitReached: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                /**
+                 * @example {
+                 *       "success": false,
+                 *       "error": {
+                 *         "code": "LIMIT_REACHED",
+                 *         "message": "Plan limit reached",
+                 *         "details": [
+                 *           {
+                 *             "field": "feature",
+                 *             "message": "jobs.daily"
+                 *           },
+                 *           {
+                 *             "field": "limit",
+                 *             "message": "10"
+                 *           },
+                 *           {
+                 *             "field": "used",
+                 *             "message": "10"
+                 *           },
+                 *           {
+                 *             "field": "tolerance",
+                 *             "message": "10"
+                 *           },
+                 *           {
+                 *             "field": "owner_notified",
+                 *             "message": "true"
+                 *           }
+                 *         ]
+                 *       },
+                 *       "meta": {
+                 *         "request_id": "7b1d2c1e-3f0a-4c55-9d7e-2f1c0b9a8e11"
+                 *       }
+                 *     }
+                 */
+                "application/json": components["schemas"]["Error"];
+            };
+        };
         /** @description Unexpected server error */
         InternalError: {
             headers: {
@@ -13238,6 +13414,56 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
         };
     };
+    registerPushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PushDeviceInput"];
+            };
+        };
+        responses: {
+            /** @description Registered device */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePushDeviceRegistration"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    deletePushDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Expo push token, URL-encoded */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed (or nothing to remove) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatusOK"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
     getPlatformNotifications: {
         parameters: {
             query?: {
@@ -15710,7 +15936,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
+            409: components["responses"]["LimitReached"];
         };
     };
     exportTenantJobs: {

@@ -47,6 +47,34 @@ type Decision struct {
 	Used      int64
 	Tolerance int64 // limit x (1 + tolerance_pct)
 	WarnAt    int64 // limit x warn_pct
+	// OwnerNotified is set on a refused Check when the organization owner has
+	// been alerted about this limit (now or earlier in the billing period).
+	OwnerNotified bool
+}
+
+// Alert thresholds reported to the Alerter.
+const (
+	ThresholdWarning = "warning" // usage crossed warn_pct (default 80%)
+	ThresholdFull    = "full"    // usage reached 100% of the limit
+	ThresholdReached = "reached" // a request was refused (LIMIT_REACHED)
+)
+
+// Alert is one threshold event for an organization's limited feature.
+type Alert struct {
+	OrgID     int64
+	Key       string
+	Period    string // day | month | total
+	PeriodKey string
+	Threshold string
+	Used      int64
+	Limit     int64
+	WarnPct   int
+}
+
+// Alerter notifies the organization owner (billing module). It dedupes per
+// threshold and billing period and reports whether the owner is notified.
+type Alerter interface {
+	LimitAlert(ctx context.Context, a Alert) bool
 }
 
 // LimitError carries the decision to the HTTP layer (409 LIMIT_REACHED).
@@ -85,9 +113,18 @@ type Store interface {
 // Service evaluates decisions; a nil *Service allows everything so modules
 // keep working when billing is not wired (tests, worker).
 type Service struct {
-	store Store
-	now   func() time.Time
-	loc   *time.Location
+	store   Store
+	now     func() time.Time
+	loc     *time.Location
+	alerter Alerter
+}
+
+// SetAlerter installs the owner alert hook (threshold crossings, refusals).
+func (s *Service) SetAlerter(a Alerter) {
+	if s == nil {
+		return
+	}
+	s.alerter = a
 }
 
 func New(store Store) *Service {
@@ -165,9 +202,36 @@ func (s *Service) Check(ctx context.Context, orgID int64, key string, delta int6
 		if f.Kind == KindToggle {
 			return d, ErrFeatureDisabled
 		}
+		if s.alerter != nil {
+			d.OwnerNotified = s.alerter.LimitAlert(ctx, Alert{
+				OrgID: orgID, Key: key, Period: f.Period, PeriodKey: s.periodKey(f.Period),
+				Threshold: ThresholdReached, Used: used, Limit: f.Limit, WarnPct: f.WarnPct,
+			})
+		}
 		return d, &LimitError{d}
 	}
 	return d, nil
+}
+
+// CrossedThreshold returns the highest threshold crossed by moving a counter
+// from prev to next (ThresholdFull wins over ThresholdWarning), or "".
+func CrossedThreshold(f Feature, prev, next int64) string {
+	if f.Kind != KindLimit || f.Limit <= 0 || next <= prev {
+		return ""
+	}
+	if prev < f.Limit && next >= f.Limit {
+		return ThresholdFull
+	}
+	warn := f.WarnPct
+	if warn <= 0 || warn >= 100 {
+		warn = 80
+	}
+	// ceil(limit x warn / 100): the first count at or above the warn level.
+	at := (f.Limit*int64(warn) + 99) / 100
+	if prev < at && next >= at {
+		return ThresholdWarning
+	}
+	return ""
 }
 
 // Consume moves the counter after the action succeeded (negative = give back).
@@ -179,8 +243,20 @@ func (s *Service) Consume(ctx context.Context, orgID int64, key string, delta in
 	if err != nil {
 		return err
 	}
-	_, err = s.store.Consume(ctx, orgID, key, s.periodKey(f.Period), delta)
-	return err
+	pk := s.periodKey(f.Period)
+	next, err := s.store.Consume(ctx, orgID, key, pk, delta)
+	if err != nil {
+		return err
+	}
+	if s.alerter != nil && delta > 0 {
+		if th := CrossedThreshold(f, next-delta, next); th != "" {
+			s.alerter.LimitAlert(ctx, Alert{
+				OrgID: orgID, Key: key, Period: f.Period, PeriodKey: pk,
+				Threshold: th, Used: next, Limit: f.Limit, WarnPct: f.WarnPct,
+			})
+		}
+	}
+	return nil
 }
 
 // Enabled reports a toggle; undefined toggles are on.

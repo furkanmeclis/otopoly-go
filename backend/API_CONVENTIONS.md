@@ -82,7 +82,9 @@ Register `/meta` **before** `/{uuid}` on `ServeMux`. Capabilities must match liv
 
 Tenant mutations may be refused by the organization's subscription (`internal/platform/entitlements`):
 
-- `409 LIMIT_REACHED` — a hard limit is exhausted; `details` carries `feature`, `limit`, `used`, `tolerance`.
+- `409 LIMIT_REACHED` — a hard limit is exhausted; `details` carries `feature`, `limit`, `used`, `tolerance`, `owner_notified` (`"true"` when the organization owner has been alerted this billing period).
+
+Owner alerts: `entitlements.Service` reports threshold crossings (warn % — default 80 —, 100 %) from `Consume` and refusals from `Check` to its `Alerter` (the billing module). Billing notifies every **owner** (never staff) through the notification center — kinds `billing.usage_warning` / `billing.limit_full` / `billing.limit_reached` / `billing.subscription_ending` (7/3/1 days, from the lifecycle job) — once per threshold and billing period (monthly counters: per counter month). E-mail carries usage and the web billing link; the in-app text is neutral (mobile shows it).
 - `403 FEATURE_DISABLED` — the plan turns the feature / module off (also returned by `middleware.RequireFeature` route gates).
 
 Handlers map `*entitlements.LimitError` → `middleware.WriteLimitReached` and `entitlements.ErrFeatureDisabled` → `FEATURE_DISABLED`.
@@ -91,7 +93,8 @@ Handlers map `*entitlements.LimitError` → `middleware.WriteLimitReached` and `
 
 Domain / auth use cases call `notifications.Service.Enqueue(...)` only. HTTP handlers never call SMTP/SMS inline.
 
-- Channels: `inapp` | `email` | `realtime` | `sms` | `push` (sms/push = noop unless VAPID is configured)
+- Channels: `inapp` | `email` | `realtime` | `sms` | `push` (sms = noop)
+- Push: every delivered `inapp` (or `push`) row fans out to browser Web Push (VAPID, when configured) and to the user's mobile devices via the Expo Push Service (`push_devices`, task `app:push:send`, batches of 100; receipts checked every 15 min by `app:push:receipts`, `DeviceNotRegistered` disables the token). Mobile push text is lock-screen safe (`notifications/pushtext`), `data.url` is the in-app action path. Requires `push_enabled`.
 - Delivery: Asynq task `app:notification:deliver` on queue `notifications`
 - **Security emails** (`auth.password_reset`, `auth.email_verification`) ignore `email_enabled` preference
 - Realtime channel hint: `user:{user_uuid}`

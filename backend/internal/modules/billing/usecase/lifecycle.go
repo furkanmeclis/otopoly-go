@@ -78,6 +78,17 @@ func (s *Service) RunLifecycle(ctx context.Context, now time.Time) (LifecycleRes
 		}
 		kind := fmt.Sprintf("ends_in_%d", day)
 		for _, row := range rows {
+			if s.center != nil {
+				// Localized owner e-mail + neutral in-app notice (notify center).
+				n, err := s.q.InsertReminderLog(ctx, db.InsertReminderLogParams{
+					Key: row.Uuid.String() + ":" + kind, Kind: kind,
+					OrganizationID: pgtype.Int8{Int64: row.OrganizationID, Valid: true},
+				})
+				if err == nil && n > 0 && s.subscriptionEndingAlert(ctx, row.OrganizationID, row.Uuid.String(), row.PlanCode, row.EndsAt.Time, day) {
+					out.RemindersSent++
+				}
+				continue
+			}
 			if s.sendSubscriptionReminder(ctx, row.Uuid.String()+":"+kind, kind, row.OrganizationID, row.OrganizationSlug, "Aboneliğiniz yakında sona eriyor", fmt.Sprintf("Aboneliğiniz %d gün içinde sona erecek.", day)) {
 				out.RemindersSent++
 			}
