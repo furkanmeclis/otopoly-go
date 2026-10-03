@@ -106,9 +106,13 @@ func (s *Service) CreateSubscriptionAdmin(ctx context.Context, in AdminSubscript
 	if err != nil {
 		return AdminSubscription{}, err
 	}
+	accessStart, err := continuousAccessStart(ctx, qtx, org.ID, pgTimeValue(in.StartsAt), time.Now())
+	if err != nil {
+		return AdminSubscription{}, err
+	}
 	if err := qtx.SetOrganizationAccess(ctx, db.SetOrganizationAccessParams{
 		PlanCode:       pgtype.Text{String: plan.Code, Valid: true},
-		AccessStartsAt: pgTimeValue(in.StartsAt),
+		AccessStartsAt: accessStart,
 		AccessEndsAt:   pgTimeValue(in.EndsAt),
 		ID:             org.ID,
 	}); err != nil {
@@ -181,9 +185,13 @@ func (s *Service) UpdateSubscriptionAdmin(ctx context.Context, id uuid.UUID, in 
 	if err != nil {
 		return AdminSubscription{}, err
 	}
+	accessStart, err := continuousAccessStart(ctx, qtx, updated.OrganizationID, updated.StartsAt, time.Now())
+	if err != nil {
+		return AdminSubscription{}, err
+	}
 	if err := qtx.SetOrganizationAccess(ctx, db.SetOrganizationAccessParams{
 		PlanCode:       pgtype.Text{String: planCode, Valid: true},
-		AccessStartsAt: updated.StartsAt,
+		AccessStartsAt: accessStart,
 		AccessEndsAt:   updated.EndsAt,
 		ID:             updated.OrganizationID,
 	}); err != nil {
