@@ -9,6 +9,7 @@ import { authService, type Me, type OrganizationMembership } from '@/features/ac
 import { useLocale } from '@/lib/i18n/provider';
 import { isSupportedLocale } from '@/lib/i18n/translate';
 import { createLogger } from '@/lib/logger';
+import { setMonitoringUser } from '@/lib/monitoring';
 import { clearWidgetsForSignOut } from '@/features/widgets/bridge';
 import { registerPushDevice, unregisterPushDevice } from '@/features/notifications/push';
 
@@ -213,6 +214,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const profile = await authService.getMe();
     setMe(profile);
   }, []);
+
+  // Error reports carry the opaque user uuid only (no e-mail / name); cleared on sign-out.
+  const userId = me?.user.uuid ?? null;
+  useEffect(() => {
+    setMonitoringUser(userId);
+  }, [userId]);
 
   const value = useMemo<AuthContextValue>(() => {
     const permissions = new Set(me?.permissions ?? []);

@@ -1,6 +1,7 @@
 import { env, isMock } from '@/config/env';
 import { getCurrentLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
+import { reportApiFailure } from '@/lib/monitoring';
 
 import { ApiError, parseApiError } from './errors';
 import { emitApiEvent } from './events';
@@ -320,9 +321,14 @@ export async function request<T>(method: string, path: string, options: RequestO
     if (!options.silent) emitApiEvent(error);
     throw error;
   } catch (error) {
-    if (error instanceof ApiError) throw error;
+    if (error instanceof ApiError) {
+      // 5xx and transport failures only (see isReportableApiFailure); never bodies or headers.
+      reportApiFailure({ method, path, status: error.status, code: error.code, requestId: error.requestId });
+      throw error;
+    }
     log.error(`${tag} crashed`, { id, error });
     const wrapped = new ApiError({ status: 0, code: 'NETWORK_ERROR', message: String((error as Error)?.message ?? error) });
+    reportApiFailure({ method, path, status: 0, code: 'NETWORK_ERROR' });
     if (!options.silent) emitApiEvent(wrapped);
     throw wrapped;
   }
@@ -367,8 +373,12 @@ export async function requestStream(method: string, path: string, options: Strea
     throw error;
   } catch (error) {
     if (signal?.aborted) throw abortedError();
-    if (error instanceof ApiError) throw error;
+    if (error instanceof ApiError) {
+      reportApiFailure({ method, path, status: error.status, code: error.code, requestId: error.requestId, stream: true });
+      throw error;
+    }
     log.error(`${tag} crashed`, { id, error });
+    reportApiFailure({ method, path, status: 0, code: 'NETWORK_ERROR', stream: true });
     throw new ApiError({ status: 0, code: 'NETWORK_ERROR', message: String((error as Error)?.message ?? error) });
   }
 }

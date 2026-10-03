@@ -10,6 +10,8 @@
  *   EXPO_PUBLIC_APP_ENV=development|preview|production   (production = App Store / Play Store build)
  *   EXPO_PUBLIC_PRIVACY_URL=https://otopoly.app/privacy   (privacy policy; login, profile, AI consent, account deletion)
  *   EXPO_PUBLIC_TERMS_URL=https://otopoly.app/terms       (terms of use)
+ *   EXPO_PUBLIC_SENTRY_DSN=https://<key>@<host>/<project>  (error / performance reporting, see docs/SENTRY.md;
+ *                                                         unset → Sentry is not initialised at all)
  *
  * Store builds (`EXPO_PUBLIC_APP_ENV=production`) never run the in-app mock: demo accounts, the demo
  * sign-in deep link, the QA tour, demo pickers and the diagnostics screen are compiled out of reach.
@@ -55,6 +57,8 @@ export const env = {
   /** Public legal pages (must be reachable without signing in). */
   privacyUrl: urlOr(process.env.EXPO_PUBLIC_PRIVACY_URL, 'https://otopoly.app/privacy'),
   termsUrl: urlOr(process.env.EXPO_PUBLIC_TERMS_URL, 'https://otopoly.app/terms'),
+  /** Sentry-protocol DSN (self-hosted tracker). Null → no error reporting. */
+  sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || null,
 } as const;
 
 export const isMock = env.apiMode === 'mock';

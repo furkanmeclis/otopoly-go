@@ -171,6 +171,8 @@
       ],
       "./plugins/with-xcode-cloud",
       "./plugins/with-scene-lifecycle",
+      "@sentry/react-native",
+      "./plugins/with-sentry-no-upload",
       [
         "expo-build-properties",
         {

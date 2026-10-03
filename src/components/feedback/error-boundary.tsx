@@ -7,20 +7,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Txt } from '@/components/ui';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
+import { captureError } from '@/lib/monitoring';
 import { useTheme } from '@/theme/provider';
 
 const log = createLogger('boundary');
 
 /**
  * Route-level error boundary (exported as `ErrorBoundary` from layouts).
- * Logs the crash and offers a retry instead of a white screen.
+ * Logs and reports the crash and offers a retry instead of a white screen.
  */
-export function RouteErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+export function RouteErrorBoundary({ error, retry, reported }: ErrorBoundaryProps & { reported?: boolean }) {
   const t = useTheme();
   const { t: tr } = useLocale();
   useEffect(() => {
     log.error('Route crashed', { message: error.message, stack: error.stack });
-  }, [error]);
+    // The root Sentry.ErrorBoundary already reported what it renders this fallback for.
+    if (!reported) captureError(error, { tags: { boundary: 'route' } });
+  }, [error, reported]);
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.background }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: t.spacing.xxl, gap: t.spacing.lg }}>
