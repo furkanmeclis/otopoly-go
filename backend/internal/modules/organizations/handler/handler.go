@@ -8,10 +8,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	authmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/model"
 	authusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
@@ -85,6 +87,102 @@ func (h *Handler) PublicRegister(w http.ResponseWriter, r *http.Request) {
 		"organization": result.Organization,
 		"tokens":       tokens,
 	})
+}
+
+const (
+	ownedOrgCreateLimit  = 5
+	ownedOrgCreateWindow = time.Hour
+	orgNameMinLen        = 2
+	orgNameMaxLen        = 120
+)
+
+// CreateOwnedOrganization is POST /v1/auth/organizations: a signed-in user
+// without a business creates one and becomes its owner (14-day trial). No
+// organization context is required.
+func (h *Handler) CreateOwnedOrganization(w http.ResponseWriter, r *http.Request) {
+	p, ok := authctx.PrincipalFrom(r.Context())
+	if !ok {
+		response.Unauthorized(w, r, "Authentication required")
+		return
+	}
+	var in struct {
+		OrganizationName string `json:"organization_name"`
+		Phone            string `json:"phone"`
+		City             string `json:"city"`
+		District         string `json:"district"`
+		Address          string `json:"address"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	if details := validateOwnedOrganization(in.OrganizationName, in.Phone, in.City, in.District, in.Address); len(details) > 0 {
+		response.ValidationError(w, r, details)
+		return
+	}
+	enabled, err := h.auth.SelfRegistrationEnabled(r.Context())
+	if err != nil {
+		response.InternalErr(w, r, err, "Unexpected server error")
+		return
+	}
+	if !enabled {
+		response.Forbidden(w, r, "Registration is disabled")
+		return
+	}
+	if h.limiter != nil {
+		if ok, retry := h.limiter.Allow(r.Context(), "org_self_create", p.UserID.String(), ownedOrgCreateLimit, ownedOrgCreateWindow); !ok {
+			if retry > 0 {
+				w.Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+			}
+			response.TooManyRequests(w, r, "Too many attempts. Try again later.")
+			return
+		}
+	}
+	result, err := h.svc.CreateOwnedOrganization(r.Context(), orgusecase.RegisterInput{
+		OrganizationName: in.OrganizationName, City: in.City, District: in.District,
+		Phone: in.Phone, Address: in.Address,
+	}, p.UserInternal)
+	if err != nil {
+		if errors.Is(err, orgusecase.ErrAlreadyOwnsOrganization) {
+			response.Conflict(w, r, response.CodeConflict, "You already own a business")
+			return
+		}
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusCreated, map[string]any{
+		"organization": map[string]any{
+			"uuid": result.Organization.UUID,
+			"slug": result.Organization.Slug,
+			"name": result.Organization.Name,
+		},
+	})
+}
+
+func validateOwnedOrganization(name, phone, city, district, address string) []response.Detail {
+	var details []response.Detail
+	n := utf8.RuneCountInString(strings.TrimSpace(name))
+	switch {
+	case n == 0:
+		details = append(details, response.Detail{Field: "organization_name", Message: "organization_name is required", Code: "required"})
+	case n < orgNameMinLen:
+		details = append(details, response.Detail{Field: "organization_name", Message: "organization_name must be at least 2 characters", Code: "min_length"})
+	case n > orgNameMaxLen:
+		details = append(details, response.Detail{Field: "organization_name", Message: "organization_name must be at most 120 characters", Code: "max_length"})
+	}
+	maxLens := []struct {
+		field, value string
+		max          int
+	}{
+		{"phone", phone, 32}, {"city", city, 100}, {"district", district, 100}, {"address", address, 500},
+	}
+	for _, f := range maxLens {
+		if utf8.RuneCountInString(strings.TrimSpace(f.value)) > f.max {
+			details = append(details, response.Detail{
+				Field: f.field, Message: f.field + " must be at most " + strconv.Itoa(f.max) + " characters", Code: "max_length",
+			})
+		}
+	}
+	return details
 }
 
 func (h *Handler) PublicBySlug(w http.ResponseWriter, r *http.Request) {

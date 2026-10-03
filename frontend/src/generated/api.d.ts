@@ -88,6 +88,45 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create my business
+         * @description Self-serve business creation for a signed-in user that has no business
+         *     yet (typically after Apple / Google / email-code sign-up, which create
+         *     a user without an organization). No organization context is required.
+         *
+         *     Same organization setup as `/v1/public/organizations/register`: the
+         *     caller becomes `owner` (organization_user + organization_owner roles),
+         *     a slug is generated from the name, and a 14-day trial starts now
+         *     (`access_starts_at` = now, `access_ends_at` = now + trial). Runs in one
+         *     transaction.
+         *
+         *     The response carries no tokens: call `/v1/auth/organization-context`
+         *     with the returned `slug` (or `/v1/auth/refresh`) to get an
+         *     organization-scoped session.
+         *
+         *     Errors: `400 VALIDATION_ERROR` (field details: `organization_name`
+         *     2-120 characters; `phone` <= 32, `city` / `district` <= 100,
+         *     `address` <= 500), `401`, `403 FORBIDDEN` when self-registration is
+         *     disabled (`auth_settings.registration_enabled`), `409 CONFLICT` when
+         *     the caller already owns a business (staff membership elsewhere does not
+         *     count), `429 RATE_LIMITED` (5 per hour per user).
+         */
+        post: operations["postAuthOrganizations"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/organization-context": {
         parameters: {
             query?: never;
@@ -1188,6 +1227,11 @@ export interface paths {
          *     single use, stored hashed). The response is identical whether or not the
          *     email belongs to an account. Rate limited per IP and per email.
          *
+         *     Unknown email: when self-registration is enabled
+         *     (`auth_settings.registration_enabled`) a sign-up code is sent as well
+         *     and `/v1/auth/email-code/verify` creates the account. When it is
+         *     disabled no email is sent (same response).
+         *
          *     App review: emails listed in `AUTH_REVIEW_ACCOUNTS` receive no email;
          *     their fixed code works for that email only.
          */
@@ -1214,6 +1258,15 @@ export interface paths {
          *     `403 MFA_REQUIRED` and the email code stays valid; retry with the same
          *     `code` plus `totp_code`. A wrong `totp_code` (`401 INVALID_MFA_CODE`)
          *     counts against the code's 5 attempts.
+         *
+         *     Sign-up: for an email without an account, when self-registration is
+         *     enabled, a valid code creates the user (email verified, no password,
+         *     `name` = email local part, empty `surname`, default role) and returns
+         *     tokens like a normal login. The new user has no organization; create
+         *     one with `/v1/auth/organizations`. Sending `organization_slug` for an
+         *     unknown email returns `403 NO_TENANT_MEMBERSHIP` and creates nothing.
+         *     With registration disabled an unknown email gets
+         *     `400 INVALID_EMAIL_CODE`.
          *
          *     Errors: `400 INVALID_EMAIL_CODE` (wrong / expired / used / exhausted),
          *     `403 MFA_REQUIRED`, `401 INVALID_MFA_CODE`, `403 ACCOUNT_DEACTIVATED`,
@@ -6299,6 +6352,27 @@ export interface components {
             phone: string;
             address: string;
         };
+        CreateOwnedOrganizationRequest: {
+            organization_name: string;
+            phone?: string;
+            city?: string;
+            district?: string;
+            address?: string;
+        };
+        OwnedOrganizationCreated: {
+            organization: {
+                /** Format: uuid */
+                uuid: string;
+                slug: string;
+                name: string;
+            };
+        };
+        EnvelopeOwnedOrganizationCreated: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OwnedOrganizationCreated"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         CreatePlatformOrganizationRequest: {
             name: string;
             city?: string;
@@ -10668,6 +10742,36 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthOrganizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateOwnedOrganizationRequest"];
+            };
+        };
+        responses: {
+            /** @description Business created; caller is its owner */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOwnedOrganizationCreated"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };

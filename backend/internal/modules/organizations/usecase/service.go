@@ -215,8 +215,6 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (RegisterResul
 	if err != nil {
 		return RegisterResult{}, err
 	}
-	now := time.Now().UTC()
-	trialEnd := now.Add(trialDays * 24 * time.Hour)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return RegisterResult{}, err
@@ -230,41 +228,9 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) (RegisterResul
 	if err != nil {
 		return RegisterResult{}, err
 	}
-	org, err := qtx.CreateOrganization(ctx, db.CreateOrganizationParams{
-		Slug: orgSlug, Name: in.OrganizationName,
-		City: strings.TrimSpace(in.City), District: strings.TrimSpace(in.District),
-		Phone: strings.TrimSpace(in.Phone), Address: strings.TrimSpace(in.Address),
-		Status: "active", PlanCode: pgtype.Text{String: "trial", Valid: true},
-		AccessStartsAt: pgtype.Timestamptz{Time: now, Valid: true},
-		AccessEndsAt:   pgtype.Timestamptz{Time: trialEnd, Valid: true},
-	})
+	org, err := s.createOrganizationTx(ctx, qtx, in, orgSlug, user.ID)
 	if err != nil {
 		return RegisterResult{}, err
-	}
-	if _, err := qtx.CreateOrganizationMember(ctx, db.CreateOrganizationMemberParams{
-		OrganizationID: org.ID, UserID: user.ID, Role: "owner",
-	}); err != nil {
-		return RegisterResult{}, err
-	}
-	if err := qtx.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
-		UserID: user.ID, Slug: rbac.RoleOrganizationUser,
-	}); err != nil {
-		return RegisterResult{}, err
-	}
-	if err := qtx.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
-		UserID: user.ID, Slug: rbac.RoleOrganizationOwner,
-	}); err != nil {
-		return RegisterResult{}, err
-	}
-	if err := financeusecase.SeedDefaults(ctx, qtx, org.ID); err != nil {
-		return RegisterResult{}, err
-	}
-	if s.billing != nil {
-		trialEnd, err = s.billing.StartTrialTx(ctx, qtx, org.ID, now)
-		if err != nil {
-			return RegisterResult{}, err
-		}
-		org.AccessEndsAt = pgtype.Timestamptz{Time: trialEnd, Valid: true}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return RegisterResult{}, err
@@ -286,14 +252,90 @@ func (s *Service) RegisterOrganization(ctx context.Context, in RegisterInput, ow
 	if err != nil {
 		return RegisterResult{}, err
 	}
-	now := time.Now().UTC()
-	trialEnd := now.Add(trialDays * 24 * time.Hour)
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return RegisterResult{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	qtx := s.q.WithTx(tx)
+	org, err := s.createOrganizationTx(ctx, qtx, in, orgSlug, ownerUserID)
+	if err != nil {
+		return RegisterResult{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return RegisterResult{}, err
+	}
+	return RegisterResult{Organization: mapOrganization(org)}, nil
+}
+
+// ErrAlreadyOwnsOrganization: self-serve creation is limited to one owned business per user.
+var ErrAlreadyOwnsOrganization = fmt.Errorf("%w: user already owns an organization", ErrConflict)
+
+// CreateOwnedOrganization is self-serve business creation for a signed-in user
+// that has no business yet (e.g. after Apple/Google/email-code sign-up). Same
+// organization setup as public register (owner membership + roles, trial,
+// finance defaults); fails with ErrAlreadyOwnsOrganization when the user
+// already owns one. Staff memberships elsewhere do not count.
+func (s *Service) CreateOwnedOrganization(ctx context.Context, in RegisterInput, ownerUserID int64) (RegisterResult, error) {
+	in.OrganizationName = strings.TrimSpace(in.OrganizationName)
+	if in.OrganizationName == "" {
+		return RegisterResult{}, fmt.Errorf("%w: organization_name is required", ErrInvalidRequest)
+	}
+	if owns, err := s.userOwnsOrganization(ctx, s.q, ownerUserID); err != nil {
+		return RegisterResult{}, err
+	} else if owns {
+		return RegisterResult{}, ErrAlreadyOwnsOrganization
+	}
+	orgSlug, err := s.allocateSlug(ctx, in.OrganizationName)
+	if err != nil {
+		return RegisterResult{}, err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return RegisterResult{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// Serialize concurrent creates for the same user so a double tap cannot
+	// produce two businesses; re-check ownership under the lock.
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('org_self_create'), $1::int)`, int32(ownerUserID)); err != nil {
+		return RegisterResult{}, err
+	}
+	qtx := s.q.WithTx(tx)
+	if owns, err := s.userOwnsOrganization(ctx, qtx, ownerUserID); err != nil {
+		return RegisterResult{}, err
+	} else if owns {
+		return RegisterResult{}, ErrAlreadyOwnsOrganization
+	}
+	org, err := s.createOrganizationTx(ctx, qtx, in, orgSlug, ownerUserID)
+	if err != nil {
+		return RegisterResult{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return RegisterResult{}, err
+	}
+	return RegisterResult{Organization: mapOrganization(org), OwnerUserID: ownerUserID}, nil
+}
+
+func (s *Service) userOwnsOrganization(ctx context.Context, q *db.Queries, userID int64) (bool, error) {
+	rows, err := q.ListOrganizationMembersByUserID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	for _, row := range rows {
+		if row.Role == "owner" {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// createOrganizationTx is the shared organization setup used by public
+// register, platform create and self-serve create: organization row with a
+// trial access window starting now, owner membership + roles, finance
+// defaults and the billing trial subscription.
+func (s *Service) createOrganizationTx(ctx context.Context, qtx *db.Queries, in RegisterInput, orgSlug string, ownerUserID int64) (db.Organization, error) {
+	now := time.Now().UTC()
+	trialEnd := now.Add(trialDays * 24 * time.Hour)
 	org, err := qtx.CreateOrganization(ctx, db.CreateOrganizationParams{
 		Slug: orgSlug, Name: in.OrganizationName,
 		City: strings.TrimSpace(in.City), District: strings.TrimSpace(in.District),
@@ -303,37 +345,34 @@ func (s *Service) RegisterOrganization(ctx context.Context, in RegisterInput, ow
 		AccessEndsAt:   pgtype.Timestamptz{Time: trialEnd, Valid: true},
 	})
 	if err != nil {
-		return RegisterResult{}, err
+		return db.Organization{}, err
 	}
 	if _, err := qtx.CreateOrganizationMember(ctx, db.CreateOrganizationMemberParams{
 		OrganizationID: org.ID, UserID: ownerUserID, Role: "owner",
 	}); err != nil {
-		return RegisterResult{}, err
+		return db.Organization{}, err
 	}
 	if err := qtx.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
 		UserID: ownerUserID, Slug: rbac.RoleOrganizationUser,
 	}); err != nil {
-		return RegisterResult{}, err
+		return db.Organization{}, err
 	}
 	if err := qtx.AssignUserRoleBySlug(ctx, db.AssignUserRoleBySlugParams{
 		UserID: ownerUserID, Slug: rbac.RoleOrganizationOwner,
 	}); err != nil {
-		return RegisterResult{}, err
+		return db.Organization{}, err
 	}
 	if err := financeusecase.SeedDefaults(ctx, qtx, org.ID); err != nil {
-		return RegisterResult{}, err
+		return db.Organization{}, err
 	}
 	if s.billing != nil {
 		trialEnd, err = s.billing.StartTrialTx(ctx, qtx, org.ID, now)
 		if err != nil {
-			return RegisterResult{}, err
+			return db.Organization{}, err
 		}
 		org.AccessEndsAt = pgtype.Timestamptz{Time: trialEnd, Valid: true}
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return RegisterResult{}, err
-	}
-	return RegisterResult{Organization: mapOrganization(org)}, nil
+	return org, nil
 }
 
 // GetPublicBySlug returns branding info for tenant login.

@@ -96,3 +96,12 @@ func mapOrganizationError(err error) error {
 		return err
 	}
 }
+
+// SelfRegistrationEnabled reports the global self-registration switch
+// (auth_settings.registration_enabled). Without settings wired it is closed.
+func (u *AuthUseCase) SelfRegistrationEnabled(ctx context.Context) (bool, error) {
+	if u.authSettings == nil {
+		return false, nil
+	}
+	return u.authSettings.RegistrationEnabled(ctx)
+}

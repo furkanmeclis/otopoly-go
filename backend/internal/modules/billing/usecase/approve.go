@@ -262,9 +262,13 @@ func (s *Service) approveTx(ctx context.Context, tx pgx.Tx, qtx *db.Queries, id 
 	if err != nil {
 		return db.BillingOrder{}, err
 	}
+	accessStart, err := continuousAccessStart(ctx, qtx, order.OrganizationID, order.StartsAt, time.Now())
+	if err != nil {
+		return db.BillingOrder{}, err
+	}
 	if err := qtx.SetOrganizationAccess(ctx, db.SetOrganizationAccessParams{
 		PlanCode:       pgtype.Text{String: planCode, Valid: true},
-		AccessStartsAt: order.StartsAt,
+		AccessStartsAt: accessStart,
 		AccessEndsAt:   order.EndsAt,
 		ID:             order.OrganizationID,
 	}); err != nil {
