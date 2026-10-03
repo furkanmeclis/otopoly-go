@@ -73,8 +73,9 @@ func NewWorker(cfg config.Config, log *slog.Logger, deliver DeliverNotificationF
 			QueueMaintenance:   1,
 			QueueContracts:     2,
 		},
-		ErrorHandler: asynq.ErrorHandlerFunc(func(_ context.Context, task *asynq.Task, err error) {
+		ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
 			log.Error("queue_task_failed", "type", task.Type(), "error", err)
+			reportTaskFailure(ctx, task, err)
 		}),
 	})
 	mux := asynq.NewServeMux()

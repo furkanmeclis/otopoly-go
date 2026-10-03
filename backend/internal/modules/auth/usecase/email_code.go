@@ -65,6 +65,11 @@ func (u *AuthUseCase) RequestLoginCode(ctx context.Context, email string) error 
 	user, err := u.repo.FindUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
+			// Still "accepted" for the client (no account enumeration), but
+			// leave a trace for "I never got my code" reports.
+			if u.log != nil {
+				u.log.InfoContext(ctx, "auth_email_code_unknown_account")
+			}
 			return nil
 		}
 		return err
