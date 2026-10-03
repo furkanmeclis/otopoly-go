@@ -42,8 +42,11 @@ const FEATURES: FeatureDef[] = [
   { key: 'module.reports', kind: 'toggle', period: 'none', unit: '', label_tr: 'Raporlar ve dışa aktarım', label_en: 'Reports & exports', value: true },
 ];
 
-/** Modules the `feature_disabled` scenario turns off (each has the shared lock state in the app). */
-const DISABLED_IN_SCENARIO = new Set(['module.contracts', 'module.reports', 'ai.enabled']);
+/** Modules each scenario turns off (each has the shared lock state in the app). */
+const DISABLED_IN_SCENARIO: Partial<Record<PlanScenario, Set<string>>> = {
+  feature_disabled: new Set(['module.contracts', 'module.reports', 'ai.enabled']),
+  quotes_disabled: new Set(['module.quotes']),
+};
 
 const PLAN: BillingPlan = {
   uuid: 'b111a000-0000-4000-8000-000000000002',
@@ -86,7 +89,7 @@ const PLAN: BillingPlan = {
 function enabled(key: string, scenario: PlanScenario = getPlanScenario()) {
   const f = FEATURES.find((x) => x.key === key);
   if (!f || f.kind !== 'toggle') return true;
-  if (scenario === 'feature_disabled' && DISABLED_IN_SCENARIO.has(key)) return false;
+  if (DISABLED_IN_SCENARIO[scenario]?.has(key)) return false;
   return f.value !== false;
 }
 
@@ -155,11 +158,24 @@ const GATED_PREFIXES: { prefix: string; feature: string }[] = [
   { prefix: '/v1/tenant/contracts/', feature: 'module.contracts' },
   { prefix: '/v1/tenant/reports/', feature: 'module.reports' },
   { prefix: '/v1/tenant/ai/conversations', feature: 'ai.enabled' },
+  { prefix: '/v1/tenant/ai/actions/', feature: 'ai.enabled' },
+  // Quotes and leads share `module.quotes` (backend quotes/leads routes.go).
+  { prefix: '/v1/tenant/quotes', feature: 'module.quotes' },
+  { prefix: '/v1/tenant/leads', feature: 'module.quotes' },
 ];
+
+/** Writes still allowed in read-only mode (backend `readOnlyAllowed`). */
+const readOnlyAllowed = (method: string, path: string) =>
+  method === 'GET' || method === 'HEAD' || path.startsWith('/v1/tenant/billing/') || path.startsWith('/v1/tenant/exports/');
 
 export function enforcePlan(ctx: MockCtx) {
   const scenario = getPlanScenario();
   if (scenario === 'normal' || scenario === 'near_limit') return;
+
+  // Same message as the Go API; the app never shows it (it has its own neutral copy).
+  if (scenario === 'read_only' && !readOnlyAllowed(ctx.method, ctx.path)) {
+    fail(403, 'SUBSCRIPTION_READ_ONLY', 'Abonelik salt okunur modda. Yeni kayıt açmak için aboneliğinizi yenileyin.');
+  }
 
   for (const g of GATED_PREFIXES) {
     if (ctx.path.startsWith(g.prefix) && !enabled(g.feature, scenario)) fail(403, 'FEATURE_DISABLED', 'This feature is not included in your plan');
@@ -177,6 +193,8 @@ export function enforcePlan(ctx: MockCtx) {
       { field: 'limit', message: String(limit) },
       { field: 'used', message: String(used) },
       { field: 'tolerance', message: '0' },
+      // The 100 % threshold notice goes to the owner with the first refusal of the period.
+      { field: 'owner_notified', message: 'true' },
     ]);
   }
 }
@@ -196,7 +214,7 @@ route('GET', '/v1/tenant/billing/overview', (ctx): BillingOverview => {
       plan_code: PLAN.code,
       plan_name: PLAN.name,
       period: 'monthly',
-      status: 'active',
+      status: getPlanScenario() === 'read_only' ? 'read_only' : 'active',
       starts_at: iso(-startsDaysAgo),
       ends_at: iso(endsIn),
       grace_ends_at: iso(endsIn + 7),
@@ -206,6 +224,7 @@ route('GET', '/v1/tenant/billing/overview', (ctx): BillingOverview => {
     },
     plan: PLAN,
     meters: meters(ctx),
-    read_only: false,
+    open_order: null,
+    read_only: getPlanScenario() === 'read_only',
   };
 });

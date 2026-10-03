@@ -6,6 +6,7 @@ import { Linking, Pressable, ScrollView, View } from 'react-native';
 
 import { Badge, Button, Card, DateField, EmptyState, Group, Header, IconButton, InfoRow, ListRow, ListSkeleton, PlateBadge, Row, Screen, Section, TextField, Txt, useConfirm } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
+import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { localToday, shiftDate } from '@/features/jobs/lib/job-ui';
 import { ActionMenu, Chip, ChipRow, Notice, Stepper } from '@/features/leads/components/crm-ui';
@@ -24,7 +25,9 @@ export default function LeadDetailScreen() {
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.leadsRead} title={tr('leads.title')}>
-      <LeadDetailContent />
+      <QuotesModuleGate area="leads" title={tr('leads.title')}>
+        <LeadDetailContent />
+      </QuotesModuleGate>
     </RequirePermission>
   );
 }

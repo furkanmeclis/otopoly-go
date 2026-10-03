@@ -7,7 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DEMO_EMAIL_CODE, DEMO_TOTP_CODE, demoIdToken, type DemoIdentity } from '@/api/mock/demo-auth';
 import { BrandMark } from '@/components/brand';
 import { Button, Card, Row, Segmented, TextField, Txt } from '@/components/ui';
-import { isMock, qaTourEnabled } from '@/config/env';
+import { devToolsEnabled, isMock, qaTourEnabled } from '@/config/env';
+import { LegalLinks } from '@/features/account/components/legal-links';
 import { authService } from '@/features/account/services/auth.service';
 import { useAuth } from '@/features/auth/auth-provider';
 import { Notice, TotpField } from '@/features/auth/components/code-entry';
@@ -113,7 +114,7 @@ export default function LoginScreen() {
                 <NotLinkedNotice
                   provider={flow.notLinked}
                   onUseCode={() => {
-                    flow.clearNotLinked();
+                    flow.hideNotLinked();
                     setMode('code');
                   }}
                   onDismiss={flow.clearNotLinked}
@@ -144,14 +145,18 @@ export default function LoginScreen() {
 
           {isMock && !flow.mfa ? <DemoCard onPick={(who) => login(DEMO[who], DEMO.password).catch((err) => setError(authErrorMessage(tr, err)))} disabled={busy} /> : null}
 
-          <Pressable onPress={() => router.push('/diagnostics')} style={{ alignSelf: 'center', padding: t.spacing.sm }} accessibilityRole="button" accessibilityLabel={tr('mobile.diagnostics.title')}>
-            <Row gap={6}>
-              <Bug size={14} color={t.colors.textMuted} />
-              <Txt variant="caption" tone="muted">
-                {tr('mobile.diagnostics.title')}
-              </Txt>
-            </Row>
-          </Pressable>
+          <LegalLinks notice={tr('mobile.account.legal.login_notice')} />
+
+          {devToolsEnabled ? (
+            <Pressable onPress={() => router.push('/diagnostics')} style={{ alignSelf: 'center', padding: t.spacing.sm }} accessibilityRole="button" accessibilityLabel={tr('mobile.diagnostics.title')}>
+              <Row gap={6}>
+                <Bug size={14} color={t.colors.textMuted} />
+                <Txt variant="caption" tone="muted">
+                  {tr('mobile.diagnostics.title')}
+                </Txt>
+              </Row>
+            </Pressable>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
 

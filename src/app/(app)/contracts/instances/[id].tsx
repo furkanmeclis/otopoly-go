@@ -9,6 +9,7 @@ import { useToast } from '@/components/feedback/toast';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { ContractHtml } from '@/features/contracts/components/contract-html';
+import { MediaUploader } from '@/features/contracts/components/media-uploader';
 import { SignSheet } from '@/features/contracts/components/sign-sheet';
 import { instanceStatusLabel, instanceStatusTone, signerStatusLabel, useContractsAccess } from '@/features/contracts/lib/access';
 import { contractKeys, useContractInstance } from '@/features/contracts/queries';
@@ -262,9 +263,13 @@ function ContractInstanceDetail() {
             })}
           </View>
         )}
-        <Txt variant="caption" tone="muted">
-          {canMutate ? tr('mobile.documents.media_upload_web') : tr('contracts.instances.gallery_locked')}
-        </Txt>
+        {canMutate ? (
+          <MediaUploader instanceUuid={instance.uuid} />
+        ) : (
+          <Txt variant="caption" tone="muted">
+            {tr('contracts.instances.gallery_locked')}
+          </Txt>
+        )}
       </Section>
 
       <SignSheet instance={instance} signerUuid={signing} onClose={() => setSigning(null)} />

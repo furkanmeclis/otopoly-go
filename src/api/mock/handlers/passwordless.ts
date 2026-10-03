@@ -339,3 +339,54 @@ route('POST', '/v1/auth/account/deactivate', (ctx) => {
   log.info('Demo account deactivated', { email: user.email });
   return { status: 'deactivated' };
 });
+
+// ─── Linked accounts (profile) ────────────────────────────────────────────
+// GET/DELETE mirror the backend (`/v1/auth/identities[/{provider}]`). Two mobile additions the
+// backend doesn't have yet (docs/port-reports/account.md): `has_password` on the list, and
+// `POST /v1/auth/identities/{provider}/native` to link with a native id_token while signed in.
+
+/** OAuth-created accounts get a random unusable password (`createOAuthUser`). */
+const hasPassword = (user: MockUser) => !user.password.startsWith('!oauth-');
+
+function identityList(user: MockUser) {
+  const items = identities()
+    .filter((i) => i.userUuid === user.uuid)
+    .map((i) => ({ provider: i.provider, github_login: null, linked_at: i.linkedAt }));
+  return { items, total: items.length, has_password: hasPassword(user) };
+}
+
+route('GET', '/v1/auth/identities', (ctx) => identityList(userOf(ctx)));
+
+route('POST', '/v1/auth/identities/:provider/native', (ctx) => {
+  const user = userOf(ctx);
+  const provider = ctx.params.provider;
+  if (provider !== 'apple' && provider !== 'google') fail(404, 'NOT_FOUND', 'Unknown OAuth provider');
+  if (ext()._oauthDisabled?.[provider]) fail(403, 'OAUTH_PROVIDER_DISABLED', 'Native sign-in is not enabled for this provider');
+  const idToken = str(ctx.body.id_token).trim();
+  if (!idToken) validation([{ field: 'id_token', message: 'required', code: 'required' }]);
+  const parsed = parseDemoIdToken(idToken);
+  if (!parsed || parsed.identity.provider !== provider) fail(401, 'INVALID_ID_TOKEN', 'The identity token is invalid');
+  if (parsed!.nonce && parsed!.nonce !== str(ctx.body.nonce)) fail(401, 'INVALID_ID_TOKEN', 'The identity token nonce does not match');
+  const all = identities();
+  const owner = all.find((i) => i.provider === provider && i.sub === parsed!.identity.sub);
+  if (owner && owner.userUuid !== user.uuid) fail(409, 'CONFLICT', 'this sign-in is already linked to another account');
+  const mine = all.find((i) => i.provider === provider && i.userUuid === user.uuid);
+  if (mine && mine.sub !== parsed!.identity.sub) fail(409, 'CONFLICT', 'The account already has an identity for this provider');
+  if (!owner) link(provider, parsed!.identity.sub, user);
+  const row = identities().find((i) => i.provider === provider && i.userUuid === user.uuid)!;
+  log.info('Demo identity linked', { provider, email: user.email });
+  return { provider, github_login: null, linked_at: row.linkedAt };
+});
+
+route('DELETE', '/v1/auth/identities/:provider', (ctx) => {
+  const user = userOf(ctx);
+  const provider = ctx.params.provider;
+  if (!['github', 'google', 'facebook', 'apple'].includes(provider)) fail(404, 'NOT_FOUND', 'Unknown OAuth provider');
+  const all = identities();
+  const mine = all.filter((i) => i.userUuid === user.uuid);
+  if (!mine.some((i) => i.provider === provider)) fail(404, 'NOT_FOUND', 'Linked identity not found');
+  // An account without a password must keep at least one way in besides the e-mail code.
+  if (!hasPassword(user) && mine.length <= 1) fail(409, 'LAST_SIGN_IN_METHOD', 'Set a password or link another account before removing this one');
+  ext()._oauthIdentities = all.filter((i) => !(i.userUuid === user.uuid && i.provider === provider));
+  return { status: 'unlinked' };
+});

@@ -19,7 +19,8 @@ export const FIN_CAT = {
 export function categoryByName(db: MockDb, name: string, kind: 'income' | 'expense') {
   let cat = db.financeCategories.find((c) => c.name === name && c.kind === kind);
   if (!cat) {
-    cat = { uuid: uuid(), name, kind, parent_uuid: null, sort_order: db.financeCategories.length, is_active: true };
+    const at = new Date().toISOString();
+    cat = { uuid: uuid(), name, kind, parent_uuid: null, sort_order: db.financeCategories.length, is_active: true, created_at: at, updated_at: at };
     db.financeCategories.push(cat);
   }
   return cat;

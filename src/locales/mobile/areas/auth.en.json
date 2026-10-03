@@ -26,7 +26,7 @@
   "auth.error.link_conflict": "This {{provider}} account is linked to another account, or your account already has a {{provider}} sign-in.",
   "auth.error.registration_closed": "New accounts can't be created right now.",
   "auth.not_linked.title": "Your {{provider}} account isn't linked",
-  "auth.not_linked.body": "An Otopoly account already uses this email, but your {{provider}} account isn't linked to it. Sign in the usual way (password or email code), then link {{provider}} from your profile.",
+  "auth.not_linked.body": "An Otopoly account already uses this email, but your {{provider}} account isn't linked to it. Sign in the usual way (password or email code), then link {{provider}} under Profile → Linked accounts. We'll take you there once you're signed in.",
   "auth.not_linked.use_code": "Sign in with an email code",
   "auth.link.title": "Do you have an account?",
   "auth.link.body": "You chose to hide your email when signing in with Apple. If you already have an Otopoly account, we'll link Sign in with Apple to it. Otherwise we'll create a new account for you.",

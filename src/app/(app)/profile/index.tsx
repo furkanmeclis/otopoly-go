@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
-import { Bell, Fingerprint, KeyRound, ScanQrCode, ShieldCheck, UserX } from 'lucide-react-native';
+import { Bell, Fingerprint, KeyRound, Link2, ScanQrCode, ShieldCheck, UserX } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { Avatar, Badge, Button, Card, Group, Header, InfoRow, ListRow, Row, Screen, Section, TextField, Txt } from '@/components/ui';
 import { useToast } from '@/components/feedback/toast';
+import { LegalGroup } from '@/features/account/components/legal-links';
 import { SessionList } from '@/features/account/components/session-list';
 import { accountKeys, useTotpStatus } from '@/features/account/queries';
 import { authService } from '@/features/account/services/auth.service';
@@ -114,6 +115,7 @@ export default function ProfileScreen() {
       <Section title={tr('mobile.catalog.profile_security')}>
         <Group>
           <ListRow title={tr('auth.password.title')} subtitle={tr('auth.profile.change_password_body')} left={<KeyRound size={20} color={t.colors.primary} />} onPress={() => router.push('/profile/password')} />
+          <ListRow title={tr('auth.oauth.title')} subtitle={tr('auth.oauth.profile_hint')} left={<Link2 size={20} color={t.colors.primary} />} onPress={() => router.push('/profile/linked-accounts')} />
           <ListRow title={tr('mobile.qr.menu_title')} subtitle={tr('mobile.qr.menu_subtitle')} left={<ScanQrCode size={20} color={t.colors.primary} />} onPress={() => router.push('/qr-scan')} />
           <ListRow title={tr('auth.preferences.title')} subtitle={tr('auth.preferences.description')} left={<Bell size={20} color={t.colors.primary} />} onPress={() => router.push('/profile/preferences')} />
           <ListRow
@@ -132,6 +134,10 @@ export default function ProfileScreen() {
             last
           />
         </Group>
+      </Section>
+
+      <Section title={tr('mobile.account.legal.section')}>
+        <LegalGroup />
       </Section>
 
       <Section title={tr('auth.sessions.title')}>

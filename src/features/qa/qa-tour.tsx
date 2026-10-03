@@ -37,6 +37,7 @@ export const QA_TOUR: Href[] = [
   '/contracts/templates',
   '/exports',
   '/imports',
+  '/imports/new',
 ];
 export const QA_STEP_MS = 4000;
 

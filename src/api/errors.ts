@@ -12,6 +12,7 @@ export type ApiErrorCode =
   | 'ORGANIZATION_CONTEXT_REQUIRED'
   | 'NO_TENANT_MEMBERSHIP'
   | 'ORGANIZATION_ACCESS_EXPIRED'
+  | 'SUBSCRIPTION_READ_ONLY'
   | 'MFA_REQUIRED'
   | 'TOTP_REQUIRED'
   | 'INVALID_CREDENTIALS'
@@ -96,7 +97,14 @@ export function parseApiError(status: number, payload: unknown, requestId?: stri
 // ─── Plan limits ───────────────────────────────────────────────────────────
 
 /** Numbers a `409 LIMIT_REACHED` carries (backend `middleware.WriteLimitReached`). */
-export type LimitInfo = { feature?: string; limit?: number; used?: number; tolerance?: number };
+export type LimitInfo = {
+  feature?: string;
+  limit?: number;
+  used?: number;
+  tolerance?: number;
+  /** `owner_notified` detail: the owner was e-mailed about this limit in the current billing period. */
+  ownerNotified?: boolean;
+};
 
 const toNum = (v: unknown) => {
   if (v === undefined || v === null || v === '') return undefined;
@@ -116,6 +124,7 @@ export function limitInfo(error: ApiError): LimitInfo {
     limit: toNum(map.limit),
     used: toNum(map.used),
     tolerance: toNum(map.tolerance),
+    ownerNotified: map.owner_notified === undefined ? undefined : String(map.owner_notified) === 'true',
   };
 }
 
@@ -132,3 +141,9 @@ export const isLimitReached = (error: unknown): error is ApiError => isApiError(
 
 /** `403 FEATURE_DISABLED`: the organization's plan turns the module off. */
 export const isFeatureDisabled = (error: unknown): error is ApiError => isApiError(error) && error.code === 'FEATURE_DISABLED';
+
+/** `403 SUBSCRIPTION_READ_ONLY`: the plan period ended; reads work, writes don't. */
+export const isReadOnly = (error: unknown): error is ApiError => isApiError(error) && error.code === 'SUBSCRIPTION_READ_ONLY';
+
+/** Plan blocks that get the shared plan dialog instead of an error toast. */
+export const isPlanBlocked = (error: unknown): error is ApiError => isLimitReached(error) || isReadOnly(error);

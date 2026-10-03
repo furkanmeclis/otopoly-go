@@ -25,6 +25,8 @@ export type PublicOrganization = {
   uuid: string;
   slug: string;
   name: string;
+  /** Organization status (`active`, `suspended`, …). */
+  status: string;
   logo_url?: string | null;
   access_ok: boolean;
 };

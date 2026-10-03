@@ -260,6 +260,8 @@ function PipelineSection() {
   const leads = useLeadsSummary(canLeads);
   const quotes = useQuotesSummary(canQuotes);
   if (!canLeads && !canQuotes) return null;
+  // The plan turns the quotes & leads module off: no pipeline (same as insights without reports).
+  if (isFeatureDisabled(leads.error) || isFeatureDisabled(quotes.error)) return null;
 
   const tiles = [
     canLeads

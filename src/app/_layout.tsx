@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BrandMark, MARK_RATIO } from '@/components/brand';
+import { devToolsEnabled } from '@/config/env';
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
 import { ToastProvider } from '@/components/feedback/toast';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
@@ -93,7 +94,10 @@ function RootNavigator() {
         <Stack.Protected guard={status === 'ready' || status === 'selectOrg'}>
           <Stack.Screen name="delete-account" />
         </Stack.Protected>
-        <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
+        {/* Logs and demo scenarios: never reachable in App Store / Play Store builds. */}
+        <Stack.Protected guard={devToolsEnabled}>
+          <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
+        </Stack.Protected>
       </Stack>
     </NavThemeProvider>
   );

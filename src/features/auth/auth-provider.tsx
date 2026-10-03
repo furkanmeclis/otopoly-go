@@ -12,6 +12,7 @@ import { createLogger } from '@/lib/logger';
 import { clearWidgetsForSignOut } from '@/features/widgets/bridge';
 import { registerPushDevice, unregisterPushDevice } from '@/features/notifications/push';
 
+import { orgBlock as accessBlock } from './lib/access';
 import type { Gate, Permission } from './permissions';
 
 const log = createLogger('auth');
@@ -41,11 +42,9 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+/** Why the organization can't be used (mirrors web TenantRouteGuard states; see `lib/access.ts`). */
 export function orgBlock(org: OrganizationMembership): OrgBlock {
-  if (org.status === 'suspended') return 'suspended';
-  if (org.status === 'expired') return 'expired';
-  if (org.access_ends_at && new Date(org.access_ends_at).getTime() <= Date.now()) return 'expired';
-  return null;
+  return accessBlock(org);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

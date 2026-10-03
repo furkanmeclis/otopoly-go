@@ -26,7 +26,7 @@ export const PLAN_FEATURES = [
 export type PlanFeatureKey = (typeof PLAN_FEATURES)[number];
 
 /** Modules that can be switched off by the plan and show the shared lock state. */
-export type LockedModule = 'module.contracts' | 'module.reports' | 'ai.enabled';
+export type LockedModule = 'module.contracts' | 'module.reports' | 'module.quotes' | 'ai.enabled';
 
 /** Warn from this share of the limit on when the meter doesn't say otherwise. */
 export const DEFAULT_WARN_PCT = 80;
@@ -83,11 +83,21 @@ export function featurePeriod(key: string | undefined, meterPeriod?: string): 'd
 }
 
 /**
- * Translation key for the LIMIT_REACHED dialog body. Owners are told the details went to their
- * e-mail; staff that their manager was informed. Never mentions buying or upgrading.
+ * Translation key for the LIMIT_REACHED dialog body. When the API says `owner_notified: "true"`, owners
+ * are told the details went to their e-mail and staff that their manager was informed; otherwise
+ * (`"false"`, or an older API without the detail) the neutral variant claims neither.
+ * Never mentions buying or upgrading.
  */
-export function limitReachedMessageKey(isOwner: boolean, period: 'day' | 'month' | 'total') {
-  return `mobile.plan.limit.${isOwner ? 'owner' : 'staff'}_${period}` as const;
+export function limitReachedMessageKey(isOwner: boolean, period: 'day' | 'month' | 'total', ownerNotified?: boolean) {
+  return `mobile.plan.limit.${isOwner ? 'owner' : 'staff'}_${period}${ownerNotified === true ? '' : '_neutral'}` as const;
+}
+
+/**
+ * `403 SUBSCRIPTION_READ_ONLY` dialog body: the plan period ended, records can still be viewed.
+ * Same tone as the limit dialog; nothing about renewing or buying.
+ */
+export function readOnlyMessageKey(isOwner: boolean) {
+  return `mobile.plan.read_only_dialog.${isOwner ? 'owner' : 'staff'}` as const;
 }
 
 /** Translation key for the FEATURE_DISABLED lock state body. */
@@ -114,10 +124,10 @@ export function moduleName(t: Translate, feature: LockedModule | string) {
 /** Full LIMIT_REACHED dialog body for the viewer's role. */
 export function limitReachedMessage(
   t: Translate,
-  opts: { isOwner: boolean; feature?: string; used?: number; limit?: number; meterPeriod?: string; formatNumber?: (n: number) => string },
+  opts: { isOwner: boolean; feature?: string; used?: number; limit?: number; ownerNotified?: boolean; meterPeriod?: string; formatNumber?: (n: number) => string },
 ) {
   const num = (n: number | undefined) => (n === undefined ? '—' : opts.formatNumber ? opts.formatNumber(n) : String(n));
-  return t(limitReachedMessageKey(opts.isOwner, featurePeriod(opts.feature, opts.meterPeriod)), {
+  return t(limitReachedMessageKey(opts.isOwner, featurePeriod(opts.feature, opts.meterPeriod), opts.ownerNotified), {
     feature: limitFeatureNoun(t, opts.feature),
     used: num(opts.used),
     limit: num(opts.limit),

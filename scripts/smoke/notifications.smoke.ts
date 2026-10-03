@@ -143,7 +143,7 @@ const PURCHASE_WORDS = /yükselt|satın|fiyat|ödeme|abone ol|upgrade|purchase|b
   const parsed = parseSignedActionUrl(signed.signed_action_url)!;
   const action = await request<any>('GET', `/v1/notifications/${parsed.uuid}/action`, { query: { exp: parsed.exp, sig: parsed.sig } });
   ok(action.destination === signed.action_url && action.notification.read_at, 'signed action redeems destination and marks read');
-  ok((await code(request('GET', `/v1/notifications/${parsed.uuid}/action`, { query: { exp: parsed.exp, sig: 'forged' }, silent: true }))) === 'INVALID_SIGNATURE', 'forged signature → INVALID_SIGNATURE');
+  ok((await code(request('GET', `/v1/notifications/${parsed.uuid}/action`, { query: { exp: parsed.exp, sig: 'forged' }, silent: true }))) === 'VALIDATION_ERROR', 'forged signature → VALIDATION_ERROR (backend: invalid or expired action link)');
 
   await request('POST', '/v1/notifications/read-all');
   ok((await request<any>('GET', '/v1/notifications/unread-count')).count === 0, 'read-all clears the badge');

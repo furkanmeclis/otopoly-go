@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Otopoly",
+    "NSCameraUsageDescription": "Otopoly uses the camera to scan the QR code that approves a web sign-in and to add vehicle photos to contracts.",
+    "NSPhotoLibraryUsageDescription": "Otopoly accesses your photo library to add the vehicle photos and documents you choose to contracts."
+  },
+  "android": {
+    "app_name": "Otopoly"
+  }
+}

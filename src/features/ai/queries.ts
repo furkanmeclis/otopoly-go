@@ -1,9 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { isAborted } from '@/api/client';
 import { isApiError } from '@/api/errors';
+import { replaceCard } from '@/features/ai/lib/blocks';
+import { applyEvent, streamingMessage, toServerMessage, type AIStreamEvent } from '@/features/ai/lib/stream';
 import { aiService } from '@/features/ai/services/ai.service';
-import type { AIConversationDetail, AIMessage, ChatMessage } from '@/features/ai/types';
+import type { AIConversationDetail, AIMessage, AIUIBlock, ChatMessage } from '@/features/ai/types';
 import { qk } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
@@ -59,97 +62,229 @@ export function useDeleteConversation(onDeleted?: (uuid: string) => void) {
 }
 
 const toChat = (m: AIMessage): ChatMessage => ({ uuid: m.uuid, role: m.role, status: m.status, blocks: m.blocks });
-const TYPE_STEP = 6;
-const TYPE_TICK_MS = 24;
+
+/** A stream that stopped before `message_done`: keep what arrived and say why. */
+function interrupted(m: ChatMessage, error: unknown): ChatMessage {
+  if (isAborted(error)) return { ...m, pending: false, streaming: false, status: 'cancelled' };
+  const code = isApiError(error) ? error.code : 'network';
+  const hasError = m.blocks.some((b) => b.type === 'error');
+  return { ...m, pending: false, streaming: false, status: 'error', blocks: hasError ? m.blocks : [...m.blocks, { type: 'error', code }] };
+}
 
 /**
- * Chat state for one conversation: server history + the live turn, with a short typing animation
- * for the newest assistant answer. Mirrors web `useAssistantChat` (send / stop / streaming / loadError).
+ * Chat state for one conversation: server history + the turn being streamed. Mirrors web
+ * `useAssistantChat`: tokens render as `text_delta` events arrive, tool chips / charts / plan / confirm
+ * cards appear as their events do, `stop` aborts the stream, and leaving the screen aborts it too.
  */
 export function useAssistantChat({ conversationUuid, onConversationCreated }: { conversationUuid: string | null; onConversationCreated: (uuid: string) => void }) {
   const qc = useQueryClient();
   const { locale } = useLocale();
   const detail = useConversationDetail(conversationUuid);
   const [live, setLive] = useState<{ conv: string | null; messages: ChatMessage[] }>({ conv: null, messages: [] });
-  const [typing, setTyping] = useState<{ uuid: string; shown: number; total: number } | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
   const turn = useRef(0);
+  const mounted = useRef(true);
 
-  // Typing animation: reveal the newest answer a few characters per tick.
+  // Leaving the chat (unmount, other conversation) closes any open stream.
   useEffect(() => {
-    if (!typing || typing.shown >= typing.total) return;
-    const id = setInterval(() => {
-      setTyping((cur) => (cur ? { ...cur, shown: Math.min(cur.total, cur.shown + TYPE_STEP) } : cur));
-    }, TYPE_TICK_MS);
-    return () => clearInterval(id);
-  }, [typing]);
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const server = useMemo(() => (detail.data?.messages ?? []).map(toChat), [detail.data]);
   const liveMessages = useMemo(() => (live.conv === conversationUuid || live.conv === null ? live.messages : []), [live, conversationUuid]);
-  const messages = useMemo(() => {
-    const all = [...server, ...liveMessages];
-    if (!typing || typing.shown >= typing.total) return all;
-    return all.map((m) => (m.uuid === typing.uuid ? { ...m, blocks: truncateBlocks(m.blocks, typing.shown), typing: true } : m));
-  }, [server, liveMessages, typing]);
+  const messages = useMemo(() => [...server, ...liveMessages], [server, liveMessages]);
 
-  const pending = liveMessages.some((m) => m.pending);
-  const animating = Boolean(typing && typing.shown < typing.total);
+  /** Appends finished messages to the cached conversation (no refetch needed). */
+  const commit = useCallback(
+    (uuid: string, append: AIMessage[], title?: string) => {
+      // Not loaded yet (opened mid-load): the server copy already has the turn.
+      if (!qc.getQueryData(aiKeys.detail(uuid))) {
+        void qc.invalidateQueries({ queryKey: aiKeys.detail(uuid) });
+        return;
+      }
+      qc.setQueryData<AIConversationDetail>(aiKeys.detail(uuid), (old) =>
+        old ? { ...old, ...(title ? { title } : {}), message_count: old.message_count + append.length, messages: [...old.messages, ...append] } : old,
+      );
+    },
+    [qc],
+  );
 
   const send = useCallback(
     async (content: string) => {
       const text = content.trim();
-      if (!text || pending) return;
+      if (!text || abortRef.current) return;
       const myTurn = ++turn.current;
+      const controller = new AbortController();
+      abortRef.current = controller;
       const userMsg: ChatMessage = { uuid: `local-user-${myTurn}`, role: 'user', status: 'complete', blocks: [{ type: 'text', text }] };
-      const waiting: ChatMessage = { uuid: `local-assistant-${myTurn}`, role: 'assistant', status: 'pending', blocks: [], pending: true };
-      setTyping(null);
-      setLive({ conv: conversationUuid, messages: [userMsg, waiting] });
+      let msg = streamingMessage(`local-assistant-${myTurn}`);
+      let userUuid = userMsg.uuid;
+      let done = false;
       let uuid = conversationUuid;
+      const show = () => {
+        if (mounted.current && turn.current === myTurn) setLive({ conv: uuid, messages: done ? [] : [userMsg, msg] });
+      };
+      setStreaming(true);
+      show();
       try {
         if (!uuid) {
           const conv = await aiService.createConversation();
           uuid = conv.uuid;
           qc.setQueryData<AIConversationDetail>(aiKeys.detail(uuid), { ...conv, messages: [] });
-          setLive({ conv: uuid, messages: [userMsg, waiting] });
+          show();
           onConversationCreated(uuid);
         }
-        const res = await aiService.sendMessage(uuid, text, locale);
-        if (turn.current !== myTurn) return; // stopped by the user
-        await qc.cancelQueries({ queryKey: aiKeys.detail(uuid) });
-        qc.setQueryData<AIConversationDetail>(aiKeys.detail(uuid), (old) => ({
-          ...(old ?? { ...res.conversation, messages: [] }),
-          ...res.conversation,
-          messages: [...(old?.messages ?? []), res.user_message, res.message],
-        }));
-        setLive({ conv: uuid, messages: [] });
-        setTyping({ uuid: res.message.uuid, shown: 0, total: textLength(res.message.blocks) });
+        const convUuid = uuid;
+        await aiService.streamMessage(convUuid, text, locale, {
+          signal: controller.signal,
+          onEvent: (ev: AIStreamEvent) => {
+            if (ev.event === 'message_start') {
+              if (ev.data.user_message_uuid) userUuid = ev.data.user_message_uuid;
+              return;
+            }
+            if (ev.event === 'title') {
+              commit(convUuid, [], ev.data.title);
+              void qc.invalidateQueries({ queryKey: aiKeys.conversations });
+              return;
+            }
+            msg = applyEvent(msg, ev);
+            if (ev.event === 'message_done') {
+              done = true;
+              commit(convUuid, [toServerMessage({ ...userMsg, uuid: userUuid }), toServerMessage(msg)]);
+              log.info('Assistant answered', { conversation: convUuid, blocks: msg.blocks.length, status: msg.status });
+            }
+            show();
+          },
+        });
+        if (!done) {
+          msg = interrupted(msg, null);
+          show();
+        }
+      } catch (error) {
+        if (isAborted(error)) log.info('Assistant turn stopped');
+        else log.warn('Assistant message failed', error);
+        if (!done) {
+          msg = interrupted(msg, error);
+          show();
+        }
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+        if (mounted.current) setStreaming(false);
         void qc.invalidateQueries({ queryKey: aiKeys.conversations });
         void qc.invalidateQueries({ queryKey: aiKeys.status });
-        log.info('Assistant answered', { conversation: uuid, blocks: res.message.blocks.length });
-      } catch (error) {
-        if (turn.current !== myTurn) return;
-        log.warn('Assistant message failed', error);
-        const code = isApiError(error) ? error.code : 'network';
-        setLive({ conv: uuid, messages: [userMsg, { uuid: `local-error-${myTurn}`, role: 'assistant', status: 'error', blocks: [{ type: 'error', code }] }] });
       }
     },
-    [conversationUuid, locale, onConversationCreated, pending, qc],
+    [commit, conversationUuid, locale, onConversationCreated, qc],
   );
 
-  /** Stops the current turn: discards a pending answer, or finishes the typing animation at once. */
+  /** Stops the current stream; what already arrived stays on screen, marked as stopped. */
   const stop = useCallback(() => {
-    if (pending) {
-      turn.current += 1;
-      setLive((cur) => ({ ...cur, messages: cur.messages.map((m) => (m.pending ? { ...m, pending: false, status: 'cancelled' } : m)) }));
-      log.info('Assistant turn stopped');
-      return;
-    }
-    setTyping((cur) => (cur ? { ...cur, shown: cur.total } : cur));
-  }, [pending]);
+    abortRef.current?.abort();
+  }, []);
+
+  /** Puts a confirm card (and its tool chip) in its new state in the cached conversation. */
+  const setCard = useCallback(
+    (uuid: string, card: AIUIBlock) => {
+      qc.setQueryData<AIConversationDetail>(aiKeys.detail(uuid), (old) => (old ? { ...old, messages: replaceCard(old.messages, card) } : old));
+    },
+    [qc],
+  );
+
+  /**
+   * Runs an action the assistant proposed (web `confirmAction`), with optional edited fields: streams the
+   * `action` result into the card, then the assistant's follow-up message token by token.
+   */
+  const confirmAction = useCallback(
+    async (card: AIUIBlock, edits?: Record<string, string>) => {
+      const uuid = conversationUuid;
+      if (!uuid || !card.id || abortRef.current) return;
+      const myTurn = ++turn.current;
+      const controller = new AbortController();
+      abortRef.current = controller;
+      let msg: ChatMessage | null = null;
+      let resolved = false;
+      let done = false;
+      const show = () => {
+        if (mounted.current && turn.current === myTurn) setLive({ conv: uuid, messages: msg && !done ? [msg] : [] });
+      };
+      setCard(uuid, { ...card, status: 'executing' });
+      setStreaming(true);
+      setLive({ conv: uuid, messages: [] });
+      try {
+        await aiService.streamConfirm(card.id, edits, locale, {
+          signal: controller.signal,
+          onEvent: (ev: AIStreamEvent) => {
+            if (ev.event === 'action') {
+              resolved = true;
+              setCard(uuid, ev.data.block);
+              log.info('Assistant action confirmed', { action: card.id, status: ev.data.status });
+              return;
+            }
+            if (ev.event === 'message_start') {
+              msg = streamingMessage(`local-assistant-${myTurn}`);
+              show();
+              return;
+            }
+            if (!msg || ev.event === 'title') return;
+            msg = applyEvent(msg, ev);
+            if (ev.event === 'message_done') {
+              done = true;
+              commit(uuid, [toServerMessage(msg)]);
+            }
+            show();
+          },
+        });
+        if (!resolved) throw new Error('stream ended without an action result');
+        // The plan checklist of the proposing message moves on too: take the server's copy.
+        if (done || !msg) void qc.invalidateQueries({ queryKey: aiKeys.detail(uuid) });
+        else {
+          msg = interrupted(msg, null);
+          show();
+        }
+      } catch (error) {
+        if (!resolved) {
+          // Not executed (or unknown): reload so the card shows the server's status.
+          setLive({ conv: uuid, messages: [] });
+          void qc.invalidateQueries({ queryKey: aiKeys.detail(uuid) });
+          if (!isAborted(error)) throw error;
+        } else if (msg && !done) {
+          msg = interrupted(msg, error);
+          show();
+        }
+      } finally {
+        if (abortRef.current === controller) abortRef.current = null;
+        if (mounted.current) setStreaming(false);
+        void qc.invalidateQueries({ queryKey: aiKeys.status });
+      }
+    },
+    [commit, conversationUuid, locale, qc, setCard],
+  );
+
+  const cancelAction = useCallback(
+    async (card: AIUIBlock) => {
+      const uuid = conversationUuid;
+      if (!uuid || !card.id) return;
+      try {
+        const res = await aiService.cancelAction(card.id);
+        setCard(uuid, res.block);
+        log.info('Assistant action cancelled', { action: card.id });
+      } catch (error) {
+        void qc.invalidateQueries({ queryKey: aiKeys.detail(uuid) });
+        throw error;
+      }
+    },
+    [conversationUuid, qc, setCard],
+  );
 
   const reset = useCallback(() => {
     turn.current += 1;
+    abortRef.current?.abort();
     setLive({ conv: null, messages: [] });
-    setTyping(null);
   }, []);
 
   return {
@@ -157,29 +292,11 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
     send,
     stop,
     reset,
-    busy: pending || animating,
+    confirmAction,
+    cancelAction,
+    busy: streaming,
     loading: detail.isLoading,
     loadError: detail.isError,
     refetch: detail.refetch,
   };
-}
-
-function textLength(blocks: ChatMessage['blocks']) {
-  return blocks.reduce((n, b) => n + (b.type === 'text' ? (b.text?.length ?? 0) : 0), 0);
-}
-
-/** Text blocks cut at `shown` characters; charts appear once their preceding text finished typing. */
-function truncateBlocks(blocks: ChatMessage['blocks'], shown: number): ChatMessage['blocks'] {
-  let left = shown;
-  const out: ChatMessage['blocks'] = [];
-  for (const b of blocks) {
-    if (b.type === 'text') {
-      const len = b.text?.length ?? 0;
-      if (left <= 0) break;
-      out.push({ ...b, text: (b.text ?? '').slice(0, left) });
-      left -= len;
-    } else if (b.type === 'tool') out.push(b);
-    else if (left > 0 || out.some((x) => x.type === 'text')) out.push(b);
-  }
-  return out;
 }

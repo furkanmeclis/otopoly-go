@@ -16,11 +16,18 @@ export type ResourceCapabilities = {
   bulk?: boolean;
 };
 
+/** `GET …/meta` (backend `resourcemeta.ResourceMeta`, OpenAPI `ResourceMeta`). */
 export type ResourceMeta = {
-  resource?: string;
-  capabilities?: ResourceCapabilities;
-  sortable?: string[];
-  filterable?: string[];
+  resource: string;
+  default_sort: string;
+  default_fields?: string[];
+  capabilities: ResourceCapabilities;
+  searchable_fields?: string[];
+  sortable_fields?: string[];
+  filterable_fields?: string[];
+  columns?: Record<string, unknown>[];
+  filters?: Record<string, unknown>[];
+  includes?: string[];
   bulk_actions?: BulkActionMeta[];
 };
 

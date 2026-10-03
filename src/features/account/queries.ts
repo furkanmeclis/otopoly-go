@@ -11,6 +11,7 @@ export const accountKeys = {
   totp: [...qk.account, 'totp'] as const,
   prefs: [...qk.account, 'notification-preferences'] as const,
   tenantPrefs: [...qk.account, 'tenant-notification-preferences'] as const,
+  identities: [...qk.account, 'identities'] as const,
 };
 
 export const useSessions = () => useQuery({ queryKey: accountKeys.sessions, queryFn: async () => (await authService.listSessions()).items ?? [] });

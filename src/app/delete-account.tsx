@@ -7,6 +7,7 @@ import { DEMO_EMAIL_CODE } from '@/api/mock/demo-auth';
 import { useToast } from '@/components/feedback/toast';
 import { Button, Card, Header, Row, Screen, Section, Txt, useConfirm } from '@/components/ui';
 import { isMock } from '@/config/env';
+import { LegalLinks } from '@/features/account/components/legal-links';
 import { useAuth } from '@/features/auth/auth-provider';
 import { CODE_LENGTH, CodeField, Notice, ResendLink, useCountdown } from '@/features/auth/components/code-entry';
 import { authErrorMessage } from '@/features/auth/lib/auth-errors';
@@ -121,6 +122,7 @@ export default function DeleteAccountScreen() {
           <Point icon={<Archive size={18} color={t.colors.textSecondary} />} text={tr('mobile.auth.delete.point_data')} />
           <Point icon={<Building2 size={18} color={t.colors.textSecondary} />} text={tr('mobile.auth.delete.point_org')} />
         </Card>
+        <LegalLinks notice={tr('mobile.account.legal.delete_hint')} docs={['privacy']} />
       </Section>
 
       <Section title={tr('mobile.auth.delete.code_title')}>

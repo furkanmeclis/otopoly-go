@@ -10,7 +10,7 @@ import type { NotificationPreferences } from '@/features/account/services/notifi
 import type { AppNotification } from '@/features/notifications/services/notifications.service';
 import type { PushDevice } from '@/features/notifications/services/push-devices.service';
 
-import { fail, now, paginate, route, search, sortBy, str, uuid, validation, type MockCtx, type MockUser } from '../core';
+import { fail, type MockCtx, type MockUser, now, paginate, resourceMeta, route, search, sortBy, str, uuid, validation } from '../core';
 import { getDb, type MockDb } from '../db';
 
 type MockNotification = AppNotification & { _user: string };
@@ -217,7 +217,7 @@ route('GET', '/v1/notifications', (ctx) => {
   return { ...page, items: page.items.map(strip) };
 });
 
-route('GET', '/v1/notifications/meta', () => ({ resource: 'notifications', default_sort: '-created_at', capabilities: { search: true, filters: ['status', 'channel', 'unread'] } }));
+route('GET', '/v1/notifications/meta', () => resourceMeta('notifications', '-created_at', { read: true, search: true, filter: true, sort: true }, { filterable: ['status', 'channel', 'unread'] }));
 
 route('GET', '/v1/notifications/unread-count', (ctx) => ({ count: inboxOf(userOf(ctx)).filter(isUnread).length }));
 
@@ -252,8 +252,8 @@ route('GET', '/v1/notifications/:uuid', (ctx) => strip(findOwn(ctx)));
 route('GET', '/v1/notifications/:uuid/action', (ctx) => {
   const n = findOwn(ctx);
   const exp = Number(ctx.query.exp);
-  if (!Number.isFinite(exp) || !ctx.query.sig || ctx.query.sig !== signFor(n.uuid, exp)) fail(400, 'INVALID_SIGNATURE', 'Invalid action signature');
-  if (exp * 1000 < Date.now()) fail(400, 'ACTION_EXPIRED', 'Action link expired');
+  if (!Number.isFinite(exp) || !ctx.query.sig || ctx.query.sig !== signFor(n.uuid, exp)) fail(400, 'VALIDATION_ERROR', 'invalid request: invalid or expired action link');
+  if (exp * 1000 < Date.now()) fail(400, 'VALIDATION_ERROR', 'invalid request: invalid or expired action link');
   markRead(n);
   return { destination: n.action_url ?? '', notification: strip(n) };
 });
