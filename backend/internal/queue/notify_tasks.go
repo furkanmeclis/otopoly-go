@@ -127,8 +127,9 @@ func NewMessagingWorker(cfg config.Config, log *slog.Logger, fn ProcessMessaging
 			// 30s, 1m, 2m, 4m, 8m …
 			return time.Duration(30<<min(n, 6)) * time.Second
 		},
-		ErrorHandler: asynq.ErrorHandlerFunc(func(_ context.Context, task *asynq.Task, err error) {
+		ErrorHandler: asynq.ErrorHandlerFunc(func(ctx context.Context, task *asynq.Task, err error) {
 			log.Warn("messaging_send_attempt_failed", "type", task.Type(), "error", err)
+			reportTaskFailure(ctx, task, err)
 		}),
 	})
 	mux := asynq.NewServeMux()

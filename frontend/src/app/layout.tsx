@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Outfit, Plus_Jakarta_Sans } from "next/font/google";
+import Script from "next/script";
 
 import { brand } from "@/config/brand";
 import { site } from "@/config/site";
@@ -60,6 +61,8 @@ export default function RootLayout({
       <body
         className={`${plusJakarta.variable} ${outfit.variable} ${jetbrainsMono.variable} min-h-full font-sans antialiased`}
       >
+        {/* Runtime browser config (Sentry DSN); must run before hydration. */}
+        <Script src="/api/client-env" strategy="beforeInteractive" />
         <AppProviders>{children}</AppProviders>
       </body>
     </html>
