@@ -4,6 +4,7 @@ export const config = {
   matcher: [
     "/",
     "/register",
+    "/onboarding/:path*",
     "/t/:path*",
     "/profile/:path*",
     "/platform/:path*",

@@ -7090,6 +7090,47 @@ export interface components {
             data: components["schemas"]["StatusPayload"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        AuthMethodFlags: {
+            login: boolean;
+            /** @description Sign-up allowed with this method (already ANDed with `registration_enabled`). */
+            register: boolean;
+        };
+        AppConfigLetterhead: {
+            company_name: string;
+            tagline: string;
+            primary_color: string;
+            /** @description Omitted when no platform logo is uploaded. */
+            logo_url?: string;
+        };
+        AppConfig: {
+            /** @enum {string} */
+            mode: "platform";
+            name: string;
+            vapid_configured: boolean;
+            /**
+             * @deprecated
+             * @description Legacy; use `auth_methods.github.login`.
+             */
+            github_auth_enabled: boolean;
+            registration_enabled: boolean;
+            auth_methods: {
+                password: components["schemas"]["AuthMethodFlags"];
+                passkey: {
+                    login: boolean;
+                };
+                github: components["schemas"]["AuthMethodFlags"];
+                google: components["schemas"]["AuthMethodFlags"];
+                facebook: components["schemas"]["AuthMethodFlags"];
+                apple: components["schemas"]["AuthMethodFlags"];
+            };
+            letterhead: components["schemas"]["AppConfigLetterhead"];
+        };
+        /** @description This endpoint's envelope carries no `meta`. */
+        EnvelopeAppConfig: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AppConfig"];
+        };
         EnvelopePublicUser: {
             /** @enum {boolean} */
             success: true;
@@ -13641,7 +13682,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["EnvelopeStatus"];
+                    "application/json": components["schemas"]["EnvelopeAppConfig"];
                 };
             };
             500: components["responses"]["InternalError"];

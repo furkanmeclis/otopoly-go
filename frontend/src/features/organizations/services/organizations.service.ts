@@ -1,7 +1,8 @@
 import type { ServerListParams } from "@/components/entity";
 import { apiConfig } from "@/config/api";
 import { platformFormRequest } from "@/lib/api/platform-form-request";
-import { platformRequest, unwrap } from "@/lib/api";
+import type { components } from "@/generated/api";
+import { apiClient, platformRequest, unwrap } from "@/lib/api";
 
 export type OrganizationStatus = "pending" | "active" | "suspended" | "expired";
 
@@ -146,7 +147,24 @@ async function publicRequest<T>(method: string, path: string, body?: unknown) {
   return unwrap<T>({ data: payload, response });
 }
 
+export type OwnedOrganizationCreated =
+  components["schemas"]["OwnedOrganizationCreated"];
+
 export const organizationsService = {
+  /**
+   * Signed-in user without a business creates one and becomes its owner.
+   * Goes through the BFF (bearer from the session cookie). Silent: the
+   * onboarding wizard shows its own messages per status.
+   */
+  async createOwned(
+    body: components["schemas"]["CreateOwnedOrganizationRequest"],
+  ) {
+    return unwrap<OwnedOrganizationCreated>(
+      await apiClient.POST("/v1/auth/organizations", { body }),
+      { silent: true },
+    );
+  },
+
   async register(body: OrganizationRegisterInput) {
     return publicRequest<OrganizationRegisterResult>(
       "POST",

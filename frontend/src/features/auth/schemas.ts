@@ -21,19 +21,59 @@ export function createLoginSchema(t: Translate) {
 
 export type LoginFormValues = z.infer<ReturnType<typeof createLoginSchema>>;
 
+/**
+ * Business fields shared by the public sign-up wizard and the signed-in
+ * create-business flow. Limits mirror the API (organization_name 2-120,
+ * phone <= 32, city / district <= 100, address <= 500).
+ */
+function businessFields(t: Translate) {
+  const tooLong = t("register.validation.too_long");
+  return {
+    organization_name: z
+      .string()
+      .trim()
+      .min(1, t("register.validation.organization_name_required"))
+      .min(2, t("register.validation.organization_name_length"))
+      .max(120, t("register.validation.organization_name_length")),
+    city: z
+      .string()
+      .min(1, t("register.validation.city_required"))
+      .max(100, tooLong),
+    district: z
+      .string()
+      .min(1, t("register.validation.district_required"))
+      .max(100, tooLong),
+    phone: z
+      .string()
+      .min(1, t("register.validation.phone_required"))
+      .max(32, tooLong),
+    address: z
+      .string()
+      .min(1, t("register.validation.address_required"))
+      .max(500, tooLong),
+  };
+}
+
 export function createOrganizationRegisterSchema(t: Translate) {
   return z.object({
     name: z.string().min(1, t("auth.validation.name_required")),
     surname: z.string().min(1, t("auth.validation.surname_required")),
     email: z.email(t("auth.validation.email")),
     password: passwordPolicySchema(t),
-    organization_name: z
-      .string()
-      .min(1, t("register.validation.organization_name_required")),
-    city: z.string().min(1, t("register.validation.city_required")),
-    district: z.string().min(1, t("register.validation.district_required")),
-    phone: z.string().min(1, t("register.validation.phone_required")),
-    address: z.string().min(1, t("register.validation.address_required")),
+    ...businessFields(t),
+  });
+}
+
+/**
+ * Signed-in create-business flow: the account step is skipped, so the account
+ * fields are accepted as-is (they stay empty and are never sent).
+ */
+export function createOwnedBusinessSchema(t: Translate) {
+  return createOrganizationRegisterSchema(t).extend({
+    name: z.string(),
+    surname: z.string(),
+    email: z.string(),
+    password: z.string(),
   });
 }
 

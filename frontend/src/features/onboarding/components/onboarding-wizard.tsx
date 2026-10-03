@@ -1,9 +1,15 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ArrowLeft,
@@ -11,50 +17,63 @@ import {
   Building2,
   Check,
   Loader2,
+  LogOut,
   Sparkles,
   UserRound,
   Wrench,
 } from "lucide-react";
-import { useFormContext, useWatch } from "react-hook-form";
 
 import { AppWordmark } from "@/components/brand";
-import {
-  AppCombobox,
-  AppForm,
-  AppInput,
-  AppPassword,
-  AppTextarea,
-} from "@/components/forms";
+import { AppForm } from "@/components/forms";
 import { LocaleSwitch } from "@/components/layout/locale-switch";
 import { ThemeSwitch } from "@/components/layout/theme-switch";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { FieldError } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { routes } from "@/config/routes";
 import {
   createOrganizationRegisterSchema,
+  createOwnedBusinessSchema,
   type OrganizationRegisterFormValues,
 } from "@/features/auth/schemas";
 import { catalogService } from "@/features/catalog/services/catalog.service";
-import { TR_PROVINCES } from "@/features/onboarding/data/provinces";
 import {
   STARTER_SERVICES,
   type StarterService,
 } from "@/features/onboarding/data/starter-services";
+import {
+  AccountStep,
+  BusinessStep,
+  ServicesStep,
+} from "@/features/onboarding/components/onboarding-steps";
+import {
+  classifyCreateBusinessError,
+  createBusinessErrorKey,
+  createBusinessPayload,
+  pickOwnedOrganization,
+} from "@/features/onboarding/lib/create-business";
+import { starterServicePayloads } from "@/features/onboarding/lib/prices";
 import { organizationsService } from "@/features/organizations/services/organizations.service";
 import { isApiError } from "@/lib/api";
 import {
   CREDENTIAL_ERROR_CODES,
   resolveCredentialErrorCode,
 } from "@/lib/auth/credentials-errors";
+import { needsBusinessOnboarding } from "@/lib/auth/types";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
+import { authService } from "@/services/auth.service";
 
 type Values = OrganizationRegisterFormValues;
 
-const STEPS = [
+/**
+ * - `register`: public sign-up (/register) — business, services, account.
+ * - `create`: signed-in user without a business (/onboarding/business) —
+ *   business, services; the account already exists.
+ */
+export type OnboardingMode = "register" | "create";
+
+const ALL_STEPS = [
   {
     key: "business",
     icon: Building2,
@@ -72,30 +91,58 @@ const STEPS = [
   fields: ReadonlyArray<keyof Values>;
 }>;
 
-type Task = "register" | "signin" | "services" | "redirect";
-type TaskState = "pending" | "running" | "done" | "skipped";
+type Step = (typeof ALL_STEPS)[number];
 
-const PROVINCE_OPTIONS = TR_PROVINCES.map((name) => ({
-  value: name,
-  label: name,
-}));
-
-/** "1.400" / "1400,50" → "1400.50" (API decimal). */
-function normalizePrice(raw: string): string {
-  const cleaned = raw.replace(/[^\d,.]/g, "");
-  const lastSep = Math.max(cleaned.lastIndexOf(","), cleaned.lastIndexOf("."));
-  if (lastSep === -1) return cleaned;
-  const decimals = cleaned.slice(lastSep + 1);
-  // A 3-digit tail after the only separator is a thousands separator.
-  if (decimals.length === 3) return cleaned.replace(/[.,]/g, "");
-  return `${cleaned.slice(0, lastSep).replace(/[.,]/g, "")}.${decimals}`;
+function stepsFor(mode: OnboardingMode): readonly Step[] {
+  return mode === "create"
+    ? ALL_STEPS.filter((s) => s.key !== "account")
+    : ALL_STEPS;
 }
 
-export function OnboardingWizard() {
+type Task =
+  "register" | "signin" | "create" | "switch" | "services" | "redirect";
+type TaskState = "pending" | "running" | "done" | "skipped";
+type Tasks = Partial<Record<Task, TaskState>>;
+
+const TASK_ORDER: Task[] = [
+  "register",
+  "signin",
+  "create",
+  "switch",
+  "services",
+  "redirect",
+];
+
+const EMPTY_VALUES: Values = {
+  organization_name: "",
+  phone: "",
+  city: "",
+  district: "",
+  address: "",
+  name: "",
+  surname: "",
+  email: "",
+  password: "",
+};
+
+export function OnboardingWizard({
+  mode = "register",
+}: {
+  mode?: OnboardingMode;
+}) {
   const { t } = useLocale();
   const router = useRouter();
-  const { markAuthenticated, hydrateProfile } = useAuth();
-  const schema = useMemo(() => createOrganizationRegisterSchema(t), [t]);
+  const { update: updateSession } = useSession();
+  const { markAuthenticated, hydrateProfile, logout, bootstrapped, user } =
+    useAuth();
+  const schema = useMemo(
+    () =>
+      mode === "create"
+        ? createOwnedBusinessSchema(t)
+        : createOrganizationRegisterSchema(t),
+    [mode, t],
+  );
+  const steps = stepsFor(mode);
 
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -103,14 +150,49 @@ export function OnboardingWizard() {
     STARTER_SERVICES.map((s) => ({ ...s })),
   );
   const [formError, setFormError] = useState<string | null>(null);
-  const [tasks, setTasks] = useState<Record<Task, TaskState> | null>(null);
+  const [tasks, setTasks] = useState<Tasks | null>(null);
+  const [registrationClosed, setRegistrationClosed] = useState(false);
+
+  // A signed-in user without a business who opens the public wizard would get
+  // 409 "email already registered": send them to the create-business flow.
+  // Decided once, so the account created by this wizard never triggers it.
+  const checkedRef = useRef(false);
+  useEffect(() => {
+    if (mode !== "register" || checkedRef.current || !bootstrapped) return;
+    checkedRef.current = true;
+    if (needsBusinessOnboarding(user)) {
+      router.replace(routes.onboarding.business);
+    }
+  }, [bootstrapped, mode, router, user]);
 
   const selectedServices = services.filter((s) => s.selected && s.name.trim());
 
   const setTask = (task: Task, state: TaskState) =>
     setTasks((prev) => (prev ? { ...prev, [task]: state } : prev));
 
-  const onSubmit = async (values: Values) => {
+  const createStarterServices = async () => {
+    const payloads = starterServicePayloads(services);
+    if (!payloads.length) return;
+    setTask("services", "running");
+    // Best effort: the business exists already; missing services can be added later.
+    await Promise.allSettled(
+      payloads.map((body) => catalogService.createService(body)),
+    );
+    setTask("services", "done");
+  };
+
+  /**
+   * Same switch the tenant shell does (TenantOrganizationContext): the BFF
+   * stores the org-scoped token pair in the session cookie, then the NextAuth
+   * session and the /me profile are refreshed.
+   */
+  const enterOrganization = async (slug: string) => {
+    await authService.switchOrganizationContext(slug);
+    await updateSession();
+    await hydrateProfile();
+  };
+
+  const onRegister = async (values: Values) => {
     setFormError(null);
     setTasks({
       register: "running",
@@ -156,31 +238,95 @@ export function OnboardingWizard() {
     await hydrateProfile();
     setTask("signin", "done");
 
-    if (selectedServices.length) {
-      setTask("services", "running");
-      // Best effort: the account exists already; missing services can be added later.
-      await Promise.allSettled(
-        selectedServices.map((service) =>
-          catalogService.createService({
-            name: service.name.trim(),
-            price: normalizePrice(service.price) || "0",
-            currency: "TRY",
-            is_active: true,
-          }),
-        ),
-      );
-      setTask("services", "done");
-    }
+    await createStarterServices();
 
     setTask("redirect", "running");
     router.replace(`${routes.tenant.home(slug)}?welcome=1`);
   };
 
-  const stepMeta = STEPS[step];
+  const onCreate = async (values: Values) => {
+    setFormError(null);
+    setTasks({
+      create: "running",
+      switch: "pending",
+      services: selectedServices.length ? "pending" : "skipped",
+      redirect: "pending",
+    });
+
+    let slug: string;
+    let created = true;
+    try {
+      const result = await organizationsService.createOwned(
+        createBusinessPayload(values),
+      );
+      slug = result.organization.slug;
+    } catch (error) {
+      const failure = classifyCreateBusinessError(error);
+      if (failure === "registration_closed") {
+        setTasks(null);
+        setRegistrationClosed(true);
+        return;
+      }
+      const owned =
+        failure === "already_owner"
+          ? pickOwnedOrganization((await hydrateProfile())?.organizations ?? [])
+          : null;
+      if (!owned) {
+        setTasks(null);
+        if (failure === "validation") {
+          setDirection(-1);
+          setStep(0);
+        }
+        setFormError(t(createBusinessErrorKey(failure)));
+        return;
+      }
+      // 409: the user already owns a business (e.g. created in another tab).
+      slug = owned.slug;
+      created = false;
+    }
+    setTask("create", "done");
+    setTask("switch", "running");
+
+    let switched = true;
+    try {
+      await enterOrganization(slug);
+    } catch {
+      // The tenant shell retries the switch on arrival.
+      switched = false;
+    }
+    setTask("switch", "done");
+
+    // Tenant catalog writes need the org-scoped token.
+    if (created && switched) {
+      await createStarterServices();
+    } else {
+      setTask("services", "skipped");
+    }
+
+    setTask("redirect", "running");
+    router.replace(
+      created
+        ? `${routes.tenant.home(slug)}?welcome=1`
+        : routes.tenant.home(slug),
+    );
+  };
+
+  const signOutAndLeave = async () => {
+    await logout();
+    router.replace(routes.public.root);
+  };
+
+  const stepMeta = steps[step] ?? ALL_STEPS[0];
+  const isLastStep = step === steps.length - 1;
 
   return (
     <div className="bg-background grid min-h-svh lg:grid-cols-[minmax(0,26rem)_1fr]">
-      <OnboardingAside step={step} working={Boolean(tasks)} />
+      <OnboardingAside
+        mode={mode}
+        steps={steps}
+        step={step}
+        working={Boolean(tasks)}
+      />
 
       <main className="relative flex flex-col">
         <div className="flex items-center justify-between gap-2 px-4 pt-4 sm:px-8">
@@ -198,23 +344,15 @@ export function OnboardingWizard() {
         </div>
 
         <div className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-4 py-8 sm:px-8">
-          {tasks ? (
-            <ProgressPanel tasks={tasks} />
+          {registrationClosed ? (
+            <RegistrationClosedPanel onSignOut={signOutAndLeave} />
+          ) : tasks ? (
+            <ProgressPanel mode={mode} tasks={tasks} />
           ) : (
             <AppForm<Values>
               schema={schema}
-              defaultValues={{
-                organization_name: "",
-                phone: "",
-                city: "",
-                district: "",
-                address: "",
-                name: "",
-                surname: "",
-                email: "",
-                password: "",
-              }}
-              onSubmit={onSubmit}
+              defaultValues={EMPTY_VALUES}
+              onSubmit={mode === "create" ? onCreate : onRegister}
             >
               {(form) => {
                 const goNext = async () => {
@@ -224,13 +362,13 @@ export function OnboardingWizard() {
                     if (!ok) return;
                   }
                   setDirection(1);
-                  setStep((s) => Math.min(s + 1, STEPS.length - 1));
+                  setStep((s) => Math.min(s + 1, steps.length - 1));
                 };
                 const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
                   const target = event.target as HTMLElement;
                   if (
                     event.key === "Enter" &&
-                    step < STEPS.length - 1 &&
+                    !isLastStep &&
                     target.tagName === "INPUT"
                   ) {
                     event.preventDefault();
@@ -240,7 +378,7 @@ export function OnboardingWizard() {
                 return (
                   <div onKeyDown={onKeyDown}>
                     <div className="mb-6 flex gap-1.5 lg:hidden" aria-hidden>
-                      {STEPS.map((item, index) => (
+                      {steps.map((item, index) => (
                         <span
                           key={item.key}
                           className={cn(
@@ -253,7 +391,7 @@ export function OnboardingWizard() {
                     <p className="text-primary text-xs font-semibold tracking-wide uppercase">
                       {t("register.onboarding.step_of", {
                         current: step + 1,
-                        total: STEPS.length,
+                        total: steps.length,
                       })}
                     </p>
                     <h1 className="font-display mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -308,6 +446,23 @@ export function OnboardingWizard() {
                           <ArrowLeft className="size-4" />
                           {t("register.onboarding.back")}
                         </Button>
+                      ) : mode === "create" ? (
+                        <span className="text-muted-foreground min-w-0 text-sm">
+                          {user?.email ? (
+                            <span className="block truncate">
+                              {t("register.create.signed_in_as", {
+                                email: user.email,
+                              })}
+                            </span>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => void signOutAndLeave()}
+                            className="text-primary font-medium hover:underline"
+                          >
+                            {t("register.create.sign_out")}
+                          </button>
+                        </span>
                       ) : (
                         <span className="text-muted-foreground text-sm">
                           {t("register.onboarding.have_account")}{" "}
@@ -319,7 +474,7 @@ export function OnboardingWizard() {
                           </Link>
                         </span>
                       )}
-                      {step < STEPS.length - 1 ? (
+                      {!isLastStep ? (
                         <Button
                           key="next"
                           type="button"
@@ -342,7 +497,9 @@ export function OnboardingWizard() {
                           disabled={form.formState.isSubmitting}
                         >
                           <Sparkles className="size-4" />
-                          {t("register.onboarding.finish")}
+                          {mode === "create"
+                            ? t("register.create.finish")
+                            : t("register.onboarding.finish")}
                         </Button>
                       )}
                     </div>
@@ -358,9 +515,13 @@ export function OnboardingWizard() {
 }
 
 function OnboardingAside({
+  mode,
+  steps,
   step,
   working,
 }: {
+  mode: OnboardingMode;
+  steps: readonly Step[];
   step: number;
   working: boolean;
 }) {
@@ -379,14 +540,16 @@ function OnboardingAside({
       </Link>
       <div className="mt-16">
         <h2 className="font-display text-3xl leading-tight font-semibold tracking-tight">
-          {t("register.onboarding.aside_title")}
+          {mode === "create"
+            ? t("register.create.aside_title")
+            : t("register.onboarding.aside_title")}
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-white/70">
           {t("register.onboarding.aside_description")}
         </p>
       </div>
       <ol className="mt-10 space-y-1">
-        {STEPS.map((item, index) => {
+        {steps.map((item, index) => {
           const done = working || index < step;
           const active = !working && index === step;
           const Icon = item.icon;
@@ -438,170 +601,13 @@ function OnboardingAside({
   );
 }
 
-function BusinessStep() {
-  const { t } = useLocale();
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <AppInput
-        name="organization_name"
-        label={t("register.fields.organization_name")}
-        placeholder={t("register.onboarding.business.name_placeholder")}
-        autoFocus
-        className="sm:col-span-2"
-      />
-      <AppInput
-        name="phone"
-        type="tel"
-        inputMode="tel"
-        label={t("register.fields.phone")}
-        placeholder="05XX XXX XX XX"
-        className="sm:col-span-2"
-      />
-      <AppCombobox
-        name="city"
-        label={t("register.fields.city")}
-        options={PROVINCE_OPTIONS}
-        placeholder={t("register.onboarding.business.city_placeholder")}
-        searchPlaceholder={t("register.onboarding.business.city_search")}
-        emptyText={t("register.onboarding.business.city_empty")}
-      />
-      <AppInput
-        name="district"
-        label={t("register.fields.district")}
-        placeholder={t("register.onboarding.business.district_placeholder")}
-      />
-      <AppTextarea
-        name="address"
-        label={t("register.fields.address")}
-        rows={2}
-        className="sm:col-span-2"
-      />
-    </div>
-  );
-}
-
-function ServicesStep({
-  services,
-  onChange,
+function ProgressPanel({
+  mode,
+  tasks,
 }: {
-  services: StarterService[];
-  onChange: (next: StarterService[]) => void;
+  mode: OnboardingMode;
+  tasks: Tasks;
 }) {
-  const { t } = useLocale();
-  const update = (key: string, patch: Partial<StarterService>) =>
-    onChange(services.map((s) => (s.key === key ? { ...s, ...patch } : s)));
-
-  return (
-    <div>
-      <ul className="divide-y rounded-2xl border">
-        {services.map((service) => (
-          <li
-            key={service.key}
-            className={cn(
-              "flex items-center gap-3 px-4 py-2.5 transition-colors",
-              service.selected ? "bg-primary/5" : "",
-            )}
-          >
-            <Checkbox
-              id={`svc-${service.key}`}
-              checked={service.selected}
-              onCheckedChange={(checked) =>
-                update(service.key, { selected: checked === true })
-              }
-            />
-            <label
-              htmlFor={`svc-${service.key}`}
-              className="min-w-0 flex-1 cursor-pointer truncate text-sm font-medium"
-            >
-              {service.name}
-            </label>
-            <div className="relative w-28">
-              <Input
-                value={service.price}
-                inputMode="decimal"
-                disabled={!service.selected}
-                onChange={(e) => update(service.key, { price: e.target.value })}
-                className="h-8 pr-7 text-right tabular-nums"
-                aria-label={`${service.name} · ${t("register.onboarding.services.price")}`}
-              />
-              <span className="text-muted-foreground pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs">
-                ₺
-              </span>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <p className="text-muted-foreground mt-3 text-xs">
-        {t("register.onboarding.services.hint")}
-      </p>
-    </div>
-  );
-}
-
-const PASSWORD_RULES = [
-  { key: "min", test: (v: string) => v.length >= 8 },
-  { key: "upper", test: (v: string) => /[A-Z]/.test(v) },
-  { key: "lower", test: (v: string) => /[a-z]/.test(v) },
-  { key: "digit", test: (v: string) => /[0-9]/.test(v) },
-] as const;
-
-function AccountStep() {
-  const { t } = useLocale();
-  const { control } = useFormContext<Values>();
-  const password = useWatch({ control, name: "password" }) ?? "";
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <AppInput
-        name="name"
-        label={t("register.fields.name")}
-        autoComplete="given-name"
-        autoFocus
-      />
-      <AppInput
-        name="surname"
-        label={t("register.fields.surname")}
-        autoComplete="family-name"
-      />
-      <AppInput
-        name="email"
-        type="email"
-        label={t("register.fields.email")}
-        autoComplete="email"
-        className="sm:col-span-2"
-      />
-      <div className="sm:col-span-2">
-        <AppPassword
-          name="password"
-          label={t("register.fields.password")}
-          autoComplete="new-password"
-        />
-        <ul className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1">
-          {PASSWORD_RULES.map((rule) => {
-            const ok = rule.test(password);
-            return (
-              <li
-                key={rule.key}
-                className={cn(
-                  "flex items-center gap-1.5 text-xs",
-                  ok
-                    ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-muted-foreground",
-                )}
-              >
-                <Check className={cn("size-3.5", !ok && "opacity-30")} />
-                {t(`register.onboarding.password.${rule.key}`)}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-const TASK_ORDER: Task[] = ["register", "signin", "services", "redirect"];
-
-function ProgressPanel({ tasks }: { tasks: Record<Task, TaskState> }) {
   const { t } = useLocale();
   return (
     <div className="text-center">
@@ -609,11 +615,14 @@ function ProgressPanel({ tasks }: { tasks: Record<Task, TaskState> }) {
         <Loader2 className="size-6 animate-spin" />
       </span>
       <h1 className="font-display mt-6 text-2xl font-semibold tracking-tight">
-        {t("register.onboarding.working.title")}
+        {mode === "create"
+          ? t("register.create.working_title")
+          : t("register.onboarding.working.title")}
       </h1>
       <ul className="mx-auto mt-8 max-w-xs space-y-3 text-left">
-        {TASK_ORDER.filter((task) => tasks[task] !== "skipped").map((task) => {
+        {TASK_ORDER.map((task) => {
           const state = tasks[task];
+          if (!state || state === "skipped") return null;
           return (
             <li key={task} className="flex items-center gap-3 text-sm">
               <span
@@ -639,6 +648,41 @@ function ProgressPanel({ tasks }: { tasks: Record<Task, TaskState> }) {
           );
         })}
       </ul>
+    </div>
+  );
+}
+
+function RegistrationClosedPanel({ onSignOut }: { onSignOut: () => void }) {
+  const { t } = useLocale();
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="text-center">
+      <span className="bg-muted text-muted-foreground mx-auto grid size-14 place-items-center rounded-2xl">
+        <Building2 className="size-6" />
+      </span>
+      <h1 className="font-display mt-6 text-2xl font-semibold tracking-tight">
+        {t("register.create.closed_title")}
+      </h1>
+      <p className="text-muted-foreground mx-auto mt-3 max-w-sm text-sm leading-relaxed">
+        {t("register.create.closed_description")}
+      </p>
+      <Button
+        type="button"
+        variant="outline"
+        className="mt-8"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          onSignOut();
+        }}
+      >
+        {busy ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <LogOut className="size-4" />
+        )}
+        {t("register.create.sign_out")}
+      </Button>
     </div>
   );
 }

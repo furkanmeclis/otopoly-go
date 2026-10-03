@@ -9,6 +9,10 @@ export const routes = {
       signed: (token: string) => `/share/s/${token}`,
     },
   },
+  onboarding: {
+    /** Signed-in user without a business creates one (account step skipped). */
+    business: "/onboarding/business",
+  },
   tenant: {
     home: (slug: string) => `/t/${slug}`,
     login: (slug: string) => `/t/${slug}/login`,
