@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
 
 import { BarChart, Card, RankBars, Row, Txt } from '@/components/ui';
+import { ConfirmCard, PlanBlock } from '@/features/ai/components/action-blocks';
 import { Markdown } from '@/features/ai/components/markdown';
 import { errorKey, isSummaryKey, SUGGESTION_KEYS, toolLabelKey } from '@/features/ai/lib/labels';
 import type { AIChart, AIUIBlock, ChatMessage } from '@/features/ai/types';
@@ -109,7 +110,9 @@ function Blocks({ blocks }: { blocks: AIUIBlock[] }) {
         if (b.type === 'text') return b.text ? <Markdown key={g.key} text={b.text} /> : null;
         if (b.type === 'chart') return b.chart ? <ChartCard key={g.key} chart={b.chart} /> : null;
         if (b.type === 'error') return <ErrorBlock key={g.key} block={b} />;
-        return null; // confirm / todo_list: actions are disabled on mobile (see report)
+        if (b.type === 'confirm') return <ConfirmCard key={b.id ?? g.key} block={b} />;
+        if (b.type === 'todo_list') return <PlanBlock key={g.key} block={b} />;
+        return null;
       })}
     </View>
   );

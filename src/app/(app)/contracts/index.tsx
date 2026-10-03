@@ -4,10 +4,11 @@ import { useDeferredValue, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { isApiError } from '@/api/errors';
+import { isFeatureDisabled } from '@/api/errors';
 import { Badge, Button, Card, EmptyState, ErrorState, FilterChips, Header, IconButton, ListSkeleton, Row, SearchBar, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { FeatureLockedState } from '@/features/billing/components/feature-locked';
 import { CreateInstanceSheet } from '@/features/contracts/components/contract-sheets';
 import { instanceStatusLabel, instanceStatusTone, useContractsAccess } from '@/features/contracts/lib/access';
 import { useContractInstancesInfinite } from '@/features/contracts/queries';
@@ -36,7 +37,7 @@ function ContractInstancesList() {
   const [createOpen, setCreateOpen] = useState(Boolean(job_uuid) && canWrite);
   const query = useDeferredValue(q.trim());
   const list = useContractInstancesInfinite({ q: query || undefined, status: status === 'all' ? undefined : status, sort: '-created_at' });
-  const featureLocked = list.isError && isApiError(list.error) && list.error.code === 'FEATURE_DISABLED';
+  const featureLocked = list.isError && isFeatureDisabled(list.error);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.background }} edges={['top']}>
@@ -46,7 +47,7 @@ function ContractInstancesList() {
         right={
           <>
             <IconButton label={tr('contracts.templates.title')} icon={<FileStack size={20} color={t.colors.text} />} onPress={() => router.push('/contracts/templates')} />
-            {canWrite ? (
+            {canWrite && !featureLocked ? (
               <IconButton variant="primary" label={tr('contracts.instances.create')} icon={<Plus size={20} color={t.colors.onPrimary} />} onPress={() => setCreateOpen(true)} />
             ) : null}
           </>
@@ -70,7 +71,7 @@ function ContractInstancesList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={76} />
           ) : featureLocked ? (
-            <EmptyState title={tr('errors.codes.FEATURE_DISABLED')} description={tr('mobile.documents.feature_locked')} />
+            <FeatureLockedState feature="module.contracts" />
           ) : list.isError ? (
             <ErrorState description={tr('contracts.instances.error_description')} onRetry={() => list.refetch()} />
           ) : (

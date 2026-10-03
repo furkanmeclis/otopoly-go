@@ -514,7 +514,7 @@ route('POST', '/v1/tenant/vehicle-alerts/test', (ctx) => {
   requireOwner(ctx, 'tenant.messaging.write');
   const s = alertsFor(ctx);
   const members = orgMembers(ctx).filter((m) => s.recipient_user_uuids.includes(m.uuid));
-  if (!members.length) fail(409, 'NO_RECIPIENTS', 'No recipients selected');
+  if (!members.length) fail(400, 'VALIDATION_ERROR', 'select and save at least one recipient');
   const connected = sessionFor(ctx).status === 'connected';
   const viaWhatsApp = members.filter((m) => !m.has_push && m.has_phone);
   return {
@@ -577,6 +577,8 @@ route('PATCH', '/v1/tenant/settings', (ctx) => {
 
 route('PUT', '/v1/tenant/settings/logo', (ctx) => {
   requireOwner(ctx, 'tenant.settings.write');
+  // Go reads the multipart part `logo` (`r.FormFile("logo")`).
+  if (!ctx.body.logo) validation([{ field: 'logo', message: 'logo file is required', code: 'required' }]);
   const s = settingsFor(ctx);
   s.logo_url = `/v1/tenant/settings/logo/${uuid()}`;
   return s;

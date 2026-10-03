@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Otopoly",
+    "NSCameraUsageDescription": "Otopoly, web oturumunu onaylamak için QR kodu okutmak ve sözleşmelere araç fotoğrafı eklemek üzere kameranızı kullanır.",
+    "NSPhotoLibraryUsageDescription": "Otopoly, seçtiğiniz araç fotoğraflarını ve belgeleri sözleşmelere eklemek için fotoğraf arşivinize erişir."
+  },
+  "android": {
+    "app_name": "Otopoly"
+  }
+}

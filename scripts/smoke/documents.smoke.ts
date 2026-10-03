@@ -55,7 +55,7 @@ async function login(email: string) {
 
   console.log('exports / imports');
   const job = await request<any>('POST', '/v1/tenant/jobs/export', { body: { format: 'xlsx', query: { q: '34' }, locale: 'tr' } });
-  ok(job.status === 'pending', 'export queued');
+  ok(job.status === 'queued', 'export queued');
   await expectError(request('POST', '/v1/tenant/jobs/export', { body: { format: 'doc' } }), 'VALIDATION_ERROR', 'bad format');
   const exps = await request<any>('GET', '/v1/tenant/exports');
   ok(exps.items.length >= 4, `export jobs: ${exps.items.length}`);
@@ -63,7 +63,7 @@ async function login(email: string) {
   const applied = imps.items.find((x: any) => x.status === 'applied' && Date.parse(x.rollback_until) > Date.now());
   const rb = await request<any>('POST', `/v1/tenant/imports/${applied.uuid}/rollback`);
   ok(rb.status === 'rolled_back', 'rollback');
-  await expectError(request('POST', `/v1/tenant/imports/${applied.uuid}/rollback`), 'CONFLICT', 'rollback twice');
+  await expectError(request('POST', `/v1/tenant/imports/${applied.uuid}/rollback`), 'VALIDATION_ERROR', 'rollback twice');
 
   await login('personel@otopoly.com');
   await expectError(request('GET', '/v1/tenant/imports'), 'FORBIDDEN', 'staff cannot list imports');

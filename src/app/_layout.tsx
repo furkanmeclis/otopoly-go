@@ -8,9 +8,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BrandMark, MARK_RATIO } from '@/components/brand';
+import { devToolsEnabled } from '@/config/env';
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
 import { ToastProvider } from '@/components/feedback/toast';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
+import { NotificationResponseObserver } from '@/features/notifications/components/notification-response-observer';
 import { LocaleProvider } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { installGlobalErrorHandlers } from '@/lib/logger/global-handlers';
@@ -77,6 +79,7 @@ function RootNavigator() {
     <NavThemeProvider value={navTheme}>
       <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
       <NavigationLogger />
+      <NotificationResponseObserver />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
         <Stack.Protected guard={status === 'signedOut'}>
           <Stack.Screen name="(auth)" />
@@ -87,7 +90,14 @@ function RootNavigator() {
         <Stack.Protected guard={status === 'ready'}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
-        <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
+        {/* Account deletion: from the profile, and from the org picker for users without a business. */}
+        <Stack.Protected guard={status === 'ready' || status === 'selectOrg'}>
+          <Stack.Screen name="delete-account" />
+        </Stack.Protected>
+        {/* Logs and demo scenarios: never reachable in App Store / Play Store builds. */}
+        <Stack.Protected guard={devToolsEnabled}>
+          <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
+        </Stack.Protected>
       </Stack>
     </NavThemeProvider>
   );

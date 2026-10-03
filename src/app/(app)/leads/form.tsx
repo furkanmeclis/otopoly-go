@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { Button, DateField, Field, Header, ListSkeleton, Screen, SelectField, TextField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
+import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { CustomerPicker } from '@/features/customers/components/pickers';
 import type { Customer } from '@/features/customers/services/customers.service';
@@ -26,17 +27,19 @@ export default function LeadFormScreen() {
   const loading = (id && existing.isLoading) || (!id && customer && prefill.isLoading);
   return (
     <RequirePermission gate={P.leadsWrite} title={tr('leads.dialog.create_title')}>
-      {loading ? (
-        <Screen header={<Header title={id ? tr('leads.dialog.edit_title') : tr('leads.dialog.create_title')} />}>
-          <ListSkeleton rows={6} height={56} />
-        </Screen>
-      ) : (
-        <LeadForm
-          key={existing.data?.uuid ?? prefill.data?.uuid ?? 'new'}
-          lead={id ? (existing.data ?? null) : null}
-          initialCustomer={prefill.data ?? null}
-        />
-      )}
+      <QuotesModuleGate area="leads" title={tr('leads.dialog.create_title')}>
+        {loading ? (
+          <Screen header={<Header title={id ? tr('leads.dialog.edit_title') : tr('leads.dialog.create_title')} />}>
+            <ListSkeleton rows={6} height={56} />
+          </Screen>
+        ) : (
+          <LeadForm
+            key={existing.data?.uuid ?? prefill.data?.uuid ?? 'new'}
+            lead={id ? (existing.data ?? null) : null}
+            initialCustomer={prefill.data ?? null}
+          />
+        )}
+      </QuotesModuleGate>
     </RequirePermission>
   );
 }

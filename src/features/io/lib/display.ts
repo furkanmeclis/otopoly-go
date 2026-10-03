@@ -54,7 +54,7 @@ export function importStatusTone(status: string): Tone {
 }
 
 /** Export jobs still running — screens poll while any job is in one of these. */
-export const isExportRunning = (status: string) => status === 'pending' || status === 'processing';
+export const isExportRunning = (status: string) => status === 'queued' || status === 'processing';
 /** Import jobs whose state can still change without user action. */
 export const isImportRunning = (status: string) => status === 'queued' || status === 'applying';
 

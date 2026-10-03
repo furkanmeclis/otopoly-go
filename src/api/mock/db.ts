@@ -25,7 +25,7 @@ import type { MockMembership, MockUser } from './core';
 const log = createLogger('mock.db');
 
 /** Bump when the seed or row shapes change so stale persisted demo data is discarded. */
-export const MOCK_DB_VERSION = 3;
+export const MOCK_DB_VERSION = 6;
 
 export type MockOrganization = {
   uuid: string;

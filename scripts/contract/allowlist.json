@@ -1,0 +1,6 @@
+{
+  "_doc": "Known, reasoned exceptions for scripts/contract (npm run test:contract). Every entry needs a reason; remove it once the backend spec is fixed.",
+  "missingInBackend": {},
+  "undocumentedStatus": {},
+  "specFixes": []
+}

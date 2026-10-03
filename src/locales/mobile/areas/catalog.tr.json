@@ -25,6 +25,5 @@
   "catalog.kind_service_short": "Hizmet",
   "catalog.staff_you": "(siz)",
   "catalog.staff_deactivate_confirm": "{{name}} pasifleştirilsin mi? Açık oturumları kapatılır ve giriş yapamaz.",
-  "catalog.profile_security": "Güvenlik",
-  "catalog.push_mobile_hint": "Mobil anlık bildirimler yakında. Tarayıcı bildirimlerini web panelinden yönetebilirsiniz."
+  "catalog.profile_security": "Güvenlik"
 }

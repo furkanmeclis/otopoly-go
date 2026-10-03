@@ -18,7 +18,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] `POST /v1/auth/organization-context {organization_slug}` → tokens with `oid`
 - [ ] Tokens in `expo-secure-store`; refresh (`POST /v1/auth/refresh`) single-flight on 401
 - [ ] Re-issue org context on `403 ORGANIZATION_CONTEXT_REQUIRED`
-- [ ] Guards (same as web `TenantRouteGuard`): not signed in → login; no membership → denied screen; `access_ends_at` passed or status suspended/expired → expired screen
+- [x] Guards (same as web `TenantRouteGuard`): not signed in → login; no membership → denied screen; `access_ends_at` passed or status suspended/expired → expired / paused screen (`TenantAccessGate`, neutral owner/staff copy, no purchase wording; blocked orgs in the picker open the same state)
 - [ ] Logout (`POST /v1/auth/logout`) clears tokens + query cache
 - [ ] Forgot password (`POST /v1/auth/password/forgot`)
 - [ ] 2FA prompt when login returns TOTP required
@@ -29,7 +29,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Owner-membership gate (`role === "owner"`) for voids, catalog/finance/cari/purchases/suppliers writes, staff write
 - [ ] `usePermission()`, `<Can>` component, route-level `RequirePermission` screen with forbidden state
 - [ ] Hidden nav items for missing permissions (same as web nav)
-- [ ] `409 LIMIT_REACHED` → global limit dialog; `403 FEATURE_DISABLED` → feature-locked state
+- [x] `409 LIMIT_REACHED` → global limit dialog (`LimitReachedHost`, API error bus; owner/staff copy, Close + "Kullanımı gör"); `403 FEATURE_DISABLED` → shared `FeatureLockedState` (reports, contracts, contract templates, assistant, quotes + leads via `QuotesModuleGate`); `403 SUBSCRIPTION_READ_ONLY` → same plan dialog with read-only copy
 
 ### API layer
 - [ ] `request(method, path, {query, body})` — same signature as web `platformRequest`
@@ -73,7 +73,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Tabs: Ana Sayfa · İşlemler · Müşteriler · Finans · Menü (items filtered by permission)
 - [ ] Menü mirrors web nav groups: Tenant / Finans / Müşteriler / Katalog / İçe-Dışa aktarım / Ayarlar
 - [ ] Nav badges: todos (overdue/today), leads, quotes (web `*NavAdornment`)
-- [ ] Subscription banner (trial/expiring) + limit-reached dialog
+- [~] Subscription banner (trial/expiring) + limit-reached dialog — dialog done; no banner (no purchase CTA allowed)
 - [ ] Assistant launcher (if `tenant.ai.use`)
 
 ## 2. Dashboard (`/t/{slug}`) — `tenant-dashboard.tsx`
@@ -92,6 +92,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Board card: plate, brand mark, services color tags, elapsed time, assignee, amount, paid badge
 - [ ] Create job **W**: customer picker (+ inline create), vehicle picker (+ add vehicle from catalog), services (catalog), price/qty override, assignee, notes, start time
 - [ ] Detail: info, lines, payments, consumptions (material cost), contracts section, linked todos
+  - [x] Contracts section (web `JobContractsSection`): job's contracts (status, signed/total, PDF), create with vehicle photos (camera/library) → sign every pending signer in one sheet
 - [ ] Actions **W**: ready, deliver, close (cash/card → account, cari), cancel, edit notes, change assignee
 - [ ] Void **O**
 - [ ] Consumptions **W**: add product, change qty, remove
@@ -162,26 +163,33 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Export (reports.export) — share file
 
 ## 16. Contracts — `tenant.contracts.*`
-- [ ] Instances list + detail (signers, status, PDF)
-- [ ] On-site signing with signature pad, WhatsApp OTP verify
+- [x] Instances list + detail (signers, status, PDF)
+- [x] On-site signing with signature pad, WhatsApp OTP verify
+- [x] Gallery media upload: camera, photo library, Files (`expo-image-picker` / `expo-document-picker`; JPEG/PNG/WebP/GIF/PDF, 12 MB) with caption; delete while open
 - [ ] Templates list/detail; clone preset **O**; void **O**
 
 ## 17. Settings
 - [ ] Letterhead / export settings **O** (`tenant.settings.*`)
 - [ ] Messaging (WhatsApp session, templates, notification rules, daily summary, vehicle alerts)
-- [ ] Billing: overview, plans, usage meters, checkout/order, report payment, invoices, invoice profile
+- [x] Usage & limits (`/settings/usage`, read-only): plan name/status, period end, usage meters (warn ≥ 80 %, full at 100 %, unlimited), included modules
+- [x] ~~Plans, checkout/order, report payment, invoices, invoice profile~~ — removed for good: no in-app purchases (App Store 3.1.1/3.1.3, Play payments policy); backend e-mails the owner
 
 ## 18. I/O
 - [ ] Exports list + detail (download/share)
-- [ ] Imports list + detail **O** (wizard is desktop-heavy — mobile: view + status)
+- [x] Imports list + detail **O**, rollback inside the 24 h window
+- [x] Import wizard **O** (`/imports/new`, `expo-document-picker`): upload → column mapping (auto-match) → defaults → preview → confirm; sample files via share sheet; resume an unconfirmed job from its detail. Finance accounts/categories only (catalog has no tenant upload route)
 
 ## 19. Profile
 - [ ] Profile edit (name, surname, locale), change password
 - [ ] Preferences: theme, language, notification preferences (`/v1/tenant/notification-preferences`)
 - [ ] Sessions (list, revoke, revoke others), 2FA status
+- [x] Linked accounts (`/profile/linked-accounts`): list, link Apple / Google with the native sheet, unlink; last sign-in method of a password-less account can't be removed; `OAUTH_ACCOUNT_NOT_LINKED` sends the user here after sign-in (mock; native link route proposed, see port-reports/account.md)
+- [x] Preferences: AI data-sharing consent status + withdraw
 
 ## 20. Assistant — `tenant.ai.use`
-- [ ] Conversations list, chat (SSE stream), confirm cards, tool activity
+- [x] Conversations list, chat, tool activity — SSE streaming (tokens render as they arrive), same reader for mock and live
+- [x] Confirm cards (edit / confirm / cancel, result + record link) and plan checklists (`actions` / `todos` features) — confirm streams the `action` result and the follow-up over SSE
+- [x] First-use AI data disclosure + explicit consent (App Store 5.1.2(i)): provider named from `/ai/status`, what is / isn't sent, stored per user, sending blocked until accepted, withdraw in Preferences
 
 ---
 
@@ -210,3 +218,17 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Expo Go / Android: bridge is a no-op (native module check), no crash
 - [x] Stringified widget code verified: parses, self-contained, renders 80 family/scheme/state combinations
 - [ ] Device QA on TestFlight: add each widget size, Lock Screen widgets, Live Activity start → ready → deliver
+
+## Plan limits (no in-app purchases)
+
+- [x] Mobile shows no prices, purchase / upgrade / subscribe CTAs or links to buy; dead billing code (orders, invoices, invoice profile, plans) removed
+- [x] Usage screen `src/app/(app)/settings/usage.tsx`, gated by `tenant.billing.read`; menu entry "Kullanım ve limitler"
+- [x] Global `LIMIT_REACHED` dialog with role-based copy and translated feature names (`mobile.plan.*`)
+- [x] Shared `FEATURE_DISABLED` lock state, neutral owner/staff copy; dashboard insights hidden when reports are off
+- [x] Mock scenarios on the diagnostics screen: normal / near limit / at limit / module off / quotes module off / read-only (owner and staff), plus an organization access switch (normal / ended / paused / no membership)
+- [x] `module.quotes` lock on quotes + leads list, detail and form screens; dashboard pipeline hidden when off
+- [x] `SUBSCRIPTION_READ_ONLY` uses the shared plan dialog (owner: details e-mailed, staff: ask the manager); no toast
+- [x] `scripts/smoke/account.smoke.ts` covers linked accounts, access states, quotes lock, read-only, assistant actions and consent
+- [x] `scripts/smoke/plan.smoke.ts` covers meters, limit errors, lock errors, copy and role gates
+- [ ] Live check against the Go API (LIMIT_REACHED details list, AI `plan_disabled`)
+- [ ] Device QA: dialog on iOS/Android, lock states in light/dark, tr/en

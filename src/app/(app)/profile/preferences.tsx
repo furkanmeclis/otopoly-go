@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, Divider, ErrorState, Header, Row, Screen, Section, Segmented, Skeleton, SwitchRow, TextField, Txt } from '@/components/ui';
+import { Badge, Button, Card, Divider, ErrorState, Header, Row, Screen, Section, Segmented, Skeleton, SwitchRow, TextField, Txt } from '@/components/ui';
 import { accountKeys, useNotificationPreferences, useTenantNotificationPreferences } from '@/features/account/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { notificationPreferencesService, type NotificationPreferences } from '@/features/account/services/notification-preferences.service';
@@ -11,7 +11,12 @@ import {
   type NotificationChannelPrefs,
   type NotificationTypePreferences,
 } from '@/features/account/services/tenant-notification-preferences.service';
+import { useToast } from '@/components/feedback/toast';
+import { useProviderName } from '@/features/ai/components/consent';
+import { useAIConsent } from '@/features/ai/consent';
 import { useAuth } from '@/features/auth/auth-provider';
+import { P } from '@/features/auth/permissions';
+import { enablePush, isExpoGo, pushAvailable } from '@/features/notifications/push';
 import { useLocale } from '@/lib/i18n/provider';
 import type { AppLocale } from '@/lib/i18n/translate';
 import { createLogger } from '@/lib/logger';
@@ -55,6 +60,8 @@ export default function PreferencesScreen() {
           <TenantPrefsForm key={JSON.stringify(tenant.data)} data={tenant.data} />
         )}
       </Section>
+
+      <AIConsentCard />
     </Screen>
   );
 }
@@ -90,10 +97,25 @@ function UserPrefsForm({ data }: { data: NotificationPreferences }) {
   const { t: tr } = useLocale();
   const qc = useQueryClient();
   const [v, setV] = useState<NotificationPreferences>(data);
+  const toast = useToast();
   const set = (k: keyof NotificationPreferences) => (value: boolean) => setV((p) => ({ ...p, [k]: value }));
+  const pushOk = pushAvailable();
+  const pushHint = pushOk ? tr('mobile.notifications.push.pref_hint') : isExpoGo ? tr('mobile.notifications.push.pref_expo_go') : tr('mobile.notifications.push.pref_unavailable');
   const save = useApiMutation({
     key: 'account.notification_preferences.update',
-    fn: () => notificationPreferencesService.update(v),
+    fn: async () => {
+      let payload = v;
+      // Same as the web form: turning push on needs this device registered (permission + token).
+      if (v.push_enabled && pushOk) {
+        const res = await enablePush();
+        if (res !== 'registered') {
+          payload = { ...v, push_enabled: false };
+          setV(payload);
+          toast.error(res === 'denied' ? tr('mobile.notifications.push.denied') : tr('mobile.notifications.push.failed'));
+        }
+      }
+      return notificationPreferencesService.update(payload);
+    },
     success: tr('auth.preferences.save_success'),
     toastValidation: true,
     onSuccess: (next) => qc.setQueryData(accountKeys.prefs, next),
@@ -103,8 +125,8 @@ function UserPrefsForm({ data }: { data: NotificationPreferences }) {
       <SwitchRow label={tr('auth.preferences.email')} description={tr('auth.preferences.email_hint')} value={v.email_enabled} onValueChange={set('email_enabled')} />
       <SwitchRow label={tr('auth.preferences.inapp')} description={tr('auth.preferences.inapp_hint')} value={v.inapp_enabled} onValueChange={set('inapp_enabled')} />
       <SwitchRow label={tr('auth.preferences.realtime')} description={tr('auth.preferences.realtime_hint')} value={v.realtime_enabled} onValueChange={set('realtime_enabled')} />
-      {/* Web push is a browser subscription; native push isn't wired yet, so the stored value is kept but not editable here. */}
-      <SwitchRow label={tr('auth.preferences.push')} description={tr('mobile.catalog.push_mobile_hint')} value={v.push_enabled} onValueChange={set('push_enabled')} disabled />
+      {/* Without push support here (Expo Go, web) the stored value is kept but not editable, like the web on unsupported browsers. */}
+      <SwitchRow label={tr('mobile.notifications.push.pref_label')} description={pushHint} value={v.push_enabled} onValueChange={set('push_enabled')} disabled={!pushOk} />
       <Button label={save.isPending ? tr('auth.preferences.saving') : tr('auth.preferences.save')} loading={save.isPending} onPress={() => save.mutate(undefined)} />
     </Card>
   );
@@ -170,5 +192,41 @@ function TenantPrefsForm({ data }: { data: NotificationTypePreferences }) {
       </Txt>
       <Button label={save.isPending ? tr('messaging.prefs.saving') : tr('messaging.prefs.save')} loading={save.isPending} disabled={needsPhone} onPress={() => save.mutate(undefined)} />
     </Card>
+  );
+}
+
+/**
+ * Assistant data sharing (App Store 5.1.2(i)): shows whether the user agreed to send data to the AI
+ * provider and lets them withdraw it. Withdrawing blocks the assistant until they agree again.
+ */
+function AIConsentCard() {
+  const t = useTheme();
+  const { t: tr, fmt } = useLocale();
+  const { me, can } = useAuth();
+  const toast = useToast();
+  const consent = useAIConsent(me?.user.uuid);
+  const provider = useProviderName(consent.consent?.provider);
+  if (!can(P.aiUse) || !consent.loaded) return null;
+  const given = consent.consent;
+  const revoke = async () => {
+    await consent.revoke();
+    log.info('AI consent withdrawn from preferences');
+    toast.success(tr('mobile.ai.consent.revoked'));
+  };
+  return (
+    <Section title={tr('mobile.ai.consent.prefs_title')}>
+      <Card style={{ gap: t.spacing.md }}>
+        <Row gap={t.spacing.sm} style={{ justifyContent: 'space-between' }}>
+          <Txt variant="bodyStrong" style={{ flex: 1 }}>
+            {tr('mobile.ai.consent.prefs_label')}
+          </Txt>
+          <Badge size="sm" tone={given ? 'success' : 'neutral'} label={given ? tr('mobile.ai.consent.status_on') : tr('mobile.ai.consent.status_off')} />
+        </Row>
+        <Txt variant="caption" tone="secondary">
+          {given ? tr('mobile.ai.consent.prefs_given', { provider, date: fmt.dateTime(given.accepted_at) }) : tr('mobile.ai.consent.prefs_none')}
+        </Txt>
+        {given ? <Button label={tr('mobile.ai.consent.revoke')} variant="outline" size="sm" onPress={() => void revoke()} /> : null}
+      </Card>
+    </Section>
   );
 }

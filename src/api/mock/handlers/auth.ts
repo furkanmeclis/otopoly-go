@@ -1,7 +1,9 @@
 import type { Me } from '@/features/account/services/auth.service';
 
 import { fail, now, requireFields, route, str, uuid, type MockCtx, type MockUser } from '../core';
+import { DEMO_TOTP_CODE } from '../demo-auth';
 import { getDb, persist } from '../db';
+import { getAccessScenario } from '../scenario';
 import { assertPasswordPolicy } from './account';
 
 /** Exact role → permission sets computed from backend migrations (organization_user / organization_owner). */
@@ -52,7 +54,7 @@ export function decodeAccessToken(token: string | undefined) {
   return { userUuid, orgUuid: org === '-' ? null : org };
 }
 
-function issueTokens(user: MockUser, orgUuid: string | null, previousRefresh?: string) {
+export function issueTokens(user: MockUser, orgUuid: string | null, previousRefresh?: string) {
   const db = getDb();
   if (previousRefresh) db.sessions = db.sessions.filter((s) => s.token !== previousRefresh);
   const refresh = `mock-rt.${uuid()}`;
@@ -78,20 +80,45 @@ function issueTokens(user: MockUser, orgUuid: string | null, previousRefresh?: s
 }
 
 /** Membership + access validation, same errors as backend ResolveLoginOrganization. */
-function resolveOrganization(user: MockUser, slug: string) {
+export function resolveOrganization(user: MockUser, slug: string) {
   const db = getDb();
   const org = db.organizations.find((o) => o.slug === slug);
   const membership = org && db.memberships.find((m) => m.orgUuid === org.uuid && m.userUuid === user.uuid);
-  if (!org || !membership) fail(403, 'NO_TENANT_MEMBERSHIP', 'You are not a member of this organization');
-  const expired = org!.access_ends_at && new Date(org!.access_ends_at).getTime() <= Date.now();
-  if (org!.status === 'suspended' || expired) fail(403, 'ORGANIZATION_ACCESS_EXPIRED', 'Organization access has ended');
+  if (!org || !membership || getAccessScenario() === 'removed') fail(403, 'NO_TENANT_MEMBERSHIP', 'You are not a member of this organization');
+  const view = orgAccessView(org!);
+  const expired = view.access_ends_at && new Date(view.access_ends_at).getTime() <= Date.now();
+  if (view.status === 'suspended' || expired) fail(403, 'ORGANIZATION_ACCESS_EXPIRED', 'Organization access has ended');
   return org!;
+}
+
+/**
+ * Organization status / access end as the demo access scenario shows them (diagnostics screen):
+ * `expired` moves `access_ends_at` to yesterday, `suspended` sets the status.
+ */
+export function orgAccessView<T extends { status: string; access_ends_at?: string | null }>(org: T): { status: string; access_ends_at: string | null } {
+  const scenario = getAccessScenario();
+  return {
+    status: scenario === 'suspended' ? 'suspended' : org.status,
+    access_ends_at: scenario === 'expired' ? new Date(Date.now() - 86400000).toISOString() : (org.access_ends_at ?? null),
+  };
+}
+
+/** Tenant-route access check, same order and codes as backend `middleware.RequireOrganization`. */
+export function enforceOrgAccess(orgUuid: string) {
+  const scenario = getAccessScenario();
+  if (scenario === 'removed') fail(403, 'NO_TENANT_MEMBERSHIP', 'You are not a member of this organization');
+  const org = getDb().organizations.find((o) => o.uuid === orgUuid);
+  if (!org) return;
+  const view = orgAccessView(org);
+  if (view.status === 'suspended') fail(403, 'FORBIDDEN', 'Organization is suspended');
+  const ended = view.access_ends_at && new Date(view.access_ends_at).getTime() <= Date.now();
+  if (view.status === 'expired' || ended) fail(403, 'ORGANIZATION_ACCESS_EXPIRED', 'Organization access has expired');
 }
 
 export function buildMe(user: MockUser, orgUuid: string | null): Me {
   const db = getDb();
   const orgs = db.memberships
-    .filter((m) => m.userUuid === user.uuid)
+    .filter((m) => m.userUuid === user.uuid && getAccessScenario() !== 'removed')
     .map((m) => {
       const o = db.organizations.find((x) => x.uuid === m.orgUuid)!;
       return {
@@ -100,8 +127,7 @@ export function buildMe(user: MockUser, orgUuid: string | null): Me {
         name: o.name,
         role: m.role,
         logo_url: o.logo_url,
-        status: o.status,
-        access_ends_at: o.access_ends_at,
+        ...orgAccessView(o),
       };
     });
   const session = db.sessions.find((s) => s.userUuid === user.uuid && s.orgUuid === orgUuid);
@@ -120,11 +146,22 @@ export function buildMe(user: MockUser, orgUuid: string | null): Me {
     roles: user.roles,
     permissions: [...permissionsFor(user)].sort(),
     organizations: orgs,
-    links: {},
+    links: { profile: '/v1/auth/profile', change_password: '/v1/auth/password/change', notification_preferences: '/v1/notification-preferences' },
     channels: {},
     realtime: { enabled: false, user_channel: `user:${user.uuid}` },
     ...(session ? {} : {}),
   } as unknown as Me;
+}
+
+/**
+ * Authenticator round-trip shared by every sign-in path: no `totp_code` → 403 MFA_REQUIRED,
+ * wrong one → 401 INVALID_MFA_CODE. The demo authenticator always shows DEMO_TOTP_CODE.
+ */
+export function checkMfa(user: MockUser, totpCode: unknown) {
+  if (!user.totpEnabled) return;
+  const code = str(totpCode).replace(/\s/g, '');
+  if (!code) fail(403, 'MFA_REQUIRED', 'Two-factor code required');
+  if (code !== DEMO_TOTP_CODE) fail(401, 'INVALID_MFA_CODE', 'Invalid two-factor code');
 }
 
 function userFromCtx(ctx: MockCtx) {
@@ -140,8 +177,9 @@ route(
     const email = str(ctx.body.email).trim().toLowerCase();
     const user = getDb().users.find((u) => u.email.toLowerCase() === email);
     if (!user || user.password !== str(ctx.body.password)) fail(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
-    if (user!.status !== 'active') fail(403, 'ACCOUNT_DISABLED', 'This account is disabled');
-    if (user!.totpEnabled && !ctx.body.totp_code) fail(403, 'MFA_REQUIRED', 'Two-factor code required');
+    if (user!.deactivatedAt) fail(403, 'ACCOUNT_DEACTIVATED', 'This account has been deleted');
+    if (user!.status !== 'active') fail(403, 'FORBIDDEN', 'User is disabled');
+    checkMfa(user!, ctx.body.totp_code);
     const slug = str(ctx.body.organization_slug).trim();
     const org = slug ? resolveOrganization(user!, slug) : null;
     return issueTokens(user!, org?.uuid ?? null);
@@ -158,6 +196,7 @@ route(
     const s = db.sessions.find((x) => x.token === token);
     if (!s || new Date(s.expires_at).getTime() < Date.now()) fail(401, 'UNAUTHENTICATED', 'Refresh token invalid');
     const user = db.users.find((u) => u.uuid === s!.userUuid);
+    if (user?.deactivatedAt) fail(403, 'ACCOUNT_DEACTIVATED', 'This account has been deleted');
     if (!user || user.status !== 'active') fail(401, 'UNAUTHENTICATED', 'User disabled');
     return issueTokens(user!, s!.orgUuid, token);
   },
@@ -199,7 +238,8 @@ route('POST', '/v1/auth/password/change', (ctx) => {
   const user = userFromCtx(ctx);
   requireFields(ctx.body, ['current_password', 'new_password']);
   if (str(ctx.body.current_password) !== user.password) {
-    fail(400, 'VALIDATION_ERROR', 'Current password is incorrect', [{ field: 'current_password', message: 'incorrect' }]);
+    // Backend usecase.ErrInvalidCredentials → 401 INVALID_CREDENTIALS (not a field validation error).
+    fail(401, 'INVALID_CREDENTIALS', 'Email or password is incorrect');
   }
   assertPasswordPolicy(str(ctx.body.new_password), 'new_password');
   user.password = str(ctx.body.new_password);
@@ -219,7 +259,7 @@ route(
     const org = getDb().organizations.find((o) => o.slug === ctx.params.slug);
     if (!org) fail(404, 'NOT_FOUND', 'Organization not found');
     const accessOk = org!.status === 'active' && (!org!.access_ends_at || new Date(org!.access_ends_at).getTime() > Date.now());
-    return { uuid: org!.uuid, slug: org!.slug, name: org!.name, logo_url: org!.logo_url, access_ok: accessOk };
+    return { uuid: org!.uuid, slug: org!.slug, name: org!.name, status: org!.status, logo_url: org!.logo_url, access_ok: accessOk };
   },
   { anonymous: true },
 );

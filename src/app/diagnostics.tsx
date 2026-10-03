@@ -1,11 +1,26 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Database, Share2, Trash2 } from 'lucide-react-native';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { FlatList, Share, View } from 'react-native';
 
+import { DEMO_EMAIL_CODE, DEMO_REVIEW_EMAILS, DEMO_TOTP_CODE, getIssuedCodes, subscribeIssuedCodes } from '@/api/mock/demo-auth';
+import {
+  ACCESS_SCENARIOS,
+  getAccessScenario,
+  getPlanScenario,
+  PLAN_SCENARIOS,
+  setAccessScenario,
+  setPlanScenario,
+  subscribeAccessScenario,
+  subscribePlanScenario,
+  type AccessScenario,
+  type PlanScenario,
+} from '@/api/mock/scenario';
 import { useToast } from '@/components/feedback/toast';
 import { Badge, Button, EmptyState, FilterChips, Header, Row, Screen, Txt, useConfirm } from '@/components/ui';
 import { env, isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
+import { TestNotificationButton } from '@/features/notifications/components/test-notification-button';
 import { useLocale } from '@/lib/i18n/provider';
 import { clearLogEntries, formatLogsForExport, getLogEntries, subscribeLogs, type LogLevel } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
@@ -69,6 +84,10 @@ export default function DiagnosticsScreen() {
             { value: 'debug', label: 'Debug' },
           ]}
         />
+        {isMock ? <PlanScenarioSwitch /> : null}
+        {isMock ? <AccessScenarioSwitch /> : null}
+        {isMock && status === 'ready' ? <TestNotificationButton /> : null}
+        {isMock ? <DemoAuthCodes /> : null}
         {isMock ? <Button label={tr('mobile.diagnostics.reset_demo')} size="sm" variant="ghost" icon={<Database size={16} color={t.colors.primary} />} onPress={resetDemo} /> : null}
       </View>
       <FlatList
@@ -99,5 +118,97 @@ export default function DiagnosticsScreen() {
         )}
       />
     </Screen>
+  );
+}
+
+/**
+ * Demo only: switches the mock's plan scenario (usage near / at the limit, modules off) so the
+ * usage screen, the LIMIT_REACHED dialog and the locked states can be shown as owner and as staff.
+ */
+function PlanScenarioSwitch() {
+  const t = useTheme();
+  const { t: tr } = useLocale();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const scenario = useSyncExternalStore(subscribePlanScenario, getPlanScenario);
+  const change = (next: PlanScenario) => {
+    setPlanScenario(next);
+    void qc.invalidateQueries();
+    toast.info(tr('mobile.plan.scenario.changed', { name: tr(`mobile.plan.scenario.${next}`) }));
+  };
+  return (
+    <View style={{ gap: t.spacing.xs }}>
+      <Txt variant="caption" tone="secondary">
+        {tr('mobile.plan.scenario.title')}
+      </Txt>
+      <FilterChips<PlanScenario> value={scenario} onChange={change} options={PLAN_SCENARIOS.map((s) => ({ value: s, label: tr(`mobile.plan.scenario.${s}`) }))} />
+      <Txt variant="caption" tone="muted">
+        {tr('mobile.plan.scenario.hint')}
+      </Txt>
+    </View>
+  );
+}
+
+/**
+ * Demo only: the organization's access state (web `TenantRouteGuard`): ended, paused, no membership.
+ * Signed in, the profile is reloaded right away so the access screen shows (or goes away).
+ */
+function AccessScenarioSwitch() {
+  const t = useTheme();
+  const { t: tr } = useLocale();
+  const toast = useToast();
+  const { status, refreshMe } = useAuth();
+  const scenario = useSyncExternalStore(subscribeAccessScenario, getAccessScenario);
+  const change = (next: AccessScenario) => {
+    setAccessScenario(next);
+    if (status === 'ready' || status === 'selectOrg') refreshMe().catch(() => {});
+    toast.info(tr('mobile.access.scenario.changed', { name: tr(`mobile.access.scenario.${next}`) }));
+  };
+  return (
+    <View style={{ gap: t.spacing.xs }}>
+      <Txt variant="caption" tone="secondary">
+        {tr('mobile.access.scenario.title')}
+      </Txt>
+      <FilterChips<AccessScenario> value={scenario} onChange={change} options={ACCESS_SCENARIOS.map((s) => ({ value: s, label: tr(`mobile.access.scenario.${s}`) }))} />
+      <Txt variant="caption" tone="muted">
+        {tr('mobile.access.scenario.hint')}
+      </Txt>
+    </View>
+  );
+}
+
+/** Demo only: the e-mail codes the mock "sent" (sign-in, Apple linking, account deletion). */
+function DemoAuthCodes() {
+  const t = useTheme();
+  const { t: tr, fmt } = useLocale();
+  const codes = useSyncExternalStore(subscribeIssuedCodes, getIssuedCodes);
+  return (
+    <View style={{ gap: t.spacing.xs }}>
+      <Txt variant="caption" tone="secondary">
+        {tr('mobile.auth.demo.codes_title')}
+      </Txt>
+      <Txt variant="caption" tone="muted">
+        {tr('mobile.auth.demo.codes_fixed', { code: DEMO_EMAIL_CODE, emails: DEMO_REVIEW_EMAILS.join(', '), totp: DEMO_TOTP_CODE })}
+      </Txt>
+      {codes.length === 0 ? (
+        <Txt variant="caption" tone="muted">
+          {tr('mobile.auth.demo.codes_empty')}
+        </Txt>
+      ) : (
+        codes.slice(0, 3).map((c) => (
+          <Row key={`${c.at}-${c.email}`} gap={t.spacing.sm}>
+            <Txt variant="mono" selectable>
+              {c.code}
+            </Txt>
+            <Txt variant="caption" tone="secondary" style={{ flex: 1 }} numberOfLines={1}>
+              {`${tr(`mobile.auth.demo.purpose.${c.purpose}`)} · ${c.email}`}
+            </Txt>
+            <Txt variant="caption" tone="muted">
+              {fmt.time(new Date(c.at))}
+            </Txt>
+          </Row>
+        ))
+      )}
+    </View>
   );
 }

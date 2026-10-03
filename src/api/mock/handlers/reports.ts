@@ -4,7 +4,7 @@ import type {
   ReportsTimeseriesPoint,
 } from '@/features/reports/services/reports.service';
 
-import { inDayRange, istanbulDay, money, num, requirePerm, route } from '../core';
+import { inDayRange, istanbulDay, money, num, requirePerm, resourceMeta, route } from '../core';
 import { getDb } from '../db';
 
 function bucketKey(day: string, granularity: string) {
@@ -34,7 +34,7 @@ const finish = (map: Map<string, ReportsNamedTotal & { _t: number; _q: number }>
 
 route('GET', '/v1/tenant/reports/meta', (ctx) => {
   requirePerm(ctx, 'tenant.reports.read');
-  return { resource: 'reports', capabilities: { read: true, export: ctx.permissions.has('tenant.reports.export') } };
+  return resourceMeta('tenant.reports', '-date_to', { read: true, filter: true, export: ctx.permissions.has('tenant.reports.export') });
 });
 
 route('GET', '/v1/tenant/reports/overview', (ctx) => {

@@ -6,26 +6,7 @@ import type {
   FinanceTransaction,
 } from '@/features/finance/services/finance.service';
 
-import {
-  bool,
-  fail,
-  inDayRange,
-  istanbulDay,
-  money,
-  notFound,
-  now,
-  num,
-  paginate,
-  requireFields,
-  requireOwner,
-  requirePerm,
-  route,
-  search,
-  sortBy,
-  str,
-  uuid,
-  type MockCtx,
-} from '../core';
+import { bool, fail, inDayRange, istanbulDay, type MockCtx, money, notFound, now, num, omitNulls, paginate, requireFields, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid } from '../core';
 import { getDb } from '../db';
 import { postFinance, voidFinance } from '../ops';
 
@@ -68,7 +49,7 @@ route('GET', '/v1/tenant/finance/summary', (ctx) => {
 
 route('GET', '/v1/tenant/finance/accounts/meta', (ctx) => {
   requirePerm(ctx, read);
-  return { resource: 'finance.accounts', capabilities: { read: true, create: ctx.permissions.has(write), export: true } };
+  return resourceMeta('tenant.finance.accounts', 'name', { read: true, create: ctx.permissions.has(write), update: ctx.permissions.has(write), search: true, sort: true, export: true, import: true });
 });
 
 route('GET', '/v1/tenant/finance/accounts', (ctx) => {
@@ -137,7 +118,7 @@ route('GET', '/v1/tenant/finance/accounts/:uuid/detail', (ctx) => {
       transfer_in: sum((t) => t.type === 'transfer' && t.counter_account_uuid === a.uuid),
       transfer_out: sum((t) => t.type === 'transfer' && t.account_uuid === a.uuid),
     },
-    recent_transactions: sortBy(rows, '-transaction_date,-created_at').slice(0, num(ctx.query.limit) || 10),
+    recent_transactions: sortBy(rows, '-transaction_date,-created_at').slice(0, num(ctx.query.limit) || 10).map(txnOut),
   };
 });
 
@@ -183,7 +164,7 @@ route('DELETE', '/v1/tenant/finance/accounts/:uuid', (ctx) => {
 
 route('GET', '/v1/tenant/finance/categories/meta', (ctx) => {
   requirePerm(ctx, read);
-  return { resource: 'finance.categories', capabilities: { read: true, create: ctx.permissions.has(write) } };
+  return resourceMeta('tenant.finance.categories', 'name', { read: true, create: ctx.permissions.has(write), update: ctx.permissions.has(write), search: true, filter: true, sort: true, export: true, import: true });
 });
 
 route('GET', '/v1/tenant/finance/categories', (ctx) => {
@@ -216,6 +197,8 @@ route('POST', '/v1/tenant/finance/categories', (ctx) => {
     parent_uuid: (ctx.body.parent_uuid as string) || null,
     sort_order: num(ctx.body.sort_order) || db.financeCategories.length,
     is_active: bool(ctx.body.is_active, true),
+    created_at: now(),
+    updated_at: now(),
   };
   db.financeCategories.push(c);
   return c;
@@ -229,7 +212,7 @@ route('GET', '/v1/tenant/finance/categories/:uuid/detail', (ctx) => {
   return {
     category: c,
     stats: { posted_count: posted.length, void_count: rows.length - posted.length, total_amount: money(posted.reduce((s, t) => s + num(t.amount), 0)) },
-    recent_transactions: sortBy(rows, '-transaction_date,-created_at').slice(0, num(ctx.query.limit) || 10),
+    recent_transactions: sortBy(rows, '-transaction_date,-created_at').slice(0, num(ctx.query.limit) || 10).map(txnOut),
   };
 });
 
@@ -260,6 +243,7 @@ route('PATCH', '/v1/tenant/finance/categories/:uuid', (ctx) => {
     c.parent_uuid = parent || null;
   }
   for (const t of db.transactions) if (t.category_uuid === c.uuid) t.category_name = c.name;
+  c.updated_at = now();
   return c;
 });
 
@@ -274,9 +258,13 @@ route('DELETE', '/v1/tenant/finance/categories/:uuid', (ctx) => {
 
 // ─── Transactions ──────────────────────────────────────────────────────────
 
+/** Go `finance.Transaction` omits nil pointers (`omitempty`) instead of sending null. */
+const TXN_OPTIONAL = ['counter_account_uuid', 'counter_account_name', 'category_uuid', 'category_name', 'reference_no', 'source_uuid', 'voided_at'] as const;
+export const txnOut = (t: FinanceTransaction) => omitNulls(t, TXN_OPTIONAL as unknown as (keyof FinanceTransaction)[]);
+
 route('GET', '/v1/tenant/finance/transactions/meta', (ctx) => {
   requirePerm(ctx, read);
-  return { resource: 'finance.transactions', capabilities: { read: true, create: ctx.permissions.has(write), export: true, filter: true } };
+  return resourceMeta('tenant.finance.transactions', '-transaction_date', { read: true, create: ctx.permissions.has(write), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/finance/transactions', (ctx) => {
@@ -291,7 +279,8 @@ route('GET', '/v1/tenant/finance/transactions', (ctx) => {
   if (q.currency) items = items.filter((t) => t.currency.toUpperCase() === q.currency.trim().toUpperCase());
   if (q.date_from || q.date_to) items = items.filter((t) => inDayRange(t.transaction_date + 'T12:00:00Z', q.date_from, q.date_to));
   items = search(items, q.q, ['description', 'reference_no', 'account_name', 'category_name']);
-  return paginate(sortBy(items, q.sort, '-transaction_date,-created_at'), q);
+  const page = paginate(sortBy(items, q.sort, '-transaction_date,-created_at'), q);
+  return { ...page, items: page.items.map(txnOut) };
 });
 
 function sourceDetail(t: FinanceTransaction): FinanceSourceDetail | null {
@@ -350,7 +339,8 @@ route('GET', '/v1/tenant/finance/transactions/:uuid', (ctx) => {
   requirePerm(ctx, read);
   const t = getDb().transactions.find((x) => x.uuid === ctx.params.uuid);
   if (!t) notFound('Transaction');
-  return { ...t!, source_detail: sourceDetail(t!) };
+  const detail = sourceDetail(t!);
+  return detail ? { ...txnOut(t!), source_detail: detail } : txnOut(t!);
 });
 
 function validateManual(ctx: MockCtx, needsCategory: boolean) {
@@ -374,7 +364,7 @@ route('POST', '/v1/tenant/finance/transactions', (ctx) => {
   if (ctx.body.category_uuid && (!cat || cat.kind !== type)) {
     fail(400, 'VALIDATION_ERROR', 'Category kind mismatch', [{ field: 'category_uuid', message: 'invalid' }]);
   }
-  return postFinance(db, {
+  return txnOut(postFinance(db, {
     type: type as 'income' | 'expense',
     accountUuid: str(ctx.body.account_uuid),
     categoryUuid: cat?.uuid ?? null,
@@ -383,7 +373,7 @@ route('POST', '/v1/tenant/finance/transactions', (ctx) => {
     description: str(ctx.body.description),
     paymentMethod: str(ctx.body.payment_method, 'cash') || 'cash',
     referenceNo: str(ctx.body.reference_no) || null,
-  });
+  }));
 });
 
 route('POST', '/v1/tenant/finance/transactions/:uuid/void', (ctx) => {
@@ -393,7 +383,7 @@ route('POST', '/v1/tenant/finance/transactions/:uuid/void', (ctx) => {
   if (!t) notFound('Transaction');
   if (t!.status === 'void') fail(409, 'CONFLICT', 'Transaction already void');
   if (t!.source_type && t!.source_type !== 'manual') fail(409, 'CONFLICT', 'Void the source document instead');
-  return voidFinance(db, t!);
+  return txnOut(voidFinance(db, t!));
 });
 
 route('POST', '/v1/tenant/finance/transfers', (ctx) => {
@@ -411,7 +401,7 @@ route('POST', '/v1/tenant/finance/transfers', (ctx) => {
   if (!from) notFound('Source account');
   if (!to) notFound('Destination account');
   if (from!.currency !== to!.currency) fail(400, 'CURRENCY_MISMATCH', 'Accounts must share the same currency');
-  return postFinance(db, {
+  return txnOut(postFinance(db, {
     type: 'transfer',
     accountUuid: str(b.from_account_uuid),
     counterAccountUuid: str(b.to_account_uuid),
@@ -420,5 +410,5 @@ route('POST', '/v1/tenant/finance/transfers', (ctx) => {
     description: str(b.description),
     paymentMethod: 'transfer',
     referenceNo: str(b.reference_no) || null,
-  });
+  }));
 });

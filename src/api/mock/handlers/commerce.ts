@@ -4,26 +4,7 @@ import type { PurchaseDetail } from '@/features/purchases/services/purchases.ser
 import type { SaleDetail, SalesSummary } from '@/features/sales/services/sales.service';
 import type { Supplier } from '@/features/suppliers/services/suppliers.service';
 
-import {
-  bool,
-  fail,
-  inDayRange,
-  istanbulDay,
-  money,
-  notFound,
-  now,
-  num,
-  paginate,
-  requireFields,
-  requireOwner,
-  requirePerm,
-  route,
-  search,
-  sortBy,
-  str,
-  uuid,
-  type MockCtx,
-} from '../core';
+import { bool, fail, inDayRange, istanbulDay, type MockCtx, money, notFound, now, num, paginate, requireFields, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid } from '../core';
 import { getDb } from '../db';
 import {
   categoryByName,
@@ -42,7 +23,7 @@ import {
 
 route('GET', '/v1/tenant/cari/meta', (ctx) => {
   requirePerm(ctx, 'tenant.cari.read');
-  return { resource: 'cari', capabilities: { read: true, export: true, filter: true } };
+  return resourceMeta('tenant.cari', 'customer_name', { read: true, export: true, search: true, filter: true, sort: true });
 });
 
 route('GET', '/v1/tenant/cari/summary', (ctx) => {
@@ -191,7 +172,7 @@ route('POST', '/v1/tenant/cari/:uuid/adjustments', (ctx) => {
 
 route('GET', '/v1/tenant/sales/meta', (ctx) => {
   requirePerm(ctx, 'tenant.sales.read');
-  return { resource: 'sales', capabilities: { read: true, create: ctx.permissions.has('tenant.sales.write'), export: true } };
+  return resourceMeta('tenant.sales', '-sold_at', { read: true, create: ctx.permissions.has('tenant.sales.write'), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/sales/summary', (ctx) => {
@@ -244,7 +225,7 @@ route('POST', '/v1/tenant/sales', (ctx) => {
     const price = l.unit_price != null && l.unit_price !== '' ? num(l.unit_price) : num(p!.sale_price);
     if (!(qty > 0)) fail(400, 'VALIDATION_ERROR', 'qty must be positive', [{ field: `lines[${i}].qty`, message: 'must be > 0' }]);
     if (p!.track_stock && num(p!.stock_quantity) < qty) {
-      fail(409, 'INSUFFICIENT_STOCK', `Not enough stock for ${p!.name}`, [{ field: `lines[${i}].qty`, message: 'insufficient stock' }]);
+      fail(409, 'CONFLICT', `insufficient stock for "${p!.name}"`, [{ field: `lines[${i}].qty`, message: 'insufficient stock' }]);
     }
     return {
       uuid: uuid(),
@@ -335,7 +316,7 @@ route('POST', '/v1/tenant/sales/:uuid/void', (ctx) => {
 
 route('GET', '/v1/tenant/suppliers/meta', (ctx) => {
   requirePerm(ctx, 'tenant.suppliers.read');
-  return { resource: 'suppliers', capabilities: { read: true, create: ctx.permissions.has('tenant.suppliers.write'), export: true } };
+  return resourceMeta('tenant.suppliers', 'name', { read: true, create: ctx.permissions.has('tenant.suppliers.write'), update: ctx.permissions.has('tenant.suppliers.write'), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/suppliers', (ctx) => {
@@ -404,7 +385,7 @@ route('DELETE', '/v1/tenant/suppliers/:uuid', (ctx) => {
 
 route('GET', '/v1/tenant/purchases/meta', (ctx) => {
   requirePerm(ctx, 'tenant.purchases.read');
-  return { resource: 'purchases', capabilities: { read: true, create: ctx.permissions.has('tenant.purchases.write'), export: true } };
+  return resourceMeta('tenant.purchases', '-purchased_at', { read: true, create: ctx.permissions.has('tenant.purchases.write'), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/purchases', (ctx) => {

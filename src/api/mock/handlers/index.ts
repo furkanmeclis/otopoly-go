@@ -1,5 +1,6 @@
 // Route registration order matters: static segments (/meta, /summary) before /:uuid.
 import './auth';
+import './passwordless';
 import './jobs';
 import './customers';
 import './catalog';
@@ -14,3 +15,5 @@ import './io';
 import './billing';
 import './ai';
 import './account';
+import './notifications';
+import './qr-login';

@@ -1,6 +1,6 @@
 import type { Customer, CustomerDetail } from '@/features/customers/services/customers.service';
 
-import { bool, fail, notFound, now, num, paginate, requireFields, requirePerm, route, search, sortBy, str, uuid, type MockCtx } from '../core';
+import { bool, fail, type MockCtx, notFound, now, num, paginate, requireFields, requirePerm, resourceMeta, route, search, sortBy, str, uuid } from '../core';
 import { getDb, type MockVehicle } from '../db';
 
 function normalizePlate(raw: string) {
@@ -52,7 +52,7 @@ function createVehicle(customer: Customer, input: Record<string, unknown>, field
 
 route('GET', '/v1/tenant/customers/meta', (ctx) => {
   requirePerm(ctx, 'tenant.customers.read');
-  return { resource: 'customers', capabilities: { read: true, create: ctx.permissions.has('tenant.customers.write'), search: true, filter: true } };
+  return resourceMeta('tenant.customers', 'name', { read: true, create: ctx.permissions.has('tenant.customers.write'), update: ctx.permissions.has('tenant.customers.write'), search: true, filter: true, sort: true, export: true });
 });
 
 route('GET', '/v1/tenant/customers', (ctx) => {

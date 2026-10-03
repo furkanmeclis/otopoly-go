@@ -8,11 +8,13 @@
 import type { ContractPreset, SignerSlot } from '@/features/contract-presets/services/contract-presets.service';
 import type { ContractInstance, ContractMedia, ContractSigner, ContractTemplate } from '@/features/contracts/services/contracts.service';
 
-import { bool, fail, notFound, now, paginate, requireOwner, requirePerm, route, search, sortBy, str, uuid, validation, type MockCtx } from '../core';
+import { bool, fail, type MockCtx, notFound, now, paginate, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid, validation } from '../core';
 import { getDb, type MockDb } from '../db';
 
 const READ = 'tenant.contracts.read';
 const WRITE = 'tenant.contracts.write';
+const MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+const MEDIA_MAX_BYTES = 12 * 1024 * 1024;
 export const DEMO_OTP_CODE = '123456';
 const OTP_TTL_MS = 10 * 60_000;
 const OTP_RESEND_MS = 60_000;
@@ -210,9 +212,6 @@ function buildInstance(org: string, tpl: TemplateRow, jobUuid: string, actorName
         phone: slot.role === 'customer' ? job.customer_phone : '',
         otp_required: tpl.otp_required && slot.role === 'customer',
         otp_verified: false,
-        otp_verified_at: null,
-        otp_channel: '',
-        otp_phone_masked: '',
         created_at: at,
         updated_at: at,
       })),
@@ -321,7 +320,7 @@ function templateBody(ctx: MockCtx, partial: boolean) {
 
 route('GET', '/v1/tenant/contracts/templates/meta', (ctx) => {
   requirePerm(ctx, READ);
-  return { resource: 'tenant.contracts.templates', capabilities: { read: true, create: true, update: true, delete: true, search: true, filter: true, sort: true }, sortable: ['title', 'created_at'], filterable: ['is_active'] };
+  return resourceMeta('tenant.contracts', '-created_at', { read: true, create: true, update: true, delete: true, search: true, filter: true, sort: true }, { searchable: ['title'], sortable: ['title', 'created_at'], filterable: ['is_active'] });
 });
 
 route('GET', '/v1/tenant/contracts/presets', (ctx) => {
@@ -497,14 +496,18 @@ route('POST', '/v1/tenant/contracts/instances/:uuid/media', (ctx) => {
   requirePerm(ctx, WRITE);
   const inst = findInstance(ctx);
   if (inst.status === 'executed' || inst.status === 'voided') fail(409, 'CONFLICT', 'contract is locked');
-  const file = (ctx.body.file ?? {}) as { name?: string; type?: string; uri?: string };
+  const file = (ctx.body.file ?? {}) as { name?: string; type?: string; uri?: string; size?: number };
+  if (!file.uri) fail(400, 'VALIDATION_ERROR', 'file is required');
+  // Backend sniffs the bytes and only accepts raster images and PDF (12 MB body cap).
+  if (!MEDIA_TYPES.includes(str(file.type).toLowerCase())) fail(400, 'VALIDATION_ERROR', 'file must be a JPEG, PNG, WebP, GIF image or a PDF');
+  if ((file.size ?? 0) > MEDIA_MAX_BYTES) fail(400, 'VALIDATION_ERROR', 'invalid multipart form');
   const media: ContractMedia = {
     uuid: uuid(),
     object_key: `contracts/${inst.uuid}/media/${file.name ?? 'file'}`,
     url: file.uri ?? null,
-    content_type: file.type ?? 'application/octet-stream',
+    content_type: str(file.type).toLowerCase(),
     file_name: file.name ?? 'file',
-    byte_size: 0,
+    byte_size: file.size ?? 0,
     caption: str(ctx.body.caption),
     sort_order: inst.media?.length ?? 0,
     created_at: now(),

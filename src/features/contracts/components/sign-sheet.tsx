@@ -42,7 +42,23 @@ export function SignSheet({ instance, signerUuid, onClose }: { instance: Contrac
   );
 }
 
-function SignerForm({ instance, signer, onDone }: { instance: ContractInstance; signer: ContractSigner; onDone: () => void }) {
+/**
+ * One signer's OTP + signature form. `onSigned` receives the updated contract (job flow moves on to
+ * the next signer); without it, `onDone` closes the form after signing. `cancelLabel` defaults to "Cancel".
+ */
+export function SignerForm({
+  instance,
+  signer,
+  onDone,
+  onSigned,
+  cancelLabel,
+}: {
+  instance: ContractInstance;
+  signer: ContractSigner;
+  onDone: () => void;
+  onSigned?: (updated: ContractInstance) => void;
+  cancelLabel?: string;
+}) {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const [displayName, setDisplayName] = useState(signer.suggested_name ?? '');
@@ -83,7 +99,8 @@ function SignerForm({ instance, signer, onDone }: { instance: ContractInstance; 
     toastValidation: true,
     onSuccess: (data) => {
       log.info('Signed', { instance: data.uuid, signer: signer.uuid, status: data.status });
-      onDone();
+      if (onSigned) onSigned(data);
+      else onDone();
     },
   });
 
@@ -170,7 +187,7 @@ function SignerForm({ instance, signer, onDone }: { instance: ContractInstance; 
           </View>
         ) : null}
 
-        <Button variant="outline" label={tr('common.cancel')} onPress={onDone} />
+        <Button variant="outline" label={cancelLabel ?? tr('common.cancel')} onPress={onDone} />
       </ScrollView>
     );
   }
@@ -213,7 +230,7 @@ function SignerForm({ instance, signer, onDone }: { instance: ContractInstance; 
           });
         }}
       />
-      <Button variant="outline" label={tr('common.cancel')} onPress={onDone} />
+      <Button variant="outline" label={cancelLabel ?? tr('common.cancel')} onPress={onDone} />
     </ScrollView>
   );
 }

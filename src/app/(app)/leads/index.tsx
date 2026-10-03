@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, EmptyState, ErrorState, Header, IconButton, ListSkeleton, PlateBadge, Row, SearchBar, Segmented, Skeleton, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
+import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { ActionMenu, Chip } from '@/features/leads/components/crm-ui';
 import { LostSheet } from '@/features/leads/components/lead-sheets';
@@ -25,7 +26,9 @@ export default function LeadsScreen() {
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.leadsRead} title={tr('leads.title')}>
-      <LeadsList />
+      <QuotesModuleGate area="leads" title={tr('leads.title')}>
+        <LeadsList />
+      </QuotesModuleGate>
     </RequirePermission>
   );
 }

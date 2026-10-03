@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { Pressable, View } from 'react-native';
 
 import { request } from '@/api/client';
+import { isFeatureDisabled } from '@/api/errors';
 import { BrandMark } from '@/components/brand';
 import type { ListPage } from '@/api/types';
 import {
@@ -56,6 +57,7 @@ import {
   useTodos,
 } from '@/features/queries';
 import { TodoRow } from '@/features/todos/components/todo-row';
+import { NotificationBell } from '@/features/notifications/components/notification-parts';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { prefs, StorageKeys } from '@/lib/storage';
@@ -92,7 +94,10 @@ export default function DashboardScreen() {
           <Txt variant="caption" tone="secondary">
             {fmt.date(new Date(), 'long')}
           </Txt>
-          <BrandMark height={22} />
+          <Row gap={t.spacing.sm}>
+            <BrandMark height={22} />
+            <NotificationBell />
+          </Row>
         </Row>
         <Txt variant="display" numberOfLines={2}>
           {firstName ? tr(greetingKey(new Date().getHours()), { name: firstName }) : (organization?.name ?? '')}
@@ -255,6 +260,8 @@ function PipelineSection() {
   const leads = useLeadsSummary(canLeads);
   const quotes = useQuotesSummary(canQuotes);
   if (!canLeads && !canQuotes) return null;
+  // The plan turns the quotes & leads module off: no pipeline (same as insights without reports).
+  if (isFeatureDisabled(leads.error) || isFeatureDisabled(quotes.error)) return null;
 
   const tiles = [
     canLeads
@@ -353,6 +360,8 @@ function InsightsSection() {
   const services = (data?.services ?? []).slice(0, 5);
   const customers = (data?.top_customers ?? []).slice(0, 5);
   const receivables = (data?.cari_receivables ?? []).slice(0, 5);
+  // Plan without the reports module: leave the insights out rather than showing zeros.
+  if (isFeatureDisabled(overview.error)) return null;
   const kpiItems = [
     { label: tr('dashboard.tenant.kpi_income'), value: fmt.money(kpis?.total_income) },
     { label: tr('dashboard.tenant.kpi_net'), value: fmt.money(kpis?.net_profit) },

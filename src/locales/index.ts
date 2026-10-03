@@ -50,11 +50,16 @@ import trTodos from './tr/todos.json';
 import trUsers from './tr/users.json';
 import trVehicleBrands from './tr/vehicle_brands.json';
 import trMobile from './mobile/tr.json';
+import trMobileAccount from './mobile/areas/account.tr.json';
+import trMobileAuth from './mobile/areas/auth.tr.json';
 import trMobileCatalog from './mobile/areas/catalog.tr.json';
 import trMobileCommerce from './mobile/areas/commerce.tr.json';
 import trMobileCrm from './mobile/areas/crm.tr.json';
 import trMobileDocuments from './mobile/areas/documents.tr.json';
 import trMobileFinance from './mobile/areas/finance.tr.json';
+import trMobileNotifications from './mobile/areas/notifications.tr.json';
+import trMobilePlan from './mobile/areas/plan.tr.json';
+import trMobileQr from './mobile/areas/qr.tr.json';
 import trMobileSettings from './mobile/areas/settings.tr.json';
 import enAccess from './en/access.json';
 import enActivity from './en/activity.json';
@@ -105,11 +110,16 @@ import enTodos from './en/todos.json';
 import enUsers from './en/users.json';
 import enVehicleBrands from './en/vehicle_brands.json';
 import enMobile from './mobile/en.json';
+import enMobileAccount from './mobile/areas/account.en.json';
+import enMobileAuth from './mobile/areas/auth.en.json';
 import enMobileCatalog from './mobile/areas/catalog.en.json';
 import enMobileCommerce from './mobile/areas/commerce.en.json';
 import enMobileCrm from './mobile/areas/crm.en.json';
 import enMobileDocuments from './mobile/areas/documents.en.json';
 import enMobileFinance from './mobile/areas/finance.en.json';
+import enMobileNotifications from './mobile/areas/notifications.en.json';
+import enMobilePlan from './mobile/areas/plan.en.json';
+import enMobileQr from './mobile/areas/qr.en.json';
 import enMobileSettings from './mobile/areas/settings.en.json';
 
 export const catalogs = {
@@ -162,7 +172,7 @@ export const catalogs = {
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileSettings },
+    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobilePlan, ...trMobileQr, ...trMobileSettings },
   },
   en: {
     access: enAccess,
@@ -213,7 +223,7 @@ export const catalogs = {
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileSettings },
+    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobilePlan, ...enMobileQr, ...enMobileSettings },
   },
 } as const;
 

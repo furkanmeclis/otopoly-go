@@ -3,6 +3,7 @@
 import { request } from '@/api/client';
 import { installMockTransport } from '@/api/mock';
 import { session } from '@/api/session';
+import { aiService } from '@/features/ai/services/ai.service';
 
 let failures = 0;
 const ok = (cond: unknown, msg: string) => {
@@ -60,14 +61,11 @@ async function login(email: string) {
   const test = await request<any>('POST', '/v1/tenant/vehicle-alerts/test');
   ok(test.in_app > 0, 'vehicle alerts test');
 
-  console.log('billing');
+  console.log('usage (read-only; purchase routes are not part of the app)');
   const ov = await request<any>('GET', '/v1/tenant/billing/overview');
   ok(ov.subscription.status === 'active' && ov.meters.length > 0, 'overview');
-  const inv = await request<any>('GET', '/v1/tenant/billing/invoices');
-  ok(inv.items.length === 2, 'invoices');
-  const ord = await request<any>('GET', '/v1/tenant/billing/orders', { query: { status: 'all' } });
-  ok(ord.items.length === 2, 'orders');
-  ok((await request<any>('GET', '/v1/tenant/billing/invoice-profile')).invoice_name, 'invoice profile');
+  await expectError(request('GET', '/v1/tenant/billing/invoices'), 'NOT_FOUND', 'invoices not mocked');
+  await expectError(request('GET', '/v1/tenant/billing/orders'), 'NOT_FOUND', 'orders not mocked');
 
   console.log('letterhead');
   const st = await request<any>('GET', '/v1/tenant/settings');
@@ -81,8 +79,8 @@ async function login(email: string) {
   ok(status.available, 'assistant available');
   const conv = await request<any>('POST', '/v1/tenant/ai/conversations', { body: {} });
   for (const q of ['Bugün kaç araç teslim ettik?', 'Bu ayın gelir grafiği', 'Kasalarda ne kadar para var?', 'Stoğu azalan ürünler hangileri?', 'En yüksek cari borcu olan müşteriler kimler?', 'merhaba']) {
-    const res = await request<any>('POST', `/v1/tenant/ai/conversations/${conv.uuid}/messages`, { body: { content: q, locale: 'tr' } });
-    ok(res.message.blocks.some((b: any) => b.type === 'text' && b.text), `answer: ${q} → ${res.message.blocks.map((b: any) => b.type).join(',')}`);
+    const res = await aiService.sendMessage(conv.uuid, q, 'tr');
+    ok(res.message.blocks.some((b: any) => b.type === 'text' && b.text), `answer (streamed): ${q} → ${res.message.blocks.map((b: any) => b.type).join(',')}`);
   }
   const list = await request<any>('GET', '/v1/tenant/ai/conversations');
   ok(list.items.length >= 2, `conversations: ${list.items.length}`);
