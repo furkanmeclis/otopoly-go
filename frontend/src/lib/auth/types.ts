@@ -114,9 +114,19 @@ export function primaryOrganizationSlug(
   return user.organizations[0]?.slug ?? null;
 }
 
+/** Signed-in, no business and no platform role: must create a business. */
+export function needsBusinessOnboarding(
+  user: AuthUser | null | undefined,
+): boolean {
+  if (!user || isPlatformUser(user)) return false;
+  return user.organizations.length === 0;
+}
+
+/** Where a signed-in user lands. Org-less users go to create-business (never
+ * the public `/register` wizard, which would answer 409 for their email). */
 export function defaultHomeForUser(user: AuthUser): string {
   if (isPlatformUser(user)) return "/platform";
   const slug = primaryOrganizationSlug(user);
   if (slug) return `/t/${slug}`;
-  return "/register";
+  return "/onboarding/business";
 }

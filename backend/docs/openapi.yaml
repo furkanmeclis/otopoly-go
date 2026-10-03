@@ -3120,7 +3120,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeStatus"
+                $ref: "#/components/schemas/EnvelopeAppConfig"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -11956,6 +11956,63 @@ components:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/StatusPayload" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AuthMethodFlags:
+      type: object
+      required: [login, register]
+      properties:
+        login: { type: boolean }
+        register:
+          type: boolean
+          description: Sign-up allowed with this method (already ANDed with `registration_enabled`).
+
+    AppConfigLetterhead:
+      type: object
+      required: [company_name, tagline, primary_color]
+      properties:
+        company_name: { type: string }
+        tagline: { type: string }
+        primary_color: { type: string }
+        logo_url:
+          type: string
+          description: Omitted when no platform logo is uploaded.
+
+    AppConfig:
+      type: object
+      required:
+        [mode, name, vapid_configured, github_auth_enabled, registration_enabled, auth_methods, letterhead]
+      properties:
+        mode: { type: string, enum: [platform] }
+        name: { type: string }
+        vapid_configured: { type: boolean }
+        github_auth_enabled:
+          type: boolean
+          deprecated: true
+          description: Legacy; use `auth_methods.github.login`.
+        registration_enabled: { type: boolean }
+        auth_methods:
+          type: object
+          required: [password, passkey, github, google, facebook, apple]
+          properties:
+            password: { $ref: "#/components/schemas/AuthMethodFlags" }
+            passkey:
+              type: object
+              required: [login]
+              properties:
+                login: { type: boolean }
+            github: { $ref: "#/components/schemas/AuthMethodFlags" }
+            google: { $ref: "#/components/schemas/AuthMethodFlags" }
+            facebook: { $ref: "#/components/schemas/AuthMethodFlags" }
+            apple: { $ref: "#/components/schemas/AuthMethodFlags" }
+        letterhead: { $ref: "#/components/schemas/AppConfigLetterhead" }
+
+    EnvelopeAppConfig:
+      type: object
+      description: This endpoint's envelope carries no `meta`.
+      required: [success, data]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AppConfig" }
 
     EnvelopePublicUser:
       type: object

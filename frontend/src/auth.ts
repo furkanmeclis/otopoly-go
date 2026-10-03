@@ -43,6 +43,10 @@ function isTenantGuestPath(pathname: string) {
   return /^\/t\/[^/]+\/login\/?$/.test(pathname);
 }
 
+function isOnboardingPath(pathname: string) {
+  return pathname === "/onboarding" || pathname.startsWith("/onboarding/");
+}
+
 function isTenantPath(pathname: string) {
   return /^\/t\/[^/]+(\/.*)?$/.test(pathname);
 }
@@ -56,6 +60,7 @@ function isGuestAuthPath(pathname: string) {
 function isProtectedPath(pathname: string) {
   if (pathname === routes.public.root) return false;
   if (pathname === routes.public.register) return false;
+  if (isOnboardingPath(pathname)) return true;
   if (isTenantGuestPath(pathname)) return false;
   if (isTenantPath(pathname)) return true;
   if (pathname.startsWith(`${routes.cms.profile.root}`)) return true;
@@ -407,7 +412,8 @@ const authHandlers = NextAuth(async () => ({
       }
 
       const url = request.nextUrl.clone();
-      url.pathname = routes.guest.login;
+      // Business onboarding is for business users: use their login page.
+      url.pathname = isOnboardingPath(pathname) ? "/login" : routes.guest.login;
       url.searchParams.set("next", pathname);
       return NextResponse.redirect(url);
     },

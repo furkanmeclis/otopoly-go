@@ -60,5 +60,22 @@
   "onboarding.working.register": "İşletme ve hesap oluşturuluyor",
   "onboarding.working.signin": "Oturum açılıyor",
   "onboarding.working.services": "Hizmet listeniz ekleniyor",
-  "onboarding.working.redirect": "Panelinize yönlendiriliyorsunuz"
+  "onboarding.working.redirect": "Panelinize yönlendiriliyorsunuz",
+  "validation.organization_name_length": "İşletme adı 2–120 karakter olmalı",
+  "validation.too_long": "Bu alan çok uzun",
+  "onboarding.working.create": "İşletmeniz oluşturuluyor",
+  "onboarding.working.switch": "İşletmeniz açılıyor",
+  "create.aside_title": "İşletmenizi 2 adımda kuralım.",
+  "create.finish": "İşletmemi oluştur",
+  "create.working_title": "İşletmeniz hazırlanıyor…",
+  "create.signed_in_as": "{{email}} olarak giriş yapıldı",
+  "create.sign_out": "Çıkış yap",
+  "create.closed_title": "Yeni işletme kaydı kapalı",
+  "create.closed_description": "Şu anda yeni işletme oluşturulamıyor. Mevcut bir işletmeye davet edildiyseniz sahibinden sizi eklemesini isteyin ya da çıkış yapıp başka bir hesapla devam edin.",
+  "create.errors.rate_limited": "Çok fazla deneme yapıldı. Lütfen biraz bekleyip tekrar deneyin.",
+  "create.errors.validation": "Bazı işletme bilgileri geçersiz. Kontrol edip tekrar deneyin.",
+  "create.errors.network": "Sunucuya ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
+  "create.errors.unauthenticated": "Oturumunuz sona erdi. Devam etmek için tekrar giriş yapın.",
+  "create.errors.already_owner": "Zaten bir işletmeniz var ancak açılamadı. Sayfayı yenileyip tekrar deneyin.",
+  "create.errors.unknown": "İşletmeniz oluşturulamadı. Lütfen tekrar deneyin."
 }

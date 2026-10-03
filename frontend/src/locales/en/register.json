@@ -60,5 +60,22 @@
   "onboarding.working.register": "Creating business and account",
   "onboarding.working.signin": "Signing in",
   "onboarding.working.services": "Adding your service list",
-  "onboarding.working.redirect": "Taking you to your dashboard"
+  "onboarding.working.redirect": "Taking you to your dashboard",
+  "validation.organization_name_length": "Business name must be 2–120 characters",
+  "validation.too_long": "This field is too long",
+  "onboarding.working.create": "Creating your business",
+  "onboarding.working.switch": "Opening your business",
+  "create.aside_title": "Let's set up your business in 2 steps.",
+  "create.finish": "Create my business",
+  "create.working_title": "Setting up your business…",
+  "create.signed_in_as": "Signed in as {{email}}",
+  "create.sign_out": "Sign out",
+  "create.closed_title": "New business sign-ups are closed",
+  "create.closed_description": "Creating a new business is currently disabled. If you were invited to an existing business, ask its owner to add you, or sign out and use another account.",
+  "create.errors.rate_limited": "Too many attempts. Please wait a while and try again.",
+  "create.errors.validation": "Some business details are invalid. Check them and try again.",
+  "create.errors.network": "Could not reach the server. Check your connection and try again.",
+  "create.errors.unauthenticated": "Your session has ended. Sign in again to continue.",
+  "create.errors.already_owner": "You already own a business, but it could not be opened. Refresh the page and try again.",
+  "create.errors.unknown": "Your business could not be created. Please try again."
 }
