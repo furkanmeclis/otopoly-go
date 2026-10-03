@@ -51,6 +51,7 @@ Super admin bypasses permission checks in `HasPermission`. Most platform HTTP ro
 - Password / passkey / OAuth availability is controlled by `auth_settings` + per-provider flags (`GET /v1/app/config` → `auth_methods`).
 - Global `registration_enabled` must be on, plus the method’s `register` flag, for platform self-registration (`/platform/register`).
 - **Business self-register** uses `POST /v1/public/organizations/register` (no platform permission). Creates owner membership and 14-day trial access.
+- **Create my business** (signed-in user without a business, e.g. after Apple / Google / email-code sign-up): `POST /v1/auth/organizations` `{organization_name, phone?, city?, district?, address?}` with a bearer token and no organization context. Same organization setup as public register (owner membership + roles, slug, 14-day trial from now, finance defaults) in one transaction. `201 {organization: {uuid, slug, name}}` without tokens: switch with `/v1/auth/organization-context`. `403` when `registration_enabled` is off, `409 CONFLICT` when the caller already owns a business (one self-serve business per user; staff membership elsewhere does not block), `400 VALIDATION_ERROR` with field details (`organization_name` 2-120 chars).
 - Password register assigns the configured **default role** when set; otherwise no roles.
 - **OAuth**: linked accounts can sign in when `login` is enabled. Unlinked accounts may self-register only when register is allowed for that provider.
 - **Tenant login**: `POST /v1/auth/login` accepts optional `organization_slug`. When present, the user must be a member and the organization must not be suspended or past `access_ends_at`. Success adds `oid` (organization UUID) to the access token.
@@ -66,6 +67,7 @@ Super admin bypasses permission checks in `HasPermission`. Most platform HTTP ro
 
 - 6-digit code, 10 min TTL, 5 attempts, single use, stored as SHA-256 (`otp_codes.type = login_code`).
 - `request` always answers `200 {status: accepted}` (no enumeration). Disabled / deactivated users still get a code so `verify` can report `FORBIDDEN` / `ACCOUNT_DEACTIVATED` after the mailbox is proven.
+- **Sign-up by email code**: for an email without an account, when `registration_enabled` is on, `request` sends a code too (`otp_codes.user_id` NULL) and a valid `verify` creates the user (email verified, no password, `name` = email local part, empty `surname`, default role, welcome notification) and returns tokens like a login. The user has no organization; the mobile app then calls `POST /v1/auth/organizations`, the web sends org-less users to `/register`. With `organization_slug` set (tenant login page) an unknown email gets `403 NO_TENANT_MEMBERSHIP` and nothing is created. With registration off, unknown emails get no code and `verify` answers `400 INVALID_EMAIL_CODE` as before.
 - Users with authenticator 2FA: `verify` without `totp_code` → `403 MFA_REQUIRED`, the email code stays valid; resend with `totp_code`. A wrong TOTP burns one of the code's attempts. The admin "password login requires 2FA" policy applies to password login only.
 - Email: `auth.login_code` template (tr/en, user locale), security email (ignores preferences).
 - **App review accounts**: `AUTH_REVIEW_ACCOUNTS=review@otopoly.com:246810,other@x.com:135790` (comma-separated `email:code`, code ≥ 6 chars). For those emails no email is sent and the fixed code signs in (also confirms account deletion). The code works only for its own email; the account must exist. Unset/empty = disabled. Rotate or remove after review.
@@ -158,6 +160,7 @@ Redis INCR, 15-minute window, fail-open if Redis is down. `429 RATE_LIMITED` + `
 | Verify email (`/auth/email/verify`) | IP | 10 |
 | Verification email request | user | 5 |
 | Business register (`/public/organizations/register`) | IP | 5 |
+| Create my business (`/auth/organizations`) | user, 1-hour window | 5 |
 | Email code request / OAuth link request | IP 10, email 5 | |
 | Email code verify / OAuth link verify | IP 30, email 10 | |
 | Native OAuth | IP | 30 |
@@ -190,6 +193,8 @@ Public (no auth):
 | Method | Path | Notes |
 |--------|------|-------|
 | POST | `/v1/public/organizations/register` | Business signup + owner user + tokens |
+
+Authenticated, no organization context: `POST /v1/auth/organizations` (create my business, see *Login & registration*).
 | GET | `/v1/public/organizations/by-slug/{slug}` | Login branding; `access_ok` flag |
 | GET | `/v1/public/organizations/logo/{uuid}` | Logo stream |
 
