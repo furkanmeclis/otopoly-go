@@ -233,7 +233,14 @@ function useRemainingSeconds(expiresAt: string | undefined) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!expiresAt) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const end = new Date(expiresAt).getTime();
+    if (!(end > Date.now())) return;
+    // Stops ticking once the request has expired.
+    const timer = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= end) clearInterval(timer);
+    }, 1000);
     return () => clearInterval(timer);
   }, [expiresAt]);
   if (!expiresAt) return null;

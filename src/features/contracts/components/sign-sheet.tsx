@@ -24,7 +24,14 @@ function useSecondsUntil(iso: string | null) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!iso) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    const end = new Date(iso).getTime();
+    if (!(end > Date.now())) return;
+    // Stops ticking at 0.
+    const id = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= end) clearInterval(id);
+    }, 1000);
     return () => clearInterval(id);
   }, [iso]);
   if (!iso) return 0;

@@ -14,6 +14,34 @@ import { useApiMutation } from '@/lib/mutation';
 
 const log = createLogger('ai.chat');
 
+/**
+ * Text deltas arrive token by token (often 30–60 per second). Re-rendering the chat, re-parsing the
+ * Markdown and scrolling on every token keeps the CPU busy for the whole answer, so deltas are drawn
+ * at most every STREAM_RENDER_MS; every other event (tool chips, cards, done, errors) renders at once.
+ */
+const STREAM_RENDER_MS = 60;
+
+function coalescedRender(render: () => void) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+  return {
+    soon: () => {
+      timer ??= setTimeout(() => {
+        timer = null;
+        render();
+      }, STREAM_RENDER_MS);
+    },
+    now: () => {
+      cancel();
+      render();
+    },
+    cancel,
+  };
+}
+
 export const aiKeys = {
   status: [...qk.ai, 'status'] as const,
   conversations: [...qk.ai, 'conversations'] as const,
@@ -129,6 +157,7 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
       const show = () => {
         if (mounted.current && turn.current === myTurn) setLive({ conv: uuid, messages: done ? [] : [userMsg, msg] });
       };
+      const render = coalescedRender(show);
       setStreaming(true);
       show();
       try {
@@ -158,7 +187,8 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
               commit(convUuid, [toServerMessage({ ...userMsg, uuid: userUuid }), toServerMessage(msg)]);
               log.info('Assistant answered', { conversation: convUuid, blocks: msg.blocks.length, status: msg.status });
             }
-            show();
+            if (ev.event === 'text_delta') render.soon();
+            else render.now();
           },
         });
         if (!done) {
@@ -173,6 +203,7 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
           show();
         }
       } finally {
+        render.cancel();
         if (abortRef.current === controller) abortRef.current = null;
         if (mounted.current) setStreaming(false);
         void qc.invalidateQueries({ queryKey: aiKeys.conversations });
@@ -212,6 +243,7 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
       const show = () => {
         if (mounted.current && turn.current === myTurn) setLive({ conv: uuid, messages: msg && !done ? [msg] : [] });
       };
+      const render = coalescedRender(show);
       setCard(uuid, { ...card, status: 'executing' });
       setStreaming(true);
       setLive({ conv: uuid, messages: [] });
@@ -236,7 +268,8 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
               done = true;
               commit(uuid, [toServerMessage(msg)]);
             }
-            show();
+            if (ev.event === 'text_delta') render.soon();
+            else render.now();
           },
         });
         if (!resolved) throw new Error('stream ended without an action result');
@@ -257,6 +290,7 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
           show();
         }
       } finally {
+        render.cancel();
         if (abortRef.current === controller) abortRef.current = null;
         if (mounted.current) setStreaming(false);
         void qc.invalidateQueries({ queryKey: aiKeys.status });

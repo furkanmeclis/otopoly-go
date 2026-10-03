@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider, usePathname } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider, useNavigationContainerRef, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
@@ -16,9 +16,13 @@ import { NotificationResponseObserver } from '@/features/notifications/component
 import { LocaleProvider } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { installGlobalErrorHandlers } from '@/lib/logger/global-handlers';
+import { initSentry, navigationIntegration, Sentry, sentryEnabled } from '@/lib/monitoring/sentry';
 import { createQueryClient } from '@/lib/query';
+import { useAppStateQueryFocus } from '@/lib/query-focus';
 import { ThemeProvider, useTheme } from '@/theme/provider';
 
+// No EXPO_PUBLIC_SENTRY_DSN → no-op (see docs/SENTRY.md).
+initSentry();
 installGlobalErrorHandlers();
 
 // Keep the native splash (brand mark) up until the stored session has been restored.
@@ -27,6 +31,15 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export { RouteErrorBoundary as ErrorBoundary };
 
 const navLog = createLogger('nav');
+
+/** Hands the navigation container to Sentry so performance traces carry screen (route) names. */
+function SentryNavigationRegistrar() {
+  const ref = useNavigationContainerRef();
+  useEffect(() => {
+    if (ref) navigationIntegration.registerNavigationContainer(ref);
+  }, [ref]);
+  return null;
+}
 
 function NavigationLogger() {
   const pathname = usePathname();
@@ -79,6 +92,7 @@ function RootNavigator() {
     <NavThemeProvider value={navTheme}>
       <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
       <NavigationLogger />
+      {sentryEnabled ? <SentryNavigationRegistrar /> : null}
       <NotificationResponseObserver />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
         <Stack.Protected guard={status === 'signedOut'}>
@@ -103,23 +117,32 @@ function RootNavigator() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [queryClient] = useState(createQueryClient);
+  useAppStateQueryFocus();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
           <LocaleProvider>
-            <QueryClientProvider client={queryClient}>
-              <ToastProvider>
-                <AuthProvider>
-                  <RootNavigator />
-                </AuthProvider>
-              </ToastProvider>
-            </QueryClientProvider>
+            {/* Catches (and reports) crashes outside a route, e.g. in the query / auth providers. */}
+            <Sentry.ErrorBoundary
+              fallback={({ error, resetError }) => (
+                <RouteErrorBoundary error={error instanceof Error ? error : new Error(String(error))} retry={async () => resetError()} reported />
+              )}>
+              <QueryClientProvider client={queryClient}>
+                <ToastProvider>
+                  <AuthProvider>
+                    <RootNavigator />
+                  </AuthProvider>
+                </ToastProvider>
+              </QueryClientProvider>
+            </Sentry.ErrorBoundary>
           </LocaleProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
+
+export default sentryEnabled ? Sentry.wrap(RootLayout) : RootLayout;

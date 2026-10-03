@@ -171,6 +171,7 @@ Bilinen küçük açık: Migration'dan önce Apple ya da Google ile kayıt olup 
 | Sözleşme uygunluk testi (`npm run test:contract`, CI'da): 246/246 endpoint, 0 hata. Bulunan hatalar: export takibi `pending` yerine `queued` bekliyordu; yanlış şifrede gelen 401 yüzünden token yenilenmeye çalışılıyordu; 43 endpoint'te durum kodu yanlıştı | mobil [PR #9](https://github.com/furkanmeclis/otopoly-mobile-app/pull/9) | ✅ CI yeşil |
 | Asistanda akış (SSE) okuma: mock ve canlı aynı kod yolunu kullanıyor. `owner_notified=false` olduğunda nötr limit metni. Spec yenilendi, istisna listesi boşaltıldı | mobil [PR #10](https://github.com/furkanmeclis/otopoly-mobile-app/pull/10) | ✅ CI yeşil |
 | OpenAPI'deki eksikler: iş emri, müşteri, ticaret, personel ve cari yanıt şemaları; finans kategorilerinin düzenleme ve silme endpoint'leri; dosya yükleme istekleri; eksik hata durum kodları. Go kodunda değişiklik yok | otopoly-go `feat/openapi-gaps` (identity-native-link'in üzerine kurulu) | ✅ CI yeşil |
+| Hata ve performans takibi (Sentry protokolü, kendi sunucumuz): `EXPO_PUBLIC_SENTRY_DSN` yoksa kapalı; kişisel veri temizleniyor; kaynak haritası yüklenmiyor (`SENTRY_DISABLE_AUTO_UPLOAD`). Isınma denetimi: arka planda ve görünmeyen sekmelerde süren yoklamalar, durmayan sayaçlar, asistan akışında her token'da çizim düzeltildi. Ayrıntılar `docs/SENTRY.md` | mobil `feat/sentry-heat` | 🟡 PR açık, cihazda denenmedi |
 
 Ayrıntılar `docs/backend/CONTRACT_REPORT.md` dosyasında.
 

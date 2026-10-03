@@ -77,7 +77,12 @@ export function useCountdown(seconds = RESEND_COOLDOWN) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (until <= Date.now()) return;
-    const timer = setInterval(() => setNow(Date.now()), 500);
+    // Stops itself once the cooldown is over (it used to re-render every 500 ms for as long as the screen lived).
+    const timer = setInterval(() => {
+      const t = Date.now();
+      setNow(t);
+      if (t >= until) clearInterval(timer);
+    }, 500);
     return () => clearInterval(timer);
   }, [until]);
   const remaining = Math.max(0, Math.ceil((until - now) / 1000));

@@ -10,7 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLocale } from '@/lib/i18n/provider';
@@ -377,6 +377,8 @@ export function Skeleton({ height = 16, width = '100%', radius = 8, style }: { h
   const opacity = useSharedValue(0.5);
   useEffect(() => {
     opacity.value = withRepeat(withTiming(1, { duration: 700 }), -1, true);
+    // Infinite animation: stop it explicitly when the placeholder goes away.
+    return () => cancelAnimation(opacity);
   }, [opacity]);
   const animated = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return <Animated.View style={[{ height, width, borderRadius: radius, backgroundColor: t.colors.skeleton }, animated, style]} />;

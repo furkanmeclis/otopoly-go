@@ -1,7 +1,7 @@
-import { router } from 'expo-router';
+import { router, useIsFocused } from 'expo-router';
 import { Download, Plus } from 'lucide-react-native';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Badge, Button, Card, DateField, EmptyState, ErrorState, Header, IconButton, ListSkeleton, Row, SelectField, Sheet, TextField, Txt } from '@/components/ui';
@@ -36,14 +36,18 @@ function ExportsList() {
   const { share, busy } = useShareExport();
   const running = list.items.some((j) => isExportRunning(j.status));
   const { refetch } = list;
+  const focused = useIsFocused();
   const canCreate = TENANT_EXPORTS.some((r) => can(r.perm));
 
   // Poll while the worker is still producing a file (web relies on notifications; mobile polls).
   useEffect(() => {
-    if (!running) return;
-    const id = setInterval(() => refetch(), IO_POLL_MS);
+    // Only while this screen is visible and the app is in the foreground (it refetches every loaded page).
+    if (!running || !focused) return;
+    const id = setInterval(() => {
+      if (AppState.currentState === 'active') void refetch();
+    }, IO_POLL_MS);
     return () => clearInterval(id);
-  }, [running, refetch]);
+  }, [running, focused, refetch]);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.colors.background }} edges={['top']}>

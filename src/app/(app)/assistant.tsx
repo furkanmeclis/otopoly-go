@@ -133,7 +133,9 @@ function Chat({ conversation, status, onConversationCreated }: { conversation: s
             ListEmptyComponent={<ChatEmpty onPick={(text) => void chat.send(text)} disabled={chat.busy} />}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
-            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+            // While an answer streams the content grows many times a second: jump instead of starting
+            // a new scroll animation per update.
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: !chat.busy })}
           />
         )}
         <View style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, paddingBottom: Math.max(insets.bottom, t.spacing.sm), borderTopWidth: 1, borderTopColor: t.colors.border, backgroundColor: t.colors.background, gap: 6 }}>
