@@ -61,7 +61,7 @@ export function landingMetadata(locale: LandingLocale): Metadata {
  * Public plans for the pricing section. Revalidated every 5 minutes; when the
  * API is unreachable (e.g. at build time) the section shows only the trial.
  */
-async function fetchPublicPlans(): Promise<PublicPlan[]> {
+export async function fetchPublicPlans(): Promise<PublicPlan[]> {
   try {
     const res = await fetch(`${upstreamConfig.baseUrl}/public/billing/plans`, {
       next: { revalidate: 300 },
