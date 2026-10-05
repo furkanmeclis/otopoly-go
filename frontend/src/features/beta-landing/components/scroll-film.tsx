@@ -9,8 +9,8 @@ import {
   motion,
   useMotionValueEvent,
   useReducedMotion,
+  useMotionValue,
   useScroll,
-  useSpring,
   useTransform,
   type MotionValue,
 } from "motion/react";
@@ -117,6 +117,70 @@ function placeFrame(
     w: frameWidth * scale,
     h: frameHeight * scale,
   };
+}
+
+/**
+ * Fastest the film may play, in progress units per second (0.2 → 60 film
+ * frames a second, at least 5 s for the whole film). A flick of the wheel or
+ * a long touch swipe would otherwise skip dozens of frames at once, which
+ * reads as stutter; the playhead glides there instead.
+ */
+const MAX_SPEED = 0.2;
+/** How quickly the playhead closes the remaining gap (1/s). */
+const CATCH_UP = 7;
+
+/**
+ * Follows the scroll position with an eased approach capped at `MAX_SPEED`.
+ * The copy and the canvas both read this value, so text and picture stay in
+ * step. Starts at the current scroll position (no replay after a reload).
+ */
+function usePlayhead(target: MotionValue<number>): MotionValue<number> {
+  const playhead = useMotionValue(target.get());
+  useEffect(() => {
+    let raf = 0;
+    let last = 0;
+    const tick = (now: number) => {
+      const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60;
+      last = now;
+      const goal = target.get();
+      const current = playhead.get();
+      const gap = goal - current;
+      if (Math.abs(gap) < 0.0002) {
+        playhead.set(goal);
+        raf = 0;
+        last = 0;
+        return;
+      }
+      const speed = Math.min(MAX_SPEED, Math.abs(gap) * CATCH_UP);
+      const step = Math.sign(gap) * Math.min(Math.abs(gap), speed * dt);
+      playhead.set(current + step);
+      raf = requestAnimationFrame(tick);
+    };
+    // Scroll restoration on reload lands before the first frames are painted;
+    // follow those readings directly instead of replaying the film from 0.
+    let primed = false;
+    const prime = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        playhead.jump(target.get());
+        primed = true;
+      });
+    });
+    const start = () => {
+      if (!primed) {
+        playhead.jump(target.get());
+        return;
+      }
+      if (!raf) raf = requestAnimationFrame(tick);
+    };
+    playhead.jump(target.get());
+    const off = target.on("change", start);
+    return () => {
+      off();
+      cancelAnimationFrame(prime);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [target, playhead]);
+  return playhead;
 }
 
 function layoutOf(variant: FilmVariant): FilmLayout {
@@ -240,12 +304,8 @@ function PinnedFilm({
     target: sectionRef,
     offset: ["start start", "end end"],
   });
-  const progress = useSpring(scrollYProgress, {
-    stiffness: 200,
-    damping: 40,
-    restDelta: 0.0005,
-  });
-  // Driven by the JS spring rather than the raw scroll value: motion would
+  const progress = usePlayhead(scrollYProgress);
+  // Driven by the JS playhead rather than the raw scroll value: motion would
   // otherwise hand a plain scroll → opacity mapping to a native ScrollTimeline,
   // which ignores the section offsets.
   const hintOpacity = useTransform(progress, [0, 0.03], [1, 0]);
