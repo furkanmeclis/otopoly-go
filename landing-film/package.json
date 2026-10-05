@@ -1,0 +1,28 @@
+{
+  "name": "otopoly-landing-film",
+  "version": "1.0.0",
+  "description": "Scroll-scrubbed film for the Otopoly beta landing page (rendered to a WebP image sequence).",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@remotion/cli": "4.0.532",
+    "@remotion/google-fonts": "4.0.532",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.532"
+  },
+  "devDependencies": {
+    "@remotion/bundler": "4.0.532",
+    "@remotion/renderer": "4.0.532",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "sharp": "^0.34.4",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "studio": "remotion studio",
+    "render:frames": "node scripts/render-frames.mjs",
+    "lint": "tsc --noEmit"
+  }
+}

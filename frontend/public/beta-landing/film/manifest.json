@@ -1,0 +1,22 @@
+{
+  "version": "bfacf7472b",
+  "frameCount": 300,
+  "variants": {
+    "light-landscape": {
+      "width": 2400,
+      "height": 1350
+    },
+    "dark-landscape": {
+      "width": 2400,
+      "height": 1350
+    },
+    "light-portrait": {
+      "width": 1350,
+      "height": 2400
+    },
+    "dark-portrait": {
+      "width": 1350,
+      "height": 2400
+    }
+  }
+}

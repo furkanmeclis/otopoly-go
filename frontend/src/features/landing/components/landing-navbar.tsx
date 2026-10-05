@@ -16,8 +16,15 @@ import { routes } from "@/config/routes";
 import { useLandingContent } from "@/features/landing/components/landing-content-provider";
 import { cn } from "@/lib/utils";
 
-/** Transparent over the dark hero, frosted glass once the page scrolls. */
-export function LandingNavbar() {
+/**
+ * Transparent over the dark hero, frosted glass once the page scrolls.
+ * Pages without a dark hero pass `overDarkHero={false}` to stay frosted.
+ */
+export function LandingNavbar({
+  overDarkHero = true,
+}: {
+  overDarkHero?: boolean;
+} = {}) {
   const { hero, nav: landingNav, a11y, language, locale } = useLandingContent();
   const homeHref = locale === "en" ? "/en" : routes.public.root;
   const rememberLocale = () => {
@@ -31,7 +38,7 @@ export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 24));
-  const onDark = !scrolled && !open;
+  const onDark = overDarkHero && !scrolled && !open;
 
   return (
     <motion.header
