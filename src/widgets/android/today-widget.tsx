@@ -1,4 +1,4 @@
-import { Column, Image, Row, Spacer, Text } from '@expo/ui/jetpack-compose';
+import { Button, Column, Image, Row, Spacer, Text } from '@expo/ui/jetpack-compose';
 import { background, cornerRadius, fillMaxSize, paddingAll, size, width } from '@expo/ui/jetpack-compose/modifiers';
 import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 
@@ -11,6 +11,7 @@ import type { TodayWidgetProps } from '../types';
  * with Glance, so: everything lives inside the function, only @expo/ui/jetpack-compose components
  * render, and there is no flexible spacing (Glance has no weight modifier) — layout is top-aligned
  * with fixed gaps. Android does not tell the layout its size, so the queue lives in its own widget.
+ * Tapping anywhere opens Operations.
  */
 const OtopolyTodayAndroid = (props: TodayWidgetProps, environment: WidgetEnvironment) => {
   'widget';
@@ -36,7 +37,13 @@ const OtopolyTodayAndroid = (props: TodayWidgetProps, environment: WidgetEnviron
     </Row>
   );
 
-  const root = (content: any) => <Column modifiers={[fillMaxSize(), background(c.bg), cornerRadius(20), paddingAll(14)]}>{content}</Column>;
+  // A URL `target` on a Button opens the app at that deep link (patches/expo-widgets: Android has no widgetURL).
+  const tap = (url: string) => ({ target: url }) as object;
+  const root = (content: any) => (
+    <Button {...tap('otopoly://operations')} modifiers={[fillMaxSize()]}>
+      <Column modifiers={[fillMaxSize(), background(c.bg), cornerRadius(20), paddingAll(14)]}>{content}</Column>
+    </Button>
+  );
 
   if (!ready || props.state !== 'ok') {
     const message = !ready ? "Otopoly'yi açın" : props.state === 'noAccess' ? props.labels.noAccess : props.labels.signedOut;

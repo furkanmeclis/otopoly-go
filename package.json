@@ -50,6 +50,7 @@
     "esbuild": "^0.25.12",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
+    "patch-package": "^8.0.1",
     "typescript": "~6.0.3",
     "yaml": "^2.9.1"
   },
@@ -58,6 +59,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "postinstall": "patch-package",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test:mock": "esbuild scripts/smoke/mock-smoke.ts --bundle --platform=node --format=cjs --outfile=node_modules/.cache/mock-smoke.cjs --tsconfig=tsconfig.json --define:__DEV__=false --define:process.env.EXPO_PUBLIC_MOCK_LATENCY='\"0\"' --alias:@react-native-async-storage/async-storage=./scripts/smoke/stubs.js --alias:expo-secure-store=./scripts/smoke/stubs.js --alias:expo-localization=./scripts/smoke/stubs.js --log-level=warning && node node_modules/.cache/mock-smoke.cjs",

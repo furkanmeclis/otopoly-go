@@ -1,4 +1,4 @@
-import { Column, Image, LazyColumn, Row, Spacer, Text } from '@expo/ui/jetpack-compose';
+import { Button, Column, Image, LazyColumn, Row, Spacer, Text } from '@expo/ui/jetpack-compose';
 import { background, cornerRadius, fillMaxSize, fillMaxWidth, padding, paddingAll, size, width } from '@expo/ui/jetpack-compose/modifiers';
 import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 
@@ -10,6 +10,7 @@ import type { TodayWidgetProps } from '../types';
  * Android counterpart of the iOS large widget: today's counts plus the live queue. The queue is a
  * LazyColumn, which Android widgets can scroll, so every waiting car stays reachable. Glance has no
  * timer text, so each row shows the pre-formatted start time instead of a running clock.
+ * Tapping a car opens its job; tapping elsewhere opens Operations.
  */
 const OtopolyQueueAndroid = (props: TodayWidgetProps, environment: WidgetEnvironment) => {
   'widget';
@@ -42,7 +43,13 @@ const OtopolyQueueAndroid = (props: TodayWidgetProps, environment: WidgetEnviron
     </Row>
   );
 
-  const root = (content: any) => <Column modifiers={[fillMaxSize(), background(c.bg), cornerRadius(20), paddingAll(14)]}>{content}</Column>;
+  // A URL `target` on a Button opens the app at that deep link (patches/expo-widgets: Android has no widgetURL).
+  const tap = (url: string) => ({ target: url }) as object;
+  const root = (content: any) => (
+    <Button {...tap('otopoly://operations')} modifiers={[fillMaxSize()]}>
+      <Column modifiers={[fillMaxSize(), background(c.bg), cornerRadius(20), paddingAll(14)]}>{content}</Column>
+    </Button>
+  );
 
   if (!ready || props.state !== 'ok') {
     const message = !ready ? "Otopoly'yi açın" : props.state === 'noAccess' ? props.labels.noAccess : props.labels.signedOut;
@@ -107,7 +114,8 @@ const OtopolyQueueAndroid = (props: TodayWidgetProps, environment: WidgetEnviron
       ) : (
         <LazyColumn modifiers={[fillMaxWidth()]}>
           {props.queue.map((job) => (
-            <Row key={job.id} verticalAlignment="center" modifiers={[fillMaxWidth(), padding(0, 0, 0, 8)]}>
+            <Button key={job.id} {...tap(`otopoly://jobs/${job.id}`)} modifiers={[fillMaxWidth()]}>
+            <Row verticalAlignment="center" modifiers={[fillMaxWidth(), padding(0, 0, 0, 8)]}>
               <Text color={c.plateText} maxLines={1} modifiers={[background(c.plate), cornerRadius(5), padding(6, 3, 6, 3)]} style={{ fontSize: 11, fontWeight: 'bold' }}>
                 {job.plate}
               </Text>
@@ -121,6 +129,7 @@ const OtopolyQueueAndroid = (props: TodayWidgetProps, environment: WidgetEnviron
                 </Text>
               </Column>
             </Row>
+            </Button>
           ))}
         </LazyColumn>
       )}
