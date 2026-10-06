@@ -100,7 +100,7 @@ function CustomerDetail() {
         />
       }
       refreshing={customer.isRefetching}
-      onRefresh={() => customer.refetch()}
+      onRefresh={() => void customer.refetch()}
     >
       <Row gap={t.spacing.sm}>
         {c.phone ? <Button style={{ flex: 1 }} variant="outline" size="sm" label={c.phone} icon={<Phone size={16} color={t.colors.text} />} onPress={() => Linking.openURL(`tel:${c.phone.replace(/\s/g, '')}`)} /> : null}

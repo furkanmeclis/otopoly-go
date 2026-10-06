@@ -1,7 +1,7 @@
 import { Link, router, useLocalSearchParams } from 'expo-router';
 import { Bug, Eye, EyeOff, KeyRound, Lock, Mail, UserCog, UserRound } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInput } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInputInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DEMO_EMAIL_CODE, DEMO_TOTP_CODE, demoIdToken, type DemoIdentity } from '@/api/mock/demo-auth';
@@ -173,7 +173,7 @@ function PasswordForm({ flow, error, setError, disabled }: { flow: ReturnType<ty
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
-  const passwordRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInputInstance>(null);
 
   const submit = async () => {
     const e = email.trim();

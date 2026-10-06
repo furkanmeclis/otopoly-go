@@ -64,7 +64,7 @@ function SaleDetail() {
   const lines = sale.lines ?? [];
 
   return (
-    <Screen header={<Header title={title} subtitle={sale.customer_phone || tr('sales.detail.description')} />} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
+    <Screen header={<Header title={title} subtitle={sale.customer_phone || tr('sales.detail.description')} />} refreshing={query.isRefetching} onRefresh={() => void query.refetch()}>
       <Card style={{ alignItems: 'center', gap: t.spacing.sm }}>
         <DocStatusBadge ns="sales" status={sale.status} size="md" />
         <Txt variant="display" style={{ fontVariant: ['tabular-nums'], textDecorationLine: sale.status === 'voided' ? 'line-through' : 'none' }}>

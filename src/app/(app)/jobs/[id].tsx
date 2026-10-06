@@ -115,7 +115,7 @@ function JobDetailContent() {
     <Screen
       header={<Header title={d.plate} subtitle={d.customer_name} />}
       refreshing={job.isRefetching}
-      onRefresh={() => job.refetch()}
+      onRefresh={() => void job.refetch()}
       footer={actions && (status === 'in_progress' || status === 'ready' || canPay) ? actions : undefined}
     >
       <Card style={{ gap: t.spacing.md }}>

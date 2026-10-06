@@ -74,9 +74,9 @@ function StaffList() {
             <Card style={{ marginBottom: t.spacing.sm }}>
               <UsageMeter meter={meter} />
             </Card>
-          ) : null
+          ) : undefined
         }
-        refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={() => list.refetch()} tintColor={t.colors.primary} />}
+        refreshControl={<RefreshControl refreshing={list.isRefetching} onRefresh={() => void list.refetch()} tintColor={t.colors.primary} />}
         ListEmptyComponent={
           list.isLoading ? (
             <ListSkeleton rows={4} height={96} />

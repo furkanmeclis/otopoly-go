@@ -104,7 +104,7 @@ function ServicesList() {
             tintColor={t.colors.primary}
           />
         }
-        ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={t.colors.primary} style={{ padding: t.spacing.lg }} /> : null}
+        ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={t.colors.primary} style={{ padding: t.spacing.lg }} /> : undefined}
         ListEmptyComponent={
           list.isLoading ? (
             <ListSkeleton rows={6} height={84} />

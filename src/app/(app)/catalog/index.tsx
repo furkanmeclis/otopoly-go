@@ -30,7 +30,7 @@ function CatalogHub() {
   const v = (n: number | string | undefined, money = false) => (summary.isLoading ? '…' : money ? fmt.money(n) : String(n ?? 0));
 
   return (
-    <Screen header={<Header title={tr('layout.section_catalog')} subtitle={tr('catalog.summary.title')} />} refreshing={summary.isRefetching} onRefresh={() => summary.refetch()}>
+    <Screen header={<Header title={tr('layout.section_catalog')} subtitle={tr('catalog.summary.title')} />} refreshing={summary.isRefetching} onRefresh={() => void summary.refetch()}>
       {summary.isError ? (
         <ErrorState onRetry={() => summary.refetch()} />
       ) : (

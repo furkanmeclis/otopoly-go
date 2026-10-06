@@ -49,7 +49,7 @@ function TemplateDetail() {
       </Screen>
     );
   }
-  return <TemplateForm key={`${query.data.uuid}-${query.data.updated_at}`} template={query.data} refreshing={query.isRefetching} onRefresh={() => query.refetch()} />;
+  return <TemplateForm key={`${query.data.uuid}-${query.data.updated_at}`} template={query.data} refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />;
 }
 
 type FormState = {

@@ -93,7 +93,7 @@ function TransactionDetail() {
         />
       }
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
       footer={
         canWrite && !isVoid ? (
           <Button variant="danger" label={tr('finance.transactions.void')} icon={<Ban size={18} color={t.colors.textInverse} />} loading={voidTx.isPending} onPress={onVoid} />

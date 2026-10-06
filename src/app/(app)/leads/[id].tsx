@@ -53,7 +53,7 @@ function LeadDetailContent() {
   }
   if (query.isError || !query.data) {
     return (
-      <Screen header={<Header title={tr('leads.back')} />} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
+      <Screen header={<Header title={tr('leads.back')} />} refreshing={query.isRefetching} onRefresh={() => void query.refetch()}>
         <EmptyState title={tr('leads.not_found')} action={<Button variant="outline" size="sm" label={tr('leads.back')} onPress={() => router.replace('/leads')} />} />
       </Screen>
     );
@@ -77,7 +77,7 @@ function LeadDetailContent() {
         />
       }
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
     >
       <Card style={{ gap: t.spacing.md }}>
         <Row gap={t.spacing.sm} wrap>

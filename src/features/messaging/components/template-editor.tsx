@@ -1,6 +1,6 @@
 import { AlertTriangle, RotateCcw, Send } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
-import { Pressable, TextInput, View } from 'react-native';
+import { Pressable, View, type TextInputInstance } from 'react-native';
 
 import { Button, Card, IconButton, Row, Segmented, Sheet, SwitchRow, TextField, Txt, useConfirm } from '@/components/ui';
 import { renderTemplate, typeKey, unknownPlaceholders } from '@/features/messaging/lib/render';
@@ -36,7 +36,7 @@ function EditorBody({ type, initialChannel, canWrite, onClose }: { type: Message
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [testPhone, setTestPhone] = useState('');
   const selection = useRef<{ start: number; end: number } | null>(null);
-  const bodyRef = useRef<TextInput>(null);
+  const bodyRef = useRef<TextInputInstance>(null);
 
   const entry = entryFor(type, channel, locale);
   const draftKey = `${channel}:${locale}`;

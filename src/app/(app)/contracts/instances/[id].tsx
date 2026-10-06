@@ -102,7 +102,7 @@ function ContractInstanceDetail() {
     <Screen
       header={<Header title={instance.title} subtitle={instance.number_label ? `${tr('contracts.fields.number')}: ${instance.number_label}` : instance.subject_type} />}
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
     >
       <Card style={{ gap: t.spacing.sm }}>
         <Row gap={t.spacing.sm}>

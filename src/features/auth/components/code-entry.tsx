@@ -1,6 +1,6 @@
 import { KeyRound, ShieldCheck } from 'lucide-react-native';
 import { forwardRef, useEffect, useState } from 'react';
-import { Platform, Pressable, type TextInput } from 'react-native';
+import { Platform, Pressable, type TextInputInstance } from 'react-native';
 
 import { Row, TextField, Txt } from '@/components/ui';
 import { useLocale } from '@/lib/i18n/provider';
@@ -18,7 +18,7 @@ export const normalizeCode = (value: string) => value.replace(/\D/g, '').slice(0
  * Calls `onComplete` once all six digits are in.
  */
 export const CodeField = forwardRef<
-  TextInput,
+  TextInputInstance,
   { value: string; onChange: (v: string) => void; onComplete?: (code: string) => void; label?: string; error?: string | null; editable?: boolean }
 >(function CodeField({ value, onChange, onComplete, label, error, editable = true }, ref) {
   const t = useTheme();

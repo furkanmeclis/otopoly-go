@@ -106,7 +106,7 @@ function Reports() {
         />
       }
       refreshing={overviewQuery.isRefetching}
-      onRefresh={() => overviewQuery.refetch()}
+      onRefresh={() => void overviewQuery.refetch()}
     >
       <View style={{ gap: t.spacing.sm }}>
         <FilterChips<Preset>

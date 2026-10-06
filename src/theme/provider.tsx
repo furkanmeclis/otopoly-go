@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { StyleSheet, useColorScheme } from 'react-native';
+import { StyleSheet, useColorScheme, type ImageStyle, type TextStyle, type ViewStyle } from 'react-native';
 
 import { createLogger } from '@/lib/logger';
 import { prefs, StorageKeys } from '@/lib/storage';
@@ -59,7 +59,10 @@ export function useTheme(): Theme {
  *   const useStyles = makeStyles((t) => ({ root: { backgroundColor: t.colors.background } }));
  *   const styles = useStyles();
  */
-export function makeStyles<T extends StyleSheet.NamedStyles<T>>(factory: (theme: Theme) => T) {
+/** Strict RN API dropped StyleSheet.NamedStyles; same shape, kept local. */
+type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
+
+export function makeStyles<T extends NamedStyles<T>>(factory: (theme: Theme) => T) {
   const cache = new WeakMap<Theme, T>();
   return function useStyles(): T {
     const theme = useTheme();

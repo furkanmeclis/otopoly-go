@@ -5,7 +5,7 @@
 import { router } from 'expo-router';
 import { CarFront, ClipboardList, FileSignature, FileText, MessageCircle, QrCode, Sparkles, Users, type LucideIcon } from 'lucide-react-native';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
+import { Pressable, ScrollView, useWindowDimensions, View, type NativeScrollEvent, type NativeSyntheticEvent, type ScrollViewInstance } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandMark } from '@/components/brand';
@@ -22,7 +22,7 @@ export default function WelcomeScreen() {
   const { markIntroSeen } = useAuth();
   const { width } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const scroller = useRef<ScrollView>(null);
+  const scroller = useRef<ScrollViewInstance>(null);
   const [index, setIndex] = useState(0);
 
   const slides: Slide[] = [

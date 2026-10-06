@@ -213,7 +213,7 @@ function OperationsBoard() {
         keyExtractor={(j) => j.uuid}
         contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.xxxl, gap: t.spacing.md }}
         ListHeaderComponent={header}
-        refreshControl={<RefreshControl refreshing={list.isRefetching && !list.isLoading} onRefresh={() => (list.refetch(), summary.refetch())} tintColor={t.colors.primary} />}
+        refreshControl={<RefreshControl refreshing={list.isRefetching && !list.isLoading} onRefresh={() => void Promise.all([list.refetch(), summary.refetch()])} tintColor={t.colors.primary} />}
         ListEmptyComponent={
           list.isLoading ? (
             <ListSkeleton rows={4} height={130} />

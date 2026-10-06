@@ -74,7 +74,7 @@ function ProductDetail() {
         />
       }
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
     >
       <Row gap={t.spacing.sm} wrap>
         <ActiveBadge active={p.is_active} size="md" />

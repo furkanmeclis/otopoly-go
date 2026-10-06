@@ -92,7 +92,7 @@ function Inbox() {
             />
           )
         }
-        ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={t.colors.primary} style={{ paddingVertical: t.spacing.lg }} /> : null}
+        ListFooterComponent={list.isFetchingNextPage ? <ActivityIndicator color={t.colors.primary} style={{ paddingVertical: t.spacing.lg }} /> : undefined}
         onEndReached={() => list.hasNextPage && !list.isFetchingNextPage && list.fetchNextPage()}
         onEndReachedThreshold={0.4}
         refreshControl={

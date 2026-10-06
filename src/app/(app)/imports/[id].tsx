@@ -72,7 +72,7 @@ function ImportDetail() {
     <Screen
       header={<Header title={resourceName} subtitle={tr('imports.detail.title_with_resource', { resource: resourceName, format })} />}
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
     >
       <Badge tone={importStatusTone(job.status)} label={formatImportStatus(tr, job.status)} />
       <Txt variant="caption" tone="secondary">
