@@ -170,7 +170,6 @@
         }
       ],
       "./plugins/with-xcode-cloud",
-      "./plugins/with-scene-lifecycle",
       "@sentry/react-native",
       "./plugins/with-sentry-no-upload",
       [
@@ -198,6 +197,7 @@
       [
         "expo-widgets",
         {
+          "enableAndroid": true,
           "bundleIdentifier": "com.otopoly.app.widgets",
           "groupIdentifier": "group.com.otopoly.app",
           "widgets": [
@@ -211,7 +211,8 @@
                   "systemMedium",
                   "systemLarge"
                 ]
-              }
+              },
+              "android": null
             },
             {
               "name": "OtopolyGlance",
@@ -223,6 +224,35 @@
                   "accessoryRectangular",
                   "accessoryInline"
                 ]
+              },
+              "android": null
+            },
+            {
+              "name": "OtopolyTodayAndroid",
+              "displayName": "Otopoly · Bugün",
+              "description": "İşlemdeki, hazır ve teslim edilen araçlar ile günün tahsilatı.",
+              "ios": null,
+              "android": {
+                "minWidth": 110,
+                "minHeight": 110,
+                "targetCellWidth": 2,
+                "targetCellHeight": 2,
+                "resizeMode": "both",
+                "initialLayout": "./src/widgets/android/today-widget.tsx"
+              }
+            },
+            {
+              "name": "OtopolyQueueAndroid",
+              "displayName": "Otopoly · İş Kuyruğu",
+              "description": "Günün sayıları ve sıradaki araçlar; liste kaydırılabilir.",
+              "ios": null,
+              "android": {
+                "minWidth": 250,
+                "minHeight": 180,
+                "targetCellWidth": 4,
+                "targetCellHeight": 3,
+                "resizeMode": "both",
+                "initialLayout": "./src/widgets/android/queue-widget.tsx"
               }
             }
           ]

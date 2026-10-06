@@ -20,6 +20,7 @@ export function todayLabels(tr: Translate): TodayWidgetProps['labels'] {
     signedOut: tr('mobile.widgets.signed_out'),
     noAccess: tr('mobile.widgets.no_access'),
     updated: tr('mobile.widgets.updated'),
+    started: tr('mobile.widgets.started'),
   };
 }
 
@@ -46,6 +47,7 @@ export function buildTodayProps(input: {
     vehicle: j.vehicle_label,
     status: j.status as 'in_progress' | 'ready',
     startedAt: ms(j.started_at),
+    since: j.started_at ? fmt.time(j.started_at) : '',
     stale: isStale(j, now),
   }));
   return {
@@ -54,6 +56,7 @@ export function buildTodayProps(input: {
     org: input.org,
     logo: input.logo,
     updatedAt: now,
+    updatedTime: fmt.time(new Date(now)),
     showMoney: input.state === 'ok' && Boolean(input.summary),
     stats: {
       inProgress: inProgress.length,

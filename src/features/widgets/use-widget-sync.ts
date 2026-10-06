@@ -14,7 +14,7 @@ const log = createLogger('widgets.sync');
 
 /**
  * Keeps the Home Screen / Lock Screen widgets and running job Live Activities in step with the app.
- * Mounted once inside the signed-in shell; a no-op where widgets are unavailable (Expo Go, Android).
+ * Mounted once inside the signed-in shell; a no-op where widgets are unavailable (Expo Go, web).
  * Uses the same queries as the dashboard, so it adds no extra requests while the dashboard is open.
  */
 export function useWidgetSync() {

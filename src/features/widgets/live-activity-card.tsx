@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
 
-import { endJobActivity, findJobActivity, startJobActivity, updateJobActivity, widgetsAvailable } from './bridge';
+import { endJobActivity, findJobActivity, startJobActivity, updateJobActivity, liveActivitiesAvailable } from './bridge';
 import { buildJobActivityProps } from './props';
 
 const log = createLogger('widgets.live');
@@ -24,7 +24,7 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
   const { t: tr } = useLocale();
   const { organization } = useAuth();
   const toast = useToast();
-  const available = widgetsAvailable();
+  const available = liveActivitiesAvailable();
   const [tracking, setTracking] = useState(false);
   const [busy, setBusy] = useState(false);
   const orgName = organization?.name ?? '';

@@ -57,6 +57,7 @@
   "widgets.signed_out": "Bugünün işlerini görmek için Otopoly'de oturum açın.",
   "widgets.no_access": "Bu hesap işleri görüntüleyemiyor.",
   "widgets.updated": "Güncellendi",
+  "widgets.started": "Giriş",
   "live.title": "Canlı takip",
   "live.description": "İşin durumunu ve geçen süreyi kilit ekranında ve Dynamic Island'da gösterir.",
   "live.elapsed": "Geçen süre",
