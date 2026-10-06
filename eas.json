@@ -17,6 +17,7 @@
       }
     },
     "preview": {
+      "uploadSourceMaps": true,
       "distribution": "internal",
       "environment": "preview",
       "env": {
@@ -28,6 +29,7 @@
       }
     },
     "production": {
+      "uploadSourceMaps": true,
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_APP_ENV": "production",

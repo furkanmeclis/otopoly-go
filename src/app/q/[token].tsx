@@ -14,8 +14,10 @@ import { P } from '@/features/auth/permissions';
 import { WEB_HOST } from '@/features/notifications/deep-links';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 export default function PublicQuoteLinkScreen() {
+  useMarkInteractive();
   const t = useTheme();
   const { t: tr } = useLocale();
   const toast = useToast();

@@ -16,6 +16,7 @@ import { NotificationResponseObserver } from '@/features/notifications/component
 import { LocaleProvider } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { installGlobalErrorHandlers } from '@/lib/logger/global-handlers';
+import { initObserve, withObserveRoot } from '@/lib/monitoring/observe';
 import { initSentry, navigationIntegration, Sentry, sentryEnabled } from '@/lib/monitoring/sentry';
 import { createQueryClient } from '@/lib/query';
 import { useAppStateQueryFocus } from '@/lib/query-focus';
@@ -23,6 +24,8 @@ import { ThemeProvider, useTheme } from '@/theme/provider';
 
 // No EXPO_PUBLIC_SENTRY_DSN → no-op (see docs/SENTRY.md).
 initSentry();
+// EAS Observe: before any screen mounts (the expo-router integration cannot be enabled later).
+initObserve();
 installGlobalErrorHandlers();
 
 // Keep the native splash (brand mark) up until the stored session has been restored.
@@ -147,4 +150,6 @@ function RootLayout() {
   );
 }
 
-export default sentryEnabled ? Sentry.wrap(RootLayout) : RootLayout;
+// ObserveRoot measures time to first render; Sentry wraps the outermost component.
+const ObservedRootLayout = withObserveRoot(RootLayout);
+export default sentryEnabled ? Sentry.wrap(ObservedRootLayout) : ObservedRootLayout;

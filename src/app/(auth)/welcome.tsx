@@ -13,10 +13,12 @@ import { Button, Txt } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 type Slide = { key: string; icon: LucideIcon; satellites: [LucideIcon, LucideIcon]; title: string; body: string };
 
 export default function WelcomeScreen() {
+  useMarkInteractive();
   const t = useTheme();
   const { t: tr } = useLocale();
   const { markIntroSeen } = useAuth();

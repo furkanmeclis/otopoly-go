@@ -22,6 +22,7 @@ import { useSignInFlow } from '@/features/auth/use-sign-in-flow';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 const log = createLogger('screen.login');
 const DEMO = { owner: 'demo@otopoly.com', staff: 'personel@otopoly.com', totp: 'ali@parlakoto.com', password: 'demo1234' };
@@ -29,6 +30,7 @@ const DEMO = { owner: 'demo@otopoly.com', staff: 'personel@otopoly.com', totp: '
 type Mode = 'password' | 'code';
 
 export default function LoginScreen() {
+  useMarkInteractive();
   const t = useTheme();
   const { t: tr } = useLocale();
   const { login } = useAuth();
