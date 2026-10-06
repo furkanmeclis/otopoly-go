@@ -1,20 +1,37 @@
 import { requireOptionalNativeModule } from 'expo';
 import { Asset } from 'expo-asset';
 import { File } from 'expo-file-system';
-import type { LiveActivity, LiveActivityFactory, Widget } from 'expo-widgets';
+import type { Widget } from 'expo-widgets';
 import { Platform } from 'react-native';
 
 import { createLogger } from '@/lib/logger';
 import { prefs } from '@/lib/storage';
 import type { JobActivityProps, TodayWidgetProps } from '@/widgets/types';
 
+import { androidJobActivityFactory, ensureAndroidNotificationPermission } from './android-live-updates';
+
 const log = createLogger('widgets');
+
+/**
+ * One running job activity: an ActivityKit Live Activity on iOS, a Live Update notification on Android.
+ * expo-widgets' LiveActivity / LiveActivityFactory satisfy these shapes as they are.
+ */
+export type JobActivityHandle = {
+  getId(): string;
+  update(props: JobActivityProps): Promise<void>;
+  end(dismissal?: 'default' | 'immediate', props?: JobActivityProps, contentDate?: Date): Promise<void>;
+};
+
+export type JobActivityFactory = {
+  getInstances(): JobActivityHandle[];
+  start(props: JobActivityProps, url: string): JobActivityHandle;
+};
 
 type Bridge = {
   /** Every Home / Lock Screen widget on this platform; all of them render TodayWidgetProps. */
   widgets: Widget<TodayWidgetProps>[];
-  /** Job Live Activities (iOS only). */
-  jobActivity: LiveActivityFactory<JobActivityProps> | null;
+  /** Job Live Activities (iOS) / Live Updates (Android); null where neither is available. */
+  jobActivity: JobActivityFactory | null;
   directory: string | null;
 };
 
@@ -42,7 +59,7 @@ export function getWidgetBridge(): Bridge | null {
           }
         : {
             widgets: [require('@/widgets/android/today-widget').default, require('@/widgets/android/queue-widget').default],
-            jobActivity: null,
+            jobActivity: androidJobActivityFactory(),
             directory: require('expo-widgets').widgetsDirectory || null,
           };
     /* eslint-enable @typescript-eslint/no-require-imports */
@@ -55,7 +72,7 @@ export function getWidgetBridge(): Bridge | null {
 }
 
 export const widgetsAvailable = () => getWidgetBridge() !== null;
-/** Live Activities are iOS-only; Android widgets have no equivalent. */
+/** iOS Live Activities or Android Live Updates (local module `otopoly-live-updates`). */
 export const liveActivitiesAvailable = () => Boolean(getWidgetBridge()?.jobActivity);
 
 // ─── Brand tile shared with the widget extension ───────────────────────────
@@ -129,7 +146,7 @@ async function readIndex(): Promise<ActivityIndex> {
   return prefs.get<ActivityIndex>(ACTIVITY_KEY, {});
 }
 
-export async function findJobActivity(jobId: string): Promise<LiveActivity<JobActivityProps> | null> {
+export async function findJobActivity(jobId: string): Promise<JobActivityHandle | null> {
   const factory = getWidgetBridge()?.jobActivity;
   if (!factory) return null;
   try {
@@ -142,8 +159,8 @@ export async function findJobActivity(jobId: string): Promise<LiveActivity<JobAc
 }
 
 /** Running job activities keyed by job id. */
-export async function runningJobActivities(): Promise<Map<string, LiveActivity<JobActivityProps>>> {
-  const out = new Map<string, LiveActivity<JobActivityProps>>();
+export async function runningJobActivities(): Promise<Map<string, JobActivityHandle>> {
+  const out = new Map<string, JobActivityHandle>();
   const factory = getWidgetBridge()?.jobActivity;
   if (!factory) return out;
   try {
@@ -161,6 +178,10 @@ export async function runningJobActivities(): Promise<Map<string, LiveActivity<J
 export async function startJobActivity(props: JobActivityProps): Promise<boolean> {
   const factory = getWidgetBridge()?.jobActivity;
   if (!factory) return false;
+  if (Platform.OS === 'android' && !(await ensureAndroidNotificationPermission())) {
+    log.warn('Live Update not started: notifications are disabled');
+    return false;
+  }
   try {
     const existing = await findJobActivity(props.jobId);
     if (existing) {
@@ -183,7 +204,7 @@ export async function startJobActivity(props: JobActivityProps): Promise<boolean
 }
 
 /** Updates a running activity; finished jobs are shown one last time and then dismissed by the system. */
-export async function updateJobActivity(activity: LiveActivity<JobActivityProps>, props: JobActivityProps) {
+export async function updateJobActivity(activity: JobActivityHandle, props: JobActivityProps) {
   try {
     if (props.status === 'delivered' || props.status === 'cancelled') {
       await activity.end('default', props, new Date());

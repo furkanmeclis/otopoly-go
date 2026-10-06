@@ -1,6 +1,6 @@
 import { Radio } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { useToast } from '@/components/feedback/toast';
 import { Card, Row, SwitchRow } from '@/components/ui';
@@ -16,8 +16,9 @@ import { buildJobActivityProps } from './props';
 const log = createLogger('widgets.live');
 
 /**
- * Job detail toggle for the Lock Screen / Dynamic Island Live Activity.
- * Hidden where Live Activities are unavailable (Expo Go, Android) and for jobs that already left the bay.
+ * Job detail toggle for live job tracking: the Lock Screen / Dynamic Island Live Activity on iOS,
+ * a Live Update notification on Android. Hidden where neither is available (Expo Go, web) and for
+ * jobs that already left the bay.
  */
 export function LiveActivityCard({ job }: { job: JobDetail }) {
   const t = useTheme();
@@ -28,6 +29,7 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
   const [tracking, setTracking] = useState(false);
   const [busy, setBusy] = useState(false);
   const orgName = organization?.name ?? '';
+  const android = Platform.OS === 'android';
   /** Last props pushed to the activity: a refetch that changes nothing visible must not update it again. */
   const pushed = useRef<string | null>(null);
 
@@ -82,7 +84,7 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
         const ok = props ? await startJobActivity(props) : false;
         setTracking(ok);
         if (ok) toast.success(tr('mobile.live.started'));
-        else toast.error(tr('mobile.live.failed'));
+        else toast.error(tr(android ? 'mobile.live.failed_android' : 'mobile.live.failed'));
       } else {
         await endJobActivity(job.uuid);
         setTracking(false);
@@ -90,7 +92,7 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
       }
     } catch (error) {
       log.error('Live Activity toggle failed', error);
-      toast.error(tr('mobile.live.failed'));
+      toast.error(tr(android ? 'mobile.live.failed_android' : 'mobile.live.failed'));
     } finally {
       setBusy(false);
     }
@@ -105,7 +107,7 @@ export function LiveActivityCard({ job }: { job: JobDetail }) {
         <View style={{ flex: 1 }}>
           <SwitchRow
             label={tr('mobile.live.title')}
-            description={tracking ? tr('mobile.live.active') : tr('mobile.live.description')}
+            description={tracking ? tr('mobile.live.active') : tr(android ? 'mobile.live.description_android' : 'mobile.live.description')}
             value={tracking}
             onValueChange={toggle}
             disabled={busy || !open}

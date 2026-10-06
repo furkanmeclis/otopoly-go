@@ -70,5 +70,8 @@
   "live.started": "İş kilit ekranında takip ediliyor.",
   "live.stopped": "Canlı takip durduruldu.",
   "live.failed": "Canlı takip başlatılamadı. Ayarlar'da Otopoly için Canlı Etkinlikler'e izin verin.",
-  "live.active": "Kilit ekranında takip ediliyor"
+  "live.active": "Kilit ekranında takip ediliyor",
+  "live.channel": "Canlı iş takibi",
+  "live.description_android": "İşin durumunu ve geçen süreyi bildirimlerde ve kilit ekranında gösterir.",
+  "live.failed_android": "Canlı takip başlatılamadı. Ayarlar'da Otopoly için bildirimlere izin verin."
 }

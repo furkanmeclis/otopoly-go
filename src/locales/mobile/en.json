@@ -70,5 +70,8 @@
   "live.started": "Tracking this job on the Lock Screen.",
   "live.stopped": "Live Activity stopped.",
   "live.failed": "Couldn't start the Live Activity. Allow Live Activities for Otopoly in Settings.",
-  "live.active": "Tracking on the Lock Screen"
+  "live.active": "Tracking on the Lock Screen",
+  "live.channel": "Live job tracking",
+  "live.description_android": "Shows the job's status and elapsed time in notifications and on the Lock Screen.",
+  "live.failed_android": "Live tracking could not start. Allow notifications for Otopoly in Settings."
 }

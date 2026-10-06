@@ -70,5 +70,7 @@ export type JobActivityProps = {
     status: string;
     elapsed: string;
     hint: string;
+    /** Android notification channel name for Live Updates. */
+    channel: string;
   };
 };

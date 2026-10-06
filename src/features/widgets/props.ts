@@ -97,6 +97,7 @@ export function buildJobActivityProps(job: Job & { lines?: { name: string }[] },
       status: tr(`jobs.status.${status}`),
       elapsed: tr('mobile.live.elapsed'),
       hint: tr(HINT[status]),
+      channel: tr('mobile.live.channel'),
     },
   };
 }
