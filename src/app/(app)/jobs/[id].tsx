@@ -36,6 +36,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { LiveActivityCard } from '@/features/widgets/live-activity-card';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 export default function JobDetailScreen() {
   const { t: tr } = useLocale();
@@ -53,6 +54,8 @@ function JobDetailContent() {
   const { can, isOwner } = useAuth();
   const confirm = useConfirm();
   const job = useJob(id);
+  // Opened from widgets, Live Activities / Updates and notifications: interactive once the job has loaded.
+  useMarkInteractive(!job.isLoading);
   const d = job.data;
   const canWrite = can(P.jobsWrite);
   const canVoid = isOwner && canWrite;
@@ -115,7 +118,7 @@ function JobDetailContent() {
     <Screen
       header={<Header title={d.plate} subtitle={d.customer_name} />}
       refreshing={job.isRefetching}
-      onRefresh={() => job.refetch()}
+      onRefresh={() => void job.refetch()}
       footer={actions && (status === 'in_progress' || status === 'ready' || canPay) ? actions : undefined}
     >
       <Card style={{ gap: t.spacing.md }}>

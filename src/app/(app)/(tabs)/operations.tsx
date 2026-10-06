@@ -32,6 +32,7 @@ import { qk, useJobsSummary } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 type ListFilter = 'all' | 'in_progress' | 'ready' | 'delivered' | 'closed';
 const LIVE_REFRESH_MS = 30_000;
@@ -56,6 +57,7 @@ function matchesJob(job: Job, q: string) {
 }
 
 export default function OperationsScreen() {
+  useMarkInteractive();
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.jobsRead} title={tr('jobs.title')}>
@@ -213,7 +215,7 @@ function OperationsBoard() {
         keyExtractor={(j) => j.uuid}
         contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.xxxl, gap: t.spacing.md }}
         ListHeaderComponent={header}
-        refreshControl={<RefreshControl refreshing={list.isRefetching && !list.isLoading} onRefresh={() => (list.refetch(), summary.refetch())} tintColor={t.colors.primary} />}
+        refreshControl={<RefreshControl refreshing={list.isRefetching && !list.isLoading} onRefresh={() => void Promise.all([list.refetch(), summary.refetch()])} tintColor={t.colors.primary} />}
         ListEmptyComponent={
           list.isLoading ? (
             <ListSkeleton rows={4} height={130} />

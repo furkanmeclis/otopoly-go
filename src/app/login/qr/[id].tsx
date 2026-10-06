@@ -13,6 +13,7 @@ import { QR_ERRORS, qrLoginService } from '@/features/qr-login/qr-login.service'
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 const log = createLogger('screen.qr-login');
 
@@ -30,6 +31,7 @@ function close() {
  * Lives outside the protected `(app)` group so a signed-out user gets an explanation instead of a dead end.
  */
 export default function QRLoginApproveScreen() {
+  useMarkInteractive();
   const { id } = useLocalSearchParams<{ id: string }>();
   const sessionId = String(id ?? '');
   const { status } = useAuth();

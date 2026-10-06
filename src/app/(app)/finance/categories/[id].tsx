@@ -69,7 +69,7 @@ function CategoryDetail() {
         <LedgerList
           scope={{ category_uuid: category.uuid }}
           title={tr('finance.detail.category_ledger')}
-          onRefresh={() => query.refetch()}
+          onRefresh={() => void query.refetch()}
           header={<CategorySummary category={category} stats={query.data.stats} canWrite={canWrite} onEdit={() => setEditOpen(true)} />}
         />
       </Screen>

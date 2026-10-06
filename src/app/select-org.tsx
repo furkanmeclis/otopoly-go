@@ -14,8 +14,10 @@ import { orgBlock, useAuth } from '@/features/auth/auth-provider';
 import { onboardingService, registrationOpen } from '@/features/onboarding/services/onboarding.service';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 export default function SelectOrganizationScreen() {
+  useMarkInteractive();
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const { me, selectOrganization, logout } = useAuth();

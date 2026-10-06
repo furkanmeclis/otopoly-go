@@ -61,7 +61,7 @@ function PurchaseDetail() {
   const lines = purchase.lines ?? [];
 
   return (
-    <Screen header={<Header title={purchase.supplier_name} subtitle={tr('purchases.detail.description')} />} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
+    <Screen header={<Header title={purchase.supplier_name} subtitle={tr('purchases.detail.description')} />} refreshing={query.isRefetching} onRefresh={() => void query.refetch()}>
       <Card style={{ alignItems: 'center', gap: t.spacing.sm }}>
         <DocStatusBadge ns="purchases" status={purchase.status} size="md" />
         <Txt variant="display" style={{ fontVariant: ['tabular-nums'], textDecorationLine: purchase.status === 'voided' ? 'line-through' : 'none' }}>

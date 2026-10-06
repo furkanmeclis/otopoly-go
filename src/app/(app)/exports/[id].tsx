@@ -51,7 +51,7 @@ function ExportDetail() {
     <Screen
       header={<Header title={resourceName} subtitle={tr('exports.detail.title_with_resource', { resource: resourceName, format })} />}
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
     >
       <Row gap={t.spacing.sm}>
         <Badge tone={exportStatusTone(job.status)} label={formatExportStatus(tr, job.status)} />

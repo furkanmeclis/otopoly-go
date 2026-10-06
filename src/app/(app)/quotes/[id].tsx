@@ -56,7 +56,7 @@ function QuoteDetailContent() {
   }
   if (!query.data) {
     return (
-      <Screen header={<Header title={tr('quotes.title')} />} refreshing={query.isRefetching} onRefresh={() => query.refetch()}>
+      <Screen header={<Header title={tr('quotes.title')} />} refreshing={query.isRefetching} onRefresh={() => void query.refetch()}>
         <EmptyState title={tr('quotes.not_found')} action={<Button variant="outline" size="sm" label={tr('quotes.title')} onPress={() => router.replace('/quotes')} />} />
       </Screen>
     );
@@ -112,7 +112,7 @@ function QuoteDetailContent() {
         />
       }
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
       footer={
         primary || (access.canWrite && q.can_edit) ? (
           <Row gap={t.spacing.sm}>

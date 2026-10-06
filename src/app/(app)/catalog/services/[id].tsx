@@ -72,7 +72,7 @@ function ServiceDetail() {
         />
       }
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
     >
       <Row gap={t.spacing.sm} wrap>
         <ActiveBadge active={s.is_active} size="md" />

@@ -12,6 +12,7 @@ import {
   Switch,
   TextInput,
   View,
+  type TextInputInstance,
   type TextInputProps,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -58,7 +59,7 @@ export type TextFieldProps = TextInputProps & {
   right?: ReactNode;
 };
 
-export const TextField = forwardRef<TextInput, TextFieldProps>(function TextField(
+export const TextField = forwardRef<TextInputInstance, TextFieldProps>(function TextField(
   { label, error, hint, required, left, right, style, multiline, editable = true, ...rest },
   ref,
 ) {
@@ -476,7 +477,7 @@ export function SelectField({
           keyExtractor={(o) => o.value}
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.xxxl }}
-          ListEmptyComponent={loading ? null : <EmptyState />}
+          ListEmptyComponent={loading ? undefined : <EmptyState />}
           renderItem={({ item }) => {
             const active = item.value === value;
             return (

@@ -142,7 +142,7 @@ function CariDetail() {
             tintColor={t.colors.primary}
           />
         }
-        ListFooterComponent={entries.isFetchingNextPage ? <ActivityIndicator color={t.colors.primary} style={{ padding: t.spacing.lg }} /> : null}
+        ListFooterComponent={entries.isFetchingNextPage ? <ActivityIndicator color={t.colors.primary} style={{ padding: t.spacing.lg }} /> : undefined}
         ListEmptyComponent={
           entries.isLoading ? (
             <ListSkeleton rows={4} height={84} />

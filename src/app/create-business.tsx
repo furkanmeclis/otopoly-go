@@ -23,6 +23,7 @@ import { setWelcomePending } from '@/features/onboarding/state';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 const log = createLogger('onboarding.create');
 
@@ -51,6 +52,7 @@ function validateBusiness(values: Values, tr: (key: string) => string) {
 }
 
 export default function CreateBusinessScreen() {
+  useMarkInteractive();
   const t = useTheme();
   const { t: tr } = useLocale();
   const toast = useToast();

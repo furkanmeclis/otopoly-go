@@ -71,7 +71,7 @@ function AccountDetail() {
           scope={{ account_uuid: account.uuid }}
           perspective={account.uuid}
           title={tr('finance.detail.account_ledger')}
-          onRefresh={() => query.refetch()}
+          onRefresh={() => void query.refetch()}
           header={<AccountSummary account={account} stats={query.data.stats} canWrite={canWrite} onEdit={() => setEditOpen(true)} />}
         />
       </Screen>

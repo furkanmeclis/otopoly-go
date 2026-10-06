@@ -63,6 +63,7 @@ import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { prefs, StorageKeys } from '@/lib/storage';
 import { useTheme } from '@/theme/provider';
+import { useMarkInteractive } from '@/lib/monitoring/observe';
 
 const CHART_DAYS = 30;
 
@@ -73,6 +74,7 @@ function greetingKey(hour: number) {
 }
 
 export default function DashboardScreen() {
+  useMarkInteractive();
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const { me, organization, can, isOwner } = useAuth();

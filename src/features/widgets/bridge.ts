@@ -1,19 +1,37 @@
 import { requireOptionalNativeModule } from 'expo';
 import { Asset } from 'expo-asset';
 import { File } from 'expo-file-system';
-import type { LiveActivity, LiveActivityFactory, Widget } from 'expo-widgets';
+import type { Widget } from 'expo-widgets';
 import { Platform } from 'react-native';
 
 import { createLogger } from '@/lib/logger';
 import { prefs } from '@/lib/storage';
 import type { JobActivityProps, TodayWidgetProps } from '@/widgets/types';
 
+import { androidJobActivityFactory, ensureAndroidNotificationPermission } from './android-live-updates';
+
 const log = createLogger('widgets');
 
+/**
+ * One running job activity: an ActivityKit Live Activity on iOS, a Live Update notification on Android.
+ * expo-widgets' LiveActivity / LiveActivityFactory satisfy these shapes as they are.
+ */
+export type JobActivityHandle = {
+  getId(): string;
+  update(props: JobActivityProps): Promise<void>;
+  end(dismissal?: 'default' | 'immediate', props?: JobActivityProps, contentDate?: Date): Promise<void>;
+};
+
+export type JobActivityFactory = {
+  getInstances(): JobActivityHandle[];
+  start(props: JobActivityProps, url: string): JobActivityHandle;
+};
+
 type Bridge = {
-  today: Widget<TodayWidgetProps>;
-  glance: Widget<TodayWidgetProps>;
-  jobActivity: LiveActivityFactory<JobActivityProps>;
+  /** Every Home / Lock Screen widget on this platform; all of them render TodayWidgetProps. */
+  widgets: Widget<TodayWidgetProps>[];
+  /** Job Live Activities (iOS) / Live Updates (Android); null where neither is available. */
+  jobActivity: JobActivityFactory | null;
   directory: string | null;
 };
 
@@ -21,25 +39,31 @@ let bridge: Bridge | null | undefined;
 
 /**
  * Lazily loads the widget definitions. Returns null where the native module is missing
- * (Expo Go, Android, web) so callers can treat widgets as an optional enhancement.
+ * (Expo Go, web) so callers can treat widgets as an optional enhancement.
  */
 export function getWidgetBridge(): Bridge | null {
   if (bridge !== undefined) return bridge;
   bridge = null;
-  if (Platform.OS !== 'ios' || !requireOptionalNativeModule('ExpoWidgets')) {
+  if ((Platform.OS !== 'ios' && Platform.OS !== 'android') || !requireOptionalNativeModule('ExpoWidgets')) {
     log.info('Widgets unavailable in this runtime');
     return bridge;
   }
   try {
     /* eslint-disable @typescript-eslint/no-require-imports */
-    bridge = {
-      today: require('@/widgets/today-widget').default,
-      glance: require('@/widgets/glance-widget').default,
-      jobActivity: require('@/widgets/job-activity').default,
-      directory: require('expo-widgets').widgetsDirectory || null,
-    };
+    bridge =
+      Platform.OS === 'ios'
+        ? {
+            widgets: [require('@/widgets/today-widget').default, require('@/widgets/glance-widget').default],
+            jobActivity: require('@/widgets/job-activity').default,
+            directory: require('expo-widgets').widgetsDirectory || null,
+          }
+        : {
+            widgets: [require('@/widgets/android/today-widget').default, require('@/widgets/android/queue-widget').default],
+            jobActivity: androidJobActivityFactory(),
+            directory: require('expo-widgets').widgetsDirectory || null,
+          };
     /* eslint-enable @typescript-eslint/no-require-imports */
-    log.info('Widgets ready', { directory: Boolean(bridge?.directory) });
+    log.info('Widgets ready', { platform: Platform.OS, directory: Boolean(bridge?.directory) });
   } catch (error) {
     log.error('Widget bridge failed to load', error);
     bridge = null;
@@ -48,12 +72,14 @@ export function getWidgetBridge(): Bridge | null {
 }
 
 export const widgetsAvailable = () => getWidgetBridge() !== null;
+/** iOS Live Activities or Android Live Updates (local module `otopoly-live-updates`). */
+export const liveActivitiesAvailable = () => Boolean(getWidgetBridge()?.jobActivity);
 
 // ─── Brand tile shared with the widget extension ───────────────────────────
 
 let logoUri: Promise<string> | null = null;
 
-/** Copies the brand tile into the shared app-group folder once per launch; '' when it cannot. */
+/** Copies the brand tile into the folder the widget runtime reads (app group on iOS) once per launch; '' when it cannot. */
 export function ensureWidgetLogo(): Promise<string> {
   logoUri ??= (async () => {
     const dir = getWidgetBridge()?.directory;
@@ -77,16 +103,15 @@ export function ensureWidgetLogo(): Promise<string> {
 let lastSnapshot = '';
 let lastProps: TodayWidgetProps | null = null;
 
-/** Pushes new props to both widgets; skips identical snapshots so WidgetKit's reload budget is not wasted. */
+/** Pushes new props to every widget; skips identical snapshots so the reload budget (WidgetKit / Glance) is not wasted. */
 export function pushTodaySnapshot(props: TodayWidgetProps) {
   const b = getWidgetBridge();
   if (!b) return;
-  const { updatedAt, ...comparable } = props;
+  const { updatedAt, updatedTime, ...comparable } = props;
   const key = JSON.stringify(comparable);
   if (key === lastSnapshot) return;
   try {
-    b.today.updateSnapshot(props);
-    b.glance.updateSnapshot(props);
+    for (const widget of b.widgets) widget.updateSnapshot(props);
     lastSnapshot = key;
     lastProps = props;
     log.debug('Widget snapshot pushed', { state: props.state, queue: props.queue.length, at: updatedAt });
@@ -106,6 +131,7 @@ export function clearWidgetsForSignOut() {
     stats: { inProgress: 0, ready: 0, delivered: 0, stale: 0, collected: '' },
     queue: [],
     updatedAt: Date.now(),
+    updatedTime: '',
   });
   void endAllJobActivities();
 }
@@ -120,12 +146,12 @@ async function readIndex(): Promise<ActivityIndex> {
   return prefs.get<ActivityIndex>(ACTIVITY_KEY, {});
 }
 
-export async function findJobActivity(jobId: string): Promise<LiveActivity<JobActivityProps> | null> {
-  const b = getWidgetBridge();
-  if (!b) return null;
+export async function findJobActivity(jobId: string): Promise<JobActivityHandle | null> {
+  const factory = getWidgetBridge()?.jobActivity;
+  if (!factory) return null;
   try {
     const index = await readIndex();
-    return b.jobActivity.getInstances().find((a) => index[a.getId()] === jobId) ?? null;
+    return factory.getInstances().find((a) => index[a.getId()] === jobId) ?? null;
   } catch (error) {
     log.warn('Live Activity lookup failed', error);
     return null;
@@ -133,13 +159,13 @@ export async function findJobActivity(jobId: string): Promise<LiveActivity<JobAc
 }
 
 /** Running job activities keyed by job id. */
-export async function runningJobActivities(): Promise<Map<string, LiveActivity<JobActivityProps>>> {
-  const out = new Map<string, LiveActivity<JobActivityProps>>();
-  const b = getWidgetBridge();
-  if (!b) return out;
+export async function runningJobActivities(): Promise<Map<string, JobActivityHandle>> {
+  const out = new Map<string, JobActivityHandle>();
+  const factory = getWidgetBridge()?.jobActivity;
+  if (!factory) return out;
   try {
     const index = await readIndex();
-    for (const activity of b.jobActivity.getInstances()) {
+    for (const activity of factory.getInstances()) {
       const jobId = index[activity.getId()];
       if (jobId) out.set(jobId, activity);
     }
@@ -150,18 +176,22 @@ export async function runningJobActivities(): Promise<Map<string, LiveActivity<J
 }
 
 export async function startJobActivity(props: JobActivityProps): Promise<boolean> {
-  const b = getWidgetBridge();
-  if (!b) return false;
+  const factory = getWidgetBridge()?.jobActivity;
+  if (!factory) return false;
+  if (Platform.OS === 'android' && !(await ensureAndroidNotificationPermission())) {
+    log.warn('Live Update not started: notifications are disabled');
+    return false;
+  }
   try {
     const existing = await findJobActivity(props.jobId);
     if (existing) {
       await existing.update(props);
       return true;
     }
-    const activity = b.jobActivity.start(props, `otopoly://jobs/${props.jobId}`);
+    const activity = factory.start(props, `otopoly://jobs/${props.jobId}`);
     const index = await readIndex();
     // Drop entries whose activity is gone so the index does not grow forever.
-    const alive = new Set(b.jobActivity.getInstances().map((a) => a.getId()));
+    const alive = new Set(factory.getInstances().map((a) => a.getId()));
     const next: ActivityIndex = { [activity.getId()]: props.jobId };
     for (const [id, jobId] of Object.entries(index)) if (alive.has(id)) next[id] = jobId;
     await prefs.set(ACTIVITY_KEY, next);
@@ -174,7 +204,7 @@ export async function startJobActivity(props: JobActivityProps): Promise<boolean
 }
 
 /** Updates a running activity; finished jobs are shown one last time and then dismissed by the system. */
-export async function updateJobActivity(activity: LiveActivity<JobActivityProps>, props: JobActivityProps) {
+export async function updateJobActivity(activity: JobActivityHandle, props: JobActivityProps) {
   try {
     if (props.status === 'delivered' || props.status === 'cancelled') {
       await activity.end('default', props, new Date());
@@ -199,10 +229,10 @@ export async function endJobActivity(jobId: string) {
 }
 
 export async function endAllJobActivities() {
-  const b = getWidgetBridge();
-  if (!b) return;
+  const factory = getWidgetBridge()?.jobActivity;
+  if (!factory) return;
   try {
-    await Promise.all(b.jobActivity.getInstances().map((a) => a.end('immediate')));
+    await Promise.all(factory.getInstances().map((a) => a.end('immediate')));
     await prefs.remove(ACTIVITY_KEY);
   } catch (error) {
     log.warn('Ending Live Activities failed', error);

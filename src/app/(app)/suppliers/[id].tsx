@@ -75,7 +75,7 @@ function SupplierDetail() {
         />
       }
       refreshing={query.isRefetching}
-      onRefresh={() => query.refetch()}
+      onRefresh={() => void query.refetch()}
     >
       <Card style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md }}>
         <Avatar name={supplier.name} size={48} tone="info" />
