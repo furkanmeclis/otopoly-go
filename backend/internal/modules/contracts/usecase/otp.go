@@ -48,11 +48,16 @@ type OTPMessage struct {
 	Phone        string
 	Body         string
 	InstanceUUID uuid.UUID
-	// Code, BusinessName and Minutes feed the platform template when the
-	// platform number sends instead of the organization's own line.
-	Code         string
-	BusinessName string
-	Minutes      int
+	// Code, BusinessName, Minutes and the contract context feed the platform
+	// catalog messages when the platform number sends instead of the
+	// organization's own line (OTP + KVKK notice).
+	Code          string
+	BusinessName  string
+	Minutes       int
+	CustomerName  string
+	ContractTitle string
+	ContractNo    string
+	Plate         string
 }
 
 // OTPSender delivers contract OTP messages over the organization's own channel
@@ -149,7 +154,7 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 		return OTPChallenge{}, err
 	}
 	expiresAt := now.Add(otpTTL)
-	body := buildOTPMessage(i18n.Normalize(inst.Locale), otpMessageVars{
+	msgVars := otpMessageVars{
 		CustomerName:  signer.SuggestedName,
 		BusinessName:  org.Name,
 		ContractTitle: inst.Title,
@@ -157,17 +162,22 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 		Plate:         mustUnmarshalStringMap(inst.VariablesResolved)["plate"],
 		Code:          code,
 		Minutes:       int(otpTTL.Minutes()),
-	})
+	}
+	body := buildOTPMessage(i18n.Normalize(inst.Locale), msgVars)
 
 	ref, err := s.otp.SendContractOTP(ctx, OTPMessage{
-		OrgID:        scope.InternalID,
-		Channel:      otpChannelWhatsApp,
-		Phone:        phone,
-		Body:         body,
-		InstanceUUID: inst.Uuid,
-		Code:         code,
-		BusinessName: org.Name,
-		Minutes:      int(otpTTL.Minutes()),
+		OrgID:         scope.InternalID,
+		Channel:       otpChannelWhatsApp,
+		Phone:         phone,
+		Body:          body,
+		InstanceUUID:  inst.Uuid,
+		Code:          code,
+		BusinessName:  org.Name,
+		Minutes:       msgVars.Minutes,
+		CustomerName:  msgVars.CustomerName,
+		ContractTitle: msgVars.ContractTitle,
+		ContractNo:    msgVars.ContractNo,
+		Plate:         msgVars.Plate,
 	})
 	if err != nil {
 		return OTPChallenge{}, fmt.Errorf("%w: %v", ErrOTPChannelUnavailable, err)

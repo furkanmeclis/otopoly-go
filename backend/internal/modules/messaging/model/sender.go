@@ -29,6 +29,9 @@ const (
 	ErrCodeInvalidRecipient            = "invalid_recipient"
 	ErrCodeMediaUploadFailed           = "media_upload_failed"
 	ErrCodeSendFailed                  = "send_failed"
+	// Plan gates of platform-number sends (whatsapp.enabled / whatsapp.monthly).
+	ErrCodeFeatureNotEntitled = "feature_not_entitled"
+	ErrCodeQuotaExceeded      = "quota_exceeded"
 )
 
 // SendError is a classified WhatsApp send failure. Retryable errors are

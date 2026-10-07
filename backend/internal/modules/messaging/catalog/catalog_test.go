@@ -18,10 +18,11 @@ func sendPaths() []string {
 	}
 	out = append(out, model.JobLifecycleEvents()...)
 	out = append(out,
-		model.EventJobCompleted, // legacy alias
-		model.EventContractOTP,  // SendDirect (contract signing)
-		model.EventDailySummary, // dailysummary QueueSend
-		model.EventVehicleAlert, // vehiclealerts QueueSend
+		model.EventJobCompleted,      // legacy alias
+		model.EventContractOTP,       // SendDirect (contract signing)
+		model.EventContractOTPNotice, // follows the platform Cloud OTP
+		model.EventDailySummary,      // dailysummary QueueSend
+		model.EventVehicleAlert,      // vehiclealerts QueueSend
 	)
 	// Notification-center kinds with a WhatsApp channel (quotes, todos, …).
 	for _, spec := range msgtemplate.All() {
@@ -152,6 +153,52 @@ func TestRenderText(t *testing.T) {
 	txt := otp.RenderText(map[string]string{"code": "123456", "business_name": "Tech Oto", "minutes": "5"})
 	if !strings.Contains(txt, "Tech Oto") || !strings.Contains(txt, "123456") || !strings.Contains(txt, "5 dakika") {
 		t.Fatalf("otp render: %q", txt)
+	}
+}
+
+func TestContractOTPNoticeEntry(t *testing.T) {
+	e, ok := Lookup(model.EventContractOTPNotice)
+	if !ok {
+		t.Fatal("contract.otp_notice missing")
+	}
+	if e.MetaName != "otopoly_contract_otp_notice" || e.Category != CategoryUtility || e.CopyCodeButton || e.HeaderDocument {
+		t.Fatalf("entry: %+v", e)
+	}
+	wantParams := []string{"business_name", "contract_title", "contract_no", "plate", "platform_name", "platform_url"}
+	if strings.Join(e.Params, ",") != strings.Join(wantParams, ",") || len(Positions(e.Body)) != 6 || len(e.Examples) != 6 {
+		t.Fatalf("params %v / positions %v / examples %v", e.Params, Positions(e.Body), e.Examples)
+	}
+	for _, w := range []string{"6698", "veri sorumlusu", "KVKK m.11", "Sözleşme: {{2}}", "No: {{3}}", "Plaka: {{4}}", "{{5}} ({{6}})"} {
+		if !strings.Contains(e.Body, w) {
+			t.Errorf("notice body lacks %q", w)
+		}
+	}
+	got := e.ParamValues(map[string]string{
+		"company_name": "Tech Oto", "contract_title": "Hizmet Sözleşmesi", "contract_no": "SZL-0042",
+		"platform_name": "Brand", "platform_url": "https://brand.test", "code": "123456",
+	})
+	if strings.Join(got, "|") != "Tech Oto|Hizmet Sözleşmesi|SZL-0042|-|Brand|https://brand.test" {
+		t.Fatalf("params = %v", got)
+	}
+}
+
+func TestPlatformWhatsmeowOTPTextCarriesKVKKAndPlatformInfo(t *testing.T) {
+	otp, _ := Lookup(model.EventContractOTP)
+	txt := otp.RenderText(map[string]string{
+		"code": "482913", "business_name": "Tech Oto", "minutes": "5", "contract_title": "Hizmet Sözleşmesi",
+		"contract_no": "SZL-0042", "platform_name": "Brand", "platform_url": "https://brand.test",
+	})
+	for _, w := range []string{
+		"*Tech Oto* tarafından", "• Sözleşme: Hizmet Sözleşmesi", "• No: SZL-0042", "• Plaka: -",
+		"Onay kodunuz: *482913*", "5 dakika", "6698 sayılı", "veri sorumlusu Tech Oto", "KVKK m.11",
+		"Tech Oto adına Brand (https://brand.test) altyapısı",
+	} {
+		if !strings.Contains(txt, w) {
+			t.Errorf("otp text lacks %q:\n%s", w, txt)
+		}
+	}
+	if strings.Contains(txt, "{{") {
+		t.Fatalf("unrendered placeholder: %s", txt)
 	}
 }
 

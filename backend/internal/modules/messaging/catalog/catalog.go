@@ -128,14 +128,32 @@ var entries = []Entry{
 	},
 	{
 		// Meta fixes AUTHENTICATION bodies ("<code> doğrulama kodunuzdur." +
-		// security recommendation); the business name is only in Text.
+		// security recommendation); contract context, the KVKK notice and the
+		// platform info follow in contract.otp_notice. The platform whatsmeow
+		// number sends Text, which carries all of it in one message.
 		Key: model.EventContractOTP, MetaName: "otopoly_contract_otp", Category: CategoryAuthentication,
 		Body:                  "{{1}} doğrulama kodunuzdur. Güvenliğiniz için bu kodu kimseyle paylaşmayın.",
 		Params:                []string{"code"},
 		Examples:              []string{"482913"},
 		CopyCodeButton:        true,
 		CodeExpirationMinutes: 5,
-		Text:                  "{{business_name}} tarafından onayınıza sunulan sözleşme için onay kodunuz: {{code}}. Kod {{minutes}} dakika geçerlidir. Güvenliğiniz için bu kodu kimseyle paylaşmayın.",
+		Text: "*{{business_name}}* tarafından onayınıza sunulan sözleşme:\n" +
+			"• Sözleşme: {{contract_title}}\n• No: {{contract_no}}\n• Plaka: {{plate}}\n\n" +
+			"Onay kodunuz: *{{code}}*\n" +
+			"Kod {{minutes}} dakika geçerlidir. Sözleşmeyi okuyup kabul ediyorsanız kodu yalnızca işletme yetkilisiyle paylaşınız.\n\n" +
+			"_" + kvkkNotice("{{business_name}}") + "_\n\n" +
+			"Bu mesaj {{business_name}} adına {{platform_name}} ({{platform_url}}) altyapısı üzerinden gönderilmiştir.",
+	},
+	{
+		// Sent right after the platform Cloud OTP (UTILITY): contract context,
+		// KVKK notice (data controller: the business) and the platform info.
+		Key: model.EventContractOTPNotice, MetaName: "otopoly_contract_otp_notice", Category: CategoryUtility,
+		Body: "Sözleşme onay bilgilendirmesi: {{1}} tarafından onayınıza sunulan sözleşme için doğrulama kodunuz ayrı bir mesajla iletildi. " +
+			"Sözleşme: {{2}}, No: {{3}}, Plaka: {{4}}. Sözleşmeyi okuyup kabul ediyorsanız kodu yalnızca işletme yetkilisiyle paylaşınız. " +
+			kvkkNotice("bu işletme") + " " +
+			"Bu mesaj, işletme adına {{5}} ({{6}}) altyapısı üzerinden gönderilmiştir.",
+		Params:   []string{"business_name", "contract_title", "contract_no", "plate", "platform_name", "platform_url"},
+		Examples: []string{"Tech Oto", "Seramik Kaplama Hizmet Sözleşmesi", "SZL-0042", "34 ABC 123", "Örnek Platform", "https://www.ornekplatform.com"},
 	},
 	{
 		Key: "todo.reminder", MetaName: "otopoly_todo_reminder", Category: CategoryUtility,
@@ -155,6 +173,14 @@ var entries = []Entry{
 		Params:   []string{"business_name", "alert_count", "alert_lines"},
 		Examples: []string{"Tech Oto", "1", "34 ABC 123 — Araç kabul edildi · Ahmet Yılmaz · Seramik kaplama"},
 	},
+}
+
+// kvkkNotice is the KVKK (Law No. 6698) notice of contract OTP messages,
+// adapted from the own-number OTP text; controller names the data controller.
+func kvkkNotice(controller string) string {
+	return "KVKK Aydınlatma: 6698 sayılı Kişisel Verilerin Korunması Kanunu uyarınca ad-soyad, telefon, araç ve imza bilgileriniz " +
+		"veri sorumlusu " + controller + " tarafından sözleşmenin kurulması ve ifası ile hukuki yükümlülüklerin yerine getirilmesi amacıyla işlenir " +
+		"ve yasal süre boyunca saklanır. KVKK m.11 kapsamındaki haklarınız için işletmeye başvurabilirsiniz."
 }
 
 // aliases map legacy event types to their catalog entry.
@@ -265,9 +291,11 @@ func (e Entry) ParamValues(vars map[string]string) []string {
 func (e Entry) RenderText(vars map[string]string) string {
 	v := EnrichVars(vars)
 	if e.Text != "" {
-		named := make(map[string]string, len(v))
-		for k, val := range v {
-			named[k] = SanitizeParam(val)
+		// Like Cloud params: every placeholder gets a sanitized value ("-"
+		// when missing, e.g. a contract without a plate).
+		named := make(map[string]string)
+		for _, k := range msgtemplate.Placeholders(e.Text) {
+			named[k] = SanitizeParam(v[k])
 		}
 		return msgtemplate.Render(e.Text, named)
 	}

@@ -78,6 +78,8 @@ type Service struct {
 	observer OutboundObserver
 	ent      *entitlements.Service
 	cloud    CloudSender
+	// platformInfo is the platform brand used by platform-number messages.
+	platformInfo PlatformInfoFunc
 }
 
 // New builds a messaging service.
@@ -600,7 +602,30 @@ func (s *Service) SendDirect(ctx context.Context, in SendDirectInput) (string, e
 	if sendErr != nil {
 		return "", fmt.Errorf("%w: %w", ErrChannelUnavailable, sendErr)
 	}
+	if in.EventType == model.EventContractOTP && res.SenderKind == model.SenderPlatformCloud {
+		s.sendContractOTPNotice(ctx, in)
+	}
 	return res.Ref, nil
+}
+
+// sendContractOTPNotice follows a platform Cloud OTP with the UTILITY notice
+// (contract context, KVKK notice, platform info): Meta fixes the
+// AUTHENTICATION body. It has its own outbound row; a failure does not undo
+// the OTP, which is already sent and counted.
+func (s *Service) sendContractOTPNotice(ctx context.Context, in SendDirectInput) {
+	vars := make(map[string]string, len(in.Vars))
+	for k, v := range in.Vars {
+		if k != "code" {
+			vars[k] = v
+		}
+	}
+	res, err := s.deliverWhatsApp(ctx, outboundDelivery{
+		OrgID: in.OrgID, EventType: model.EventContractOTPNotice, Phone: in.RecipientPhone, Vars: vars,
+	})
+	s.logOutbound(ctx, outboundLog{
+		OrgID: in.OrgID, EventType: model.EventContractOTPNotice, Channel: model.ChannelWhatsApp, Phone: in.RecipientPhone,
+		SubjectType: in.SubjectType, SubjectUUID: in.SubjectUUID,
+	}, res, err)
 }
 
 // Simulate sends test messages (rules ignored) for one event or the full job lifecycle.

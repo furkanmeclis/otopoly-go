@@ -112,14 +112,14 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 		return uuid.Nil, fmt.Errorf("%w: org and phone are required", ErrInvalidRequest)
 	}
 	if channel == model.ChannelWhatsApp {
-		on, err := s.ent.Enabled(ctx, req.OrgID, "whatsapp.enabled")
+		on, err := s.ent.Enabled(ctx, req.OrgID, FeatureWhatsAppEnabled)
 		if err != nil {
 			return uuid.Nil, err
 		}
 		if !on {
 			return uuid.Nil, entitlements.ErrFeatureDisabled
 		}
-		if _, err := s.ent.Check(ctx, req.OrgID, "whatsapp.monthly", 1); err != nil {
+		if _, err := s.ent.Check(ctx, req.OrgID, FeatureWhatsAppMonthly, 1); err != nil {
 			return uuid.Nil, err
 		}
 	}
@@ -175,7 +175,7 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 			return uuid.Nil, fmt.Errorf("QueueSend enqueue: %w", err)
 		}
 		if channel == model.ChannelWhatsApp {
-			_ = s.ent.Consume(ctx, req.OrgID, "whatsapp.monthly", 1)
+			_ = s.ent.Consume(ctx, req.OrgID, FeatureWhatsAppMonthly, 1)
 		}
 		return row.Uuid, nil
 	}
@@ -187,7 +187,7 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 		return row.Uuid, err
 	}
 	if channel == model.ChannelWhatsApp {
-		_ = s.ent.Consume(ctx, req.OrgID, "whatsapp.monthly", 1)
+		_ = s.ent.Consume(ctx, req.OrgID, FeatureWhatsAppMonthly, 1)
 	}
 	return row.Uuid, nil
 }
@@ -261,8 +261,11 @@ func (s *Service) sendOutbound(ctx context.Context, row db.OutboundMessage, inli
 		ref, err := sender.Send(ctx, row.RecipientPhone, row.Body)
 		return deliveryResult{Ref: ref}, err
 	}
+	// Queued rows come from QueueSend, which checked and counted
+	// whatsapp.monthly; the platform gate re-checks whatsapp.enabled.
 	d := outboundDelivery{
 		OrgID: row.OrganizationID, EventType: row.EventType, Phone: row.RecipientPhone, Body: row.Body,
+		QuotaReserved: true,
 	}
 	_ = json.Unmarshal(row.Payload, &d.Vars)
 	var att OutboundAttachment

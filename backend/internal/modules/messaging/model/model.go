@@ -31,6 +31,9 @@ const (
 	EventQuoteExpiring = "quote.expiring"
 	// EventContractOTP is transactional (not rule-driven): contract signing consent code.
 	EventContractOTP = "contract.otp"
+	// EventContractOTPNotice follows a platform Cloud OTP: contract context,
+	// KVKK notice and platform info (the AUTHENTICATION body is Meta-fixed).
+	EventContractOTPNotice = "contract.otp_notice"
 	// EventDailySummary is the end-of-day staff summary (dailysummary module).
 	EventDailySummary = "daily.summary"
 	// EventVehicleAlert is the staff vehicle movement alert (vehiclealerts module).

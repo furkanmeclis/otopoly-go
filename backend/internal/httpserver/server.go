@@ -426,6 +426,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	// Platform Cloud API number: credentials read per request from the panel.
 	cloudClient := messagingcloud.New(platformWhatsAppSvc.CloudConfigReader(), nil)
 	messagingSvc.SetCloudSender(cloudClient)
+	// Platform-number messages name the platform (letterhead + public URL).
+	messagingSvc.SetPlatformInfo(messagingusecase.AppSettingsPlatformInfo(deps.Queries, cfg.Auth.FrontendURL))
 	if err := messagingcatalog.Seed(context.Background(), deps.Queries); err != nil {
 		log.Warn("whatsapp template catalog seed failed", "err", err)
 	}

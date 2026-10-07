@@ -11,6 +11,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/cloud"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -19,6 +20,13 @@ import (
 // FeatureOwnNumber is the plan toggle that lets a business send from its own
 // WhatsApp number.
 const FeatureOwnNumber = "whatsapp.own_number"
+
+// Plan gates of every WhatsApp send (platform-number sends are checked in
+// deliverWhatsApp; QueueSend checks them for queued sends of any sender).
+const (
+	FeatureWhatsAppEnabled = "whatsapp.enabled"
+	FeatureWhatsAppMonthly = "whatsapp.monthly"
+)
 
 // Platform provider values (platform_whatsapp_settings.provider).
 const (
@@ -136,6 +144,9 @@ type outboundDelivery struct {
 	// Vars feed the platform catalog entry.
 	Vars map[string]string
 	Doc  *providers.Document
+	// QuotaReserved is set for queued rows: QueueSend already checked and
+	// counted whatsapp.monthly, so only whatsapp.enabled is re-checked.
+	QuotaReserved bool
 }
 
 // deliveryResult records how a message was (or would have been) sent.
@@ -147,11 +158,51 @@ type deliveryResult struct {
 
 // deliverWhatsApp sends through the resolved sender. Every WhatsApp path
 // (Dispatch, SendDirect, Simulate, queued sends) goes through here.
+// Platform-number sends must pass whatsapp.enabled and whatsapp.monthly and
+// count toward the monthly quota; own-number sends keep their existing gates.
 func (s *Service) deliverWhatsApp(ctx context.Context, d outboundDelivery) (deliveryResult, error) {
 	kind, err := s.Resolve(ctx, d.OrgID)
 	if err != nil {
 		return deliveryResult{}, err
 	}
+	platform := kind != model.SenderOrgOwn
+	if platform {
+		if err := s.checkPlatformPlan(ctx, d.OrgID, d.QuotaReserved); err != nil {
+			return deliveryResult{SenderKind: kind}, err
+		}
+	}
+	res, err := s.sendVia(ctx, kind, d)
+	if err == nil && platform && !d.QuotaReserved {
+		_ = s.ent.Consume(ctx, d.OrgID, FeatureWhatsAppMonthly, 1)
+	}
+	return res, err
+}
+
+// checkPlatformPlan gates a platform-number send on whatsapp.enabled and,
+// unless already reserved by QueueSend, one more whatsapp.monthly unit.
+func (s *Service) checkPlatformPlan(ctx context.Context, orgID int64, reserved bool) error {
+	on, err := s.ent.Enabled(ctx, orgID, FeatureWhatsAppEnabled)
+	if err != nil {
+		return fmt.Errorf("whatsapp entitlement: %w", err)
+	}
+	if !on {
+		return model.NewSendError(model.ErrCodeFeatureNotEntitled, false, entitlements.ErrFeatureDisabled)
+	}
+	if reserved {
+		return nil
+	}
+	if _, err := s.ent.Check(ctx, orgID, FeatureWhatsAppMonthly, 1); err != nil {
+		if errors.Is(err, entitlements.ErrLimitReached) {
+			return model.NewSendError(model.ErrCodeQuotaExceeded, false, err)
+		}
+		return fmt.Errorf("whatsapp quota: %w", err)
+	}
+	return nil
+}
+
+// sendVia sends one message with an already resolved sender kind.
+func (s *Service) sendVia(ctx context.Context, kind string, d outboundDelivery) (deliveryResult, error) {
+	var err error
 	res := deliveryResult{SenderKind: kind}
 	if kind == model.SenderOrgOwn {
 		if s.wp == nil {
@@ -165,6 +216,7 @@ func (s *Service) deliverWhatsApp(ctx context.Context, d outboundDelivery) (deli
 		return res, err
 	}
 
+	d.Vars = s.withPlatformInfo(ctx, d.Vars)
 	entry, ok := catalog.Lookup(d.EventType)
 	if !ok {
 		return res, model.NewSendError(model.ErrCodeTemplateMissing, false,
