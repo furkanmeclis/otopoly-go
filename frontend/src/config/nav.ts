@@ -35,6 +35,7 @@ import {
   CalendarClock,
   TicketPercent,
   Landmark,
+  Scale,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -143,6 +144,13 @@ export const platformNav = defineNav({
           href: routes.platform.ai.root,
           icon: Sparkles,
           permission: permissions.ai.read,
+        },
+        {
+          id: "legal-privacy",
+          titleKey: "layout.nav_legal_privacy",
+          href: routes.platform.legal.privacy,
+          icon: Scale,
+          permission: permissions.legal.read,
         },
       ],
     },

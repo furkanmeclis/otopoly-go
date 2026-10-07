@@ -67,6 +67,9 @@ import (
 	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
 	leadsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads"
 	leadsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads/usecase"
+	legalmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/legal"
+	legalhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/legal/handler"
+	legalusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/legal/usecase"
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
@@ -637,6 +640,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	settingsmodule.RegisterRoutes(mux, settingshandler.New(settingsusecase.New(deps.Queries), deps.Storage), tokens, loader)
 	accessmodule.RegisterRoutes(mux, accesshandler.New(stepUpSvc, activityRec), tokens, loader)
 	authsettingsmodule.RegisterRoutes(mux, authsettingshandler.New(authSettingsSvc, activityRec), tokens, loader)
+	legalmodule.RegisterRoutes(mux, legalhandler.New(legalusecase.New(deps.Queries), activityRec), tokens, loader)
 	githubmodule.RegisterRoutes(mux, githubhandler.New(githubSvc, activityRec), tokens, loader)
 	platformwhatsappmodule.RegisterRoutes(mux, platformwhatsapphandler.New(platformWhatsAppSvc, activityRec).
 		WithPlatform(platformwhatsappusecase.NewTemplates(deps.Queries, cloudClient), messagingSvc), tokens, loader)

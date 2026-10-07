@@ -634,6 +634,36 @@ export interface paths {
         patch: operations["patchPlatformAuthSettings"];
         trace?: never;
     };
+    "/v1/platform/legal/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Legal page slug (e.g. `privacy`) */
+                slug: components["parameters"]["LegalPageSlug"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Read a legal page (all locales)
+         * @description Requires `platform.legal.read`.
+         */
+        get: operations["getPlatformLegalPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a legal page
+         * @description Requires `platform.legal.write`. Partial update; omitted fields are kept.
+         *     Markdown is at most 100 KB per locale, titles at most 200 characters.
+         *     `title_tr` and `markdown_tr` cannot be blank. Records the caller as
+         *     `updated_by` and writes a `legal.page.updated` activity entry.
+         */
+        patch: operations["patchPlatformLegalPage"];
+        trace?: never;
+    };
     "/v1/platform/integrations/google": {
         parameters: {
             query?: never;
@@ -938,6 +968,29 @@ export interface paths {
          * @description Lists public active billing plans, excluding the trial plan.
          */
         get: operations["getPublicBillingPlans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/legal/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Public legal page (e.g. privacy policy)
+         * @description No authentication. Returns the page title and Markdown body in the
+         *     requested locale; falls back to `tr` when that locale's body is empty
+         *     (`locale` in the response is the one actually served). Responses carry
+         *     `Cache-Control: public, max-age=60`.
+         */
+        get: operations["getPublicLegalPage"];
         put?: never;
         post?: never;
         delete?: never;
@@ -7274,6 +7327,58 @@ export interface components {
             data: components["schemas"]["AuthSettings"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        PublicLegalPage: {
+            /** @example privacy */
+            slug: string;
+            /**
+             * @description Locale actually served (tr when the requested locale is empty).
+             * @enum {string}
+             */
+            locale: "tr" | "en";
+            title: string;
+            /** @description Markdown source. Clients must not render raw HTML from it. */
+            markdown: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        EnvelopePublicLegalPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PublicLegalPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        LegalPageEditor: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            email: string;
+        };
+        LegalPage: {
+            /** @example privacy */
+            slug: string;
+            title_tr: string;
+            title_en: string;
+            markdown_tr: string;
+            /** @description Empty means the public page falls back to Turkish. */
+            markdown_en: string;
+            /** Format: date-time */
+            updated_at: string;
+            updated_by: components["schemas"]["LegalPageEditor"] | null;
+        };
+        PatchLegalPageRequest: {
+            title_tr?: string;
+            title_en?: string;
+            /** @description At most 100 KB (UTF-8 bytes). */
+            markdown_tr?: string;
+            /** @description At most 100 KB (UTF-8 bytes). Empty falls back to Turkish. */
+            markdown_en?: string;
+        };
+        EnvelopeLegalPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LegalPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         OAuthProviderSettings: {
             /** @enum {string} */
             provider: "google" | "facebook" | "apple";
@@ -11154,6 +11259,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Legal page slug (e.g. `privacy`) */
+        LegalPageSlug: string;
         /** @description QR sign-in session id (from the QR URL) */
         QRSessionID: string;
         /** @description Resource UUID */
@@ -12073,6 +12180,74 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    getPlatformLegalPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Legal page slug (e.g. `privacy`) */
+                slug: components["parameters"]["LegalPageSlug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Legal page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLegalPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformLegalPage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Legal page slug (e.g. `privacy`) */
+                slug: components["parameters"]["LegalPageSlug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchLegalPageRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated legal page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLegalPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Request body larger than 1 MB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
     getPlatformGoogleIntegrationSettings: {
         parameters: {
             query?: never;
@@ -12659,6 +12834,34 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+        };
+    };
+    getPublicLegalPage: {
+        parameters: {
+            query?: {
+                locale?: "tr" | "en";
+            };
+            header?: never;
+            path: {
+                /** @description Legal page slug (e.g. `privacy`) */
+                slug: components["parameters"]["LegalPageSlug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Legal page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicLegalPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
     getPublicOrganizationLogo: {

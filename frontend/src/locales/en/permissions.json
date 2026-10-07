@@ -53,6 +53,8 @@
   "labels.platform.integrations.apple.write": "Write Apple integration settings",
   "labels.platform.integrations.whatsapp.read": "Read WhatsApp integration settings",
   "labels.platform.integrations.whatsapp.write": "Write WhatsApp integration settings",
+  "labels.platform.legal.read": "Read legal pages",
+  "labels.platform.legal.write": "Write legal pages",
   "labels.platform.auth.settings.read": "Read auth registration settings",
   "labels.platform.auth.settings.write": "Write auth registration settings",
   "labels.platform.organizations.read": "Read organizations",

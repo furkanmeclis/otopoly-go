@@ -54,8 +54,20 @@ export function LandingFooter({ content }: { content: LandingContent }) {
           </ul>
         </nav>
       </div>
-      <div className="text-muted-foreground border-t py-6 text-center text-xs">
-        © {year} {brand.name}. {footer.rights}
+      <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-4 gap-y-2 border-t py-6 text-center text-xs">
+        <span>
+          © {year} {brand.name}. {footer.rights}
+        </span>
+        <Link
+          href={
+            content.locale === "en"
+              ? routes.public.privacyEn
+              : routes.public.privacy
+          }
+          className="hover:text-foreground underline-offset-4 transition-colors hover:underline"
+        >
+          {footer.privacy}
+        </Link>
       </div>
     </footer>
   );

@@ -8,7 +8,7 @@ import { ConfirmCard } from "@/features/ai/components/chat/confirm-card";
 import { PlanBlock } from "@/features/ai/components/chat/plan-block";
 import { ToolActivity } from "@/features/ai/components/chat/tool-activity";
 import { errorKey } from "@/features/ai/lib/labels";
-import { Markdown } from "@/features/ai/lib/markdown";
+import { Markdown } from "@/components/markdown/markdown";
 import type { AIUIBlock } from "@/features/ai/types";
 import { useLocale } from "@/providers/locale-provider";
 
