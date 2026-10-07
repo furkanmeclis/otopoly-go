@@ -58,5 +58,6 @@ Route: `/platform/access` — permissions `platform.access.read` / `platform.acc
 - `POST /v1/platform/users/{uuid}/password` — admin set password
 - `DELETE /v1/platform/users/{uuid}` / `POST /v1/platform/users/{uuid}/restore` — user delete / restore
 - `POST /v1/platform/organizations/{uuid}/status` / `…/extend-access` — suspend, activate, extend access
+- `DELETE /v1/platform/users/{uuid}/sessions/{sessionUuid}`, `POST …/sessions/revoke-all`, `DELETE …/devices/{deviceUuid}` — revoke user sessions / remove push devices
 - `PATCH /v1/platform/organizations/{uuid}` — only when status, plan or the access window change (handler-level check)
 - User detail roles card — `StepUpGate`
