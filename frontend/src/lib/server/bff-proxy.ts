@@ -426,6 +426,9 @@ function isQRSessionCreatePath(path: string, method: string) {
   return method.toUpperCase() === "POST" && path === "auth/qr/sessions";
 }
 
+/** Meta WhatsApp Cloud API webhook (server-to-server, signed body). */
+const WHATSAPP_WEBHOOK_PATH = "public/whatsapp/webhook";
+
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
@@ -475,6 +478,12 @@ export async function proxyToUpstream(
   if (accept) headers.set("Accept", accept);
   else headers.set("Accept", "application/json");
   if (contentType) headers.set("Content-Type", contentType);
+  if (path === WHATSAPP_WEBHOOK_PATH) {
+    // Meta signs the raw body; Go verifies it (the body is forwarded
+    // byte-for-byte below).
+    const signature = request.headers.get("x-hub-signature-256");
+    if (signature) headers.set("X-Hub-Signature-256", signature);
+  }
   // Go rate limits and audit rows key on the client IP; without this every
   // request would share the BFF's address (one global bucket).
   const clientIp = clientIpFromHeaders(request.headers);
