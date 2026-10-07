@@ -127,12 +127,15 @@ var entries = []Entry{
 		Examples: []string{"Ahmet Yılmaz", "Tech Oto", "TKL-000042", "30.09.2026"},
 	},
 	{
-		// Meta fixes AUTHENTICATION bodies ("<code> doğrulama kodunuzdur." +
-		// security recommendation); contract context, the KVKK notice and the
-		// platform info follow in contract.otp_notice. The platform whatsmeow
-		// number sends Text, which carries all of it in one message.
+		// Meta fixes AUTHENTICATION bodies ("<code> doğrulama kodunuzdur.").
+		// The template is created WITHOUT Meta's security recommendation
+		// ("do not share this code"): the follow-up contract.otp_notice asks
+		// the customer to share the code with the business representative.
+		// Contract context, the KVKK notice and the platform info follow in
+		// contract.otp_notice. The platform whatsmeow number sends Text,
+		// which carries all of it in one message.
 		Key: model.EventContractOTP, MetaName: "otopoly_contract_otp", Category: CategoryAuthentication,
-		Body:                  "{{1}} doğrulama kodunuzdur. Güvenliğiniz için bu kodu kimseyle paylaşmayın.",
+		Body:                  "{{1}} doğrulama kodunuzdur.",
 		Params:                []string{"code"},
 		Examples:              []string{"482913"},
 		CopyCodeButton:        true,

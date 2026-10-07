@@ -302,9 +302,15 @@ func TestCreateTemplatePayloads(t *testing.T) {
 		t.Fatal(err)
 	}
 	comps = g.jsonBody(key)["components"].([]any)
-	if len(comps) != 3 || comps[0].(map[string]any)["add_security_recommendation"] != true ||
+	if len(comps) != 3 || comps[0].(map[string]any)["type"] != "BODY" ||
+		comps[1].(map[string]any)["type"] != "FOOTER" ||
 		comps[1].(map[string]any)["code_expiration_minutes"] != float64(5) {
 		t.Fatalf("auth components: %v", comps)
+	}
+	// Owner decision: no "do not share this code" recommendation, because the
+	// contract OTP notice asks the customer to share it with the business.
+	if v, ok := comps[0].(map[string]any)["add_security_recommendation"]; ok && v != false {
+		t.Fatalf("auth body must not add the security recommendation: %v", comps[0])
 	}
 	btn := comps[2].(map[string]any)["buttons"].([]any)[0].(map[string]any)
 	if btn["type"] != "OTP" || btn["otp_type"] != "COPY_CODE" {

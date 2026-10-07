@@ -26,7 +26,10 @@ type TemplateDefinition struct {
 	// HeaderDocument adds a DOCUMENT header (example uploaded via the
 	// resumable upload API; needs the app id).
 	HeaderDocument bool
-	// CopyCode builds an AUTHENTICATION template (Meta-fixed body).
+	// CopyCode builds an AUTHENTICATION template (Meta-fixed body, expiry
+	// footer, copy-code button). Meta's security recommendation ("do not
+	// share this code") is deliberately NOT added: the contract OTP notice
+	// asks the customer to share the code with the business representative.
 	CopyCode              bool
 	CodeExpirationMinutes int
 }
@@ -86,7 +89,7 @@ func (c *Client) CreateTemplate(ctx context.Context, def TemplateDefinition) (Cr
 	}
 	if def.CopyCode {
 		req.Components = []*templates.Component{
-			{Type: "BODY", AddSecurityRecommendation: true},
+			{Type: "BODY", AddSecurityRecommendation: false},
 			{Type: "FOOTER", CodeExpirationMinutes: def.CodeExpirationMinutes},
 			{Type: "BUTTONS", Buttons: []*templates.Button{{Type: "OTP", OTPType: "COPY_CODE", Text: "Kodu kopyala"}}},
 		}

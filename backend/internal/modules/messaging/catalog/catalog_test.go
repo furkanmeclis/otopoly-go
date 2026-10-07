@@ -200,6 +200,16 @@ func TestPlatformWhatsmeowOTPTextCarriesKVKKAndPlatformInfo(t *testing.T) {
 	if strings.Contains(txt, "{{") {
 		t.Fatalf("unrendered placeholder: %s", txt)
 	}
+	// The code must be shared with the business representative, so neither
+	// text may tell the customer to share it with nobody.
+	for _, s := range []string{txt, otp.Body} {
+		if strings.Contains(strings.ToLower(s), "kimseyle") {
+			t.Errorf("otp text forbids sharing the code: %q", s)
+		}
+	}
+	if !strings.Contains(txt, "yalnızca işletme yetkilisiyle paylaşınız") {
+		t.Errorf("otp text lacks the share-with-business instruction:\n%s", txt)
+	}
 }
 
 func contains(list []string, s string) bool {
