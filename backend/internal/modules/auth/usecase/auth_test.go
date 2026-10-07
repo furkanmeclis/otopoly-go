@@ -23,6 +23,9 @@ type memRepo struct {
 	nextID    int64
 	perms     map[string][]string
 	roles     map[string]int64
+	// deleted holds soft-deleted users (hidden from every other lookup).
+	deleted   map[int64]model.User
+	soleOwned map[int64][]model.OrganizationRef
 }
 
 func newMemRepo() *memRepo {
@@ -39,7 +42,9 @@ func newMemRepo() *memRepo {
 			},
 			rbac.RoleOrganizationUser: {rbac.PermAuthSession, rbac.PermNotificationsRead},
 		},
-		roles: map[string]int64{rbac.RoleSuperAdmin: 1, rbac.RoleOrganizationUser: 2},
+		roles:     map[string]int64{rbac.RoleSuperAdmin: 1, rbac.RoleOrganizationUser: 2},
+		deleted:   map[int64]model.User{},
+		soleOwned: map[int64][]model.OrganizationRef{},
 	}
 	return r
 }
@@ -149,19 +154,68 @@ func (r *memRepo) UpdateUserPlatform(_ context.Context, id uuid.UUID, name, surn
 	return u, nil
 }
 
-func (r *memRepo) ListUsersFiltered(_ context.Context, _, _ int32, _, _, _ string) ([]model.User, int64, error) {
-	out := make([]model.User, 0, len(r.users))
-	for _, u := range r.users {
+func (r *memRepo) ListUsersFiltered(_ context.Context, _, _ int32, _, _, _ string, onlyDeleted bool) ([]model.User, int64, error) {
+	src := r.users
+	if onlyDeleted {
+		src = r.deleted
+	}
+	out := make([]model.User, 0, len(src))
+	for _, u := range src {
 		out = append(out, u)
 	}
 	return out, int64(len(out)), nil
+}
+
+func (r *memRepo) FindUserByUUIDIncludingDeleted(_ context.Context, id uuid.UUID) (model.User, error) {
+	if u, ok := r.byUUID[id]; ok {
+		return u, nil
+	}
+	for _, u := range r.deleted {
+		if u.UUID == id {
+			return u, nil
+		}
+	}
+	return model.User{}, repository.ErrNotFound
+}
+
+func (r *memRepo) SoftDeleteUser(_ context.Context, userID int64) (model.User, error) {
+	u, ok := r.users[userID]
+	if !ok {
+		return model.User{}, repository.ErrNotFound
+	}
+	now := time.Now().UTC()
+	u.DeletedAt = &now
+	delete(r.users, userID)
+	delete(r.byEmail, u.Email)
+	delete(r.byUUID, u.UUID)
+	r.deleted[userID] = u
+	return u, nil
+}
+
+func (r *memRepo) RestoreUser(_ context.Context, userID int64) (model.User, error) {
+	u, ok := r.deleted[userID]
+	if !ok {
+		return model.User{}, repository.ErrNotFound
+	}
+	if _, taken := r.byEmail[u.Email]; taken {
+		return model.User{}, repository.ErrEmailTaken
+	}
+	u.DeletedAt = nil
+	delete(r.deleted, userID)
+	r.users[userID], r.byEmail[u.Email], r.byUUID[u.UUID] = u, u, u
+	return u, nil
+}
+
+func (r *memRepo) ListSoleOwnedOrganizations(_ context.Context, userID int64) ([]model.OrganizationRef, error) {
+	return r.soleOwned[userID], nil
 }
 
 func (r *memRepo) CountUsersWithRole(_ context.Context, roleSlug string) (int64, error) {
 	var n int64
 	for userID, roles := range r.userRoles {
 		for _, role := range roles {
-			if role == roleSlug && r.users[userID].Status != "disabled" {
+			u, live := r.users[userID]
+			if role == roleSlug && live && u.Status != "disabled" {
 				n++
 			}
 		}

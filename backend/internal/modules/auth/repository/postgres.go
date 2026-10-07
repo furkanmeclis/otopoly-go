@@ -13,6 +13,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -20,6 +21,8 @@ import (
 var (
 	ErrNotFound = errors.New("not found")
 	ErrConflict = errors.New("conflict")
+	// ErrEmailTaken: restoring a deleted user whose email is used by another active account.
+	ErrEmailTaken = errors.New("email already in use")
 )
 
 // Postgres implements auth persistence via sqlc.
@@ -80,6 +83,85 @@ func (r *Postgres) FindUserByUUID(ctx context.Context, id uuid.UUID) (model.User
 		return model.User{}, err
 	}
 	return mapUser(row), nil
+}
+
+// FindUserByUUIDIncludingDeleted also returns soft-deleted users (platform admin).
+func (r *Postgres) FindUserByUUIDIncludingDeleted(ctx context.Context, id uuid.UUID) (model.User, error) {
+	row, err := r.q.GetUserByUUIDIncludingDeleted(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.User{}, ErrNotFound
+		}
+		return model.User{}, err
+	}
+	return mapUser(row), nil
+}
+
+// SoftDeleteUser marks the user deleted and, in the same transaction, revokes
+// every refresh session and detaches push devices (mobile + web push), OAuth
+// identities and passkeys so the email, provider accounts and device tokens
+// can be reused.
+// Roles and organization memberships are kept for a later restore; every
+// lookup already ignores deleted users.
+func (r *Postgres) SoftDeleteUser(ctx context.Context, userID int64) (model.User, error) {
+	var out model.User
+	err := r.withTx(ctx, func(q *db.Queries) error {
+		row, err := q.SoftDeleteUser(ctx, userID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			return err
+		}
+		if err := q.RevokeAllRefreshTokensForUser(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.DeletePushDevicesByUser(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.DeletePushSubscriptionsByUser(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.DeleteOAuthAccountsByUserID(ctx, userID); err != nil {
+			return err
+		}
+		if err := q.DeleteWebAuthnCredentialsByUserID(ctx, userID); err != nil {
+			return err
+		}
+		out = mapUser(row)
+		return nil
+	})
+	return out, err
+}
+
+// RestoreUser clears deleted_at. Fails with ErrEmailTaken when another active
+// account registered the same email in the meantime.
+func (r *Postgres) RestoreUser(ctx context.Context, userID int64) (model.User, error) {
+	row, err := r.q.RestoreUser(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.User{}, ErrNotFound
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return model.User{}, ErrEmailTaken
+		}
+		return model.User{}, err
+	}
+	return mapUser(row), nil
+}
+
+// ListSoleOwnedOrganizations returns organizations where userID is the last owner.
+func (r *Postgres) ListSoleOwnedOrganizations(ctx context.Context, userID int64) ([]model.OrganizationRef, error) {
+	rows, err := r.q.ListSoleOwnedOrganizationsByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.OrganizationRef, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, model.OrganizationRef{UUID: row.Uuid, Slug: row.Slug, Name: row.Name})
+	}
+	return out, nil
 }
 
 func (r *Postgres) FindUserByID(ctx context.Context, id int64) (model.User, error) {
@@ -482,9 +564,9 @@ func (r *Postgres) ConsumeOTP(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *Postgres) ListUsersFiltered(ctx context.Context, limit, offset int32, q, status, roleSlug string) ([]model.User, int64, error) {
-	params := db.ListUsersFilteredParams{LimitCount: limit, OffsetCount: offset}
-	countParams := db.CountUsersParams{}
+func (r *Postgres) ListUsersFiltered(ctx context.Context, limit, offset int32, q, status, roleSlug string, onlyDeleted bool) ([]model.User, int64, error) {
+	params := db.ListUsersFilteredParams{LimitCount: limit, OffsetCount: offset, OnlyDeleted: onlyDeleted}
+	countParams := db.CountUsersParams{OnlyDeleted: onlyDeleted}
 	if q != "" {
 		params.Q = pgtype.Text{String: q, Valid: true}
 		countParams.Q = params.Q
@@ -668,6 +750,7 @@ func mapUser(row db.User) model.User {
 		Name: row.Name, Surname: row.Surname, Status: row.Status, Locale: locale,
 		EmailVerified: row.EmailVerifiedAt.Valid, CreatedAt: row.CreatedAt.Time,
 		DeactivatedAt: timePtr(row.DeactivatedAt), PasswordSet: row.PasswordSet,
+		DeletedAt: timePtr(row.DeletedAt),
 	}
 }
 

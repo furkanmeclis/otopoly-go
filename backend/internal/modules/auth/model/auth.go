@@ -23,6 +23,8 @@ type User struct {
 	// PasswordSet is false when the user never chose a password (OAuth sign-up
 	// stores a random hash).
 	PasswordSet bool
+	// DeletedAt is set when a platform admin deleted the user (soft delete).
+	DeletedAt *time.Time
 }
 
 // UserAuthMethod is a login option linked to a platform user.
@@ -113,14 +115,22 @@ type OrganizationSummary struct {
 
 // PublicUser is the safe user projection.
 type PublicUser struct {
-	UUID          uuid.UUID `json:"uuid"`
-	Email         string    `json:"email"`
-	Name          string    `json:"name"`
-	Surname       string    `json:"surname"`
-	Status        string    `json:"status"`
-	Locale        string    `json:"locale"`
-	IsSuperAdmin  bool      `json:"is_super_admin"`
-	EmailVerified bool      `json:"email_verified"`
+	UUID          uuid.UUID  `json:"uuid"`
+	Email         string     `json:"email"`
+	Name          string     `json:"name"`
+	Surname       string     `json:"surname"`
+	Status        string     `json:"status"`
+	Locale        string     `json:"locale"`
+	IsSuperAdmin  bool       `json:"is_super_admin"`
+	EmailVerified bool       `json:"email_verified"`
+	DeletedAt     *time.Time `json:"deleted_at,omitempty"`
+}
+
+// OrganizationRef identifies an organization in error payloads.
+type OrganizationRef struct {
+	UUID uuid.UUID `json:"uuid"`
+	Slug string    `json:"slug"`
+	Name string    `json:"name"`
 }
 
 // PlatformUserDetail is a platform user with assigned roles and login methods.
@@ -227,6 +237,7 @@ func ToPublicUser(u User, isSuperAdmin bool) PublicUser {
 	return PublicUser{
 		UUID: u.UUID, Email: u.Email, Name: u.Name, Surname: u.Surname,
 		Status: u.Status, Locale: u.Locale, IsSuperAdmin: isSuperAdmin, EmailVerified: u.EmailVerified,
+		DeletedAt: u.DeletedAt,
 	}
 }
 

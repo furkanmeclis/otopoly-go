@@ -68,7 +68,7 @@ SELECT DISTINCT u.*
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
-WHERE u.deleted_at IS NULL
+WHERE (CASE WHEN sqlc.arg(only_deleted)::boolean THEN u.deleted_at IS NOT NULL ELSE u.deleted_at IS NULL END)
   AND (sqlc.narg(status)::text IS NULL OR u.status = sqlc.narg(status))
   AND (sqlc.narg(role_slug)::text IS NULL OR r.slug = sqlc.narg(role_slug))
   AND (
@@ -77,7 +77,7 @@ WHERE u.deleted_at IS NULL
     OR u.name ILIKE '%' || sqlc.narg(q) || '%'
     OR u.surname ILIKE '%' || sqlc.narg(q) || '%'
   )
-ORDER BY u.created_at DESC
+ORDER BY u.deleted_at DESC NULLS LAST, u.created_at DESC
 LIMIT sqlc.arg(limit_count) OFFSET sqlc.arg(offset_count);
 
 -- name: CountUsers :one
@@ -85,7 +85,7 @@ SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
-WHERE u.deleted_at IS NULL
+WHERE (CASE WHEN sqlc.arg(only_deleted)::boolean THEN u.deleted_at IS NOT NULL ELSE u.deleted_at IS NULL END)
   AND (sqlc.narg(status)::text IS NULL OR u.status = sqlc.narg(status))
   AND (sqlc.narg(role_slug)::text IS NULL OR r.slug = sqlc.narg(role_slug))
   AND (
@@ -143,3 +143,39 @@ SET status = 'disabled',
     deactivated_at = COALESCE(deactivated_at, NOW())
 WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
+
+-- name: GetUserByUUIDIncludingDeleted :one
+-- Platform admin detail / restore: also returns soft-deleted users.
+SELECT * FROM users
+WHERE uuid = $1;
+
+-- name: SoftDeleteUser :one
+-- Platform admin deletion. The partial unique index on email
+-- (WHERE deleted_at IS NULL) frees the address for a new account.
+UPDATE users
+SET deleted_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
+-- name: RestoreUser :one
+UPDATE users
+SET deleted_at = NULL
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING *;
+
+-- name: ListSoleOwnedOrganizationsByUserID :many
+-- Organizations where the user is the only owner left (ignoring deleted users).
+SELECT o.uuid, o.slug, o.name
+FROM organization_members om
+JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
+WHERE om.user_id = $1
+  AND om.role = 'owner'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM organization_members other
+    JOIN users ou ON ou.id = other.user_id AND ou.deleted_at IS NULL
+    WHERE other.organization_id = om.organization_id
+      AND other.role = 'owner'
+      AND other.user_id <> om.user_id
+  )
+ORDER BY o.name ASC;

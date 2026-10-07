@@ -208,3 +208,7 @@ WHERE user_id = $1 AND endpoint = $2;
 
 -- name: ListPushSubscriptionsByUser :many
 SELECT * FROM push_subscriptions WHERE user_id = $1;
+
+-- name: DeletePushSubscriptionsByUser :exec
+DELETE FROM push_subscriptions
+WHERE user_id = $1;

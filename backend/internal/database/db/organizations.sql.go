@@ -55,6 +55,42 @@ func (q *Queries) ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) 
 	return i, err
 }
 
+const countOrganizationMembershipsByUserID = `-- name: CountOrganizationMembershipsByUserID :one
+SELECT
+    COUNT(*)::bigint AS total,
+    COUNT(*) FILTER (WHERE om.role = 'owner')::bigint AS owners
+FROM organization_members om
+JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
+WHERE om.user_id = $1
+`
+
+type CountOrganizationMembershipsByUserIDRow struct {
+	Total  int64 `json:"total"`
+	Owners int64 `json:"owners"`
+}
+
+func (q *Queries) CountOrganizationMembershipsByUserID(ctx context.Context, userID int64) (CountOrganizationMembershipsByUserIDRow, error) {
+	row := q.db.QueryRow(ctx, countOrganizationMembershipsByUserID, userID)
+	var i CountOrganizationMembershipsByUserIDRow
+	err := row.Scan(&i.Total, &i.Owners)
+	return i, err
+}
+
+const countOrganizationOwners = `-- name: CountOrganizationOwners :one
+SELECT COUNT(*)::bigint
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND om.role = 'owner'
+`
+
+// Owners that still count (deleted users excluded).
+func (q *Queries) CountOrganizationOwners(ctx context.Context, organizationID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countOrganizationOwners, organizationID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countOrganizations = `-- name: CountOrganizations :one
 SELECT COUNT(*)::bigint
 FROM organizations
@@ -174,6 +210,24 @@ func (q *Queries) CreateOrganizationMember(ctx context.Context, arg CreateOrgani
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const deleteOrganizationMember = `-- name: DeleteOrganizationMember :execrows
+DELETE FROM organization_members
+WHERE organization_id = $1 AND user_id = $2
+`
+
+type DeleteOrganizationMemberParams struct {
+	OrganizationID int64 `json:"organization_id"`
+	UserID         int64 `json:"user_id"`
+}
+
+func (q *Queries) DeleteOrganizationMember(ctx context.Context, arg DeleteOrganizationMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteOrganizationMember, arg.OrganizationID, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const getOrganizationByID = `-- name: GetOrganizationByID :one
@@ -696,6 +750,16 @@ func (q *Queries) ListOrganizationsFiltered(ctx context.Context, arg ListOrganiz
 	return items, nil
 }
 
+const lockOrganizationMembers = `-- name: LockOrganizationMembers :exec
+SELECT id FROM organizations WHERE id = $1 FOR UPDATE
+`
+
+// Serializes owner-count checks of concurrent member changes.
+func (q *Queries) LockOrganizationMembers(ctx context.Context, id int64) error {
+	_, err := q.db.Exec(ctx, lockOrganizationMembers, id)
+	return err
+}
+
 const setOrganizationLogo = `-- name: SetOrganizationLogo :one
 UPDATE organizations
 SET logo_object_key = $2
@@ -834,6 +898,32 @@ func (q *Queries) UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOr
 		&i.InvoiceAddress,
 		&i.InvoiceCity,
 		&i.InvoiceEmail,
+	)
+	return i, err
+}
+
+const updateOrganizationMemberRole = `-- name: UpdateOrganizationMemberRole :one
+UPDATE organization_members
+SET role = $3
+WHERE organization_id = $1 AND user_id = $2
+RETURNING id, organization_id, user_id, role, created_at
+`
+
+type UpdateOrganizationMemberRoleParams struct {
+	OrganizationID int64  `json:"organization_id"`
+	UserID         int64  `json:"user_id"`
+	Role           string `json:"role"`
+}
+
+func (q *Queries) UpdateOrganizationMemberRole(ctx context.Context, arg UpdateOrganizationMemberRoleParams) (OrganizationMember, error) {
+	row := q.db.QueryRow(ctx, updateOrganizationMemberRole, arg.OrganizationID, arg.UserID, arg.Role)
+	var i OrganizationMember
+	err := row.Scan(
+		&i.ID,
+		&i.OrganizationID,
+		&i.UserID,
+		&i.Role,
+		&i.CreatedAt,
 	)
 	return i, err
 }

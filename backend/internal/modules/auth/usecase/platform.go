@@ -18,13 +18,22 @@ import (
 	"github.com/google/uuid"
 )
 
+// UserStatusDeleted is the platform list filter for soft-deleted users; it is
+// not a users.status value.
+const UserStatusDeleted = "deleted"
+
 // ListPlatformUsers lists users for platform admin with roles and login methods.
+// status "deleted" lists soft-deleted users instead of live ones.
 func (u *AuthUseCase) ListPlatformUsers(
 	ctx context.Context,
 	limit, offset int32,
 	q, status, roleSlug string,
 ) ([]model.PlatformUserDetail, int64, error) {
-	rows, total, err := u.repo.ListUsersFiltered(ctx, limit, offset, q, status, roleSlug)
+	onlyDeleted := status == UserStatusDeleted
+	if onlyDeleted {
+		status = ""
+	}
+	rows, total, err := u.repo.ListUsersFiltered(ctx, limit, offset, q, status, roleSlug, onlyDeleted)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -124,19 +133,21 @@ func (u *AuthUseCase) CreatePlatformUser(ctx context.Context, in model.CreatePla
 	return out, nil
 }
 
-// GetPlatformUser returns a user with role summary.
+// GetPlatformUser returns a user with role summary. Soft-deleted users are
+// returned too (with deleted_at) so the admin can review and restore them.
 func (u *AuthUseCase) GetPlatformUser(ctx context.Context, userUUID uuid.UUID) (model.PlatformUserDetail, error) {
-	user, err := u.repo.FindUserByUUID(ctx, userUUID)
+	user, err := u.repo.FindUserByUUIDIncludingDeleted(ctx, userUUID)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			return model.PlatformUserDetail{}, ErrNotFound
 		}
 		return model.PlatformUserDetail{}, err
 	}
-	roles, err := u.repo.ListUserRolesByUserUUID(ctx, userUUID)
+	rolesByUser, err := u.repo.ListRolesForUserIDs(ctx, []int64{user.ID})
 	if err != nil {
 		return model.PlatformUserDetail{}, err
 	}
+	roles := rolesByUser[user.ID]
 	if roles == nil {
 		roles = []model.RoleSummary{}
 	}

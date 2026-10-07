@@ -155,3 +155,32 @@ FROM organization_members om
 JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
 WHERE om.organization_id = $1 AND u.status = 'active'
 ORDER BY u.name ASC, u.surname ASC;
+
+-- name: CountOrganizationOwners :one
+-- Owners that still count (deleted users excluded).
+SELECT COUNT(*)::bigint
+FROM organization_members om
+JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+WHERE om.organization_id = $1 AND om.role = 'owner';
+
+-- name: LockOrganizationMembers :exec
+-- Serializes owner-count checks of concurrent member changes.
+SELECT id FROM organizations WHERE id = $1 FOR UPDATE;
+
+-- name: UpdateOrganizationMemberRole :one
+UPDATE organization_members
+SET role = $3
+WHERE organization_id = $1 AND user_id = $2
+RETURNING *;
+
+-- name: DeleteOrganizationMember :execrows
+DELETE FROM organization_members
+WHERE organization_id = $1 AND user_id = $2;
+
+-- name: CountOrganizationMembershipsByUserID :one
+SELECT
+    COUNT(*)::bigint AS total,
+    COUNT(*) FILTER (WHERE om.role = 'owner')::bigint AS owners
+FROM organization_members om
+JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
+WHERE om.user_id = $1;

@@ -79,7 +79,7 @@ func PlatformUsers() ResourceMeta {
 		DefaultSort:   "-created_at",
 		DefaultFields: []string{"uuid", "email", "name", "surname", "status"},
 		Capabilities: Capabilities{
-			Create: true, Read: true, Update: true, Delete: false,
+			Create: true, Read: true, Update: true, Delete: true,
 			Search: true, Filter: true, Sort: true, Export: true, Import: true, Bulk: true,
 		},
 		SearchableFields: []string{"email", "name", "surname"},

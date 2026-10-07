@@ -17,25 +17,31 @@ SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
-WHERE u.deleted_at IS NULL
-  AND ($1::text IS NULL OR u.status = $1)
-  AND ($2::text IS NULL OR r.slug = $2)
+WHERE (CASE WHEN $1::boolean THEN u.deleted_at IS NOT NULL ELSE u.deleted_at IS NULL END)
+  AND ($2::text IS NULL OR u.status = $2)
+  AND ($3::text IS NULL OR r.slug = $3)
   AND (
-    $3::text IS NULL
-    OR u.email ILIKE '%' || $3 || '%'
-    OR u.name ILIKE '%' || $3 || '%'
-    OR u.surname ILIKE '%' || $3 || '%'
+    $4::text IS NULL
+    OR u.email ILIKE '%' || $4 || '%'
+    OR u.name ILIKE '%' || $4 || '%'
+    OR u.surname ILIKE '%' || $4 || '%'
   )
 `
 
 type CountUsersParams struct {
-	Status   pgtype.Text `json:"status"`
-	RoleSlug pgtype.Text `json:"role_slug"`
-	Q        pgtype.Text `json:"q"`
+	OnlyDeleted bool        `json:"only_deleted"`
+	Status      pgtype.Text `json:"status"`
+	RoleSlug    pgtype.Text `json:"role_slug"`
+	Q           pgtype.Text `json:"q"`
 }
 
 func (q *Queries) CountUsers(ctx context.Context, arg CountUsersParams) (int64, error) {
-	row := q.db.QueryRow(ctx, countUsers, arg.Status, arg.RoleSlug, arg.Q)
+	row := q.db.QueryRow(ctx, countUsers,
+		arg.OnlyDeleted,
+		arg.Status,
+		arg.RoleSlug,
+		arg.Q,
+	)
 	var column_1 int64
 	err := row.Scan(&column_1)
 	return column_1, err
@@ -219,6 +225,79 @@ func (q *Queries) GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, e
 	return i, err
 }
 
+const getUserByUUIDIncludingDeleted = `-- name: GetUserByUUIDIncludingDeleted :one
+SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set FROM users
+WHERE uuid = $1
+`
+
+// Platform admin detail / restore: also returns soft-deleted users.
+func (q *Queries) GetUserByUUIDIncludingDeleted(ctx context.Context, argUuid uuid.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUUIDIncludingDeleted, argUuid)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+		&i.EmailVerifiedAt,
+		&i.LastLoginAt,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DeactivatedAt,
+		&i.PasswordSet,
+	)
+	return i, err
+}
+
+const listSoleOwnedOrganizationsByUserID = `-- name: ListSoleOwnedOrganizationsByUserID :many
+SELECT o.uuid, o.slug, o.name
+FROM organization_members om
+JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
+WHERE om.user_id = $1
+  AND om.role = 'owner'
+  AND NOT EXISTS (
+    SELECT 1
+    FROM organization_members other
+    JOIN users ou ON ou.id = other.user_id AND ou.deleted_at IS NULL
+    WHERE other.organization_id = om.organization_id
+      AND other.role = 'owner'
+      AND other.user_id <> om.user_id
+  )
+ORDER BY o.name ASC
+`
+
+type ListSoleOwnedOrganizationsByUserIDRow struct {
+	Uuid uuid.UUID `json:"uuid"`
+	Slug string    `json:"slug"`
+	Name string    `json:"name"`
+}
+
+// Organizations where the user is the only owner left (ignoring deleted users).
+func (q *Queries) ListSoleOwnedOrganizationsByUserID(ctx context.Context, userID int64) ([]ListSoleOwnedOrganizationsByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, listSoleOwnedOrganizationsByUserID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSoleOwnedOrganizationsByUserIDRow{}
+	for rows.Next() {
+		var i ListSoleOwnedOrganizationsByUserIDRow
+		if err := rows.Scan(&i.Uuid, &i.Slug, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUserUUIDsForBulk = `-- name: ListUserUUIDsForBulk :many
 SELECT DISTINCT u.uuid
 FROM users u
@@ -267,20 +346,21 @@ SELECT DISTINCT u.id, u.uuid, u.email, u.password_hash, u.name, u.surname, u.sta
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
-WHERE u.deleted_at IS NULL
-  AND ($1::text IS NULL OR u.status = $1)
-  AND ($2::text IS NULL OR r.slug = $2)
+WHERE (CASE WHEN $1::boolean THEN u.deleted_at IS NOT NULL ELSE u.deleted_at IS NULL END)
+  AND ($2::text IS NULL OR u.status = $2)
+  AND ($3::text IS NULL OR r.slug = $3)
   AND (
-    $3::text IS NULL
-    OR u.email ILIKE '%' || $3 || '%'
-    OR u.name ILIKE '%' || $3 || '%'
-    OR u.surname ILIKE '%' || $3 || '%'
+    $4::text IS NULL
+    OR u.email ILIKE '%' || $4 || '%'
+    OR u.name ILIKE '%' || $4 || '%'
+    OR u.surname ILIKE '%' || $4 || '%'
   )
-ORDER BY u.created_at DESC
-LIMIT $5 OFFSET $4
+ORDER BY u.deleted_at DESC NULLS LAST, u.created_at DESC
+LIMIT $6 OFFSET $5
 `
 
 type ListUsersFilteredParams struct {
+	OnlyDeleted bool        `json:"only_deleted"`
 	Status      pgtype.Text `json:"status"`
 	RoleSlug    pgtype.Text `json:"role_slug"`
 	Q           pgtype.Text `json:"q"`
@@ -290,6 +370,7 @@ type ListUsersFilteredParams struct {
 
 func (q *Queries) ListUsersFiltered(ctx context.Context, arg ListUsersFilteredParams) ([]User, error) {
 	rows, err := q.db.Query(ctx, listUsersFiltered,
+		arg.OnlyDeleted,
 		arg.Status,
 		arg.RoleSlug,
 		arg.Q,
@@ -399,6 +480,68 @@ WHERE id = $1 AND deleted_at IS NULL
 func (q *Queries) MarkUserPasswordUnset(ctx context.Context, id int64) error {
 	_, err := q.db.Exec(ctx, markUserPasswordUnset, id)
 	return err
+}
+
+const restoreUser = `-- name: RestoreUser :one
+UPDATE users
+SET deleted_at = NULL
+WHERE id = $1 AND deleted_at IS NOT NULL
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
+`
+
+func (q *Queries) RestoreUser(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, restoreUser, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+		&i.EmailVerifiedAt,
+		&i.LastLoginAt,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DeactivatedAt,
+		&i.PasswordSet,
+	)
+	return i, err
+}
+
+const softDeleteUser = `-- name: SoftDeleteUser :one
+UPDATE users
+SET deleted_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
+`
+
+// Platform admin deletion. The partial unique index on email
+// (WHERE deleted_at IS NULL) frees the address for a new account.
+func (q *Queries) SoftDeleteUser(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, softDeleteUser, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+		&i.EmailVerifiedAt,
+		&i.LastLoginAt,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DeactivatedAt,
+		&i.PasswordSet,
+	)
+	return i, err
 }
 
 const updateUserLastLogin = `-- name: UpdateUserLastLogin :exec

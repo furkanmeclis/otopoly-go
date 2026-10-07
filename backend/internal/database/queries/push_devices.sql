@@ -20,6 +20,10 @@ RETURNING *;
 DELETE FROM push_devices
 WHERE user_id = sqlc.arg(user_id) AND token = sqlc.arg(token);
 
+-- name: DeletePushDevicesByUser :exec
+DELETE FROM push_devices
+WHERE user_id = $1;
+
 -- name: ListActivePushDevicesByUser :many
 SELECT * FROM push_devices
 WHERE user_id = $1 AND disabled_at IS NULL
