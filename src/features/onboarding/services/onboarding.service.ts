@@ -1,21 +1,11 @@
 import { request } from '@/api/client';
+import type { components } from '@/api/generated/api';
 
-/** Public bootstrap config (`GET /v1/app/config`); only the fields the app reads. */
-export type AppConfig = {
-  registration_enabled?: boolean;
-  auth_methods?: Record<string, { login?: boolean; register?: boolean }>;
-};
+type Schemas = components['schemas'];
 
-export type CreateOrganizationInput = {
-  /** 2-120 characters. */
-  organization_name: string;
-  phone?: string;
-  city?: string;
-  district?: string;
-  address?: string;
-};
-
-export type CreatedOrganization = { organization: { uuid: string; slug: string; name: string } };
+export type AppConfig = Schemas['AppConfig'];
+export type CreateOrganizationInput = Schemas['CreateOwnedOrganizationRequest'];
+export type CreatedOrganization = Schemas['OwnedOrganizationCreated'];
 
 export const onboardingService = {
   appConfig() {
@@ -32,6 +22,6 @@ export const onboardingService = {
 };
 
 /** Self-registration is open unless the config says otherwise (unknown → show it; the API still decides). */
-export function registrationOpen(config: AppConfig | undefined) {
+export function registrationOpen(config: Pick<AppConfig, 'registration_enabled'> | undefined) {
   return config?.registration_enabled !== false;
 }
