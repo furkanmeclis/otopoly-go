@@ -62,6 +62,7 @@ type Querier interface {
 	CountActiveJobsInRange(ctx context.Context, arg CountActiveJobsInRangeParams) (int64, error)
 	CountActiveVehicleModelsByBrand(ctx context.Context, brandID int64) (int64, error)
 	CountActivityEvents(ctx context.Context, arg CountActivityEventsParams) (int64, error)
+	CountActivityEventsForOrganization(ctx context.Context, arg CountActivityEventsForOrganizationParams) (int64, error)
 	CountAllBulkJobs(ctx context.Context) (int64, error)
 	CountAllExportJobs(ctx context.Context) (int64, error)
 	CountAllImportJobs(ctx context.Context) (int64, error)
@@ -396,6 +397,9 @@ type Querier interface {
 	GetOrganizationMemberByUserAndOrgUUID(ctx context.Context, arg GetOrganizationMemberByUserAndOrgUUIDParams) (GetOrganizationMemberByUserAndOrgUUIDRow, error)
 	GetOrganizationMemberByUserAndSlug(ctx context.Context, arg GetOrganizationMemberByUserAndSlugParams) (GetOrganizationMemberByUserAndSlugRow, error)
 	GetOrganizationMemberByUserUUID(ctx context.Context, arg GetOrganizationMemberByUserUUIDParams) (GetOrganizationMemberByUserUUIDRow, error)
+	// Record counts and the latest observed activity for the platform
+	// organization overview.
+	GetOrganizationPlatformStats(ctx context.Context, organizationID int64) (GetOrganizationPlatformStatsRow, error)
 	GetOutboundMessageByProviderReference(ctx context.Context, providerReference string) (OutboundMessage, error)
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
 	GetPlatformWhatsAppSettings(ctx context.Context) (PlatformWhatsappSetting, error)
@@ -522,6 +526,7 @@ type Querier interface {
 	ListActivePushDevicesByUser(ctx context.Context, userID int64) ([]PushDevice, error)
 	ListActiveRefreshTokensByUserID(ctx context.Context, userID int64) ([]RefreshToken, error)
 	ListActivityEvents(ctx context.Context, arg ListActivityEventsParams) ([]ActivityEvent, error)
+	ListActivityEventsForOrganization(ctx context.Context, arg ListActivityEventsForOrganizationParams) ([]ListActivityEventsForOrganizationRow, error)
 	ListAllBulkJobs(ctx context.Context, arg ListAllBulkJobsParams) ([]BulkJob, error)
 	ListAllExportJobs(ctx context.Context, arg ListAllExportJobsParams) ([]ExportJob, error)
 	ListAllImportJobs(ctx context.Context, arg ListAllImportJobsParams) ([]ImportJob, error)
@@ -799,7 +804,11 @@ type Querier interface {
 	SetLeadStatusByID(ctx context.Context, arg SetLeadStatusByIDParams) (SetLeadStatusByIDRow, error)
 	SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (BillingOrder, error)
 	SetOrganizationAccess(ctx context.Context, arg SetOrganizationAccessParams) error
+	// Extends access without touching plan or start; reactivates an expired
+	// organization (a suspended one stays suspended).
+	SetOrganizationAccessEndPlatform(ctx context.Context, arg SetOrganizationAccessEndPlatformParams) (Organization, error)
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
+	SetOrganizationStatusPlatform(ctx context.Context, arg SetOrganizationStatusPlatformParams) (Organization, error)
 	SetOutboundMessageErrorCode(ctx context.Context, arg SetOutboundMessageErrorCodeParams) error
 	// Sender route of the latest attempt (error_code NULL on success).
 	SetOutboundMessageSender(ctx context.Context, arg SetOutboundMessageSenderParams) error
@@ -845,6 +854,8 @@ type Querier interface {
 	// Cars are counted on the day they were opened; money on the day it was
 	// taken, so closing a multi-day job lands in that day's till.
 	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
+	// Outbound totals since a point in time for the platform organization overview.
+	SummarizeOutboundMessagesByOrg(ctx context.Context, arg SummarizeOutboundMessagesByOrgParams) (SummarizeOutboundMessagesByOrgRow, error)
 	TodoSummary(ctx context.Context, arg TodoSummaryParams) (TodoSummaryRow, error)
 	TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error
 	UpdateAIConversationTitle(ctx context.Context, arg UpdateAIConversationTitleParams) (AiConversation, error)

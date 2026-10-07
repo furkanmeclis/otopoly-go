@@ -539,6 +539,49 @@ func (q *Queries) GetOrganizationMemberByUserUUID(ctx context.Context, arg GetOr
 	return i, err
 }
 
+const getOrganizationPlatformStats = `-- name: GetOrganizationPlatformStats :one
+SELECT
+    (SELECT COUNT(*) FROM customers c WHERE c.organization_id = $1 AND c.deleted_at IS NULL)::bigint AS customers_count,
+    (SELECT COUNT(*) FROM service_jobs j WHERE j.organization_id = $1)::bigint AS jobs_count,
+    (SELECT COUNT(*) FROM quotes qt WHERE qt.organization_id = $1)::bigint AS quotes_count,
+    (SELECT COUNT(*) FROM contract_instances ci WHERE ci.organization_id = $1)::bigint AS contracts_count,
+    (SELECT COUNT(*) FROM organization_members om JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+        WHERE om.organization_id = $1)::bigint AS members_count,
+    GREATEST(
+        (SELECT MAX(c.updated_at) FROM customers c WHERE c.organization_id = $1),
+        (SELECT MAX(j.updated_at) FROM service_jobs j WHERE j.organization_id = $1),
+        (SELECT MAX(qt.updated_at) FROM quotes qt WHERE qt.organization_id = $1),
+        (SELECT MAX(ci.updated_at) FROM contract_instances ci WHERE ci.organization_id = $1),
+        (SELECT MAX(rt.created_at) FROM refresh_tokens rt WHERE rt.organization_id = $1),
+        (SELECT MAX(a.created_at) FROM activity_events a WHERE a.organization_id = $1)
+    )::timestamptz AS last_activity_at
+`
+
+type GetOrganizationPlatformStatsRow struct {
+	CustomersCount int64              `json:"customers_count"`
+	JobsCount      int64              `json:"jobs_count"`
+	QuotesCount    int64              `json:"quotes_count"`
+	ContractsCount int64              `json:"contracts_count"`
+	MembersCount   int64              `json:"members_count"`
+	LastActivityAt pgtype.Timestamptz `json:"last_activity_at"`
+}
+
+// Record counts and the latest observed activity for the platform
+// organization overview.
+func (q *Queries) GetOrganizationPlatformStats(ctx context.Context, organizationID int64) (GetOrganizationPlatformStatsRow, error) {
+	row := q.db.QueryRow(ctx, getOrganizationPlatformStats, organizationID)
+	var i GetOrganizationPlatformStatsRow
+	err := row.Scan(
+		&i.CustomersCount,
+		&i.JobsCount,
+		&i.QuotesCount,
+		&i.ContractsCount,
+		&i.MembersCount,
+		&i.LastActivityAt,
+	)
+	return i, err
+}
+
 const listOrganizationMemberOptions = `-- name: ListOrganizationMemberOptions :many
 SELECT u.uuid, u.email, u.name, u.surname, om.role
 FROM organization_members om
@@ -760,6 +803,57 @@ func (q *Queries) LockOrganizationMembers(ctx context.Context, id int64) error {
 	return err
 }
 
+const setOrganizationAccessEndPlatform = `-- name: SetOrganizationAccessEndPlatform :one
+UPDATE organizations
+SET access_ends_at = $1,
+    status = CASE WHEN status = 'expired' THEN 'active' ELSE status END
+WHERE uuid = $2 AND deleted_at IS NULL
+RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
+`
+
+type SetOrganizationAccessEndPlatformParams struct {
+	AccessEndsAt pgtype.Timestamptz `json:"access_ends_at"`
+	Uuid         uuid.UUID          `json:"uuid"`
+}
+
+// Extends access without touching plan or start; reactivates an expired
+// organization (a suspended one stays suspended).
+func (q *Queries) SetOrganizationAccessEndPlatform(ctx context.Context, arg SetOrganizationAccessEndPlatformParams) (Organization, error) {
+	row := q.db.QueryRow(ctx, setOrganizationAccessEndPlatform, arg.AccessEndsAt, arg.Uuid)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Slug,
+		&i.Name,
+		&i.City,
+		&i.District,
+		&i.Phone,
+		&i.Address,
+		&i.LogoObjectKey,
+		&i.Status,
+		&i.PlanCode,
+		&i.AccessStartsAt,
+		&i.AccessEndsAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Email,
+		&i.Website,
+		&i.Tagline,
+		&i.FooterText,
+		&i.PaperSize,
+		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
+	)
+	return i, err
+}
+
 const setOrganizationLogo = `-- name: SetOrganizationLogo :one
 UPDATE organizations
 SET logo_object_key = $2
@@ -774,6 +868,54 @@ type SetOrganizationLogoParams struct {
 
 func (q *Queries) SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error) {
 	row := q.db.QueryRow(ctx, setOrganizationLogo, arg.Uuid, arg.LogoObjectKey)
+	var i Organization
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Slug,
+		&i.Name,
+		&i.City,
+		&i.District,
+		&i.Phone,
+		&i.Address,
+		&i.LogoObjectKey,
+		&i.Status,
+		&i.PlanCode,
+		&i.AccessStartsAt,
+		&i.AccessEndsAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.Email,
+		&i.Website,
+		&i.Tagline,
+		&i.FooterText,
+		&i.PaperSize,
+		&i.PrimaryColor,
+		&i.InvoiceName,
+		&i.InvoiceTaxID,
+		&i.InvoiceTaxOffice,
+		&i.InvoiceAddress,
+		&i.InvoiceCity,
+		&i.InvoiceEmail,
+	)
+	return i, err
+}
+
+const setOrganizationStatusPlatform = `-- name: SetOrganizationStatusPlatform :one
+UPDATE organizations
+SET status = $1
+WHERE uuid = $2 AND deleted_at IS NULL
+RETURNING id, uuid, slug, name, city, district, phone, address, logo_object_key, status, plan_code, access_starts_at, access_ends_at, created_at, updated_at, deleted_at, email, website, tagline, footer_text, paper_size, primary_color, invoice_name, invoice_tax_id, invoice_tax_office, invoice_address, invoice_city, invoice_email
+`
+
+type SetOrganizationStatusPlatformParams struct {
+	Status string    `json:"status"`
+	Uuid   uuid.UUID `json:"uuid"`
+}
+
+func (q *Queries) SetOrganizationStatusPlatform(ctx context.Context, arg SetOrganizationStatusPlatformParams) (Organization, error) {
+	row := q.db.QueryRow(ctx, setOrganizationStatusPlatform, arg.Status, arg.Uuid)
 	var i Organization
 	err := row.Scan(
 		&i.ID,

@@ -60,7 +60,8 @@ func (r *Recorder) Record(ctx context.Context, actorID *int64, action, resource 
 		ResourceUuid: ru,
 		Payload:      body,
 		IpAddress:    ip,
-		UserAgent:    ua,
+		UserAgent:      ua,
+		OrganizationID: organizationOf(ctx),
 	})
 	if err != nil {
 		r.log.Warn("activity_record_failed", "action", action, "error", err)

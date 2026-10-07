@@ -156,3 +156,17 @@ LIMIT sqlc.arg(row_limit) OFFSET sqlc.arg(row_offset);
 
 -- name: CountOutboundMessagesByOrg :one
 SELECT COUNT(*) FROM outbound_messages WHERE organization_id = sqlc.arg(organization_id);
+
+-- name: SummarizeOutboundMessagesByOrg :one
+-- Outbound totals since a point in time for the platform organization overview.
+SELECT
+    COUNT(*)::bigint AS total,
+    COUNT(*) FILTER (WHERE status = 'sent')::bigint AS sent,
+    COUNT(*) FILTER (WHERE status = 'failed' OR delivery_status = 'failed')::bigint AS failed,
+    COUNT(*) FILTER (WHERE delivery_status IN ('delivered', 'read'))::bigint AS delivered,
+    COUNT(*) FILTER (WHERE sender_kind = 'org_own')::bigint AS own_number,
+    COUNT(*) FILTER (WHERE sender_kind IN ('platform_whatsmeow', 'platform_cloud'))::bigint AS platform,
+    MAX(created_at)::timestamptz AS last_at
+FROM outbound_messages
+WHERE organization_id = sqlc.arg(organization_id)
+  AND created_at >= sqlc.arg(since);
