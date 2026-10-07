@@ -446,6 +446,30 @@ export interface paths {
         patch: operations["patchPlatformGitHubIntegrationSettings"];
         trace?: never;
     };
+    "/v1/platform/integrations/whatsapp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read platform WhatsApp sender settings
+         * @description Super admin only (`platform.integrations.whatsapp.read`). Secrets are never returned; only `*_configured` flags. Includes the public webhook URL for Meta.
+         */
+        get: operations["getPlatformWhatsAppIntegrationSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update platform WhatsApp sender settings
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Partial update; omitted or blank secret fields keep the stored values. Selecting the `cloud` provider requires `phone_number_id` and an access token.
+         */
+        patch: operations["patchPlatformWhatsAppIntegrationSettings"];
+        trace?: never;
+    };
     "/v1/platform/auth/settings": {
         parameters: {
             query?: never;
@@ -6757,6 +6781,44 @@ export interface components {
             data: components["schemas"]["GitHubIntegrationSettings"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        WhatsAppIntegrationSettings: {
+            /** @enum {string} */
+            provider: "none" | "whatsmeow" | "cloud";
+            app_id: string;
+            waba_id: string;
+            phone_number_id: string;
+            /** @example v26.0 */
+            api_version: string;
+            display_phone: string;
+            access_token_configured: boolean;
+            app_secret_configured: boolean;
+            webhook_verify_token_configured: boolean;
+            /** @description Public URL to register as the Meta webhook callback. */
+            webhook_url: string;
+            whatsmeow_status: string;
+            whatsmeow_phone: string;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        PatchWhatsAppIntegrationSettingsRequest: {
+            /** @enum {string} */
+            provider?: "none" | "whatsmeow" | "cloud";
+            app_id?: string;
+            waba_id?: string;
+            phone_number_id?: string;
+            /** @example v26.0 */
+            api_version?: string;
+            display_phone?: string;
+            access_token?: string;
+            app_secret?: string;
+            webhook_verify_token?: string;
+        };
+        EnvelopeWhatsAppIntegrationSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppIntegrationSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         AuthSettingsDefaultRole: {
             /** Format: uuid */
             uuid: string;
@@ -11290,6 +11352,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeGitHubIntegrationSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformWhatsAppIntegrationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Platform WhatsApp sender settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppIntegrationSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformWhatsAppIntegrationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchWhatsAppIntegrationSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated platform WhatsApp sender settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppIntegrationSettings"];
                 };
             };
             400: components["responses"]["BadRequest"];

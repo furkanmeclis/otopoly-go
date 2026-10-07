@@ -682,6 +682,61 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/platform/integrations/whatsapp:
+    get:
+      tags: [Platform]
+      operationId: getPlatformWhatsAppIntegrationSettings
+      summary: Read platform WhatsApp sender settings
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.read`). Secrets are never
+        returned; only `*_configured` flags. Includes the public webhook URL for Meta.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform WhatsApp sender settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppIntegrationSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformWhatsAppIntegrationSettings
+      summary: Update platform WhatsApp sender settings
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.write`). Partial update;
+        omitted or blank secret fields keep the stored values. Selecting the `cloud`
+        provider requires `phone_number_id` and an access token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchWhatsAppIntegrationSettingsRequest"
+      responses:
+        "200":
+          description: Updated platform WhatsApp sender settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppIntegrationSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/platform/auth/settings:
     get:
       tags: [Platform]
@@ -11511,6 +11566,60 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/GitHubIntegrationSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    WhatsAppIntegrationSettings:
+      type: object
+      required:
+        - provider
+        - app_id
+        - waba_id
+        - phone_number_id
+        - api_version
+        - display_phone
+        - access_token_configured
+        - app_secret_configured
+        - webhook_verify_token_configured
+        - webhook_url
+        - whatsmeow_status
+        - whatsmeow_phone
+        - updated_at
+      properties:
+        provider: { type: string, enum: [none, whatsmeow, cloud] }
+        app_id: { type: string }
+        waba_id: { type: string }
+        phone_number_id: { type: string }
+        api_version: { type: string, example: v26.0 }
+        display_phone: { type: string }
+        access_token_configured: { type: boolean }
+        app_secret_configured: { type: boolean }
+        webhook_verify_token_configured: { type: boolean }
+        webhook_url:
+          type: string
+          description: Public URL to register as the Meta webhook callback.
+        whatsmeow_status: { type: string }
+        whatsmeow_phone: { type: string }
+        updated_at: { type: [string, "null"], format: date-time }
+
+    PatchWhatsAppIntegrationSettingsRequest:
+      type: object
+      properties:
+        provider: { type: string, enum: [none, whatsmeow, cloud] }
+        app_id: { type: string }
+        waba_id: { type: string }
+        phone_number_id: { type: string }
+        api_version: { type: string, example: v26.0 }
+        display_phone: { type: string }
+        access_token: { type: string }
+        app_secret: { type: string }
+        webhook_verify_token: { type: string }
+
+    EnvelopeWhatsAppIntegrationSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppIntegrationSettings" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     AuthSettingsDefaultRole:
