@@ -283,7 +283,7 @@ func (c *OrgContextClient) Send(ctx context.Context, phone, body string) (string
 	if err != nil {
 		return "", err
 	}
-	normalized, err := normalizeWhatsAppPhone(phone)
+	normalized, err := NormalizeWhatsAppPhone(phone)
 	if err != nil {
 		return "", err
 	}
@@ -304,7 +304,7 @@ func (c *OrgContextClient) SendDocument(ctx context.Context, phone string, doc D
 	if err != nil {
 		return "", err
 	}
-	normalized, err := normalizeWhatsAppPhone(phone)
+	normalized, err := NormalizeWhatsAppPhone(phone)
 	if err != nil {
 		return "", err
 	}
@@ -338,7 +338,9 @@ func (c *OrgContextClient) SendDocument(ctx context.Context, phone string, doc D
 	return resp.ID, nil
 }
 
-func normalizeWhatsAppPhone(phone string) (string, error) {
+// NormalizeWhatsAppPhone returns the international digits of a phone number
+// (TR local 05XXXXXXXXX becomes 905XXXXXXXXX).
+func NormalizeWhatsAppPhone(phone string) (string, error) {
 	digits := strings.Map(func(r rune) rune {
 		if r >= '0' && r <= '9' {
 			return r
