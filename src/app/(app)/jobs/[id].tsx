@@ -93,7 +93,7 @@ function JobDetailContent() {
   if (job.isError || !d) {
     return (
       <Screen header={<Header title={tr('jobs.detail.title')} />}>
-        <ErrorState description={tr('jobs.detail.error')} onRetry={() => job.refetch()} />
+        <ErrorState error={job.error} description={tr('jobs.detail.error')} onRetry={() => job.refetch()} />
       </Screen>
     );
   }

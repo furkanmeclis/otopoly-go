@@ -55,7 +55,7 @@ function SaleDetail() {
   if (query.isError || !sale) {
     return (
       <Screen header={<Header title={tr('sales.detail.title')} />}>
-        <ErrorState description={tr('sales.detail.error')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('sales.detail.error')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

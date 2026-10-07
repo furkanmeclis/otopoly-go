@@ -90,7 +90,7 @@ function SalesList() {
           list.isLoading ? (
             <ListSkeleton rows={5} height={84} />
           ) : list.isError ? (
-            <ErrorState description={tr('sales.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('sales.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<ShoppingBag size={28} color={t.colors.textMuted} />}

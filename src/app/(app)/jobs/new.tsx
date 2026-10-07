@@ -3,7 +3,7 @@ import { Check } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Button, Header, ListSkeleton, MoneyField, Screen, Section, SelectField, TextField, Txt } from '@/components/ui';
+import { Button, EmptyState, ErrorState, Header, ListSkeleton, MoneyField, Screen, Section, SelectField, TextField, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { serviceSwatch } from '@/features/catalog/lib/service-colors';
@@ -103,6 +103,10 @@ function NewJobForm() {
         ) : null}
         {services.isLoading ? (
           <ListSkeleton rows={3} height={56} />
+        ) : services.isError ? (
+          <ErrorState error={services.error} description={tr('catalog.services.error_description')} onRetry={() => services.refetch()} />
+        ) : serviceItems.length === 0 ? (
+          <EmptyState title={tr('catalog.services.empty_title')} description={tr('catalog.services.empty_description')} />
         ) : (
           <View style={{ gap: t.spacing.sm }}>
             {serviceItems.map((s) => {

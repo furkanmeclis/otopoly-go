@@ -72,7 +72,7 @@ function SuppliersList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={72} />
           ) : list.isError ? (
-            <ErrorState description={tr('suppliers.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('suppliers.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Building2 size={28} color={t.colors.textMuted} />}

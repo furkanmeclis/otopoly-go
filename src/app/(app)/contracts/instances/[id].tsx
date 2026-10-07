@@ -74,7 +74,7 @@ function ContractInstanceDetail() {
   if (query.isError || !instance) {
     return (
       <Screen header={<Header title={tr('contracts.instances.detail')} />}>
-        <ErrorState description={tr('contracts.instances.error_description')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('contracts.instances.error_description')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

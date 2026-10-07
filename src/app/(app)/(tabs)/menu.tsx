@@ -124,7 +124,7 @@ export default function MenuScreen() {
       key: 'settings',
       title: tr('layout.section_settings'),
       items: [
-        { key: 'messaging', title: tr('layout.nav_messaging'), icon: ic(MessageCircle), href: '/settings/messaging' },
+        { key: 'messaging', title: tr('layout.nav_messaging'), icon: ic(MessageCircle), href: '/settings/messaging', gate: P.messagingRead },
         { key: 'usage', title: tr('mobile.plan.title'), icon: ic(Gauge), href: '/settings/usage', gate: P.billingRead },
       ],
     },

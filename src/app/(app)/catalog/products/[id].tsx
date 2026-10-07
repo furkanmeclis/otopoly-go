@@ -58,7 +58,7 @@ function ProductDetail() {
   if (query.isError || !p) {
     return (
       <Screen header={<Header title={tr('catalog.detail.product_title')} />}>
-        <ErrorState description={tr('catalog.detail.product_not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('catalog.detail.product_not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

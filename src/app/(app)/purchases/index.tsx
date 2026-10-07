@@ -96,7 +96,7 @@ function PurchasesList() {
           list.isLoading ? (
             <ListSkeleton rows={5} height={96} />
           ) : list.isError ? (
-            <ErrorState description={tr('purchases.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('purchases.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<ShoppingCart size={28} color={t.colors.textMuted} />}

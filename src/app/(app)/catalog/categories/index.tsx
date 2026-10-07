@@ -77,7 +77,7 @@ function CategoriesList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={64} />
           ) : list.isError ? (
-            <ErrorState description={tr('catalog.categories.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('catalog.categories.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Layers size={28} color={t.colors.textMuted} />}

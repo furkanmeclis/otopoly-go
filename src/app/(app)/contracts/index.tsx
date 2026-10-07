@@ -73,7 +73,7 @@ function ContractInstancesList() {
           ) : featureLocked ? (
             <FeatureLockedState feature="module.contracts" />
           ) : list.isError ? (
-            <ErrorState description={tr('contracts.instances.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('contracts.instances.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<FileText size={28} color={t.colors.textMuted} />}

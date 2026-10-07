@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Header, ListSkeleton, MoneyField, Row, Screen, SelectField, SwitchRow, TextField } from '@/components/ui';
+import { Button, ErrorState, Header, ListSkeleton, MoneyField, Row, Screen, SelectField, SwitchRow, TextField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { CATALOG_WRITE } from '@/features/catalog/components/catalog-parts';
 import { ServiceColorPicker } from '@/features/catalog/components/service-color-picker';
@@ -23,6 +23,10 @@ export default function ServiceFormScreen() {
       {id && existing.isLoading ? (
         <Screen header={<Header title={tr('catalog.services.edit')} />}>
           <ListSkeleton rows={6} height={56} />
+        </Screen>
+      ) : id && (existing.isError || !existing.data) ? (
+        <Screen header={<Header title={tr('catalog.services.edit')} />}>
+          <ErrorState error={existing.error} description={tr('catalog.detail.service_not_found')} onRetry={() => existing.refetch()} />
         </Screen>
       ) : (
         <ServiceForm key={existing.data?.uuid ?? 'new'} service={id ? (existing.data ?? null) : null} />

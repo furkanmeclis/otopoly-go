@@ -57,7 +57,7 @@ export function TemplatesPanel({ canWrite: canWriteRole, ownNumberEntitled = tru
       {catalog.isLoading ? (
         <ListSkeleton rows={4} height={88} />
       ) : catalog.isError ? (
-        <ErrorState description={tr('messaging.templates.error')} onRetry={() => void catalog.refetch()} />
+        <ErrorState error={catalog.error} description={tr('messaging.templates.error')} onRetry={() => void catalog.refetch()} />
       ) : groups.length === 0 ? (
         <EmptyState title={tr('messaging.templates.empty')} />
       ) : (

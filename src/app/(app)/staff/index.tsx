@@ -81,7 +81,7 @@ function StaffList() {
           list.isLoading ? (
             <ListSkeleton rows={4} height={96} />
           ) : list.isError ? (
-            <ErrorState description={tr('staff.load_error')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('staff.load_error')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState icon={<UserCog size={28} color={t.colors.textMuted} />} title={tr('staff.empty')} action={canWrite ? <Button label={tr('staff.actions.create')} onPress={() => setCreateOpen(true)} /> : undefined} />
           )

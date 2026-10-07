@@ -167,7 +167,7 @@ function TodosList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={60} />
           ) : list.isError ? (
-            <ErrorState onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} onRetry={() => list.refetch()} />
           ) : (
             <Group>
               <EmptyState

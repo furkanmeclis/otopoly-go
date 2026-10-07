@@ -59,7 +59,7 @@ function TransactionDetail() {
   if (query.isError || !tx) {
     return (
       <Screen header={<Header title={title} />}>
-        <ErrorState description={tr('finance.detail.transaction_not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('finance.detail.transaction_not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

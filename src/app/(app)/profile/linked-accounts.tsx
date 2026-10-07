@@ -125,7 +125,7 @@ export default function LinkedAccountsScreen() {
       {query.isLoading ? (
         <ListSkeleton rows={2} height={92} />
       ) : query.isError ? (
-        <ErrorState onRetry={() => void query.refetch()} />
+        <ErrorState error={query.error} onRetry={() => void query.refetch()} />
       ) : (
         <View style={{ gap: t.spacing.md }}>
           {LINKABLE_PROVIDERS.map((provider) => (

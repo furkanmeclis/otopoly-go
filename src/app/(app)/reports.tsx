@@ -131,7 +131,7 @@ function Reports() {
       {featureLocked ? (
         <FeatureLockedState feature="module.reports" />
       ) : overviewQuery.isError ? (
-        <ErrorState description={isApiError(overviewQuery.error) ? overviewQuery.error.message : tr('reports.error')} onRetry={() => overviewQuery.refetch()} />
+        <ErrorState error={overviewQuery.error} description={isApiError(overviewQuery.error) ? overviewQuery.error.message : tr('reports.error')} onRetry={() => overviewQuery.refetch()} />
       ) : overviewQuery.isLoading && !overview ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.md }}>
           {Array.from({ length: 8 }, (_, i) => (

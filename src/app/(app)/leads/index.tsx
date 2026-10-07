@@ -157,7 +157,7 @@ function LeadsList() {
           list.isLoading ? (
             <ListSkeleton rows={5} height={96} />
           ) : list.isError ? (
-            <ErrorState description={tr('leads.error')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('leads.error')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Megaphone size={28} color={t.colors.textMuted} />}

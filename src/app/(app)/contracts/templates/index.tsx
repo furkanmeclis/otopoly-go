@@ -107,7 +107,7 @@ function TemplatesList() {
           ) : featureLocked ? (
             <FeatureLockedState feature="module.contracts" />
           ) : list.isError ? (
-            <ErrorState description={tr('contracts.templates.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('contracts.templates.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<FileStack size={28} color={t.colors.textMuted} />}

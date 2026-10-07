@@ -96,7 +96,7 @@ function CariDetail() {
   if (account.isError || !account.data) {
     return (
       <Screen header={<Header title={tr('cari.detail.title')} />}>
-        <ErrorState description={tr('cari.error_description')} onRetry={() => account.refetch()} />
+        <ErrorState error={account.error} description={tr('cari.error_description')} onRetry={() => account.refetch()} />
       </Screen>
     );
   }
@@ -147,7 +147,7 @@ function CariDetail() {
           entries.isLoading ? (
             <ListSkeleton rows={4} height={84} />
           ) : entries.isError ? (
-            <ErrorState description={tr('cari.detail.entries_error')} onRetry={() => entries.refetch()} />
+            <ErrorState error={entries.error} description={tr('cari.detail.entries_error')} onRetry={() => entries.refetch()} />
           ) : (
             <EmptyState title={tr('cari.detail.entries_empty')} description={tr('cari.detail.entries_empty_description')} />
           )

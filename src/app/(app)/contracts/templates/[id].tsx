@@ -45,7 +45,7 @@ function TemplateDetail() {
   if (query.isError || !query.data) {
     return (
       <Screen header={<Header title={tr('contracts.templates.edit_title')} />}>
-        <ErrorState description={tr('contracts.templates.error_description')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('contracts.templates.error_description')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

@@ -107,7 +107,7 @@ function QuotesList() {
           list.isLoading ? (
             <ListSkeleton rows={5} height={84} />
           ) : list.isError ? (
-            <ErrorState description={tr('quotes.error')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('quotes.error')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<FileText size={28} color={t.colors.textMuted} />}

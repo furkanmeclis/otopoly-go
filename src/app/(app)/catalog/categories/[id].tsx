@@ -61,7 +61,7 @@ function CategoryDetail() {
   if (query.isError || !c) {
     return (
       <Screen header={<Header title={tr('catalog.detail.category_title')} />}>
-        <ErrorState description={tr('catalog.detail.category_not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('catalog.detail.category_not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }
@@ -106,7 +106,7 @@ function CategoryDetail() {
         {linked.isLoading ? (
           <Skeleton height={72} />
         ) : linked.isError ? (
-          <ErrorState onRetry={() => linked.refetch()} />
+          <ErrorState error={linked.error} onRetry={() => linked.refetch()} />
         ) : linkedTotal === 0 ? (
           <Card>
             <Txt tone="secondary">{isProduct ? tr('catalog.products.empty_title') : tr('catalog.services.empty_title')}</Txt>

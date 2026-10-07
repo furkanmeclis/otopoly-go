@@ -8,7 +8,7 @@ import { Car, Package, PenLine, Send, Trash2, Wrench } from 'lucide-react-native
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Button, Card, EmptyState, Field, Header, IconButton, InfoRow, ListSkeleton, Row, Screen, Section, Segmented, SelectField, SwitchRow, TextField, Txt, DateField } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorState, Field, Header, IconButton, InfoRow, ListSkeleton, Row, Screen, Section, Segmented, SelectField, SwitchRow, TextField, Txt, DateField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
@@ -138,6 +138,13 @@ function QuoteFormEntry() {
 
   if (id) {
     if (existing.isLoading) return skeleton;
+    if (existing.isError) {
+      return (
+        <Screen header={<Header title={title} />}>
+          <ErrorState error={existing.error} description={tr('quotes.error')} onRetry={() => existing.refetch()} />
+        </Screen>
+      );
+    }
     if (!existing.data) {
       return (
         <Screen header={<Header title={title} />}>
@@ -155,6 +162,20 @@ function QuoteFormEntry() {
     return <QuoteEditor key={existing.data.uuid} quote={existing.data} initial={stateFromQuote(existing.data)} />;
   }
   if ((leadParam && lead.isLoading) || (customerParam && !leadParam && prefill.isLoading)) return skeleton;
+  if (leadParam && lead.isError) {
+    return (
+      <Screen header={<Header title={title} />}>
+        <ErrorState error={lead.error} description={tr('leads.error')} onRetry={() => lead.refetch()} />
+      </Screen>
+    );
+  }
+  if (customerParam && !leadParam && prefill.isError) {
+    return (
+      <Screen header={<Header title={title} />}>
+        <ErrorState error={prefill.error} description={tr('customers.error_description')} onRetry={() => prefill.refetch()} />
+      </Screen>
+    );
+  }
   const initial = emptyState();
   if (lead.data) {
     initial.customer = pickedCustomer(lead.data.customer_uuid, lead.data.customer_name, lead.data.customer_phone);

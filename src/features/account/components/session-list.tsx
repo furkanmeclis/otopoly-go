@@ -37,7 +37,7 @@ export function SessionList() {
   };
 
   if (sessions.isLoading) return <Skeleton height={96} radius={16} />;
-  if (sessions.isError) return <ErrorState onRetry={() => sessions.refetch()} />;
+  if (sessions.isError) return <ErrorState error={sessions.error} onRetry={() => sessions.refetch()} />;
 
   return (
     <View style={{ gap: t.spacing.sm }}>

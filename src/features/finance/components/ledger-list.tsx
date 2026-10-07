@@ -105,7 +105,7 @@ export function LedgerList({
         list.isLoading ? (
           <ListSkeleton rows={4} height={56} />
         ) : list.isError ? (
-          <ErrorState description={tr('finance.transactions.error_description')} onRetry={() => list.refetch()} />
+          <ErrorState error={list.error} description={tr('finance.transactions.error_description')} onRetry={() => list.refetch()} />
         ) : (
           <EmptyState icon={<ScrollText size={28} color={t.colors.textMuted} />} title={tr('finance.transactions.empty')} description={tr('finance.detail.ledger_empty')} />
         )

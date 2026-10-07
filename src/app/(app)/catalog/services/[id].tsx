@@ -56,7 +56,7 @@ function ServiceDetail() {
   if (query.isError || !s) {
     return (
       <Screen header={<Header title={tr('catalog.detail.service_title')} />}>
-        <ErrorState description={tr('catalog.detail.service_not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('catalog.detail.service_not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

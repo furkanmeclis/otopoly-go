@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Header, Screen, Section, Segmented, SelectField, TextField, Txt } from '@/components/ui';
+import { Button, ErrorState, Header, Screen, Section, Segmented, SelectField, TextField, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import type { Customer } from '@/features/customers/services/customers.service';
@@ -81,6 +81,14 @@ function QuickSaleForm() {
   };
 
   const lineApiError = Object.entries(apiErrors).find(([k]) => k.startsWith('lines'))?.[1];
+
+  if (accountsQuery.isError) {
+    return (
+      <Screen header={<Header title={tr('sales.quick.title')} />}>
+        <ErrorState error={accountsQuery.error} description={tr('finance.accounts.error_description')} onRetry={() => accountsQuery.refetch()} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen
