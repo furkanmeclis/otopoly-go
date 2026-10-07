@@ -2,7 +2,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
-import { Button, DateField, Field, Header, ListSkeleton, Screen, SelectField, TextField } from '@/components/ui';
+import { Button, DateField, ErrorState, Field, Header, ListSkeleton, Screen, SelectField, TextField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
@@ -31,6 +31,14 @@ export default function LeadFormScreen() {
         {loading ? (
           <Screen header={<Header title={id ? tr('leads.dialog.edit_title') : tr('leads.dialog.create_title')} />}>
             <ListSkeleton rows={6} height={56} />
+          </Screen>
+        ) : id && (existing.isError || !existing.data) ? (
+          <Screen header={<Header title={tr('leads.dialog.edit_title')} />}>
+            <ErrorState error={existing.error} description={tr('leads.error')} onRetry={() => existing.refetch()} />
+          </Screen>
+        ) : !id && customer && prefill.isError ? (
+          <Screen header={<Header title={tr('leads.dialog.create_title')} />}>
+            <ErrorState error={prefill.error} description={tr('customers.error_description')} onRetry={() => prefill.refetch()} />
           </Screen>
         ) : (
           <LeadForm

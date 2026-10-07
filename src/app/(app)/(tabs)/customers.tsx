@@ -73,7 +73,7 @@ function CustomersList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={68} />
           ) : list.isError ? (
-            <ErrorState description={tr('customers.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('customers.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Users size={28} color={t.colors.textMuted} />}

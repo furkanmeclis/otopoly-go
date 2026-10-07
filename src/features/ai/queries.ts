@@ -331,6 +331,7 @@ export function useAssistantChat({ conversationUuid, onConversationCreated }: { 
     busy: streaming,
     loading: detail.isLoading,
     loadError: detail.isError,
+    error: detail.error,
     refetch: detail.refetch,
   };
 }

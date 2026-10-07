@@ -35,7 +35,7 @@ export default function NewTransactionScreen() {
         </Screen>
       ) : accounts.isError ? (
         <Screen header={<Header title={title} />}>
-          <ErrorState description={tr('finance.accounts.error_description')} onRetry={() => accounts.refetch()} />
+          <ErrorState error={accounts.error} description={tr('finance.accounts.error_description')} onRetry={() => accounts.refetch()} />
         </Screen>
       ) : (
         <TransactionForm initialType={type} accounts={accounts.data?.items ?? []} presetAccount={params.account} />

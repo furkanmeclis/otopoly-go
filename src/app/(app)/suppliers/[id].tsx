@@ -56,7 +56,7 @@ function SupplierDetail() {
   if (query.isError || !supplier) {
     return (
       <Screen header={<Header title={tr('suppliers.detail.info')} />}>
-        <ErrorState description={tr('suppliers.error_description')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('suppliers.error_description')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

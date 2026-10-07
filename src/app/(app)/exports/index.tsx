@@ -77,7 +77,7 @@ function ExportsList() {
           list.isLoading ? (
             <ListSkeleton rows={5} height={80} />
           ) : list.isError ? (
-            <ErrorState description={tr('exports.forbidden')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('exports.forbidden')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Download size={28} color={t.colors.textMuted} />}

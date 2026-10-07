@@ -86,7 +86,7 @@ function AccountsList() {
           list.isLoading ? (
             <ListSkeleton rows={4} height={72} />
           ) : list.isError ? (
-            <ErrorState description={tr('finance.accounts.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('finance.accounts.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Wallet size={28} color={t.colors.textMuted} />}

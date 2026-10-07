@@ -220,7 +220,7 @@ function OperationsBoard() {
           list.isLoading ? (
             <ListSkeleton rows={4} height={130} />
           ) : list.isError ? (
-            <ErrorState onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<ClipboardList size={28} color={t.colors.textMuted} />}

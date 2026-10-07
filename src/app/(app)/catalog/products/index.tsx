@@ -121,7 +121,7 @@ function ProductsList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={92} />
           ) : list.isError ? (
-            <ErrorState description={tr('catalog.products.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('catalog.products.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Package size={28} color={t.colors.textMuted} />}

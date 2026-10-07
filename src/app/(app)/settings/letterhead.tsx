@@ -41,7 +41,7 @@ function Letterhead() {
   if (query.isError || !query.data)
     return (
       <Screen header={<Header title={tr('settings.title')} />}>
-        <ErrorState description={tr('settings.forbidden')} onRetry={() => void query.refetch()} />
+        <ErrorState error={query.error} description={tr('settings.forbidden')} onRetry={() => void query.refetch()} />
       </Screen>
     );
   // Remount with fresh values whenever the saved settings change (web keys the form by the JSON).

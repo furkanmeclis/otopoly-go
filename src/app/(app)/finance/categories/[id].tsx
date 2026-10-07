@@ -49,7 +49,7 @@ function CategoryDetail() {
   if (query.isError || !query.data || !category) {
     return (
       <Screen header={<Header title={title} />}>
-        <ErrorState description={tr('finance.detail.category_not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('finance.detail.category_not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

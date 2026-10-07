@@ -84,7 +84,7 @@ function CustomerDetail() {
   if (customer.isError || !c) {
     return (
       <Screen header={<Header title={tr('customers.detail.info')} />}>
-        <ErrorState description={tr('customers.error_description')} onRetry={() => customer.refetch()} />
+        <ErrorState error={customer.error} description={tr('customers.error_description')} onRetry={() => customer.refetch()} />
       </Screen>
     );
   }

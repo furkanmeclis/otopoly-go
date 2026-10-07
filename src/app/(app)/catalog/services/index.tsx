@@ -109,7 +109,7 @@ function ServicesList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={84} />
           ) : list.isError ? (
-            <ErrorState description={tr('catalog.services.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('catalog.services.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<Wrench size={28} color={t.colors.textMuted} />}

@@ -45,7 +45,7 @@ export default function PreferencesScreen() {
       <LanguageCard />
 
       <Section title={tr('auth.preferences.title')}>
-        {prefs.isLoading ? <Skeleton height={220} radius={16} /> : prefs.isError || !prefs.data ? <ErrorState onRetry={() => prefs.refetch()} /> : <UserPrefsForm key={JSON.stringify(prefs.data)} data={prefs.data} />}
+        {prefs.isLoading ? <Skeleton height={220} radius={16} /> : prefs.isError || !prefs.data ? <ErrorState error={prefs.error} onRetry={() => prefs.refetch()} /> : <UserPrefsForm key={JSON.stringify(prefs.data)} data={prefs.data} />}
       </Section>
 
       <Section title={tr('messaging.prefs.title')}>
@@ -55,7 +55,7 @@ export default function PreferencesScreen() {
         {tenant.isLoading ? (
           <Skeleton height={260} radius={16} />
         ) : tenant.isError || !tenant.data ? (
-          <ErrorState description={tr('messaging.prefs.error')} onRetry={() => tenant.refetch()} />
+          <ErrorState error={tenant.error} description={tr('messaging.prefs.error')} onRetry={() => tenant.refetch()} />
         ) : (
           <TenantPrefsForm key={JSON.stringify(tenant.data)} data={tenant.data} />
         )}

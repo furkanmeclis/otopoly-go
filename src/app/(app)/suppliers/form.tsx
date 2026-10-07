@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
-import { Button, Header, ListSkeleton, Screen, SwitchRow, TextField } from '@/components/ui';
+import { Button, ErrorState, Header, ListSkeleton, Screen, SwitchRow, TextField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { qk, useSupplier } from '@/features/queries';
@@ -21,6 +21,10 @@ export default function SupplierFormScreen() {
       {id && existing.isLoading ? (
         <Screen header={<Header title={tr('suppliers.dialog.edit_title')} />}>
           <ListSkeleton rows={5} height={56} />
+        </Screen>
+      ) : id && (existing.isError || !existing.data) ? (
+        <Screen header={<Header title={tr('suppliers.dialog.edit_title')} />}>
+          <ErrorState error={existing.error} description={tr('suppliers.error_description')} onRetry={() => existing.refetch()} />
         </Screen>
       ) : (
         <SupplierForm key={existing.data?.uuid ?? 'new'} supplier={id ? (existing.data ?? null) : null} />

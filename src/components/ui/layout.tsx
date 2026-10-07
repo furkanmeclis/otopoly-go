@@ -13,6 +13,8 @@ import {
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { detailMap, isApiError, isFeatureDisabled, isFeatureNotEntitled, isReadOnly } from '@/api/errors';
+import { moduleName } from '@/features/billing/lib';
 import { useLocale } from '@/lib/i18n/provider';
 import { makeStyles, useTheme } from '@/theme/provider';
 
@@ -345,15 +347,46 @@ export function EmptyState({ title, description, icon, action }: { title?: strin
   );
 }
 
-export function ErrorState({ description, onRetry }: { description?: string; onRetry?: () => void }) {
+function apiErrorState(error: unknown, tr: ReturnType<typeof useLocale>['t']) {
+  if (!isApiError(error)) return null;
+  const apiError = error;
+  const code = String(apiError.code);
+  const details = detailMap(apiError);
+  if (isFeatureDisabled(apiError) || isFeatureNotEntitled(apiError)) {
+    const feature = details.feature ?? details.module ?? details.key;
+    return {
+      icon: 'lock' as const,
+      title: tr('mobile.plan.locked.title'),
+      description: tr('mobile.access.feature_locked_description', { feature: moduleName(tr, feature ?? 'unknown') }),
+      usage: true,
+    };
+  }
+  if (isReadOnly(apiError)) {
+    return { icon: 'lock' as const, title: tr('mobile.plan.read_only_dialog.title'), description: tr('mobile.access.read_only_description'), usage: true };
+  }
+  if (code === 'FORBIDDEN') return { icon: 'lock' as const, title: tr('errors.forbidden_title'), description: tr('mobile.access.permission_description') };
+  if (code === 'ORGANIZATION_CONTEXT_REQUIRED') return { icon: 'lock' as const, title: tr('mobile.access.organization_required_title'), description: tr('mobile.access.organization_required_description') };
+  if (code === 'NO_TENANT_MEMBERSHIP') return { icon: 'lock' as const, title: tr('organizations.access.denied_title'), description: tr('organizations.access.denied_description') };
+  if (code === 'ORGANIZATION_ACCESS_EXPIRED') return { icon: 'lock' as const, title: tr('organizations.access.expired_title'), description: tr('mobile.access.expired_generic') };
+  return null;
+}
+
+export function ErrorState({ description, error, onRetry }: { description?: string; error?: unknown; onRetry?: () => void }) {
   const t = useTheme();
   const { t: tr } = useLocale();
+  const state = apiErrorState(error, tr);
+  const icon = state?.icon === 'lock' ? <Lock size={28} color={t.colors.warning} /> : <AlertTriangle size={28} color={t.colors.danger} />;
+  const action = state?.usage ? (
+    <Button label={tr('mobile.plan.limit.view_usage')} variant="outline" size="sm" onPress={() => router.push('/settings/usage')} />
+  ) : onRetry ? (
+    <Button label={tr('common.retry')} variant="outline" size="sm" icon={<RefreshCw size={16} color={t.colors.text} />} onPress={onRetry} />
+  ) : null;
   return (
     <StateBlock
-      icon={<AlertTriangle size={28} color={t.colors.danger} />}
-      title={tr('common.error_generic')}
-      description={description}
-      action={onRetry ? <Button label={tr('common.retry')} variant="outline" size="sm" icon={<RefreshCw size={16} color={t.colors.text} />} onPress={onRetry} /> : null}
+      icon={icon}
+      title={state?.title ?? tr('common.error_generic')}
+      description={state?.description ?? description}
+      action={action}
     />
   );
 }
@@ -365,7 +398,7 @@ export function ForbiddenState({ description }: { description?: string }) {
     <StateBlock
       icon={<Lock size={28} color={t.colors.warning} />}
       title={tr('errors.forbidden_title')}
-      description={description ?? tr('common.error_forbidden')}
+      description={description ?? tr('mobile.access.permission_description')}
     />
   );
 }

@@ -5,20 +5,21 @@
  * effort) → Home with the welcome title. If the app is killed after the organization exists, the next
  * boot finds exactly one organization and goes straight in.
  */
+import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { Building2, Check, Sparkles, Wrench } from 'lucide-react-native';
+import { Building2, Check, LogOut, Sparkles, Wrench } from 'lucide-react-native';
 import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
 import { isApiError } from '@/api/errors';
 import { useToast } from '@/components/feedback/toast';
-import { Button, Card, Header, Row, Screen, SelectField, TextField, Txt } from '@/components/ui';
+import { Button, Card, EmptyState, Header, Row, Screen, SelectField, TextField, Txt } from '@/components/ui';
 import { authService } from '@/features/account/services/auth.service';
 import { orgBlock, useAuth } from '@/features/auth/auth-provider';
 import { catalogService } from '@/features/catalog/services/catalog.service';
 import { TR_PROVINCES } from '@/features/onboarding/data/provinces';
 import { normalizePrice, STARTER_SERVICES, type StarterService } from '@/features/onboarding/data/starter-services';
-import { onboardingService, type CreateOrganizationInput } from '@/features/onboarding/services/onboarding.service';
+import { onboardingService, registrationOpen, type CreateOrganizationInput } from '@/features/onboarding/services/onboarding.service';
 import { setWelcomePending } from '@/features/onboarding/state';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
@@ -56,7 +57,8 @@ export default function CreateBusinessScreen() {
   const t = useTheme();
   const { t: tr } = useLocale();
   const toast = useToast();
-  const { enterNewOrganization, refreshMe } = useAuth();
+  const { enterNewOrganization, refreshMe, logout } = useAuth();
+  const config = useQuery({ queryKey: ['app', 'config'], queryFn: () => onboardingService.appConfig(), staleTime: 5 * 60 * 1000 });
   const [step, setStep] = useState(0);
   const [values, setValues] = useState<Values>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
@@ -189,6 +191,32 @@ export default function CreateBusinessScreen() {
   };
 
   if (tasks) return <ProgressView tasks={tasks} />;
+
+  if (config.isLoading) {
+    return (
+      <Screen header={<Header title={tr('mobile.onboarding.create.title')} />}>
+        <ActivityIndicator color={t.colors.primary} />
+      </Screen>
+    );
+  }
+
+  if (config.data && !registrationOpen(config.data)) {
+    return (
+      <Screen header={<Header title={tr('mobile.onboarding.create.title')} onBack={() => router.replace('/select-org')} />}>
+        <EmptyState
+          icon={<Building2 size={28} color={t.colors.primary} />}
+          title={tr('mobile.onboarding.org.none_title')}
+          description={tr('mobile.org.none_description')}
+          action={
+            <View style={{ gap: t.spacing.sm, alignSelf: 'stretch' }}>
+              <Button label={tr('common.back')} variant="outline" onPress={() => router.replace('/select-org')} />
+              <Button label={tr('common.logout')} variant="ghost" icon={<LogOut size={18} color={t.colors.primary} />} onPress={() => void logout()} />
+            </View>
+          }
+        />
+      </Screen>
+    );
+  }
 
   return (
     <Screen

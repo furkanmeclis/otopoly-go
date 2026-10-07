@@ -32,7 +32,7 @@ function CatalogHub() {
   return (
     <Screen header={<Header title={tr('layout.section_catalog')} subtitle={tr('catalog.summary.title')} />} refreshing={summary.isRefetching} onRefresh={() => void summary.refetch()}>
       {summary.isError ? (
-        <ErrorState onRetry={() => summary.refetch()} />
+        <ErrorState error={summary.error} onRetry={() => summary.refetch()} />
       ) : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.md }}>
           <KpiTile tone="primary" icon={<Package size={16} color={t.colors.primary} />} label={tr('catalog.summary.total_products')} value={v(s?.total_products)} hint={s ? `${tr('catalog.summary.active_products')}: ${s.active_products}` : undefined} />

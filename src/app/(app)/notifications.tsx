@@ -83,7 +83,7 @@ function Inbox() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={84} />
           ) : list.isError ? (
-            <ErrorState description={tr('notifications.inbox.error')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('notifications.inbox.error')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<BellOff size={28} color={t.colors.textMuted} />}

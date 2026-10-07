@@ -38,7 +38,7 @@ function ExportDetail() {
   if (query.isError || !job) {
     return (
       <Screen header={<Header title={tr('exports.detail.title')} />}>
-        <ErrorState description={tr('exports.detail.not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('exports.detail.not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

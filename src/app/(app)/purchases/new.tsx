@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Header, Screen, Section, Segmented, SelectField, TextField, Txt } from '@/components/ui';
+import { Button, ErrorState, Header, Screen, Section, Segmented, SelectField, TextField, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { purchasesService, type CreatePurchaseInput, type PurchaseMethod } from '@/features/purchases/services/purchases.service';
@@ -76,6 +76,14 @@ function NewPurchaseForm() {
       lines: lines.map((l) => ({ product_uuid: l.product_uuid, unit_cost: l.price || undefined, qty: l.qty || undefined })),
     });
   };
+
+  if (accountsQuery.isError) {
+    return (
+      <Screen header={<Header title={tr('purchases.actions.create')} />}>
+        <ErrorState error={accountsQuery.error} description={tr('finance.accounts.error_description')} onRetry={() => accountsQuery.refetch()} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen

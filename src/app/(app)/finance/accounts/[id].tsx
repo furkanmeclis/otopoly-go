@@ -50,7 +50,7 @@ function AccountDetail() {
   if (query.isError || !query.data || !account) {
     return (
       <Screen header={<Header title={title} />}>
-        <ErrorState description={tr('finance.detail.account_not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('finance.detail.account_not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

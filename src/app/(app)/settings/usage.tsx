@@ -48,7 +48,7 @@ function Usage() {
       {overview.isLoading ? (
         <ListSkeleton rows={4} height={88} />
       ) : overview.isError ? (
-        <ErrorState onRetry={() => void overview.refetch()} />
+        <ErrorState error={overview.error} onRetry={() => void overview.refetch()} />
       ) : !data?.subscription ? (
         <EmptyState icon={<Gauge size={28} color={t.colors.textMuted} />} title={tr('mobile.plan.no_plan')} />
       ) : (

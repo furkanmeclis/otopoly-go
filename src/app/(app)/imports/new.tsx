@@ -55,7 +55,7 @@ function ImportWizardGate() {
   if (resumed.isError || !resumed.data) {
     return (
       <Screen header={<Header title={tr('imports.wizard_title')} />}>
-        <ErrorState description={tr('imports.detail.not_found')} onRetry={() => resumed.refetch()} />
+        <ErrorState error={resumed.error} description={tr('imports.detail.not_found')} onRetry={() => resumed.refetch()} />
       </Screen>
     );
   }
@@ -405,7 +405,7 @@ function ImportWizard({ resumeJob }: { resumeJob?: ImportJob }) {
           </View>
           {!summary ? (
             preview.isError ? (
-              <ErrorState description={tr('imports.toast.preview_failed')} onRetry={() => job && preview.mutate(job.uuid)} />
+              <ErrorState error={preview.error} description={tr('imports.toast.preview_failed')} onRetry={() => job && preview.mutate(job.uuid)} />
             ) : (
               <ListSkeleton rows={1} height={72} />
             )

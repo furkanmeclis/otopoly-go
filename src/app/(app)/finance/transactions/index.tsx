@@ -189,7 +189,7 @@ function TransactionsList() {
           list.isLoading ? (
             <ListSkeleton rows={6} height={56} />
           ) : list.isError ? (
-            <ErrorState description={tr('finance.transactions.error_description')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('finance.transactions.error_description')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState
               icon={<ScrollText size={28} color={t.colors.textMuted} />}

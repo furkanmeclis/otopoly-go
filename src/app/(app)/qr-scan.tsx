@@ -72,7 +72,13 @@ export default function QRScanScreen() {
   const header = <Header title={tr('mobile.qr.scan_title')} subtitle={tr('mobile.qr.scan_subtitle')} />;
   const demoButton = isMock ? <Button variant="ghost" label={tr('mobile.qr.demo_session')} onPress={demo} /> : null;
 
-  if (!permission) return <Screen header={header}>{null}</Screen>;
+  if (!permission) {
+    return (
+      <Screen header={header}>
+        <EmptyState icon={<Camera size={28} color={t.colors.textMuted} />} title={tr('common.loading')} description={tr('mobile.qr.camera_body')} />
+      </Screen>
+    );
+  }
 
   if (!permission.granted) {
     const blocked = !permission.canAskAgain;

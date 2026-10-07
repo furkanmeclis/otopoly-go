@@ -116,7 +116,7 @@ function FinanceSummary() {
       </View>
 
       {summary.isError ? (
-        <ErrorState description={tr('finance.summary.error_description')} onRetry={() => summary.refetch()} />
+        <ErrorState error={summary.error} description={tr('finance.summary.error_description')} onRetry={() => summary.refetch()} />
       ) : (
         <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: t.spacing.md }}>

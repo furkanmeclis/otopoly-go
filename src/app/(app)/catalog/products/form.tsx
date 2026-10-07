@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, Header, ListSkeleton, MoneyField, Row, Screen, SelectField, SwitchRow, TextField, Txt } from '@/components/ui';
+import { Button, Card, ErrorState, Header, ListSkeleton, MoneyField, Row, Screen, SelectField, SwitchRow, TextField, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { CATALOG_WRITE } from '@/features/catalog/components/catalog-parts';
 import { CATALOG_UNIT_KEYS, normalizeDecimal } from '@/features/catalog/lib/units';
@@ -22,6 +22,10 @@ export default function ProductFormScreen() {
       {id && existing.isLoading ? (
         <Screen header={<Header title={tr('catalog.products.edit')} />}>
           <ListSkeleton rows={6} height={56} />
+        </Screen>
+      ) : id && (existing.isError || !existing.data) ? (
+        <Screen header={<Header title={tr('catalog.products.edit')} />}>
+          <ErrorState error={existing.error} description={tr('catalog.detail.product_not_found')} onRetry={() => existing.refetch()} />
         </Screen>
       ) : (
         <ProductForm key={existing.data?.uuid ?? 'new'} product={id ? (existing.data ?? null) : null} />

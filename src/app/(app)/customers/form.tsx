@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, Card, Header, ListSkeleton, Screen, Section, Segmented, SwitchRow, TextField, Txt } from '@/components/ui';
+import { Button, Card, ErrorState, Header, ListSkeleton, Screen, Section, Segmented, SwitchRow, TextField, Txt } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { VehicleModelPicker } from '@/features/customers/components/pickers';
@@ -21,6 +21,10 @@ export default function CustomerFormScreen() {
       {id && existing.isLoading ? (
         <Screen header={<Header title={tr('customers.dialog.edit_title')} />}>
           <ListSkeleton rows={5} height={56} />
+        </Screen>
+      ) : id && (existing.isError || !existing.data) ? (
+        <Screen header={<Header title={tr('customers.dialog.edit_title')} />}>
+          <ErrorState error={existing.error} description={tr('customers.error_description')} onRetry={() => existing.refetch()} />
         </Screen>
       ) : (
         <CustomerForm key={existing.data?.uuid ?? 'new'} customer={existing.data ?? null} />

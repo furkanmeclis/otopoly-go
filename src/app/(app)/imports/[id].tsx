@@ -52,7 +52,7 @@ function ImportDetail() {
   if (query.isError || !job) {
     return (
       <Screen header={<Header title={tr('imports.detail.title')} />}>
-        <ErrorState description={tr('imports.detail.not_found')} onRetry={() => query.refetch()} />
+        <ErrorState error={query.error} description={tr('imports.detail.not_found')} onRetry={() => query.refetch()} />
       </Screen>
     );
   }

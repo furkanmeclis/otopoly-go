@@ -83,7 +83,7 @@ function ImportsList() {
           list.isLoading ? (
             <ListSkeleton rows={5} height={80} />
           ) : list.isError ? (
-            <ErrorState description={tr('imports.forbidden')} onRetry={() => list.refetch()} />
+            <ErrorState error={list.error} description={tr('imports.forbidden')} onRetry={() => list.refetch()} />
           ) : (
             <EmptyState icon={<Upload size={28} color={t.colors.textMuted} />} title={tr('imports.empty_title')} description={tr('imports.tenant_empty_description')} />
           )

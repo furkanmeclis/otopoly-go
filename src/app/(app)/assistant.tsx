@@ -80,7 +80,7 @@ function Assistant() {
       ) : locked ? (
         <FeatureLockedState feature="ai.enabled" />
       ) : status.isError ? (
-        <ErrorState onRetry={() => void status.refetch()} />
+        <ErrorState error={status.error} onRetry={() => void status.refetch()} />
       ) : !ready ? (
         <EmptyState title={tr('ai.unavailable.title')} description={tr(unavailableKey(status.data?.reason))} />
       ) : !consent.loaded ? (
@@ -118,7 +118,7 @@ function Chat({ conversation, status, onConversationCreated }: { conversation: s
     <ChatActionsProvider value={actions}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {chat.loadError ? (
-          <ErrorState description={tr('ai.assistant.load_failed')} onRetry={() => void chat.refetch()} />
+          <ErrorState error={chat.error} description={tr('ai.assistant.load_failed')} onRetry={() => void chat.refetch()} />
         ) : chat.loading && convUuid ? (
           <View style={{ padding: t.spacing.lg }}>
             <ListSkeleton rows={3} height={56} />
@@ -211,7 +211,7 @@ function HistorySheet({ visible, onClose, active, onSelect }: { visible: boolean
       {list.isLoading ? (
         <ListSkeleton rows={4} height={56} />
       ) : list.isError ? (
-        <ErrorState onRetry={() => void list.refetch()} />
+        <ErrorState error={list.error} onRetry={() => void list.refetch()} />
       ) : items.length === 0 ? (
         <EmptyState title={tr('ai.assistant.history_empty')} />
       ) : (
