@@ -134,6 +134,11 @@ func TestSendTemplatePayloadAndWamid(t *testing.T) {
 	if strings.Join(got, "|") != "Ahmet|34 ABC 1|Tech Oto|J1" {
 		t.Fatalf("positional params = %v", got)
 	}
+	// Library ≥ v0.1.13 omits unset parameter fields ("currency":null, …).
+	raw := string(g.bodies[key])
+	if strings.Contains(raw, "null") || strings.Contains(raw, `""`) {
+		t.Fatalf("payload carries empty/null fields: %s", raw)
+	}
 }
 
 func TestSendTemplateUploadsDocumentHeader(t *testing.T) {

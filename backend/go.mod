@@ -1,6 +1,6 @@
 module github.com/furkanmeclis/nextjs-go-boilerplate/backend
 
-go 1.26.4
+go 1.26.5
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0
@@ -21,7 +21,7 @@ require (
 	github.com/jung-kurt/gofpdf/v2 v2.17.3
 	github.com/meilisearch/meilisearch-go v0.31.0
 	github.com/oschwald/geoip2-golang v1.13.0
-	github.com/piusalfred/whatsapp v0.1.12
+	github.com/piusalfred/whatsapp v0.1.13-0.20260807062613-ab37a96f4d26
 	github.com/pquerna/otp v1.5.0
 	github.com/redis/go-redis/v9 v9.21.0
 	github.com/xuri/excelize/v2 v2.11.0

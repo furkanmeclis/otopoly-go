@@ -138,8 +138,8 @@ github.com/petermattis/goid v0.0.0-20260820044319-269ab09b5261 h1:lcWAnrqr2nNfDi
 github.com/petermattis/goid v0.0.0-20260820044319-269ab09b5261/go.mod h1:pxMtw7cyUw6B2bRH0ZBANSPg+AoSud1I1iyJHI69jH4=
 github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4=
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
-github.com/piusalfred/whatsapp v0.1.12 h1:C3MmWCzWHw/pyLBwrjOW6MbKC71oucqDksPpyBePm6E=
-github.com/piusalfred/whatsapp v0.1.12/go.mod h1:iGP6K03xbpALNeNnHiq9RQmc/fKsVy04wad09+q7jn4=
+github.com/piusalfred/whatsapp v0.1.13-0.20260807062613-ab37a96f4d26 h1:Vs9IlzGzq4KO4o9m8+keKwpcoclzjl4f7ueTR1pU7e0=
+github.com/piusalfred/whatsapp v0.1.13-0.20260807062613-ab37a96f4d26/go.mod h1:JfJkEq4x7GgSXc0zuVsuDSWXwqCv/QDA+ClRn1yy3jo=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

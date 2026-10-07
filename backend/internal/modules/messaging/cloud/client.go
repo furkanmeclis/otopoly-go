@@ -17,8 +17,10 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
 	"github.com/piusalfred/whatsapp"
 	"github.com/piusalfred/whatsapp/config"
-	"github.com/piusalfred/whatsapp/media"
+	wamedia "github.com/piusalfred/whatsapp/media"
 	"github.com/piusalfred/whatsapp/message"
+	"github.com/piusalfred/whatsapp/message/media"
+	"github.com/piusalfred/whatsapp/message/template"
 	whttp "github.com/piusalfred/whatsapp/pkg/http"
 )
 
@@ -57,30 +59,34 @@ type TemplateMessage struct {
 	Document *Document
 }
 
-// config reads the credentials once per operation; the library clients get a
-// fixed reader so an upload and the following send use the same values.
-func (c *Client) config(ctx context.Context) (*config.Config, config.Reader, error) {
+// config reads the credentials once per operation; the library clients are
+// built from this snapshot so an upload and the following send use the same
+// values.
+func (c *Client) config(ctx context.Context) (*config.Config, error) {
 	if c == nil || c.reader == nil {
-		return nil, nil, model.NewSendError(model.ErrCodePlatformSenderNotConfigured, false, fmt.Errorf("cloud api reader missing"))
+		return nil, model.NewSendError(model.ErrCodePlatformSenderNotConfigured, false, fmt.Errorf("cloud api reader missing"))
 	}
 	conf, err := c.reader.Read(ctx)
 	if err != nil || conf == nil {
 		if err == nil {
 			err = fmt.Errorf("empty config")
 		}
-		return nil, nil, model.NewSendError(model.ErrCodePlatformSenderNotConfigured, false, err)
+		return nil, model.NewSendError(model.ErrCodePlatformSenderNotConfigured, false, err)
 	}
 	cp := *conf
 	if strings.TrimSpace(cp.BaseURL) == "" {
 		cp.BaseURL = whatsapp.BaseURL
 	}
-	fixed := config.ReaderFunc(func(context.Context) (*config.Config, error) { return &cp, nil })
-	return &cp, fixed, nil
+	return &cp, nil
+}
+
+func (c *Client) senderOptions() []whttp.CoreSenderOption {
+	return []whttp.CoreSenderOption{whttp.WithSenderHTTPClient(c.http)}
 }
 
 // SendTemplate sends a template message and returns the wamid.
 func (c *Client) SendTemplate(ctx context.Context, phone string, m TemplateMessage) (string, error) {
-	_, reader, err := c.config(ctx)
+	conf, err := c.config(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -93,46 +99,42 @@ func (c *Client) SendTemplate(ctx context.Context, phone string, m TemplateMessa
 		lang = "tr"
 	}
 
-	var tmpl *message.Template
+	var tmpl *template.Template
 	if m.OTPCode != "" {
-		tmpl = message.NewAuthTemplate(&message.AuthTemplateRequest{
+		tmpl = template.NewAuthTemplate(&template.AuthTemplateRequest{
 			Name: m.Name, LanguageCode: lang, LanguagePolicy: "deterministic", OneTimePassword: m.OTPCode,
 		})
 	} else {
-		tmpl = &message.Template{
+		tmpl = &template.Template{
 			Name:     m.Name,
-			Language: &message.TemplateLanguage{Code: lang, Policy: "deterministic"},
+			Language: &template.Language{Code: lang, Policy: "deterministic"},
 		}
 		if m.Document != nil {
-			mediaID, err := c.uploadDocument(ctx, reader, *m.Document)
+			mediaID, err := c.uploadDocument(ctx, conf, *m.Document)
 			if err != nil {
 				return "", err
 			}
-			tmpl.Components = append(tmpl.Components, &message.TemplateComponent{
-				Type: message.TemplateComponentTypeHeader,
-				Parameters: []*message.TemplateParameter{{
-					Type:     message.TemplateParameterTypeDocument,
-					Document: &message.Document{ID: mediaID, Filename: m.Document.FileName},
+			tmpl.Components = append(tmpl.Components, &template.Component{
+				Type: template.TemplateComponentTypeHeader,
+				Parameters: []*template.Parameter{{
+					Type:     template.TemplateParameterTypeDocument,
+					Document: &media.Document{ID: mediaID, Filename: m.Document.FileName},
 				}},
 			})
 		}
 		if len(m.BodyParams) > 0 {
-			params := make([]*message.TemplateParameter, len(m.BodyParams))
+			params := make([]*template.Parameter, len(m.BodyParams))
 			for i, v := range m.BodyParams {
-				params[i] = &message.TemplateParameter{Type: message.TemplateParameterTypeText, Text: v}
+				params[i] = &template.Parameter{Type: template.TemplateParameterTypeText, Text: v}
 			}
-			tmpl.Components = append(tmpl.Components, &message.TemplateComponent{
-				Type: message.TemplateComponentTypeBody, Parameters: params,
+			tmpl.Components = append(tmpl.Components, &template.Component{
+				Type: template.TemplateComponentTypeBody, Parameters: params,
 			})
 		}
 	}
 
-	client, err := message.NewBaseClient(whttp.NewSender[message.Message](
-		whttp.WithCoreClientHTTPClient[message.Message](c.http)), reader)
-	if err != nil {
-		return "", model.NewSendError(model.ErrCodeSendFailed, false, err)
-	}
-	resp, err := client.SendTemplate(ctx, message.NewRequest(to, tmpl))
+	client := message.NewClient(conf, c.senderOptions()...)
+	resp, err := client.SendTemplateMessage(ctx, message.SendTo(to), tmpl)
 	if err != nil {
 		return "", Classify(err)
 	}
@@ -143,8 +145,9 @@ func (c *Client) SendTemplate(ctx context.Context, phone string, m TemplateMessa
 }
 
 // uploadDocument uploads the file through the media endpoint (the library
-// uploads from a path, so the bytes go through a short-lived temp file).
-func (c *Client) uploadDocument(ctx context.Context, reader config.Reader, doc Document) (string, error) {
+// still uploads from a path only, so the bytes go through a short-lived temp
+// file).
+func (c *Client) uploadDocument(ctx context.Context, conf *config.Config, doc Document) (string, error) {
 	if len(doc.Data) == 0 {
 		return "", model.NewSendError(model.ErrCodeMediaUploadFailed, false, fmt.Errorf("document is empty"))
 	}
@@ -161,12 +164,12 @@ func (c *Client) uploadDocument(ctx context.Context, reader config.Reader, doc D
 	if err := os.WriteFile(path, doc.Data, 0o600); err != nil {
 		return "", model.NewSendError(model.ErrCodeMediaUploadFailed, true, err)
 	}
-	mediaType := media.Type(doc.MimeType)
-	if _, ok := media.InfoMap[mediaType]; !ok {
-		mediaType = media.TypeDocPDF
+	mediaType := wamedia.Type(doc.MimeType)
+	if _, ok := wamedia.InfoMap[mediaType]; !ok {
+		mediaType = wamedia.TypeDocPDF
 	}
-	mc := media.NewBaseClient(reader, whttp.NewAnySender(whttp.WithCoreClientHTTPClient[any](c.http)))
-	resp, err := mc.Upload(ctx, &media.UploadRequest{MediaType: mediaType, Filepath: path})
+	mc := wamedia.NewClient(conf, c.senderOptions()...)
+	resp, err := mc.Upload(ctx, &wamedia.UploadRequest{MediaType: mediaType, Filepath: path})
 	if err != nil {
 		se := Classify(err)
 		if se.Code == model.ErrCodeSendFailed {

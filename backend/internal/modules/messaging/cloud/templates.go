@@ -4,19 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/piusalfred/whatsapp/config"
-	whttp "github.com/piusalfred/whatsapp/pkg/http"
+	"github.com/piusalfred/whatsapp/templates"
 	"github.com/piusalfred/whatsapp/uploads"
 )
 
-// The library (v0.1.12) has no message-template management client, so
-// create/list use its HTTP layer (request building, auth, appsecret_proof,
-// Graph error decoding) against /{waba_id}/message_templates.
+// Template management goes through the library's templates client
+// (/{waba_id}/message_templates); the DOCUMENT header example is uploaded
+// with its resumable upload client.
 
 // TemplateDefinition is a template to create in Meta.
 type TemplateDefinition struct {
@@ -50,57 +48,11 @@ type RemoteTemplate struct {
 	RejectedReason string `json:"rejected_reason"`
 }
 
-type templateExample struct {
-	BodyText     [][]string `json:"body_text,omitempty"`
-	HeaderHandle []string   `json:"header_handle,omitempty"`
-}
-
-type templateButton struct {
-	Type    string `json:"type"`
-	OTPType string `json:"otp_type,omitempty"`
-	Text    string `json:"text,omitempty"`
-}
-
-type templateComponent struct {
-	Type                      string           `json:"type"`
-	Format                    string           `json:"format,omitempty"`
-	Text                      string           `json:"text,omitempty"`
-	Example                   *templateExample `json:"example,omitempty"`
-	AddSecurityRecommendation bool             `json:"add_security_recommendation,omitempty"`
-	CodeExpirationMinutes     int              `json:"code_expiration_minutes,omitempty"`
-	Buttons                   []templateButton `json:"buttons,omitempty"`
-}
-
-type createTemplateRequest struct {
-	Name       string              `json:"name"`
-	Language   string              `json:"language"`
-	Category   string              `json:"category"`
-	Components []templateComponent `json:"components"`
-}
-
-type listTemplatesResponse struct {
-	Data   []RemoteTemplate `json:"data"`
-	Paging struct {
-		Cursors struct {
-			After string `json:"after"`
-		} `json:"cursors"`
-		Next string `json:"next"`
-	} `json:"paging"`
-}
-
 // samplePDF is the document example submitted with DOCUMENT header templates.
 var samplePDF = []byte("%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
 	"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n" +
 	"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n" +
 	"trailer<</Root 1 0 R>>\n%%EOF\n")
-
-func authOptions[T any](conf *config.Config) []whttp.RequestOption[T] {
-	return []whttp.RequestOption[T]{
-		whttp.WithRequestBearer[T](conf.AccessToken),
-		whttp.WithRequestAppSecret[T](conf.AppSecret),
-		whttp.WithRequestSecured[T](conf.SecureRequests),
-	}
-}
 
 func requireWABA(conf *config.Config) error {
 	if strings.TrimSpace(conf.BusinessAccountID) == "" {
@@ -109,63 +61,70 @@ func requireWABA(conf *config.Config) error {
 	return nil
 }
 
+// templatesClient builds the library templates client. The library posts
+// creates to /{PhoneNumberID}/message_templates, but Meta only accepts the
+// WABA id there, so the client gets a config copy whose phone-number id is
+// the WABA id (list/delete already use BusinessAccountID).
+func (c *Client) templatesClient(conf *config.Config) *templates.Client {
+	cp := *conf
+	cp.PhoneNumberID = conf.BusinessAccountID
+	return templates.NewClient(&cp, c.senderOptions()...)
+}
+
 // CreateTemplate submits a template (with examples) for review.
 func (c *Client) CreateTemplate(ctx context.Context, def TemplateDefinition) (CreatedTemplate, error) {
-	conf, reader, err := c.config(ctx)
+	conf, err := c.config(ctx)
 	if err != nil {
 		return CreatedTemplate{}, err
 	}
 	if err := requireWABA(conf); err != nil {
 		return CreatedTemplate{}, err
 	}
-	req := createTemplateRequest{Name: def.Name, Language: def.Language, Category: def.Category}
+	req := &templates.CreateRequest{Name: def.Name, Language: def.Language, Category: def.Category}
 	if req.Language == "" {
 		req.Language = "tr"
 	}
 	if def.CopyCode {
-		req.Components = []templateComponent{
+		req.Components = []*templates.Component{
 			{Type: "BODY", AddSecurityRecommendation: true},
 			{Type: "FOOTER", CodeExpirationMinutes: def.CodeExpirationMinutes},
-			{Type: "BUTTONS", Buttons: []templateButton{{Type: "OTP", OTPType: "COPY_CODE", Text: "Kodu kopyala"}}},
+			{Type: "BUTTONS", Buttons: []*templates.Button{{Type: "OTP", OTPType: "COPY_CODE", Text: "Kodu kopyala"}}},
 		}
 	} else {
 		if def.HeaderDocument {
-			handle, err := c.uploadExample(ctx, conf, reader)
+			handle, err := c.uploadExample(ctx, conf)
 			if err != nil {
 				return CreatedTemplate{}, err
 			}
-			req.Components = append(req.Components, templateComponent{
-				Type: "HEADER", Format: "DOCUMENT", Example: &templateExample{HeaderHandle: []string{handle}},
+			req.Components = append(req.Components, &templates.Component{
+				Type: "HEADER", Format: "DOCUMENT", Example: &templates.Example{HeaderHandle: []string{handle}},
 			})
 		}
-		body := templateComponent{Type: "BODY", Text: def.Body}
+		body := &templates.Component{Type: "BODY", Text: def.Body}
 		if len(def.Examples) > 0 {
-			body.Example = &templateExample{BodyText: [][]string{def.Examples}}
+			body.Example = &templates.Example{BodyText: [][]string{def.Examples}}
 		}
 		req.Components = append(req.Components, body)
 	}
 
-	opts := append(authOptions[createTemplateRequest](conf),
-		whttp.WithRequestEndpoints[createTemplateRequest](conf.APIVersion, conf.BusinessAccountID, "message_templates"),
-		whttp.WithRequestMessage(&req),
-	)
-	var out CreatedTemplate
-	sender := whttp.NewSender[createTemplateRequest](whttp.WithCoreClientHTTPClient[createTemplateRequest](c.http))
-	if err := sender.Send(ctx, whttp.MakeRequest(http.MethodPost, conf.BaseURL, opts...),
-		whttp.ResponseDecoderJSON(&out, whttp.DecodeOptions{DisallowEmptyResponse: true, InspectResponseError: true})); err != nil {
+	resp, err := c.templatesClient(conf).Create(ctx, req)
+	if err != nil {
 		return CreatedTemplate{}, Classify(err)
 	}
-	return out, nil
+	if resp == nil || resp.ID == "" {
+		return CreatedTemplate{}, model.NewSendError(model.ErrCodeSendFailed, true, fmt.Errorf("create template: response without id"))
+	}
+	return CreatedTemplate{ID: resp.ID, Status: resp.Status, Category: resp.Category}, nil
 }
 
 // uploadExample uploads the sample PDF with the resumable upload API and
 // returns the header handle.
-func (c *Client) uploadExample(ctx context.Context, conf *config.Config, reader config.Reader) (string, error) {
+func (c *Client) uploadExample(ctx context.Context, conf *config.Config) (string, error) {
 	if strings.TrimSpace(conf.AppID) == "" {
 		return "", model.NewSendError(model.ErrCodePlatformSenderNotConfigured, false,
 			fmt.Errorf("app_id is required to submit a document header template"))
 	}
-	up := uploads.NewBaseClient(reader, whttp.NewAnySender(whttp.WithCoreClientHTTPClient[any](c.http)))
+	up := uploads.NewClient(conf, c.senderOptions()...)
 	session, err := up.InitUploadSession(ctx, &uploads.InitUploadSessionRequest{
 		FileName: "teklif-ornek.pdf", FileLength: int64(len(samplePDF)), FileType: "application/pdf",
 	})
@@ -187,37 +146,38 @@ func (c *Client) uploadExample(ctx context.Context, conf *config.Config, reader 
 // maxTemplatePages bounds paging through the WABA template list.
 const maxTemplatePages = 20
 
+var listFields = []string{"id", "name", "language", "status", "category", "rejected_reason"}
+
 // ListTemplates returns every template of the WABA.
 func (c *Client) ListTemplates(ctx context.Context) ([]RemoteTemplate, error) {
-	conf, _, err := c.config(ctx)
+	conf, err := c.config(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if err := requireWABA(conf); err != nil {
 		return nil, err
 	}
-	sender := whttp.NewAnySender(whttp.WithCoreClientHTTPClient[any](c.http))
+	client := c.templatesClient(conf)
 	var out []RemoteTemplate
 	after := ""
 	for page := 0; page < maxTemplatePages; page++ {
-		q := map[string]string{
-			"fields": "id,name,language,status,category,rejected_reason",
-			"limit":  strconv.Itoa(100),
-		}
-		if after != "" {
-			q["after"] = after
-		}
-		opts := append(authOptions[any](conf),
-			whttp.WithRequestEndpoints[any](conf.APIVersion, conf.BusinessAccountID, "message_templates"),
-			whttp.WithRequestQueryParams[any](q),
-		)
-		var resp listTemplatesResponse
-		if err := sender.Send(ctx, whttp.MakeRequest(http.MethodGet, conf.BaseURL, opts...),
-			whttp.ResponseDecoderJSON(&resp, whttp.DecodeOptions{DisallowEmptyResponse: true, InspectResponseError: true})); err != nil {
+		resp, err := client.List(ctx, &templates.ListRequest{Fields: listFields, Limit: 100, After: after})
+		if err != nil {
 			return nil, Classify(err)
 		}
-		out = append(out, resp.Data...)
-		if resp.Paging.Next == "" || resp.Paging.Cursors.After == "" {
+		if resp == nil {
+			break
+		}
+		for _, t := range resp.Data {
+			if t == nil {
+				continue
+			}
+			out = append(out, RemoteTemplate{
+				ID: t.ID, Name: t.Name, Language: t.Language, Status: t.Status,
+				Category: t.Category, RejectedReason: t.RejectedReason,
+			})
+		}
+		if resp.Paging == nil || resp.Paging.Next == "" || resp.Paging.Cursors == nil || resp.Paging.Cursors.After == "" {
 			break
 		}
 		after = resp.Paging.Cursors.After
