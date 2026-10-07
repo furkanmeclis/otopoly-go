@@ -1,5 +1,8 @@
 {
   "onboarding.demo.apple_new_owner": "Apple: yeni sahip, henüz işletme yok",
+  "onboarding.launch.skip": "Tanıtımı geç",
+  "onboarding.launch.title": "Daha akıcı bir gün burada başlar",
+  "onboarding.launch.body": "İşler, WhatsApp bildirimleri ve imzalı belgeler kabulden teslimata birlikte ilerler.",
   "onboarding.intro.skip": "Geç",
   "onboarding.intro.next": "İleri",
   "onboarding.intro.sign_in": "Giriş yap",

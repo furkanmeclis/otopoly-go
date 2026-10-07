@@ -195,6 +195,9 @@ const canFor = (perms: string[], owner: boolean) => (gate: Permission | Gate) =>
   const linkScreen = readSource('src/app/link.tsx');
   ok(/status === 'signedOut'[\s\S]{0,120}go\('\/login'\)/.test(linkScreen), 'link screen still sends signed-out users to /login');
   const authLayout = readSource('src/app/(auth)/_layout.tsx');
+  const authIndex = readSource('src/app/(auth)/index.tsx');
+  ok(authLayout.includes("anchor: 'index'") && authLayout.includes('name="index"'), 'auth group has a concrete index anchor');
+  ok(authIndex.includes("introSeen ? '/login' : '/welcome'"), 'auth index sends new users to welcome and returning signed-out users to login');
   const guarded = /<Stack\.Protected guard=\{!introSeen\}>([\s\S]*?)<\/Stack\.Protected>/.exec(authLayout)?.[1] ?? '';
   ok(guarded.includes('name="welcome"') && !guarded.includes('name="login"') && authLayout.includes('<Stack.Screen name="login" />'), 'only the intro is guarded; /login is always reachable');
 

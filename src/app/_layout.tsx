@@ -1,8 +1,9 @@
 import { QueryClientProvider } from '@tanstack/react-query';
+import * as Linking from 'expo-linking';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider, useNavigationContainerRef, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,6 +13,8 @@ import { devToolsEnabled } from '@/config/env';
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
 import { ToastProvider } from '@/components/feedback/toast';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
+import { hasInitialNativeIntent } from '@/features/intro/initial-link';
+import { LaunchIntro } from '@/features/intro/launch-intro';
 import { NotificationResponseObserver } from '@/features/notifications/components/notification-response-observer';
 import { LocaleProvider } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
@@ -55,6 +58,9 @@ function NavigationLogger() {
 function RootNavigator() {
   const { status } = useAuth();
   const theme = useTheme();
+  const [launchIntroDone, setLaunchIntroDone] = useState(false);
+  const [openedFromLink, setOpenedFromLink] = useState(hasInitialNativeIntent);
+  const handleLaunchIntroDone = useCallback(() => setLaunchIntroDone(true), []);
   const navTheme = useMemo(() => {
     const base = theme.scheme === 'dark' ? DarkTheme : DefaultTheme;
     return {
@@ -70,6 +76,18 @@ function RootNavigator() {
       },
     };
   }, [theme]);
+
+  useEffect(() => {
+    let active = true;
+    Linking.getInitialURL()
+      .then((url) => {
+        if (active && url) setOpenedFromLink(true);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (status !== 'booting') {
@@ -93,31 +111,34 @@ function RootNavigator() {
 
   return (
     <NavThemeProvider value={navTheme}>
-      <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
-      <NavigationLogger />
-      {sentryEnabled ? <SentryNavigationRegistrar /> : null}
-      <NotificationResponseObserver />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
-        <Stack.Protected guard={status === 'signedOut'}>
-          <Stack.Screen name="(auth)" />
-        </Stack.Protected>
-        <Stack.Protected guard={status === 'selectOrg'}>
-          <Stack.Screen name="select-org" />
-          {/* Self-service business creation for a signed-in user without one. */}
-          <Stack.Screen name="create-business" />
-        </Stack.Protected>
-        <Stack.Protected guard={status === 'ready'}>
-          <Stack.Screen name="(app)" />
-        </Stack.Protected>
-        {/* Account deletion: from the profile, and from the org picker for users without a business. */}
-        <Stack.Protected guard={status === 'ready' || status === 'selectOrg'}>
-          <Stack.Screen name="delete-account" />
-        </Stack.Protected>
-        {/* Logs and demo scenarios: never reachable in App Store / Play Store builds. */}
-        <Stack.Protected guard={devToolsEnabled}>
-          <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
-        </Stack.Protected>
-      </Stack>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
+        <NavigationLogger />
+        {sentryEnabled ? <SentryNavigationRegistrar /> : null}
+        <NotificationResponseObserver />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
+          <Stack.Protected guard={status === 'signedOut'}>
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+          <Stack.Protected guard={status === 'selectOrg'}>
+            <Stack.Screen name="select-org" />
+            {/* Self-service business creation for a signed-in user without one. */}
+            <Stack.Screen name="create-business" />
+          </Stack.Protected>
+          <Stack.Protected guard={status === 'ready'}>
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          {/* Account deletion: from the profile, and from the org picker for users without a business. */}
+          <Stack.Protected guard={status === 'ready' || status === 'selectOrg'}>
+            <Stack.Screen name="delete-account" />
+          </Stack.Protected>
+          {/* Logs and demo scenarios: never reachable in App Store / Play Store builds. */}
+          <Stack.Protected guard={devToolsEnabled}>
+            <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
+          </Stack.Protected>
+        </Stack>
+        {!launchIntroDone ? <LaunchIntro compact={openedFromLink} onDone={handleLaunchIntroDone} /> : null}
+      </View>
     </NavThemeProvider>
   );
 }
