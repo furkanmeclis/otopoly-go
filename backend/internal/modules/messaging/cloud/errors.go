@@ -60,3 +60,10 @@ func Classify(err error) *model.SendError {
 	}
 	return model.NewSendError(model.ErrCodeCloudUnavailable, true, err)
 }
+
+// GraphErrorCode maps a Graph API error code (e.g. from a webhook "failed"
+// status) to the outbound_messages.error_code vocabulary.
+func GraphErrorCode(code int) string {
+	c, _ := graphCode(code)
+	return c
+}

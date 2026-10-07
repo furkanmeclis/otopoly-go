@@ -640,6 +640,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	githubmodule.RegisterRoutes(mux, githubhandler.New(githubSvc, activityRec), tokens, loader)
 	platformwhatsappmodule.RegisterRoutes(mux, platformwhatsapphandler.New(platformWhatsAppSvc, activityRec).
 		WithPlatform(platformwhatsappusecase.NewTemplates(deps.Queries, cloudClient), messagingSvc), tokens, loader)
+	platformwhatsappmodule.RegisterWebhookRoutes(mux, platformwhatsapphandler.NewWebhookHandler(
+		platformwhatsappusecase.NewWebhook(deps.Queries, secretBox, log), ratelimit.New(deps.Redis, cfg.App.Env), log))
 	oauthprovidermodule.RegisterRoutes(mux, oauthproviderhandler.New(oauthProvSvc, activityRec), tokens, loader)
 	activitymodule.RegisterRoutes(mux, activityhandler.New(activityusecase.New(deps.Queries)), tokens, loader)
 	logsmodule.RegisterRoutes(mux, logshandler.New(logsSvc), tokens, loader)

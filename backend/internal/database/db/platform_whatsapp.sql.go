@@ -11,6 +11,66 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const applyOutboundDeliveryStatus = `-- name: ApplyOutboundDeliveryStatus :execrows
+UPDATE outbound_messages
+SET delivery_status = CASE
+        WHEN $1::text = 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed' THEN 'failed'
+        WHEN $1::text <> 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed'
+             AND (CASE delivery_status WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+               < (CASE $1::text WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+            THEN $1::text
+        ELSE delivery_status
+    END,
+    delivery_status_at = CASE
+        WHEN $1::text = 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed' THEN $2
+        WHEN $1::text <> 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed'
+             AND (CASE delivery_status WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+               < (CASE $1::text WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+            THEN $2
+        ELSE delivery_status_at
+    END,
+    error_code = CASE
+        WHEN $1::text = 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed' THEN COALESCE($3, error_code)
+        ELSE error_code
+    END,
+    pricing_category = COALESCE($4, pricing_category),
+    billable = COALESCE($5, billable)
+WHERE provider_reference = $6 AND provider_reference <> ''
+`
+
+type ApplyOutboundDeliveryStatusParams struct {
+	DeliveryStatus    string             `json:"delivery_status"`
+	DeliveryStatusAt  pgtype.Timestamptz `json:"delivery_status_at"`
+	ErrorCode         pgtype.Text        `json:"error_code"`
+	PricingCategory   pgtype.Text        `json:"pricing_category"`
+	Billable          pgtype.Bool        `json:"billable"`
+	ProviderReference string             `json:"provider_reference"`
+}
+
+// Webhook status of a wamid. sent < delivered < read never regress (a late
+// "delivered" after "read" keeps "read"); "failed" always applies (with its
+// error code) and later non-failed statuses do not override it. Pricing is
+// recorded whatever the order. Atomic, idempotent; unknown wamid → 0 rows.
+func (q *Queries) ApplyOutboundDeliveryStatus(ctx context.Context, arg ApplyOutboundDeliveryStatusParams) (int64, error) {
+	result, err := q.db.Exec(ctx, applyOutboundDeliveryStatus,
+		arg.DeliveryStatus,
+		arg.DeliveryStatusAt,
+		arg.ErrorCode,
+		arg.PricingCategory,
+		arg.Billable,
+		arg.ProviderReference,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const countOutboundMessagesByOrg = `-- name: CountOutboundMessagesByOrg :one
 SELECT COUNT(*) FROM outbound_messages WHERE organization_id = $1
 `
@@ -368,37 +428,6 @@ func (q *Queries) SetWhatsAppSessionFallback(ctx context.Context, arg SetWhatsAp
 	return i, err
 }
 
-const updateOutboundMessageDelivery = `-- name: UpdateOutboundMessageDelivery :exec
-UPDATE outbound_messages
-SET delivery_status = $1,
-    delivery_status_at = $2,
-    pricing_category = COALESCE($3, pricing_category),
-    billable = COALESCE($4, billable),
-    error_code = COALESCE($5, error_code)
-WHERE id = $6
-`
-
-type UpdateOutboundMessageDeliveryParams struct {
-	DeliveryStatus   pgtype.Text        `json:"delivery_status"`
-	DeliveryStatusAt pgtype.Timestamptz `json:"delivery_status_at"`
-	PricingCategory  pgtype.Text        `json:"pricing_category"`
-	Billable         pgtype.Bool        `json:"billable"`
-	ErrorCode        pgtype.Text        `json:"error_code"`
-	ID               int64              `json:"id"`
-}
-
-func (q *Queries) UpdateOutboundMessageDelivery(ctx context.Context, arg UpdateOutboundMessageDeliveryParams) error {
-	_, err := q.db.Exec(ctx, updateOutboundMessageDelivery,
-		arg.DeliveryStatus,
-		arg.DeliveryStatusAt,
-		arg.PricingCategory,
-		arg.Billable,
-		arg.ErrorCode,
-		arg.ID,
-	)
-	return err
-}
-
 const updatePlatformWhatsAppQR = `-- name: UpdatePlatformWhatsAppQR :one
 UPDATE platform_whatsapp_settings
 SET wm_status = 'qr_pending',
@@ -619,6 +648,40 @@ type UpdateWhatsAppCloudTemplateStatusByMetaIDParams struct {
 
 func (q *Queries) UpdateWhatsAppCloudTemplateStatusByMetaID(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusByMetaIDParams) (int64, error) {
 	result, err := q.db.Exec(ctx, updateWhatsAppCloudTemplateStatusByMetaID, arg.Status, arg.RejectedReason, arg.MetaTemplateID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateWhatsAppCloudTemplateStatusByName = `-- name: UpdateWhatsAppCloudTemplateStatusByName :execrows
+UPDATE whatsapp_cloud_templates
+SET status = $1,
+    rejected_reason = $2,
+    meta_template_id = CASE WHEN $3::text <> '' THEN $3::text ELSE meta_template_id END,
+    last_synced_at = NOW()
+WHERE COALESCE(NULLIF(BTRIM(override_name), ''), meta_name) = $4::text
+  AND language = $5
+`
+
+type UpdateWhatsAppCloudTemplateStatusByNameParams struct {
+	Status         string `json:"status"`
+	RejectedReason string `json:"rejected_reason"`
+	MetaTemplateID string `json:"meta_template_id"`
+	Name           string `json:"name"`
+	Language       string `json:"language"`
+}
+
+// Webhook fallback when the Meta template id is not stored yet: match the
+// effective name (override or catalog name) and language.
+func (q *Queries) UpdateWhatsAppCloudTemplateStatusByName(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusByNameParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateWhatsAppCloudTemplateStatusByName,
+		arg.Status,
+		arg.RejectedReason,
+		arg.MetaTemplateID,
+		arg.Name,
+		arg.Language,
+	)
 	if err != nil {
 		return 0, err
 	}

@@ -20,6 +20,11 @@ type Querier interface {
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
 	AdjustProductStock(ctx context.Context, arg AdjustProductStockParams) (Product, error)
 	AdjustProductStockByID(ctx context.Context, arg AdjustProductStockByIDParams) error
+	// Webhook status of a wamid. sent < delivered < read never regress (a late
+	// "delivered" after "read" keeps "read"); "failed" always applies (with its
+	// error code) and later non-failed statuses do not override it. Pricing is
+	// recorded whatever the order. Atomic, idempotent; unknown wamid → 0 rows.
+	ApplyOutboundDeliveryStatus(ctx context.Context, arg ApplyOutboundDeliveryStatusParams) (int64, error)
 	AssignUserRoleBySlug(ctx context.Context, arg AssignUserRoleBySlugParams) error
 	AttachAIPendingActionsToMessage(ctx context.Context, arg AttachAIPendingActionsToMessageParams) error
 	BillingApprovedThisMonth(ctx context.Context, arg BillingApprovedThisMonthParams) (BillingApprovedThisMonthRow, error)
@@ -850,7 +855,6 @@ type Querier interface {
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)
 	UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOrganizationLetterheadParams) (Organization, error)
 	UpdateOrganizationPlatform(ctx context.Context, arg UpdateOrganizationPlatformParams) (Organization, error)
-	UpdateOutboundMessageDelivery(ctx context.Context, arg UpdateOutboundMessageDeliveryParams) error
 	UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOutboundMessageStatusParams) (OutboundMessage, error)
 	UpdatePaymentSettings(ctx context.Context, arg UpdatePaymentSettingsParams) (BillingSetting, error)
 	UpdatePlatformWhatsAppQR(ctx context.Context, arg UpdatePlatformWhatsAppQRParams) (PlatformWhatsappSetting, error)
@@ -884,6 +888,9 @@ type Querier interface {
 	UpdateWebAuthnCredentialName(ctx context.Context, arg UpdateWebAuthnCredentialNameParams) (WebauthnCredential, error)
 	UpdateWhatsAppCloudTemplateStatus(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusParams) (WhatsappCloudTemplate, error)
 	UpdateWhatsAppCloudTemplateStatusByMetaID(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusByMetaIDParams) (int64, error)
+	// Webhook fallback when the Meta template id is not stored yet: match the
+	// effective name (override or catalog name) and language.
+	UpdateWhatsAppCloudTemplateStatusByName(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusByNameParams) (int64, error)
 	UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAppSessionQRParams) (WhatsappSession, error)
 	UpsertAIOrganizationSettings(ctx context.Context, arg UpsertAIOrganizationSettingsParams) (AiOrganizationSetting, error)
 	UpsertBuiltinFeature(ctx context.Context, arg UpsertBuiltinFeatureParams) error

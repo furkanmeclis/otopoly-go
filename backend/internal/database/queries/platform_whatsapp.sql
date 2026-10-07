@@ -102,14 +102,51 @@ WHERE provider_reference = sqlc.arg(provider_reference) AND provider_reference <
 ORDER BY id DESC
 LIMIT 1;
 
--- name: UpdateOutboundMessageDelivery :exec
+-- name: ApplyOutboundDeliveryStatus :execrows
+-- Webhook status of a wamid. sent < delivered < read never regress (a late
+-- "delivered" after "read" keeps "read"); "failed" always applies (with its
+-- error code) and later non-failed statuses do not override it. Pricing is
+-- recorded whatever the order. Atomic, idempotent; unknown wamid → 0 rows.
 UPDATE outbound_messages
-SET delivery_status = sqlc.arg(delivery_status),
-    delivery_status_at = sqlc.arg(delivery_status_at),
+SET delivery_status = CASE
+        WHEN sqlc.arg(delivery_status)::text = 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed' THEN 'failed'
+        WHEN sqlc.arg(delivery_status)::text <> 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed'
+             AND (CASE delivery_status WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+               < (CASE sqlc.arg(delivery_status)::text WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+            THEN sqlc.arg(delivery_status)::text
+        ELSE delivery_status
+    END,
+    delivery_status_at = CASE
+        WHEN sqlc.arg(delivery_status)::text = 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed' THEN sqlc.arg(delivery_status_at)
+        WHEN sqlc.arg(delivery_status)::text <> 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed'
+             AND (CASE delivery_status WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+               < (CASE sqlc.arg(delivery_status)::text WHEN 'sent' THEN 1 WHEN 'delivered' THEN 2 WHEN 'read' THEN 3 ELSE 0 END)
+            THEN sqlc.arg(delivery_status_at)
+        ELSE delivery_status_at
+    END,
+    error_code = CASE
+        WHEN sqlc.arg(delivery_status)::text = 'failed'
+             AND delivery_status IS DISTINCT FROM 'failed' THEN COALESCE(sqlc.narg(error_code), error_code)
+        ELSE error_code
+    END,
     pricing_category = COALESCE(sqlc.narg(pricing_category), pricing_category),
-    billable = COALESCE(sqlc.narg(billable), billable),
-    error_code = COALESCE(sqlc.narg(error_code), error_code)
-WHERE id = sqlc.arg(id);
+    billable = COALESCE(sqlc.narg(billable), billable)
+WHERE provider_reference = sqlc.arg(provider_reference) AND provider_reference <> '';
+
+-- name: UpdateWhatsAppCloudTemplateStatusByName :execrows
+-- Webhook fallback when the Meta template id is not stored yet: match the
+-- effective name (override or catalog name) and language.
+UPDATE whatsapp_cloud_templates
+SET status = sqlc.arg(status),
+    rejected_reason = sqlc.arg(rejected_reason),
+    meta_template_id = CASE WHEN sqlc.arg(meta_template_id)::text <> '' THEN sqlc.arg(meta_template_id)::text ELSE meta_template_id END,
+    last_synced_at = NOW()
+WHERE COALESCE(NULLIF(BTRIM(override_name), ''), meta_name) = sqlc.arg(name)::text
+  AND language = sqlc.arg(language);
 
 -- name: ListOutboundMessagesByOrg :many
 SELECT * FROM outbound_messages
