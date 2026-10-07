@@ -1,19 +1,12 @@
+import type { components } from '@/api/generated/api';
+
+type Schemas = components['schemas'];
+
 export type WhatsAppSessionStatus =
   "disconnected" | "qr_pending" | "connected" | "error";
 
-export interface WhatsAppSession {
-  uuid: string;
-  status: WhatsAppSessionStatus;
-  jid?: string;
-  phone_number?: string;
-  display_name?: string;
-  qr_code?: string;
-  qr_expires_at?: string;
-  last_seen_at?: string;
-  error_message?: string;
-  created_at: string;
-  updated_at: string;
-}
+export type WhatsAppSession = Schemas['WhatsAppSession'];
+export type PatchWhatsAppSessionSettingsInput = Schemas['PatchWhatsAppSessionSettingsRequest'];
 
 export interface NotificationRule {
   uuid: string;

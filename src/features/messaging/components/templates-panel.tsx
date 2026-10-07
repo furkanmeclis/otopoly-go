@@ -1,4 +1,4 @@
-import { FileText, Pencil } from 'lucide-react-native';
+import { FileText, Lock, Pencil } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -11,9 +11,10 @@ import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 
 /** Template catalog grouped by module (web `MessageTemplatesPanel`). */
-export function TemplatesPanel({ canWrite }: { canWrite: boolean }) {
+export function TemplatesPanel({ canWrite: canWriteRole, ownNumberEntitled = true }: { canWrite: boolean; ownNumberEntitled?: boolean }) {
   const t = useTheme();
   const { t: tr, locale } = useLocale();
+  const canWrite = canWriteRole && ownNumberEntitled;
   const catalog = useTemplateCatalog();
   const [editing, setEditing] = useState<{ type: string; channel?: TemplateChannel } | null>(null);
   const loc = locale === 'en' ? 'en' : 'tr';
@@ -35,9 +36,23 @@ export function TemplatesPanel({ canWrite }: { canWrite: boolean }) {
         </Row>
         <Txt variant="caption" tone="secondary">
           {tr('messaging.templates.description')}
-          {!canWrite ? ` ${tr('messaging.templates.read_only')}` : ''}
+          {!canWriteRole ? ` ${tr('messaging.templates.read_only')}` : ''}
         </Txt>
       </Card>
+
+      {!ownNumberEntitled ? (
+        <Card>
+          <Row gap={t.spacing.sm} style={{ alignItems: 'flex-start' }}>
+            <Lock size={16} color={t.colors.textMuted} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Txt variant="bodyStrong">{tr('messaging.templates.platform_title')}</Txt>
+              <Txt variant="caption" tone="secondary">
+                {tr('messaging.templates.platform_body')}
+              </Txt>
+            </View>
+          </Row>
+        </Card>
+      ) : null}
 
       {catalog.isLoading ? (
         <ListSkeleton rows={4} height={88} />

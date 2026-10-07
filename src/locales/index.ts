@@ -27,6 +27,7 @@ import trIntegrations from './tr/integrations.json';
 import trJobs from './tr/jobs.json';
 import trLayout from './tr/layout.json';
 import trLeads from './tr/leads.json';
+import trLegal from './tr/legal.json';
 import trLogs from './tr/logs.json';
 import trMessaging from './tr/messaging.json';
 import trNotifications from './tr/notifications.json';
@@ -88,6 +89,7 @@ import enIntegrations from './en/integrations.json';
 import enJobs from './en/jobs.json';
 import enLayout from './en/layout.json';
 import enLeads from './en/leads.json';
+import enLegal from './en/legal.json';
 import enLogs from './en/logs.json';
 import enMessaging from './en/messaging.json';
 import enNotifications from './en/notifications.json';
@@ -152,6 +154,7 @@ export const catalogs = {
     jobs: trJobs,
     layout: trLayout,
     leads: trLeads,
+    legal: trLegal,
     logs: trLogs,
     messaging: trMessaging,
     notifications: trNotifications,
@@ -203,6 +206,7 @@ export const catalogs = {
     jobs: enJobs,
     layout: enLayout,
     leads: enLeads,
+    legal: enLegal,
     logs: enLogs,
     messaging: enMessaging,
     notifications: enNotifications,

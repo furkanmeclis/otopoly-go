@@ -8,6 +8,7 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 
+import { isApiError } from '@/api/errors';
 import { getCurrentLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { prefs, StorageKeys } from '@/lib/storage';
@@ -119,6 +120,14 @@ const RETRY_AFTER_FAILURE_MS = 5 * 60 * 1000;
 let inFlight: Promise<RegisterResult> | null = null;
 let lastRegistered: { token: string; at: number } | null = null;
 let lastFailureAt = 0;
+let rateLimitedUntil = 0;
+
+function rememberRateLimitBackoff(error: unknown) {
+  if (!isApiError(error) || error.code !== 'RATE_LIMITED') return false;
+  const delayMs = Math.max(1, error.retryAfter ?? RETRY_AFTER_FAILURE_MS / 1000) * 1000;
+  rateLimitedUntil = Date.now() + delayMs;
+  return true;
+}
 
 /**
  * Registers this device for the signed-in user. Never prompts: returns `denied` / `unavailable`
@@ -135,7 +144,9 @@ export function registerPushDevice(options?: { force?: boolean }): Promise<Regis
 async function doRegister(force: boolean): Promise<RegisterResult> {
   const N = notificationsModule();
   if (!N || !pushAvailable()) return 'unavailable';
-  if (!force && Date.now() - lastFailureAt < RETRY_AFTER_FAILURE_MS) return 'failed';
+  const now = Date.now();
+  if (now < rateLimitedUntil) return 'failed';
+  if (!force && now - lastFailureAt < RETRY_AFTER_FAILURE_MS) return 'failed';
   const permission = await getPushPermission();
   if (permission !== 'granted') return permission === 'unavailable' ? 'unavailable' : 'denied';
   try {
@@ -149,6 +160,7 @@ async function doRegister(force: boolean): Promise<RegisterResult> {
     await prefs.set(StorageKeys.pushToken, token);
     lastRegistered = { token, at: Date.now() };
     lastFailureAt = 0;
+    rateLimitedUntil = 0;
     if (previous && previous !== token) {
       // Token rotated: drop the stale one so the backend stops sending to it.
       pushDevicesService.unregister(previous).catch(() => {});
@@ -157,7 +169,7 @@ async function doRegister(force: boolean): Promise<RegisterResult> {
     return 'registered';
   } catch (error) {
     // Simulators without APNs and devices without Play services end up here.
-    lastFailureAt = Date.now();
+    if (!rememberRateLimitBackoff(error)) lastFailureAt = Date.now();
     log.warn('Push registration failed', error);
     return 'failed';
   }
@@ -205,6 +217,7 @@ export async function unregisterPushDevice(options?: { localOnly?: boolean }) {
     await pushDevicesService.unregister(token);
     log.info('Push device unregistered');
   } catch (error) {
+    rememberRateLimitBackoff(error);
     log.warn('Push unregister failed', error);
   } finally {
     await prefs.remove(StorageKeys.pushToken);

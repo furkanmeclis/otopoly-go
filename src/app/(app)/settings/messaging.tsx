@@ -10,6 +10,7 @@ import { NotificationRulesCard } from '@/features/messaging/components/rules-car
 import { TemplatesPanel } from '@/features/messaging/components/templates-panel';
 import { VehicleAlertsCard } from '@/features/messaging/components/vehicle-alerts-card';
 import { WhatsAppSessionCard } from '@/features/messaging/components/whatsapp-session-card';
+import { useWhatsAppSession } from '@/features/messaging/queries';
 import { qk } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 
@@ -31,6 +32,9 @@ function Messaging() {
   const qc = useQueryClient();
   // Same rule as web: owner membership AND tenant.messaging.write.
   const canWrite = can({ perm: P.messagingWrite, owner: true });
+  const session = useWhatsAppSession();
+  // Match web: avoid a locked flash before the session response arrives.
+  const ownNumberEntitled = session.data?.own_number_entitled ?? true;
   const [tab, setTab] = useState<Tab>('connection');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -59,7 +63,7 @@ function Messaging() {
           {canWrite ? <DailySummaryCard /> : null}
         </>
       ) : (
-        <TemplatesPanel canWrite={canWrite} />
+        <TemplatesPanel canWrite={canWrite} ownNumberEntitled={ownNumberEntitled} />
       )}
     </Screen>
   );

@@ -1,26 +1,11 @@
 import { request } from '@/api/client';
+import type { components } from '@/api/generated/api';
 
-/** `POST /v1/push-devices` body (backend `PushDeviceInput`). */
-export type PushDeviceInput = {
-  token: string;
-  platform: 'ios' | 'android';
-  locale?: string;
-  app_version?: string;
-  device_name?: string;
-};
+type Schemas = components['schemas'];
 
-export type PushDevice = {
-  uuid: string;
-  token: string;
-  platform: 'ios' | 'android';
-  locale: 'tr' | 'en' | '';
-  app_version: string;
-  device_name: string;
-  last_seen_at: string;
-  created_at: string;
-};
-
-export type PushDeviceRegistration = { device: PushDevice; push_enabled: boolean };
+export type PushDeviceInput = Schemas['PushDeviceInput'];
+export type PushDevice = Schemas['PushDevice'];
+export type PushDeviceRegistration = Schemas['PushDeviceRegistration'];
 
 /** Expo push device registry. Devices belong to the user (no organization context needed). */
 export const pushDevicesService = {

@@ -3,6 +3,7 @@ import type {
   MessageTemplate,
   NotificationRule,
   PatchTemplateInput,
+  PatchWhatsAppSessionSettingsInput,
   RuleList,
   SimulateInput,
   SimulateResult,
@@ -22,6 +23,14 @@ export const messagingService = {
     return platformRequest<WhatsAppSession>(
       "POST",
       "/v1/tenant/messaging/session/connect",
+    );
+  },
+
+  updateSessionSettings(body: PatchWhatsAppSessionSettingsInput) {
+    return platformRequest<WhatsAppSession>(
+      "PATCH",
+      "/v1/tenant/messaging/session/settings",
+      { body },
     );
   },
 

@@ -26,7 +26,15 @@ function sessionFor(ctx: MockCtx): SessionState {
   const key = ctx.orgUuid ?? '-';
   let s = sessions.get(key);
   if (!s) {
-    s = { uuid: uuid(), status: 'disconnected', created_at: now(), updated_at: now() };
+    s = {
+      uuid: uuid(),
+      status: 'disconnected',
+      created_at: now(),
+      updated_at: now(),
+      own_number_entitled: true,
+      fallback_to_platform: true,
+      platform_sender_available: true,
+    };
     sessions.set(key, s);
   }
   // Demo pairing: the phone "scans" the QR a few seconds after it is shown.
@@ -90,6 +98,15 @@ route('DELETE', '/v1/tenant/messaging/session', (ctx) => {
     _pairAt: undefined,
   });
   return { disconnected: true };
+});
+
+route('PATCH', '/v1/tenant/messaging/session/settings', (ctx) => {
+  requireOwner(ctx, 'tenant.messaging.write');
+  const fallback = bool((ctx.body as { fallback_to_platform?: unknown }).fallback_to_platform);
+  const s = sessionFor(ctx);
+  s.fallback_to_platform = fallback;
+  s.updated_at = now();
+  return publicSession(s);
 });
 
 // ─── Template catalog (mirrors backend msgtemplate registry) ─────────────────
