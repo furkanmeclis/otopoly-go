@@ -1,5 +1,8 @@
 {
   "onboarding.demo.apple_new_owner": "Apple: new owner, no business yet",
+  "onboarding.launch.skip": "Skip intro",
+  "onboarding.launch.title": "A smoother day starts here",
+  "onboarding.launch.body": "Jobs, WhatsApp updates and signed documents move together from check-in to hand-over.",
   "onboarding.intro.skip": "Skip",
   "onboarding.intro.next": "Next",
   "onboarding.intro.sign_in": "Sign in",
