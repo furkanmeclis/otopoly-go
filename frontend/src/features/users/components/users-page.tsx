@@ -22,6 +22,7 @@ import {
 } from "@/features/bulk-engine";
 import { useUsersColumns } from "@/features/users/components/users-columns";
 import { UserSetPasswordDialog } from "@/features/users/components/user-set-password-dialog";
+import { useUserDeleteFlow } from "@/features/users/components/user-delete-flow";
 import type { UserRowActionHandlers } from "@/features/users/components/user-row-actions";
 import {
   useDisableUser,
@@ -81,10 +82,13 @@ export function UsersPage() {
   }, [listState.columnFilters, listState.params]);
 
   const listQuery = useUsersList(listParams);
+  const showingDeleted = listParams.status === "deleted";
   const metaQuery = useUsersMeta(true);
   const enableUser = useEnableUser();
   const disableUser = useDisableUser();
   const impersonateUser = useImpersonateUser();
+  const deleteFlow = useUserDeleteFlow();
+  const { requestDelete, requestRestore } = deleteFlow;
 
   const openDetail = useCallback(
     (user: PublicUser) => {
@@ -108,8 +112,18 @@ export function UsersPage() {
       onDisable: (user) => disableUser.mutate(user.uuid),
       onSetPassword: (user) => setPasswordTarget(user),
       onImpersonate: (user) => impersonateUser.mutate(user),
+      onDelete: (user) => void requestDelete(user),
+      onRestore: (user) => void requestRestore(user),
     }),
-    [disableUser, enableUser, impersonateUser, openDetail, openEdit],
+    [
+      disableUser,
+      enableUser,
+      impersonateUser,
+      openDetail,
+      openEdit,
+      requestDelete,
+      requestRestore,
+    ],
   );
 
   const baseColumns = useUsersColumns({
@@ -206,24 +220,29 @@ export function UsersPage() {
         }}
         toolbarExtra={
           <>
-            <BulkActionMenu
-              resource="platform.users"
-              actions={bulkActions}
-              scope={bulkSelection.scope}
-              selectedCount={bulkSelection.selectedCount}
-              onComplete={() => void listQuery.refetch()}
-            />
-            <ResourceIOToolbar
-              resource="platform.users"
-              query={{
-                q: listParams.q,
-                status: listParams.status,
-                role: listParams.role,
-                sort: listParams.sort,
-              }}
-              capabilities={meta?.capabilities}
-              onImportComplete={() => void listQuery.refetch()}
-            />
+            {/* Bulk actions and export only cover live users. */}
+            {showingDeleted ? null : (
+              <>
+                <BulkActionMenu
+                  resource="platform.users"
+                  actions={bulkActions}
+                  scope={bulkSelection.scope}
+                  selectedCount={bulkSelection.selectedCount}
+                  onComplete={() => void listQuery.refetch()}
+                />
+                <ResourceIOToolbar
+                  resource="platform.users"
+                  query={{
+                    q: listParams.q,
+                    status: listParams.status,
+                    role: listParams.role,
+                    sort: listParams.sort,
+                  }}
+                  capabilities={meta?.capabilities}
+                  onImportComplete={() => void listQuery.refetch()}
+                />
+              </>
+            )}
             <EntityToolbar
               onRefresh={() => void listQuery.refetch()}
               refreshDisabled={listQuery.isFetching}
@@ -240,6 +259,7 @@ export function UsersPage() {
           if (!open) setPasswordTarget(null);
         }}
       />
+      {deleteFlow.dialog}
     </EntityPage>
   );
 }

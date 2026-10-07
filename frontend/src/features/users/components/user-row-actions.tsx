@@ -1,11 +1,13 @@
 "use client";
 
 import {
+  ArchiveRestore,
   Eye,
   KeyRound,
   Pencil,
   ShieldCheck,
   ShieldOff,
+  Trash2,
   UserRoundSearch,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -22,6 +24,8 @@ export type UserRowActionHandlers = {
   onDisable: (user: PublicUser) => void;
   onSetPassword: (user: PublicUser) => void;
   onImpersonate?: (user: PublicUser) => void;
+  onDelete?: (user: PublicUser) => void;
+  onRestore?: (user: PublicUser) => void;
 };
 
 type UserRowActionsProps = {
@@ -42,14 +46,31 @@ export function UserRowActionsMenu({
   const { t } = useLocale();
 
   const actions = useMemo<EntityRowAction[]>(() => {
+    const view: EntityRowAction = {
+      id: "view",
+      label: t("users.actions.view"),
+      icon: Eye,
+      permission: permissions.users.read,
+      onSelect: () => handlers.onView(user),
+    };
+
+    // Deleted users are read-only until restored.
+    if (user.deleted_at) {
+      const items = [view];
+      if (handlers.onRestore) {
+        items.push({
+          id: "restore",
+          label: t("users.actions.restore"),
+          icon: ArchiveRestore,
+          permission: permissions.users.delete,
+          onSelect: () => handlers.onRestore?.(user),
+        });
+      }
+      return items;
+    }
+
     const items: EntityRowAction[] = [
-      {
-        id: "view",
-        label: t("users.actions.view"),
-        icon: Eye,
-        permission: permissions.users.read,
-        onSelect: () => handlers.onView(user),
-      },
+      view,
       {
         id: "edit",
         label: t("users.actions.edit"),
@@ -99,6 +120,17 @@ export function UserRowActionsMenu({
         icon: UserRoundSearch,
         permission: permissions.users.impersonate,
         onSelect: () => handlers.onImpersonate?.(user),
+      });
+    }
+
+    if (handlers.onDelete && user.uuid !== currentUserUuid) {
+      items.push({
+        id: "delete",
+        label: t("users.actions.delete"),
+        icon: Trash2,
+        permission: permissions.users.delete,
+        variant: "destructive",
+        onSelect: () => handlers.onDelete?.(user),
       });
     }
 

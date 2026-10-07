@@ -1,4 +1,7 @@
-import type { UserStatus } from "@/features/users/services/users.service";
+import type {
+  UserListStatus,
+  UserStatus,
+} from "@/features/users/services/users.service";
 
 /** Aligns with OpenAPI PublicUser / CreatePlatformUserRequest status examples. */
 export const USER_STATUS_VALUES = [
@@ -6,6 +9,12 @@ export const USER_STATUS_VALUES = [
   "pending",
   "disabled",
 ] as const satisfies readonly UserStatus[];
+
+/** Status column filter: live statuses plus the deleted-users view. */
+export const USER_LIST_STATUS_VALUES = [
+  ...USER_STATUS_VALUES,
+  "deleted",
+] as const satisfies readonly UserListStatus[];
 
 export const USER_STATUS_TONE: Record<
   UserStatus,
