@@ -39,16 +39,17 @@ func (s *Service) SetActivity(act *activity.Recorder) {
 	s.act = act
 }
 
-func (s *Service) recordActivity(ctx context.Context, action string, orgUUID uuid.UUID, payload map[string]any) {
+func (s *Service) recordActivity(ctx context.Context, action string, org db.Organization, payload map[string]any) {
 	if s.act == nil {
 		return
 	}
+	orgUUID := org.Uuid
 	var actorID *int64
 	if p, ok := authctx.PrincipalFrom(ctx); ok && p.UserInternal > 0 {
 		id := p.UserInternal
 		actorID = &id
 	}
-	s.act.Record(ctx, actorID, action, "platform.organizations", &orgUUID, payload, nil)
+	s.act.Record(activity.WithOrganization(ctx, org.ID), actorID, action, "platform.organizations", &orgUUID, payload, nil)
 }
 
 func validMemberRole(role string) bool {
@@ -161,7 +162,7 @@ func (s *Service) ChangeMemberRole(ctx context.Context, orgUUID, userUUID uuid.U
 	if err := tx.Commit(ctx); err != nil {
 		return Member{}, err
 	}
-	s.recordActivity(ctx, "organizations.member_role_changed", org.Uuid, map[string]any{
+	s.recordActivity(ctx, "organizations.member_role_changed", org, map[string]any{
 		"user_uuid": row.UserUuid.String(), "email": row.Email, "from": row.Role, "to": role,
 	})
 	return member, nil
@@ -201,7 +202,7 @@ func (s *Service) RemoveMember(ctx context.Context, orgUUID, userUUID uuid.UUID)
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	s.recordActivity(ctx, "organizations.member_removed", org.Uuid, map[string]any{
+	s.recordActivity(ctx, "organizations.member_removed", org, map[string]any{
 		"user_uuid": row.UserUuid.String(), "email": row.Email, "role": row.Role,
 	})
 	return nil

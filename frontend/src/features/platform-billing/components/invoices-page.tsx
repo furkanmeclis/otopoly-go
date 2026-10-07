@@ -1,6 +1,7 @@
 "use client";
 
 import { FileCode, FileDown, RefreshCw, Search, XCircle } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
@@ -36,7 +37,9 @@ const ALL = "__all__";
 export function InvoicesPage() {
   const { t, locale } = useLocale();
   const access = usePlatformBillingAccess();
-  const [q, setQ] = useState("");
+  const searchParams = useSearchParams();
+  // `?q=` prefilters the list (e.g. links from the organization detail).
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
   const [status, setStatus] = useState(ALL);
   const [voiding, setVoiding] = useState<BillingInvoice | null>(null);
   const list = usePlatformInvoices(

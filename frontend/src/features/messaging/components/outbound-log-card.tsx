@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
 import { History } from "lucide-react";
 
@@ -21,7 +22,10 @@ import {
 } from "@/components/ui/card";
 import { useOutboundMessages } from "@/features/messaging/hooks/use-messaging";
 import { sendErrorLabel } from "@/features/messaging/lib/send-errors";
-import type { OutboundMessage } from "@/features/messaging/types";
+import type {
+  OutboundMessage,
+  OutboundMessagePage,
+} from "@/features/messaging/types";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -57,14 +61,38 @@ function effectiveStatus(row: OutboundMessage): string {
   return row.delivery_status || row.status;
 }
 
-export function OutboundLogCard() {
+type OutboundPageParams = { limit: number; offset: number };
+
+type OutboundLogCardProps = {
+  /**
+   * Page source + its query key. Defaults to the tenant log; platform
+   * screens pass an organization-scoped endpoint.
+   */
+  source?: {
+    queryKey: (params: OutboundPageParams) => readonly unknown[];
+    fetchPage: (params: OutboundPageParams) => Promise<OutboundMessagePage>;
+  };
+  description?: string;
+};
+
+export function OutboundLogCard({ source, description }: OutboundLogCardProps) {
   const { t, locale } = useLocale();
   const listState = useServerListState({ initialPageSize: 20 });
   const params = useMemo(
     () => ({ limit: listState.params.limit, offset: listState.params.offset }),
     [listState.params.limit, listState.params.offset],
   );
-  const query = useOutboundMessages(params);
+  const tenantQuery = useOutboundMessages(params, !source);
+  const sourceQuery = useQuery({
+    queryKey: source?.queryKey(params) ?? ["outbound-log", "disabled"],
+    queryFn: () =>
+      source
+        ? source.fetchPage(params)
+        : Promise.reject(new Error("outbound source missing")),
+    enabled: Boolean(source),
+    placeholderData: keepPreviousData,
+  });
+  const query = source ? sourceQuery : tenantQuery;
 
   const columns = useMemo<ColumnDef<OutboundMessage>[]>(
     () => [
@@ -183,7 +211,9 @@ export function OutboundLogCard() {
           <History className="size-5" />
           {t("messaging.outbound.title")}
         </CardTitle>
-        <CardDescription>{t("messaging.outbound.description")}</CardDescription>
+        <CardDescription>
+          {description ?? t("messaging.outbound.description")}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <EntityTable

@@ -15,12 +15,17 @@ import (
 const mbPerGB int64 = 1024
 
 func (s *Service) Overview(ctx context.Context) (Overview, error) {
-	scope := orgctx.MustScope(ctx)
-	open, err := s.openOrderForOverview(ctx, scope.InternalID)
+	return s.OverviewForOrganization(ctx, orgctx.MustScope(ctx).InternalID)
+}
+
+// OverviewForOrganization is Overview for an explicit organization (platform
+// admin views have no tenant scope).
+func (s *Service) OverviewForOrganization(ctx context.Context, orgID int64) (Overview, error) {
+	open, err := s.openOrderForOverview(ctx, orgID)
 	if err != nil {
 		return Overview{}, err
 	}
-	sub, err := s.q.GetLiveSubscription(ctx, scope.InternalID)
+	sub, err := s.q.GetLiveSubscription(ctx, orgID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Overview{Meters: []UsageMeter{}, OpenOrder: open}, nil
@@ -41,7 +46,7 @@ func (s *Service) Overview(ctx context.Context) (Overview, error) {
 		view.GraceEndsAt = &t
 	}
 	view.DaysLeft = daysLeft(view.EndsAt, time.Now())
-	meters, err := s.usageMeters(ctx, scope.InternalID)
+	meters, err := s.usageMeters(ctx, orgID)
 	if err != nil {
 		return Overview{}, err
 	}

@@ -184,7 +184,12 @@ Each `organizations[]` item includes `uuid`, `slug`, `name`, `role` (`owner` | `
 | GET | `/v1/platform/organizations` | `platform.organizations.read` |
 | POST | `/v1/platform/organizations` | `platform.organizations.write` — body: `name`, contact fields, `owner_user_uuid` |
 | GET | `/v1/platform/organizations/{uuid}` | `platform.organizations.read` — includes `members[]` |
-| PATCH | `/v1/platform/organizations/{uuid}` | `platform.organizations.write` — `status`, `plan_code`, `access_ends_at`, contact fields |
+| PATCH | `/v1/platform/organizations/{uuid}` | `platform.organizations.write` — `status`, `plan_code`, `access_ends_at`, contact fields; step-up when status / plan / access window change |
+| GET | `/v1/platform/organizations/{uuid}/overview` | `platform.organizations.read` — stats, billing (plan, usage vs limits, recent invoices/orders), WhatsApp summary |
+| GET | `/v1/platform/organizations/{uuid}/activity` | `platform.organizations.read` + `platform.activity.read` — paged |
+| GET | `/v1/platform/organizations/{uuid}/whatsapp/outbound` | `platform.organizations.read` — paged |
+| POST | `/v1/platform/organizations/{uuid}/status` | `platform.organizations.write` + step-up — `{status: active\|suspended, reason?}` |
+| POST | `/v1/platform/organizations/{uuid}/extend-access` | `platform.organizations.write` + step-up — `{days, note?}` |
 | PUT | `/v1/platform/organizations/{uuid}/logo` | `platform.organizations.write` |
 | DELETE | `/v1/platform/organizations/{uuid}/logo` | `platform.organizations.write` |
 | POST | `/v1/platform/organizations/{uuid}/members` | `platform.organizations.write` — body: `user_uuid`, optional `role` |
@@ -221,6 +226,8 @@ Last super admin cannot be demoted via role removal or disable.
 **Deleting a user** (`DELETE /v1/platform/users/{uuid}`) sets `users.deleted_at`; every lookup ignores deleted users, so their access tokens stop resolving at once. In the same transaction it revokes all refresh sessions, deletes mobile push devices and web push subscriptions, OAuth identities (Apple tokens revoked first, best effort) and passkeys. The email is free again (unique index is `WHERE deleted_at IS NULL`). Roles and organization memberships stay for a restore. Guards: not yourself (`CANNOT_DELETE_SELF`), not the last active super admin (`LAST_SUPER_ADMIN`), not the only owner of an organization (`SOLE_ORGANIZATION_OWNER`, organizations in `error.details`). Self-service deletion (`/v1/auth/account/deactivate`) is different: it only disables the account (`deactivated_at`).
 
 **Organization members** (platform): `PATCH /v1/platform/organizations/{uuid}/members/{userUuid}` (`{role: owner|staff}`) and `DELETE …/members/{userUuid}` need `platform.organizations.write`. The last owner cannot be demoted or removed (`LAST_ORGANIZATION_OWNER`). Removal revokes refresh sessions bound to that organization; tenant routes re-check membership per request (`RequireOrganization`), so access ends immediately. The global `organization_owner` / `organization_user` roles follow the remaining memberships.
+
+**Organization status / access** (platform): suspend / activate (`POST …/status`) and extend access (`POST …/extend-access`, from max(now, current end); a live billing subscription is extended with it, `expired` becomes `active`) need step-up; so does a PATCH that changes `status`, `plan_code` or the access window. All are audited (`organizations.suspended|activated|access_extended|updated`). Activity events carry `organization_id` (tenant scope, or `activity.WithOrganization` for platform actions) so `GET …/activity` lists one business's log.
 
 ## Platform roles
 

@@ -428,6 +428,51 @@ func (q *Queries) SetWhatsAppSessionFallback(ctx context.Context, arg SetWhatsAp
 	return i, err
 }
 
+const summarizeOutboundMessagesByOrg = `-- name: SummarizeOutboundMessagesByOrg :one
+SELECT
+    COUNT(*)::bigint AS total,
+    COUNT(*) FILTER (WHERE status = 'sent')::bigint AS sent,
+    COUNT(*) FILTER (WHERE status = 'failed' OR delivery_status = 'failed')::bigint AS failed,
+    COUNT(*) FILTER (WHERE delivery_status IN ('delivered', 'read'))::bigint AS delivered,
+    COUNT(*) FILTER (WHERE sender_kind = 'org_own')::bigint AS own_number,
+    COUNT(*) FILTER (WHERE sender_kind IN ('platform_whatsmeow', 'platform_cloud'))::bigint AS platform,
+    MAX(created_at)::timestamptz AS last_at
+FROM outbound_messages
+WHERE organization_id = $1
+  AND created_at >= $2
+`
+
+type SummarizeOutboundMessagesByOrgParams struct {
+	OrganizationID int64              `json:"organization_id"`
+	Since          pgtype.Timestamptz `json:"since"`
+}
+
+type SummarizeOutboundMessagesByOrgRow struct {
+	Total     int64              `json:"total"`
+	Sent      int64              `json:"sent"`
+	Failed    int64              `json:"failed"`
+	Delivered int64              `json:"delivered"`
+	OwnNumber int64              `json:"own_number"`
+	Platform  int64              `json:"platform"`
+	LastAt    pgtype.Timestamptz `json:"last_at"`
+}
+
+// Outbound totals since a point in time for the platform organization overview.
+func (q *Queries) SummarizeOutboundMessagesByOrg(ctx context.Context, arg SummarizeOutboundMessagesByOrgParams) (SummarizeOutboundMessagesByOrgRow, error) {
+	row := q.db.QueryRow(ctx, summarizeOutboundMessagesByOrg, arg.OrganizationID, arg.Since)
+	var i SummarizeOutboundMessagesByOrgRow
+	err := row.Scan(
+		&i.Total,
+		&i.Sent,
+		&i.Failed,
+		&i.Delivered,
+		&i.OwnNumber,
+		&i.Platform,
+		&i.LastAt,
+	)
+	return i, err
+}
+
 const updatePlatformWhatsAppQR = `-- name: UpdatePlatformWhatsAppQR :one
 UPDATE platform_whatsapp_settings
 SET wm_status = 'qr_pending',

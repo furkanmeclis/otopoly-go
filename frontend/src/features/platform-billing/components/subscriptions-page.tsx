@@ -64,7 +64,7 @@ export function SubscriptionsPage() {
   );
   const [selected, setSelected] = useState<string | null>(null);
   const plans = usePlatformPlans(access.canRead);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
   const [dialog, setDialog] = useState<{
     open: boolean;
     sub: AdminSubscription | null;

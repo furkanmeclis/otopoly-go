@@ -1,6 +1,7 @@
 "use client";
 
 import { Plus, Search } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { EmptyState } from "@/components/common/empty-state";
@@ -37,7 +38,9 @@ export function PaymentsPage() {
   const { t, locale } = useLocale();
   const access = usePlatformBillingAccess();
   const [tab, setTab] = useState<Tab>("payment_reported");
-  const [q, setQ] = useState("");
+  const searchParams = useSearchParams();
+  // `?q=` prefilters the list (e.g. links from the organization detail).
+  const [q, setQ] = useState(() => searchParams.get("q") ?? "");
   const [selected, setSelected] = useState<string | null>(null);
   const [customOpen, setCustomOpen] = useState(false);
   const summary = usePlatformOrdersSummary(access.canRead);

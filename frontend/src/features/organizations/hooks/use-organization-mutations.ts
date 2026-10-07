@@ -6,11 +6,13 @@ import { organizationsKeys } from "@/features/organizations/hooks/query-keys";
 import {
   organizationsService,
   type CreatePlatformOrganizationRequest,
+  type ExtendOrganizationAccessRequest,
   type Organization,
   type OrganizationDetail,
   type OrganizationListResult,
   type OrganizationMemberRole,
   type PatchPlatformOrganizationRequest,
+  type SetOrganizationStatusRequest,
 } from "@/features/organizations/services/organizations.service";
 import { useAppMutation } from "@/lib/query/mutation";
 import { appToast } from "@/providers/toast-provider";
@@ -218,6 +220,64 @@ export function useRemoveOrganizationMember() {
             : prev,
       );
       appToast.success(t("organizations.toast.member_removed"));
+    },
+    onSettled: (_data, _error, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: organizationsKeys.detail(variables.uuid),
+      });
+    },
+  });
+}
+
+/** Suspend / activate (step-up gated; audited by the API). */
+export function useSetOrganizationStatus() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useAppMutation({
+    mutationFn: ({
+      uuid,
+      body,
+    }: {
+      uuid: string;
+      body: SetOrganizationStatusRequest;
+    }) => organizationsService.setStatus(uuid, body),
+    onSuccess: (organization) => {
+      mergeOrganizationDetail(queryClient, organization);
+      patchOrganizationInLists(queryClient, organization.uuid, organization);
+      appToast.success(
+        t(
+          organization.status === "suspended"
+            ? "organizations.toast.suspended"
+            : "organizations.toast.activated",
+        ),
+      );
+    },
+    onSettled: (_data, _error, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: organizationsKeys.detail(variables.uuid),
+      });
+    },
+  });
+}
+
+/** Extend access by N days (step-up gated; audited by the API). */
+export function useExtendOrganizationAccess() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useAppMutation({
+    mutationFn: ({
+      uuid,
+      body,
+    }: {
+      uuid: string;
+      body: ExtendOrganizationAccessRequest;
+    }) => organizationsService.extendAccess(uuid, body),
+    onSuccess: (organization) => {
+      mergeOrganizationDetail(queryClient, organization);
+      patchOrganizationInLists(queryClient, organization.uuid, organization);
+      appToast.success(t("organizations.toast.access_extended"));
     },
     onSettled: (_data, _error, variables) => {
       void queryClient.invalidateQueries({

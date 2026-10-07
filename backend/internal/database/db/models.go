@@ -12,16 +12,17 @@ import (
 )
 
 type ActivityEvent struct {
-	ID           int64              `json:"id"`
-	Uuid         uuid.UUID          `json:"uuid"`
-	ActorUserID  pgtype.Int8        `json:"actor_user_id"`
-	Action       string             `json:"action"`
-	Resource     string             `json:"resource"`
-	ResourceUuid pgtype.UUID        `json:"resource_uuid"`
-	Payload      []byte             `json:"payload"`
-	IpAddress    *netip.Addr        `json:"ip_address"`
-	UserAgent    pgtype.Text        `json:"user_agent"`
-	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	ActorUserID    pgtype.Int8        `json:"actor_user_id"`
+	Action         string             `json:"action"`
+	Resource       string             `json:"resource"`
+	ResourceUuid   pgtype.UUID        `json:"resource_uuid"`
+	Payload        []byte             `json:"payload"`
+	IpAddress      *netip.Addr        `json:"ip_address"`
+	UserAgent      pgtype.Text        `json:"user_agent"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
 }
 
 type AiConversation struct {

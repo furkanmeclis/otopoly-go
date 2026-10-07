@@ -9,6 +9,7 @@ import (
 	"context"
 	"net/netip"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -43,20 +44,45 @@ func (q *Queries) CountActivityEvents(ctx context.Context, arg CountActivityEven
 	return column_1, err
 }
 
+const countActivityEventsForOrganization = `-- name: CountActivityEventsForOrganization :one
+SELECT COUNT(*)::bigint FROM activity_events a
+WHERE a.organization_id = $1
+  AND ($2::text IS NULL OR a.action = $2)
+  AND (
+    $3::text IS NULL
+    OR a.action ILIKE '%' || $3 || '%'
+    OR a.resource ILIKE '%' || $3 || '%'
+  )
+`
+
+type CountActivityEventsForOrganizationParams struct {
+	OrganizationID pgtype.Int8 `json:"organization_id"`
+	Action         pgtype.Text `json:"action"`
+	Q              pgtype.Text `json:"q"`
+}
+
+func (q *Queries) CountActivityEventsForOrganization(ctx context.Context, arg CountActivityEventsForOrganizationParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countActivityEventsForOrganization, arg.OrganizationID, arg.Action, arg.Q)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const insertActivityEvent = `-- name: InsertActivityEvent :one
-INSERT INTO activity_events (actor_user_id, action, resource, resource_uuid, payload, ip_address, user_agent)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, uuid, actor_user_id, action, resource, resource_uuid, payload, ip_address, user_agent, created_at
+INSERT INTO activity_events (actor_user_id, action, resource, resource_uuid, payload, ip_address, user_agent, organization_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, uuid, actor_user_id, action, resource, resource_uuid, payload, ip_address, user_agent, created_at, organization_id
 `
 
 type InsertActivityEventParams struct {
-	ActorUserID  pgtype.Int8 `json:"actor_user_id"`
-	Action       string      `json:"action"`
-	Resource     string      `json:"resource"`
-	ResourceUuid pgtype.UUID `json:"resource_uuid"`
-	Payload      []byte      `json:"payload"`
-	IpAddress    *netip.Addr `json:"ip_address"`
-	UserAgent    pgtype.Text `json:"user_agent"`
+	ActorUserID    pgtype.Int8 `json:"actor_user_id"`
+	Action         string      `json:"action"`
+	Resource       string      `json:"resource"`
+	ResourceUuid   pgtype.UUID `json:"resource_uuid"`
+	Payload        []byte      `json:"payload"`
+	IpAddress      *netip.Addr `json:"ip_address"`
+	UserAgent      pgtype.Text `json:"user_agent"`
+	OrganizationID pgtype.Int8 `json:"organization_id"`
 }
 
 func (q *Queries) InsertActivityEvent(ctx context.Context, arg InsertActivityEventParams) (ActivityEvent, error) {
@@ -68,6 +94,7 @@ func (q *Queries) InsertActivityEvent(ctx context.Context, arg InsertActivityEve
 		arg.Payload,
 		arg.IpAddress,
 		arg.UserAgent,
+		arg.OrganizationID,
 	)
 	var i ActivityEvent
 	err := row.Scan(
@@ -81,12 +108,13 @@ func (q *Queries) InsertActivityEvent(ctx context.Context, arg InsertActivityEve
 		&i.IpAddress,
 		&i.UserAgent,
 		&i.CreatedAt,
+		&i.OrganizationID,
 	)
 	return i, err
 }
 
 const listActivityEvents = `-- name: ListActivityEvents :many
-SELECT id, uuid, actor_user_id, action, resource, resource_uuid, payload, ip_address, user_agent, created_at FROM activity_events
+SELECT id, uuid, actor_user_id, action, resource, resource_uuid, payload, ip_address, user_agent, created_at, organization_id FROM activity_events
 WHERE ($1::bigint IS NULL OR actor_user_id = $1)
   AND ($2::text IS NULL OR resource = $2)
   AND ($3::text IS NULL OR action = $3)
@@ -135,6 +163,81 @@ func (q *Queries) ListActivityEvents(ctx context.Context, arg ListActivityEvents
 			&i.IpAddress,
 			&i.UserAgent,
 			&i.CreatedAt,
+			&i.OrganizationID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listActivityEventsForOrganization = `-- name: ListActivityEventsForOrganization :many
+SELECT a.uuid, a.action, a.resource, a.resource_uuid, a.payload, a.created_at,
+       u.uuid AS actor_uuid, u.email AS actor_email, u.name AS actor_name, u.surname AS actor_surname
+FROM activity_events a
+LEFT JOIN users u ON u.id = a.actor_user_id
+WHERE a.organization_id = $1
+  AND ($2::text IS NULL OR a.action = $2)
+  AND (
+    $3::text IS NULL
+    OR a.action ILIKE '%' || $3 || '%'
+    OR a.resource ILIKE '%' || $3 || '%'
+  )
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT $5 OFFSET $4
+`
+
+type ListActivityEventsForOrganizationParams struct {
+	OrganizationID pgtype.Int8 `json:"organization_id"`
+	Action         pgtype.Text `json:"action"`
+	Q              pgtype.Text `json:"q"`
+	OffsetCount    int32       `json:"offset_count"`
+	LimitCount     int32       `json:"limit_count"`
+}
+
+type ListActivityEventsForOrganizationRow struct {
+	Uuid         uuid.UUID          `json:"uuid"`
+	Action       string             `json:"action"`
+	Resource     string             `json:"resource"`
+	ResourceUuid pgtype.UUID        `json:"resource_uuid"`
+	Payload      []byte             `json:"payload"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ActorUuid    pgtype.UUID        `json:"actor_uuid"`
+	ActorEmail   pgtype.Text        `json:"actor_email"`
+	ActorName    pgtype.Text        `json:"actor_name"`
+	ActorSurname pgtype.Text        `json:"actor_surname"`
+}
+
+func (q *Queries) ListActivityEventsForOrganization(ctx context.Context, arg ListActivityEventsForOrganizationParams) ([]ListActivityEventsForOrganizationRow, error) {
+	rows, err := q.db.Query(ctx, listActivityEventsForOrganization,
+		arg.OrganizationID,
+		arg.Action,
+		arg.Q,
+		arg.OffsetCount,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListActivityEventsForOrganizationRow{}
+	for rows.Next() {
+		var i ListActivityEventsForOrganizationRow
+		if err := rows.Scan(
+			&i.Uuid,
+			&i.Action,
+			&i.Resource,
+			&i.ResourceUuid,
+			&i.Payload,
+			&i.CreatedAt,
+			&i.ActorUuid,
+			&i.ActorEmail,
+			&i.ActorName,
+			&i.ActorSurname,
 		); err != nil {
 			return nil, err
 		}

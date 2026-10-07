@@ -184,3 +184,37 @@ SELECT
 FROM organization_members om
 JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
 WHERE om.user_id = $1;
+
+-- name: GetOrganizationPlatformStats :one
+-- Record counts and the latest observed activity for the platform
+-- organization overview.
+SELECT
+    (SELECT COUNT(*) FROM customers c WHERE c.organization_id = sqlc.arg(organization_id) AND c.deleted_at IS NULL)::bigint AS customers_count,
+    (SELECT COUNT(*) FROM service_jobs j WHERE j.organization_id = sqlc.arg(organization_id))::bigint AS jobs_count,
+    (SELECT COUNT(*) FROM quotes qt WHERE qt.organization_id = sqlc.arg(organization_id))::bigint AS quotes_count,
+    (SELECT COUNT(*) FROM contract_instances ci WHERE ci.organization_id = sqlc.arg(organization_id))::bigint AS contracts_count,
+    (SELECT COUNT(*) FROM organization_members om JOIN users u ON u.id = om.user_id AND u.deleted_at IS NULL
+        WHERE om.organization_id = sqlc.arg(organization_id))::bigint AS members_count,
+    GREATEST(
+        (SELECT MAX(c.updated_at) FROM customers c WHERE c.organization_id = sqlc.arg(organization_id)),
+        (SELECT MAX(j.updated_at) FROM service_jobs j WHERE j.organization_id = sqlc.arg(organization_id)),
+        (SELECT MAX(qt.updated_at) FROM quotes qt WHERE qt.organization_id = sqlc.arg(organization_id)),
+        (SELECT MAX(ci.updated_at) FROM contract_instances ci WHERE ci.organization_id = sqlc.arg(organization_id)),
+        (SELECT MAX(rt.created_at) FROM refresh_tokens rt WHERE rt.organization_id = sqlc.arg(organization_id)),
+        (SELECT MAX(a.created_at) FROM activity_events a WHERE a.organization_id = sqlc.arg(organization_id))
+    )::timestamptz AS last_activity_at;
+
+-- name: SetOrganizationStatusPlatform :one
+UPDATE organizations
+SET status = sqlc.arg(status)
+WHERE uuid = sqlc.arg(uuid) AND deleted_at IS NULL
+RETURNING *;
+
+-- name: SetOrganizationAccessEndPlatform :one
+-- Extends access without touching plan or start; reactivates an expired
+-- organization (a suspended one stays suspended).
+UPDATE organizations
+SET access_ends_at = sqlc.arg(access_ends_at),
+    status = CASE WHEN status = 'expired' THEN 'active' ELSE status END
+WHERE uuid = sqlc.arg(uuid) AND deleted_at IS NULL
+RETURNING *;

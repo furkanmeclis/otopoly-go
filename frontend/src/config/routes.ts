@@ -210,7 +210,11 @@ export const routes = {
     organizations: {
       root: "/platform/organizations",
       create: "/platform/organizations/create",
-      detail: (uuid: string) => `/platform/organizations/${uuid}`,
+      /** `tab` deep-links a detail section (`?tab=members`, `whatsapp`, …). */
+      detail: (uuid: string, tab?: string) =>
+        tab
+          ? `/platform/organizations/${uuid}?tab=${encodeURIComponent(tab)}`
+          : `/platform/organizations/${uuid}`,
       edit: (uuid: string) => `/platform/organizations/${uuid}/edit`,
     },
     vehicleBrands: {

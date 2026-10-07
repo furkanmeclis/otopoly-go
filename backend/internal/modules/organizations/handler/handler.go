@@ -28,6 +28,7 @@ type Handler struct {
 	auth    *authusecase.AuthUseCase
 	store   storage.Driver
 	limiter *ratelimit.Limiter
+	stepUp  StepUpChecker
 }
 
 // SetRateLimiter enables per-IP limits on public business registration.
@@ -341,6 +342,14 @@ func (h *Handler) PlatformPatch(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		patch.AccessEndsAt = &t
+	}
+	current, err := h.svc.GetByUUID(r.Context(), id)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	if orgusecase.PatchTouchesAccess(current, patch) && !h.requireStepUp(w, r) {
+		return
 	}
 	org, err := h.svc.Patch(r.Context(), id, patch)
 	if err != nil {

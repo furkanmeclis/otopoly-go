@@ -41,6 +41,9 @@ type Service struct {
 	q       *db.Queries
 	billing TrialStarter
 	act     *activity.Recorder
+
+	billingSrc BillingSource
+	whatsapp   WhatsAppSource
 }
 
 // New creates an organizations service.
@@ -431,9 +434,14 @@ func (s *Service) List(ctx context.Context, limit, offset int32, q, status strin
 	return out, total, nil
 }
 
-// Patch updates organization from platform admin.
+// Patch updates organization from platform admin. access_ends_at is kept
+// unless the patch sets or clears it. Changes are audited.
 func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (Organization, error) {
-	params := db.UpdateOrganizationPlatformParams{Uuid: id}
+	current, err := s.organizationRow(ctx, id)
+	if err != nil {
+		return Organization{}, err
+	}
+	params := db.UpdateOrganizationPlatformParams{Uuid: id, AccessEndsAt: current.AccessEndsAt}
 	if in.Name != nil {
 		params.Name = pgtype.Text{String: strings.TrimSpace(*in.Name), Valid: true}
 	}
@@ -470,7 +478,74 @@ func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (Organ
 		}
 		return Organization{}, err
 	}
-	return mapOrganization(row), nil
+	before, after := mapOrganization(current), mapOrganization(row)
+	if changes := organizationChanges(before, after); len(changes) > 0 {
+		s.recordActivity(ctx, "organizations.updated", row, map[string]any{"changes": changes})
+	}
+	return after, nil
+}
+
+// PatchTouchesAccess reports whether applying in to current would change
+// status, plan or the access window (the step-up gated fields).
+func PatchTouchesAccess(current Organization, in PatchInput) bool {
+	changed := func(p *string, v string) bool { return p != nil && strings.TrimSpace(*p) != v }
+	plan := ""
+	if current.PlanCode != nil {
+		plan = *current.PlanCode
+	}
+	if changed(in.Status, current.Status) || changed(in.PlanCode, plan) {
+		return true
+	}
+	if in.AccessStartsAt != nil && !in.AccessStartsAt.Equal(current.AccessStartsAt) {
+		return true
+	}
+	if in.ClearAccessEnd {
+		return current.AccessEndsAt != nil
+	}
+	if in.AccessEndsAt != nil {
+		return current.AccessEndsAt == nil || !in.AccessEndsAt.Equal(*current.AccessEndsAt)
+	}
+	return false
+}
+
+// organizationChanges lists changed audited fields as {field: {from, to}}.
+func organizationChanges(before, after Organization) map[string]any {
+	changes := map[string]any{}
+	add := func(field string, from, to any) {
+		changes[field] = map[string]any{"from": from, "to": to}
+	}
+	str := map[string][2]string{
+		"name": {before.Name, after.Name}, "city": {before.City, after.City},
+		"district": {before.District, after.District}, "phone": {before.Phone, after.Phone},
+		"address": {before.Address, after.Address}, "status": {before.Status, after.Status},
+		"plan_code": {deref(before.PlanCode), deref(after.PlanCode)},
+	}
+	for field, v := range str {
+		if v[0] != v[1] {
+			add(field, v[0], v[1])
+		}
+	}
+	if !before.AccessStartsAt.Equal(after.AccessStartsAt) {
+		add("access_starts_at", before.AccessStartsAt, after.AccessStartsAt)
+	}
+	if !sameTime(before.AccessEndsAt, after.AccessEndsAt) {
+		add("access_ends_at", before.AccessEndsAt, after.AccessEndsAt)
+	}
+	return changes
+}
+
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func sameTime(a, b *time.Time) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Equal(*b)
 }
 
 // SetLogo stores logo object key.
@@ -627,7 +702,7 @@ func (s *Service) AddMember(ctx context.Context, orgUUID uuid.UUID, in AddMember
 			return err
 		}
 	}
-	s.recordActivity(ctx, "organizations.member_added", org.Uuid, map[string]any{
+	s.recordActivity(ctx, "organizations.member_added", org, map[string]any{
 		"user_uuid": user.Uuid.String(), "email": user.Email, "role": role,
 	})
 	return nil

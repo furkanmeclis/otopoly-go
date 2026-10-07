@@ -1137,8 +1137,129 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update organization */
+        /**
+         * Update organization
+         * @description Requires `platform.organizations.write`. Changing `status`, `plan_code` or the access
+         *     window additionally requires step-up verification (`403 STEP_UP_REQUIRED`);
+         *     profile-only edits do not. `access_ends_at` is kept unless set or cleared
+         *     (`clear_access_ends_at`). Changes are audited as `organizations.updated`.
+         */
         patch: operations["patchPlatformOrganization"];
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization 360° overview
+         * @description Requires `platform.organizations.read`. One read for the platform organization
+         *     detail: profile, record counts and last activity (`stats`), billing (live
+         *     subscription, plan, usage vs limits incl. toggles, the 5 most recent invoices and
+         *     orders) and WhatsApp (own-number session without pairing secrets, fallback
+         *     setting, outbound totals of the last 30 days). `billing` / `whatsapp` are `null`
+         *     when those modules are not wired.
+         */
+        get: operations["getPlatformOrganizationOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization activity log
+         * @description Requires `platform.organizations.read` and `platform.activity.read`. Audit events
+         *     attributed to the organization (tenant actions inside it and platform actions on
+         *     it), newest first, with the acting user.
+         */
+        get: operations["listPlatformOrganizationActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/whatsapp/outbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization outbound WhatsApp/SMS log
+         * @description Requires `platform.organizations.read`. Same rows as the tenant outbound log
+         *     (sender route, delivery status, error code), newest first.
+         */
+        get: operations["listPlatformOrganizationOutbound"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suspend or activate an organization
+         * @description Requires `platform.organizations.write` and step-up verification
+         *     (`403 STEP_UP_REQUIRED`). Audited as `organizations.suspended` /
+         *     `organizations.activated`; setting the current status again is a no-op.
+         */
+        post: operations["setPlatformOrganizationStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/extend-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extend organization access
+         * @description Requires `platform.organizations.write` and step-up verification
+         *     (`403 STEP_UP_REQUIRED`). Moves `access_ends_at` to max(now, current end) + `days`.
+         *     With a live billing subscription the subscription end moves too (it owns the
+         *     access window). An `expired` organization becomes `active`; a `suspended` one stays
+         *     suspended. Unlimited access (`access_ends_at` null) cannot be extended (400).
+         *     Audited as `organizations.access_extended`.
+         */
+        post: operations["extendPlatformOrganizationAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/platform/organizations/{uuid}/logo": {
@@ -7616,6 +7737,126 @@ export interface components {
             };
             meta: components["schemas"]["ResponseMeta"];
         };
+        OrganizationStats: {
+            /** Format: int64 */
+            customers: number;
+            /** Format: int64 */
+            jobs: number;
+            /** Format: int64 */
+            quotes: number;
+            /** Format: int64 */
+            contracts: number;
+            /** Format: int64 */
+            members: number;
+            /** @description Latest record change, sign-in or audit event in the organization */
+            last_activity_at: string | null;
+        };
+        OrganizationBilling: components["schemas"]["BillingOverview"] & {
+            recent_invoices: components["schemas"]["BillingInvoice"][];
+            recent_orders: components["schemas"]["BillingOrder"][];
+        };
+        OrganizationWhatsAppSession: {
+            /** @enum {string} */
+            status: "disconnected" | "qr_pending" | "connected" | "error";
+            phone_number?: string;
+            display_name?: string;
+            /** Format: date-time */
+            last_seen_at?: string;
+            error_message?: string;
+            own_number_entitled: boolean;
+            fallback_to_platform: boolean;
+            platform_sender_available: boolean;
+        };
+        OrganizationOutboundSummary: {
+            /** Format: date-time */
+            since: string;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            sent: number;
+            /**
+             * Format: int64
+             * @description delivery_status delivered or read
+             */
+            delivered: number;
+            /**
+             * Format: int64
+             * @description status or delivery_status failed
+             */
+            failed: number;
+            /**
+             * Format: int64
+             * @description sender_kind org_own
+             */
+            own_number: number;
+            /**
+             * Format: int64
+             * @description sender_kind platform_*
+             */
+            platform: number;
+            last_at: string | null;
+        };
+        OrganizationWhatsAppOverview: {
+            session: components["schemas"]["OrganizationWhatsAppSession"];
+            outbound: components["schemas"]["OrganizationOutboundSummary"];
+        };
+        OrganizationOverview: {
+            organization: components["schemas"]["Organization"];
+            stats: components["schemas"]["OrganizationStats"];
+            billing: components["schemas"]["OrganizationBilling"] | null;
+            whatsapp: components["schemas"]["OrganizationWhatsAppOverview"] | null;
+        };
+        EnvelopeOrganizationOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OrganizationOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        OrganizationActivityActor: {
+            /** Format: uuid */
+            uuid: string;
+            email: string;
+            name: string;
+            surname: string;
+        };
+        OrganizationActivityEntry: {
+            /** Format: uuid */
+            uuid: string;
+            action: string;
+            resource: string;
+            /** Format: uuid */
+            resource_uuid?: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            actor: components["schemas"]["OrganizationActivityActor"] | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        OrganizationActivityPage: {
+            items: components["schemas"]["OrganizationActivityEntry"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeOrganizationActivityPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OrganizationActivityPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        SetOrganizationStatusRequest: {
+            /** @enum {string} */
+            status: "active" | "suspended";
+            /** @description Optional note stored in the audit event */
+            reason?: string;
+        };
+        ExtendOrganizationAccessRequest: {
+            days: number;
+            /** @description Optional note stored in the audit event and subscription note */
+            note?: string;
+        };
         EnvelopeOrganization: {
             /** @enum {boolean} */
             success: true;
@@ -13339,6 +13580,159 @@ export interface operations {
                 };
                 content?: never;
             };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPlatformOrganizationOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationOverview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformOrganizationActivity: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                /** @description Exact action filter (e.g. `organizations.suspended`) */
+                action?: string;
+                /** @description Substring match on action or resource */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationActivityPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformOrganizationOutbound: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Outbound page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOutboundMessagePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setPlatformOrganizationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetOrganizationStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganization"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    extendPlatformOrganizationAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExtendOrganizationAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganization"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

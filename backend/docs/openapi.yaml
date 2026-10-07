@@ -1930,6 +1930,11 @@ paths:
       tags: [Platform]
       operationId: patchPlatformOrganization
       summary: Update organization
+      description: |
+        Requires `platform.organizations.write`. Changing `status`, `plan_code` or the access
+        window additionally requires step-up verification (`403 STEP_UP_REQUIRED`);
+        profile-only edits do not. `access_ends_at` is kept unless set or cleared
+        (`clear_access_ends_at`). Changes are audited as `organizations.updated`.
       security:
         - bearerAuth: []
       parameters:
@@ -1951,6 +1956,186 @@ paths:
           description: Updated organization
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /v1/platform/organizations/{uuid}/overview:
+    get:
+      tags: [Platform]
+      operationId: getPlatformOrganizationOverview
+      summary: Organization 360° overview
+      description: |
+        Requires `platform.organizations.read`. One read for the platform organization
+        detail: profile, record counts and last activity (`stats`), billing (live
+        subscription, plan, usage vs limits incl. toggles, the 5 most recent invoices and
+        orders) and WhatsApp (own-number session without pairing secrets, fallback
+        setting, outbound totals of the last 30 days). `billing` / `whatsapp` are `null`
+        when those modules are not wired.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: Organization UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Organization overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeOrganizationOverview" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/organizations/{uuid}/activity:
+    get:
+      tags: [Platform]
+      operationId: listPlatformOrganizationActivity
+      summary: Organization activity log
+      description: |
+        Requires `platform.organizations.read` and `platform.activity.read`. Audit events
+        attributed to the organization (tenant actions inside it and platform actions on
+        it), newest first, with the acting user.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: Organization UUID
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: action
+          in: query
+          description: Exact action filter (e.g. `organizations.suspended`)
+          schema: { type: string }
+        - name: q
+          in: query
+          description: Substring match on action or resource
+          schema: { type: string }
+      responses:
+        "200":
+          description: Activity page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeOrganizationActivityPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/organizations/{uuid}/whatsapp/outbound:
+    get:
+      tags: [Platform]
+      operationId: listPlatformOrganizationOutbound
+      summary: Organization outbound WhatsApp/SMS log
+      description: |
+        Requires `platform.organizations.read`. Same rows as the tenant outbound log
+        (sender route, delivery status, error code), newest first.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: Organization UUID
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Outbound page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeOutboundMessagePage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/organizations/{uuid}/status:
+    post:
+      tags: [Platform]
+      operationId: setPlatformOrganizationStatus
+      summary: Suspend or activate an organization
+      description: |
+        Requires `platform.organizations.write` and step-up verification
+        (`403 STEP_UP_REQUIRED`). Audited as `organizations.suspended` /
+        `organizations.activated`; setting the current status again is a no-op.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: Organization UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetOrganizationStatusRequest" }
+      responses:
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeOrganization" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/organizations/{uuid}/extend-access:
+    post:
+      tags: [Platform]
+      operationId: extendPlatformOrganizationAccess
+      summary: Extend organization access
+      description: |
+        Requires `platform.organizations.write` and step-up verification
+        (`403 STEP_UP_REQUIRED`). Moves `access_ends_at` to max(now, current end) + `days`.
+        With a live billing subscription the subscription end moves too (it owns the
+        access window). An `expired` organization becomes `active`; a `suspended` one stays
+        suspended. Unlimited access (`access_ends_at` null) cannot be extended (400).
+        Audited as `organizations.access_extended`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          description: Organization UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExtendOrganizationAccessRequest" }
+      responses:
+        "200":
+          description: Updated organization
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeOrganization" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/platform/organizations/{uuid}/logo:
     put:
@@ -12854,6 +13039,138 @@ components:
             limit: { type: integer }
             offset: { type: integer }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    OrganizationStats:
+      type: object
+      required: [customers, jobs, quotes, contracts, members, last_activity_at]
+      properties:
+        customers: { type: integer, format: int64 }
+        jobs: { type: integer, format: int64 }
+        quotes: { type: integer, format: int64 }
+        contracts: { type: integer, format: int64 }
+        members: { type: integer, format: int64 }
+        last_activity_at:
+          description: Latest record change, sign-in or audit event in the organization
+          anyOf: [{ type: string, format: date-time }, { type: "null" }]
+
+    OrganizationBilling:
+      allOf:
+        - $ref: "#/components/schemas/BillingOverview"
+        - type: object
+          required: [recent_invoices, recent_orders]
+          properties:
+            recent_invoices:
+              type: array
+              items: { $ref: "#/components/schemas/BillingInvoice" }
+            recent_orders:
+              type: array
+              items: { $ref: "#/components/schemas/BillingOrder" }
+
+    OrganizationWhatsAppSession:
+      type: object
+      required: [status, own_number_entitled, fallback_to_platform, platform_sender_available]
+      properties:
+        status: { type: string, enum: [disconnected, qr_pending, connected, error] }
+        phone_number: { type: string }
+        display_name: { type: string }
+        last_seen_at: { type: string, format: date-time }
+        error_message: { type: string }
+        own_number_entitled: { type: boolean }
+        fallback_to_platform: { type: boolean }
+        platform_sender_available: { type: boolean }
+
+    OrganizationOutboundSummary:
+      type: object
+      required: [since, total, sent, delivered, failed, own_number, platform, last_at]
+      properties:
+        since: { type: string, format: date-time }
+        total: { type: integer, format: int64 }
+        sent: { type: integer, format: int64 }
+        delivered: { type: integer, format: int64, description: delivery_status delivered or read }
+        failed: { type: integer, format: int64, description: status or delivery_status failed }
+        own_number: { type: integer, format: int64, description: sender_kind org_own }
+        platform: { type: integer, format: int64, description: sender_kind platform_* }
+        last_at: { anyOf: [{ type: string, format: date-time }, { type: "null" }] }
+
+    OrganizationWhatsAppOverview:
+      type: object
+      required: [session, outbound]
+      properties:
+        session: { $ref: "#/components/schemas/OrganizationWhatsAppSession" }
+        outbound: { $ref: "#/components/schemas/OrganizationOutboundSummary" }
+
+    OrganizationOverview:
+      type: object
+      required: [organization, stats, billing, whatsapp]
+      properties:
+        organization: { $ref: "#/components/schemas/Organization" }
+        stats: { $ref: "#/components/schemas/OrganizationStats" }
+        billing: { anyOf: [{ $ref: "#/components/schemas/OrganizationBilling" }, { type: "null" }] }
+        whatsapp: { anyOf: [{ $ref: "#/components/schemas/OrganizationWhatsAppOverview" }, { type: "null" }] }
+
+    EnvelopeOrganizationOverview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/OrganizationOverview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    OrganizationActivityActor:
+      type: object
+      required: [uuid, email, name, surname]
+      properties:
+        uuid: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        surname: { type: string }
+
+    OrganizationActivityEntry:
+      type: object
+      required: [uuid, action, resource, payload, actor, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        action: { type: string }
+        resource: { type: string }
+        resource_uuid: { type: string, format: uuid }
+        payload: { type: object, additionalProperties: true }
+        actor: { anyOf: [{ $ref: "#/components/schemas/OrganizationActivityActor" }, { type: "null" }] }
+        created_at: { type: string, format: date-time }
+
+    OrganizationActivityPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OrganizationActivityEntry" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeOrganizationActivityPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/OrganizationActivityPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    SetOrganizationStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status: { type: string, enum: [active, suspended] }
+        reason: { type: string, description: Optional note stored in the audit event }
+
+    ExtendOrganizationAccessRequest:
+      type: object
+      additionalProperties: false
+      required: [days]
+      properties:
+        days: { type: integer, minimum: 1, maximum: 3650 }
+        note: { type: string, description: Optional note stored in the audit event and subscription note }
 
     EnvelopeOrganization:
       type: object

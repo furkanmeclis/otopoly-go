@@ -42,11 +42,15 @@ export function useWhatsAppSession(options?: { pollWhilePairing?: boolean }) {
   return query;
 }
 
-export function useOutboundMessages(params: { limit: number; offset: number }) {
+export function useOutboundMessages(
+  params: { limit: number; offset: number },
+  enabled = true,
+) {
   return useQuery({
     queryKey: messagingKeys.outbound(params),
     queryFn: () => messagingService.listOutbound(params),
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

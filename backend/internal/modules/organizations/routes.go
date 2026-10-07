@@ -11,6 +11,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/stepup"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 )
 
@@ -24,9 +25,15 @@ func RegisterRoutes(
 	loader middleware.IdentityLoader,
 	q *db.Queries,
 	limiter *ratelimit.Limiter,
+	stepUp *stepup.Service,
 ) {
 	h := orghandler.New(svc, auth, store)
 	h.SetRateLimiter(limiter)
+	requireStepUp := func(next http.Handler) http.Handler { return next }
+	if stepUp != nil {
+		h.SetStepUp(stepUp)
+		requireStepUp = middleware.RequireStepUp(stepUp)
+	}
 	authn := middleware.Authenticate(tokens, loader)
 	require := func(slug string) func(http.Handler) http.Handler {
 		return middleware.RequirePermission(slug)
@@ -52,6 +59,23 @@ func RegisterRoutes(
 	))
 	mux.Handle("PATCH /v1/platform/organizations/{uuid}", middleware.Chain(
 		http.HandlerFunc(h.PlatformPatch), authn, require(rbac.PermPlatformOrganizationsWrite),
+	))
+	// 360° detail: aggregated overview plus paged activity / outbound lists.
+	mux.Handle("GET /v1/platform/organizations/{uuid}/overview", middleware.Chain(
+		http.HandlerFunc(h.PlatformOverview), authn, require(rbac.PermPlatformOrganizationsRead),
+	))
+	mux.Handle("GET /v1/platform/organizations/{uuid}/activity", middleware.Chain(
+		http.HandlerFunc(h.PlatformActivity), authn, require(rbac.PermPlatformOrganizationsRead), require(rbac.PermPlatformActivityRead),
+	))
+	mux.Handle("GET /v1/platform/organizations/{uuid}/whatsapp/outbound", middleware.Chain(
+		http.HandlerFunc(h.PlatformOutbound), authn, require(rbac.PermPlatformOrganizationsRead),
+	))
+	// Suspend / activate and extend access: audited, step-up gated.
+	mux.Handle("POST /v1/platform/organizations/{uuid}/status", middleware.Chain(
+		http.HandlerFunc(h.PlatformSetStatus), authn, require(rbac.PermPlatformOrganizationsWrite), requireStepUp,
+	))
+	mux.Handle("POST /v1/platform/organizations/{uuid}/extend-access", middleware.Chain(
+		http.HandlerFunc(h.PlatformExtendAccess), authn, require(rbac.PermPlatformOrganizationsWrite), requireStepUp,
 	))
 	mux.Handle("PUT /v1/platform/organizations/{uuid}/logo", middleware.Chain(
 		http.HandlerFunc(h.PlatformUploadLogo), authn, require(rbac.PermPlatformOrganizationsWrite),
