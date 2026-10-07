@@ -25,6 +25,7 @@ export const Permission = {
   PlatformUsersBulkDisable: "platform.users.bulk.disable",
   PlatformUsersBulkEnable: "platform.users.bulk.enable",
   PlatformUsersImpersonate: "platform.users.impersonate",
+  PlatformUsersDelete: "platform.users.delete",
   PlatformRolesBulkDelete: "platform.roles.bulk.delete",
   PlatformBulkRead: "platform.bulk.read",
   PlatformAccessRead: "platform.access.read",
@@ -147,6 +148,7 @@ export const permissions = {
     bulkDisable: Permission.PlatformUsersBulkDisable,
     bulkEnable: Permission.PlatformUsersBulkEnable,
     impersonate: Permission.PlatformUsersImpersonate,
+    delete: Permission.PlatformUsersDelete,
   },
   roles: {
     read: Permission.PlatformRolesRead,
