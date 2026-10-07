@@ -9,6 +9,7 @@ export type ApiErrorCode =
   | 'RATE_LIMITED'
   | 'LIMIT_REACHED'
   | 'FEATURE_DISABLED'
+  | 'FEATURE_NOT_ENTITLED'
   | 'ORGANIZATION_CONTEXT_REQUIRED'
   | 'NO_TENANT_MEMBERSHIP'
   | 'ORGANIZATION_ACCESS_EXPIRED'
@@ -141,6 +142,9 @@ export const isLimitReached = (error: unknown): error is ApiError => isApiError(
 
 /** `403 FEATURE_DISABLED`: the organization's plan turns the module off. */
 export const isFeatureDisabled = (error: unknown): error is ApiError => isApiError(error) && error.code === 'FEATURE_DISABLED';
+
+/** `403 FEATURE_NOT_ENTITLED`: the plan does not include a finer-grained feature. */
+export const isFeatureNotEntitled = (error: unknown): error is ApiError => isApiError(error) && error.code === 'FEATURE_NOT_ENTITLED';
 
 /** `403 SUBSCRIPTION_READ_ONLY`: the plan period ended; reads work, writes don't. */
 export const isReadOnly = (error: unknown): error is ApiError => isApiError(error) && error.code === 'SUBSCRIPTION_READ_ONLY';

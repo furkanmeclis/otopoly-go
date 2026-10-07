@@ -510,7 +510,7 @@ function SetupChecklist() {
 
   const items: { key: string; icon: ReactNode; done: boolean; href: Href }[] = [
     { key: 'services', icon: <Wrench size={14} color={t.colors.textSecondary} />, done: (services.data?.total ?? 0) > 0, href: '/catalog/services' },
-    { key: 'whatsapp', icon: <MessageCircle size={14} color={t.colors.textSecondary} />, done: session.data?.status === 'connected', href: '/settings/messaging' },
+    { key: 'whatsapp', icon: <MessageCircle size={14} color={t.colors.textSecondary} />, done: session.data ? !session.data.own_number_entitled || session.data.status === 'connected' : false, href: '/settings/messaging' },
     { key: 'customer', icon: <UserPlus size={14} color={t.colors.textSecondary} />, done: customers.total > 0, href: '/customers' },
     { key: 'job', icon: <ClipboardList size={14} color={t.colors.textSecondary} />, done: (jobs.data?.total ?? 0) > 0, href: '/jobs/new' },
     { key: 'contract', icon: <FileSignature size={14} color={t.colors.textSecondary} />, done: (templates.data?.total ?? 0) > 0, href: '/contracts/templates' },
@@ -580,4 +580,3 @@ function SetupChecklist() {
     </Card>
   );
 }
-

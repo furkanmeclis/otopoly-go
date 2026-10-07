@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useToast } from '@/components/feedback/toast';
 import { dailySummaryService } from '@/features/messaging/services/daily-summary.service';
@@ -36,6 +36,21 @@ export const useVehicleAlerts = (enabled: boolean) => useQuery({ queryKey: messa
 
 export function useConnectWhatsApp() {
   return useApiMutation({ key: 'messaging.connect', fn: () => messagingService.connectWhatsApp(), invalidate: [messagingKeys.session, messagingKeys.dailySummary, messagingKeys.vehicleAlerts], toastValidation: true });
+}
+
+export function useUpdateSessionSettings() {
+  const { t } = useLocale();
+  const qc = useQueryClient();
+  return useApiMutation({
+    key: 'messaging.session.settings',
+    fn: (fallbackToPlatform: boolean) => messagingService.updateSessionSettings({ fallback_to_platform: fallbackToPlatform }),
+    invalidate: [messagingKeys.session],
+    success: t('messaging.toast.session_settings_saved'),
+    onSuccess: (data) => {
+      qc.setQueryData(messagingKeys.session, data);
+    },
+    toastValidation: true,
+  });
 }
 
 export function useDisconnectWhatsApp() {
