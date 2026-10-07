@@ -70,7 +70,7 @@ export async function privacyMetadata(locale: AppLocale): Promise<Metadata> {
   const description = t(locale, "legal.public.privacy_description");
   const path = privacyPath(locale);
   return {
-    title: { absolute: `${title} | ${site.name}` },
+    title,
     description,
     alternates: {
       canonical: path,
