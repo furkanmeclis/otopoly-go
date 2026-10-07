@@ -207,5 +207,8 @@
   "stats.never": "None yet",
   "activity.system": "System",
   "activity.empty_title": "No activity",
-  "activity.empty_description": "No recorded actions for this organization yet."
+  "activity.empty_description": "No recorded actions for this organization yet.",
+  "picker.placeholder": "Search and select a business…",
+  "picker.search": "Search by name or slug…",
+  "picker.empty": "No businesses found"
 }

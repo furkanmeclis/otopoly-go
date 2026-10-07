@@ -332,6 +332,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	orgSvc := orgusecase.New(deps.DB, deps.Queries)
 	orgSvc.SetActivity(activityRec)
 	uc.SetOrganizationResolver(orgSvc)
+	userInsights := authusecase.NewUserInsights(uc, repo)
+	h.SetUserInsights(userInsights)
 	authmodule.RegisterRoutes(mux, h, tokens, loader, stepUpSvc)
 	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader, deps.Queries, ratelimit.New(deps.Redis, cfg.App.Env), stepUpSvc)
 	financeSvc := financeusecase.New(deps.DB, deps.Queries, activityRec)
@@ -592,6 +594,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		log.Warn("ai_interrupted_actions_recovered", "count", n)
 	}
 	cancelRecover()
+	userInsights.SetAIQuotaSource(aiQuotaAdapter{svc: aiSvc})
 	aiHandler := aihandler.New(aiSvc, activityRec)
 	aiHandler.SetRateLimiter(ratelimit.New(deps.Redis, cfg.App.Env))
 	aimodule.RegisterRoutes(mux, aiHandler, tokens, loader, deps.Queries)

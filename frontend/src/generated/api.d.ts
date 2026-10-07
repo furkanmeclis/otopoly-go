@@ -1452,6 +1452,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/users/{uuid}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform user 360° overview
+         * @description Requires `platform.users.read`. The user detail (also soft-deleted users), sign-in
+         *     summary (created / last login, email verification, password set, 2FA, passkey
+         *     count), tab counters and the user's own AI assistant usage in the current quota
+         *     period per organization (`ai` is null when the assistant is not wired). Secrets
+         *     (token hashes, push tokens, TOTP secrets) are never returned.
+         */
+        get: operations["getPlatformUserOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User organization memberships
+         * @description Requires `platform.users.read`. Live organizations the user belongs to, by name,
+         *     with role and join date. Add / change role / remove through
+         *     `/v1/platform/organizations/{uuid}/members`.
+         */
+        get: operations["listPlatformUserOrganizations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User active sessions
+         * @description Requires `platform.users.read`. Active (not revoked, not expired) refresh sessions,
+         *     newest first: user agent, IP, organization context and whether the session is an
+         *     impersonation. Refresh tokens rotate on every use, so `last_used_at` is when the
+         *     current token was issued. Token values are never returned.
+         */
+        get: operations["listPlatformUserSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/sessions/{sessionUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke one user session
+         * @description Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Revokes the refresh session; the access token already issued for it lives until
+         *     it expires. Audited as `users.session_revoked`. `404` when the session does not
+         *     belong to the user or is already revoked.
+         */
+        delete: operations["revokePlatformUserSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/sessions/revoke-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke all user sessions
+         * @description Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Revokes every refresh session of the user (signs them out everywhere once their
+         *     access tokens expire). Audited as `users.sessions_revoked` with the count.
+         */
+        post: operations["revokeAllPlatformUserSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User push devices
+         * @description Requires `platform.users.read`. Registered mobile push devices, active first, then
+         *     by last seen. The push token is never returned.
+         */
+        get: operations["listPlatformUserDevices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/devices/{deviceUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a user push device
+         * @description Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Deletes the device so it stops receiving push notifications (the app registers it
+         *     again on next launch while signed in). Audited as `users.device_removed`. `404`
+         *     when the device does not belong to the user.
+         */
+        delete: operations["removePlatformUserDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User activity log
+         * @description Requires `platform.users.read` and `platform.activity.read`. Audit events the user
+         *     performed (as actor), newest first, with the organization they are attributed to.
+         *     `404` for an unknown `organization_uuid`.
+         */
+        get: operations["listPlatformUserActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/impersonation/stop": {
         parameters: {
             query?: never;
@@ -7857,6 +8037,212 @@ export interface components {
             /** @description Optional note stored in the audit event and subscription note */
             note?: string;
         };
+        UserOrganizationRef: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+        };
+        UserSecuritySummary: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_login_at: string | null;
+            /** Format: date-time */
+            email_verified_at: string | null;
+            password_set: boolean;
+            /** @description TOTP enabled */
+            two_factor_enabled: boolean;
+            /** Format: int64 */
+            passkey_count: number;
+        };
+        UserCounts: {
+            /** Format: int64 */
+            organizations: number;
+            /** Format: int64 */
+            active_sessions: number;
+            /**
+             * Format: int64
+             * @description Active (not disabled) devices
+             */
+            push_devices: number;
+            /**
+             * Format: int64
+             * @description Unread in-app notifications
+             */
+            unread_notifications: number;
+        };
+        UserAIOrganizationUsage: {
+            organization: components["schemas"]["UserOrganizationRef"];
+            /**
+             * Format: int64
+             * @description The user's conversations (not deleted)
+             */
+            conversation_count: number;
+            /**
+             * Format: int64
+             * @description The user's quota tokens this period
+             */
+            tokens: number;
+            /** @description Organization-level assistant switch */
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description Organization monthly token quota (0 = unlimited)
+             */
+            quota_limit: number;
+            /**
+             * Format: int64
+             * @description Organization tokens used this period
+             */
+            quota_used: number;
+            unlimited: boolean;
+        };
+        UserAIUsage: {
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+            /** Format: int64 */
+            conversation_count: number;
+            /** Format: int64 */
+            tokens: number;
+            organizations: components["schemas"]["UserAIOrganizationUsage"][];
+        };
+        PlatformUserOverview: {
+            user: components["schemas"]["PlatformUserDetail"];
+            security: components["schemas"]["UserSecuritySummary"];
+            counts: components["schemas"]["UserCounts"];
+            ai: components["schemas"]["UserAIUsage"] | null;
+        };
+        EnvelopePlatformUserOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformUserOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserMembership: {
+            organization: components["schemas"]["UserOrganizationRef"];
+            /** @enum {string} */
+            status: "pending" | "active" | "suspended" | "expired";
+            /** Format: date-time */
+            access_ends_at: string | null;
+            /** @enum {string} */
+            role: "owner" | "staff";
+            /** Format: date-time */
+            joined_at: string;
+        };
+        UserMembershipPage: {
+            items: components["schemas"]["UserMembership"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserMembershipPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserMembershipPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserSession: {
+            /** Format: uuid */
+            uuid: string;
+            user_agent: string | null;
+            ip_address: string | null;
+            /**
+             * Format: date-time
+             * @description When the current (rotated) refresh token was issued
+             */
+            last_used_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Issued to a platform admin impersonating the user */
+            impersonated: boolean;
+            organization: components["schemas"]["UserOrganizationRef"] | null;
+        };
+        UserSessionPage: {
+            items: components["schemas"]["UserSession"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserSessionPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserSessionPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        RevokedSessions: {
+            /** @enum {string} */
+            status: "revoked";
+            /** Format: int64 */
+            revoked: number;
+        };
+        EnvelopeRevokedSessions: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["RevokedSessions"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserPushDevice: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            platform: "ios" | "android";
+            device_name: string;
+            app_version: string;
+            locale: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            disabled_at: string | null;
+            /** @description Why delivery stopped (e.g. DeviceNotRegistered) */
+            disabled_reason: string;
+        };
+        UserPushDevicePage: {
+            items: components["schemas"]["UserPushDevice"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserPushDevicePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserPushDevicePage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserActivityEntry: {
+            /** Format: uuid */
+            uuid: string;
+            action: string;
+            resource: string;
+            /** Format: uuid */
+            resource_uuid: string | null;
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string;
+            organization: components["schemas"]["UserOrganizationRef"] | null;
+        };
+        UserActivityPage: {
+            items: components["schemas"]["UserActivityEntry"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserActivityPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserActivityPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeOrganization: {
             /** @enum {boolean} */
             success: true;
@@ -14127,6 +14513,242 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformUserOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformUserOverview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserOrganizations: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membership page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserMembershipPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserSessions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserSessionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokePlatformUserSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                sessionUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokeAllPlatformUserSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeRevokedSessions"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserDevices: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserPushDevicePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    removePlatformUserDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                deviceUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserActivity: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                /** @description Only events attributed to this organization */
+                organization_uuid?: string;
+                /** @description Exact action filter (e.g. `customers.created`) */
+                action?: string;
+                /** @description Substring match on action or resource */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserActivityPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     postAuthImpersonationStop: {

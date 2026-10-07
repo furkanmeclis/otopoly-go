@@ -219,6 +219,14 @@ Login error codes for tenant context: `NO_TENANT_MEMBERSHIP`, `ORGANIZATION_ACCE
 | POST | `/v1/platform/users/{uuid}/impersonate` | `platform.users.impersonate` (step-up) |
 | DELETE | `/v1/platform/users/{uuid}` | `platform.users.delete` (step-up) — soft delete, see below |
 | POST | `/v1/platform/users/{uuid}/restore` | `platform.users.delete` (step-up) — clears `deleted_at` if the email is free |
+| GET | `/v1/platform/users/{uuid}/overview` | `platform.users.read` — 360° header: sign-in summary (2FA, passkeys, last login), counters, AI usage |
+| GET | `/v1/platform/users/{uuid}/organizations` | `platform.users.read` — paged memberships (role, joined, org status) |
+| GET | `/v1/platform/users/{uuid}/sessions` | `platform.users.read` — paged active refresh sessions (metadata only) |
+| DELETE | `/v1/platform/users/{uuid}/sessions/{sessionUuid}` | `platform.users.write` (step-up) — revoke one session |
+| POST | `/v1/platform/users/{uuid}/sessions/revoke-all` | `platform.users.write` (step-up) — revoke every session |
+| GET | `/v1/platform/users/{uuid}/devices` | `platform.users.read` — paged push devices (token omitted) |
+| DELETE | `/v1/platform/users/{uuid}/devices/{deviceUuid}` | `platform.users.write` (step-up) — remove a push device |
+| GET | `/v1/platform/users/{uuid}/activity` | `platform.users.read` + `platform.activity.read` — events the user performed; `organization_uuid`, `action`, `q` |
 | POST | `/v1/auth/impersonation/stop` | Bearer (active impersonation session) |
 
 Last super admin cannot be demoted via role removal or disable.
@@ -226,6 +234,8 @@ Last super admin cannot be demoted via role removal or disable.
 **Deleting a user** (`DELETE /v1/platform/users/{uuid}`) sets `users.deleted_at`; every lookup ignores deleted users, so their access tokens stop resolving at once. In the same transaction it revokes all refresh sessions, deletes mobile push devices and web push subscriptions, OAuth identities (Apple tokens revoked first, best effort) and passkeys. The email is free again (unique index is `WHERE deleted_at IS NULL`). Roles and organization memberships stay for a restore. Guards: not yourself (`CANNOT_DELETE_SELF`), not the last active super admin (`LAST_SUPER_ADMIN`), not the only owner of an organization (`SOLE_ORGANIZATION_OWNER`, organizations in `error.details`). Self-service deletion (`/v1/auth/account/deactivate`) is different: it only disables the account (`deactivated_at`).
 
 **Organization members** (platform): `PATCH /v1/platform/organizations/{uuid}/members/{userUuid}` (`{role: owner|staff}`) and `DELETE …/members/{userUuid}` need `platform.organizations.write`. The last owner cannot be demoted or removed (`LAST_ORGANIZATION_OWNER`). Removal revokes refresh sessions bound to that organization; tenant routes re-check membership per request (`RequireOrganization`), so access ends immediately. The global `organization_owner` / `organization_user` roles follow the remaining memberships.
+
+**User sessions and devices** (platform 360° user detail): revoking one or all refresh sessions and removing a push device need `platform.users.write` and step-up, and are audited (`users.session_revoked`, `users.sessions_revoked` with the count, `users.device_removed`). Revocation stops refresh; an access token already issued lives until it expires (default 15 min). Lists only expose metadata (user agent, IP, organization context, impersonation flag; device platform/name/version/last seen) — never token values.
 
 **Organization status / access** (platform): suspend / activate (`POST …/status`) and extend access (`POST …/extend-access`, from max(now, current end); a live billing subscription is extended with it, `expired` becomes `active`) need step-up; so does a PATCH that changes `status`, `plan_code` or the access window. All are audited (`organizations.suspended|activated|access_extended|updated`). Activity events carry `organization_id` (tenant scope, or `activity.WithOrganization` for platform actions) so `GET …/activity` lists one business's log.
 

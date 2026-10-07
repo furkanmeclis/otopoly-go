@@ -24,3 +24,15 @@ export const USER_STATUS_TONE: Record<
   pending: "warning",
   disabled: "danger",
 };
+
+/** URL-synced (`?tab=`) sections of the platform user detail. */
+export const USER_DETAIL_TABS = [
+  "general",
+  "organizations",
+  "sessions",
+  "devices",
+  "notifications",
+  "activity",
+] as const;
+
+export type UserDetailTab = (typeof USER_DETAIL_TABS)[number];

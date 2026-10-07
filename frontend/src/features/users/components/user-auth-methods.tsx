@@ -114,3 +114,41 @@ export function UserAuthMethodsIcons({
     </div>
   );
 }
+
+/** Linked sign-in methods (password, passkeys, OAuth identities) as a list. */
+export function UserAuthMethodsList({
+  methods,
+}: {
+  methods: UserAuthMethod[];
+}) {
+  const { t, locale } = useLocale();
+  if (methods.length === 0) {
+    return (
+      <p className="text-muted-foreground text-sm">
+        {t("users.auth_methods.empty")}
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-3">
+      <UserAuthMethodsIcons methods={methods} />
+      <ul className="divide-border divide-y rounded-md border">
+        {methods.map((method, index) => (
+          <li
+            key={`${method.kind}-${method.provider ?? method.label ?? index}-${method.linked_at}`}
+            className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
+          >
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-sm font-medium">{methodLabel(method, t)}</p>
+              <p className="text-muted-foreground text-xs">
+                {t("users.auth_methods.linked_at", {
+                  date: datetime(method.linked_at, undefined, locale),
+                })}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}

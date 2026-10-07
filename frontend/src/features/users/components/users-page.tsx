@@ -97,6 +97,13 @@ export function UsersPage() {
     [router],
   );
 
+  const openTab = useCallback(
+    (user: PublicUser, tab: string) => {
+      router.push(routes.platform.users.detail(user.uuid, tab));
+    },
+    [router],
+  );
+
   const openEdit = useCallback(
     (user: PublicUser) => {
       router.push(routes.platform.users.edit(user.uuid));
@@ -107,6 +114,7 @@ export function UsersPage() {
   const rowHandlers = useMemo<UserRowActionHandlers>(
     () => ({
       onView: openDetail,
+      onOpenTab: openTab,
       onEdit: openEdit,
       onEnable: (user) => enableUser.mutate(user.uuid),
       onDisable: (user) => disableUser.mutate(user.uuid),
@@ -121,6 +129,7 @@ export function UsersPage() {
       impersonateUser,
       openDetail,
       openEdit,
+      openTab,
       requestDelete,
       requestRestore,
     ],

@@ -2,8 +2,10 @@
 
 import {
   ArchiveRestore,
+  Building2,
   Eye,
   KeyRound,
+  MonitorSmartphone,
   Pencil,
   ShieldCheck,
   ShieldOff,
@@ -14,11 +16,14 @@ import { useMemo } from "react";
 
 import { EntityRowActions, type EntityRowAction } from "@/components/entity";
 import { permissions } from "@/config/permissions";
+import type { UserDetailTab } from "@/features/users/constants";
 import type { PublicUser } from "@/features/users/services/users.service";
 import { useLocale } from "@/providers/locale-provider";
 
 export type UserRowActionHandlers = {
   onView: (user: PublicUser) => void;
+  /** Deep-links a 360° detail tab (`?tab=`). */
+  onOpenTab?: (user: PublicUser, tab: UserDetailTab) => void;
   onEdit: (user: PublicUser) => void;
   onEnable: (user: PublicUser) => void;
   onDisable: (user: PublicUser) => void;
@@ -69,8 +74,28 @@ export function UserRowActionsMenu({
       return items;
     }
 
+    const tabs: EntityRowAction[] = handlers.onOpenTab
+      ? [
+          {
+            id: "organizations",
+            label: t("users.actions.open_organizations"),
+            icon: Building2,
+            permission: permissions.users.read,
+            onSelect: () => handlers.onOpenTab?.(user, "organizations"),
+          },
+          {
+            id: "sessions",
+            label: t("users.actions.open_sessions"),
+            icon: MonitorSmartphone,
+            permission: permissions.users.read,
+            onSelect: () => handlers.onOpenTab?.(user, "sessions"),
+          },
+        ]
+      : [];
+
     const items: EntityRowAction[] = [
       view,
+      ...tabs,
       {
         id: "edit",
         label: t("users.actions.edit"),

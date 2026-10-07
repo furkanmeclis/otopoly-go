@@ -1,4 +1,5 @@
 import type { ServerListParams } from "@/components/entity";
+import type { components } from "@/generated/api";
 import { platformRequest } from "@/lib/api/platform-request";
 import type { RoleSummary } from "@/features/roles/services/roles.service";
 
@@ -102,6 +103,31 @@ export type UserStatus = "active" | "pending" | "disabled";
 /** List filter value: `deleted` lists soft-deleted users instead of live ones. */
 export type UserListStatus = UserStatus | "deleted";
 
+type Schemas = components["schemas"];
+
+export type PlatformUserOverview = Schemas["PlatformUserOverview"];
+export type UserAIUsage = Schemas["UserAIUsage"];
+export type UserMembership = Schemas["UserMembership"];
+export type UserSession = Schemas["UserSession"];
+export type UserPushDevice = Schemas["UserPushDevice"];
+export type UserActivityEntry = Schemas["UserActivityEntry"];
+
+export type Page<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type UserActivityParams = ServerListParams & {
+  organization_uuid?: string;
+  action?: string;
+};
+
+function pageQuery(params: ServerListParams) {
+  return { limit: params.limit, offset: params.offset };
+}
+
 export const usersService = {
   async list(params: ListUsersParams) {
     return platformRequest<UserListResult>("GET", "/v1/platform/users", {
@@ -160,6 +186,76 @@ export const usersService = {
     return platformRequest<ImpersonationResult>(
       "POST",
       `/v1/platform/users/${uuid}/impersonate`,
+    );
+  },
+
+  async overview(uuid: string) {
+    return platformRequest<PlatformUserOverview>(
+      "GET",
+      `/v1/platform/users/${uuid}/overview`,
+    );
+  },
+
+  async organizations(uuid: string, params: ServerListParams) {
+    return platformRequest<Page<UserMembership>>(
+      "GET",
+      `/v1/platform/users/${uuid}/organizations`,
+      { query: pageQuery(params) },
+    );
+  },
+
+  async sessions(uuid: string, params: ServerListParams) {
+    return platformRequest<Page<UserSession>>(
+      "GET",
+      `/v1/platform/users/${uuid}/sessions`,
+      { query: pageQuery(params) },
+    );
+  },
+
+  /** Step-up is retried by platformRequest. */
+  async revokeSession(uuid: string, sessionUuid: string) {
+    return platformRequest<StatusPayload>(
+      "DELETE",
+      `/v1/platform/users/${uuid}/sessions/${sessionUuid}`,
+    );
+  },
+
+  /** Step-up is retried by platformRequest. */
+  async revokeAllSessions(uuid: string) {
+    return platformRequest<StatusPayload & { revoked: number }>(
+      "POST",
+      `/v1/platform/users/${uuid}/sessions/revoke-all`,
+    );
+  },
+
+  async devices(uuid: string, params: ServerListParams) {
+    return platformRequest<Page<UserPushDevice>>(
+      "GET",
+      `/v1/platform/users/${uuid}/devices`,
+      { query: pageQuery(params) },
+    );
+  },
+
+  /** Step-up is retried by platformRequest. */
+  async removeDevice(uuid: string, deviceUuid: string) {
+    return platformRequest<StatusPayload>(
+      "DELETE",
+      `/v1/platform/users/${uuid}/devices/${deviceUuid}`,
+    );
+  },
+
+  async activity(uuid: string, params: UserActivityParams) {
+    return platformRequest<Page<UserActivityEntry>>(
+      "GET",
+      `/v1/platform/users/${uuid}/activity`,
+      {
+        query: {
+          ...pageQuery(params),
+          q: params.q,
+          organization_uuid: params.organization_uuid,
+          action: params.action,
+        },
+      },
     );
   },
 };

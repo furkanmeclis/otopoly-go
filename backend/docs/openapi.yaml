@@ -2582,6 +2582,238 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/platform/users/{uuid}/overview:
+    get:
+      tags: [Platform]
+      operationId: getPlatformUserOverview
+      summary: Platform user 360° overview
+      description: |
+        Requires `platform.users.read`. The user detail (also soft-deleted users), sign-in
+        summary (created / last login, email verification, password set, 2FA, passkey
+        count), tab counters and the user's own AI assistant usage in the current quota
+        period per organization (`ai` is null when the assistant is not wired). Secrets
+        (token hashes, push tokens, TOTP secrets) are never returned.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: User overview
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopePlatformUserOverview" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/users/{uuid}/organizations:
+    get:
+      tags: [Platform]
+      operationId: listPlatformUserOrganizations
+      summary: User organization memberships
+      description: |
+        Requires `platform.users.read`. Live organizations the user belongs to, by name,
+        with role and join date. Add / change role / remove through
+        `/v1/platform/organizations/{uuid}/members`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Membership page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeUserMembershipPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/users/{uuid}/sessions:
+    get:
+      tags: [Platform]
+      operationId: listPlatformUserSessions
+      summary: User active sessions
+      description: |
+        Requires `platform.users.read`. Active (not revoked, not expired) refresh sessions,
+        newest first: user agent, IP, organization context and whether the session is an
+        impersonation. Refresh tokens rotate on every use, so `last_used_at` is when the
+        current token was issued. Token values are never returned.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Session page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeUserSessionPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/users/{uuid}/sessions/{sessionUuid}:
+    delete:
+      tags: [Platform]
+      operationId: revokePlatformUserSession
+      summary: Revoke one user session
+      description: |
+        Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+        Revokes the refresh session; the access token already issued for it lives until
+        it expires. Audited as `users.session_revoked`. `404` when the session does not
+        belong to the user or is already revoked.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+        - name: sessionUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStatus" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/users/{uuid}/sessions/revoke-all:
+    post:
+      tags: [Platform]
+      operationId: revokeAllPlatformUserSessions
+      summary: Revoke all user sessions
+      description: |
+        Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+        Revokes every refresh session of the user (signs them out everywhere once their
+        access tokens expire). Audited as `users.sessions_revoked` with the count.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeRevokedSessions" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/users/{uuid}/devices:
+    get:
+      tags: [Platform]
+      operationId: listPlatformUserDevices
+      summary: User push devices
+      description: |
+        Requires `platform.users.read`. Registered mobile push devices, active first, then
+        by last seen. The push token is never returned.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Device page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeUserPushDevicePage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/users/{uuid}/devices/{deviceUuid}:
+    delete:
+      tags: [Platform]
+      operationId: removePlatformUserDevice
+      summary: Remove a user push device
+      description: |
+        Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+        Deletes the device so it stops receiving push notifications (the app registers it
+        again on next launch while signed in). Audited as `users.device_removed`. `404`
+        when the device does not belong to the user.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+        - name: deviceUuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStatus" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/users/{uuid}/activity:
+    get:
+      tags: [Platform]
+      operationId: listPlatformUserActivity
+      summary: User activity log
+      description: |
+        Requires `platform.users.read` and `platform.activity.read`. Audit events the user
+        performed (as actor), newest first, with the organization they are attributed to.
+        `404` for an unknown `organization_uuid`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: organization_uuid
+          in: query
+          description: Only events attributed to this organization
+          schema: { type: string, format: uuid }
+        - name: action
+          in: query
+          description: Exact action filter (e.g. `customers.created`)
+          schema: { type: string }
+        - name: q
+          in: query
+          description: Substring match on action or resource
+          schema: { type: string }
+      responses:
+        "200":
+          description: Activity page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeUserActivityPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/auth/impersonation/stop:
     post:
       tags: [Auth]
@@ -13171,6 +13403,214 @@ components:
       properties:
         days: { type: integer, minimum: 1, maximum: 3650 }
         note: { type: string, description: Optional note stored in the audit event and subscription note }
+
+    UserOrganizationRef:
+      type: object
+      required: [uuid, slug, name]
+      properties:
+        uuid: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+
+    UserSecuritySummary:
+      type: object
+      required: [created_at, last_login_at, email_verified_at, password_set, two_factor_enabled, passkey_count]
+      properties:
+        created_at: { type: string, format: date-time }
+        last_login_at: { type: [string, "null"], format: date-time }
+        email_verified_at: { type: [string, "null"], format: date-time }
+        password_set: { type: boolean }
+        two_factor_enabled: { type: boolean, description: TOTP enabled }
+        passkey_count: { type: integer, format: int64 }
+
+    UserCounts:
+      type: object
+      required: [organizations, active_sessions, push_devices, unread_notifications]
+      properties:
+        organizations: { type: integer, format: int64 }
+        active_sessions: { type: integer, format: int64 }
+        push_devices: { type: integer, format: int64, description: Active (not disabled) devices }
+        unread_notifications: { type: integer, format: int64, description: Unread in-app notifications }
+
+    UserAIOrganizationUsage:
+      type: object
+      required: [organization, conversation_count, tokens, enabled, quota_limit, quota_used, unlimited]
+      properties:
+        organization: { $ref: "#/components/schemas/UserOrganizationRef" }
+        conversation_count: { type: integer, format: int64, description: The user's conversations (not deleted) }
+        tokens: { type: integer, format: int64, description: The user's quota tokens this period }
+        enabled: { type: boolean, description: Organization-level assistant switch }
+        quota_limit: { type: integer, format: int64, description: Organization monthly token quota (0 = unlimited) }
+        quota_used: { type: integer, format: int64, description: Organization tokens used this period }
+        unlimited: { type: boolean }
+
+    UserAIUsage:
+      type: object
+      required: [period_start, period_end, conversation_count, tokens, organizations]
+      properties:
+        period_start: { type: string, format: date-time }
+        period_end: { type: string, format: date-time }
+        conversation_count: { type: integer, format: int64 }
+        tokens: { type: integer, format: int64 }
+        organizations:
+          type: array
+          items: { $ref: "#/components/schemas/UserAIOrganizationUsage" }
+
+    PlatformUserOverview:
+      type: object
+      required: [user, security, counts, ai]
+      properties:
+        user: { $ref: "#/components/schemas/PlatformUserDetail" }
+        security: { $ref: "#/components/schemas/UserSecuritySummary" }
+        counts: { $ref: "#/components/schemas/UserCounts" }
+        ai: { anyOf: [{ $ref: "#/components/schemas/UserAIUsage" }, { type: "null" }] }
+
+    EnvelopePlatformUserOverview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PlatformUserOverview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    UserMembership:
+      type: object
+      required: [organization, status, access_ends_at, role, joined_at]
+      properties:
+        organization: { $ref: "#/components/schemas/UserOrganizationRef" }
+        status: { type: string, enum: [pending, active, suspended, expired] }
+        access_ends_at: { type: [string, "null"], format: date-time }
+        role: { type: string, enum: [owner, staff] }
+        joined_at: { type: string, format: date-time }
+
+    UserMembershipPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/UserMembership" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeUserMembershipPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/UserMembershipPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    UserSession:
+      type: object
+      required: [uuid, user_agent, ip_address, last_used_at, expires_at, impersonated, organization]
+      properties:
+        uuid: { type: string, format: uuid }
+        user_agent: { type: [string, "null"] }
+        ip_address: { type: [string, "null"] }
+        last_used_at: { type: string, format: date-time, description: When the current (rotated) refresh token was issued }
+        expires_at: { type: string, format: date-time }
+        impersonated: { type: boolean, description: Issued to a platform admin impersonating the user }
+        organization: { anyOf: [{ $ref: "#/components/schemas/UserOrganizationRef" }, { type: "null" }] }
+
+    UserSessionPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/UserSession" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeUserSessionPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/UserSessionPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    RevokedSessions:
+      type: object
+      required: [status, revoked]
+      properties:
+        status: { type: string, enum: [revoked] }
+        revoked: { type: integer, format: int64 }
+
+    EnvelopeRevokedSessions:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/RevokedSessions" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    UserPushDevice:
+      type: object
+      required: [uuid, platform, device_name, app_version, locale, last_seen_at, created_at, disabled_at, disabled_reason]
+      properties:
+        uuid: { type: string, format: uuid }
+        platform: { type: string, enum: [ios, android] }
+        device_name: { type: string }
+        app_version: { type: string }
+        locale: { type: string }
+        last_seen_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        disabled_at: { type: [string, "null"], format: date-time }
+        disabled_reason: { type: string, description: Why delivery stopped (e.g. DeviceNotRegistered) }
+
+    UserPushDevicePage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/UserPushDevice" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeUserPushDevicePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/UserPushDevicePage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    UserActivityEntry:
+      type: object
+      required: [uuid, action, resource, resource_uuid, payload, created_at, organization]
+      properties:
+        uuid: { type: string, format: uuid }
+        action: { type: string }
+        resource: { type: string }
+        resource_uuid: { type: [string, "null"], format: uuid }
+        payload: { type: object, additionalProperties: true }
+        created_at: { type: string, format: date-time }
+        organization: { anyOf: [{ $ref: "#/components/schemas/UserOrganizationRef" }, { type: "null" }] }
+
+    UserActivityPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/UserActivityEntry" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeUserActivityPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/UserActivityPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeOrganization:
       type: object

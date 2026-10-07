@@ -35,6 +35,7 @@ type Handler struct {
 	stepUp         *stepup.Service
 	activity       *activity.Recorder
 	limiter        *ratelimit.Limiter
+	insights       *usecase.UserInsights
 }
 
 // New creates an auth handler.

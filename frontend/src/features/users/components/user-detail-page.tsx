@@ -8,39 +8,45 @@ import {
   ShieldCheck,
   ShieldOff,
   Trash2,
+  UserRoundSearch,
 } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { PermissionGuard } from "@/components/common/permission-guard";
 import { StatusChip } from "@/components/common/status-chip";
-import {
-  EntityActions,
-  EntityDetail,
-  EntityHeader,
-  EntityPage,
-  EntitySectionCard,
-} from "@/components/entity";
+import { EntityActions, EntityHeader, EntityPage } from "@/components/entity";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
-import { UserSetPasswordDialog } from "@/features/users/components/user-set-password-dialog";
+import { UserActivityTab } from "@/features/users/components/user-activity-tab";
 import { UserAuthMethodsIcons } from "@/features/users/components/user-auth-methods";
 import { useUserDeleteFlow } from "@/features/users/components/user-delete-flow";
-import { StepUpGate } from "@/features/step-up-engine";
-import { USER_STATUS_TONE } from "@/features/users/constants";
+import { UserDevicesTab } from "@/features/users/components/user-devices-tab";
+import { UserGeneralTab } from "@/features/users/components/user-general-tab";
+import { UserNotificationsTab } from "@/features/users/components/user-notifications-tab";
+import { UserOrganizationsTab } from "@/features/users/components/user-organizations-tab";
+import { UserSessionsTab } from "@/features/users/components/user-sessions-tab";
+import { UserSetPasswordDialog } from "@/features/users/components/user-set-password-dialog";
+import {
+  USER_DETAIL_TABS,
+  USER_STATUS_TONE,
+  type UserDetailTab,
+} from "@/features/users/constants";
 import {
   useDisableUser,
   useEnableUser,
+  useImpersonateUser,
 } from "@/features/users/hooks/use-user-mutations";
-import { useUser } from "@/features/users/hooks/use-users-query";
+import {
+  useUser,
+  useUserOverview,
+} from "@/features/users/hooks/use-users-query";
 import { userFullName, userInitials } from "@/features/users/lib/user-display";
-import { roleDisplayName } from "@/features/roles/lib/role-display";
 import type {
   PlatformUserDetail,
   UserStatus,
@@ -61,6 +67,10 @@ function DetailField({ label, value }: { label: string; value: ReactNode }) {
       <dd className="text-sm break-words">{value ?? "—"}</dd>
     </div>
   );
+}
+
+function isDetailTab(value: string | null): value is UserDetailTab {
+  return (USER_DETAIL_TABS as readonly string[]).includes(value ?? "");
 }
 
 function statusTone(status: string) {
@@ -85,6 +95,13 @@ function UserDetailActions({
   const { user: currentUser } = useAuth();
   const enableUser = useEnableUser();
   const disableUser = useDisableUser();
+  const impersonate = useImpersonateUser();
+  const canImpersonate =
+    can(permissions.users.impersonate) &&
+    user.status === "active" &&
+    user.uuid !== currentUser?.uuid &&
+    !currentUser?.impersonation &&
+    (!user.is_super_admin || Boolean(currentUser?.isSuperAdmin));
 
   // Deleted users are read-only until restored.
   if (user.deleted_at) {
@@ -157,6 +174,19 @@ function UserDetailActions({
         </Button>
       ) : null}
 
+      {canImpersonate ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={impersonate.isPending}
+          onClick={() => impersonate.mutate(user)}
+        >
+          <UserRoundSearch className="size-4" />
+          {t("users.actions.impersonate")}
+        </Button>
+      ) : null}
+
       {can(permissions.users.delete) && user.uuid !== currentUser?.uuid ? (
         <Button
           type="button"
@@ -173,15 +203,48 @@ function UserDetailActions({
   );
 }
 
+/**
+ * Platform 360° user detail. Tabs are URL-synced (`?tab=`) so other screens
+ * can deep-link, e.g. `/platform/users/{uuid}?tab=sessions`.
+ */
 export function UserDetailPage({ uuid }: UserDetailPageProps) {
   const { t } = useLocale();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { can } = usePermission();
   const userQuery = useUser(uuid);
   const deleteFlow = useUserDeleteFlow();
   const [passwordOpen, setPasswordOpen] = useState(false);
 
+  const canSeeTab = (value: UserDetailTab) => {
+    if (value === "activity") return can(permissions.activity.read);
+    if (value === "notifications") {
+      // Without read_all the API would list the admin's own notifications.
+      return (
+        can(permissions.notifications.platformRead) &&
+        can(permissions.notifications.platformReadAll)
+      );
+    }
+    return true;
+  };
+  const tabParam = searchParams.get("tab");
+  const tab: UserDetailTab =
+    isDetailTab(tabParam) && canSeeTab(tabParam) ? tabParam : "general";
+  const overview = useUserOverview(uuid, tab === "general");
+
   const user = userQuery.data;
   const title = user ? userFullName(user) : t("users.detail_title");
-  const roles = user?.roles ?? [];
+
+  const selectTab = (next: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "general") params.delete("tab");
+    else params.set("tab", next);
+    // The organization filter only applies to the activity tab.
+    if (next !== "activity") params.delete("org");
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   return (
     <EntityPage
@@ -263,144 +326,70 @@ export function UserDetailPage({ uuid }: UserDetailPageProps) {
                 }
               />
               <DetailField
-                label={t("users.fields.uuid")}
-                value={<code className="text-xs">{user.uuid}</code>}
+                label={t("users.columns.auth_methods")}
+                value={
+                  (user.auth_methods ?? []).length > 0 ? (
+                    <UserAuthMethodsIcons methods={user.auth_methods ?? []} />
+                  ) : (
+                    "—"
+                  )
+                }
               />
             </dl>
           </EntityHeader>
 
-          <EntitySectionCard title={t("users.detail.profile")}>
-            <EntityDetail
-              sections={[
-                {
-                  id: "profile",
-                  fields: [
-                    {
-                      key: "name",
-                      label: t("users.fields.name"),
-                      value: user.name,
-                    },
-                    {
-                      key: "surname",
-                      label: t("users.fields.surname"),
-                      value: user.surname,
-                    },
-                    {
-                      key: "email",
-                      label: t("users.fields.email"),
-                      value: user.email,
-                    },
-                    {
-                      key: "status",
-                      label: t("users.fields.status"),
-                      value: (
-                        <StatusChip
-                          label={t(`users.status.${user.status}`)}
-                          tone={statusTone(user.status)}
-                        />
-                      ),
-                    },
-                    {
-                      key: "email_verified",
-                      label: t("users.fields.email_verified"),
-                      value: user.email_verified
-                        ? t("users.verified.yes")
-                        : t("users.verified.no"),
-                    },
-                    {
-                      key: "uuid",
-                      label: t("users.fields.uuid"),
-                      value: <code className="text-xs">{user.uuid}</code>,
-                    },
-                  ],
-                },
-              ]}
-            />
-          </EntitySectionCard>
+          <Tabs value={tab} onValueChange={selectTab}>
+            <TabsList className="flex-wrap">
+              {USER_DETAIL_TABS.filter(canSeeTab).map((value) => (
+                <TabsTrigger key={value} value={value}>
+                  {t(`users.tabs.${value}`)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
 
-          <EntitySectionCard title={t("users.detail.roles")}>
-            <StepUpGate purpose="users.detail.roles">
-              {roles.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  {t("users.detail.roles_empty")}
-                </p>
+            <TabsContent value="general" className="mt-4">
+              {overview.isLoading ? (
+                <Loading label={t("common.loading")} />
+              ) : overview.isError || !overview.data ? (
+                <ErrorState
+                  title={t("common.error_generic")}
+                  description={t("users.detail.overview_error")}
+                  onRetry={() => void overview.refetch()}
+                  retryLabel={t("common.retry")}
+                />
               ) : (
-                <ul className="divide-border divide-y rounded-md border">
-                  {roles.map((role) => (
-                    <li
-                      key={role.uuid}
-                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
-                    >
-                      <div className="min-w-0 space-y-0.5">
-                        <Link
-                          href={routes.platform.roles.detail(role.uuid)}
-                          className="text-sm font-medium hover:underline"
-                        >
-                          {roleDisplayName(role, t)}
-                        </Link>
-                        <p className="text-muted-foreground font-mono text-xs">
-                          {role.slug}
-                        </p>
-                      </div>
-                      {role.is_system ? (
-                        <Badge variant="outline" className="text-[10px]">
-                          {t("roles.labels.system")}
-                        </Badge>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+                <UserGeneralTab overview={overview.data} />
               )}
-            </StepUpGate>
-          </EntitySectionCard>
+            </TabsContent>
 
-          <EntitySectionCard title={t("users.detail.auth_methods")}>
-            {(user.auth_methods ?? []).length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                {t("users.auth_methods.empty")}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                <UserAuthMethodsIcons methods={user.auth_methods ?? []} />
-                <ul className="divide-border divide-y rounded-md border">
-                  {(user.auth_methods ?? []).map((method, index) => (
-                    <li
-                      key={`${method.kind}-${method.provider ?? method.label ?? index}-${method.linked_at}`}
-                      className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
-                    >
-                      <div className="min-w-0 space-y-0.5">
-                        <p className="text-sm font-medium">
-                          {method.kind === "password"
-                            ? t("users.auth_methods.password")
-                            : method.kind === "passkey"
-                              ? method.label?.trim()
-                                ? t("users.auth_methods.passkey_named", {
-                                    name: method.label.trim(),
-                                  })
-                                : t("users.auth_methods.passkey")
-                              : (() => {
-                                  const provider = method.provider ?? "oauth";
-                                  const key = `users.auth_methods.oauth.${provider}`;
-                                  const label = t(key);
-                                  return label === key
-                                    ? t("users.auth_methods.oauth.generic", {
-                                        provider,
-                                      })
-                                    : label;
-                                })()}
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          {t("users.auth_methods.linked_at", {
-                            date: datetime(method.linked_at),
-                          })}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </EntitySectionCard>
+            <TabsContent value="organizations" className="mt-4">
+              <UserOrganizationsTab
+                userUuid={user.uuid}
+                userName={userFullName(user)}
+                readOnly={Boolean(user.deleted_at)}
+              />
+            </TabsContent>
+
+            <TabsContent value="sessions" className="mt-4">
+              <UserSessionsTab user={user} />
+            </TabsContent>
+
+            <TabsContent value="devices" className="mt-4">
+              <UserDevicesTab user={user} />
+            </TabsContent>
+
+            {canSeeTab("notifications") ? (
+              <TabsContent value="notifications" className="mt-4">
+                <UserNotificationsTab userUuid={user.uuid} />
+              </TabsContent>
+            ) : null}
+
+            {canSeeTab("activity") ? (
+              <TabsContent value="activity" className="mt-4">
+                <UserActivityTab userUuid={user.uuid} />
+              </TabsContent>
+            ) : null}
+          </Tabs>
         </div>
       ) : null}
 
