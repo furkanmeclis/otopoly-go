@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import Constants from 'expo-constants';
 import { Database, RotateCcw, Share2, Trash2 } from 'lucide-react-native';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { FlatList, Share, View } from 'react-native';
@@ -43,6 +44,12 @@ export default function DiagnosticsScreen() {
   }, [filter, version]);
 
   const tone = (l: LogLevel) => (l === 'error' ? 'danger' : l === 'warn' ? 'warning' : l === 'info' ? 'info' : 'neutral');
+  const updatesConfig = Constants.expoConfig?.updates;
+  const configuredChannel = (updatesConfig?.requestHeaders?.['expo-channel-name'] as string | undefined) ?? (Constants.expoConfig?.extra?.ota?.channel as string | undefined) ?? 'unknown';
+  const runtimeVersion =
+    Constants.expoRuntimeVersion ??
+    (typeof Constants.expoConfig?.runtimeVersion === 'string' ? Constants.expoConfig.runtimeVersion : Constants.expoConfig?.version) ??
+    'unknown';
 
   const resetDemo = async () => {
     if (!(await confirm({ title: tr('mobile.diagnostics.reset_demo'), message: tr('mobile.diagnostics.reset_demo_confirm'), destructive: true }))) return;
@@ -89,6 +96,17 @@ export default function DiagnosticsScreen() {
         {isMock ? <AccessScenarioSwitch /> : null}
         {isMock && status === 'ready' ? <TestNotificationButton /> : null}
         {isMock ? <DemoAuthCodes /> : null}
+        <View style={{ gap: t.spacing.xs }}>
+          <Txt variant="caption" tone="secondary">
+            OTA
+          </Txt>
+          <Txt variant="caption" tone="muted" selectable>
+            {`channel ${configuredChannel} · runtime ${runtimeVersion}`}
+          </Txt>
+          <Txt variant="caption" tone="muted" selectable numberOfLines={1}>
+            {updatesConfig?.url ?? 'updates disabled'}
+          </Txt>
+        </View>
         <Button
           label={tr('mobile.onboarding.diagnostics.reset')}
           size="sm"

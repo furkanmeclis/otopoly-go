@@ -4,6 +4,20 @@
 // EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID (.env / EAS / Xcode Cloud environment); app.json keeps a
 // placeholder so the config always resolves.
 const GOOGLE_PLUGIN = 'react-native-nitro-google-signin';
+const EAS_PROJECT_ID = 'a5e4bc16-f23b-4735-bd29-81f3355f02a8';
+
+function updatesChannel() {
+  const explicit = process.env.EXPO_UPDATES_CHANNEL?.trim();
+  if (explicit) return explicit;
+  switch (process.env.EXPO_PUBLIC_APP_ENV) {
+    case 'production':
+      return 'production';
+    case 'preview':
+      return 'preview';
+    default:
+      return 'development';
+  }
+}
 
 function googleIosUrlScheme() {
   const clientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim();
@@ -27,11 +41,34 @@ function assertStoreConfig() {
 module.exports = ({ config }) => {
   assertStoreConfig();
   const iosUrlScheme = googleIosUrlScheme();
-  if (!iosUrlScheme) return config;
+  const channel = updatesChannel();
+  const plugins = iosUrlScheme
+    ? config.plugins.map((plugin) =>
+        plugin === GOOGLE_PLUGIN || (Array.isArray(plugin) && plugin[0] === GOOGLE_PLUGIN) ? [GOOGLE_PLUGIN, { iosUrlScheme }] : plugin,
+      )
+    : config.plugins;
+
   return {
     ...config,
-    plugins: config.plugins.map((plugin) =>
-      plugin === GOOGLE_PLUGIN || (Array.isArray(plugin) && plugin[0] === GOOGLE_PLUGIN) ? [GOOGLE_PLUGIN, { iosUrlScheme }] : plugin,
-    ),
+    runtimeVersion: {
+      policy: 'appVersion',
+    },
+    updates: {
+      ...config.updates,
+      url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+      checkAutomatically: 'ON_LOAD',
+      fallbackToCacheTimeout: 0,
+      requestHeaders: {
+        ...config.updates?.requestHeaders,
+        'expo-channel-name': channel,
+      },
+    },
+    extra: {
+      ...config.extra,
+      ota: {
+        channel,
+      },
+    },
+    plugins,
   };
 };
