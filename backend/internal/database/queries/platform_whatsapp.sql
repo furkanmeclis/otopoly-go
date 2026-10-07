@@ -18,10 +18,23 @@ WHERE id = 1
 RETURNING *;
 
 -- name: UpdatePlatformWhatsAppSession :one
+-- Connected / disconnected / pairing state; always clears the QR code.
 UPDATE platform_whatsapp_settings
 SET wm_status = sqlc.arg(wm_status),
     wm_jid = sqlc.arg(wm_jid),
-    wm_phone = sqlc.arg(wm_phone)
+    wm_phone = sqlc.arg(wm_phone),
+    wm_error = sqlc.arg(wm_error),
+    wm_qr_code = '',
+    wm_qr_expires_at = NULL
+WHERE id = 1
+RETURNING *;
+
+-- name: UpdatePlatformWhatsAppQR :one
+UPDATE platform_whatsapp_settings
+SET wm_status = 'qr_pending',
+    wm_qr_code = sqlc.arg(wm_qr_code),
+    wm_qr_expires_at = sqlc.arg(wm_qr_expires_at),
+    wm_error = ''
 WHERE id = 1
 RETURNING *;
 
@@ -71,9 +84,11 @@ SET fallback_to_platform = EXCLUDED.fallback_to_platform
 RETURNING *;
 
 -- name: SetOutboundMessageSender :exec
+-- Sender route of the latest attempt (error_code NULL on success).
 UPDATE outbound_messages
 SET sender_kind = sqlc.narg(sender_kind),
-    template_name = sqlc.narg(template_name)
+    template_name = sqlc.narg(template_name),
+    error_code = sqlc.narg(error_code)
 WHERE id = sqlc.arg(id);
 
 -- name: SetOutboundMessageErrorCode :exec
@@ -95,3 +110,12 @@ SET delivery_status = sqlc.arg(delivery_status),
     billable = COALESCE(sqlc.narg(billable), billable),
     error_code = COALESCE(sqlc.narg(error_code), error_code)
 WHERE id = sqlc.arg(id);
+
+-- name: ListOutboundMessagesByOrg :many
+SELECT * FROM outbound_messages
+WHERE organization_id = sqlc.arg(organization_id)
+ORDER BY created_at DESC, id DESC
+LIMIT sqlc.arg(row_limit) OFFSET sqlc.arg(row_offset);
+
+-- name: CountOutboundMessagesByOrg :one
+SELECT COUNT(*) FROM outbound_messages WHERE organization_id = sqlc.arg(organization_id);

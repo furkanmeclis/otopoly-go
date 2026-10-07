@@ -1090,6 +1090,9 @@ type PlatformWhatsappSetting struct {
 	CreatedAt             pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
 	UpdatedBy             pgtype.Int8        `json:"updated_by"`
+	WmQrCode              string             `json:"wm_qr_code"`
+	WmQrExpiresAt         pgtype.Timestamptz `json:"wm_qr_expires_at"`
+	WmError               string             `json:"wm_error"`
 }
 
 type Product struct {

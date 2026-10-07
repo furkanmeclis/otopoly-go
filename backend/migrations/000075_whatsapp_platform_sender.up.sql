@@ -82,6 +82,18 @@ JOIN billing_features f ON f.key = 'whatsapp.own_number'
 WHERE p.code = 'trial' AND p.deleted_at IS NULL
 ON CONFLICT (plan_id, feature_id) DO NOTHING;
 
+-- Existing plans keep own-number sending: every live plan with WhatsApp
+-- enabled gets whatsapp.own_number = TRUE (trial excluded, stays FALSE).
+-- DO NOTHING keeps a value an admin already set.
+INSERT INTO billing_plan_features (plan_id, feature_id, value_int, value_bool, enforcement, tolerance_pct)
+SELECT p.id, own.id, NULL, TRUE, 'hard', 0
+FROM billing_plans p
+JOIN billing_plan_features pf ON pf.plan_id = p.id AND pf.value_bool IS TRUE
+JOIN billing_features wf ON wf.id = pf.feature_id AND wf.key = 'whatsapp.enabled'
+JOIN billing_features own ON own.key = 'whatsapp.own_number'
+WHERE p.deleted_at IS NULL AND p.code <> 'trial'
+ON CONFLICT (plan_id, feature_id) DO NOTHING;
+
 -- Permissions.
 INSERT INTO permissions (name, slug) VALUES
     ('Read platform WhatsApp integration', 'platform.integrations.whatsapp.read'),

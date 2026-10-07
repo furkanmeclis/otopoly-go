@@ -4,6 +4,9 @@ DELETE FROM role_permissions WHERE permission_id IN (
 DELETE FROM permissions WHERE slug IN (
     'platform.integrations.whatsapp.read', 'platform.integrations.whatsapp.write');
 
+-- Plan grants (trial + whatsapp-enabled plans) go with the feature.
+DELETE FROM billing_plan_features WHERE feature_id IN (
+    SELECT id FROM billing_features WHERE key = 'whatsapp.own_number');
 DELETE FROM billing_features WHERE key = 'whatsapp.own_number';
 
 DROP INDEX IF EXISTS idx_outbound_messages_provider_reference;

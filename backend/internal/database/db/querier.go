@@ -93,6 +93,7 @@ type Querier interface {
 	// Staff seats only: owners are not counted against staff.count.
 	CountOrgMembers(ctx context.Context, organizationID int64) (int64, error)
 	CountOrganizations(ctx context.Context, arg CountOrganizationsParams) (int64, error)
+	CountOutboundMessagesByOrg(ctx context.Context, organizationID int64) (int64, error)
 	CountOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountPendingRequiredSigners(ctx context.Context, instanceID int64) (int64, error)
 	CountPermissions(ctx context.Context, q_ pgtype.Text) (int64, error)
@@ -583,6 +584,7 @@ type Querier interface {
 	ListOrganizationOwnersForAlert(ctx context.Context, organizationID int64) ([]ListOrganizationOwnersForAlertRow, error)
 	ListOrganizationsFiltered(ctx context.Context, arg ListOrganizationsFilteredParams) ([]Organization, error)
 	ListOrgsWithPendingVehicleAlerts(ctx context.Context) ([]VehicleAlertSetting, error)
+	ListOutboundMessagesByOrg(ctx context.Context, arg ListOutboundMessagesByOrgParams) ([]OutboundMessage, error)
 	// Pending reminder fire times for a page of subjects (no N+1 in lists).
 	ListPendingRemindersForSubjects(ctx context.Context, arg ListPendingRemindersForSubjectsParams) ([]ListPendingRemindersForSubjectsRow, error)
 	ListPendingVehicleAlertEvents(ctx context.Context, arg ListPendingVehicleAlertEventsParams) ([]VehicleAlertEvent, error)
@@ -776,6 +778,7 @@ type Querier interface {
 	SetOrganizationAccess(ctx context.Context, arg SetOrganizationAccessParams) error
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
 	SetOutboundMessageErrorCode(ctx context.Context, arg SetOutboundMessageErrorCodeParams) error
+	// Sender route of the latest attempt (error_code NULL on success).
 	SetOutboundMessageSender(ctx context.Context, arg SetOutboundMessageSenderParams) error
 	SetQuotePDF(ctx context.Context, arg SetQuotePDFParams) error
 	SetQuoteReminderScheduled(ctx context.Context, arg SetQuoteReminderScheduledParams) error
@@ -850,6 +853,8 @@ type Querier interface {
 	UpdateOutboundMessageDelivery(ctx context.Context, arg UpdateOutboundMessageDeliveryParams) error
 	UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOutboundMessageStatusParams) (OutboundMessage, error)
 	UpdatePaymentSettings(ctx context.Context, arg UpdatePaymentSettingsParams) (BillingSetting, error)
+	UpdatePlatformWhatsAppQR(ctx context.Context, arg UpdatePlatformWhatsAppQRParams) (PlatformWhatsappSetting, error)
+	// Connected / disconnected / pairing state; always clears the QR code.
 	UpdatePlatformWhatsAppSession(ctx context.Context, arg UpdatePlatformWhatsAppSessionParams) (PlatformWhatsappSetting, error)
 	// Partial update: NULL args keep the stored value.
 	UpdatePlatformWhatsAppSettings(ctx context.Context, arg UpdatePlatformWhatsAppSettingsParams) (PlatformWhatsappSetting, error)

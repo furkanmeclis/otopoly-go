@@ -11,6 +11,17 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countOutboundMessagesByOrg = `-- name: CountOutboundMessagesByOrg :one
+SELECT COUNT(*) FROM outbound_messages WHERE organization_id = $1
+`
+
+func (q *Queries) CountOutboundMessagesByOrg(ctx context.Context, organizationID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countOutboundMessagesByOrg, organizationID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const ensureWhatsAppCloudTemplate = `-- name: EnsureWhatsAppCloudTemplate :one
 INSERT INTO whatsapp_cloud_templates (key, meta_name, language, category)
 VALUES ($1, $2, $3, $4)
@@ -96,7 +107,7 @@ func (q *Queries) GetOutboundMessageByProviderReference(ctx context.Context, pro
 }
 
 const getPlatformWhatsAppSettings = `-- name: GetPlatformWhatsAppSettings :one
-SELECT id, provider, app_id, waba_id, phone_number_id, api_version, access_token_enc, app_secret_enc, webhook_verify_token_enc, display_phone, wm_status, wm_jid, wm_phone, created_at, updated_at, updated_by FROM platform_whatsapp_settings WHERE id = 1
+SELECT id, provider, app_id, waba_id, phone_number_id, api_version, access_token_enc, app_secret_enc, webhook_verify_token_enc, display_phone, wm_status, wm_jid, wm_phone, created_at, updated_at, updated_by, wm_qr_code, wm_qr_expires_at, wm_error FROM platform_whatsapp_settings WHERE id = 1
 `
 
 func (q *Queries) GetPlatformWhatsAppSettings(ctx context.Context) (PlatformWhatsappSetting, error) {
@@ -119,6 +130,9 @@ func (q *Queries) GetPlatformWhatsAppSettings(ctx context.Context) (PlatformWhat
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.WmQrCode,
+		&i.WmQrExpiresAt,
+		&i.WmError,
 	)
 	return i, err
 }
@@ -145,6 +159,66 @@ func (q *Queries) GetWhatsAppCloudTemplateByKey(ctx context.Context, key string)
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listOutboundMessagesByOrg = `-- name: ListOutboundMessagesByOrg :many
+SELECT id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code FROM outbound_messages
+WHERE organization_id = $1
+ORDER BY created_at DESC, id DESC
+LIMIT $3 OFFSET $2
+`
+
+type ListOutboundMessagesByOrgParams struct {
+	OrganizationID int64 `json:"organization_id"`
+	RowOffset      int32 `json:"row_offset"`
+	RowLimit       int32 `json:"row_limit"`
+}
+
+func (q *Queries) ListOutboundMessagesByOrg(ctx context.Context, arg ListOutboundMessagesByOrgParams) ([]OutboundMessage, error) {
+	rows, err := q.db.Query(ctx, listOutboundMessagesByOrg, arg.OrganizationID, arg.RowOffset, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []OutboundMessage{}
+	for rows.Next() {
+		var i OutboundMessage
+		if err := rows.Scan(
+			&i.ID,
+			&i.Uuid,
+			&i.OrganizationID,
+			&i.EventType,
+			&i.Channel,
+			&i.RecipientPhone,
+			&i.Status,
+			&i.ProviderReference,
+			&i.ErrorMessage,
+			&i.Payload,
+			&i.SubjectType,
+			&i.SubjectUuid,
+			&i.SentAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Body,
+			&i.Attachment,
+			&i.Attempts,
+			&i.ScheduledNotificationID,
+			&i.SenderKind,
+			&i.TemplateName,
+			&i.DeliveryStatus,
+			&i.DeliveryStatusAt,
+			&i.PricingCategory,
+			&i.Billable,
+			&i.ErrorCode,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listWhatsAppCloudTemplates = `-- name: ListWhatsAppCloudTemplates :many
@@ -203,18 +277,26 @@ func (q *Queries) SetOutboundMessageErrorCode(ctx context.Context, arg SetOutbou
 const setOutboundMessageSender = `-- name: SetOutboundMessageSender :exec
 UPDATE outbound_messages
 SET sender_kind = $1,
-    template_name = $2
-WHERE id = $3
+    template_name = $2,
+    error_code = $3
+WHERE id = $4
 `
 
 type SetOutboundMessageSenderParams struct {
 	SenderKind   pgtype.Text `json:"sender_kind"`
 	TemplateName pgtype.Text `json:"template_name"`
+	ErrorCode    pgtype.Text `json:"error_code"`
 	ID           int64       `json:"id"`
 }
 
+// Sender route of the latest attempt (error_code NULL on success).
 func (q *Queries) SetOutboundMessageSender(ctx context.Context, arg SetOutboundMessageSenderParams) error {
-	_, err := q.db.Exec(ctx, setOutboundMessageSender, arg.SenderKind, arg.TemplateName, arg.ID)
+	_, err := q.db.Exec(ctx, setOutboundMessageSender,
+		arg.SenderKind,
+		arg.TemplateName,
+		arg.ErrorCode,
+		arg.ID,
+	)
 	return err
 }
 
@@ -317,23 +399,23 @@ func (q *Queries) UpdateOutboundMessageDelivery(ctx context.Context, arg UpdateO
 	return err
 }
 
-const updatePlatformWhatsAppSession = `-- name: UpdatePlatformWhatsAppSession :one
+const updatePlatformWhatsAppQR = `-- name: UpdatePlatformWhatsAppQR :one
 UPDATE platform_whatsapp_settings
-SET wm_status = $1,
-    wm_jid = $2,
-    wm_phone = $3
+SET wm_status = 'qr_pending',
+    wm_qr_code = $1,
+    wm_qr_expires_at = $2,
+    wm_error = ''
 WHERE id = 1
-RETURNING id, provider, app_id, waba_id, phone_number_id, api_version, access_token_enc, app_secret_enc, webhook_verify_token_enc, display_phone, wm_status, wm_jid, wm_phone, created_at, updated_at, updated_by
+RETURNING id, provider, app_id, waba_id, phone_number_id, api_version, access_token_enc, app_secret_enc, webhook_verify_token_enc, display_phone, wm_status, wm_jid, wm_phone, created_at, updated_at, updated_by, wm_qr_code, wm_qr_expires_at, wm_error
 `
 
-type UpdatePlatformWhatsAppSessionParams struct {
-	WmStatus string `json:"wm_status"`
-	WmJid    string `json:"wm_jid"`
-	WmPhone  string `json:"wm_phone"`
+type UpdatePlatformWhatsAppQRParams struct {
+	WmQrCode      string             `json:"wm_qr_code"`
+	WmQrExpiresAt pgtype.Timestamptz `json:"wm_qr_expires_at"`
 }
 
-func (q *Queries) UpdatePlatformWhatsAppSession(ctx context.Context, arg UpdatePlatformWhatsAppSessionParams) (PlatformWhatsappSetting, error) {
-	row := q.db.QueryRow(ctx, updatePlatformWhatsAppSession, arg.WmStatus, arg.WmJid, arg.WmPhone)
+func (q *Queries) UpdatePlatformWhatsAppQR(ctx context.Context, arg UpdatePlatformWhatsAppQRParams) (PlatformWhatsappSetting, error) {
+	row := q.db.QueryRow(ctx, updatePlatformWhatsAppQR, arg.WmQrCode, arg.WmQrExpiresAt)
 	var i PlatformWhatsappSetting
 	err := row.Scan(
 		&i.ID,
@@ -352,6 +434,61 @@ func (q *Queries) UpdatePlatformWhatsAppSession(ctx context.Context, arg UpdateP
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.WmQrCode,
+		&i.WmQrExpiresAt,
+		&i.WmError,
+	)
+	return i, err
+}
+
+const updatePlatformWhatsAppSession = `-- name: UpdatePlatformWhatsAppSession :one
+UPDATE platform_whatsapp_settings
+SET wm_status = $1,
+    wm_jid = $2,
+    wm_phone = $3,
+    wm_error = $4,
+    wm_qr_code = '',
+    wm_qr_expires_at = NULL
+WHERE id = 1
+RETURNING id, provider, app_id, waba_id, phone_number_id, api_version, access_token_enc, app_secret_enc, webhook_verify_token_enc, display_phone, wm_status, wm_jid, wm_phone, created_at, updated_at, updated_by, wm_qr_code, wm_qr_expires_at, wm_error
+`
+
+type UpdatePlatformWhatsAppSessionParams struct {
+	WmStatus string `json:"wm_status"`
+	WmJid    string `json:"wm_jid"`
+	WmPhone  string `json:"wm_phone"`
+	WmError  string `json:"wm_error"`
+}
+
+// Connected / disconnected / pairing state; always clears the QR code.
+func (q *Queries) UpdatePlatformWhatsAppSession(ctx context.Context, arg UpdatePlatformWhatsAppSessionParams) (PlatformWhatsappSetting, error) {
+	row := q.db.QueryRow(ctx, updatePlatformWhatsAppSession,
+		arg.WmStatus,
+		arg.WmJid,
+		arg.WmPhone,
+		arg.WmError,
+	)
+	var i PlatformWhatsappSetting
+	err := row.Scan(
+		&i.ID,
+		&i.Provider,
+		&i.AppID,
+		&i.WabaID,
+		&i.PhoneNumberID,
+		&i.ApiVersion,
+		&i.AccessTokenEnc,
+		&i.AppSecretEnc,
+		&i.WebhookVerifyTokenEnc,
+		&i.DisplayPhone,
+		&i.WmStatus,
+		&i.WmJid,
+		&i.WmPhone,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.UpdatedBy,
+		&i.WmQrCode,
+		&i.WmQrExpiresAt,
+		&i.WmError,
 	)
 	return i, err
 }
@@ -369,7 +506,7 @@ SET provider = COALESCE($1, provider),
     display_phone = COALESCE($9, display_phone),
     updated_by = $10
 WHERE id = 1
-RETURNING id, provider, app_id, waba_id, phone_number_id, api_version, access_token_enc, app_secret_enc, webhook_verify_token_enc, display_phone, wm_status, wm_jid, wm_phone, created_at, updated_at, updated_by
+RETURNING id, provider, app_id, waba_id, phone_number_id, api_version, access_token_enc, app_secret_enc, webhook_verify_token_enc, display_phone, wm_status, wm_jid, wm_phone, created_at, updated_at, updated_by, wm_qr_code, wm_qr_expires_at, wm_error
 `
 
 type UpdatePlatformWhatsAppSettingsParams struct {
@@ -417,6 +554,9 @@ func (q *Queries) UpdatePlatformWhatsAppSettings(ctx context.Context, arg Update
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.UpdatedBy,
+		&i.WmQrCode,
+		&i.WmQrExpiresAt,
+		&i.WmError,
 	)
 	return i, err
 }
