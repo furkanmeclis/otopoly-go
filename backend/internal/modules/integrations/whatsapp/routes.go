@@ -25,7 +25,19 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/platform/integrations/whatsapp", middleware.Chain(
 		http.HandlerFunc(h.GetSettings), authn, require(rbac.PermPlatformIntegrationsWhatsAppRead), superAdmin,
 	))
-	mux.Handle("PATCH /v1/platform/integrations/whatsapp", middleware.Chain(
-		http.HandlerFunc(h.PatchSettings), authn, require(rbac.PermPlatformIntegrationsWhatsAppWrite), superAdmin,
-	))
+	read := func(fn http.HandlerFunc) http.Handler {
+		return middleware.Chain(fn, authn, require(rbac.PermPlatformIntegrationsWhatsAppRead), superAdmin)
+	}
+	write := func(fn http.HandlerFunc) http.Handler {
+		return middleware.Chain(fn, authn, require(rbac.PermPlatformIntegrationsWhatsAppWrite), superAdmin)
+	}
+
+	mux.Handle("PATCH /v1/platform/integrations/whatsapp", write(h.PatchSettings))
+	mux.Handle("POST /v1/platform/integrations/whatsapp/test", write(h.TestSend))
+	mux.Handle("POST /v1/platform/integrations/whatsapp/session/connect", write(h.ConnectSession))
+	mux.Handle("DELETE /v1/platform/integrations/whatsapp/session", write(h.DisconnectSession))
+	mux.Handle("GET /v1/platform/integrations/whatsapp/templates", read(h.ListTemplates))
+	mux.Handle("POST /v1/platform/integrations/whatsapp/templates/submit", write(h.SubmitTemplates))
+	mux.Handle("POST /v1/platform/integrations/whatsapp/templates/sync", write(h.SyncTemplates))
+	mux.Handle("PATCH /v1/platform/integrations/whatsapp/templates/{key}", write(h.PatchTemplate))
 }

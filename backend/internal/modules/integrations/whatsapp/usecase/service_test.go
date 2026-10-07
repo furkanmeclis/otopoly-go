@@ -231,3 +231,19 @@ func TestCloudConfigReaderNotConfigured(t *testing.T) {
 		t.Fatalf("expected ErrNotConfigured, got %v", err)
 	}
 }
+
+func TestCloudConfigReaderWithoutAppSecret(t *testing.T) {
+	svc := New(newRepo(), testBox(t), "")
+	in := cloudPatch()
+	in.AppSecret = nil
+	if _, err := svc.Patch(context.Background(), nil, in); err != nil {
+		t.Fatalf("Patch: %v", err)
+	}
+	conf, err := svc.CloudConfigReader().Read(context.Background())
+	if err != nil {
+		t.Fatalf("Read without app secret must succeed (sending does not need it): %v", err)
+	}
+	if conf.AppSecret != "" || conf.AccessToken != "token-plain" {
+		t.Fatalf("unexpected config: %+v", conf)
+	}
+}

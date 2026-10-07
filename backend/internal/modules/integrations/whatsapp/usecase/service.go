@@ -49,19 +49,24 @@ func New(q settingsStore, box *crypto.SecretBox, frontendURL string) *Service {
 
 // Settings is the public admin payload (no secret values).
 type Settings struct {
-	Provider                     string     `json:"provider"`
-	AppID                        string     `json:"app_id"`
-	WabaID                       string     `json:"waba_id"`
-	PhoneNumberID                string     `json:"phone_number_id"`
-	APIVersion                   string     `json:"api_version"`
-	DisplayPhone                 string     `json:"display_phone"`
-	AccessTokenConfigured        bool       `json:"access_token_configured"`
-	AppSecretConfigured          bool       `json:"app_secret_configured"`
-	WebhookVerifyTokenConfigured bool       `json:"webhook_verify_token_configured"`
-	WebhookURL                   string     `json:"webhook_url"`
-	WhatsmeowStatus              string     `json:"whatsmeow_status"`
-	WhatsmeowPhone               string     `json:"whatsmeow_phone"`
-	UpdatedAt                    *time.Time `json:"updated_at"`
+	Provider                     string `json:"provider"`
+	AppID                        string `json:"app_id"`
+	WabaID                       string `json:"waba_id"`
+	PhoneNumberID                string `json:"phone_number_id"`
+	APIVersion                   string `json:"api_version"`
+	DisplayPhone                 string `json:"display_phone"`
+	AccessTokenConfigured        bool   `json:"access_token_configured"`
+	AppSecretConfigured          bool   `json:"app_secret_configured"`
+	WebhookVerifyTokenConfigured bool   `json:"webhook_verify_token_configured"`
+	WebhookURL                   string `json:"webhook_url"`
+	WhatsmeowStatus              string `json:"whatsmeow_status"`
+	WhatsmeowPhone               string `json:"whatsmeow_phone"`
+	// WhatsmeowQRCode is the pairing QR while whatsmeow_status is
+	// qr_pending (polled like the tenant session QR).
+	WhatsmeowQRCode      string     `json:"whatsmeow_qr_code,omitempty"`
+	WhatsmeowQRExpiresAt *time.Time `json:"whatsmeow_qr_expires_at,omitempty"`
+	WhatsmeowError       string     `json:"whatsmeow_error,omitempty"`
+	UpdatedAt            *time.Time `json:"updated_at"`
 }
 
 // PatchInput is a partial update; nil (or empty secret) keeps the stored value.
@@ -96,6 +101,12 @@ func (s *Service) mapSettings(row db.PlatformWhatsappSetting) Settings {
 		WebhookURL:                   s.WebhookURL(),
 		WhatsmeowStatus:              row.WmStatus,
 		WhatsmeowPhone:               row.WmPhone,
+		WhatsmeowQRCode:              row.WmQrCode,
+		WhatsmeowError:               row.WmError,
+	}
+	if row.WmQrExpiresAt.Valid {
+		t := row.WmQrExpiresAt.Time
+		out.WhatsmeowQRExpiresAt = &t
 	}
 	if row.UpdatedAt.Valid {
 		t := row.UpdatedAt.Time
@@ -216,9 +227,13 @@ func (s *Service) CloudConfigReader() config.ReaderFunc {
 		if err != nil {
 			return nil, fmt.Errorf("decrypt access token: %w", err)
 		}
-		appSecret, err := s.box.Decrypt(string(row.AppSecretEnc))
-		if err != nil {
-			return nil, fmt.Errorf("decrypt app secret: %w", err)
+		// The app secret is only needed for webhooks / appsecret_proof:
+		// sending works without it, so an unset secret stays empty.
+		appSecret := ""
+		if configured(row.AppSecretEnc) {
+			if appSecret, err = s.box.Decrypt(string(row.AppSecretEnc)); err != nil {
+				return nil, fmt.Errorf("decrypt app secret: %w", err)
+			}
 		}
 		return &config.Config{
 			BaseURL:           whatsapp.BaseURL,
