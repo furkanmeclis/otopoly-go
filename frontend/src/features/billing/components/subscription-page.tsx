@@ -39,7 +39,7 @@ import { cn } from "@/lib/utils";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
-const STATUS_TONE: Record<
+export const SUBSCRIPTION_STATUS_TONE: Record<
   BillingSubscription["status"],
   "default" | "success" | "warning" | "danger"
 > = {
@@ -173,7 +173,7 @@ function PlanCard({ overview }: { overview: BillingOverview }) {
             <span className="text-xl font-semibold">{sub.plan_name}</span>
             <StatusChip
               label={t(`billing.status.${sub.status}`)}
-              tone={STATUS_TONE[sub.status]}
+              tone={SUBSCRIPTION_STATUS_TONE[sub.status]}
             />
           </div>
           {overview.plan?.description ? (

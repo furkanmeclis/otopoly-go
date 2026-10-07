@@ -149,6 +149,31 @@ async function publicRequest<T>(method: string, path: string, body?: unknown) {
   return unwrap<T>({ data: payload, response });
 }
 
+type Schemas = components["schemas"];
+
+export type OrganizationOverview = Schemas["OrganizationOverview"];
+export type OrganizationStats = Schemas["OrganizationStats"];
+export type OrganizationBilling = Schemas["OrganizationBilling"];
+export type OrganizationWhatsAppOverview =
+  Schemas["OrganizationWhatsAppOverview"];
+export type OrganizationActivityEntry = Schemas["OrganizationActivityEntry"];
+export type OrganizationOutboundMessage = Schemas["OutboundMessage"];
+export type SetOrganizationStatusRequest =
+  Schemas["SetOrganizationStatusRequest"];
+export type ExtendOrganizationAccessRequest =
+  Schemas["ExtendOrganizationAccessRequest"];
+
+export type Page<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+};
+
+export type OrganizationActivityParams = ServerListParams & {
+  action?: string;
+};
+
 export type OwnedOrganizationCreated =
   components["schemas"]["OwnedOrganizationCreated"];
 
@@ -260,6 +285,55 @@ export const organizationsService = {
       "PATCH",
       `/v1/platform/organizations/${uuid}/members/${userUuid}`,
       { body: { role } },
+    );
+  },
+
+  /** 360° overview: stats, billing (plan, usage vs limits), WhatsApp summary. */
+  async overview(uuid: string) {
+    return platformRequest<OrganizationOverview>(
+      "GET",
+      `/v1/platform/organizations/${uuid}/overview`,
+    );
+  },
+
+  async activity(uuid: string, params: OrganizationActivityParams) {
+    return platformRequest<Page<OrganizationActivityEntry>>(
+      "GET",
+      `/v1/platform/organizations/${uuid}/activity`,
+      {
+        query: {
+          limit: params.limit,
+          offset: params.offset,
+          q: params.q,
+          action: params.action,
+        },
+      },
+    );
+  },
+
+  async outbound(uuid: string, params: ServerListParams) {
+    return platformRequest<Page<OrganizationOutboundMessage>>(
+      "GET",
+      `/v1/platform/organizations/${uuid}/whatsapp/outbound`,
+      { query: { limit: params.limit, offset: params.offset } },
+    );
+  },
+
+  /** Suspend / activate. Step-up is retried by platformRequest. */
+  async setStatus(uuid: string, body: SetOrganizationStatusRequest) {
+    return platformRequest<Organization>(
+      "POST",
+      `/v1/platform/organizations/${uuid}/status`,
+      { body },
+    );
+  },
+
+  /** Extend access by N days. Step-up is retried by platformRequest. */
+  async extendAccess(uuid: string, body: ExtendOrganizationAccessRequest) {
+    return platformRequest<Organization>(
+      "POST",
+      `/v1/platform/organizations/${uuid}/extend-access`,
+      { body },
     );
   },
 

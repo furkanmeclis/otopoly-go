@@ -6,4 +6,10 @@ export const organizationsKeys = {
   details: () => [...organizationsKeys.all, "detail"] as const,
   detail: (uuid: string) => [...organizationsKeys.details(), uuid] as const,
   meta: () => [...organizationsKeys.all, "meta"] as const,
+  overview: (uuid: string) =>
+    [...organizationsKeys.detail(uuid), "overview"] as const,
+  activity: (uuid: string, params: Record<string, unknown>) =>
+    [...organizationsKeys.detail(uuid), "activity", params] as const,
+  outbound: (uuid: string, params: Record<string, unknown>) =>
+    [...organizationsKeys.detail(uuid), "outbound", params] as const,
 };

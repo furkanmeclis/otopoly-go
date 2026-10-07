@@ -208,7 +208,7 @@ export function useImpersonateUser() {
   const { hydrateProfile } = useAuth();
 
   return useAppMutation({
-    mutationFn: async (user: PublicUser) => {
+    mutationFn: async (user: Pick<PublicUser, "uuid" | "name" | "surname">) => {
       await ensure();
       return usersService.impersonate(user.uuid);
     },

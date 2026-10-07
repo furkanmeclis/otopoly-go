@@ -6,6 +6,7 @@ import { organizationsKeys } from "@/features/organizations/hooks/query-keys";
 import {
   organizationsService,
   type ListOrganizationsParams,
+  type OrganizationActivityParams,
 } from "@/features/organizations/services/organizations.service";
 
 export function useOrganizationsList(
@@ -34,5 +35,26 @@ export function useOrganizationsMeta(enabled = true) {
     queryFn: () => organizationsService.meta(),
     enabled,
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useOrganizationOverview(uuid: string, enabled = true) {
+  return useQuery({
+    queryKey: organizationsKeys.overview(uuid),
+    queryFn: () => organizationsService.overview(uuid),
+    enabled: Boolean(uuid) && enabled,
+  });
+}
+
+export function useOrganizationActivity(
+  uuid: string,
+  params: OrganizationActivityParams,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: organizationsKeys.activity(uuid, params),
+    queryFn: () => organizationsService.activity(uuid, params),
+    enabled: Boolean(uuid) && enabled,
+    placeholderData: (previous) => previous,
   });
 }
