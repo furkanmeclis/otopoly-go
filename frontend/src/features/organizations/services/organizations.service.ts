@@ -42,6 +42,8 @@ export type Organization = {
   updated_at: string;
 };
 
+export type OrganizationMemberRole = "owner" | "staff";
+
 export type OrganizationMember = {
   uuid: string;
   email: string;
@@ -246,6 +248,25 @@ export const organizationsService = {
       "POST",
       `/v1/platform/organizations/${uuid}/members`,
       { body },
+    );
+  },
+
+  async updateMemberRole(
+    uuid: string,
+    userUuid: string,
+    role: OrganizationMemberRole,
+  ) {
+    return platformRequest<OrganizationMember>(
+      "PATCH",
+      `/v1/platform/organizations/${uuid}/members/${userUuid}`,
+      { body: { role } },
+    );
+  },
+
+  async removeMember(uuid: string, userUuid: string) {
+    return platformRequest<{ status: string }>(
+      "DELETE",
+      `/v1/platform/organizations/${uuid}/members/${userUuid}`,
     );
   },
 };

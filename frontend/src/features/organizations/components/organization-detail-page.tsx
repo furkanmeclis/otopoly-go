@@ -3,7 +3,7 @@
 import { Building2, MapPin, Pencil, Phone } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
@@ -22,10 +22,9 @@ import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
 import { OrganizationAICard } from "@/features/ai";
 import { ORGANIZATION_STATUS_TONE } from "@/features/organizations/constants";
-import { OrganizationAddMemberDialog } from "@/features/organizations/components/organization-add-member-dialog";
+import { OrganizationMembersTable } from "@/features/organizations/components/organization-members-table";
 import { useOrganization } from "@/features/organizations/hooks/use-organizations-query";
 import type { OrganizationStatus } from "@/features/organizations/services/organizations.service";
-import { userFullName } from "@/features/users/lib/user-display";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -53,7 +52,6 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
   const { t } = useLocale();
   const router = useRouter();
   const query = useOrganization(uuid);
-  const [memberDialogOpen, setMemberDialogOpen] = useState(false);
 
   const organization = query.data?.organization;
   const members = query.data?.members ?? [];
@@ -97,16 +95,6 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
               >
                 <Pencil className="size-4" />
                 {t("organizations.actions.edit")}
-              </Button>
-            </PermissionGuard>
-            <PermissionGuard permission={permissions.organizations.write}>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => setMemberDialogOpen(true)}
-              >
-                {t("organizations.actions.add_member")}
               </Button>
             </PermissionGuard>
           </EntityActions>
@@ -255,47 +243,14 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
             />
           </EntitySectionCard>
 
-          <EntitySectionCard title={t("organizations.detail.members")}>
-            {members.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                {t("organizations.detail.members_empty")}
-              </p>
-            ) : (
-              <ul className="divide-border divide-y rounded-md border">
-                {members.map((member) => (
-                  <li
-                    key={member.uuid}
-                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5"
-                  >
-                    <div className="min-w-0 space-y-0.5">
-                      <Link
-                        href={routes.platform.users.detail(member.uuid)}
-                        className="text-sm font-medium hover:underline"
-                      >
-                        {userFullName(member)}
-                      </Link>
-                      <p className="text-muted-foreground text-xs">
-                        {member.email}
-                      </p>
-                    </div>
-                    <span className="text-muted-foreground text-xs uppercase">
-                      {t(`organizations.roles.${member.role}`)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </EntitySectionCard>
+          <OrganizationMembersTable
+            organizationUuid={organization.uuid}
+            members={members}
+          />
 
           <OrganizationAICard uuid={organization.uuid} />
         </div>
       ) : null}
-
-      <OrganizationAddMemberDialog
-        organizationUuid={uuid}
-        open={memberDialogOpen}
-        onOpenChange={setMemberDialogOpen}
-      />
     </EntityPage>
   );
 }
