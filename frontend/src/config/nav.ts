@@ -246,6 +246,13 @@ export const platformNav = defineNav({
           icon: appleNavIcon,
           permission: permissions.integrations.apple.read,
         },
+        {
+          id: "whatsapp-integration",
+          titleKey: "layout.nav_whatsapp_integration",
+          href: routes.platform.integrations.whatsapp,
+          icon: MessageCircle,
+          permission: permissions.integrations.whatsapp.read,
+        },
       ],
     },
     {

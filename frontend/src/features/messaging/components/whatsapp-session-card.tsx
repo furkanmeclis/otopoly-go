@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import QRCode from "qrcode";
+import { useState } from "react";
 import {
   CheckCircle2,
   Loader2,
+  Lock,
   MessageCircle,
-  RefreshCw,
   Unplug,
   XCircle,
 } from "lucide-react";
@@ -29,63 +28,44 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { WhatsAppQrPanel } from "@/features/messaging/components/whatsapp-qr-panel";
 import {
   useConnectWhatsApp,
   useDisconnectWhatsApp,
+  useUpdateSessionSettings,
   useWhatsAppSession,
 } from "@/features/messaging/hooks/use-messaging";
 import { useLocale } from "@/providers/locale-provider";
 
-const QR_TTL_SECONDS = 60;
+type WhatsAppSessionCardProps = {
+  /** Owner with `tenant.messaging.write` (routing settings). */
+  canWrite?: boolean;
+};
 
-export function WhatsAppSessionCard() {
+export function WhatsAppSessionCard({
+  canWrite = false,
+}: WhatsAppSessionCardProps) {
   const { t } = useLocale();
   const sessionQuery = useWhatsAppSession({
     pollWhilePairing: true,
   });
   const connectMutation = useConnectWhatsApp();
   const disconnectMutation = useDisconnectWhatsApp();
+  const settingsMutation = useUpdateSessionSettings();
 
-  const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
-  const [nowMs, setNowMs] = useState(() => Date.now());
   const [disconnectOpen, setDisconnectOpen] = useState(false);
 
   const session = sessionQuery.data;
+  const entitled = session?.own_number_entitled ?? false;
   const status = session?.status ?? "disconnected";
   const qrCode = session?.qr_code?.trim() || "";
-  const qrExpiresAt = session?.qr_expires_at;
-  const pairing = Boolean(qrCode) && status !== "connected";
-  const displayQrUrl = pairing ? qrImageUrl : null;
-  const countdown =
-    qrExpiresAt && status === "qr_pending"
-      ? Math.max(
-          0,
-          Math.floor((new Date(qrExpiresAt).getTime() - nowMs) / 1000),
-        )
-      : QR_TTL_SECONDS;
-
-  useEffect(() => {
-    if (!pairing) return;
-    let cancelled = false;
-    void QRCode.toDataURL(qrCode, { width: 240, margin: 2 }).then((url) => {
-      if (!cancelled) setQrImageUrl(url);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [pairing, qrCode]);
-
-  useEffect(() => {
-    if (!qrExpiresAt || status !== "qr_pending") return;
-    const id = setInterval(() => setNowMs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [qrExpiresAt, status]);
+  const showQR =
+    entitled &&
+    (status === "qr_pending" || (Boolean(qrCode) && status !== "connected"));
 
   async function handleConnect() {
-    await connectMutation.mutateAsync();
-  }
-
-  async function handleRefreshQR() {
     await connectMutation.mutateAsync();
   }
 
@@ -94,8 +74,20 @@ export function WhatsAppSessionCard() {
     setDisconnectOpen(false);
   }
 
-  const showQR =
-    status === "qr_pending" || (Boolean(qrCode) && status !== "connected");
+  const platformBadge = session ? (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-muted-foreground">
+        {t("messaging.wa.platform_sender")}
+      </span>
+      <Badge
+        variant={session.platform_sender_available ? "success" : "warning"}
+      >
+        {session.platform_sender_available
+          ? t("messaging.wa.platform_available")
+          : t("messaging.wa.platform_unavailable")}
+      </Badge>
+    </div>
+  ) : null;
 
   return (
     <Card>
@@ -104,7 +96,11 @@ export function WhatsAppSessionCard() {
           <MessageCircle className="size-5 text-green-500" />
           <CardTitle>{t("messaging.wa.title")}</CardTitle>
         </div>
-        <CardDescription>{t("messaging.wa.description")}</CardDescription>
+        <CardDescription>
+          {session && !entitled
+            ? t("messaging.wa.description_platform")
+            : t("messaging.wa.description")}
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {sessionQuery.isLoading ? (
@@ -114,7 +110,23 @@ export function WhatsAppSessionCard() {
           </div>
         ) : null}
 
-        {!sessionQuery.isLoading &&
+        {session && !entitled ? (
+          <div className="space-y-3">
+            <div className="bg-muted/50 flex items-start gap-3 rounded-md border p-3 text-sm">
+              <Lock className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+              <div className="space-y-1">
+                <p className="font-medium">{t("messaging.wa.locked_title")}</p>
+                <p className="text-muted-foreground">
+                  {t("messaging.wa.locked_body")}
+                </p>
+              </div>
+            </div>
+            {platformBadge}
+          </div>
+        ) : null}
+
+        {entitled &&
+        !sessionQuery.isLoading &&
         (status === "disconnected" || status === "error") &&
         !showQR ? (
           <div className="space-y-3">
@@ -139,51 +151,16 @@ export function WhatsAppSessionCard() {
         ) : null}
 
         {showQR ? (
-          <div className="space-y-3">
-            <div className="bg-muted flex flex-col items-center gap-3 rounded-md border p-4">
-              <p className="text-muted-foreground self-start text-xs">
-                {t("messaging.wa.scan")}
-              </p>
-              {displayQrUrl ? (
-                // QR is a data URL from qrcode; next/image is not applicable.
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={displayQrUrl}
-                  alt={t("messaging.wa.qr_alt")}
-                  className="rounded-md"
-                  width={240}
-                  height={240}
-                />
-              ) : (
-                <div className="flex h-[240px] w-[240px] items-center justify-center">
-                  <Loader2 className="text-muted-foreground size-6 animate-spin" />
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <Badge variant={countdown > 10 ? "secondary" : "danger"}>
-                {countdown > 0
-                  ? t("messaging.wa.expires_in", { seconds: countdown })
-                  : t("messaging.wa.expired")}
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleRefreshQR()}
-                disabled={connectMutation.isPending}
-              >
-                {connectMutation.isPending ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 size-4" />
-                )}
-                {t("messaging.wa.refresh")}
-              </Button>
-            </div>
-          </div>
+          <WhatsAppQrPanel
+            qrCode={qrCode}
+            qrExpiresAt={session?.qr_expires_at}
+            pending={status === "qr_pending"}
+            refreshing={connectMutation.isPending}
+            onRefresh={() => void handleConnect()}
+          />
         ) : null}
 
-        {status === "connected" ? (
+        {entitled && status === "connected" ? (
           <div className="flex items-center justify-between rounded-md border px-4 py-3">
             <div className="flex items-center gap-3">
               <span className="inline-block size-2.5 rounded-full bg-green-500" />
@@ -240,6 +217,28 @@ export function WhatsAppSessionCard() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+          </div>
+        ) : null}
+
+        {session && entitled ? (
+          <div className="space-y-3 border-t pt-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="wa-fallback-to-platform">
+                  {t("messaging.wa.fallback_label")}
+                </Label>
+                <p className="text-muted-foreground text-xs">
+                  {t("messaging.wa.fallback_hint")}
+                </p>
+              </div>
+              <Switch
+                id="wa-fallback-to-platform"
+                checked={session.fallback_to_platform}
+                onCheckedChange={(checked) => settingsMutation.mutate(checked)}
+                disabled={!canWrite || settingsMutation.isPending}
+              />
+            </div>
+            {platformBadge}
           </div>
         ) : null}
       </CardContent>

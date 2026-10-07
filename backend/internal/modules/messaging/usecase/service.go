@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/catalog"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
@@ -49,6 +50,15 @@ type Querier interface {
 	InsertQueuedOutboundMessage(ctx context.Context, arg db.InsertQueuedOutboundMessageParams) (db.OutboundMessage, error)
 	ClaimOutboundMessage(ctx context.Context, id int64) (db.OutboundMessage, error)
 	FinishOutboundMessage(ctx context.Context, arg db.FinishOutboundMessageParams) (db.OutboundMessage, error)
+	ListOutboundMessagesByOrg(ctx context.Context, arg db.ListOutboundMessagesByOrgParams) ([]db.OutboundMessage, error)
+	CountOutboundMessagesByOrg(ctx context.Context, organizationID int64) (int64, error)
+	SetOutboundMessageSender(ctx context.Context, arg db.SetOutboundMessageSenderParams) error
+	SetWhatsAppSessionFallback(ctx context.Context, arg db.SetWhatsAppSessionFallbackParams) (db.WhatsappSession, error)
+	// Platform sender.
+	GetPlatformWhatsAppSettings(ctx context.Context) (db.PlatformWhatsappSetting, error)
+	UpdatePlatformWhatsAppSession(ctx context.Context, arg db.UpdatePlatformWhatsAppSessionParams) (db.PlatformWhatsappSetting, error)
+	UpdatePlatformWhatsAppQR(ctx context.Context, arg db.UpdatePlatformWhatsAppQRParams) (db.PlatformWhatsappSetting, error)
+	GetWhatsAppCloudTemplateByKey(ctx context.Context, key string) (db.WhatsappCloudTemplate, error)
 }
 
 // ChannelSender is a generic send interface for a messaging channel.
@@ -67,6 +77,9 @@ type Service struct {
 	store    storage.Driver
 	observer OutboundObserver
 	ent      *entitlements.Service
+	cloud    CloudSender
+	// platformInfo is the platform brand used by platform-number messages.
+	platformInfo PlatformInfoFunc
 }
 
 // New builds a messaging service.
@@ -88,22 +101,59 @@ func New(q Querier, wp *providers.WhatsAppProvider, sms *providers.NoopSMSProvid
 
 func (s *Service) SetEntitlements(e *entitlements.Service) { s.ent = e }
 
-// --- WhatsApp Session ---
-
-func (s *Service) GetSession(ctx context.Context, orgID int64) (model.WhatsAppSession, error) {
-	row, err := s.q.GetWhatsAppSession(ctx, orgID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return model.WhatsAppSession{
-				Status: model.StatusDisconnected,
-			}, nil
-		}
-		return model.WhatsAppSession{}, fmt.Errorf("GetSession: %w", err)
-	}
-	return mapSession(row), nil
+// SetCloudSender installs the WhatsApp Cloud API sender (platform number).
+func (s *Service) SetCloudSender(c CloudSender) *Service {
+	s.cloud = c
+	return s
 }
 
+// --- WhatsApp Session ---
+
+// GetSession returns the own-number session plus the sender routing flags.
+func (s *Service) GetSession(ctx context.Context, orgID int64) (model.WhatsAppSession, error) {
+	out := model.WhatsAppSession{Status: model.StatusDisconnected, FallbackToPlatform: true}
+	row, err := s.q.GetWhatsAppSession(ctx, orgID)
+	switch {
+	case err == nil:
+		out = mapSession(row)
+	case !errors.Is(err, pgx.ErrNoRows):
+		return model.WhatsAppSession{}, fmt.Errorf("GetSession: %w", err)
+	}
+	if out.OwnNumberEntitled, err = s.ownNumberEntitled(ctx, orgID); err != nil {
+		return model.WhatsAppSession{}, fmt.Errorf("GetSession entitlement: %w", err)
+	}
+	if _, err := s.platformKind(ctx); err == nil {
+		out.PlatformSenderAvailable = true
+	} else if model.ErrorCodeOf(err) == "" {
+		return model.WhatsAppSession{}, fmt.Errorf("GetSession platform: %w", err)
+	}
+	return out, nil
+}
+
+// SessionSettingsInput updates own-session routing settings.
+type SessionSettingsInput struct {
+	FallbackToPlatform *bool `json:"fallback_to_platform"`
+}
+
+// UpdateSessionSettings stores fallback_to_platform for the organization.
+func (s *Service) UpdateSessionSettings(ctx context.Context, orgID int64, in SessionSettingsInput) (model.WhatsAppSession, error) {
+	if in.FallbackToPlatform == nil {
+		return model.WhatsAppSession{}, fmt.Errorf("%w: fallback_to_platform is required", ErrInvalidRequest)
+	}
+	if _, err := s.q.SetWhatsAppSessionFallback(ctx, db.SetWhatsAppSessionFallbackParams{
+		OrganizationID: orgID, FallbackToPlatform: *in.FallbackToPlatform,
+	}); err != nil {
+		return model.WhatsAppSession{}, fmt.Errorf("UpdateSessionSettings: %w", err)
+	}
+	return s.GetSession(ctx, orgID)
+}
+
+// ConnectWhatsApp starts QR pairing of the organization's own number
+// (requires whatsapp.own_number).
 func (s *Service) ConnectWhatsApp(ctx context.Context, orgID int64) (model.WhatsAppSession, error) {
+	if err := s.requireOwnNumber(ctx, orgID); err != nil {
+		return model.WhatsAppSession{}, err
+	}
 	if s.wp == nil {
 		return model.WhatsAppSession{}, fmt.Errorf("%w: whatsapp provider not configured", ErrInvalidRequest)
 	}
@@ -297,6 +347,9 @@ func (s *Service) ListTemplates(ctx context.Context, orgID int64) ([]model.Messa
 }
 
 func (s *Service) UpsertTemplate(ctx context.Context, orgID int64, in model.UpsertTemplateInput) (model.MessageTemplate, error) {
+	if err := s.requireOwnNumber(ctx, orgID); err != nil {
+		return model.MessageTemplate{}, err
+	}
 	if strings.TrimSpace(in.EventType) == "" || strings.TrimSpace(in.Channel) == "" {
 		return model.MessageTemplate{}, fmt.Errorf("%w: event_type and channel are required", ErrInvalidRequest)
 	}
@@ -339,6 +392,9 @@ func (s *Service) GetTemplate(ctx context.Context, orgID int64, id uuid.UUID) (m
 }
 
 func (s *Service) PatchTemplate(ctx context.Context, orgID int64, id uuid.UUID, in model.PatchTemplateInput) (model.MessageTemplate, error) {
+	if err := s.requireOwnNumber(ctx, orgID); err != nil {
+		return model.MessageTemplate{}, err
+	}
 	existing, err := s.GetTemplate(ctx, orgID, id)
 	if err != nil {
 		return model.MessageTemplate{}, err
@@ -382,6 +438,9 @@ func (s *Service) PatchTemplate(ctx context.Context, orgID int64, id uuid.UUID, 
 }
 
 func (s *Service) DeleteTemplate(ctx context.Context, orgID int64, id uuid.UUID) error {
+	if err := s.requireOwnNumber(ctx, orgID); err != nil {
+		return err
+	}
 	_, err := s.GetTemplate(ctx, orgID, id)
 	if err != nil {
 		return err
@@ -418,51 +477,78 @@ func (s *Service) Dispatch(ctx context.Context, in model.DispatchInput) error {
 			continue
 		}
 
-		sender, ok := s.channels[ch]
-		if !ok {
-			continue
-		}
-
+		var res deliveryResult
+		var sendErr error
 		if ch == model.ChannelWhatsApp {
-			_ = s.EnsureWhatsAppConnected(ctx, in.OrgID)
-		}
-
-		ref, sendErr := sender.Send(ctx, in.RecipientPhone, body)
-
-		status := model.OutboundStatusSent
-		errMsg := ""
-		var sentAt pgtype.Timestamptz
-		provRef := ref
-		if sendErr != nil {
-			status = model.OutboundStatusFailed
-			errMsg = sendErr.Error()
-			provRef = ""
+			res, sendErr = s.deliverWhatsApp(ctx, outboundDelivery{
+				OrgID: in.OrgID, EventType: in.EventType, Phone: in.RecipientPhone, Body: body, Vars: in.Vars,
+			})
 		} else {
-			_ = sentAt.Scan(time.Now())
+			sender, ok := s.channels[ch]
+			if !ok {
+				continue
+			}
+			res.Ref, sendErr = sender.Send(ctx, in.RecipientPhone, body)
 		}
 
 		payload, _ := json.Marshal(in.Vars)
-		outMsg, dbErr := s.q.InsertOutboundMessage(ctx, db.InsertOutboundMessageParams{
-			OrganizationID: in.OrgID,
-			EventType:      in.EventType,
-			Channel:        ch,
-			RecipientPhone: in.RecipientPhone,
-			Status:         model.OutboundStatusQueued,
-			Payload:        payload,
-			SubjectType:    in.SubjectType,
-			SubjectUuid:    toPgtypeUUID(in.SubjectUUID),
-		})
-		if dbErr == nil {
-			_, _ = s.q.UpdateOutboundMessageStatus(ctx, db.UpdateOutboundMessageStatusParams{
-				ID:                outMsg.ID,
-				Status:            status,
-				ProviderReference: provRef,
-				ErrorMessage:      errMsg,
-				SentAt:            sentAt,
-			})
-		}
+		s.logOutbound(ctx, outboundLog{
+			OrgID: in.OrgID, EventType: in.EventType, Channel: ch, Phone: in.RecipientPhone,
+			Payload: payload, SubjectType: in.SubjectType, SubjectUUID: in.SubjectUUID,
+		}, res, sendErr)
 	}
 	return nil
+}
+
+// outboundLog identifies an inline (non-queued) send for outbound_messages.
+type outboundLog struct {
+	OrgID       int64
+	EventType   string
+	Channel     string
+	Phone       string
+	Payload     []byte
+	SubjectType string
+	SubjectUUID *uuid.UUID
+}
+
+// logOutbound records an inline send (status, provider ref, sender route).
+func (s *Service) logOutbound(ctx context.Context, l outboundLog, res deliveryResult, sendErr error) {
+	status := model.OutboundStatusSent
+	errMsg := ""
+	ref := res.Ref
+	var sentAt pgtype.Timestamptz
+	if sendErr != nil {
+		status = model.OutboundStatusFailed
+		errMsg = sendErr.Error()
+		ref = ""
+	} else {
+		_ = sentAt.Scan(time.Now())
+	}
+	payload := l.Payload
+	if len(payload) == 0 {
+		payload = []byte(`{}`)
+	}
+	outMsg, err := s.q.InsertOutboundMessage(ctx, db.InsertOutboundMessageParams{
+		OrganizationID: l.OrgID,
+		EventType:      l.EventType,
+		Channel:        l.Channel,
+		RecipientPhone: l.Phone,
+		Status:         model.OutboundStatusQueued,
+		Payload:        payload,
+		SubjectType:    l.SubjectType,
+		SubjectUuid:    toPgtypeUUID(l.SubjectUUID),
+	})
+	if err != nil {
+		return
+	}
+	_, _ = s.q.UpdateOutboundMessageStatus(ctx, db.UpdateOutboundMessageStatusParams{
+		ID:                outMsg.ID,
+		Status:            status,
+		ProviderReference: ref,
+		ErrorMessage:      errMsg,
+		SentAt:            sentAt,
+	})
+	s.recordSender(ctx, outMsg.ID, res, sendErr)
 }
 
 // ErrChannelUnavailable is returned when a transactional send cannot use the org channel.
@@ -478,18 +564,17 @@ type SendDirectInput struct {
 	Body           string
 	SubjectType    string
 	SubjectUUID    *uuid.UUID
+	// Vars feed the platform catalog entry when the platform number sends
+	// (e.g. code, business_name, minutes for contract.otp). Never persisted.
+	Vars map[string]string
 }
 
-// SendDirect delivers a pre-rendered body over the organization's own channel and
-// logs the outbound row. The body is not persisted (it may carry secrets like OTPs).
+// SendDirect delivers a pre-rendered body through the resolved sender and
+// logs the outbound row. Neither body nor vars are persisted (OTP secrets).
 func (s *Service) SendDirect(ctx context.Context, in SendDirectInput) (string, error) {
 	channel := strings.TrimSpace(in.Channel)
 	if channel == "" {
 		channel = model.ChannelWhatsApp
-	}
-	sender, ok := s.channels[channel]
-	if !ok {
-		return "", fmt.Errorf("%w: %s", ErrChannelUnavailable, channel)
 	}
 	if strings.TrimSpace(in.RecipientPhone) == "" {
 		return "", fmt.Errorf("%w: phone is required", ErrInvalidRequest)
@@ -497,48 +582,50 @@ func (s *Service) SendDirect(ctx context.Context, in SendDirectInput) (string, e
 	if _, ok := orgctx.ScopeFrom(ctx); !ok && in.OrgID > 0 {
 		ctx = orgctx.WithScope(ctx, orgctx.Scope{InternalID: in.OrgID})
 	}
+	var res deliveryResult
+	var sendErr error
 	if channel == model.ChannelWhatsApp {
-		session, err := s.q.GetWhatsAppSession(ctx, in.OrgID)
-		if err != nil || session.Status != model.StatusConnected {
-			return "", fmt.Errorf("%w: whatsapp session is not connected", ErrChannelUnavailable)
-		}
-		_ = s.EnsureWhatsAppConnected(ctx, in.OrgID)
-	}
-
-	ref, sendErr := sender.Send(ctx, in.RecipientPhone, in.Body)
-	status := model.OutboundStatusSent
-	errMsg := ""
-	var sentAt pgtype.Timestamptz
-	if sendErr != nil {
-		status = model.OutboundStatusFailed
-		errMsg = sendErr.Error()
-		ref = ""
-	} else {
-		_ = sentAt.Scan(time.Now())
-	}
-	outMsg, dbErr := s.q.InsertOutboundMessage(ctx, db.InsertOutboundMessageParams{
-		OrganizationID: in.OrgID,
-		EventType:      in.EventType,
-		Channel:        channel,
-		RecipientPhone: in.RecipientPhone,
-		Status:         model.OutboundStatusQueued,
-		Payload:        []byte(`{}`),
-		SubjectType:    in.SubjectType,
-		SubjectUuid:    toPgtypeUUID(in.SubjectUUID),
-	})
-	if dbErr == nil {
-		_, _ = s.q.UpdateOutboundMessageStatus(ctx, db.UpdateOutboundMessageStatusParams{
-			ID:                outMsg.ID,
-			Status:            status,
-			ProviderReference: ref,
-			ErrorMessage:      errMsg,
-			SentAt:            sentAt,
+		res, sendErr = s.deliverWhatsApp(ctx, outboundDelivery{
+			OrgID: in.OrgID, EventType: in.EventType, Phone: in.RecipientPhone, Body: in.Body, Vars: in.Vars,
 		})
+	} else {
+		sender, ok := s.channels[channel]
+		if !ok {
+			return "", fmt.Errorf("%w: %s", ErrChannelUnavailable, channel)
+		}
+		res.Ref, sendErr = sender.Send(ctx, in.RecipientPhone, in.Body)
 	}
+	s.logOutbound(ctx, outboundLog{
+		OrgID: in.OrgID, EventType: in.EventType, Channel: channel, Phone: in.RecipientPhone,
+		SubjectType: in.SubjectType, SubjectUUID: in.SubjectUUID,
+	}, res, sendErr)
 	if sendErr != nil {
-		return "", fmt.Errorf("%w: %v", ErrChannelUnavailable, sendErr)
+		return "", fmt.Errorf("%w: %w", ErrChannelUnavailable, sendErr)
 	}
-	return ref, nil
+	if in.EventType == model.EventContractOTP && res.SenderKind == model.SenderPlatformCloud {
+		s.sendContractOTPNotice(ctx, in)
+	}
+	return res.Ref, nil
+}
+
+// sendContractOTPNotice follows a platform Cloud OTP with the UTILITY notice
+// (contract context, KVKK notice, platform info): Meta fixes the
+// AUTHENTICATION body. It has its own outbound row; a failure does not undo
+// the OTP, which is already sent and counted.
+func (s *Service) sendContractOTPNotice(ctx context.Context, in SendDirectInput) {
+	vars := make(map[string]string, len(in.Vars))
+	for k, v := range in.Vars {
+		if k != "code" {
+			vars[k] = v
+		}
+	}
+	res, err := s.deliverWhatsApp(ctx, outboundDelivery{
+		OrgID: in.OrgID, EventType: model.EventContractOTPNotice, Phone: in.RecipientPhone, Vars: vars,
+	})
+	s.logOutbound(ctx, outboundLog{
+		OrgID: in.OrgID, EventType: model.EventContractOTPNotice, Channel: model.ChannelWhatsApp, Phone: in.RecipientPhone,
+		SubjectType: in.SubjectType, SubjectUUID: in.SubjectUUID,
+	}, res, err)
 }
 
 // Simulate sends test messages (rules ignored) for one event or the full job lifecycle.
@@ -554,11 +641,6 @@ func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateIn
 	if channel != model.ChannelWhatsApp {
 		return model.SimulateResult{}, fmt.Errorf("%w: only whatsapp simulate is supported", ErrInvalidRequest)
 	}
-	sender, ok := s.channels[channel]
-	if !ok {
-		return model.SimulateResult{}, fmt.Errorf("%w: channel unavailable", ErrInvalidRequest)
-	}
-
 	mode := strings.TrimSpace(in.Mode)
 	if mode == "" {
 		mode = model.SimulateModeEvent
@@ -581,8 +663,6 @@ func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateIn
 	if _, ok := orgctx.ScopeFrom(ctx); !ok {
 		ctx = orgctx.WithScope(ctx, orgctx.Scope{InternalID: orgID})
 	}
-	_ = s.EnsureWhatsAppConnected(ctx, orgID)
-
 	vars := model.SampleVars("")
 	for k, v := range in.Vars {
 		vars[k] = v
@@ -600,42 +680,30 @@ func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateIn
 		}
 		item.Body = body
 
-		ref, sendErr := sender.Send(ctx, phone, body)
-		status := model.OutboundStatusSent
-		errMsg := ""
-		var sentAt pgtype.Timestamptz
-		provRef := ref
+		res, sendErr := s.deliverWhatsApp(ctx, outboundDelivery{
+			OrgID: orgID, EventType: eventType, Phone: phone, Body: body, Vars: vars,
+		})
+		item.SenderKind = res.SenderKind
 		if sendErr != nil {
-			status = model.OutboundStatusFailed
-			errMsg = sendErr.Error()
-			provRef = ""
-			item.Status = status
-			item.ErrorMessage = errMsg
+			item.Status = model.OutboundStatusFailed
+			item.ErrorMessage = sendErr.Error()
+			item.ErrorCode = model.ErrorCodeOf(sendErr)
 		} else {
-			_ = sentAt.Scan(time.Now())
-			item.Status = status
-			item.ProviderReference = provRef
+			item.Status = model.OutboundStatusSent
+			item.ProviderReference = res.Ref
+			if res.SenderKind != model.SenderOrgOwn {
+				// The platform number sends the catalog text, not the org template.
+				if e, ok := catalog.Lookup(eventType); ok {
+					item.Body = e.RenderText(vars)
+				}
+			}
 		}
 
 		payload, _ := json.Marshal(vars)
-		outMsg, dbErr := s.q.InsertOutboundMessage(ctx, db.InsertOutboundMessageParams{
-			OrganizationID: orgID,
-			EventType:      eventType,
-			Channel:        channel,
-			RecipientPhone: phone,
-			Status:         model.OutboundStatusQueued,
-			Payload:        payload,
-			SubjectType:    "simulate",
-		})
-		if dbErr == nil {
-			_, _ = s.q.UpdateOutboundMessageStatus(ctx, db.UpdateOutboundMessageStatusParams{
-				ID:                outMsg.ID,
-				Status:            status,
-				ProviderReference: provRef,
-				ErrorMessage:      errMsg,
-				SentAt:            sentAt,
-			})
-		}
+		s.logOutbound(ctx, outboundLog{
+			OrgID: orgID, EventType: eventType, Channel: channel, Phone: phone,
+			Payload: payload, SubjectType: "simulate",
+		}, res, sendErr)
 		result.Items = append(result.Items, item)
 	}
 	return result, nil
@@ -687,6 +755,8 @@ func mapSession(row db.WhatsappSession) model.WhatsAppSession {
 		DisplayName:  row.DisplayName,
 		QRCode:       row.QrCode,
 		ErrorMessage: row.ErrorMessage,
+		// Routing flag; entitlement / platform flags are filled by GetSession.
+		FallbackToPlatform: row.FallbackToPlatform,
 	}
 	if row.QrExpiresAt.Valid {
 		t := row.QrExpiresAt.Time

@@ -128,6 +128,18 @@ func (r Report) Message() string {
 	return b.String()
 }
 
+// Vars are the platform catalog variables (daily.summary) of the report.
+func (r Report) Vars() map[string]string {
+	return map[string]string{
+		"business_name": strings.TrimSpace(r.OrgName),
+		"summary_date":  r.Day.Format("02.01.2006"),
+		"job_count":     strconv.FormatInt(r.JobCount, 10),
+		"paid_total":    formatTRY(r.PaidTotal, r.Currency),
+		"unpaid_total":  formatTRY(r.UnpaidTotal, r.Currency),
+		"expense_total": formatTRY(r.ExpenseTotal, r.Currency),
+	}
+}
+
 // formatTRY renders 1234.5 as "₺1.234,50" (Turkish grouping, 2 decimals).
 func formatTRY(v float64, currency string) string {
 	neg := v < 0

@@ -10,6 +10,7 @@ import (
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
 	"github.com/google/uuid"
 )
@@ -28,6 +29,10 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	var le *entitlements.LimitError
 	if errors.As(err, &le) {
 		middleware.WriteLimitReached(w, r, le.Decision)
+		return
+	}
+	if errors.Is(err, messagingusecase.ErrNotEntitled) {
+		response.Error(w, r, http.StatusForbidden, response.CodeFeatureNotEntitled, "Sending from your own WhatsApp number is not included in your plan")
 		return
 	}
 	if errors.Is(err, entitlements.ErrFeatureDisabled) {
@@ -78,6 +83,37 @@ func (h *Handler) ConnectWhatsApp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, sess)
+}
+
+// UpdateSessionSettings stores own-session routing settings (fallback).
+func (h *Handler) UpdateSessionSettings(w http.ResponseWriter, r *http.Request) {
+	var in messagingusecase.SessionSettingsInput
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	sess, err := h.svc.UpdateSessionSettings(r.Context(), orgID(r), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, sess)
+}
+
+// ListOutbound returns the outbound message log (newest first).
+func (h *Handler) ListOutbound(w http.ResponseWriter, r *http.Request) {
+	if bad := apiquery.ForbiddenParams(r.URL.Query()); len(bad) > 0 {
+		response.BadRequest(w, r, response.CodeValidationError, "unsupported query parameter: "+bad[0])
+		return
+	}
+	q := apiquery.Parse(r.URL.Query())
+	limit, offset := apiquery.Clamp(q.Limit, q.Offset, 20, 100)
+	items, total, err := h.svc.ListOutbound(r.Context(), orgID(r), limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, apiquery.NewPage(items, total, limit, offset))
 }
 
 // DisconnectWhatsApp disconnects the WhatsApp session.

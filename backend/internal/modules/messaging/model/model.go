@@ -31,6 +31,13 @@ const (
 	EventQuoteExpiring = "quote.expiring"
 	// EventContractOTP is transactional (not rule-driven): contract signing consent code.
 	EventContractOTP = "contract.otp"
+	// EventContractOTPNotice follows a platform Cloud OTP: contract context,
+	// KVKK notice and platform info (the AUTHENTICATION body is Meta-fixed).
+	EventContractOTPNotice = "contract.otp_notice"
+	// EventDailySummary is the end-of-day staff summary (dailysummary module).
+	EventDailySummary = "daily.summary"
+	// EventVehicleAlert is the staff vehicle movement alert (vehiclealerts module).
+	EventVehicleAlert = "vehicle.alert"
 
 	SimulateModeEvent        = "event"
 	SimulateModeJobLifecycle = "job_lifecycle"
@@ -146,6 +153,14 @@ type WhatsAppSession struct {
 	ErrorMessage string     `json:"error_message,omitempty"`
 	CreatedAt    time.Time  `json:"created_at"`
 	UpdatedAt    time.Time  `json:"updated_at"`
+	// OwnNumberEntitled: the plan includes whatsapp.own_number. Without it
+	// the session (even if connected) is never used for sending.
+	OwnNumberEntitled bool `json:"own_number_entitled"`
+	// FallbackToPlatform: send from the platform number while the own
+	// session is disconnected.
+	FallbackToPlatform bool `json:"fallback_to_platform"`
+	// PlatformSenderAvailable: the platform number can send right now.
+	PlatformSenderAvailable bool `json:"platform_sender_available"`
 }
 
 type NotificationRule struct {
@@ -186,6 +201,12 @@ type OutboundMessage struct {
 	SubjectUUID       *uuid.UUID `json:"subject_uuid,omitempty"`
 	SentAt            *time.Time `json:"sent_at,omitempty"`
 	CreatedAt         time.Time  `json:"created_at"`
+	// SenderKind: org_own | platform_whatsmeow | platform_cloud.
+	SenderKind       string     `json:"sender_kind,omitempty"`
+	TemplateName     string     `json:"template_name,omitempty"`
+	DeliveryStatus   string     `json:"delivery_status,omitempty"`
+	DeliveryStatusAt *time.Time `json:"delivery_status_at,omitempty"`
+	ErrorCode        string     `json:"error_code,omitempty"`
 }
 
 // QRCodeResponse is returned when connecting a WhatsApp session.
@@ -240,6 +261,8 @@ type SimulateResultItem struct {
 	Body              string `json:"body,omitempty"`
 	ProviderReference string `json:"provider_reference,omitempty"`
 	ErrorMessage      string `json:"error_message,omitempty"`
+	SenderKind        string `json:"sender_kind,omitempty"`
+	ErrorCode         string `json:"error_code,omitempty"`
 }
 
 // SimulateResult is the response for a simulate request.

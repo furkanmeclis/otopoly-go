@@ -14,6 +14,7 @@ import (
 	_ "time/tzdata" // Europe/Istanbul without relying on the host zoneinfo.
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -26,15 +27,16 @@ var (
 	defaultSendMinutes       = 20 * 60
 	sendTimeRE               = regexp.MustCompile(`^([01]\d|2[0-3]):([0-5]\d)$`)
 	maxRecipients            = 20
-	summaryEventType         = "daily.summary"
+	summaryEventType         = messagingmodel.EventDailySummary
 	summarySubjectType       = "daily_summary"
 	businessTimeZone         = "Europe/Istanbul"
 )
 
-// Sender delivers WhatsApp text through the organization's own line.
+// Sender delivers WhatsApp text through the organization's line (or the
+// platform number, which sends the catalog text built from vars).
 type Sender interface {
 	WhatsAppConnected(ctx context.Context, orgID int64) (bool, error)
-	QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string) error
+	QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string, vars map[string]string) error
 }
 
 type Service struct {
@@ -198,7 +200,7 @@ func (s *Service) SendTest(ctx context.Context, orgID int64) (SendResult, error)
 	if err != nil {
 		return SendResult{}, err
 	}
-	return s.deliver(ctx, orgID, row.RecipientUserIds, r.Message(), true)
+	return s.deliver(ctx, orgID, row.RecipientUserIds, r, true)
 }
 
 // SendDue is the periodic sweep: every enabled organization whose local send
@@ -242,7 +244,7 @@ func (s *Service) SendDue(ctx context.Context) (int, error) {
 			s.log.Error("daily_summary_build_failed", "org_id", row.OrganizationID, "error", err)
 			continue
 		}
-		res, err := s.deliver(ctx, row.OrganizationID, row.RecipientUserIds, r.Message(), false)
+		res, err := s.deliver(ctx, row.OrganizationID, row.RecipientUserIds, r, false)
 		if err != nil {
 			s.log.Error("daily_summary_send_failed", "org_id", row.OrganizationID, "error", err)
 			continue
@@ -253,7 +255,8 @@ func (s *Service) SendDue(ctx context.Context) (int, error) {
 	return sent, nil
 }
 
-func (s *Service) deliver(ctx context.Context, orgID int64, recipientIDs []int64, body string, requireConnected bool) (SendResult, error) {
+func (s *Service) deliver(ctx context.Context, orgID int64, recipientIDs []int64, r Report, requireConnected bool) (SendResult, error) {
+	body, vars := r.Message(), r.Vars()
 	if s.sender == nil {
 		return SendResult{}, ErrWhatsAppNotConnected
 	}
@@ -285,7 +288,7 @@ func (s *Service) deliver(ctx context.Context, orgID int64, recipientIDs []int64
 			res.Skipped = append(res.Skipped, name)
 			continue
 		}
-		if err := s.sender.QueueWhatsApp(ctx, orgID, phone, body, summaryEventType, summarySubjectType); err != nil {
+		if err := s.sender.QueueWhatsApp(ctx, orgID, phone, body, summaryEventType, summarySubjectType, vars); err != nil {
 			s.log.Warn("daily_summary_queue_failed", "org_id", orgID, "user_id", m.UserID, "error", err)
 			res.Skipped = append(res.Skipped, name)
 			continue

@@ -51,6 +51,8 @@
   "labels.platform.integrations.facebook.write": "Facebook entegrasyon ayarlarını düzenle",
   "labels.platform.integrations.apple.read": "Apple entegrasyon ayarlarını görüntüle",
   "labels.platform.integrations.apple.write": "Apple entegrasyon ayarlarını düzenle",
+  "labels.platform.integrations.whatsapp.read": "WhatsApp entegrasyon ayarlarını görüntüle",
+  "labels.platform.integrations.whatsapp.write": "WhatsApp entegrasyon ayarlarını düzenle",
   "labels.platform.auth.settings.read": "Auth kayıt ayarlarını görüntüle",
   "labels.platform.auth.settings.write": "Auth kayıt ayarlarını düzenle",
   "labels.platform.organizations.read": "İşletmeleri görüntüle",

@@ -1039,6 +1039,13 @@ type OutboundMessage struct {
 	Attachment              []byte             `json:"attachment"`
 	Attempts                int32              `json:"attempts"`
 	ScheduledNotificationID pgtype.Int8        `json:"scheduled_notification_id"`
+	SenderKind              pgtype.Text        `json:"sender_kind"`
+	TemplateName            pgtype.Text        `json:"template_name"`
+	DeliveryStatus          pgtype.Text        `json:"delivery_status"`
+	DeliveryStatusAt        pgtype.Timestamptz `json:"delivery_status_at"`
+	PricingCategory         pgtype.Text        `json:"pricing_category"`
+	Billable                pgtype.Bool        `json:"billable"`
+	ErrorCode               pgtype.Text        `json:"error_code"`
 }
 
 type OutboxEvent struct {
@@ -1064,6 +1071,28 @@ type Permission struct {
 
 type PgExtension struct {
 	Extname string `json:"extname"`
+}
+
+type PlatformWhatsappSetting struct {
+	ID                    int16              `json:"id"`
+	Provider              string             `json:"provider"`
+	AppID                 string             `json:"app_id"`
+	WabaID                string             `json:"waba_id"`
+	PhoneNumberID         string             `json:"phone_number_id"`
+	ApiVersion            string             `json:"api_version"`
+	AccessTokenEnc        []byte             `json:"access_token_enc"`
+	AppSecretEnc          []byte             `json:"app_secret_enc"`
+	WebhookVerifyTokenEnc []byte             `json:"webhook_verify_token_enc"`
+	DisplayPhone          string             `json:"display_phone"`
+	WmStatus              string             `json:"wm_status"`
+	WmJid                 string             `json:"wm_jid"`
+	WmPhone               string             `json:"wm_phone"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy             pgtype.Int8        `json:"updated_by"`
+	WmQrCode              string             `json:"wm_qr_code"`
+	WmQrExpiresAt         pgtype.Timestamptz `json:"wm_qr_expires_at"`
+	WmError               string             `json:"wm_error"`
 }
 
 type Product struct {
@@ -1709,19 +1738,35 @@ type WebauthnCredential struct {
 	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
 }
 
-type WhatsappSession struct {
+type WhatsappCloudTemplate struct {
 	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	OrganizationID int64              `json:"organization_id"`
+	Key            string             `json:"key"`
+	MetaName       string             `json:"meta_name"`
+	OverrideName   pgtype.Text        `json:"override_name"`
+	Language       string             `json:"language"`
+	Category       string             `json:"category"`
 	Status         string             `json:"status"`
-	Jid            string             `json:"jid"`
-	PhoneNumber    string             `json:"phone_number"`
-	DisplayName    string             `json:"display_name"`
-	EncryptedKeys  []byte             `json:"encrypted_keys"`
-	LastSeenAt     pgtype.Timestamptz `json:"last_seen_at"`
-	ErrorMessage   string             `json:"error_message"`
+	MetaTemplateID string             `json:"meta_template_id"`
+	RejectedReason string             `json:"rejected_reason"`
+	LastSyncedAt   pgtype.Timestamptz `json:"last_synced_at"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	QrCode         string             `json:"qr_code"`
-	QrExpiresAt    pgtype.Timestamptz `json:"qr_expires_at"`
+}
+
+type WhatsappSession struct {
+	ID                 int64              `json:"id"`
+	Uuid               uuid.UUID          `json:"uuid"`
+	OrganizationID     int64              `json:"organization_id"`
+	Status             string             `json:"status"`
+	Jid                string             `json:"jid"`
+	PhoneNumber        string             `json:"phone_number"`
+	DisplayName        string             `json:"display_name"`
+	EncryptedKeys      []byte             `json:"encrypted_keys"`
+	LastSeenAt         pgtype.Timestamptz `json:"last_seen_at"`
+	ErrorMessage       string             `json:"error_message"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	QrCode             string             `json:"qr_code"`
+	QrExpiresAt        pgtype.Timestamptz `json:"qr_expires_at"`
+	FallbackToPlatform bool               `json:"fallback_to_platform"`
 }

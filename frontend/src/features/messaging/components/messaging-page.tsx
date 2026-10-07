@@ -10,8 +10,10 @@ import { permissions } from "@/config/permissions";
 import { DailySummaryCard } from "@/features/messaging/components/daily-summary-card";
 import { MessageTemplatesPanel } from "@/features/messaging/components/message-templates-panel";
 import { NotificationRulesCard } from "@/features/messaging/components/notification-rules-card";
+import { OutboundLogCard } from "@/features/messaging/components/outbound-log-card";
 import { VehicleAlertsCard } from "@/features/messaging/components/vehicle-alerts-card";
 import { WhatsAppSessionCard } from "@/features/messaging/components/whatsapp-session-card";
+import { useWhatsAppSession } from "@/features/messaging/hooks/use-messaging";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
@@ -26,6 +28,11 @@ export function MessagingPage() {
   );
   const canWrite =
     membership?.role === "owner" && hasPermission(permissions.messaging.write);
+  const canReadLog = hasPermission(permissions.messaging.read);
+  const session = useWhatsAppSession();
+  // Until the session loads assume entitled (no notice flash; writes are
+  // enforced by the API anyway).
+  const ownNumberEntitled = session.data?.own_number_entitled ?? true;
   const [tab, setTab] = useState("connection");
 
   return (
@@ -43,10 +50,15 @@ export function MessagingPage() {
           <TabsTrigger value="templates">
             {t("messaging.tabs.templates")}
           </TabsTrigger>
+          {canReadLog ? (
+            <TabsTrigger value="outbound">
+              {t("messaging.tabs.outbound")}
+            </TabsTrigger>
+          ) : null}
         </TabsList>
         <TabsContent value="connection" className="mt-4">
           <div className="grid gap-6 lg:grid-cols-2">
-            <WhatsAppSessionCard />
+            <WhatsAppSessionCard canWrite={canWrite} />
             <NotificationRulesCard />
             {/* Owner-only: the summary contains revenue and cash balances. */}
             {canWrite ? <VehicleAlertsCard /> : null}
@@ -54,8 +66,16 @@ export function MessagingPage() {
           </div>
         </TabsContent>
         <TabsContent value="templates" className="mt-4">
-          <MessageTemplatesPanel canWrite={canWrite} />
+          <MessageTemplatesPanel
+            canWrite={canWrite}
+            ownNumberEntitled={ownNumberEntitled}
+          />
         </TabsContent>
+        {canReadLog ? (
+          <TabsContent value="outbound" className="mt-4">
+            <OutboundLogCard />
+          </TabsContent>
+        ) : null}
       </Tabs>
     </div>
   );

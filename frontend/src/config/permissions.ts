@@ -37,6 +37,8 @@ export const Permission = {
   PlatformIntegrationsFacebookWrite: "platform.integrations.facebook.write",
   PlatformIntegrationsAppleRead: "platform.integrations.apple.read",
   PlatformIntegrationsAppleWrite: "platform.integrations.apple.write",
+  PlatformIntegrationsWhatsAppRead: "platform.integrations.whatsapp.read",
+  PlatformIntegrationsWhatsAppWrite: "platform.integrations.whatsapp.write",
   PlatformAuthSettingsRead: "platform.auth.settings.read",
   PlatformAuthSettingsWrite: "platform.auth.settings.write",
   PlatformOrganizationsRead: "platform.organizations.read",
@@ -205,6 +207,10 @@ export const permissions = {
     apple: {
       read: Permission.PlatformIntegrationsAppleRead,
       write: Permission.PlatformIntegrationsAppleWrite,
+    },
+    whatsapp: {
+      read: Permission.PlatformIntegrationsWhatsAppRead,
+      write: Permission.PlatformIntegrationsWhatsAppWrite,
     },
   },
   authSettings: {

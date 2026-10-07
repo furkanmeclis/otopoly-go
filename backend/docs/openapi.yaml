@@ -682,6 +682,275 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/platform/integrations/whatsapp:
+    get:
+      tags: [Platform]
+      operationId: getPlatformWhatsAppIntegrationSettings
+      summary: Read platform WhatsApp sender settings
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.read`). Secrets are never
+        returned; only `*_configured` flags. Includes the public webhook URL for Meta.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Platform WhatsApp sender settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppIntegrationSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformWhatsAppIntegrationSettings
+      summary: Update platform WhatsApp sender settings
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.write`). Partial update;
+        omitted or blank secret fields keep the stored values. Selecting the `cloud`
+        provider requires `phone_number_id` and an access token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchWhatsAppIntegrationSettingsRequest"
+      responses:
+        "200":
+          description: Updated platform WhatsApp sender settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppIntegrationSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/whatsapp/test:
+    post:
+      tags: [Platform]
+      operationId: postPlatformWhatsAppTest
+      summary: Send a test message from the platform number
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.write`). Uses the configured
+        provider: Cloud sends `hello_world` (or the given catalog template with its
+        example values), whatsmeow sends a plain test line (or the catalog text).
+        Sender / Meta failures return 409 with the classified error code
+        (e.g. `CLOUD_AUTH_FAILED`, `PLATFORM_SENDER_NOT_CONFIGURED`, `GRAPH_100`).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlatformWhatsAppTestRequest"
+      responses:
+        "200":
+          description: Test message accepted by the provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformWhatsAppTestResult"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/whatsapp/session/connect:
+    post:
+      tags: [Platform]
+      operationId: postPlatformWhatsAppSessionConnect
+      summary: Start QR pairing of the platform whatsmeow number
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.write`). Pairing runs in the
+        background; poll `GET /v1/platform/integrations/whatsapp` for
+        `whatsmeow_qr_code` while `whatsmeow_status` is `qr_pending` (same polling
+        flow as the tenant session).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Settings with the pairing state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppIntegrationSettings"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/whatsapp/session:
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformWhatsAppSession
+      summary: Disconnect the platform whatsmeow number
+      description: Super admin only (`platform.integrations.whatsapp.write`). Logs the device out.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Settings after disconnect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppIntegrationSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/whatsapp/templates:
+    get:
+      tags: [Platform]
+      operationId: getPlatformWhatsAppTemplates
+      summary: Platform template catalog with Meta status
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.read`). Every catalog entry
+        (code) merged with its stored Meta state (status, ids, override name).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Template catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppTemplateList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/whatsapp/templates/submit:
+    post:
+      tags: [Platform]
+      operationId: postPlatformWhatsAppTemplatesSubmit
+      summary: Submit catalog templates to Meta
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.write`). Creates every
+        `not_submitted` template (or only `keys`) in the WABA with example values;
+        entries with an override name are skipped. Per-key failures are reported in
+        `results`; auth / configuration failures return 409.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitWhatsAppTemplatesRequest"
+      responses:
+        "200":
+          description: Submit results and the updated catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppTemplateSubmit"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/whatsapp/templates/sync:
+    post:
+      tags: [Platform]
+      operationId: postPlatformWhatsAppTemplatesSync
+      summary: Pull template statuses from Meta
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.write`). Matches Meta
+        templates by effective name (override or catalog name) and language; templates
+        missing in Meta become `not_submitted`.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Updated template catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppTemplateList"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/whatsapp/templates/{key}:
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformWhatsAppTemplate
+      summary: Set or clear the Meta template name override
+      description: >-
+        Super admin only (`platform.integrations.whatsapp.write`). Maps a catalog key
+        to a template created manually in Meta (`null` / empty clears it). The stored
+        Meta state is reset to `not_submitted` until the next sync.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema: { type: string, examples: ["job.ready"] }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchWhatsAppTemplateRequest"
+      responses:
+        "200":
+          description: Updated template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeWhatsAppTemplate"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/platform/auth/settings:
     get:
       tags: [Platform]
@@ -5967,9 +6236,17 @@ paths:
       tags: [Tenant]
       operationId: getTenantMessagingSession
       summary: WhatsApp session status
+      description: |
+        Own-number session plus sender routing flags: `own_number_entitled`
+        (plan feature `whatsapp.own_number`; without it the session is never used),
+        `fallback_to_platform` and `platform_sender_available`.
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Session }
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeWhatsAppSession" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
     delete:
@@ -5987,9 +6264,66 @@ paths:
       tags: [Tenant]
       operationId: postTenantMessagingSessionConnect
       summary: Start WhatsApp QR pairing
+      description: Requires plan feature `whatsapp.own_number` (403 `FEATURE_NOT_ENTITLED` otherwise).
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Pairing started }
+        "200":
+          description: Pairing started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeWhatsAppSession" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403":
+          description: Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/tenant/messaging/session/settings:
+    patch:
+      tags: [Tenant]
+      operationId: patchTenantMessagingSessionSettings
+      summary: Update own-session routing settings
+      description: |
+        `fallback_to_platform`: send from the platform number while the own session
+        is disconnected (default true). Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatchWhatsAppSessionSettingsRequest" }
+      responses:
+        "200":
+          description: Session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeWhatsAppSession" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/messaging/outbound:
+    get:
+      tags: [Tenant]
+      operationId: getTenantMessagingOutbound
+      summary: Outbound WhatsApp/SMS log
+      description: Newest first, with the sender route, delivery status and error code. Requires `tenant.messaging.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Outbound page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeOutboundMessagePage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
@@ -6069,7 +6403,11 @@ paths:
         "200": { description: Template saved }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /v1/tenant/messaging/templates/{uuid}:
     get:
@@ -6114,7 +6452,11 @@ paths:
         "200": { description: Template updated }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
     delete:
       tags: [Tenant]
@@ -6129,7 +6471,11 @@ paths:
       responses:
         "200": { description: Deleted }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/messaging/template-types:
@@ -6188,7 +6534,11 @@ paths:
               schema: { $ref: "#/components/schemas/EnvelopeMessageTemplateEntry" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
     delete:
       tags: [Tenant]
       operationId: resetTenantMessagingTemplateByKey
@@ -6202,7 +6552,11 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeMessageTemplateEntry" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
+        "403":
+          description: Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/notification-preferences:
@@ -10286,6 +10640,68 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /v1/public/whatsapp/webhook:
+    get:
+      tags: [Public]
+      operationId: verifyWhatsAppWebhook
+      summary: Meta webhook subscription handshake
+      description: |
+        No auth; called by Meta (through the same-origin proxy
+        `/api/v1/public/whatsapp/webhook`). `hub.mode=subscribe` and a
+        `hub.verify_token` equal to the stored (encrypted) verify token,
+        compared in constant time, echo `hub.challenge` as `text/plain`.
+        Rate-limited per IP.
+      parameters:
+        - { name: hub.mode, in: query, required: true, schema: { type: string, enum: [subscribe] } }
+        - { name: hub.verify_token, in: query, required: true, schema: { type: string } }
+        - { name: hub.challenge, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The challenge, echoed
+          content:
+            text/plain:
+              schema: { type: string, example: "1158201444" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    post:
+      tags: [Public]
+      operationId: receiveWhatsAppWebhook
+      summary: Meta webhook notifications
+      description: |
+        No auth; `X-Hub-Signature-256` (HMAC-SHA256 of the **raw** body with
+        the stored app secret) is required: missing app secret or a bad
+        signature → 401 and nothing is processed. Body limit 1 MiB.
+        Handled: `messages` change `statuses` (sent < delivered < read never
+        regress; `failed` is always recorded with its error code; pricing
+        category / billable stored; unknown wamids ignored) and
+        `message_template_status_update` (template row by Meta id, else by
+        effective name + language). Customer messages and every other field
+        are acknowledged and dropped. After a valid signature the answer is
+        always 200, even if an entry fails. Rate-limited per IP.
+      parameters:
+        - name: X-Hub-Signature-256
+          in: header
+          required: true
+          schema: { type: string, example: "sha256=5f1c…" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WhatsAppWebhookNotification" }
+      responses:
+        "200":
+          description: Acknowledged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeWhatsAppWebhookAck" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "413":
+          description: Body larger than 1 MiB
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /v1/public/quotes/{token}:
     parameters:
       - name: token
@@ -11511,6 +11927,318 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/GitHubIntegrationSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    WhatsAppIntegrationSettings:
+      type: object
+      required:
+        - provider
+        - app_id
+        - waba_id
+        - phone_number_id
+        - api_version
+        - display_phone
+        - access_token_configured
+        - app_secret_configured
+        - webhook_verify_token_configured
+        - webhook_url
+        - whatsmeow_status
+        - whatsmeow_phone
+        - updated_at
+      properties:
+        provider: { type: string, enum: [none, whatsmeow, cloud] }
+        app_id: { type: string }
+        waba_id: { type: string }
+        phone_number_id: { type: string }
+        api_version: { type: string, example: v26.0 }
+        display_phone: { type: string }
+        access_token_configured: { type: boolean }
+        app_secret_configured: { type: boolean }
+        webhook_verify_token_configured: { type: boolean }
+        webhook_url:
+          type: string
+          description: Public URL to register as the Meta webhook callback.
+        whatsmeow_status: { type: string, examples: [disconnected, qr_pending, connected, error] }
+        whatsmeow_phone: { type: string }
+        whatsmeow_qr_code:
+          type: string
+          description: Pairing QR payload while `whatsmeow_status` is `qr_pending`.
+        whatsmeow_qr_expires_at: { type: string, format: date-time }
+        whatsmeow_error: { type: string }
+        updated_at: { type: [string, "null"], format: date-time }
+
+    PatchWhatsAppIntegrationSettingsRequest:
+      type: object
+      properties:
+        provider: { type: string, enum: [none, whatsmeow, cloud] }
+        app_id: { type: string }
+        waba_id: { type: string }
+        phone_number_id: { type: string }
+        api_version: { type: string, example: v26.0 }
+        display_phone: { type: string }
+        access_token: { type: string }
+        app_secret: { type: string }
+        webhook_verify_token: { type: string }
+
+    EnvelopeWhatsAppIntegrationSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppIntegrationSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    WhatsAppWebhookNotification:
+      type: object
+      description: Meta webhook notification (only the fields used are listed; others are ignored).
+      additionalProperties: true
+      properties:
+        object: { type: string, example: whatsapp_business_account }
+        entry:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              id: { type: string }
+              changes:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                  properties:
+                    field: { type: string, example: messages }
+                    value: { type: object, additionalProperties: true }
+
+    WhatsAppWebhookAck:
+      type: object
+      required: [received]
+      properties:
+        received: { type: boolean, enum: [true] }
+
+    EnvelopeWhatsAppWebhookAck:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppWebhookAck" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PlatformWhatsAppTestRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { type: string, example: "905321234567" }
+        template_key:
+          type: string
+          description: Catalog key (e.g. `job.ready`); empty sends `hello_world` / a plain test line.
+
+    PlatformWhatsAppTestResult:
+      type: object
+      required: [sender_kind, template_name, provider_reference]
+      properties:
+        sender_kind: { type: string, enum: [platform_whatsmeow, platform_cloud] }
+        template_name: { type: string }
+        provider_reference: { type: string, description: "wamid (Cloud) or whatsmeow message id" }
+
+    EnvelopePlatformWhatsAppTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PlatformWhatsAppTestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    WhatsAppTemplate:
+      type: object
+      required:
+        - key
+        - meta_name
+        - override_name
+        - effective_name
+        - language
+        - category
+        - status
+        - meta_template_id
+        - rejected_reason
+        - last_synced_at
+        - body
+        - params
+        - examples
+        - header_document
+        - copy_code_button
+      properties:
+        key: { type: string, examples: ["job.ready"] }
+        meta_name: { type: string, examples: ["otopoly_job_ready"] }
+        override_name: { type: [string, "null"] }
+        effective_name: { type: string }
+        language: { type: string, example: tr }
+        category: { type: string, enum: [UTILITY, AUTHENTICATION] }
+        status:
+          type: string
+          enum: [not_submitted, pending, approved, rejected, paused, disabled]
+        meta_template_id: { type: string }
+        rejected_reason: { type: string }
+        last_synced_at: { type: [string, "null"], format: date-time }
+        body: { type: string, description: "Turkish body with positional {{1}}…{{n}} params" }
+        params:
+          type: array
+          items: { type: string }
+        examples:
+          type: array
+          items: { type: string }
+        header_document: { type: boolean }
+        copy_code_button: { type: boolean }
+
+    WhatsAppTemplateList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/WhatsAppTemplate" }
+
+    EnvelopeWhatsAppTemplateList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppTemplateList" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeWhatsAppTemplate:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppTemplate" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    SubmitWhatsAppTemplatesRequest:
+      type: object
+      properties:
+        keys:
+          type: array
+          description: Catalog keys to submit; omitted = every `not_submitted` entry.
+          items: { type: string }
+
+    WhatsAppTemplateSubmitResult:
+      type: object
+      required: [key, status]
+      properties:
+        key: { type: string }
+        status: { type: string }
+        skipped: { type: string, enum: [override, already_submitted] }
+        error: { type: string, description: "Classified error code (e.g. `graph_100`)." }
+
+    WhatsAppTemplateSubmit:
+      type: object
+      required: [results, items]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/WhatsAppTemplateSubmitResult" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/WhatsAppTemplate" }
+
+    EnvelopeWhatsAppTemplateSubmit:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppTemplateSubmit" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PatchWhatsAppTemplateRequest:
+      type: object
+      properties:
+        override_name:
+          type: [string, "null"]
+          description: Meta template name (lowercase, digits, underscore); null or empty clears.
+
+    WhatsAppSession:
+      type: object
+      required: [status, own_number_entitled, fallback_to_platform, platform_sender_available]
+      properties:
+        uuid: { type: string, format: uuid }
+        status: { type: string, enum: [disconnected, qr_pending, connected, error] }
+        jid: { type: string }
+        phone_number: { type: string }
+        display_name: { type: string }
+        qr_code: { type: string }
+        qr_expires_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        error_message: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        own_number_entitled:
+          type: boolean
+          description: Plan includes `whatsapp.own_number`. Without it the session is kept but never used.
+        fallback_to_platform:
+          type: boolean
+          description: Send from the platform number while the own session is disconnected.
+        platform_sender_available:
+          type: boolean
+          description: The platform number can send right now.
+
+    EnvelopeWhatsAppSession:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppSession" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PatchWhatsAppSessionSettingsRequest:
+      type: object
+      required: [fallback_to_platform]
+      properties:
+        fallback_to_platform: { type: boolean }
+
+    OutboundMessage:
+      type: object
+      required: [uuid, event_type, channel, recipient_phone, status, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        event_type: { type: string }
+        channel: { type: string, enum: [whatsapp, sms] }
+        recipient_phone: { type: string }
+        status: { type: string, enum: [queued, sending, sent, failed] }
+        provider_reference: { type: string }
+        error_message: { type: string }
+        subject_type: { type: string }
+        subject_uuid: { type: string, format: uuid }
+        sent_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        sender_kind: { type: string, enum: [org_own, platform_whatsmeow, platform_cloud] }
+        template_name: { type: string }
+        delivery_status: { type: string, description: "Cloud delivery status from the webhook (sent, delivered, read, failed)." }
+        delivery_status_at: { type: string, format: date-time }
+        error_code:
+          type: string
+          description: >-
+            Classified failure, e.g. own_session_disconnected, platform_sender_not_configured,
+            platform_sender_unavailable, template_not_approved, cloud_auth_failed,
+            marketing_limit, undeliverable, template_missing, graph_<code>.
+
+    OutboundMessagePage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OutboundMessage" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeOutboundMessagePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/OutboundMessagePage" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     AuthSettingsDefaultRole:

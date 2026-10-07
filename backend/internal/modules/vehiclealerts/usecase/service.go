@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -28,16 +29,17 @@ const (
 	maxRecipients = 20
 	// Lines older than this are dropped instead of sent late (line was down).
 	staleAfter       = 6 * time.Hour
-	alertEventType   = "vehicle.alert"
+	alertEventType   = messagingmodel.EventVehicleAlert
 	alertSubjectType = "vehicle_alert"
 )
 
 var allowedBatch = []int32{0, 30, 60}
 
-// Sender delivers WhatsApp text through the organization's own line.
+// Sender delivers WhatsApp text through the organization's line (or the
+// platform number, which sends the catalog text built from vars).
 type Sender interface {
 	WhatsAppConnected(ctx context.Context, orgID int64) (bool, error)
-	QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string) error
+	QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string, vars map[string]string) error
 }
 
 // InApp creates an in-app notification (the notifications module also sends
@@ -324,7 +326,8 @@ func (s *Service) flushOrg(ctx context.Context, st db.VehicleAlertSetting) (int,
 			continue
 		}
 		body := Message(org.Name, lines, m.Role == "owner")
-		if err := s.sender.QueueWhatsApp(ctx, st.OrganizationID, m.Phone, body, alertEventType, alertSubjectType); err != nil {
+		vars := MessageVars(org.Name, lines, m.Role == "owner")
+		if err := s.sender.QueueWhatsApp(ctx, st.OrganizationID, m.Phone, body, alertEventType, alertSubjectType, vars); err != nil {
 			s.log.Warn("vehicle_alert_whatsapp_failed", "org_id", st.OrganizationID, "user_id", m.UserID, "error", err)
 			continue
 		}
@@ -381,7 +384,8 @@ func (s *Service) SendTest(ctx context.Context, orgID int64) (TestResult, error)
 			continue
 		}
 		body := Message(org.Name, []PendingLine{line}, m.Role == "owner")
-		if err := s.sender.QueueWhatsApp(ctx, orgID, m.Phone, body, alertEventType, alertSubjectType); err != nil {
+		vars := MessageVars(org.Name, []PendingLine{line}, m.Role == "owner")
+		if err := s.sender.QueueWhatsApp(ctx, orgID, m.Phone, body, alertEventType, alertSubjectType, vars); err != nil {
 			res.Skipped = append(res.Skipped, name)
 			continue
 		}

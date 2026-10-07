@@ -95,6 +95,9 @@ type OutboundRequest struct {
 	SubjectType             string
 	SubjectUUID             *uuid.UUID
 	ScheduledNotificationID int64
+	// Vars are the template variables (persisted in payload) used when the
+	// platform number sends the catalog entry instead of Body.
+	Vars map[string]string
 }
 
 // QueueSend persists the message and hands it to the messaging queue, which
@@ -109,14 +112,14 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 		return uuid.Nil, fmt.Errorf("%w: org and phone are required", ErrInvalidRequest)
 	}
 	if channel == model.ChannelWhatsApp {
-		on, err := s.ent.Enabled(ctx, req.OrgID, "whatsapp.enabled")
+		on, err := s.ent.Enabled(ctx, req.OrgID, FeatureWhatsAppEnabled)
 		if err != nil {
 			return uuid.Nil, err
 		}
 		if !on {
 			return uuid.Nil, entitlements.ErrFeatureDisabled
 		}
-		if _, err := s.ent.Check(ctx, req.OrgID, "whatsapp.monthly", 1); err != nil {
+		if _, err := s.ent.Check(ctx, req.OrgID, FeatureWhatsAppMonthly, 1); err != nil {
 			return uuid.Nil, err
 		}
 	}
@@ -148,9 +151,15 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 	if req.ScheduledNotificationID > 0 {
 		schedID = pgtype.Int8{Int64: req.ScheduledNotificationID, Valid: true}
 	}
+	payload := []byte(`{}`)
+	if len(req.Vars) > 0 {
+		if b, err := json.Marshal(req.Vars); err == nil {
+			payload = b
+		}
+	}
 	row, err := s.q.InsertQueuedOutboundMessage(ctx, db.InsertQueuedOutboundMessageParams{
 		OrganizationID: req.OrgID, EventType: req.EventType, Channel: channel,
-		RecipientPhone: strings.TrimSpace(req.Phone), Payload: []byte(`{}`),
+		RecipientPhone: strings.TrimSpace(req.Phone), Payload: payload,
 		SubjectType: req.SubjectType, SubjectUuid: toPgtypeUUID(req.SubjectUUID),
 		Body: req.Body, Attachment: attJSON, ScheduledNotificationID: schedID,
 	})
@@ -166,7 +175,7 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 			return uuid.Nil, fmt.Errorf("QueueSend enqueue: %w", err)
 		}
 		if channel == model.ChannelWhatsApp {
-			_ = s.ent.Consume(ctx, req.OrgID, "whatsapp.monthly", 1)
+			_ = s.ent.Consume(ctx, req.OrgID, FeatureWhatsAppMonthly, 1)
 		}
 		return row.Uuid, nil
 	}
@@ -178,16 +187,21 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 		return row.Uuid, err
 	}
 	if channel == model.ChannelWhatsApp {
-		_ = s.ent.Consume(ctx, req.OrgID, "whatsapp.monthly", 1)
+		_ = s.ent.Consume(ctx, req.OrgID, FeatureWhatsAppMonthly, 1)
 	}
 	return row.Uuid, nil
 }
 
 // ProcessOutbound delivers one queued row (asynq handler in the API process).
 // Returns an error to trigger an asynq retry; on the final attempt the row is
-// marked failed.
+// marked failed. Non-retryable send errors (configuration, template, Meta
+// policy) fail the row at once and are wrapped in asynq.SkipRetry.
 func (s *Service) ProcessOutbound(ctx context.Context, id int64, final bool) error {
-	return s.processOutboundObserved(ctx, id, final, nil, s.observer)
+	err := s.processOutboundObserved(ctx, id, final, nil, s.observer)
+	if err != nil && !model.IsRetryable(err) {
+		return fmt.Errorf("%w: %w", asynq.SkipRetry, err)
+	}
+	return err
 }
 
 func (s *Service) processOutbound(ctx context.Context, id int64, final bool, inlineData []byte) error {
@@ -203,11 +217,14 @@ func (s *Service) processOutboundObserved(ctx context.Context, id int64, final b
 		return err
 	}
 	ctx = orgctx.WithScope(ctx, orgctx.Scope{InternalID: row.OrganizationID})
-	ref, sendErr := s.sendOutbound(ctx, row, inlineData)
+	res, sendErr := s.sendOutbound(ctx, row, inlineData)
+	if sendErr != nil && !model.IsRetryable(sendErr) {
+		final = true
+	}
 	params := db.FinishOutboundMessageParams{ID: row.ID}
 	if sendErr == nil {
 		params.Status = model.OutboundStatusSent
-		params.ProviderReference = ref
+		params.ProviderReference = res.Ref
 		params.SentAt = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
 	} else {
 		params.ErrorMessage = sendErr.Error()
@@ -219,6 +236,7 @@ func (s *Service) processOutboundObserved(ctx context.Context, id int64, final b
 	if _, err := s.q.FinishOutboundMessage(ctx, params); err != nil {
 		return fmt.Errorf("finish outbound: %w", err)
 	}
+	s.recordSender(ctx, row.ID, res, sendErr)
 	if observe != nil && (sendErr == nil || final) {
 		o := OutboundOutcome{
 			OrgID: row.OrganizationID, EventType: row.EventType, Channel: row.Channel,
@@ -233,43 +251,85 @@ func (s *Service) processOutboundObserved(ctx context.Context, id int64, final b
 	return sendErr
 }
 
-func (s *Service) sendOutbound(ctx context.Context, row db.OutboundMessage, inlineData []byte) (string, error) {
-	sender, ok := s.channels[row.Channel]
-	if !ok {
-		return "", fmt.Errorf("%w: %s", ErrChannelUnavailable, row.Channel)
-	}
-	if row.Channel == model.ChannelWhatsApp {
-		session, err := s.q.GetWhatsAppSession(ctx, row.OrganizationID)
-		if err != nil || session.Status != model.StatusConnected {
-			return "", fmt.Errorf("%w: whatsapp session is not connected", ErrChannelUnavailable)
+func (s *Service) sendOutbound(ctx context.Context, row db.OutboundMessage, inlineData []byte) (deliveryResult, error) {
+	if row.Channel != model.ChannelWhatsApp {
+		// SMS carries the text only.
+		sender, ok := s.channels[row.Channel]
+		if !ok {
+			return deliveryResult{}, fmt.Errorf("%w: %s", ErrChannelUnavailable, row.Channel)
 		}
-		_ = s.EnsureWhatsAppConnected(ctx, row.OrganizationID)
+		ref, err := sender.Send(ctx, row.RecipientPhone, row.Body)
+		return deliveryResult{Ref: ref}, err
 	}
+	// Queued rows come from QueueSend, which checked and counted
+	// whatsapp.monthly; the platform gate re-checks whatsapp.enabled.
+	d := outboundDelivery{
+		OrgID: row.OrganizationID, EventType: row.EventType, Phone: row.RecipientPhone, Body: row.Body,
+		QuotaReserved: true,
+	}
+	_ = json.Unmarshal(row.Payload, &d.Vars)
 	var att OutboundAttachment
 	hasAtt := len(row.Attachment) > 0 && json.Unmarshal(row.Attachment, &att) == nil && att.ObjectKey != ""
-	if (hasAtt || len(inlineData) > 0) && row.Channel == model.ChannelWhatsApp {
-		docSender, ok := sender.(DocumentSender)
-		if !ok {
-			return "", fmt.Errorf("%w: channel cannot send documents", ErrChannelUnavailable)
-		}
+	if hasAtt || len(inlineData) > 0 {
 		data := inlineData
 		if len(data) == 0 {
-			d, err := s.downloadAttachment(ctx, att.ObjectKey)
+			b, err := s.downloadAttachment(ctx, att.ObjectKey)
 			if err != nil {
-				return "", err
+				return deliveryResult{}, err
 			}
-			data = d
+			data = b
 		}
 		name := att.FileName
 		if name == "" {
 			name = "document.pdf"
 		}
-		return docSender.SendDocument(ctx, row.RecipientPhone, providers.Document{
-			Data: data, FileName: name, MimeType: att.MimeType, Caption: row.Body,
-		})
+		d.Doc = &providers.Document{Data: data, FileName: name, MimeType: att.MimeType}
 	}
-	// SMS (and attachment-less WhatsApp) carry the text only.
-	return sender.Send(ctx, row.RecipientPhone, row.Body)
+	return s.deliverWhatsApp(ctx, d)
+}
+
+// ListOutbound returns the organization's outbound log (newest first).
+func (s *Service) ListOutbound(ctx context.Context, orgID int64, limit, offset int32) ([]model.OutboundMessage, int64, error) {
+	rows, err := s.q.ListOutboundMessagesByOrg(ctx, db.ListOutboundMessagesByOrgParams{
+		OrganizationID: orgID, RowLimit: limit, RowOffset: offset,
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("ListOutbound: %w", err)
+	}
+	total, err := s.q.CountOutboundMessagesByOrg(ctx, orgID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("ListOutbound count: %w", err)
+	}
+	out := make([]model.OutboundMessage, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, mapOutbound(r))
+	}
+	return out, total, nil
+}
+
+func mapOutbound(r db.OutboundMessage) model.OutboundMessage {
+	m := model.OutboundMessage{
+		UUID: r.Uuid, EventType: r.EventType, Channel: r.Channel, RecipientPhone: r.RecipientPhone,
+		Status: r.Status, ProviderReference: r.ProviderReference, ErrorMessage: r.ErrorMessage,
+		SubjectType: r.SubjectType, SenderKind: r.SenderKind.String, TemplateName: r.TemplateName.String,
+		DeliveryStatus: r.DeliveryStatus.String, ErrorCode: r.ErrorCode.String,
+	}
+	if r.SubjectUuid.Valid {
+		id := uuid.UUID(r.SubjectUuid.Bytes)
+		m.SubjectUUID = &id
+	}
+	if r.SentAt.Valid {
+		t := r.SentAt.Time
+		m.SentAt = &t
+	}
+	if r.DeliveryStatusAt.Valid {
+		t := r.DeliveryStatusAt.Time
+		m.DeliveryStatusAt = &t
+	}
+	if r.CreatedAt.Valid {
+		m.CreatedAt = r.CreatedAt.Time
+	}
+	return m
 }
 
 func (s *Service) downloadAttachment(ctx context.Context, key string) ([]byte, error) {

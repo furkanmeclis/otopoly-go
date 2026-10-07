@@ -16,7 +16,7 @@ const claimOutboundMessage = `-- name: ClaimOutboundMessage :one
 UPDATE outbound_messages
 SET status = 'sending', attempts = attempts + 1
 WHERE id = $1 AND status = 'queued'
-RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code
 `
 
 // queued → sending; a second delivery of the same task finds no row.
@@ -43,6 +43,13 @@ func (q *Queries) ClaimOutboundMessage(ctx context.Context, id int64) (OutboundM
 		&i.Attachment,
 		&i.Attempts,
 		&i.ScheduledNotificationID,
+		&i.SenderKind,
+		&i.TemplateName,
+		&i.DeliveryStatus,
+		&i.DeliveryStatusAt,
+		&i.PricingCategory,
+		&i.Billable,
+		&i.ErrorCode,
 	)
 	return i, err
 }
@@ -94,7 +101,7 @@ SET status = $1,
     error_message = $3,
     sent_at = $4
 WHERE id = $5 AND status = 'sending'
-RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code
 `
 
 type FinishOutboundMessageParams struct {
@@ -134,6 +141,13 @@ func (q *Queries) FinishOutboundMessage(ctx context.Context, arg FinishOutboundM
 		&i.Attachment,
 		&i.Attempts,
 		&i.ScheduledNotificationID,
+		&i.SenderKind,
+		&i.TemplateName,
+		&i.DeliveryStatus,
+		&i.DeliveryStatusAt,
+		&i.PricingCategory,
+		&i.Billable,
+		&i.ErrorCode,
 	)
 	return i, err
 }
@@ -302,7 +316,7 @@ func (q *Queries) GetNotificationRule(ctx context.Context, arg GetNotificationRu
 }
 
 const getWhatsAppSession = `-- name: GetWhatsAppSession :one
-SELECT id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at FROM whatsapp_sessions
+SELECT id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at, fallback_to_platform FROM whatsapp_sessions
 WHERE organization_id = $1
 `
 
@@ -324,6 +338,7 @@ func (q *Queries) GetWhatsAppSession(ctx context.Context, organizationID int64) 
 		&i.UpdatedAt,
 		&i.QrCode,
 		&i.QrExpiresAt,
+		&i.FallbackToPlatform,
 	)
 	return i, err
 }
@@ -335,7 +350,7 @@ INSERT INTO outbound_messages (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8
 )
-RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code
 `
 
 type InsertOutboundMessageParams struct {
@@ -381,6 +396,13 @@ func (q *Queries) InsertOutboundMessage(ctx context.Context, arg InsertOutboundM
 		&i.Attachment,
 		&i.Attempts,
 		&i.ScheduledNotificationID,
+		&i.SenderKind,
+		&i.TemplateName,
+		&i.DeliveryStatus,
+		&i.DeliveryStatusAt,
+		&i.PricingCategory,
+		&i.Billable,
+		&i.ErrorCode,
 	)
 	return i, err
 }
@@ -394,7 +416,7 @@ INSERT INTO outbound_messages (
     $5, $6, $7, $8, $9,
     $10
 )
-RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code
 `
 
 type InsertQueuedOutboundMessageParams struct {
@@ -444,12 +466,19 @@ func (q *Queries) InsertQueuedOutboundMessage(ctx context.Context, arg InsertQue
 		&i.Attachment,
 		&i.Attempts,
 		&i.ScheduledNotificationID,
+		&i.SenderKind,
+		&i.TemplateName,
+		&i.DeliveryStatus,
+		&i.DeliveryStatusAt,
+		&i.PricingCategory,
+		&i.Billable,
+		&i.ErrorCode,
 	)
 	return i, err
 }
 
 const listConnectedWhatsAppSessions = `-- name: ListConnectedWhatsAppSessions :many
-SELECT id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at FROM whatsapp_sessions
+SELECT id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at, fallback_to_platform FROM whatsapp_sessions
 WHERE status = 'connected' AND jid <> ''
 ORDER BY organization_id
 `
@@ -478,6 +507,7 @@ func (q *Queries) ListConnectedWhatsAppSessions(ctx context.Context) ([]Whatsapp
 			&i.UpdatedAt,
 			&i.QrCode,
 			&i.QrExpiresAt,
+			&i.FallbackToPlatform,
 		); err != nil {
 			return nil, err
 		}
@@ -605,7 +635,7 @@ SET
     error_message      = $4,
     sent_at            = $5
 WHERE id = $1
-RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id
+RETURNING id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code
 `
 
 type UpdateOutboundMessageStatusParams struct {
@@ -645,6 +675,13 @@ func (q *Queries) UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOut
 		&i.Attachment,
 		&i.Attempts,
 		&i.ScheduledNotificationID,
+		&i.SenderKind,
+		&i.TemplateName,
+		&i.DeliveryStatus,
+		&i.DeliveryStatusAt,
+		&i.PricingCategory,
+		&i.Billable,
+		&i.ErrorCode,
 	)
 	return i, err
 }
@@ -656,7 +693,7 @@ SET status = 'qr_pending',
     qr_expires_at = $3,
     error_message = ''
 WHERE organization_id = $1
-RETURNING id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at
+RETURNING id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at, fallback_to_platform
 `
 
 type UpdateWhatsAppSessionQRParams struct {
@@ -683,6 +720,7 @@ func (q *Queries) UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAp
 		&i.UpdatedAt,
 		&i.QrCode,
 		&i.QrExpiresAt,
+		&i.FallbackToPlatform,
 	)
 	return i, err
 }
@@ -799,7 +837,7 @@ SET
     error_message  = EXCLUDED.error_message,
     qr_code        = EXCLUDED.qr_code,
     qr_expires_at  = EXCLUDED.qr_expires_at
-RETURNING id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at
+RETURNING id, uuid, organization_id, status, jid, phone_number, display_name, encrypted_keys, last_seen_at, error_message, created_at, updated_at, qr_code, qr_expires_at, fallback_to_platform
 `
 
 type UpsertWhatsAppSessionParams struct {
@@ -844,6 +882,7 @@ func (q *Queries) UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppS
 		&i.UpdatedAt,
 		&i.QrCode,
 		&i.QrExpiresAt,
+		&i.FallbackToPlatform,
 	)
 	return i, err
 }

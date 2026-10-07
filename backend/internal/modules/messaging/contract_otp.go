@@ -2,14 +2,16 @@ package messaging
 
 import (
 	"context"
+	"strconv"
 
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
 	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 )
 
-// ContractOTPSender delivers contract signing OTPs over the organization's own
-// WhatsApp session. It satisfies contractsusecase.OTPSender.
+// ContractOTPSender delivers contract signing OTPs through the resolved
+// WhatsApp sender (own session or platform number). It satisfies
+// contractsusecase.OTPSender.
 type ContractOTPSender struct {
 	svc *messagingusecase.Service
 }
@@ -29,5 +31,10 @@ func (s *ContractOTPSender) SendContractOTP(ctx context.Context, msg contractsus
 		Body:           msg.Body,
 		SubjectType:    "contract_instance",
 		SubjectUUID:    &instanceUUID,
+		Vars: map[string]string{
+			"code": msg.Code, "business_name": msg.BusinessName, "minutes": strconv.Itoa(msg.Minutes),
+			"customer_name": msg.CustomerName, "contract_title": msg.ContractTitle,
+			"contract_no": msg.ContractNo, "plate": msg.Plate,
+		},
 	})
 }

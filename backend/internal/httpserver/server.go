@@ -60,6 +60,9 @@ import (
 	oauthprovidermodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider"
 	oauthproviderhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider/handler"
 	oauthproviderusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider/usecase"
+	platformwhatsappmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/whatsapp"
+	platformwhatsapphandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/whatsapp/handler"
+	platformwhatsappusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/whatsapp/usecase"
 	jobsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs"
 	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
 	leadsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads"
@@ -68,6 +71,9 @@ import (
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
 	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
+	messagingcatalog "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/catalog"
+	messagingcloud "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/cloud"
+	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	messagingproviders "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
@@ -290,6 +296,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	stepUpSvc.SetSecretBox(secretBox)
 
 	githubSvc := githubusecase.New(deps.Queries, secretBox)
+	platformWhatsAppSvc := platformwhatsappusecase.New(deps.Queries, secretBox, cfg.Auth.FrontendURL)
 	oauthProvSvc := oauthproviderusecase.New(deps.Queries, secretBox)
 	authSettingsSvc := authsettingsusecase.New(deps.Queries)
 	uc.SetAuthSettings(authSettingsSvc)
@@ -376,6 +383,12 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		if orgID == messagingmodel.PlatformOrgKey {
+			if err := messagingSvc.UpdatePlatformSessionConnected(ctx, jid, phone, connected); err != nil {
+				log.Warn("platform whatsapp session update failed", "err", err)
+			}
+			return
+		}
 		if err := messagingSvc.UpdateSessionConnected(ctx, orgID, jid, phone, displayName, connected); err != nil {
 			log.Warn("whatsapp session update failed", "org_id", orgID, "err", err)
 		}
@@ -386,6 +399,12 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
+		if orgID == messagingmodel.PlatformOrgKey {
+			if err := messagingSvc.UpdatePlatformSessionQR(ctx, code, expiresAt); err != nil {
+				log.Warn("platform whatsapp qr update failed", "err", err)
+			}
+			return
+		}
 		if err := messagingSvc.UpdateSessionQR(ctx, orgID, code, expiresAt); err != nil {
 			log.Warn("whatsapp qr update failed", "org_id", orgID, "err", err)
 		}
@@ -404,12 +423,21 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	)
 	messagingSvc.SetStorage(deps.Storage)
 	messagingSvc.SetEntitlements(entitlementsSvc)
+	// Platform Cloud API number: credentials read per request from the panel.
+	cloudClient := messagingcloud.New(platformWhatsAppSvc.CloudConfigReader(), nil)
+	messagingSvc.SetCloudSender(cloudClient)
+	// Platform-number messages name the platform (letterhead + public URL).
+	messagingSvc.SetPlatformInfo(messagingusecase.AppSettingsPlatformInfo(deps.Queries, cfg.Auth.FrontendURL))
+	if err := messagingcatalog.Seed(context.Background(), deps.Queries); err != nil {
+		log.Warn("whatsapp template catalog seed failed", "err", err)
+	}
 	if deps.Queue != nil {
 		messagingSvc.SetQueue(deps.Queue)
 		// This process owns the WhatsApp sessions, so it consumes queued sends.
 		s.msgWorker = queue.NewMessagingWorker(cfg, log, messagingSvc.ProcessOutbound)
 	}
 	messagingSvc.RestoreConnectedSessions(context.Background())
+	messagingSvc.RestorePlatformSession(context.Background())
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
 	dailySummarySvc := dsusecase.New(deps.Queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	dailysummary.RegisterRoutes(mux, dailySummarySvc, tokens, loader, deps.Queries)
@@ -610,6 +638,10 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	accessmodule.RegisterRoutes(mux, accesshandler.New(stepUpSvc, activityRec), tokens, loader)
 	authsettingsmodule.RegisterRoutes(mux, authsettingshandler.New(authSettingsSvc, activityRec), tokens, loader)
 	githubmodule.RegisterRoutes(mux, githubhandler.New(githubSvc, activityRec), tokens, loader)
+	platformwhatsappmodule.RegisterRoutes(mux, platformwhatsapphandler.New(platformWhatsAppSvc, activityRec).
+		WithPlatform(platformwhatsappusecase.NewTemplates(deps.Queries, cloudClient), messagingSvc), tokens, loader)
+	platformwhatsappmodule.RegisterWebhookRoutes(mux, platformwhatsapphandler.NewWebhookHandler(
+		platformwhatsappusecase.NewWebhook(deps.Queries, secretBox, log), ratelimit.New(deps.Redis, cfg.App.Env), log))
 	oauthprovidermodule.RegisterRoutes(mux, oauthproviderhandler.New(oauthProvSvc, activityRec), tokens, loader)
 	activitymodule.RegisterRoutes(mux, activityhandler.New(activityusecase.New(deps.Queries)), tokens, loader)
 	logsmodule.RegisterRoutes(mux, logshandler.New(logsSvc), tokens, loader)

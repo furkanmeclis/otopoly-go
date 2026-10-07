@@ -62,6 +62,8 @@ type OutboundMessage struct {
 	SubjectType             string
 	SubjectUUID             *uuid.UUID
 	ScheduledNotificationID int64
+	// Vars are the rendered template variables (platform catalog params).
+	Vars map[string]string
 }
 
 // Messenger is the messaging module (templates, org rules, WhatsApp/SMS queue).

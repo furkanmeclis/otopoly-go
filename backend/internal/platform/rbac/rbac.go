@@ -115,6 +115,8 @@ const (
 	PermPlatformBillingSettings                 = "platform.billing.settings"
 	PermTenantBillingRead                       = "tenant.billing.read"
 	PermTenantBillingWrite                      = "tenant.billing.write"
+	PermPlatformIntegrationsWhatsAppRead        = "platform.integrations.whatsapp.read"
+	PermPlatformIntegrationsWhatsAppWrite       = "platform.integrations.whatsapp.write"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

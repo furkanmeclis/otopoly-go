@@ -51,6 +51,8 @@
   "labels.platform.integrations.facebook.write": "Write Facebook integration settings",
   "labels.platform.integrations.apple.read": "Read Apple integration settings",
   "labels.platform.integrations.apple.write": "Write Apple integration settings",
+  "labels.platform.integrations.whatsapp.read": "Read WhatsApp integration settings",
+  "labels.platform.integrations.whatsapp.write": "Write WhatsApp integration settings",
   "labels.platform.auth.settings.read": "Read auth registration settings",
   "labels.platform.auth.settings.write": "Write auth registration settings",
   "labels.platform.organizations.read": "Read organizations",

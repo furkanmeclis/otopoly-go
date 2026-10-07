@@ -170,6 +170,9 @@ func (e *ValidationError) Unwrap() error { return ErrInvalidRequest }
 // SaveTemplate validates placeholders against the type registry and upserts
 // the organization override.
 func (s *Service) SaveTemplate(ctx context.Context, orgID int64, eventType, channel, locale string, in SaveTemplateInput) (TemplateEntry, error) {
+	if err := s.requireOwnNumber(ctx, orgID); err != nil {
+		return TemplateEntry{}, err
+	}
 	spec, ok := msgtemplate.Lookup(eventType)
 	if !ok || spec.System {
 		return TemplateEntry{}, fmt.Errorf("%w: unknown template type", ErrInvalidRequest)
@@ -220,6 +223,9 @@ func (s *Service) SaveTemplate(ctx context.Context, orgID int64, eventType, chan
 
 // ResetTemplate deletes the override so the system default applies again.
 func (s *Service) ResetTemplate(ctx context.Context, orgID int64, eventType, channel, locale string) (TemplateEntry, error) {
+	if err := s.requireOwnNumber(ctx, orgID); err != nil {
+		return TemplateEntry{}, err
+	}
 	spec, ok := msgtemplate.Lookup(eventType)
 	if !ok || !spec.HasChannel(channel) || (locale != "tr" && locale != "en") {
 		return TemplateEntry{}, ErrNotFound

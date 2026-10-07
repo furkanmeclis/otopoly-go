@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useLocale } from "@/providers/locale-provider";
@@ -18,6 +23,8 @@ export const messagingKeys = {
   rules: () => [...messagingKeys.all, "rules"] as const,
   templates: () => [...messagingKeys.all, "templates"] as const,
   template: (uuid: string) => [...messagingKeys.all, "template", uuid] as const,
+  outbound: (params: { limit: number; offset: number }) =>
+    [...messagingKeys.all, "outbound", params] as const,
 };
 
 export function useWhatsAppSession(options?: { pollWhilePairing?: boolean }) {
@@ -33,6 +40,32 @@ export function useWhatsAppSession(options?: { pollWhilePairing?: boolean }) {
     },
   });
   return query;
+}
+
+export function useOutboundMessages(params: { limit: number; offset: number }) {
+  return useQuery({
+    queryKey: messagingKeys.outbound(params),
+    queryFn: () => messagingService.listOutbound(params),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useUpdateSessionSettings() {
+  const { t } = useLocale();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (fallbackToPlatform: boolean) =>
+      messagingService.updateSessionSettings({
+        fallback_to_platform: fallbackToPlatform,
+      }),
+    onSuccess: (session) => {
+      queryClient.setQueryData(messagingKeys.session(), session);
+      void queryClient.invalidateQueries({ queryKey: messagingKeys.session() });
+      toast.success(t("messaging.toast.session_settings_saved"));
+    },
+    onError: (err: Error) =>
+      toast.error(err.message || t("messaging.toast.session_settings_failed")),
+  });
 }
 
 export function useNotificationRules() {

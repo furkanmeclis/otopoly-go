@@ -446,6 +446,170 @@ export interface paths {
         patch: operations["patchPlatformGitHubIntegrationSettings"];
         trace?: never;
     };
+    "/v1/platform/integrations/whatsapp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read platform WhatsApp sender settings
+         * @description Super admin only (`platform.integrations.whatsapp.read`). Secrets are never returned; only `*_configured` flags. Includes the public webhook URL for Meta.
+         */
+        get: operations["getPlatformWhatsAppIntegrationSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update platform WhatsApp sender settings
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Partial update; omitted or blank secret fields keep the stored values. Selecting the `cloud` provider requires `phone_number_id` and an access token.
+         */
+        patch: operations["patchPlatformWhatsAppIntegrationSettings"];
+        trace?: never;
+    };
+    "/v1/platform/integrations/whatsapp/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test message from the platform number
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Uses the configured provider: Cloud sends `hello_world` (or the given catalog template with its example values), whatsmeow sends a plain test line (or the catalog text). Sender / Meta failures return 409 with the classified error code (e.g. `CLOUD_AUTH_FAILED`, `PLATFORM_SENDER_NOT_CONFIGURED`, `GRAPH_100`).
+         */
+        post: operations["postPlatformWhatsAppTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/whatsapp/session/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start QR pairing of the platform whatsmeow number
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Pairing runs in the background; poll `GET /v1/platform/integrations/whatsapp` for `whatsmeow_qr_code` while `whatsmeow_status` is `qr_pending` (same polling flow as the tenant session).
+         */
+        post: operations["postPlatformWhatsAppSessionConnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/whatsapp/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect the platform whatsmeow number
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Logs the device out.
+         */
+        delete: operations["deletePlatformWhatsAppSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/whatsapp/templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform template catalog with Meta status
+         * @description Super admin only (`platform.integrations.whatsapp.read`). Every catalog entry (code) merged with its stored Meta state (status, ids, override name).
+         */
+        get: operations["getPlatformWhatsAppTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/whatsapp/templates/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit catalog templates to Meta
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Creates every `not_submitted` template (or only `keys`) in the WABA with example values; entries with an override name are skipped. Per-key failures are reported in `results`; auth / configuration failures return 409.
+         */
+        post: operations["postPlatformWhatsAppTemplatesSubmit"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/whatsapp/templates/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pull template statuses from Meta
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Matches Meta templates by effective name (override or catalog name) and language; templates missing in Meta become `not_submitted`.
+         */
+        post: operations["postPlatformWhatsAppTemplatesSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/whatsapp/templates/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set or clear the Meta template name override
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Maps a catalog key to a template created manually in Meta (`null` / empty clears it). The stored Meta state is reset to `not_submitted` until the next sync.
+         */
+        patch: operations["patchPlatformWhatsAppTemplate"];
+        trace?: never;
+    };
     "/v1/platform/auth/settings": {
         parameters: {
             query?: never;
@@ -3345,7 +3509,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** WhatsApp session status */
+        /**
+         * WhatsApp session status
+         * @description Own-number session plus sender routing flags: `own_number_entitled`
+         *     (plan feature `whatsapp.own_number`; without it the session is never used),
+         *     `fallback_to_platform` and `platform_sender_available`.
+         */
         get: operations["getTenantMessagingSession"];
         put?: never;
         post?: never;
@@ -3365,8 +3534,52 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Start WhatsApp QR pairing */
+        /**
+         * Start WhatsApp QR pairing
+         * @description Requires plan feature `whatsapp.own_number` (403 `FEATURE_NOT_ENTITLED` otherwise).
+         */
         post: operations["postTenantMessagingSessionConnect"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/session/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update own-session routing settings
+         * @description `fallback_to_platform`: send from the platform number while the own session
+         *     is disconnected (default true). Requires `tenant.messaging.write` (owner).
+         */
+        patch: operations["patchTenantMessagingSessionSettings"];
+        trace?: never;
+    };
+    "/v1/tenant/messaging/outbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outbound WhatsApp/SMS log
+         * @description Newest first, with the sender route, delivery status and error code. Requires `tenant.messaging.read`.
+         */
+        get: operations["getTenantMessagingOutbound"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -5997,6 +6210,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/whatsapp/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Meta webhook subscription handshake
+         * @description No auth; called by Meta (through the same-origin proxy
+         *     `/api/v1/public/whatsapp/webhook`). `hub.mode=subscribe` and a
+         *     `hub.verify_token` equal to the stored (encrypted) verify token,
+         *     compared in constant time, echo `hub.challenge` as `text/plain`.
+         *     Rate-limited per IP.
+         */
+        get: operations["verifyWhatsAppWebhook"];
+        put?: never;
+        /**
+         * Meta webhook notifications
+         * @description No auth; `X-Hub-Signature-256` (HMAC-SHA256 of the **raw** body with
+         *     the stored app secret) is required: missing app secret or a bad
+         *     signature → 401 and nothing is processed. Body limit 1 MiB.
+         *     Handled: `messages` change `statuses` (sent < delivered < read never
+         *     regress; `failed` is always recorded with its error code; pricing
+         *     category / billable stored; unknown wamids ignored) and
+         *     `message_template_status_update` (template row by Meta id, else by
+         *     effective name + language). Customer messages and every other field
+         *     are acknowledged and dropped. After a valid signature the answer is
+         *     always 200, even if an entry fails. Rate-limited per IP.
+         */
+        post: operations["receiveWhatsAppWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/quotes/{token}": {
         parameters: {
             query?: never;
@@ -6755,6 +7005,245 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["GitHubIntegrationSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        WhatsAppIntegrationSettings: {
+            /** @enum {string} */
+            provider: "none" | "whatsmeow" | "cloud";
+            app_id: string;
+            waba_id: string;
+            phone_number_id: string;
+            /** @example v26.0 */
+            api_version: string;
+            display_phone: string;
+            access_token_configured: boolean;
+            app_secret_configured: boolean;
+            webhook_verify_token_configured: boolean;
+            /** @description Public URL to register as the Meta webhook callback. */
+            webhook_url: string;
+            /**
+             * @example disconnected
+             * @example qr_pending
+             * @example connected
+             * @example error
+             */
+            whatsmeow_status: string;
+            whatsmeow_phone: string;
+            /** @description Pairing QR payload while `whatsmeow_status` is `qr_pending`. */
+            whatsmeow_qr_code?: string;
+            /** Format: date-time */
+            whatsmeow_qr_expires_at?: string;
+            whatsmeow_error?: string;
+            /** Format: date-time */
+            updated_at: string | null;
+        };
+        PatchWhatsAppIntegrationSettingsRequest: {
+            /** @enum {string} */
+            provider?: "none" | "whatsmeow" | "cloud";
+            app_id?: string;
+            waba_id?: string;
+            phone_number_id?: string;
+            /** @example v26.0 */
+            api_version?: string;
+            display_phone?: string;
+            access_token?: string;
+            app_secret?: string;
+            webhook_verify_token?: string;
+        };
+        EnvelopeWhatsAppIntegrationSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppIntegrationSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Meta webhook notification (only the fields used are listed; others are ignored). */
+        WhatsAppWebhookNotification: {
+            /** @example whatsapp_business_account */
+            object?: string;
+            entry?: ({
+                id?: string;
+                changes?: ({
+                    /** @example messages */
+                    field?: string;
+                    value?: {
+                        [key: string]: unknown;
+                    };
+                } & {
+                    [key: string]: unknown;
+                })[];
+            } & {
+                [key: string]: unknown;
+            })[];
+        } & {
+            [key: string]: unknown;
+        };
+        WhatsAppWebhookAck: {
+            /** @enum {boolean} */
+            received: true;
+        };
+        EnvelopeWhatsAppWebhookAck: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppWebhookAck"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PlatformWhatsAppTestRequest: {
+            /** @example 905321234567 */
+            phone: string;
+            /** @description Catalog key (e.g. `job.ready`); empty sends `hello_world` / a plain test line. */
+            template_key?: string;
+        };
+        PlatformWhatsAppTestResult: {
+            /** @enum {string} */
+            sender_kind: "platform_whatsmeow" | "platform_cloud";
+            template_name: string;
+            /** @description wamid (Cloud) or whatsmeow message id */
+            provider_reference: string;
+        };
+        EnvelopePlatformWhatsAppTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformWhatsAppTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        WhatsAppTemplate: {
+            /** @example job.ready */
+            key: string;
+            /** @example otopoly_job_ready */
+            meta_name: string;
+            override_name: string | null;
+            effective_name: string;
+            /** @example tr */
+            language: string;
+            /** @enum {string} */
+            category: "UTILITY" | "AUTHENTICATION";
+            /** @enum {string} */
+            status: "not_submitted" | "pending" | "approved" | "rejected" | "paused" | "disabled";
+            meta_template_id: string;
+            rejected_reason: string;
+            /** Format: date-time */
+            last_synced_at: string | null;
+            /** @description Turkish body with positional {{1}}…{{n}} params */
+            body: string;
+            params: string[];
+            examples: string[];
+            header_document: boolean;
+            copy_code_button: boolean;
+        };
+        WhatsAppTemplateList: {
+            items: components["schemas"]["WhatsAppTemplate"][];
+        };
+        EnvelopeWhatsAppTemplateList: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppTemplateList"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeWhatsAppTemplate: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppTemplate"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        SubmitWhatsAppTemplatesRequest: {
+            /** @description Catalog keys to submit; omitted = every `not_submitted` entry. */
+            keys?: string[];
+        };
+        WhatsAppTemplateSubmitResult: {
+            key: string;
+            status: string;
+            /** @enum {string} */
+            skipped?: "override" | "already_submitted";
+            /** @description Classified error code (e.g. `graph_100`). */
+            error?: string;
+        };
+        WhatsAppTemplateSubmit: {
+            results: components["schemas"]["WhatsAppTemplateSubmitResult"][];
+            items: components["schemas"]["WhatsAppTemplate"][];
+        };
+        EnvelopeWhatsAppTemplateSubmit: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppTemplateSubmit"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PatchWhatsAppTemplateRequest: {
+            /** @description Meta template name (lowercase, digits, underscore); null or empty clears. */
+            override_name?: string | null;
+        };
+        WhatsAppSession: {
+            /** Format: uuid */
+            uuid?: string;
+            /** @enum {string} */
+            status: "disconnected" | "qr_pending" | "connected" | "error";
+            jid?: string;
+            phone_number?: string;
+            display_name?: string;
+            qr_code?: string;
+            /** Format: date-time */
+            qr_expires_at?: string;
+            /** Format: date-time */
+            last_seen_at?: string;
+            error_message?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+            /** @description Plan includes `whatsapp.own_number`. Without it the session is kept but never used. */
+            own_number_entitled: boolean;
+            /** @description Send from the platform number while the own session is disconnected. */
+            fallback_to_platform: boolean;
+            /** @description The platform number can send right now. */
+            platform_sender_available: boolean;
+        };
+        EnvelopeWhatsAppSession: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppSession"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        PatchWhatsAppSessionSettingsRequest: {
+            fallback_to_platform: boolean;
+        };
+        OutboundMessage: {
+            /** Format: uuid */
+            uuid: string;
+            event_type: string;
+            /** @enum {string} */
+            channel: "whatsapp" | "sms";
+            recipient_phone: string;
+            /** @enum {string} */
+            status: "queued" | "sending" | "sent" | "failed";
+            provider_reference?: string;
+            error_message?: string;
+            subject_type?: string;
+            /** Format: uuid */
+            subject_uuid?: string;
+            /** Format: date-time */
+            sent_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** @enum {string} */
+            sender_kind?: "org_own" | "platform_whatsmeow" | "platform_cloud";
+            template_name?: string;
+            /** @description Cloud delivery status from the webhook (sent, delivered, read, failed). */
+            delivery_status?: string;
+            /** Format: date-time */
+            delivery_status_at?: string;
+            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>. */
+            error_code?: string;
+        };
+        OutboundMessagePage: {
+            items: components["schemas"]["OutboundMessage"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeOutboundMessagePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OutboundMessagePage"];
             meta: components["schemas"]["ResponseMeta"];
         };
         AuthSettingsDefaultRole: {
@@ -11295,6 +11784,240 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformWhatsAppIntegrationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Platform WhatsApp sender settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppIntegrationSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformWhatsAppIntegrationSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchWhatsAppIntegrationSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated platform WhatsApp sender settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppIntegrationSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformWhatsAppTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PlatformWhatsAppTestRequest"];
+            };
+        };
+        responses: {
+            /** @description Test message accepted by the provider */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformWhatsAppTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformWhatsAppSessionConnect: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings with the pairing state */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppIntegrationSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deletePlatformWhatsAppSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings after disconnect */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppIntegrationSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformWhatsAppTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Template catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppTemplateList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformWhatsAppTemplatesSubmit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["SubmitWhatsAppTemplatesRequest"];
+            };
+        };
+        responses: {
+            /** @description Submit results and the updated catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppTemplateSubmit"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformWhatsAppTemplatesSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated template catalog */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppTemplateList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformWhatsAppTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchWhatsAppTemplateRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppTemplate"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             500: components["responses"]["InternalError"];
         };
     };
@@ -16691,7 +17414,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppSession"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
@@ -16731,8 +17456,71 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppSession"];
+                };
             };
+            401: components["responses"]["Unauthenticated"];
+            /** @description Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    patchTenantMessagingSessionSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchWhatsAppSessionSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppSession"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantMessagingOutbound: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Outbound page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOutboundMessagePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
@@ -16837,7 +17625,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     getTenantMessagingTemplate: {
@@ -16882,7 +17678,15 @@ export interface operations {
                 content?: never;
             };
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -16915,7 +17719,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -16969,7 +17781,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     resetTenantMessagingTemplateByKey: {
@@ -16995,7 +17815,15 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
+            /** @description Not allowed, or `FEATURE_NOT_ENTITLED` when the plan excludes `whatsapp.own_number`. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };
@@ -21886,6 +22714,70 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    verifyWhatsAppWebhook: {
+        parameters: {
+            query: {
+                "hub.mode": "subscribe";
+                "hub.verify_token": string;
+                "hub.challenge": string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The challenge, echoed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    receiveWhatsAppWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Hub-Signature-256": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppWebhookNotification"];
+            };
+        };
+        responses: {
+            /** @description Acknowledged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppWebhookAck"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description Body larger than 1 MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getPublicQuote: {
