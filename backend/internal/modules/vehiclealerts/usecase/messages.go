@@ -103,6 +103,24 @@ func Message(orgName string, lines []PendingLine, withAmounts bool) string {
 	return strings.TrimRight(b.String(), "\n")
 }
 
+// MessageVars are the platform catalog variables (vehicle.alert) for the
+// same recipient text: business name, line count and the rendered lines.
+func MessageVars(orgName string, lines []PendingLine, withAmounts bool) map[string]string {
+	rendered := make([]string, 0, len(lines))
+	for _, l := range lines {
+		if withAmounts && l.Amount > 0 && l.Event != EventCancelled {
+			rendered = append(rendered, l.Line+" · "+formatTRY(l.Amount))
+			continue
+		}
+		rendered = append(rendered, l.Line)
+	}
+	return map[string]string{
+		"business_name": strings.TrimSpace(orgName),
+		"alert_count":   strconv.Itoa(len(lines)),
+		"alert_lines":   strings.Join(rendered, "\n"),
+	}
+}
+
 func uniq(in []string) []string {
 	seen := map[string]bool{}
 	out := make([]string, 0, len(in))

@@ -54,15 +54,13 @@ func NewMessagingSender(svc *messagingusecase.Service) *MessagingSender {
 	return &MessagingSender{svc: svc}
 }
 
+// WhatsAppConnected reports whether WhatsApp can be sent now (own session or
+// platform number fallback).
 func (m *MessagingSender) WhatsAppConnected(ctx context.Context, orgID int64) (bool, error) {
-	s, err := m.svc.GetSession(ctx, orgID)
-	if err != nil {
-		return false, err
-	}
-	return s.Status == messagingmodel.StatusConnected, nil
+	return m.svc.WhatsAppAvailable(ctx, orgID)
 }
 
-func (m *MessagingSender) QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string) error {
+func (m *MessagingSender) QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string, vars map[string]string) error {
 	_, err := m.svc.QueueSend(ctx, messagingusecase.OutboundRequest{
 		OrgID:       orgID,
 		EventType:   eventType,
@@ -70,6 +68,7 @@ func (m *MessagingSender) QueueWhatsApp(ctx context.Context, orgID int64, phone,
 		Phone:       phone,
 		Body:        body,
 		SubjectType: subjectType,
+		Vars:        vars,
 	})
 	return err
 }

@@ -48,6 +48,11 @@ type OTPMessage struct {
 	Phone        string
 	Body         string
 	InstanceUUID uuid.UUID
+	// Code, BusinessName and Minutes feed the platform template when the
+	// platform number sends instead of the organization's own line.
+	Code         string
+	BusinessName string
+	Minutes      int
 }
 
 // OTPSender delivers contract OTP messages over the organization's own channel
@@ -160,6 +165,9 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 		Phone:        phone,
 		Body:         body,
 		InstanceUUID: inst.Uuid,
+		Code:         code,
+		BusinessName: org.Name,
+		Minutes:      int(otpTTL.Minutes()),
 	})
 	if err != nil {
 		return OTPChallenge{}, fmt.Errorf("%w: %v", ErrOTPChannelUnavailable, err)

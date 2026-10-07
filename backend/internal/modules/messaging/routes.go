@@ -38,6 +38,10 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/tenant/messaging/session", tRead(h.GetSession))
 	mux.Handle("POST /v1/tenant/messaging/session/connect", tWrite(h.ConnectWhatsApp))
 	mux.Handle("DELETE /v1/tenant/messaging/session", tWrite(h.DisconnectWhatsApp))
+	mux.Handle("PATCH /v1/tenant/messaging/session/settings", tWrite(h.UpdateSessionSettings))
+
+	// Outbound log (sender route + delivery status)
+	mux.Handle("GET /v1/tenant/messaging/outbound", tRead(h.ListOutbound))
 
 	// Notification rules
 	mux.Handle("GET /v1/tenant/messaging/rules", tRead(h.ListRules))

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
-	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	centerusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/usecase"
 )
@@ -61,16 +60,13 @@ func (m *CenterMessenger) QueueSend(ctx context.Context, msg centerusecase.Outbo
 	_, err := m.svc.QueueSend(ctx, messagingusecase.OutboundRequest{
 		OrgID: msg.OrgID, EventType: msg.Kind, Channel: msg.Channel, Phone: msg.Phone, Body: msg.Body,
 		Attachment: att, SubjectType: msg.SubjectType, SubjectUUID: msg.SubjectUUID,
-		ScheduledNotificationID: msg.ScheduledNotificationID,
+		ScheduledNotificationID: msg.ScheduledNotificationID, Vars: msg.Vars,
 	})
 	return err
 }
 
-// WhatsAppConnected reports whether the organization's WhatsApp line is connected.
+// WhatsAppConnected reports whether WhatsApp messages of the organization can
+// be sent now (own session, or the platform number as fallback).
 func (m *CenterMessenger) WhatsAppConnected(ctx context.Context, orgID int64) (bool, error) {
-	s, err := m.svc.GetSession(ctx, orgID)
-	if err != nil {
-		return false, err
-	}
-	return s.Status == messagingmodel.StatusConnected, nil
+	return m.svc.WhatsAppAvailable(ctx, orgID)
 }

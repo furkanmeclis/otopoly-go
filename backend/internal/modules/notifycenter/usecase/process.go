@@ -343,6 +343,7 @@ func (s *Service) send(ctx context.Context, row db.ScheduledNotification, ch str
 			OrgID: row.OrganizationID, Kind: row.Kind, Channel: ch, Phone: r.phone, Body: body,
 			AttachmentKey: att.ObjectKey, AttachmentName: att.FileName, AttachmentMime: att.MimeType,
 			SubjectType: row.SubjectType, SubjectUUID: &id, ScheduledNotificationID: row.ID,
+			Vars: vars,
 		})
 	}
 	return fmt.Errorf("unknown channel %s", ch)
