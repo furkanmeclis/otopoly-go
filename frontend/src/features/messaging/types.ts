@@ -1,8 +1,10 @@
+import type { components } from "@/generated/api";
+
 export type WhatsAppSessionStatus =
   "disconnected" | "qr_pending" | "connected" | "error";
 
 export interface WhatsAppSession {
-  uuid: string;
+  uuid?: string;
   status: WhatsAppSessionStatus;
   jid?: string;
   phone_number?: string;
@@ -11,9 +13,19 @@ export interface WhatsAppSession {
   qr_expires_at?: string;
   last_seen_at?: string;
   error_message?: string;
-  created_at: string;
-  updated_at: string;
+  created_at?: string;
+  updated_at?: string;
+  /** Plan feature `whatsapp.own_number`; without it the session is never used. */
+  own_number_entitled: boolean;
+  /** Send from the platform number while the own session is disconnected. */
+  fallback_to_platform: boolean;
+  /** The platform number can send right now. */
+  platform_sender_available: boolean;
 }
+
+export type OutboundMessage = components["schemas"]["OutboundMessage"];
+export type OutboundMessagePage = components["schemas"]["OutboundMessagePage"];
+export type OutboundSenderKind = NonNullable<OutboundMessage["sender_kind"]>;
 
 export interface NotificationRule {
   uuid: string;

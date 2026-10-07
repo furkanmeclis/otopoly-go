@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, Pencil } from "lucide-react";
+import { FileText, Lock, Pencil } from "lucide-react";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { ErrorState } from "@/components/common/error-state";
@@ -24,8 +24,20 @@ import type {
 } from "@/features/messaging/services/templates.service";
 import { useLocale } from "@/providers/locale-provider";
 
-export function MessageTemplatesPanel({ canWrite }: { canWrite: boolean }) {
+export function MessageTemplatesPanel({
+  canWrite: canWriteRole,
+  ownNumberEntitled = true,
+}: {
+  canWrite: boolean;
+  /**
+   * Plan feature `whatsapp.own_number`. Without it every message goes from
+   * the platform number with the platform templates, so the editor is
+   * read-only.
+   */
+  ownNumberEntitled?: boolean;
+}) {
   const { t, locale } = useLocale();
+  const canWrite = canWriteRole && ownNumberEntitled;
   const catalog = useTemplateCatalog();
   const [editing, setEditing] = useState<{
     type: string;
@@ -55,10 +67,23 @@ export function MessageTemplatesPanel({ canWrite }: { canWrite: boolean }) {
         </CardTitle>
         <CardDescription>
           {t("messaging.templates.description")}
-          {!canWrite ? ` ${t("messaging.templates.read_only")}` : ""}
+          {!canWriteRole ? ` ${t("messaging.templates.read_only")}` : ""}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {!ownNumberEntitled ? (
+          <div className="bg-muted/50 flex items-start gap-3 rounded-md border p-3 text-sm">
+            <Lock className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+            <div className="space-y-1">
+              <p className="font-medium">
+                {t("messaging.templates.platform_title")}
+              </p>
+              <p className="text-muted-foreground">
+                {t("messaging.templates.platform_body")}
+              </p>
+            </div>
+          </div>
+        ) : null}
         {catalog.isLoading ? (
           <div
             className="space-y-2"

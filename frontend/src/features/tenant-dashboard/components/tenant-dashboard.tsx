@@ -608,7 +608,12 @@ function SetupChecklist({ slug, welcome }: { slug: string; welcome: boolean }) {
     {
       key: "whatsapp",
       icon: MessageCircle,
-      done: session.data?.status === "connected",
+      // Without the own-number plan feature messages go from the platform
+      // number; nothing to set up then.
+      done:
+        session.data?.status === "connected" ||
+        (session.data?.own_number_entitled === false &&
+          session.data?.platform_sender_available === true),
       href: routes.tenant.settings.messaging(slug),
     },
     {

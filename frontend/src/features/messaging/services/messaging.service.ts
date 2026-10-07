@@ -2,6 +2,7 @@ import { platformRequest } from "@/lib/api/platform-request";
 import type {
   MessageTemplate,
   NotificationRule,
+  OutboundMessagePage,
   PatchTemplateInput,
   RuleList,
   SimulateInput,
@@ -22,6 +23,22 @@ export const messagingService = {
     return platformRequest<WhatsAppSession>(
       "POST",
       "/v1/tenant/messaging/session/connect",
+    );
+  },
+
+  updateSessionSettings(body: { fallback_to_platform: boolean }) {
+    return platformRequest<WhatsAppSession>(
+      "PATCH",
+      "/v1/tenant/messaging/session/settings",
+      { body },
+    );
+  },
+
+  listOutbound(params: { limit: number; offset: number }) {
+    return platformRequest<OutboundMessagePage>(
+      "GET",
+      "/v1/tenant/messaging/outbound",
+      { query: params },
     );
   },
 
