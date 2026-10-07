@@ -18,6 +18,7 @@ Users are global. Permissions come from assigned roles (union). **Organizations*
 |------------|---------|
 | `platform.users.read` / `.write` / `.export` / `.import` | Platform user CRUD + I/O |
 | `platform.users.impersonate` | Impersonate another user from platform admin (step-up) |
+| `platform.users.delete` | Soft-delete / restore platform users (step-up) |
 | `platform.users.bulk.disable` / `.bulk.enable` | User bulk actions |
 | `platform.roles.read` / `.write` / `.export` / `.import` | Role CRUD + I/O |
 | `platform.roles.bulk.delete` | Role bulk delete |
@@ -205,15 +206,21 @@ Login error codes for tenant context: `NO_TENANT_MEMBERSHIP`, `ORGANIZATION_ACCE
 | Method | Path | Permission |
 |--------|------|------------|
 | GET | `/v1/platform/users/meta` | `platform.users.read` |
-| GET | `/v1/platform/users` | `platform.users.read` — query: `limit`,`offset`,`q`,`sort`,`status`,`role` |
+| GET | `/v1/platform/users` | `platform.users.read` — query: `limit`,`offset`,`q`,`sort`,`status`,`role`; `status=deleted` lists soft-deleted users |
 | POST | `/v1/platform/users` | `platform.users.write` — body includes `role_uuids[]` |
-| GET | `/v1/platform/users/{uuid}` | `platform.users.read` — includes `roles[]` |
+| GET | `/v1/platform/users/{uuid}` | `platform.users.read` — includes `roles[]`; also returns deleted users (`deleted_at`) |
 | PATCH | `/v1/platform/users/{uuid}` | `platform.users.write` — optional `role_uuids[]` |
 | POST | `/v1/platform/users/{uuid}/password` | `platform.users.write` |
 | POST | `/v1/platform/users/{uuid}/impersonate` | `platform.users.impersonate` (step-up) |
+| DELETE | `/v1/platform/users/{uuid}` | `platform.users.delete` (step-up) — soft delete, see below |
+| POST | `/v1/platform/users/{uuid}/restore` | `platform.users.delete` (step-up) — clears `deleted_at` if the email is free |
 | POST | `/v1/auth/impersonation/stop` | Bearer (active impersonation session) |
 
 Last super admin cannot be demoted via role removal or disable.
+
+**Deleting a user** (`DELETE /v1/platform/users/{uuid}`) sets `users.deleted_at`; every lookup ignores deleted users, so their access tokens stop resolving at once. In the same transaction it revokes all refresh sessions, deletes mobile push devices and web push subscriptions, OAuth identities (Apple tokens revoked first, best effort) and passkeys. The email is free again (unique index is `WHERE deleted_at IS NULL`). Roles and organization memberships stay for a restore. Guards: not yourself (`CANNOT_DELETE_SELF`), not the last active super admin (`LAST_SUPER_ADMIN`), not the only owner of an organization (`SOLE_ORGANIZATION_OWNER`, organizations in `error.details`). Self-service deletion (`/v1/auth/account/deactivate`) is different: it only disables the account (`deactivated_at`).
+
+**Organization members** (platform): `PATCH /v1/platform/organizations/{uuid}/members/{userUuid}` (`{role: owner|staff}`) and `DELETE …/members/{userUuid}` need `platform.organizations.write`. The last owner cannot be demoted or removed (`LAST_ORGANIZATION_OWNER`). Removal revokes refresh sessions bound to that organization; tenant routes re-check membership per request (`RequireOrganization`), so access ends immediately. The global `organization_owner` / `organization_user` roles follow the remaining memberships.
 
 ## Platform roles
 

@@ -2047,6 +2047,89 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/platform/organizations/{uuid}/members/{userUuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        description: Organization UUID
+        schema:
+          type: string
+          format: uuid
+      - name: userUuid
+        in: path
+        required: true
+        description: Member user UUID
+        schema:
+          type: string
+          format: uuid
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformOrganizationMember
+      summary: Change organization member role
+      description: |
+        Requires `platform.organizations.write`. Switches the member between `owner` and
+        `staff`; the last owner cannot be demoted (`409 LAST_ORGANIZATION_OWNER`). The
+        user's global `organization_owner` role follows their owner memberships.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchOrganizationMemberRequest"
+      responses:
+        "200":
+          description: Updated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeOrganizationMember"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformOrganizationMember
+      summary: Remove organization member
+      description: |
+        Requires `platform.organizations.write`. The last owner cannot be removed
+        (`409 LAST_ORGANIZATION_OWNER`). Refresh sessions bound to this organization are
+        revoked; tenant requests fail immediately because organization membership is
+        re-checked on every request. Global `organization_owner` / `organization_user`
+        roles are dropped when the user has no matching memberships left.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Member removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/platform/users:
     get:
       tags: [Platform]
@@ -2062,7 +2145,13 @@ paths:
         - $ref: "#/components/parameters/Sort"
         - name: status
           in: query
-          schema: { type: string }
+          description: |
+            `active`, `pending` or `disabled`. `deleted` lists soft-deleted users
+            instead of live ones (newest deletion first); deleted users are never
+            returned otherwise.
+          schema:
+            type: string
+            enum: [active, pending, disabled, deleted]
         - name: is_super_admin
           in: query
           schema: { type: boolean }
@@ -2114,6 +2203,7 @@ paths:
       tags: [Platform]
       operationId: getPlatformUser
       summary: Get platform user
+      description: Also returns soft-deleted users (`deleted_at` set) so they can be reviewed and restored.
       security:
         - bearerAuth: []
       parameters:
@@ -2150,6 +2240,80 @@ paths:
       responses:
         "200":
           description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformUser
+      summary: Delete platform user (soft delete)
+      description: |
+        Requires `platform.users.delete` and step-up verification (`403 STEP_UP_REQUIRED`).
+        Sets `deleted_at`, revokes every refresh session, deletes mobile push devices and
+        web push subscriptions, detaches OAuth identities (Apple tokens are revoked best
+        effort) and passkeys. Roles and organization memberships are kept for a restore but
+        ignored while the user is deleted. The email becomes available for a new account.
+
+        Guards (`409`): `CANNOT_DELETE_SELF`; `LAST_SUPER_ADMIN` (the only active super
+        admin); `SOLE_ORGANIZATION_OWNER` when the user is the only owner of one or more
+        organizations — `error.details[]` lists them as `{field: organization uuid,
+        message: name, code: slug}`; transfer ownership or close the business first.
+        Only a super admin can delete a super admin (`403`).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: Deleted user (with `deleted_at`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/users/{uuid}/restore:
+    post:
+      tags: [Platform]
+      operationId: restorePlatformUser
+      summary: Restore a deleted platform user
+      description: |
+        Requires `platform.users.delete` and step-up verification. Clears `deleted_at`
+        when the email is still free (`409 EMAIL_IN_USE` otherwise; `409 CONFLICT` when the
+        user is not deleted). Sessions, push devices, OAuth identities and passkeys removed
+        by the deletion are not restored.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: Restored user
           content:
             application/json:
               schema:
@@ -11174,6 +11338,11 @@ components:
             - OAUTH_LINK_CHOICE_REQUIRED
             - INVALID_LINK_TICKET
             - OAUTH_PROVIDER_DISABLED
+            - CANNOT_DELETE_SELF
+            - LAST_SUPER_ADMIN
+            - SOLE_ORGANIZATION_OWNER
+            - LAST_ORGANIZATION_OWNER
+            - EMAIL_IN_USE
         message:
           type: string
         details:
@@ -11243,6 +11412,10 @@ components:
           type: string
           enum: [tr, en]
           default: tr
+        deleted_at:
+          type: [string, "null"]
+          format: date-time
+          description: Set when a platform admin deleted the user (soft delete). Only platform endpoints return deleted users.
 
     MeLinks:
       type: object
@@ -12916,6 +13089,49 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/AppConfig" }
+
+    OrganizationMember:
+      type: object
+      required: [uuid, email, name, surname, status, role, created_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+          description: User UUID
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        surname:
+          type: string
+        status:
+          type: string
+          examples: [active, disabled]
+        role:
+          type: string
+          enum: [owner, staff]
+        created_at:
+          type: string
+          format: date-time
+          description: When the user joined the organization
+
+    PatchOrganizationMemberRequest:
+      type: object
+      required: [role]
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum: [owner, staff]
+
+    EnvelopeOrganizationMember:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/OrganizationMember" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopePublicUser:
       type: object
