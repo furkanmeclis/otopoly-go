@@ -122,6 +122,16 @@ func (q *Queries) DeleteOAuthAccountByUserProvider(ctx context.Context, arg Dele
 	return err
 }
 
+const deleteOAuthAccountsByUserID = `-- name: DeleteOAuthAccountsByUserID :exec
+DELETE FROM oauth_accounts
+WHERE user_id = $1
+`
+
+func (q *Queries) DeleteOAuthAccountsByUserID(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deleteOAuthAccountsByUserID, userID)
+	return err
+}
+
 const getGitHubAppSettings = `-- name: GetGitHubAppSettings :one
 SELECT id, enabled, register_enabled, app_id, client_id, client_secret_enc, private_key_enc, created_at, updated_at FROM github_app_settings WHERE id = 1
 `

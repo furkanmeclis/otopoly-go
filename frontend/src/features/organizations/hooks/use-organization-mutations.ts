@@ -9,6 +9,7 @@ import {
   type Organization,
   type OrganizationDetail,
   type OrganizationListResult,
+  type OrganizationMemberRole,
   type PatchPlatformOrganizationRequest,
 } from "@/features/organizations/services/organizations.service";
 import { useAppMutation } from "@/lib/query/mutation";
@@ -156,5 +157,72 @@ export function useAddOrganizationMember() {
       appToast.success(t("organizations.toast.member_added"));
     },
     onError: () => appToast.error(t("organizations.toast.member_failed")),
+  });
+}
+
+export function useChangeOrganizationMemberRole() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useAppMutation({
+    mutationFn: ({
+      uuid,
+      userUuid,
+      role,
+    }: {
+      uuid: string;
+      userUuid: string;
+      role: OrganizationMemberRole;
+    }) => organizationsService.updateMemberRole(uuid, userUuid, role),
+    onSuccess: (member, variables) => {
+      queryClient.setQueryData<OrganizationDetail>(
+        organizationsKeys.detail(variables.uuid),
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                members: prev.members.map((item) =>
+                  item.uuid === member.uuid ? { ...item, ...member } : item,
+                ),
+              }
+            : prev,
+      );
+      appToast.success(t("organizations.toast.member_role_changed"));
+    },
+    onSettled: (_data, _error, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: organizationsKeys.detail(variables.uuid),
+      });
+    },
+  });
+}
+
+export function useRemoveOrganizationMember() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useAppMutation({
+    mutationFn: ({ uuid, userUuid }: { uuid: string; userUuid: string }) =>
+      organizationsService.removeMember(uuid, userUuid),
+    onSuccess: (_result, variables) => {
+      queryClient.setQueryData<OrganizationDetail>(
+        organizationsKeys.detail(variables.uuid),
+        (prev) =>
+          prev
+            ? {
+                ...prev,
+                members: prev.members.filter(
+                  (item) => item.uuid !== variables.userUuid,
+                ),
+              }
+            : prev,
+      );
+      appToast.success(t("organizations.toast.member_removed"));
+    },
+    onSettled: (_data, _error, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: organizationsKeys.detail(variables.uuid),
+      });
+    },
   });
 }

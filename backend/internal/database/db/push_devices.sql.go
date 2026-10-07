@@ -29,6 +29,16 @@ func (q *Queries) DeletePushDeviceForUser(ctx context.Context, arg DeletePushDev
 	return result.RowsAffected(), nil
 }
 
+const deletePushDevicesByUser = `-- name: DeletePushDevicesByUser :exec
+DELETE FROM push_devices
+WHERE user_id = $1
+`
+
+func (q *Queries) DeletePushDevicesByUser(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deletePushDevicesByUser, userID)
+	return err
+}
+
 const deletePushTickets = `-- name: DeletePushTickets :exec
 DELETE FROM push_tickets WHERE id = ANY($1::bigint[])
 `

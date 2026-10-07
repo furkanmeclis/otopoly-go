@@ -39,6 +39,7 @@
   "labels.platform.users.bulk.disable": "Bulk disable platform users",
   "labels.platform.users.bulk.enable": "Bulk enable platform users",
   "labels.platform.users.impersonate": "Impersonate platform users",
+  "labels.platform.users.delete": "Delete platform users",
   "labels.platform.roles.bulk.delete": "Bulk delete platform roles",
   "labels.platform.bulk.read": "Read bulk jobs",
   "labels.platform.access.read": "Read access settings",

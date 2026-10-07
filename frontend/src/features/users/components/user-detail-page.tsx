@@ -1,6 +1,14 @@
 "use client";
 
-import { KeyRound, Mail, Pencil, ShieldCheck, ShieldOff } from "lucide-react";
+import {
+  ArchiveRestore,
+  KeyRound,
+  Mail,
+  Pencil,
+  ShieldCheck,
+  ShieldOff,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
@@ -16,12 +24,14 @@ import {
   EntityPage,
   EntitySectionCard,
 } from "@/components/entity";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
 import { UserSetPasswordDialog } from "@/features/users/components/user-set-password-dialog";
 import { UserAuthMethodsIcons } from "@/features/users/components/user-auth-methods";
+import { useUserDeleteFlow } from "@/features/users/components/user-delete-flow";
 import { StepUpGate } from "@/features/step-up-engine";
 import { USER_STATUS_TONE } from "@/features/users/constants";
 import {
@@ -36,6 +46,7 @@ import type {
   UserStatus,
 } from "@/features/users/services/users.service";
 import { datetime } from "@/lib/utils/format";
+import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
 
@@ -62,15 +73,37 @@ function statusTone(status: string) {
 function UserDetailActions({
   user,
   onSetPassword,
+  deleteFlow,
 }: {
   user: PlatformUserDetail;
   onSetPassword: () => void;
+  deleteFlow: ReturnType<typeof useUserDeleteFlow>;
 }) {
   const { t } = useLocale();
   const router = useRouter();
   const { can } = usePermission();
+  const { user: currentUser } = useAuth();
   const enableUser = useEnableUser();
   const disableUser = useDisableUser();
+
+  // Deleted users are read-only until restored.
+  if (user.deleted_at) {
+    return (
+      <EntityActions>
+        <PermissionGuard permission={permissions.users.delete}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={deleteFlow.isPending}
+            onClick={() => void deleteFlow.requestRestore(user)}
+          >
+            <ArchiveRestore className="size-4" />
+            {t("users.actions.restore")}
+          </Button>
+        </PermissionGuard>
+      </EntityActions>
+    );
+  }
 
   return (
     <EntityActions>
@@ -123,6 +156,19 @@ function UserDetailActions({
           {t("users.actions.disable")}
         </Button>
       ) : null}
+
+      {can(permissions.users.delete) && user.uuid !== currentUser?.uuid ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="destructive"
+          disabled={deleteFlow.isPending}
+          onClick={() => void deleteFlow.requestDelete(user)}
+        >
+          <Trash2 className="size-4" />
+          {t("users.actions.delete")}
+        </Button>
+      ) : null}
     </EntityActions>
   );
 }
@@ -130,6 +176,7 @@ function UserDetailActions({
 export function UserDetailPage({ uuid }: UserDetailPageProps) {
   const { t } = useLocale();
   const userQuery = useUser(uuid);
+  const deleteFlow = useUserDeleteFlow();
   const [passwordOpen, setPasswordOpen] = useState(false);
 
   const user = userQuery.data;
@@ -157,6 +204,7 @@ export function UserDetailPage({ uuid }: UserDetailPageProps) {
           <UserDetailActions
             user={user}
             onSetPassword={() => setPasswordOpen(true)}
+            deleteFlow={deleteFlow}
           />
         ) : null
       }
@@ -173,13 +221,28 @@ export function UserDetailPage({ uuid }: UserDetailPageProps) {
 
       {user ? (
         <div className="space-y-6">
+          {user.deleted_at ? (
+            <Alert variant="destructive">
+              <Trash2 />
+              <AlertTitle>{t("users.detail.deleted_title")}</AlertTitle>
+              <AlertDescription>
+                {t("users.detail.deleted_description", {
+                  date: datetime(user.deleted_at),
+                })}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <EntityHeader
             title={userFullName(user)}
             badges={
-              <StatusChip
-                label={t(`users.status.${user.status}`)}
-                tone={statusTone(user.status)}
-              />
+              user.deleted_at ? (
+                <StatusChip label={t("users.status.deleted")} tone="default" />
+              ) : (
+                <StatusChip
+                  label={t(`users.status.${user.status}`)}
+                  tone={statusTone(user.status)}
+                />
+              )
             }
             leading={
               <div className="bg-muted flex size-12 items-center justify-center rounded-lg">
@@ -347,6 +410,7 @@ export function UserDetailPage({ uuid }: UserDetailPageProps) {
         userLabel={user ? userFullName(user) : undefined}
         onOpenChange={setPasswordOpen}
       />
+      {deleteFlow.dialog}
     </EntityPage>
   );
 }

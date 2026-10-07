@@ -1176,6 +1176,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/organizations/{uuid}/members/{userUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+                /** @description Member user UUID */
+                userUuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove organization member
+         * @description Requires `platform.organizations.write`. The last owner cannot be removed
+         *     (`409 LAST_ORGANIZATION_OWNER`). Refresh sessions bound to this organization are
+         *     revoked; tenant requests fail immediately because organization membership is
+         *     re-checked on every request. Global `organization_owner` / `organization_user`
+         *     roles are dropped when the user has no matching memberships left.
+         */
+        delete: operations["deletePlatformOrganizationMember"];
+        options?: never;
+        head?: never;
+        /**
+         * Change organization member role
+         * @description Requires `platform.organizations.write`. Switches the member between `owner` and
+         *     `staff`; the last owner cannot be demoted (`409 LAST_ORGANIZATION_OWNER`). The
+         *     user's global `organization_owner` role follows their owner memberships.
+         */
+        patch: operations["patchPlatformOrganizationMember"];
+        trace?: never;
+    };
     "/v1/platform/users": {
         parameters: {
             query?: never;
@@ -1204,15 +1239,55 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get platform user */
+        /**
+         * Get platform user
+         * @description Also returns soft-deleted users (`deleted_at` set) so they can be reviewed and restored.
+         */
         get: operations["getPlatformUser"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete platform user (soft delete)
+         * @description Requires `platform.users.delete` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Sets `deleted_at`, revokes every refresh session, deletes mobile push devices and
+         *     web push subscriptions, detaches OAuth identities (Apple tokens are revoked best
+         *     effort) and passkeys. Roles and organization memberships are kept for a restore but
+         *     ignored while the user is deleted. The email becomes available for a new account.
+         *
+         *     Guards (`409`): `CANNOT_DELETE_SELF`; `LAST_SUPER_ADMIN` (the only active super
+         *     admin); `SOLE_ORGANIZATION_OWNER` when the user is the only owner of one or more
+         *     organizations — `error.details[]` lists them as `{field: organization uuid,
+         *     message: name, code: slug}`; transfer ownership or close the business first.
+         *     Only a super admin can delete a super admin (`403`).
+         */
+        delete: operations["deletePlatformUser"];
         options?: never;
         head?: never;
         /** Update platform user */
         patch: operations["patchPlatformUser"];
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a deleted platform user
+         * @description Requires `platform.users.delete` and step-up verification. Clears `deleted_at`
+         *     when the email is still free (`409 EMAIL_IN_USE` otherwise; `409 CONFLICT` when the
+         *     user is not deleted). Sessions, push devices, OAuth identities and passkeys removed
+         *     by the deletion are not restored.
+         */
+        post: operations["restorePlatformUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/platform/users/{uuid}/password": {
@@ -6519,6 +6594,11 @@ export interface components {
              * @example OAUTH_LINK_CHOICE_REQUIRED
              * @example INVALID_LINK_TICKET
              * @example OAUTH_PROVIDER_DISABLED
+             * @example CANNOT_DELETE_SELF
+             * @example LAST_SUPER_ADMIN
+             * @example SOLE_ORGANIZATION_OWNER
+             * @example LAST_ORGANIZATION_OWNER
+             * @example EMAIL_IN_USE
              */
             code: string;
             message: string;
@@ -6565,6 +6645,11 @@ export interface components {
              * @enum {string}
              */
             locale: "tr" | "en";
+            /**
+             * Format: date-time
+             * @description Set when a platform admin deleted the user (soft delete). Only platform endpoints return deleted users.
+             */
+            deleted_at?: string | null;
         };
         MeLinks: {
             /** @example /v1/auth/profile */
@@ -7724,6 +7809,39 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["AppConfig"];
+        };
+        OrganizationMember: {
+            /**
+             * Format: uuid
+             * @description User UUID
+             */
+            uuid: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            surname: string;
+            /**
+             * @example active
+             * @example disabled
+             */
+            status: string;
+            /** @enum {string} */
+            role: "owner" | "staff";
+            /**
+             * Format: date-time
+             * @description When the user joined the organization
+             */
+            created_at: string;
+        };
+        PatchOrganizationMemberRequest: {
+            /** @enum {string} */
+            role: "owner" | "staff";
+        };
+        EnvelopeOrganizationMember: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OrganizationMember"];
+            meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopePublicUser: {
             /** @enum {boolean} */
@@ -13307,6 +13425,72 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    deletePlatformOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+                /** @description Member user UUID */
+                userUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+                /** @description Member user UUID */
+                userUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchOrganizationMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated member */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationMember"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     getPlatformUsers: {
         parameters: {
             query?: {
@@ -13315,7 +13499,12 @@ export interface operations {
                 q?: components["parameters"]["Q"];
                 /** @description Comma-separated fields; prefix `-` for descending */
                 sort?: components["parameters"]["Sort"];
-                status?: string;
+                /**
+                 * @description `active`, `pending` or `disabled`. `deleted` lists soft-deleted users
+                 *     instead of live ones (newest deletion first); deleted users are never
+                 *     returned otherwise.
+                 */
+                status?: "active" | "pending" | "disabled" | "deleted";
                 is_super_admin?: boolean;
             };
             header?: never;
@@ -13394,6 +13583,35 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    deletePlatformUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted user (with `deleted_at`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     patchPlatformUser: {
         parameters: {
             query?: never;
@@ -13411,6 +13629,35 @@ export interface operations {
         };
         responses: {
             /** @description Updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    restorePlatformUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored user */
             200: {
                 headers: {
                     [name: string]: unknown;

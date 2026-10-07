@@ -77,6 +77,10 @@ DELETE FROM oauth_accounts
 WHERE user_id = sqlc.arg(user_id)
   AND provider = sqlc.arg(provider);
 
+-- name: DeleteOAuthAccountsByUserID :exec
+DELETE FROM oauth_accounts
+WHERE user_id = $1;
+
 -- name: DeleteOAuthAccountByProviderAccount :exec
 DELETE FROM oauth_accounts
 WHERE provider = sqlc.arg(provider)

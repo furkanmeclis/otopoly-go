@@ -119,6 +119,7 @@ const (
 	PermPlatformIntegrationsWhatsAppWrite       = "platform.integrations.whatsapp.write"
 	PermPlatformLegalRead                       = "platform.legal.read"
 	PermPlatformLegalWrite                      = "platform.legal.write"
+	PermPlatformUsersDelete                     = "platform.users.delete"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

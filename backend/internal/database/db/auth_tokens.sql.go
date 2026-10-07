@@ -189,3 +189,22 @@ func (q *Queries) RevokeRefreshTokenByUUIDForUser(ctx context.Context, arg Revok
 	}
 	return result.RowsAffected(), nil
 }
+
+const revokeRefreshTokensForUserOrganization = `-- name: RevokeRefreshTokensForUserOrganization :exec
+UPDATE refresh_tokens
+SET revoked_at = NOW()
+WHERE user_id = $1
+  AND organization_id = $2
+  AND revoked_at IS NULL
+`
+
+type RevokeRefreshTokensForUserOrganizationParams struct {
+	UserID         int64       `json:"user_id"`
+	OrganizationID pgtype.Int8 `json:"organization_id"`
+}
+
+// Sessions bound to an organization the user was removed from.
+func (q *Queries) RevokeRefreshTokensForUserOrganization(ctx context.Context, arg RevokeRefreshTokensForUserOrganizationParams) error {
+	_, err := q.db.Exec(ctx, revokeRefreshTokensForUserOrganization, arg.UserID, arg.OrganizationID)
+	return err
+}

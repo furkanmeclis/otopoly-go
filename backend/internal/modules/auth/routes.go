@@ -103,6 +103,12 @@ func RegisterRoutes(
 	mux.Handle("PATCH /v1/platform/users/{uuid}", middleware.Chain(
 		http.HandlerFunc(h.PatchPlatformUser), authn, requirePerm(rbac.PermPlatformUsersWrite),
 	))
+	mux.Handle("DELETE /v1/platform/users/{uuid}", middleware.Chain(
+		http.HandlerFunc(h.DeletePlatformUser), authn, requirePerm(rbac.PermPlatformUsersDelete), requireStepUp,
+	))
+	mux.Handle("POST /v1/platform/users/{uuid}/restore", middleware.Chain(
+		http.HandlerFunc(h.RestorePlatformUser), authn, requirePerm(rbac.PermPlatformUsersDelete), requireStepUp,
+	))
 	mux.Handle("POST /v1/platform/users/{uuid}/password", middleware.Chain(
 		http.HandlerFunc(h.SetPlatformUserPassword), authn, requirePerm(rbac.PermPlatformUsersWrite), requireStepUp,
 	))

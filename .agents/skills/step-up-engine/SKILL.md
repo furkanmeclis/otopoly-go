@@ -56,4 +56,5 @@ Route: `/platform/access` — permissions `platform.access.read` / `platform.acc
 
 - `POST /v1/platform/*/export` — export jobs
 - `POST /v1/platform/users/{uuid}/password` — admin set password
+- `DELETE /v1/platform/users/{uuid}` / `POST /v1/platform/users/{uuid}/restore` — user delete / restore
 - User detail roles card — `StepUpGate`

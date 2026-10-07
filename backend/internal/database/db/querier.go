@@ -97,6 +97,9 @@ type Querier interface {
 	CountOrgCustomers(ctx context.Context, organizationID int64) (int64, error)
 	// Staff seats only: owners are not counted against staff.count.
 	CountOrgMembers(ctx context.Context, organizationID int64) (int64, error)
+	CountOrganizationMembershipsByUserID(ctx context.Context, userID int64) (CountOrganizationMembershipsByUserIDRow, error)
+	// Owners that still count (deleted users excluded).
+	CountOrganizationOwners(ctx context.Context, organizationID int64) (int64, error)
 	CountOrganizations(ctx context.Context, arg CountOrganizationsParams) (int64, error)
 	CountOutboundMessagesByOrg(ctx context.Context, organizationID int64) (int64, error)
 	CountOutboxByStatus(ctx context.Context, status string) (int64, error)
@@ -221,9 +224,13 @@ type Querier interface {
 	DeleteMessageTemplateByKey(ctx context.Context, arg DeleteMessageTemplateByKeyParams) (int64, error)
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
 	DeleteOAuthAccountByUserProvider(ctx context.Context, arg DeleteOAuthAccountByUserProviderParams) error
+	DeleteOAuthAccountsByUserID(ctx context.Context, userID int64) error
+	DeleteOrganizationMember(ctx context.Context, arg DeleteOrganizationMemberParams) (int64, error)
 	DeletePlanFeatures(ctx context.Context, planID int64) error
 	DeletePushDeviceForUser(ctx context.Context, arg DeletePushDeviceForUserParams) (int64, error)
+	DeletePushDevicesByUser(ctx context.Context, userID int64) error
 	DeletePushSubscription(ctx context.Context, arg DeletePushSubscriptionParams) error
+	DeletePushSubscriptionsByUser(ctx context.Context, userID int64) error
 	DeletePushTickets(ctx context.Context, ids []int64) error
 	DeleteQuoteLines(ctx context.Context, arg DeleteQuoteLinesParams) error
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
@@ -237,6 +244,7 @@ type Querier interface {
 	DeleteVehicleModelYear(ctx context.Context, arg DeleteVehicleModelYearParams) error
 	DeleteWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) error
 	DeleteWebAuthnCredentialByUUID(ctx context.Context, arg DeleteWebAuthnCredentialByUUIDParams) error
+	DeleteWebAuthnCredentialsByUserID(ctx context.Context, userID int64) error
 	DescribeTodoLeadLinks(ctx context.Context, arg DescribeTodoLeadLinksParams) ([]DescribeTodoLeadLinksRow, error)
 	DescribeTodoQuoteLinks(ctx context.Context, arg DescribeTodoQuoteLinksParams) ([]DescribeTodoQuoteLinksRow, error)
 	DisablePushDevice(ctx context.Context, arg DisablePushDeviceParams) error
@@ -447,6 +455,8 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
+	// Platform admin detail / restore: also returns soft-deleted users.
+	GetUserByUUIDIncludingDeleted(ctx context.Context, argUuid uuid.UUID) (User, error)
 	GetUserTOTPByUserID(ctx context.Context, userID int64) (UserTotp, error)
 	GetValidRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetVehicleAlertJob(ctx context.Context, argUuid uuid.UUID) (GetVehicleAlertJobRow, error)
@@ -648,6 +658,8 @@ type Querier interface {
 	ListServicesForExport(ctx context.Context, arg ListServicesForExportParams) ([]ListServicesForExportRow, error)
 	ListServicesForSearch(ctx context.Context) ([]ListServicesForSearchRow, error)
 	ListSharedKeys(ctx context.Context, keys []string) ([]string, error)
+	// Organizations where the user is the only owner left (ignoring deleted users).
+	ListSoleOwnedOrganizationsByUserID(ctx context.Context, userID int64) ([]ListSoleOwnedOrganizationsByUserIDRow, error)
 	ListStorageActivity(ctx context.Context, arg ListStorageActivityParams) ([]ListStorageActivityRow, error)
 	ListStorageLinksByKey(ctx context.Context, objectKey string) ([]StorageLink, error)
 	ListStorageSharesByKey(ctx context.Context, objectKey string) ([]ListStorageSharesByKeyRow, error)
@@ -688,6 +700,8 @@ type Querier interface {
 	ListWebAuthnCredentialsByUserID(ctx context.Context, userID int64) ([]WebauthnCredential, error)
 	ListWebAuthnCredentialsForUserIDs(ctx context.Context, userIds []int64) ([]WebauthnCredential, error)
 	ListWhatsAppCloudTemplates(ctx context.Context) ([]WhatsappCloudTemplate, error)
+	// Serializes owner-count checks of concurrent member changes.
+	LockOrganizationMembers(ctx context.Context, id int64) error
 	MarkAllNotificationsReadForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
 	MarkBulkJobCompleted(ctx context.Context, arg MarkBulkJobCompletedParams) (BulkJob, error)
 	MarkBulkJobFailed(ctx context.Context, arg MarkBulkJobFailedParams) (BulkJob, error)
@@ -766,12 +780,15 @@ type Querier interface {
 	ResolveTodoQuoteLink(ctx context.Context, arg ResolveTodoQuoteLinkParams) (int64, error)
 	RestoreProduct(ctx context.Context, arg RestoreProductParams) error
 	RestoreService(ctx context.Context, arg RestoreServiceParams) error
+	RestoreUser(ctx context.Context, id int64) (User, error)
 	// Marks the job's usage as given back; returns the rows whose stock must be restored.
 	RevertJobConsumptions(ctx context.Context, arg RevertJobConsumptionsParams) ([]RevertJobConsumptionsRow, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
 	RevokeOtherRefreshTokensForUser(ctx context.Context, arg RevokeOtherRefreshTokensForUserParams) error
 	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
 	RevokeRefreshTokenByUUIDForUser(ctx context.Context, arg RevokeRefreshTokenByUUIDForUserParams) (int64, error)
+	// Sessions bound to an organization the user was removed from.
+	RevokeRefreshTokensForUserOrganization(ctx context.Context, arg RevokeRefreshTokensForUserOrganizationParams) error
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
@@ -814,6 +831,9 @@ type Querier interface {
 	SoftDeleteProduct(ctx context.Context, arg SoftDeleteProductParams) (Product, error)
 	SoftDeleteService(ctx context.Context, arg SoftDeleteServiceParams) (Service, error)
 	SoftDeleteSupplier(ctx context.Context, arg SoftDeleteSupplierParams) (Supplier, error)
+	// Platform admin deletion. The partial unique index on email
+	// (WHERE deleted_at IS NULL) frees the address for a new account.
+	SoftDeleteUser(ctx context.Context, id int64) (User, error)
 	SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
 	SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
 	// Quota tokens = input + output + cache writes (cache reads are not counted).
@@ -856,6 +876,7 @@ type Querier interface {
 	UpdateOAuthAccountRefreshToken(ctx context.Context, arg UpdateOAuthAccountRefreshTokenParams) error
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)
 	UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOrganizationLetterheadParams) (Organization, error)
+	UpdateOrganizationMemberRole(ctx context.Context, arg UpdateOrganizationMemberRoleParams) (OrganizationMember, error)
 	UpdateOrganizationPlatform(ctx context.Context, arg UpdateOrganizationPlatformParams) (Organization, error)
 	UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOutboundMessageStatusParams) (OutboundMessage, error)
 	UpdatePaymentSettings(ctx context.Context, arg UpdatePaymentSettingsParams) (BillingSetting, error)

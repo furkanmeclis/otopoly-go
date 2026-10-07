@@ -330,6 +330,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	h.SetRateLimiter(ratelimit.New(deps.Redis, cfg.App.Env))
 	loader := identity.Loader{UC: uc}
 	orgSvc := orgusecase.New(deps.DB, deps.Queries)
+	orgSvc.SetActivity(activityRec)
 	uc.SetOrganizationResolver(orgSvc)
 	authmodule.RegisterRoutes(mux, h, tokens, loader, stepUpSvc)
 	orgmodule.RegisterRoutes(mux, orgSvc, uc, deps.Storage, tokens, loader, deps.Queries, ratelimit.New(deps.Redis, cfg.App.Env))

@@ -225,3 +225,45 @@ export function useImpersonateUser() {
     },
   });
 }
+
+/**
+ * Soft-deletes a user. Step-up is handled by platformRequest (the API answers
+ * STEP_UP_REQUIRED and the request is retried after verification).
+ */
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useAppMutation({
+    mutationFn: (uuid: string) => usersService.remove(uuid),
+    onSuccess: (user) => {
+      mergeUserDetail(queryClient, user);
+      appToast.success(t("users.toast.deleted"));
+    },
+    onSettled: (_data, _error, uuid) => {
+      void queryClient.invalidateQueries({
+        queryKey: usersKeys.detail(uuid),
+      });
+      void queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
+    },
+  });
+}
+
+export function useRestoreUser() {
+  const queryClient = useQueryClient();
+  const { t } = useLocale();
+
+  return useAppMutation({
+    mutationFn: (uuid: string) => usersService.restore(uuid),
+    onSuccess: (user) => {
+      mergeUserDetail(queryClient, { ...user, deleted_at: null });
+      appToast.success(t("users.toast.restored"));
+    },
+    onSettled: (_data, _error, uuid) => {
+      void queryClient.invalidateQueries({
+        queryKey: usersKeys.detail(uuid),
+      });
+      void queryClient.invalidateQueries({ queryKey: usersKeys.lists() });
+    },
+  });
+}

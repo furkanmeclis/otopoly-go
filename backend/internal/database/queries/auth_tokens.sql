@@ -43,3 +43,11 @@ SET revoked_at = NOW()
 WHERE user_id = $1
   AND uuid <> $2
   AND revoked_at IS NULL;
+
+-- name: RevokeRefreshTokensForUserOrganization :exec
+-- Sessions bound to an organization the user was removed from.
+UPDATE refresh_tokens
+SET revoked_at = NOW()
+WHERE user_id = $1
+  AND organization_id = $2
+  AND revoked_at IS NULL;

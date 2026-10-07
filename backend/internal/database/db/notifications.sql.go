@@ -190,6 +190,16 @@ func (q *Queries) DeletePushSubscription(ctx context.Context, arg DeletePushSubs
 	return err
 }
 
+const deletePushSubscriptionsByUser = `-- name: DeletePushSubscriptionsByUser :exec
+DELETE FROM push_subscriptions
+WHERE user_id = $1
+`
+
+func (q *Queries) DeletePushSubscriptionsByUser(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deletePushSubscriptionsByUser, userID)
+	return err
+}
+
 const getNotificationByID = `-- name: GetNotificationByID :one
 SELECT id, uuid, user_id, channel, status, priority, title, body, payload, action_url, recipient, template_code, source_event, scheduled_at, sent_at, delivered_at, read_at, failed_at, cancelled_at, attempt_count, max_attempts, last_error, provider, provider_reference, created_at, updated_at FROM notifications WHERE id = $1
 `

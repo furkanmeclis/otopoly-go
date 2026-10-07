@@ -187,3 +187,33 @@ func TestDeactivateAccountHandler(t *testing.T) {
 		t.Fatalf("impersonation must be refused: %d %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestWriteUserDeleteErrorCodes(t *testing.T) {
+	orgUUID := uuid.New()
+	cases := []struct {
+		err    error
+		status int
+		code   string
+	}{
+		{usecase.ErrCannotDeleteSelf, http.StatusConflict, "CANNOT_DELETE_SELF"},
+		{usecase.ErrLastSuperAdmin, http.StatusConflict, "LAST_SUPER_ADMIN"},
+		{usecase.ErrEmailInUse, http.StatusConflict, "EMAIL_IN_USE"},
+		{usecase.ErrNotFound, http.StatusNotFound, "NOT_FOUND"},
+		{&usecase.SoleOwnerError{Organizations: []model.OrganizationRef{{UUID: orgUUID, Slug: "oto", Name: "Oto Servis"}}},
+			http.StatusConflict, "SOLE_ORGANIZATION_OWNER"},
+	}
+	for _, tc := range cases {
+		rec := httptest.NewRecorder()
+		writeUserDeleteError(rec, httptest.NewRequest(http.MethodDelete, "/", nil), tc.err)
+		var env envelope
+		_ = json.Unmarshal(rec.Body.Bytes(), &env)
+		if rec.Code != tc.status || env.Error.Code != tc.code {
+			t.Fatalf("%v: status %d code %q", tc.err, rec.Code, env.Error.Code)
+		}
+		if tc.code == "SOLE_ORGANIZATION_OWNER" {
+			if len(env.Error.Details) != 1 || env.Error.Details[0].Field != orgUUID.String() || env.Error.Details[0].Message != "Oto Servis" {
+				t.Fatalf("sole owner details = %+v", env.Error.Details)
+			}
+		}
+	}
+}

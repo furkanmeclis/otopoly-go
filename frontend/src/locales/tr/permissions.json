@@ -39,6 +39,7 @@
   "labels.platform.users.bulk.disable": "Platform kullanıcılarını toplu devre dışı bırak",
   "labels.platform.users.bulk.enable": "Platform kullanıcılarını toplu etkinleştir",
   "labels.platform.users.impersonate": "Platform kullanıcılarınının hesabına giriş yap",
+  "labels.platform.users.delete": "Platform kullanıcılarını sil",
   "labels.platform.roles.bulk.delete": "Platform rollerini toplu sil",
   "labels.platform.bulk.read": "Toplu iş kayıtlarını görüntüle",
   "labels.platform.access.read": "Erişim ayarlarını görüntüle",

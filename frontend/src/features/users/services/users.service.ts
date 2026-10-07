@@ -17,6 +17,8 @@ export type PublicUser = {
   status: string;
   is_super_admin: boolean;
   email_verified: boolean;
+  /** Set when a platform admin deleted the user (soft delete). */
+  deleted_at?: string | null;
   roles?: RoleSummary[];
   auth_methods?: UserAuthMethod[];
 };
@@ -97,6 +99,9 @@ export type ListUsersParams = ServerListParams & {
 
 export type UserStatus = "active" | "pending" | "disabled";
 
+/** List filter value: `deleted` lists soft-deleted users instead of live ones. */
+export type UserListStatus = UserStatus | "deleted";
+
 export const usersService = {
   async list(params: ListUsersParams) {
     return platformRequest<UserListResult>("GET", "/v1/platform/users", {
@@ -137,6 +142,17 @@ export const usersService = {
       "POST",
       `/v1/platform/users/${uuid}/password`,
       { body },
+    );
+  },
+
+  async remove(uuid: string) {
+    return platformRequest<PublicUser>("DELETE", `/v1/platform/users/${uuid}`);
+  },
+
+  async restore(uuid: string) {
+    return platformRequest<PublicUser>(
+      "POST",
+      `/v1/platform/users/${uuid}/restore`,
     );
   },
 

@@ -65,3 +65,7 @@ WHERE wc.uuid = $1
   AND wc.user_id = u.id
   AND u.uuid = $2
   AND u.deleted_at IS NULL;
+
+-- name: DeleteWebAuthnCredentialsByUserID :exec
+DELETE FROM webauthn_credentials
+WHERE user_id = $1;

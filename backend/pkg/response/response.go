@@ -49,6 +49,13 @@ const (
 	CodeQRSessionClaimed        = "QR_SESSION_CLAIMED"
 	CodeQRLoginInvalid          = "QR_LOGIN_INVALID"
 	CodeLastSignInMethod        = "LAST_SIGN_IN_METHOD"
+	CodeCannotDeleteSelf        = "CANNOT_DELETE_SELF"
+	CodeLastSuperAdmin          = "LAST_SUPER_ADMIN"
+	// CodeSoleOrganizationOwner: details list the organizations (field =
+	// organization uuid, message = name) that need a new owner first.
+	CodeSoleOrganizationOwner = "SOLE_ORGANIZATION_OWNER"
+	CodeLastOrganizationOwner = "LAST_ORGANIZATION_OWNER"
+	CodeEmailInUse            = "EMAIL_IN_USE"
 )
 
 // RequestIDFunc resolves the correlation id from request context.

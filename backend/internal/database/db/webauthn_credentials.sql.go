@@ -101,6 +101,16 @@ func (q *Queries) DeleteWebAuthnCredentialByUUID(ctx context.Context, arg Delete
 	return err
 }
 
+const deleteWebAuthnCredentialsByUserID = `-- name: DeleteWebAuthnCredentialsByUserID :exec
+DELETE FROM webauthn_credentials
+WHERE user_id = $1
+`
+
+func (q *Queries) DeleteWebAuthnCredentialsByUserID(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, deleteWebAuthnCredentialsByUserID, userID)
+	return err
+}
+
 const getWebAuthnCredentialByCredentialID = `-- name: GetWebAuthnCredentialByCredentialID :one
 SELECT id, uuid, user_id, credential_id, public_key, counter, device_type, backed_up, transports, provider_account_id, name, last_used_at, created_at, updated_at
 FROM webauthn_credentials

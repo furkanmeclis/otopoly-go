@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { createColumn } from "@/components/tables";
 import { routes } from "@/config/routes";
 import {
+  USER_LIST_STATUS_VALUES,
   USER_STATUS_TONE,
-  USER_STATUS_VALUES,
 } from "@/features/users/constants";
 import { UserAuthMethodsIcons } from "@/features/users/components/user-auth-methods";
 import {
@@ -73,17 +73,20 @@ export function useUsersColumns({
           labelKey: "users.columns.status",
           enableSorting: true,
           filterVariant: "faceted",
-          filterOptions: USER_STATUS_VALUES.map((value) => ({
+          filterOptions: USER_LIST_STATUS_VALUES.map((value) => ({
             value,
             labelKey: `users.status.${value}`,
             label: value,
           })),
-          cell: ({ row }) => (
-            <StatusChip
-              label={t(`users.status.${row.original.status}`)}
-              tone={statusTone(row.original.status)}
-            />
-          ),
+          cell: ({ row }) =>
+            row.original.deleted_at ? (
+              <StatusChip label={t("users.status.deleted")} tone="default" />
+            ) : (
+              <StatusChip
+                label={t(`users.status.${row.original.status}`)}
+                tone={statusTone(row.original.status)}
+              />
+            ),
         }),
         createColumn<PublicUser>({
           id: "roles",
