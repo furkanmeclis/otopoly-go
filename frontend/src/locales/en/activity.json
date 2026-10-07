@@ -169,5 +169,9 @@
   "resources.billing.subscription": "Subscription",
   "resources.billing.invoice": "Invoice",
   "resources.billing.discount_code": "Discount code",
-  "resources.billing": "Subscription"
+  "resources.billing": "Subscription",
+  "actions.organizations.updated": "Organization updated",
+  "actions.organizations.suspended": "Organization suspended",
+  "actions.organizations.activated": "Organization activated",
+  "actions.organizations.access_extended": "Organization access extended"
 }

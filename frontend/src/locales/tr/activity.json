@@ -169,5 +169,9 @@
   "resources.billing.subscription": "Abonelik",
   "resources.billing.invoice": "Fatura",
   "resources.billing.discount_code": "İndirim kodu",
-  "resources.billing": "Abonelik"
+  "resources.billing": "Abonelik",
+  "actions.organizations.updated": "İşletme güncellendi",
+  "actions.organizations.suspended": "İşletme askıya alındı",
+  "actions.organizations.activated": "İşletme aktifleştirildi",
+  "actions.organizations.access_extended": "İşletme erişimi uzatıldı"
 }

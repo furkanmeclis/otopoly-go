@@ -1,32 +1,41 @@
 "use client";
 
-import { Building2, MapPin, Pencil, Phone } from "lucide-react";
+import { Building2, ExternalLink, Pencil, UserRoundCog } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { PermissionGuard } from "@/components/common/permission-guard";
 import { StatusChip } from "@/components/common/status-chip";
-import {
-  EntityActions,
-  EntityDetail,
-  EntityHeader,
-  EntityPage,
-  EntitySectionCard,
-} from "@/components/entity";
+import { EntityActions, EntityHeader, EntityPage } from "@/components/entity";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiConfig } from "@/config/api";
 import { permissions } from "@/config/permissions";
 import { routes } from "@/config/routes";
 import { OrganizationAICard } from "@/features/ai";
-import { ORGANIZATION_STATUS_TONE } from "@/features/organizations/constants";
+import { OrganizationActivityTab } from "@/features/organizations/components/organization-activity-tab";
+import { OrganizationGeneralTab } from "@/features/organizations/components/organization-general-tab";
 import { OrganizationMembersTable } from "@/features/organizations/components/organization-members-table";
-import { useOrganization } from "@/features/organizations/hooks/use-organizations-query";
-import type { OrganizationStatus } from "@/features/organizations/services/organizations.service";
-import { datetime } from "@/lib/utils/format";
+import { OrganizationStatsTab } from "@/features/organizations/components/organization-stats-tab";
+import { OrganizationSubscriptionTab } from "@/features/organizations/components/organization-subscription-tab";
+import { OrganizationWhatsAppTab } from "@/features/organizations/components/organization-whatsapp-tab";
+import {
+  ORGANIZATION_DETAIL_TABS,
+  organizationStatusTone,
+  type OrganizationDetailTab,
+} from "@/features/organizations/constants";
+import {
+  useOrganization,
+  useOrganizationOverview,
+} from "@/features/organizations/hooks/use-organizations-query";
+import type { OrganizationOverview } from "@/features/organizations/services/organizations.service";
+import { useImpersonateUser } from "@/features/users/hooks/use-user-mutations";
+import { userFullName } from "@/features/users/lib/user-display";
 import { useLocale } from "@/providers/locale-provider";
+import { usePermission } from "@/providers/permission-provider";
 
 type OrganizationDetailPageProps = {
   uuid: string;
@@ -41,25 +50,69 @@ function DetailField({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function statusTone(status: string) {
-  if (status in ORGANIZATION_STATUS_TONE) {
-    return ORGANIZATION_STATUS_TONE[status as OrganizationStatus];
-  }
-  return "default" as const;
+function isDetailTab(value: string | null): value is OrganizationDetailTab {
+  return (ORGANIZATION_DETAIL_TABS as readonly string[]).includes(value ?? "");
 }
 
+/** Overview-backed tab body with shared loading / error states. */
+function OverviewPanel({
+  query,
+  children,
+}: {
+  query: ReturnType<typeof useOrganizationOverview>;
+  children: (overview: OrganizationOverview) => ReactNode;
+}) {
+  const { t } = useLocale();
+  if (query.isLoading) return <Loading label={t("common.loading")} />;
+  if (query.isError || !query.data) {
+    return (
+      <ErrorState
+        title={t("common.error_generic")}
+        description={t("organizations.detail.overview_error")}
+        onRetry={() => void query.refetch()}
+        retryLabel={t("common.retry")}
+      />
+    );
+  }
+  return <>{children(query.data)}</>;
+}
+
+/**
+ * Platform 360° organization detail. Tabs are URL-synced (`?tab=`) so other
+ * screens can deep-link, e.g. `/platform/organizations/{uuid}?tab=members`.
+ */
 export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
   const { t } = useLocale();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { can } = usePermission();
   const query = useOrganization(uuid);
+  const tabParam = searchParams.get("tab");
+  const tab: OrganizationDetailTab = isDetailTab(tabParam)
+    ? tabParam
+    : "general";
+  const needsOverview =
+    tab === "subscription" || tab === "whatsapp" || tab === "stats";
+  const overview = useOrganizationOverview(uuid, needsOverview);
+  const impersonate = useImpersonateUser();
 
   const organization = query.data?.organization;
   const members = query.data?.members ?? [];
+  const owner = members.find((member) => member.role === "owner");
   const title = organization?.name ?? t("organizations.detail_title");
 
   const logoSrc = organization?.logo_url
     ? `${apiConfig.baseUrl.replace(/\/$/, "")}${organization.logo_url}`
     : null;
+
+  const selectTab = (next: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "general") params.delete("tab");
+    else params.set("tab", next);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   return (
     <EntityPage
@@ -83,6 +136,35 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
       actions={
         organization ? (
           <EntityActions>
+            {can(permissions.users.impersonate) ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!owner || impersonate.isPending}
+                title={
+                  owner
+                    ? t("organizations.quick.impersonate_hint", {
+                        name: userFullName(owner),
+                      })
+                    : t("organizations.quick.no_owner")
+                }
+                onClick={() => owner && impersonate.mutate(owner)}
+              >
+                <UserRoundCog className="size-4" />
+                {t("organizations.quick.impersonate_owner")}
+              </Button>
+            ) : null}
+            <Button asChild type="button" size="sm" variant="outline">
+              <Link
+                href={routes.tenant.home(organization.slug)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <ExternalLink className="size-4" />
+                {t("organizations.quick.open_tenant")}
+              </Link>
+            </Button>
             <PermissionGuard permission={permissions.organizations.write}>
               <Button
                 type="button"
@@ -118,7 +200,7 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
             badges={
               <StatusChip
                 label={t(`organizations.status.${organization.status}`)}
-                tone={statusTone(organization.status)}
+                tone={organizationStatusTone(organization.status)}
               />
             }
             leading={
@@ -155,100 +237,64 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
             </dl>
           </EntityHeader>
 
-          <EntitySectionCard title={t("organizations.detail.profile")}>
-            <EntityDetail
-              sections={[
-                {
-                  id: "profile",
-                  fields: [
-                    {
-                      key: "city",
-                      label: t("organizations.fields.city"),
-                      value: organization.city,
-                    },
-                    {
-                      key: "district",
-                      label: t("organizations.fields.district"),
-                      value: organization.district,
-                    },
-                    {
-                      key: "phone",
-                      label: t("organizations.fields.phone"),
-                      value: (
-                        <span className="inline-flex items-center gap-1.5">
-                          <Phone className="text-muted-foreground size-3.5" />
-                          {organization.phone}
-                        </span>
-                      ),
-                    },
-                    {
-                      key: "address",
-                      label: t("organizations.fields.address"),
-                      value: (
-                        <span className="inline-flex items-start gap-1.5">
-                          <MapPin className="text-muted-foreground mt-0.5 size-3.5 shrink-0" />
-                          {organization.address}
-                        </span>
-                      ),
-                    },
-                  ],
-                },
-              ]}
-            />
-          </EntitySectionCard>
+          <Tabs value={tab} onValueChange={selectTab}>
+            <TabsList className="flex-wrap">
+              {ORGANIZATION_DETAIL_TABS.map((value) =>
+                value === "activity" &&
+                !can(permissions.activity.read) ? null : (
+                  <TabsTrigger key={value} value={value}>
+                    {t(`organizations.tabs.${value}`)}
+                  </TabsTrigger>
+                ),
+              )}
+            </TabsList>
 
-          <EntitySectionCard title={t("organizations.detail.subscription")}>
-            <EntityDetail
-              sections={[
-                {
-                  id: "subscription",
-                  fields: [
-                    {
-                      key: "status",
-                      label: t("organizations.fields.status"),
-                      value: (
-                        <StatusChip
-                          label={t(
-                            `organizations.status.${organization.status}`,
-                          )}
-                          tone={statusTone(organization.status)}
-                        />
-                      ),
-                    },
-                    {
-                      key: "plan_code",
-                      label: t("organizations.fields.plan_code"),
-                      value: organization.plan_code ?? "—",
-                    },
-                    {
-                      key: "access_starts_at",
-                      label: t("organizations.fields.access_starts_at"),
-                      value: datetime(organization.access_starts_at),
-                    },
-                    {
-                      key: "access_ends_at",
-                      label: t("organizations.fields.access_ends_at"),
-                      value: organization.access_ends_at
-                        ? datetime(organization.access_ends_at)
-                        : t("organizations.unlimited_access"),
-                    },
-                    {
-                      key: "created_at",
-                      label: t("organizations.fields.created_at"),
-                      value: datetime(organization.created_at),
-                    },
-                  ],
-                },
-              ]}
-            />
-          </EntitySectionCard>
+            <TabsContent value="general" className="mt-4 space-y-6">
+              <OrganizationGeneralTab organization={organization} />
+              <OrganizationAICard uuid={organization.uuid} />
+            </TabsContent>
 
-          <OrganizationMembersTable
-            organizationUuid={organization.uuid}
-            members={members}
-          />
+            <TabsContent value="members" className="mt-4">
+              <OrganizationMembersTable
+                organizationUuid={organization.uuid}
+                members={members}
+              />
+            </TabsContent>
 
-          <OrganizationAICard uuid={organization.uuid} />
+            <TabsContent value="subscription" className="mt-4">
+              <OverviewPanel query={overview}>
+                {(data) => (
+                  <OrganizationSubscriptionTab
+                    organization={organization}
+                    billing={data.billing}
+                  />
+                )}
+              </OverviewPanel>
+            </TabsContent>
+
+            <TabsContent value="whatsapp" className="mt-4">
+              <OverviewPanel query={overview}>
+                {(data) => (
+                  <OrganizationWhatsAppTab
+                    organizationUuid={organization.uuid}
+                    whatsapp={data.whatsapp}
+                  />
+                )}
+              </OverviewPanel>
+            </TabsContent>
+
+            <TabsContent value="stats" className="mt-4">
+              <OverviewPanel query={overview}>
+                {(data) => <OrganizationStatsTab stats={data.stats} />}
+              </OverviewPanel>
+            </TabsContent>
+
+            {can(permissions.activity.read) ? (
+              <TabsContent value="activity" className="mt-4">
+                <OrganizationActivityTab organizationUuid={organization.uuid} />
+              </TabsContent>
+            ) : null}
+          </Tabs>
         </div>
       ) : null}
     </EntityPage>
