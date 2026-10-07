@@ -45,3 +45,17 @@ export function setUserPasswordFormSchema(t: Translate) {
 export type SetUserPasswordFormValues = z.infer<
   ReturnType<typeof setUserPasswordFormSchema>
 >;
+
+/** Adds the user to an organization (platform members API). */
+export function addUserMembershipFormSchema(t: Translate) {
+  return z.object({
+    organization_uuid: z
+      .string()
+      .uuid(t("users.validation.organization_required")),
+    role: z.enum(["owner", "staff"]),
+  });
+}
+
+export type AddUserMembershipFormValues = z.infer<
+  ReturnType<typeof addUserMembershipFormSchema>
+>;

@@ -207,5 +207,8 @@
   "stats.never": "Henüz yok",
   "activity.system": "Sistem",
   "activity.empty_title": "Aktivite yok",
-  "activity.empty_description": "Bu işletmeye ait kayıtlı bir işlem bulunmuyor."
+  "activity.empty_description": "Bu işletmeye ait kayıtlı bir işlem bulunmuyor.",
+  "picker.placeholder": "İşletme arayın ve seçin…",
+  "picker.search": "Ad veya slug ile ara…",
+  "picker.empty": "İşletme bulunamadı"
 }

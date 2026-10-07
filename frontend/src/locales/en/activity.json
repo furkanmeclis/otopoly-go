@@ -173,5 +173,8 @@
   "actions.organizations.updated": "Organization updated",
   "actions.organizations.suspended": "Organization suspended",
   "actions.organizations.activated": "Organization activated",
-  "actions.organizations.access_extended": "Organization access extended"
+  "actions.organizations.access_extended": "Organization access extended",
+  "actions.users.session_revoked": "User session revoked",
+  "actions.users.sessions_revoked": "All user sessions revoked",
+  "actions.users.device_removed": "User push device removed"
 }

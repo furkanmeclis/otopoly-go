@@ -164,7 +164,11 @@ export const routes = {
     users: {
       root: "/platform/users",
       create: "/platform/users/create",
-      detail: (uuid: string) => `/platform/users/${uuid}`,
+      /** `tab` deep-links a detail section (`?tab=sessions`, `activity`, …). */
+      detail: (uuid: string, tab?: string) =>
+        tab
+          ? `/platform/users/${uuid}?tab=${encodeURIComponent(tab)}`
+          : `/platform/users/${uuid}`,
       edit: (uuid: string) => `/platform/users/${uuid}/edit`,
     },
     notifications: {

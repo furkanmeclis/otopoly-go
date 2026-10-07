@@ -173,5 +173,8 @@
   "actions.organizations.updated": "İşletme güncellendi",
   "actions.organizations.suspended": "İşletme askıya alındı",
   "actions.organizations.activated": "İşletme aktifleştirildi",
-  "actions.organizations.access_extended": "İşletme erişimi uzatıldı"
+  "actions.organizations.access_extended": "İşletme erişimi uzatıldı",
+  "actions.users.session_revoked": "Kullanıcı oturumu sonlandırıldı",
+  "actions.users.sessions_revoked": "Kullanıcının tüm oturumları sonlandırıldı",
+  "actions.users.device_removed": "Kullanıcı push cihazı kaldırıldı"
 }

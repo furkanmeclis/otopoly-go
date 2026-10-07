@@ -267,3 +267,56 @@ export function useRestoreUser() {
     },
   });
 }
+
+/** Refetches every 360° section of one user (overview counters included). */
+export function useInvalidateUserInsights() {
+  const queryClient = useQueryClient();
+  return (uuid: string) =>
+    queryClient.invalidateQueries({ queryKey: usersKeys.insights(uuid) });
+}
+
+/** Revokes one session. Step-up is retried by platformRequest; audited by the API. */
+export function useRevokeUserSession() {
+  const { t } = useLocale();
+  const invalidate = useInvalidateUserInsights();
+
+  return useAppMutation({
+    mutationFn: ({
+      uuid,
+      sessionUuid,
+    }: {
+      uuid: string;
+      sessionUuid: string;
+    }) => usersService.revokeSession(uuid, sessionUuid),
+    onSuccess: () => appToast.success(t("users.toast.session_revoked")),
+    onSettled: (_data, _error, variables) => void invalidate(variables.uuid),
+  });
+}
+
+/** Revokes every session of the user (step-up gated, audited). */
+export function useRevokeAllUserSessions() {
+  const { t } = useLocale();
+  const invalidate = useInvalidateUserInsights();
+
+  return useAppMutation({
+    mutationFn: (uuid: string) => usersService.revokeAllSessions(uuid),
+    onSuccess: (result) =>
+      appToast.success(
+        t("users.toast.sessions_revoked", { count: result.revoked }),
+      ),
+    onSettled: (_data, _error, uuid) => void invalidate(uuid),
+  });
+}
+
+/** Removes a push device (step-up gated, audited). */
+export function useRemoveUserDevice() {
+  const { t } = useLocale();
+  const invalidate = useInvalidateUserInsights();
+
+  return useAppMutation({
+    mutationFn: ({ uuid, deviceUuid }: { uuid: string; deviceUuid: string }) =>
+      usersService.removeDevice(uuid, deviceUuid),
+    onSuccess: () => appToast.success(t("users.toast.device_removed")),
+    onSettled: (_data, _error, variables) => void invalidate(variables.uuid),
+  });
+}

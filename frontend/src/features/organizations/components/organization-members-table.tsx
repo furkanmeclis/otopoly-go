@@ -65,7 +65,10 @@ export function OrganizationMembersTable({
         gridPrimary: true,
         cell: ({ row }) => (
           <Link
-            href={routes.platform.users.detail(row.original.uuid)}
+            href={routes.platform.users.detail(
+              row.original.uuid,
+              "organizations",
+            )}
             className="font-medium hover:underline"
             onClick={(event) => event.stopPropagation()}
           >
