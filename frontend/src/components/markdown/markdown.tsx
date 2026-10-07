@@ -3,12 +3,17 @@ import { Fragment, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Minimal Markdown renderer for assistant answers. Produces React elements
- * only (never raw HTML), supporting the subset the system prompt asks for:
+ * Minimal Markdown renderer for assistant answers and admin-edited documents
+ * (legal pages). Produces React elements only (never raw HTML), supporting:
  * paragraphs, headings, bullet/numbered lists, tables, fenced code, bold,
- * italic, inline code and http(s) links. Raw HTML in the text is shown as
- * text (React escapes it) and only absolute http(s) links become anchors.
+ * italic, inline code and links. Raw HTML in the text is shown as text
+ * (React escapes it) and only safe link targets become anchors.
+ *
+ * - `chat` (default): compact styling, absolute http(s) links only.
+ * - `document`: real heading elements and reading typography; also allows
+ *   `mailto:` and same-site paths (`/privacy`).
  */
+export type MarkdownVariant = "chat" | "document";
 
 /**
  * Returns a normalized absolute http(s) URL, or null. Assistant text can echo
@@ -27,10 +32,33 @@ export function safeHref(raw: string): string | null {
   return url.href;
 }
 
-const INLINE_RE =
-  /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\[[^\]]+\]\((https?:\/\/[^\s)]+)\)|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g;
+type SafeLink = { href: string; external: boolean };
 
-function renderInline(text: string, keyPrefix: string): ReactNode[] {
+/** Link target for the document variant: http(s), mailto: or a site path. */
+export function safeDocumentHref(raw: string): SafeLink | null {
+  const value = raw.trim();
+  if (/^\/(?![/\\])/.test(value)) return { href: value, external: false };
+  if (/^mailto:[^\s/?#]+@[^\s/?#]+$/i.test(value)) {
+    return { href: value, external: false };
+  }
+  const href = safeHref(value);
+  return href ? { href, external: true } : null;
+}
+
+const INLINE_RE =
+  /(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\[[^\]]+\]\(([^\s)]+)\)|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g;
+
+function resolveLink(raw: string, variant: MarkdownVariant): SafeLink | null {
+  if (variant === "document") return safeDocumentHref(raw);
+  const href = safeHref(raw);
+  return href ? { href, external: true } : null;
+}
+
+function renderInline(
+  text: string,
+  keyPrefix: string,
+  variant: MarkdownVariant,
+): ReactNode[] {
   const out: ReactNode[] = [];
   let last = 0;
   let i = 0;
@@ -42,7 +70,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     if (token.startsWith("**") || token.startsWith("__")) {
       out.push(
         <strong key={key} className="font-semibold">
-          {renderInline(token.slice(2, -2), key)}
+          {renderInline(token.slice(2, -2), key, variant)}
         </strong>,
       );
     } else if (token.startsWith("`")) {
@@ -56,15 +84,19 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       );
     } else if (token.startsWith("[")) {
       const label = token.slice(1, token.indexOf("]("));
-      const href = safeHref(match[2] ?? "");
+      const link = resolveLink(match[2] ?? "", variant);
       out.push(
-        href ? (
+        link ? (
           <a
             key={key}
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            referrerPolicy="no-referrer"
+            href={link.href}
+            {...(link.external
+              ? {
+                  target: "_blank",
+                  rel: "noopener noreferrer nofollow",
+                  referrerPolicy: "no-referrer" as const,
+                }
+              : {})}
             className="text-primary underline underline-offset-2"
           >
             {label}
@@ -76,7 +108,7 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
     } else {
       out.push(
         <em key={key} className="italic">
-          {renderInline(token.slice(1, -1), key)}
+          {renderInline(token.slice(1, -1), key, variant)}
         </em>,
       );
     }
@@ -193,21 +225,61 @@ function parseBlocks(source: string): Block[] {
   return blocks;
 }
 
+const styles = {
+  chat: {
+    root: "space-y-2 text-sm leading-relaxed",
+    list: "space-y-1 pl-5",
+    table: "text-xs",
+  },
+  document: {
+    root: "space-y-4 text-[0.95rem] leading-7 sm:text-base",
+    list: "space-y-1.5 pl-6",
+    table: "text-sm",
+  },
+} as const;
+
+function DocumentHeading({
+  level,
+  children,
+}: {
+  level: number;
+  children: ReactNode;
+}) {
+  if (level <= 2) {
+    return (
+      <h2 className="font-display pt-4 text-xl font-semibold tracking-tight first:pt-0 sm:text-2xl">
+        {children}
+      </h2>
+    );
+  }
+  if (level === 3) {
+    return <h3 className="pt-2 text-lg font-semibold">{children}</h3>;
+  }
+  return <h4 className="text-base font-semibold">{children}</h4>;
+}
+
 export function Markdown({
   text,
   className,
+  variant = "chat",
 }: {
   text: string;
   className?: string;
+  variant?: MarkdownVariant;
 }) {
   const blocks = parseBlocks(text);
+  const s = styles[variant];
   return (
-    <div className={cn("space-y-2 text-sm leading-relaxed", className)}>
+    <div className={cn(s.root, className)}>
       {blocks.map((block, index) => {
         const key = `b${index}`;
         switch (block.kind) {
           case "h":
-            return (
+            return variant === "document" ? (
+              <DocumentHeading key={key} level={block.level}>
+                {renderInline(block.text, key, variant)}
+              </DocumentHeading>
+            ) : (
               <p
                 key={key}
                 className={cn(
@@ -215,7 +287,7 @@ export function Markdown({
                   block.level <= 2 ? "text-base" : "text-sm",
                 )}
               >
-                {renderInline(block.text, key)}
+                {renderInline(block.text, key, variant)}
               </p>
             );
           case "ul":
@@ -225,13 +297,13 @@ export function Markdown({
               <List
                 key={key}
                 className={cn(
-                  "space-y-1 pl-5",
+                  s.list,
                   block.kind === "ul" ? "list-disc" : "list-decimal",
                 )}
               >
                 {block.items.map((item, j) => (
                   <li key={`${key}-${j}`}>
-                    {renderInline(item, `${key}-${j}`)}
+                    {renderInline(item, `${key}-${j}`, variant)}
                   </li>
                 ))}
               </List>
@@ -249,7 +321,7 @@ export function Markdown({
           case "table":
             return (
               <div key={key} className="overflow-x-auto rounded-md border">
-                <table className="w-full text-xs">
+                <table className={cn("w-full", s.table)}>
                   <thead className="bg-muted/60">
                     <tr>
                       {block.head.map((cell, j) => (
@@ -257,7 +329,7 @@ export function Markdown({
                           key={`${key}-h${j}`}
                           className="px-2 py-1.5 text-left font-medium"
                         >
-                          {renderInline(cell, `${key}-h${j}`)}
+                          {renderInline(cell, `${key}-h${j}`, variant)}
                         </th>
                       ))}
                     </tr>
@@ -270,7 +342,7 @@ export function Markdown({
                             key={`${key}-r${r}-${j}`}
                             className="px-2 py-1.5 tabular-nums"
                           >
-                            {renderInline(cell, `${key}-r${r}-${j}`)}
+                            {renderInline(cell, `${key}-r${r}-${j}`, variant)}
                           </td>
                         ))}
                       </tr>
@@ -282,14 +354,18 @@ export function Markdown({
           case "hr":
             return <hr key={key} className="border-border" />;
           default:
+            // Documents wrap like regular Markdown (soft line breaks become
+            // spaces); chat keeps the author's line breaks.
             return (
               <p key={key} className="break-words">
-                {block.lines.map((l, j) => (
-                  <Fragment key={`${key}-${j}`}>
-                    {j > 0 ? <br /> : null}
-                    {renderInline(l, `${key}-${j}`)}
-                  </Fragment>
-                ))}
+                {variant === "document"
+                  ? renderInline(block.lines.join(" "), key, variant)
+                  : block.lines.map((l, j) => (
+                      <Fragment key={`${key}-${j}`}>
+                        {j > 0 ? <br /> : null}
+                        {renderInline(l, `${key}-${j}`, variant)}
+                      </Fragment>
+                    ))}
               </p>
             );
         }
