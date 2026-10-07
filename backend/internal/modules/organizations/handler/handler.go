@@ -541,6 +541,53 @@ func (h *Handler) PlatformAddMember(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, r, http.StatusCreated, map[string]string{"status": "ok"})
 }
 
+func memberPath(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.UUID, bool) {
+	orgUUID, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "organization uuid is invalid")
+		return uuid.Nil, uuid.Nil, false
+	}
+	userUUID, err := uuid.Parse(r.PathValue("userUuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "user uuid is invalid")
+		return uuid.Nil, uuid.Nil, false
+	}
+	return orgUUID, userUUID, true
+}
+
+// PlatformPatchMember is PATCH /v1/platform/organizations/{uuid}/members/{userUuid}.
+func (h *Handler) PlatformPatchMember(w http.ResponseWriter, r *http.Request) {
+	orgUUID, userUUID, ok := memberPath(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Role string `json:"role"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	member, err := h.svc.ChangeMemberRole(r.Context(), orgUUID, userUUID, in.Role)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, member)
+}
+
+// PlatformRemoveMember is DELETE /v1/platform/organizations/{uuid}/members/{userUuid}.
+func (h *Handler) PlatformRemoveMember(w http.ResponseWriter, r *http.Request) {
+	orgUUID, userUUID, ok := memberPath(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.RemoveMember(r.Context(), orgUUID, userUUID); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, map[string]string{"status": "removed"})
+}
+
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
@@ -553,6 +600,10 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 
 func writeError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, orgusecase.ErrMemberNotFound):
+		response.NotFound(w, r, "Member was not found")
+	case errors.Is(err, orgusecase.ErrLastOwner):
+		response.Conflict(w, r, response.CodeLastOrganizationOwner, "The organization must keep at least one owner")
 	case errors.Is(err, orgusecase.ErrNotFound):
 		response.NotFound(w, r, "Organization was not found")
 	case errors.Is(err, orgusecase.ErrConflict):

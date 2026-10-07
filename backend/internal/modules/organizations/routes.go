@@ -62,6 +62,12 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/platform/organizations/{uuid}/members", middleware.Chain(
 		http.HandlerFunc(h.PlatformAddMember), authn, require(rbac.PermPlatformOrganizationsWrite),
 	))
+	mux.Handle("PATCH /v1/platform/organizations/{uuid}/members/{userUuid}", middleware.Chain(
+		http.HandlerFunc(h.PlatformPatchMember), authn, require(rbac.PermPlatformOrganizationsWrite),
+	))
+	mux.Handle("DELETE /v1/platform/organizations/{uuid}/members/{userUuid}", middleware.Chain(
+		http.HandlerFunc(h.PlatformRemoveMember), authn, require(rbac.PermPlatformOrganizationsWrite),
+	))
 
 	requireOrg := middleware.RequireOrganization(tokens, q)
 	requireOwner := middleware.RequireOrgRole("owner")

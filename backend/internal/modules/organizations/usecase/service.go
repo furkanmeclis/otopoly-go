@@ -9,6 +9,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/password"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/slug"
@@ -39,6 +40,7 @@ type Service struct {
 	pool    *pgxpool.Pool
 	q       *db.Queries
 	billing TrialStarter
+	act     *activity.Recorder
 }
 
 // New creates an organizations service.
@@ -601,7 +603,7 @@ func (s *Service) AddMember(ctx context.Context, orgUUID uuid.UUID, in AddMember
 	if role == "" {
 		role = "staff"
 	}
-	if role != "owner" && role != "staff" {
+	if !validMemberRole(role) {
 		return fmt.Errorf("%w: invalid role", ErrInvalidRequest)
 	}
 	_, err = s.q.CreateOrganizationMember(ctx, db.CreateOrganizationMemberParams{
@@ -625,6 +627,9 @@ func (s *Service) AddMember(ctx context.Context, orgUUID uuid.UUID, in AddMember
 			return err
 		}
 	}
+	s.recordActivity(ctx, "organizations.member_added", org.Uuid, map[string]any{
+		"user_uuid": user.Uuid.String(), "email": user.Email, "role": role,
+	})
 	return nil
 }
 
