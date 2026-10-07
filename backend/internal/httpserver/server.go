@@ -60,6 +60,9 @@ import (
 	oauthprovidermodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider"
 	oauthproviderhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider/handler"
 	oauthproviderusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/oauthprovider/usecase"
+	platformwhatsappmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/whatsapp"
+	platformwhatsapphandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/whatsapp/handler"
+	platformwhatsappusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/whatsapp/usecase"
 	jobsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs"
 	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
 	leadsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads"
@@ -290,6 +293,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	stepUpSvc.SetSecretBox(secretBox)
 
 	githubSvc := githubusecase.New(deps.Queries, secretBox)
+	platformWhatsAppSvc := platformwhatsappusecase.New(deps.Queries, secretBox, cfg.Auth.FrontendURL)
 	oauthProvSvc := oauthproviderusecase.New(deps.Queries, secretBox)
 	authSettingsSvc := authsettingsusecase.New(deps.Queries)
 	uc.SetAuthSettings(authSettingsSvc)
@@ -610,6 +614,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	accessmodule.RegisterRoutes(mux, accesshandler.New(stepUpSvc, activityRec), tokens, loader)
 	authsettingsmodule.RegisterRoutes(mux, authsettingshandler.New(authSettingsSvc, activityRec), tokens, loader)
 	githubmodule.RegisterRoutes(mux, githubhandler.New(githubSvc, activityRec), tokens, loader)
+	platformwhatsappmodule.RegisterRoutes(mux, platformwhatsapphandler.New(platformWhatsAppSvc, activityRec), tokens, loader)
 	oauthprovidermodule.RegisterRoutes(mux, oauthproviderhandler.New(oauthProvSvc, activityRec), tokens, loader)
 	activitymodule.RegisterRoutes(mux, activityhandler.New(activityusecase.New(deps.Queries)), tokens, loader)
 	logsmodule.RegisterRoutes(mux, logshandler.New(logsSvc), tokens, loader)
