@@ -427,6 +427,11 @@ func (s *Service) TestConnection(ctx context.Context) (TestResult, error) {
 
 // ------------------------------------------------------------------ quota
 
+// CurrentPeriod returns [start, end) of the current quota period.
+func (s *Service) CurrentPeriod() (time.Time, time.Time) {
+	return s.monthBounds(s.now())
+}
+
 // monthBounds returns [start, end) of the month containing t in the service TZ.
 func (s *Service) monthBounds(t time.Time) (time.Time, time.Time) {
 	lt := t.In(s.loc)

@@ -123,6 +123,10 @@ type Querier interface {
 	CountSuppliers(ctx context.Context, arg CountSuppliersParams) (int64, error)
 	CountTodos(ctx context.Context, arg CountTodosParams) (int64, error)
 	CountUnreadInappForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
+	CountUserActiveSessions(ctx context.Context, userID int64) (int64, error)
+	CountUserActivity(ctx context.Context, arg CountUserActivityParams) (int64, error)
+	CountUserMemberships(ctx context.Context, userID int64) (int64, error)
+	CountUserPushDevices(ctx context.Context, userID int64) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
 	CountUsersWithRole(ctx context.Context, roleSlug string) (int64, error)
 	CountVehicleBrands(ctx context.Context, arg CountVehicleBrandsParams) (int64, error)
@@ -241,6 +245,7 @@ type Querier interface {
 	DeleteStorageTrashByUUID(ctx context.Context, argUuid uuid.UUID) error
 	DeleteTodo(ctx context.Context, arg DeleteTodoParams) error
 	DeleteUnusedDiscountCode(ctx context.Context, argUuid uuid.UUID) (int64, error)
+	DeleteUserPushDeviceByUUID(ctx context.Context, arg DeleteUserPushDeviceByUUIDParams) (DeleteUserPushDeviceByUUIDRow, error)
 	DeleteUserTOTP(ctx context.Context, userID int64) error
 	DeleteVehicleModelYear(ctx context.Context, arg DeleteVehicleModelYearParams) error
 	DeleteWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) error
@@ -461,6 +466,9 @@ type Querier interface {
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
 	// Platform admin detail / restore: also returns soft-deleted users.
 	GetUserByUUIDIncludingDeleted(ctx context.Context, argUuid uuid.UUID) (User, error)
+	// Platform 360° user detail reads. Secrets (token hashes, push tokens, TOTP
+	// secrets) are never selected.
+	GetUserSecuritySummary(ctx context.Context, id int64) (GetUserSecuritySummaryRow, error)
 	GetUserTOTPByUserID(ctx context.Context, userID int64) (UserTotp, error)
 	GetValidRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetVehicleAlertJob(ctx context.Context, argUuid uuid.UUID) (GetVehicleAlertJobRow, error)
@@ -687,6 +695,14 @@ type Querier interface {
 	ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTodosRow, error)
 	ListUsageCounters(ctx context.Context, arg ListUsageCountersParams) ([]ListUsageCountersRow, error)
 	ListUsageMetersForOrgAdmin(ctx context.Context, organizationID int64) ([]ListUsageMetersForOrgAdminRow, error)
+	// Per membership: the user's own conversations and quota tokens since the
+	// start of the current AI period.
+	ListUserAIUsageByOrganization(ctx context.Context, arg ListUserAIUsageByOrganizationParams) ([]ListUserAIUsageByOrganizationRow, error)
+	// Refresh tokens rotate on every refresh, so created_at is the last use.
+	ListUserActiveSessionsPaged(ctx context.Context, arg ListUserActiveSessionsPagedParams) ([]ListUserActiveSessionsPagedRow, error)
+	ListUserActivityPaged(ctx context.Context, arg ListUserActivityPagedParams) ([]ListUserActivityPagedRow, error)
+	ListUserMembershipsPaged(ctx context.Context, arg ListUserMembershipsPagedParams) ([]ListUserMembershipsPagedRow, error)
+	ListUserPushDevicesPaged(ctx context.Context, arg ListUserPushDevicesPagedParams) ([]ListUserPushDevicesPagedRow, error)
 	ListUserRoleSlugs(ctx context.Context, userID int64) ([]string, error)
 	ListUserRolesByUserID(ctx context.Context, userID int64) ([]Role, error)
 	ListUserRolesByUserUUID(ctx context.Context, argUuid uuid.UUID) ([]Role, error)
@@ -789,6 +805,7 @@ type Querier interface {
 	// Marks the job's usage as given back; returns the rows whose stock must be restored.
 	RevertJobConsumptions(ctx context.Context, arg RevertJobConsumptionsParams) ([]RevertJobConsumptionsRow, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
+	RevokeAllUserSessions(ctx context.Context, userID int64) (int64, error)
 	RevokeOtherRefreshTokensForUser(ctx context.Context, arg RevokeOtherRefreshTokensForUserParams) error
 	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
 	RevokeRefreshTokenByUUIDForUser(ctx context.Context, arg RevokeRefreshTokenByUUIDForUserParams) (int64, error)

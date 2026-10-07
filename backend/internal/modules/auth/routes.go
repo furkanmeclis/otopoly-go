@@ -116,6 +116,33 @@ func RegisterRoutes(
 		http.HandlerFunc(h.ImpersonatePlatformUser), authn, requirePerm(rbac.PermPlatformUsersImpersonate), requireStepUp,
 	))
 
+	// 360° detail: overview and paged memberships / sessions / devices / activity.
+	mux.Handle("GET /v1/platform/users/{uuid}/overview", middleware.Chain(
+		http.HandlerFunc(h.PlatformUserOverview), authn, requirePerm(rbac.PermPlatformUsersRead),
+	))
+	mux.Handle("GET /v1/platform/users/{uuid}/organizations", middleware.Chain(
+		http.HandlerFunc(h.PlatformUserOrganizations), authn, requirePerm(rbac.PermPlatformUsersRead),
+	))
+	mux.Handle("GET /v1/platform/users/{uuid}/sessions", middleware.Chain(
+		http.HandlerFunc(h.PlatformUserSessions), authn, requirePerm(rbac.PermPlatformUsersRead),
+	))
+	mux.Handle("GET /v1/platform/users/{uuid}/devices", middleware.Chain(
+		http.HandlerFunc(h.PlatformUserDevices), authn, requirePerm(rbac.PermPlatformUsersRead),
+	))
+	mux.Handle("GET /v1/platform/users/{uuid}/activity", middleware.Chain(
+		http.HandlerFunc(h.PlatformUserActivity), authn, requirePerm(rbac.PermPlatformUsersRead), requirePerm(rbac.PermPlatformActivityRead),
+	))
+	// Session / device revocation: audited, step-up gated.
+	mux.Handle("DELETE /v1/platform/users/{uuid}/sessions/{sessionUuid}", middleware.Chain(
+		http.HandlerFunc(h.PlatformRevokeUserSession), authn, requirePerm(rbac.PermPlatformUsersWrite), requireStepUp,
+	))
+	mux.Handle("POST /v1/platform/users/{uuid}/sessions/revoke-all", middleware.Chain(
+		http.HandlerFunc(h.PlatformRevokeAllUserSessions), authn, requirePerm(rbac.PermPlatformUsersWrite), requireStepUp,
+	))
+	mux.Handle("DELETE /v1/platform/users/{uuid}/devices/{deviceUuid}", middleware.Chain(
+		http.HandlerFunc(h.PlatformRemoveUserDevice), authn, requirePerm(rbac.PermPlatformUsersWrite), requireStepUp,
+	))
+
 	mux.Handle("POST /v1/auth/impersonation/stop", middleware.Chain(
 		http.HandlerFunc(h.StopImpersonation), authn,
 	))
