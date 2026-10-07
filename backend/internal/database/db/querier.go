@@ -348,6 +348,7 @@ type Querier interface {
 	GetLeadRefByID(ctx context.Context, id int64) (GetLeadRefByIDRow, error)
 	GetLeadRowByUUID(ctx context.Context, arg GetLeadRowByUUIDParams) (Lead, error)
 	GetLeadRowByUUIDForUpdate(ctx context.Context, arg GetLeadRowByUUIDForUpdateParams) (Lead, error)
+	GetLegalPageBySlug(ctx context.Context, slug string) (GetLegalPageBySlugRow, error)
 	GetLiveSubscription(ctx context.Context, organizationID int64) (GetLiveSubscriptionRow, error)
 	GetLiveSubscriptionForUpdate(ctx context.Context, organizationID int64) (BillingSubscription, error)
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
@@ -850,6 +851,7 @@ type Querier interface {
 	UpdateInvoiceProfile(ctx context.Context, arg UpdateInvoiceProfileParams) (UpdateInvoiceProfileRow, error)
 	UpdateJobConsumptionQty(ctx context.Context, arg UpdateJobConsumptionQtyParams) (ServiceJobConsumption, error)
 	UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, error)
+	UpdateLegalPage(ctx context.Context, arg UpdateLegalPageParams) (int64, error)
 	UpdateLogPurgeRule(ctx context.Context, arg UpdateLogPurgeRuleParams) (LogPurgeRule, error)
 	UpdateOAuthAccountRefreshToken(ctx context.Context, arg UpdateOAuthAccountRefreshTokenParams) error
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)

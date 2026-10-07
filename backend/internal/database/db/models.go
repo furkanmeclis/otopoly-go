@@ -794,6 +794,18 @@ type LeadEvent struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
+type LegalPage struct {
+	ID        int64              `json:"id"`
+	Slug      string             `json:"slug"`
+	TitleTr   string             `json:"title_tr"`
+	TitleEn   string             `json:"title_en"`
+	BodyTr    string             `json:"body_tr"`
+	BodyEn    string             `json:"body_en"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy pgtype.Int8        `json:"updated_by"`
+}
+
 type LogPurgeRule struct {
 	ID               int64              `json:"id"`
 	Uuid             uuid.UUID          `json:"uuid"`
