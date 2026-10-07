@@ -20,6 +20,7 @@ var builtinFeatures = []db.UpsertBuiltinFeatureParams{
 	{Key: "storage.gb", Kind: "limit", Unit: "GB", Period: "total", LabelTr: "Depolama alanı", LabelEn: "Storage", SortOrder: 50},
 	{Key: "whatsapp.enabled", Kind: "toggle", Unit: "", Period: "none", LabelTr: "WhatsApp mesajlaşma", LabelEn: "WhatsApp messaging", SortOrder: 60},
 	{Key: "whatsapp.monthly", Kind: "limit", Unit: "mesaj", Period: "month", LabelTr: "Aylık WhatsApp mesajı", LabelEn: "Monthly WhatsApp messages", SortOrder: 61},
+	{Key: "whatsapp.own_number", Kind: "toggle", Unit: "", Period: "none", LabelTr: "Kendi WhatsApp numarası", LabelEn: "Own WhatsApp number", SortOrder: 62},
 	{Key: "ai.enabled", Kind: "toggle", Unit: "", Period: "none", LabelTr: "Yapay zekâ asistanı", LabelEn: "AI assistant", SortOrder: 70},
 	{Key: "ai.monthly", Kind: "limit", Unit: "istek", Period: "month", LabelTr: "Aylık AI isteği", LabelEn: "Monthly AI requests", SortOrder: 71},
 	{Key: "module.contracts", Kind: "toggle", Unit: "", Period: "none", LabelTr: "Sözleşme modülü", LabelEn: "Contracts module", SortOrder: 80},

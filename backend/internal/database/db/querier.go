@@ -239,6 +239,8 @@ type Querier interface {
 	// First device registration opts the user into push (the OS permission
 	// prompt is the consent). An existing preference row is left untouched.
 	EnsureNotificationPreferencesPushDefault(ctx context.Context, userID int64) error
+	// Inserts a catalog entry; existing rows keep their Meta state and override.
+	EnsureWhatsAppCloudTemplate(ctx context.Context, arg EnsureWhatsAppCloudTemplateParams) (WhatsappCloudTemplate, error)
 	// Expires pending actions of a conversation: all of them (the user moved on)
 	// or only those past expires_at.
 	ExpireAIPendingActions(ctx context.Context, arg ExpireAIPendingActionsParams) ([]AiPendingAction, error)
@@ -379,7 +381,9 @@ type Querier interface {
 	GetOrganizationMemberByUserAndOrgUUID(ctx context.Context, arg GetOrganizationMemberByUserAndOrgUUIDParams) (GetOrganizationMemberByUserAndOrgUUIDRow, error)
 	GetOrganizationMemberByUserAndSlug(ctx context.Context, arg GetOrganizationMemberByUserAndSlugParams) (GetOrganizationMemberByUserAndSlugRow, error)
 	GetOrganizationMemberByUserUUID(ctx context.Context, arg GetOrganizationMemberByUserUUIDParams) (GetOrganizationMemberByUserUUIDRow, error)
+	GetOutboundMessageByProviderReference(ctx context.Context, providerReference string) (OutboundMessage, error)
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
+	GetPlatformWhatsAppSettings(ctx context.Context) (PlatformWhatsappSetting, error)
 	GetProductByBarcode(ctx context.Context, arg GetProductByBarcodeParams) (Product, error)
 	GetProductByID(ctx context.Context, arg GetProductByIDParams) (Product, error)
 	GetProductByName(ctx context.Context, arg GetProductByNameParams) (Product, error)
@@ -449,6 +453,7 @@ type Querier interface {
 	GetVehicleModelYearForSearch(ctx context.Context, arg GetVehicleModelYearForSearchParams) (GetVehicleModelYearForSearchRow, error)
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
+	GetWhatsAppCloudTemplateByKey(ctx context.Context, key string) (WhatsappCloudTemplate, error)
 	GetWhatsAppSession(ctx context.Context, organizationID int64) (WhatsappSession, error)
 	HasActivePushDevices(ctx context.Context, userID int64) (bool, error)
 	IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error)
@@ -674,6 +679,7 @@ type Querier interface {
 	ListVehicleModelsByBrand(ctx context.Context, brandID int64) ([]VehicleModel, error)
 	ListWebAuthnCredentialsByUserID(ctx context.Context, userID int64) ([]WebauthnCredential, error)
 	ListWebAuthnCredentialsForUserIDs(ctx context.Context, userIds []int64) ([]WebauthnCredential, error)
+	ListWhatsAppCloudTemplates(ctx context.Context) ([]WhatsappCloudTemplate, error)
 	MarkAllNotificationsReadForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
 	MarkBulkJobCompleted(ctx context.Context, arg MarkBulkJobCompletedParams) (BulkJob, error)
 	MarkBulkJobFailed(ctx context.Context, arg MarkBulkJobFailedParams) (BulkJob, error)
@@ -769,6 +775,8 @@ type Querier interface {
 	SetOrderStatus(ctx context.Context, arg SetOrderStatusParams) (BillingOrder, error)
 	SetOrganizationAccess(ctx context.Context, arg SetOrganizationAccessParams) error
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
+	SetOutboundMessageErrorCode(ctx context.Context, arg SetOutboundMessageErrorCodeParams) error
+	SetOutboundMessageSender(ctx context.Context, arg SetOutboundMessageSenderParams) error
 	SetQuotePDF(ctx context.Context, arg SetQuotePDFParams) error
 	SetQuoteReminderScheduled(ctx context.Context, arg SetQuoteReminderScheduledParams) error
 	// Guarded transition: only applies when the row is still in from_status.
@@ -778,6 +786,8 @@ type Querier interface {
 	SetTodoStatus(ctx context.Context, arg SetTodoStatusParams) (Todo, error)
 	SetUsageCounter(ctx context.Context, arg SetUsageCounterParams) error
 	SetUserEmailVerified(ctx context.Context, id int64) (User, error)
+	SetWhatsAppCloudTemplateOverride(ctx context.Context, arg SetWhatsAppCloudTemplateOverrideParams) (WhatsappCloudTemplate, error)
+	SetWhatsAppSessionFallback(ctx context.Context, arg SetWhatsAppSessionFallbackParams) (WhatsappSession, error)
 	SetXSLT(ctx context.Context, arg SetXSLTParams) (SetXSLTRow, error)
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteAIConversation(ctx context.Context, id int64) error
@@ -837,8 +847,12 @@ type Querier interface {
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)
 	UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOrganizationLetterheadParams) (Organization, error)
 	UpdateOrganizationPlatform(ctx context.Context, arg UpdateOrganizationPlatformParams) (Organization, error)
+	UpdateOutboundMessageDelivery(ctx context.Context, arg UpdateOutboundMessageDeliveryParams) error
 	UpdateOutboundMessageStatus(ctx context.Context, arg UpdateOutboundMessageStatusParams) (OutboundMessage, error)
 	UpdatePaymentSettings(ctx context.Context, arg UpdatePaymentSettingsParams) (BillingSetting, error)
+	UpdatePlatformWhatsAppSession(ctx context.Context, arg UpdatePlatformWhatsAppSessionParams) (PlatformWhatsappSetting, error)
+	// Partial update: NULL args keep the stored value.
+	UpdatePlatformWhatsAppSettings(ctx context.Context, arg UpdatePlatformWhatsAppSettingsParams) (PlatformWhatsappSetting, error)
 	UpdateProduct(ctx context.Context, arg UpdateProductParams) (Product, error)
 	UpdateQuoteContent(ctx context.Context, arg UpdateQuoteContentParams) (Quote, error)
 	UpdateRole(ctx context.Context, arg UpdateRoleParams) (Role, error)
@@ -863,6 +877,8 @@ type Querier interface {
 	UpdateVehicleModel(ctx context.Context, arg UpdateVehicleModelParams) (VehicleModel, error)
 	UpdateWebAuthnCredentialCounter(ctx context.Context, arg UpdateWebAuthnCredentialCounterParams) error
 	UpdateWebAuthnCredentialName(ctx context.Context, arg UpdateWebAuthnCredentialNameParams) (WebauthnCredential, error)
+	UpdateWhatsAppCloudTemplateStatus(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusParams) (WhatsappCloudTemplate, error)
+	UpdateWhatsAppCloudTemplateStatusByMetaID(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusByMetaIDParams) (int64, error)
 	UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAppSessionQRParams) (WhatsappSession, error)
 	UpsertAIOrganizationSettings(ctx context.Context, arg UpsertAIOrganizationSettingsParams) (AiOrganizationSetting, error)
 	UpsertBuiltinFeature(ctx context.Context, arg UpsertBuiltinFeatureParams) error
