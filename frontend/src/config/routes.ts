@@ -2,6 +2,8 @@ export const routes = {
   public: {
     root: "/",
     register: "/register",
+    privacy: "/privacy",
+    privacyEn: "/en/privacy",
     health: "/health",
     quote: (token: string) => `/q/${token}`,
     share: {
@@ -194,6 +196,9 @@ export const routes = {
     },
     authSettings: {
       root: "/platform/auth/settings",
+    },
+    legal: {
+      privacy: "/platform/legal/privacy",
     },
     integrations: {
       github: "/platform/integrations/github",
