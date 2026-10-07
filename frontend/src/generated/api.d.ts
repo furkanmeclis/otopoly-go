@@ -6210,6 +6210,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/public/whatsapp/webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Meta webhook subscription handshake
+         * @description No auth; called by Meta (through the same-origin proxy
+         *     `/api/v1/public/whatsapp/webhook`). `hub.mode=subscribe` and a
+         *     `hub.verify_token` equal to the stored (encrypted) verify token,
+         *     compared in constant time, echo `hub.challenge` as `text/plain`.
+         *     Rate-limited per IP.
+         */
+        get: operations["verifyWhatsAppWebhook"];
+        put?: never;
+        /**
+         * Meta webhook notifications
+         * @description No auth; `X-Hub-Signature-256` (HMAC-SHA256 of the **raw** body with
+         *     the stored app secret) is required: missing app secret or a bad
+         *     signature → 401 and nothing is processed. Body limit 1 MiB.
+         *     Handled: `messages` change `statuses` (sent < delivered < read never
+         *     regress; `failed` is always recorded with its error code; pricing
+         *     category / billable stored; unknown wamids ignored) and
+         *     `message_template_status_update` (template row by Meta id, else by
+         *     effective name + language). Customer messages and every other field
+         *     are acknowledged and dropped. After a valid signature the answer is
+         *     always 200, even if an entry fails. Rate-limited per IP.
+         */
+        post: operations["receiveWhatsAppWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/public/quotes/{token}": {
         parameters: {
             query?: never;
@@ -7017,6 +7054,37 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["WhatsAppIntegrationSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Meta webhook notification (only the fields used are listed; others are ignored). */
+        WhatsAppWebhookNotification: {
+            /** @example whatsapp_business_account */
+            object?: string;
+            entry?: ({
+                id?: string;
+                changes?: ({
+                    /** @example messages */
+                    field?: string;
+                    value?: {
+                        [key: string]: unknown;
+                    };
+                } & {
+                    [key: string]: unknown;
+                })[];
+            } & {
+                [key: string]: unknown;
+            })[];
+        } & {
+            [key: string]: unknown;
+        };
+        WhatsAppWebhookAck: {
+            /** @enum {boolean} */
+            received: true;
+        };
+        EnvelopeWhatsAppWebhookAck: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WhatsAppWebhookAck"];
             meta: components["schemas"]["ResponseMeta"];
         };
         PlatformWhatsAppTestRequest: {
@@ -22646,6 +22714,70 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    verifyWhatsAppWebhook: {
+        parameters: {
+            query: {
+                "hub.mode": "subscribe";
+                "hub.verify_token": string;
+                "hub.challenge": string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The challenge, echoed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    receiveWhatsAppWebhook: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Hub-Signature-256": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WhatsAppWebhookNotification"];
+            };
+        };
+        responses: {
+            /** @description Acknowledged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWhatsAppWebhookAck"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            /** @description Body larger than 1 MiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getPublicQuote: {

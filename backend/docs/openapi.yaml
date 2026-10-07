@@ -10640,6 +10640,68 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /v1/public/whatsapp/webhook:
+    get:
+      tags: [Public]
+      operationId: verifyWhatsAppWebhook
+      summary: Meta webhook subscription handshake
+      description: |
+        No auth; called by Meta (through the same-origin proxy
+        `/api/v1/public/whatsapp/webhook`). `hub.mode=subscribe` and a
+        `hub.verify_token` equal to the stored (encrypted) verify token,
+        compared in constant time, echo `hub.challenge` as `text/plain`.
+        Rate-limited per IP.
+      parameters:
+        - { name: hub.mode, in: query, required: true, schema: { type: string, enum: [subscribe] } }
+        - { name: hub.verify_token, in: query, required: true, schema: { type: string } }
+        - { name: hub.challenge, in: query, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The challenge, echoed
+          content:
+            text/plain:
+              schema: { type: string, example: "1158201444" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    post:
+      tags: [Public]
+      operationId: receiveWhatsAppWebhook
+      summary: Meta webhook notifications
+      description: |
+        No auth; `X-Hub-Signature-256` (HMAC-SHA256 of the **raw** body with
+        the stored app secret) is required: missing app secret or a bad
+        signature → 401 and nothing is processed. Body limit 1 MiB.
+        Handled: `messages` change `statuses` (sent < delivered < read never
+        regress; `failed` is always recorded with its error code; pricing
+        category / billable stored; unknown wamids ignored) and
+        `message_template_status_update` (template row by Meta id, else by
+        effective name + language). Customer messages and every other field
+        are acknowledged and dropped. After a valid signature the answer is
+        always 200, even if an entry fails. Rate-limited per IP.
+      parameters:
+        - name: X-Hub-Signature-256
+          in: header
+          required: true
+          schema: { type: string, example: "sha256=5f1c…" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WhatsAppWebhookNotification" }
+      responses:
+        "200":
+          description: Acknowledged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeWhatsAppWebhookAck" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "413":
+          description: Body larger than 1 MiB
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /v1/public/quotes/{token}:
     parameters:
       - name: token
@@ -11924,6 +11986,42 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/WhatsAppIntegrationSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    WhatsAppWebhookNotification:
+      type: object
+      description: Meta webhook notification (only the fields used are listed; others are ignored).
+      additionalProperties: true
+      properties:
+        object: { type: string, example: whatsapp_business_account }
+        entry:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              id: { type: string }
+              changes:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                  properties:
+                    field: { type: string, example: messages }
+                    value: { type: object, additionalProperties: true }
+
+    WhatsAppWebhookAck:
+      type: object
+      required: [received]
+      properties:
+        received: { type: boolean, enum: [true] }
+
+    EnvelopeWhatsAppWebhookAck:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WhatsAppWebhookAck" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     PlatformWhatsAppTestRequest:
