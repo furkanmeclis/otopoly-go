@@ -5,6 +5,7 @@
   },
   "build": {
     "development": {
+      "channel": "development",
       "developmentClient": true,
       "distribution": "internal",
       "environment": "preview",
@@ -17,6 +18,7 @@
       }
     },
     "preview": {
+      "channel": "preview",
       "uploadSourceMaps": true,
       "distribution": "internal",
       "environment": "preview",
@@ -29,6 +31,7 @@
       }
     },
     "production": {
+      "channel": "production",
       "uploadSourceMaps": true,
       "autoIncrement": true,
       "env": {
