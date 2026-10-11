@@ -12774,6 +12774,7 @@ components:
         - examples
         - header_document
         - copy_code_button
+        - meta_category
       properties:
         key: { type: string, examples: ["job.ready"] }
         meta_name: { type: string, examples: ["otopoly_job_ready"] }
@@ -12783,7 +12784,13 @@ components:
           type: string
           enum: [tr, en]
           description: Catalog language; one item per key and language.
-        category: { type: string, enum: [UTILITY, AUTHENTICATION] }
+        category: { type: string, enum: [UTILITY, AUTHENTICATION], description: Catalog category (what is submitted). }
+        meta_category:
+          type: string
+          description: >-
+            Category Meta currently assigns to the template (from sync / submit);
+            empty until known. Differs from `category` when Meta re-categorized it
+            (e.g. UTILITY → MARKETING).
         status:
           type: string
           enum: [not_submitted, pending, approved, rejected, paused, disabled]
@@ -12835,6 +12842,12 @@ components:
           type: array
           description: Catalog languages to submit; omitted = every language.
           items: { type: string, enum: [tr, en] }
+        resubmit:
+          type: boolean
+          description: >-
+            With explicit `keys`: also edit templates that are already `approved`
+            or `paused` in Meta with the current catalog text and category
+            (they go back to review; sends use the Turkish fallback meanwhile).
 
     WhatsAppTemplateSubmitResult:
       type: object

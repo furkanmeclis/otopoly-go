@@ -62,10 +62,12 @@ WHERE key = sqlc.arg(key) AND language = sqlc.arg(language)
 RETURNING *;
 
 -- name: UpdateWhatsAppCloudTemplateStatus :one
+-- category: Meta's category of the template (empty keeps the stored one).
 UPDATE whatsapp_cloud_templates
 SET status = sqlc.arg(status),
     meta_template_id = sqlc.arg(meta_template_id),
     rejected_reason = sqlc.arg(rejected_reason),
+    category = COALESCE(NULLIF(sqlc.arg(category)::text, ''), category),
     last_synced_at = NOW()
 WHERE key = sqlc.arg(key) AND language = sqlc.arg(language)
 RETURNING *;

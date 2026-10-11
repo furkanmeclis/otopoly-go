@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertTriangle,
   Check,
   FileText,
   Loader2,
@@ -73,6 +74,23 @@ function canSubmit(tpl: WhatsAppCloudTemplate) {
   );
 }
 
+/**
+ * Live in Meta and editable there (approved / paused): the catalog text and
+ * category can be pushed again, which sends the template back to review.
+ */
+function canUpdate(tpl: WhatsAppCloudTemplate) {
+  return (
+    (tpl.status === "approved" || tpl.status === "paused") &&
+    !!tpl.meta_template_id &&
+    !tpl.override_name
+  );
+}
+
+/** Meta assigned another category than the catalog (e.g. MARKETING). */
+function categoryMismatch(tpl: WhatsAppCloudTemplate) {
+  return !!tpl.meta_category && tpl.meta_category !== tpl.category;
+}
+
 export function WhatsAppTemplatesCard({
   templates,
   isLoading,
@@ -132,10 +150,17 @@ export function WhatsAppTemplatesCard({
   };
 
   const submitMutation = useMutation({
-    mutationFn: (selection?: WhatsAppCloudTemplate) =>
+    mutationFn: (selection?: {
+      tpl: WhatsAppCloudTemplate;
+      resubmit?: boolean;
+    }) =>
       whatsappIntegrationService.submitTemplates(
         selection
-          ? { keys: [selection.key], languages: [selection.language] }
+          ? {
+              keys: [selection.tpl.key],
+              languages: [selection.tpl.language],
+              ...(selection.resubmit ? { resubmit: true } : {}),
+            }
           : {},
       ),
     onSuccess: reportSubmit,
@@ -392,7 +417,24 @@ export function WhatsAppTemplatesCard({
                         )}
                       </td>
                       <td className="px-3 py-2">
-                        <Badge variant="outline">{tpl.category}</Badge>
+                        <div className="flex flex-col items-start gap-1">
+                          <Badge variant="outline">{tpl.category}</Badge>
+                          {categoryMismatch(tpl) ? (
+                            <Badge
+                              variant="danger"
+                              className="gap-1"
+                              title={t(
+                                "integrations.whatsapp.templates.meta_category_hint",
+                              )}
+                            >
+                              <AlertTriangle className="size-3" />
+                              {t(
+                                "integrations.whatsapp.templates.meta_category",
+                                { category: tpl.meta_category },
+                              )}
+                            </Badge>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-3 py-2">
                         <Badge variant="secondary" className="uppercase">
@@ -439,7 +481,7 @@ export function WhatsAppTemplatesCard({
                               }
                               onClick={() => {
                                 setSubmittingRow(id);
-                                submitMutation.mutate(tpl);
+                                submitMutation.mutate({ tpl });
                               }}
                             >
                               {submitMutation.isPending &&
@@ -453,6 +495,29 @@ export function WhatsAppTemplatesCard({
                               {resubmit
                                 ? t("integrations.whatsapp.templates.resubmit")
                                 : t("integrations.whatsapp.templates.submit")}
+                            </Button>
+                          ) : canUpdate(tpl) ? (
+                            <Button
+                              size="sm"
+                              variant={
+                                categoryMismatch(tpl) ? "default" : "ghost"
+                              }
+                              disabled={busy}
+                              title={t(
+                                "integrations.whatsapp.templates.update_hint",
+                              )}
+                              onClick={() => {
+                                setSubmittingRow(id);
+                                submitMutation.mutate({ tpl, resubmit: true });
+                              }}
+                            >
+                              {submitMutation.isPending &&
+                              submittingRow === id ? (
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                              ) : (
+                                <RotateCcw className="mr-2 size-4" />
+                              )}
+                              {t("integrations.whatsapp.templates.update")}
                             </Button>
                           ) : null}
                         </td>

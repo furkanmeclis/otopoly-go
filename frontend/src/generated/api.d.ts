@@ -7562,8 +7562,13 @@ export interface components {
              * @enum {string}
              */
             language: "tr" | "en";
-            /** @enum {string} */
+            /**
+             * @description Catalog category (what is submitted).
+             * @enum {string}
+             */
             category: "UTILITY" | "AUTHENTICATION";
+            /** @description Category Meta currently assigns to the template (from sync / submit); empty until known. Differs from `category` when Meta re-categorized it (e.g. UTILITY → MARKETING). */
+            meta_category: string;
             /** @enum {string} */
             status: "not_submitted" | "pending" | "approved" | "rejected" | "paused" | "disabled";
             meta_template_id: string;
@@ -7597,6 +7602,8 @@ export interface components {
             keys?: string[];
             /** @description Catalog languages to submit; omitted = every language. */
             languages?: ("tr" | "en")[];
+            /** @description With explicit `keys`: also edit templates that are already `approved` or `paused` in Meta with the current catalog text and category (they go back to review; sends use the Turkish fallback meanwhile). */
+            resubmit?: boolean;
         };
         WhatsAppTemplateSubmitResult: {
             key: string;
