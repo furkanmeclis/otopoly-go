@@ -85,9 +85,8 @@ func (q *Queries) CountOutboundMessagesByOrg(ctx context.Context, organizationID
 const ensureWhatsAppCloudTemplate = `-- name: EnsureWhatsAppCloudTemplate :one
 INSERT INTO whatsapp_cloud_templates (key, meta_name, language, category)
 VALUES ($1, $2, $3, $4)
-ON CONFLICT (key) DO UPDATE
+ON CONFLICT (key, language) DO UPDATE
 SET meta_name = EXCLUDED.meta_name,
-    language = EXCLUDED.language,
     category = EXCLUDED.category
 RETURNING id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at
 `
@@ -99,7 +98,8 @@ type EnsureWhatsAppCloudTemplateParams struct {
 	Category string `json:"category"`
 }
 
-// Inserts a catalog entry; existing rows keep their Meta state and override.
+// Inserts a catalog entry (one row per key + language); existing rows keep
+// their Meta state and override.
 func (q *Queries) EnsureWhatsAppCloudTemplate(ctx context.Context, arg EnsureWhatsAppCloudTemplateParams) (WhatsappCloudTemplate, error) {
 	row := q.db.QueryRow(ctx, ensureWhatsAppCloudTemplate,
 		arg.Key,
@@ -197,12 +197,18 @@ func (q *Queries) GetPlatformWhatsAppSettings(ctx context.Context) (PlatformWhat
 	return i, err
 }
 
-const getWhatsAppCloudTemplateByKey = `-- name: GetWhatsAppCloudTemplateByKey :one
-SELECT id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at FROM whatsapp_cloud_templates WHERE key = $1
+const getWhatsAppCloudTemplate = `-- name: GetWhatsAppCloudTemplate :one
+SELECT id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at FROM whatsapp_cloud_templates
+WHERE key = $1 AND language = $2
 `
 
-func (q *Queries) GetWhatsAppCloudTemplateByKey(ctx context.Context, key string) (WhatsappCloudTemplate, error) {
-	row := q.db.QueryRow(ctx, getWhatsAppCloudTemplateByKey, key)
+type GetWhatsAppCloudTemplateParams struct {
+	Key      string `json:"key"`
+	Language string `json:"language"`
+}
+
+func (q *Queries) GetWhatsAppCloudTemplate(ctx context.Context, arg GetWhatsAppCloudTemplateParams) (WhatsappCloudTemplate, error) {
+	row := q.db.QueryRow(ctx, getWhatsAppCloudTemplate, arg.Key, arg.Language)
 	var i WhatsappCloudTemplate
 	err := row.Scan(
 		&i.ID,
@@ -282,7 +288,7 @@ func (q *Queries) ListOutboundMessagesByOrg(ctx context.Context, arg ListOutboun
 }
 
 const listWhatsAppCloudTemplates = `-- name: ListWhatsAppCloudTemplates :many
-SELECT id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at FROM whatsapp_cloud_templates ORDER BY key
+SELECT id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at FROM whatsapp_cloud_templates ORDER BY key, language
 `
 
 func (q *Queries) ListWhatsAppCloudTemplates(ctx context.Context) ([]WhatsappCloudTemplate, error) {
@@ -363,17 +369,18 @@ func (q *Queries) SetOutboundMessageSender(ctx context.Context, arg SetOutboundM
 const setWhatsAppCloudTemplateOverride = `-- name: SetWhatsAppCloudTemplateOverride :one
 UPDATE whatsapp_cloud_templates
 SET override_name = $1
-WHERE key = $2
+WHERE key = $2 AND language = $3
 RETURNING id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at
 `
 
 type SetWhatsAppCloudTemplateOverrideParams struct {
 	OverrideName pgtype.Text `json:"override_name"`
 	Key          string      `json:"key"`
+	Language     string      `json:"language"`
 }
 
 func (q *Queries) SetWhatsAppCloudTemplateOverride(ctx context.Context, arg SetWhatsAppCloudTemplateOverrideParams) (WhatsappCloudTemplate, error) {
-	row := q.db.QueryRow(ctx, setWhatsAppCloudTemplateOverride, arg.OverrideName, arg.Key)
+	row := q.db.QueryRow(ctx, setWhatsAppCloudTemplateOverride, arg.OverrideName, arg.Key, arg.Language)
 	var i WhatsappCloudTemplate
 	err := row.Scan(
 		&i.ID,
@@ -641,7 +648,7 @@ SET status = $1,
     meta_template_id = $2,
     rejected_reason = $3,
     last_synced_at = NOW()
-WHERE key = $4
+WHERE key = $4 AND language = $5
 RETURNING id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at
 `
 
@@ -650,6 +657,7 @@ type UpdateWhatsAppCloudTemplateStatusParams struct {
 	MetaTemplateID string `json:"meta_template_id"`
 	RejectedReason string `json:"rejected_reason"`
 	Key            string `json:"key"`
+	Language       string `json:"language"`
 }
 
 func (q *Queries) UpdateWhatsAppCloudTemplateStatus(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusParams) (WhatsappCloudTemplate, error) {
@@ -658,6 +666,7 @@ func (q *Queries) UpdateWhatsAppCloudTemplateStatus(ctx context.Context, arg Upd
 		arg.MetaTemplateID,
 		arg.RejectedReason,
 		arg.Key,
+		arg.Language,
 	)
 	var i WhatsappCloudTemplate
 	err := row.Scan(

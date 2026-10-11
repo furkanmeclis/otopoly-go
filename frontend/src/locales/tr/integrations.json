@@ -24,7 +24,6 @@
   "github.form.secret_placeholder": "Yeni client secret yapıştırın",
   "github.form.private_key_placeholder": "PEM özel anahtarını buraya yapıştırın",
   "github.form.save": "GitHub ayarlarını kaydet",
-
   "google.title": "Google",
   "google.description": "Giriş ve kayıt için Google OAuth yapılandırın.",
   "google.error.title": "Google ayarları yüklenemedi",
@@ -45,7 +44,6 @@
   "google.form.secret_configured": "Yapılandırıldı — korumak için boş bırakın",
   "google.form.secret_placeholder": "Yeni client secret yapıştırın",
   "google.form.save": "Google ayarlarını kaydet",
-
   "facebook.title": "Facebook",
   "facebook.description": "Giriş ve kayıt için Facebook Login yapılandırın.",
   "facebook.error.title": "Facebook ayarları yüklenemedi",
@@ -66,7 +64,6 @@
   "facebook.form.secret_configured": "Yapılandırıldı — korumak için boş bırakın",
   "facebook.form.secret_placeholder": "Yeni app secret yapıştırın",
   "facebook.form.save": "Facebook ayarlarını kaydet",
-
   "apple.title": "Apple",
   "apple.description": "Sign in with Apple yapılandırın. .p8 imzalama anahtarını yükleyin, client secret otomatik üretilir.",
   "apple.error.title": "Apple ayarları yüklenemedi",
@@ -106,7 +103,6 @@
   "apple.form.private_key_remove": "Anahtarı kaldır",
   "apple.form.private_key_keep": "Anahtarı koru",
   "apple.form.private_key_clear_selection": "Seçimi temizle",
-
   "whatsapp.title": "WhatsApp gönderici",
   "whatsapp.description": "Kendi numarası olmayan işletmelerin bildirimlerini gönderen platform WhatsApp numarasını yönetin.",
   "whatsapp.forbidden": "WhatsApp entegrasyonunu görüntüleme yetkiniz yok.",
@@ -185,10 +181,12 @@
   "whatsapp.session.disconnect_title": "Platform numarasının bağlantısı kesilsin mi?",
   "whatsapp.session.disconnect_body": "Cihaz oturumu kapatılır. Sağlayıcı bu numaraysa kendi numarası olmayan işletmelerin mesajları yeniden bağlanana kadar gönderilemez.",
   "whatsapp.templates.title": "Meta şablonları",
-  "whatsapp.templates.description": "Platform şablon kataloğu ve Meta onay durumları. Cloud API yalnızca onaylı şablonlarla gönderir.",
+  "whatsapp.templates.description": "Platform şablon kataloğu ve Meta onay durumları; her şablon Türkçe ve İngilizce olarak ayrı ayrı gönderilir. Cloud API yalnızca onaylı şablonlarla gönderir.",
   "whatsapp.templates.sync": "Durumları eşitle",
   "whatsapp.templates.submit_all": "Tümünü gönder ({{count}})",
   "whatsapp.templates.submit": "Meta'ya gönder",
+  "whatsapp.templates.resubmit": "Yeniden gönder",
+  "whatsapp.templates.resubmit_hint": "Reddedilen şablon güncel metinle Meta'da düzenlenir ve yeniden incelemeye alınır.",
   "whatsapp.templates.submitted": "{{count}} şablon Meta onayına gönderildi",
   "whatsapp.templates.submit_partial": "{{ok}} şablon gönderildi, {{failed}} başarısız: {{details}}",
   "whatsapp.templates.submit_failed": "Şablonlar gönderilemedi",

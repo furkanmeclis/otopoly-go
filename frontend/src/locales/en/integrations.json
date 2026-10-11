@@ -24,7 +24,6 @@
   "github.form.secret_placeholder": "Paste a new client secret",
   "github.form.private_key_placeholder": "-----BEGIN RSA PRIVATE KEY-----",
   "github.form.save": "Save GitHub settings",
-
   "google.title": "Google",
   "google.description": "Configure Google OAuth for sign-in and registration.",
   "google.error.title": "Could not load Google settings",
@@ -45,7 +44,6 @@
   "google.form.secret_configured": "Configured — leave blank to keep",
   "google.form.secret_placeholder": "Paste a new client secret",
   "google.form.save": "Save Google settings",
-
   "facebook.title": "Facebook",
   "facebook.description": "Configure Facebook Login for sign-in and registration.",
   "facebook.error.title": "Could not load Facebook settings",
@@ -66,7 +64,6 @@
   "facebook.form.secret_configured": "Configured — leave blank to keep",
   "facebook.form.secret_placeholder": "Paste a new app secret",
   "facebook.form.save": "Save Facebook settings",
-
   "apple.title": "Apple",
   "apple.description": "Configure Sign in with Apple. Upload the .p8 signing key and the client secret is generated automatically.",
   "apple.error.title": "Could not load Apple settings",
@@ -106,7 +103,6 @@
   "apple.form.private_key_remove": "Remove key",
   "apple.form.private_key_keep": "Keep key",
   "apple.form.private_key_clear_selection": "Clear selection",
-
   "whatsapp.title": "WhatsApp sender",
   "whatsapp.description": "Manage the platform WhatsApp number that sends notifications for businesses without their own number.",
   "whatsapp.forbidden": "You are not allowed to view the WhatsApp integration.",
@@ -185,10 +181,12 @@
   "whatsapp.session.disconnect_title": "Disconnect the platform number?",
   "whatsapp.session.disconnect_body": "The device is logged out. If this number is the provider, messages of businesses without their own number cannot be sent until it is linked again.",
   "whatsapp.templates.title": "Meta templates",
-  "whatsapp.templates.description": "Platform template catalog and Meta review statuses. The Cloud API only sends approved templates.",
+  "whatsapp.templates.description": "Platform template catalog and Meta review statuses; every template is submitted separately in Turkish and English. The Cloud API only sends approved templates.",
   "whatsapp.templates.sync": "Sync statuses",
   "whatsapp.templates.submit_all": "Submit all ({{count}})",
   "whatsapp.templates.submit": "Submit to Meta",
+  "whatsapp.templates.resubmit": "Resubmit",
+  "whatsapp.templates.resubmit_hint": "The rejected template is edited in Meta with the current text and reviewed again.",
   "whatsapp.templates.submitted": "{{count}} templates submitted for review",
   "whatsapp.templates.submit_partial": "{{ok}} templates submitted, {{failed}} failed: {{details}}",
   "whatsapp.templates.submit_failed": "Could not submit templates",

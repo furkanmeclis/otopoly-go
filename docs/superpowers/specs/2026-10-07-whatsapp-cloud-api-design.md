@@ -82,9 +82,24 @@ Entry fields: `Key` (e.g. `job.ready`), `MetaName` (e.g. `otopoly_job_ready`),
 `Category` (`UTILITY`, `AUTHENTICATION` for OTP), `Language` (`tr`),
 `Body` (Turkish, `{{1}}…{{n}}`), `Params` (ordered variable names from
 `model.EventVariables`), `Example` values (Meta requires examples),
-`HeaderDocument bool`, buttons where needed (OTP copy-code).
+`HeaderDocument bool`, buttons where needed (OTP copy-code), and
+`Translations` (`en`: Body / Examples / Text with the same positional params).
 Texts must be strictly transactional (no promotional wording) so Meta classifies
 them as UTILITY. Business name goes in as a parameter.
+
+Languages (`catalog.Languages = tr, en`): every entry is submitted once per
+language under the same `MetaName` (Meta keeps one translation per language).
+`AllVariants()` lists entry × language; `Entry.Localize(lang)` returns the
+translated copy. The sender picks the language from the delivery locale
+(`SendDirectInput.Locale`, e.g. the contract instance locale for OTPs) and
+falls back to the Turkish row when the requested language is not approved.
+
+UTILITY bodies must not mention a verification / one-time code: Meta then
+classifies the template as AUTHENTICATION and rejects the submission with
+`INCORRECT_CATEGORY` (this happened to `contract.otp_notice`, which now says
+"onay bilgisi" instead). AUTHENTICATION sends carry the copy-code button as a
+`button` component with `index: 0` (the library drops the zero index through
+`omitempty`; Meta answers `(#100) missing parameter index for button component`).
 
 ### Data model (migration `000075_whatsapp_platform_sender`)
 
@@ -94,10 +109,11 @@ them as UTILITY. Business name goes in as a parameter.
   `access_token_enc`, `app_secret_enc`, `webhook_verify_token_enc` (BYTEA),
   `display_phone`, whatsmeow: `wm_status`, `wm_jid`, `wm_phone`,
   `updated_at`, `updated_by`.
-- `whatsapp_cloud_templates`: `key` (catalog key, unique), `meta_name`,
+- `whatsapp_cloud_templates`: `key` (catalog key), `meta_name`,
   `override_name NULL`, `language`, `category`, `status`
   (`not_submitted|pending|approved|rejected|paused|disabled`), `meta_template_id`,
-  `rejected_reason`, `last_synced_at`.
+  `rejected_reason`, `last_synced_at`; unique `(key, language)` since
+  `000080_whatsapp_cloud_templates_language` (one row per catalog language).
 - `whatsapp_sessions`: add `fallback_to_platform BOOLEAN NOT NULL DEFAULT TRUE`.
 - `outbound_messages`: add `sender_kind TEXT NULL`, `template_name TEXT NULL`,
   `delivery_status TEXT NULL`, `delivery_status_at TIMESTAMPTZ NULL`,
@@ -132,9 +148,9 @@ Platform (super admin + `platform.integrations.whatsapp.*`):
 | POST | `/v1/platform/integrations/whatsapp/session/connect` | whatsmeow QR for platform number |
 | DELETE | `/v1/platform/integrations/whatsapp/session` | Disconnect platform whatsmeow |
 | GET | `/v1/platform/integrations/whatsapp/templates` | Catalog + stored status |
-| POST | `/v1/platform/integrations/whatsapp/templates/submit` | Submit all (or given keys) not yet submitted |
-| POST | `/v1/platform/integrations/whatsapp/templates/sync` | Pull statuses from Meta |
-| PATCH | `/v1/platform/integrations/whatsapp/templates/{key}` | Set/clear `override_name` |
+| POST | `/v1/platform/integrations/whatsapp/templates/submit` | Submit all (or `keys` × `languages`) not yet submitted; `rejected` ones are edited in place (`POST /{template_id}`) and reviewed again; per-item `error` + Meta `message` |
+| POST | `/v1/platform/integrations/whatsapp/templates/sync` | Pull statuses from Meta (every language) |
+| PATCH | `/v1/platform/integrations/whatsapp/templates/{key}/{language}` | Set/clear `override_name` of one language |
 
 Public webhook (no auth, rate-limited):
 

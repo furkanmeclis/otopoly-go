@@ -10,6 +10,9 @@ export type WhatsAppCloudTemplate = components["schemas"]["WhatsAppTemplate"];
 export type WhatsAppTemplateStatus = WhatsAppCloudTemplate["status"];
 export type WhatsAppTemplateSubmit =
   components["schemas"]["WhatsAppTemplateSubmit"];
+export type WhatsAppTemplateLanguage = WhatsAppCloudTemplate["language"];
+export type SubmitWhatsAppTemplatesRequest =
+  components["schemas"]["SubmitWhatsAppTemplatesRequest"];
 export type PlatformWhatsAppTestRequest =
   components["schemas"]["PlatformWhatsAppTestRequest"];
 export type PlatformWhatsAppTestResult =
@@ -59,11 +62,17 @@ export const whatsappIntegrationService = {
     return data.items;
   },
 
-  async submitTemplates(keys?: string[]) {
+  /** Submits every pending template, or only `keys` × `languages`. */
+  async submitTemplates(selection: SubmitWhatsAppTemplatesRequest = {}) {
+    const body: SubmitWhatsAppTemplatesRequest = {};
+    if (selection.keys && selection.keys.length > 0) body.keys = selection.keys;
+    if (selection.languages && selection.languages.length > 0) {
+      body.languages = selection.languages;
+    }
     return unwrap<WhatsAppTemplateSubmit>(
       await apiClient.POST(
         "/v1/platform/integrations/whatsapp/templates/submit",
-        { body: keys && keys.length > 0 ? { keys } : {} },
+        { body },
       ),
     );
   },
@@ -75,12 +84,16 @@ export const whatsappIntegrationService = {
     return data.items;
   },
 
-  async setOverride(key: string, overrideName: string | null) {
+  async setOverride(
+    key: string,
+    language: WhatsAppTemplateLanguage,
+    overrideName: string | null,
+  ) {
     return unwrap<WhatsAppCloudTemplate>(
       await apiClient.PATCH(
-        "/v1/platform/integrations/whatsapp/templates/{key}",
+        "/v1/platform/integrations/whatsapp/templates/{key}/{language}",
         {
-          params: { path: { key } },
+          params: { path: { key, language } },
           body: { override_name: overrideName },
         },
       ),

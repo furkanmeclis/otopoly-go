@@ -197,6 +197,72 @@ func TestSendTemplateOTPCopyCode(t *testing.T) {
 		comps[1]["parameters"].([]any)[0].(map[string]any)["text"] != "482913" {
 		t.Fatalf("otp params: %v", comps)
 	}
+	// Meta rejects a button component without "index" ((#100) "missing
+	// parameter index for button component"); the copy-code button is at 0,
+	// which the library drops through omitempty.
+	if idx, ok := comps[1]["index"]; !ok || idx != float64(0) || comps[1]["sub_type"] != "url" {
+		t.Fatalf("button component must carry index 0 and sub_type url: %v", comps[1])
+	}
+	body := g.jsonBody("POST /v26.0/PHONEID/messages")
+	if body["messaging_product"] != "whatsapp" || body["to"] != "905321234567" || body["type"] != "template" ||
+		body["template"].(map[string]any)["language"].(map[string]any)["code"] != "tr" {
+		t.Fatalf("auth send envelope: %v", body)
+	}
+	if g.auth["POST /v26.0/PHONEID/messages"] != "Bearer "+testToken {
+		t.Fatalf("auth header: %q", g.auth["POST /v26.0/PHONEID/messages"])
+	}
+}
+
+func TestSendTemplateOTPErrorMapping(t *testing.T) {
+	g := newFakeGraph(t)
+	g.on("POST /v26.0/PHONEID/messages", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 400, graphError(132001)) })
+	_, err := g.client().SendTemplate(context.Background(), "905321234567", TemplateMessage{Name: "otopoly_contract_otp", OTPCode: "1"})
+	if model.ErrorCodeOf(err) != model.ErrCodeTemplateMissing {
+		t.Fatalf("otp send error must classify like other sends: %v", err)
+	}
+}
+
+func TestEditTemplateResubmitsComponents(t *testing.T) {
+	g := newFakeGraph(t)
+	g.on("POST /v26.0/TPL9", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 200, `{"success":true}`) })
+	out, err := g.client().EditTemplate(context.Background(), "TPL9", TemplateDefinition{
+		Name: "otopoly_contract_otp_notice", Language: "tr", Category: "UTILITY",
+		Body: "Sözleşme {{1}} bilgilendirmesi.", Examples: []string{"X"},
+	})
+	if err != nil || out.ID != "TPL9" || out.Status != "PENDING" {
+		t.Fatalf("edit: %+v %v", out, err)
+	}
+	body := g.jsonBody("POST /v26.0/TPL9")
+	comps := body["components"].([]any)
+	if body["category"] != "UTILITY" || len(comps) != 1 || comps[0].(map[string]any)["text"] != "Sözleşme {{1}} bilgilendirmesi." {
+		t.Fatalf("edit body: %v", body)
+	}
+	if _, ok := body["name"]; ok {
+		t.Fatalf("edit must not send a name: %v", body)
+	}
+	if _, err := g.client().EditTemplate(context.Background(), "", TemplateDefinition{}); model.ErrorCodeOf(err) != model.ErrCodeTemplateMissing {
+		t.Fatalf("empty id: %v", err)
+	}
+}
+
+func TestGraphMessage(t *testing.T) {
+	g := newFakeGraph(t)
+	g.on("POST /v26.0/WABAID/message_templates", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, 400, `{"error":{"message":"(#100) Invalid parameter","type":"OAuthException","code":100,"error_user_msg":"The example is invalid.","error_data":{"messaging_product":"whatsapp","details":"header handle expired"},"fbtrace_id":"x"}}`)
+	})
+	_, err := g.client().CreateTemplate(context.Background(), TemplateDefinition{Name: "x", Category: "UTILITY", Body: "b"})
+	msg := GraphMessage(err)
+	for _, w := range []string{"(#100) Invalid parameter", "The example is invalid.", "header handle expired"} {
+		if !strings.Contains(msg, w) {
+			t.Errorf("message %q lacks %q", msg, w)
+		}
+	}
+	if strings.Contains(msg, testToken) {
+		t.Fatalf("message leaks token")
+	}
+	if GraphMessage(errors.New("plain")) != "" || GraphMessage(nil) != "" {
+		t.Fatalf("non-graph errors have no message")
+	}
 }
 
 func graphError(code int) string {

@@ -39,25 +39,26 @@ WHERE id = 1
 RETURNING *;
 
 -- name: ListWhatsAppCloudTemplates :many
-SELECT * FROM whatsapp_cloud_templates ORDER BY key;
+SELECT * FROM whatsapp_cloud_templates ORDER BY key, language;
 
--- name: GetWhatsAppCloudTemplateByKey :one
-SELECT * FROM whatsapp_cloud_templates WHERE key = sqlc.arg(key);
+-- name: GetWhatsAppCloudTemplate :one
+SELECT * FROM whatsapp_cloud_templates
+WHERE key = sqlc.arg(key) AND language = sqlc.arg(language);
 
 -- name: EnsureWhatsAppCloudTemplate :one
--- Inserts a catalog entry; existing rows keep their Meta state and override.
+-- Inserts a catalog entry (one row per key + language); existing rows keep
+-- their Meta state and override.
 INSERT INTO whatsapp_cloud_templates (key, meta_name, language, category)
 VALUES (sqlc.arg(key), sqlc.arg(meta_name), sqlc.arg(language), sqlc.arg(category))
-ON CONFLICT (key) DO UPDATE
+ON CONFLICT (key, language) DO UPDATE
 SET meta_name = EXCLUDED.meta_name,
-    language = EXCLUDED.language,
     category = EXCLUDED.category
 RETURNING *;
 
 -- name: SetWhatsAppCloudTemplateOverride :one
 UPDATE whatsapp_cloud_templates
 SET override_name = sqlc.narg(override_name)
-WHERE key = sqlc.arg(key)
+WHERE key = sqlc.arg(key) AND language = sqlc.arg(language)
 RETURNING *;
 
 -- name: UpdateWhatsAppCloudTemplateStatus :one
@@ -66,7 +67,7 @@ SET status = sqlc.arg(status),
     meta_template_id = sqlc.arg(meta_template_id),
     rejected_reason = sqlc.arg(rejected_reason),
     last_synced_at = NOW()
-WHERE key = sqlc.arg(key)
+WHERE key = sqlc.arg(key) AND language = sqlc.arg(language)
 RETURNING *;
 
 -- name: UpdateWhatsAppCloudTemplateStatusByMetaID :execrows

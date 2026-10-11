@@ -37,6 +37,11 @@ import { useLocale } from "@/providers/locale-provider";
 /** Select value for "no catalog key" (hello_world / plain test line). */
 const DEFAULT_TEMPLATE = "__default__";
 
+/** One select option per catalog key + language ("key:language"). */
+function optionValue(tpl: Pick<WhatsAppCloudTemplate, "key" | "language">) {
+  return `${tpl.key}:${tpl.language}`;
+}
+
 type TestSendError = { code: string; message: string };
 
 export function WhatsAppTestSendCard({
@@ -50,7 +55,8 @@ export function WhatsAppTestSendCard({
 }) {
   const { t } = useLocale();
   const [phone, setPhone] = useState("");
-  const [templateKey, setTemplateKey] = useState(DEFAULT_TEMPLATE);
+  const [templateOption, setTemplateOption] = useState(DEFAULT_TEMPLATE);
+  const selected = templates.find((tpl) => optionValue(tpl) === templateOption);
   const [result, setResult] = useState<PlatformWhatsAppTestResult | null>(null);
   const [error, setError] = useState<TestSendError | null>(null);
 
@@ -58,8 +64,8 @@ export function WhatsAppTestSendCard({
     mutationFn: () =>
       whatsappIntegrationService.sendTest({
         phone: phone.trim(),
-        ...(templateKey !== DEFAULT_TEMPLATE
-          ? { template_key: templateKey }
+        ...(selected
+          ? { template_key: selected.key, language: selected.language }
           : {}),
       }),
     onMutate: () => {
@@ -122,8 +128,8 @@ export function WhatsAppTestSendCard({
               {t("integrations.whatsapp.test.template")}
             </Label>
             <Select
-              value={templateKey}
-              onValueChange={setTemplateKey}
+              value={templateOption}
+              onValueChange={setTemplateOption}
               disabled={disabled}
             >
               <SelectTrigger id="wa-test-template" className="w-full">
@@ -136,8 +142,9 @@ export function WhatsAppTestSendCard({
                     : t("integrations.whatsapp.test.plain_line")}
                 </SelectItem>
                 {templates.map((tpl) => (
-                  <SelectItem key={tpl.key} value={tpl.key}>
-                    {tpl.key} · {tpl.effective_name}
+                  <SelectItem key={optionValue(tpl)} value={optionValue(tpl)}>
+                    {tpl.key} · {tpl.effective_name} ·{" "}
+                    {tpl.language.toUpperCase()}
                   </SelectItem>
                 ))}
               </SelectContent>

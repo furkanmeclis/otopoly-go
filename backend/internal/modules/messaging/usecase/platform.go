@@ -105,6 +105,8 @@ type PlatformTestInput struct {
 	// TemplateKey is a catalog key; empty sends Meta's hello_world (Cloud)
 	// or a plain test line (whatsmeow).
 	TemplateKey string `json:"template_key"`
+	// Language is the catalog language of TemplateKey (default tr).
+	Language string `json:"language"`
 }
 
 // PlatformTestResult is the outcome of a platform test send.
@@ -129,6 +131,9 @@ func (s *Service) SendPlatformTest(ctx context.Context, in PlatformTestInput) (P
 		e, ok := catalog.Lookup(key)
 		if !ok {
 			return PlatformTestResult{}, fmt.Errorf("%w: unknown template_key", ErrInvalidRequest)
+		}
+		if e, ok = e.Localize(in.Language); !ok {
+			return PlatformTestResult{}, fmt.Errorf("%w: unknown template language", ErrInvalidRequest)
 		}
 		entry = e
 	}
@@ -162,7 +167,7 @@ func (s *Service) SendPlatformTest(ctx context.Context, in PlatformTestInput) (P
 	msg := cloud.TemplateMessage{Name: helloWorld, Language: "en_US"}
 	if entry.Key != "" {
 		msg = cloud.TemplateMessage{Name: entry.MetaName, Language: entry.Language}
-		if row, err := s.q.GetWhatsAppCloudTemplateByKey(ctx, entry.Key); err == nil {
+		if row, err := s.q.GetWhatsAppCloudTemplate(ctx, db.GetWhatsAppCloudTemplateParams{Key: entry.Key, Language: entry.Language}); err == nil {
 			msg.Name, msg.Language = EffectiveTemplateName(row), row.Language
 		}
 		if entry.CopyCodeButton {

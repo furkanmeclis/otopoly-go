@@ -259,7 +259,8 @@ type Querier interface {
 	// First device registration opts the user into push (the OS permission
 	// prompt is the consent). An existing preference row is left untouched.
 	EnsureNotificationPreferencesPushDefault(ctx context.Context, userID int64) error
-	// Inserts a catalog entry; existing rows keep their Meta state and override.
+	// Inserts a catalog entry (one row per key + language); existing rows keep
+	// their Meta state and override.
 	EnsureWhatsAppCloudTemplate(ctx context.Context, arg EnsureWhatsAppCloudTemplateParams) (WhatsappCloudTemplate, error)
 	// Expires pending actions of a conversation: all of them (the user moved on)
 	// or only those past expires_at.
@@ -482,7 +483,7 @@ type Querier interface {
 	GetVehicleModelYearForSearch(ctx context.Context, arg GetVehicleModelYearForSearchParams) (GetVehicleModelYearForSearchRow, error)
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
-	GetWhatsAppCloudTemplateByKey(ctx context.Context, key string) (WhatsappCloudTemplate, error)
+	GetWhatsAppCloudTemplate(ctx context.Context, arg GetWhatsAppCloudTemplateParams) (WhatsappCloudTemplate, error)
 	GetWhatsAppSession(ctx context.Context, organizationID int64) (WhatsappSession, error)
 	HasActivePushDevices(ctx context.Context, userID int64) (bool, error)
 	IncrementContractSignerOTPAttempts(ctx context.Context, id int64) (ContractSignerOtp, error)

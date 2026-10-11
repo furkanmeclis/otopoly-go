@@ -561,7 +561,7 @@ export interface paths {
         put?: never;
         /**
          * Submit catalog templates to Meta
-         * @description Super admin only (`platform.integrations.whatsapp.write`). Creates every `not_submitted` template (or only `keys`) in the WABA with example values; entries with an override name are skipped. Per-key failures are reported in `results`; auth / configuration failures return 409.
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Creates every `not_submitted` template (every catalog language, or only `keys` × `languages`) in the WABA with example values; `rejected` templates are edited in place (Meta reviews them again). Entries with an override name are skipped. Per-template failures are reported in `results` with Meta's error text; auth / configuration failures return 409.
          */
         post: operations["postPlatformWhatsAppTemplatesSubmit"];
         delete?: never;
@@ -581,7 +581,7 @@ export interface paths {
         put?: never;
         /**
          * Pull template statuses from Meta
-         * @description Super admin only (`platform.integrations.whatsapp.write`). Matches Meta templates by effective name (override or catalog name) and language; templates missing in Meta become `not_submitted`.
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Matches Meta templates by effective name (override or catalog name) and language, for every catalog language; templates missing in Meta become `not_submitted`.
          */
         post: operations["postPlatformWhatsAppTemplatesSync"];
         delete?: never;
@@ -590,7 +590,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/integrations/whatsapp/templates/{key}": {
+    "/v1/platform/integrations/whatsapp/templates/{key}/{language}": {
         parameters: {
             query?: never;
             header?: never;
@@ -605,7 +605,7 @@ export interface paths {
         head?: never;
         /**
          * Set or clear the Meta template name override
-         * @description Super admin only (`platform.integrations.whatsapp.write`). Maps a catalog key to a template created manually in Meta (`null` / empty clears it). The stored Meta state is reset to `not_submitted` until the next sync.
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Maps a catalog key in one language to a template created manually in Meta (`null` / empty clears it). The stored Meta state of that language is reset to `not_submitted` until the next sync.
          */
         patch: operations["patchPlatformWhatsAppTemplate"];
         trace?: never;
@@ -7531,6 +7531,11 @@ export interface components {
             phone: string;
             /** @description Catalog key (e.g. `job.ready`); empty sends `hello_world` / a plain test line. */
             template_key?: string;
+            /**
+             * @description Catalog language of `template_key` (default `tr`).
+             * @enum {string}
+             */
+            language?: "tr" | "en";
         };
         PlatformWhatsAppTestResult: {
             /** @enum {string} */
@@ -7552,8 +7557,11 @@ export interface components {
             meta_name: string;
             override_name: string | null;
             effective_name: string;
-            /** @example tr */
-            language: string;
+            /**
+             * @description Catalog language; one item per key and language.
+             * @enum {string}
+             */
+            language: "tr" | "en";
             /** @enum {string} */
             category: "UTILITY" | "AUTHENTICATION";
             /** @enum {string} */
@@ -7562,7 +7570,7 @@ export interface components {
             rejected_reason: string;
             /** Format: date-time */
             last_synced_at: string | null;
-            /** @description Turkish body with positional {{1}}…{{n}} params */
+            /** @description Body in `language` with positional {{1}}…{{n}} params */
             body: string;
             params: string[];
             examples: string[];
@@ -7585,16 +7593,22 @@ export interface components {
             meta: components["schemas"]["ResponseMeta"];
         };
         SubmitWhatsAppTemplatesRequest: {
-            /** @description Catalog keys to submit; omitted = every `not_submitted` entry. */
+            /** @description Catalog keys to submit; omitted = every entry. */
             keys?: string[];
+            /** @description Catalog languages to submit; omitted = every language. */
+            languages?: ("tr" | "en")[];
         };
         WhatsAppTemplateSubmitResult: {
             key: string;
+            /** @enum {string} */
+            language: "tr" | "en";
             status: string;
             /** @enum {string} */
             skipped?: "override" | "already_submitted";
             /** @description Classified error code (e.g. `graph_100`). */
             error?: string;
+            /** @description Meta's error text, when the Graph API returned one. */
+            message?: string;
         };
         WhatsAppTemplateSubmit: {
             results: components["schemas"]["WhatsAppTemplateSubmitResult"][];
@@ -12848,6 +12862,8 @@ export interface operations {
             header?: never;
             path: {
                 key: string;
+                /** @description Catalog language (Meta language code). */
+                language: "tr" | "en";
             };
             cookie?: never;
         };

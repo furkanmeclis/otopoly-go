@@ -58,7 +58,7 @@ type Querier interface {
 	GetPlatformWhatsAppSettings(ctx context.Context) (db.PlatformWhatsappSetting, error)
 	UpdatePlatformWhatsAppSession(ctx context.Context, arg db.UpdatePlatformWhatsAppSessionParams) (db.PlatformWhatsappSetting, error)
 	UpdatePlatformWhatsAppQR(ctx context.Context, arg db.UpdatePlatformWhatsAppQRParams) (db.PlatformWhatsappSetting, error)
-	GetWhatsAppCloudTemplateByKey(ctx context.Context, key string) (db.WhatsappCloudTemplate, error)
+	GetWhatsAppCloudTemplate(ctx context.Context, arg db.GetWhatsAppCloudTemplateParams) (db.WhatsappCloudTemplate, error)
 }
 
 // ChannelSender is a generic send interface for a messaging channel.
@@ -567,6 +567,10 @@ type SendDirectInput struct {
 	// Vars feed the platform catalog entry when the platform number sends
 	// (e.g. code, business_name, minutes for contract.otp). Never persisted.
 	Vars map[string]string
+	// Locale picks the platform template language (tr default; en when the
+	// recipient's document is English). Falls back to tr when the language
+	// is not approved yet.
+	Locale string
 }
 
 // SendDirect delivers a pre-rendered body through the resolved sender and
@@ -587,6 +591,7 @@ func (s *Service) SendDirect(ctx context.Context, in SendDirectInput) (string, e
 	if channel == model.ChannelWhatsApp {
 		res, sendErr = s.deliverWhatsApp(ctx, outboundDelivery{
 			OrgID: in.OrgID, EventType: in.EventType, Phone: in.RecipientPhone, Body: in.Body, Vars: in.Vars,
+			Locale: in.Locale,
 		})
 	} else {
 		sender, ok := s.channels[channel]
@@ -621,6 +626,7 @@ func (s *Service) sendContractOTPNotice(ctx context.Context, in SendDirectInput)
 	}
 	res, err := s.deliverWhatsApp(ctx, outboundDelivery{
 		OrgID: in.OrgID, EventType: model.EventContractOTPNotice, Phone: in.RecipientPhone, Vars: vars,
+		Locale: in.Locale,
 	})
 	s.logOutbound(ctx, outboundLog{
 		OrgID: in.OrgID, EventType: model.EventContractOTPNotice, Channel: model.ChannelWhatsApp, Phone: in.RecipientPhone,

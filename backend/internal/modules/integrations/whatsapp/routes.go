@@ -39,7 +39,7 @@ func RegisterRoutes(
 	mux.Handle("GET /v1/platform/integrations/whatsapp/templates", read(h.ListTemplates))
 	mux.Handle("POST /v1/platform/integrations/whatsapp/templates/submit", write(h.SubmitTemplates))
 	mux.Handle("POST /v1/platform/integrations/whatsapp/templates/sync", write(h.SyncTemplates))
-	mux.Handle("PATCH /v1/platform/integrations/whatsapp/templates/{key}", write(h.PatchTemplate))
+	mux.Handle("PATCH /v1/platform/integrations/whatsapp/templates/{key}/{language}", write(h.PatchTemplate))
 }
 
 // RegisterWebhookRoutes mounts the public Meta webhook (no auth; signed body,
