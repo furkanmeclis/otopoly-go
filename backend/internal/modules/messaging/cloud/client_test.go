@@ -13,6 +13,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/piusalfred/whatsapp/config"
+	whttp "github.com/piusalfred/whatsapp/pkg/http"
 )
 
 const (
@@ -330,7 +331,13 @@ func TestCreateTemplatePayloads(t *testing.T) {
 		}
 		writeJSON(w, 200, `{"id":"upload:SESSION"}`)
 	})
-	g.on("POST /v26.0/upload:SESSION", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 200, `{"h":"HANDLE1"}`) })
+	g.on("POST /v26.0/upload:SESSION", func(w http.ResponseWriter, r *http.Request) {
+		// Meta's upload endpoint wants OAuth (not Bearer) and the offset header.
+		if r.Header.Get("Authorization") != "OAuth "+testToken || r.Header.Get("file_offset") != "0" {
+			t.Errorf("upload headers: %v", r.Header)
+		}
+		writeJSON(w, 200, `{"h":"HANDLE1"}`)
+	})
 	c := g.client()
 	key := "POST /v26.0/WABAID/message_templates"
 
@@ -381,6 +388,54 @@ func TestCreateTemplatePayloads(t *testing.T) {
 	btn := comps[2].(map[string]any)["buttons"].([]any)[0].(map[string]any)
 	if btn["type"] != "OTP" || btn["otp_type"] != "COPY_CODE" {
 		t.Fatalf("auth button: %v", btn)
+	}
+}
+
+// TestCreateTemplateUploadDebugInfoError: the upload endpoint reports
+// failures as {"debug_info": …}; the message must survive into the error.
+func TestCreateTemplateUploadDebugInfoError(t *testing.T) {
+	g := newFakeGraph(t)
+	g.on("POST /v26.0/APPID/uploads", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 200, `{"id":"upload:S2"}`) })
+	g.on("POST /v26.0/upload:S2", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, 400, `{"debug_info":{"retriable":false,"type":"NotAuthorizedError","message":"User not authorized to upload"}}`)
+	})
+	_, err := g.client().CreateTemplate(context.Background(), TemplateDefinition{
+		Name: "otopoly_quote_sent", Category: "UTILITY", Body: "b {{1}}", Examples: []string{"x"}, HeaderDocument: true,
+	})
+	if model.ErrorCodeOf(err) != model.ErrCodeMediaUploadFailed {
+		t.Fatalf("code = %q (%v)", model.ErrorCodeOf(err), err)
+	}
+	if msg := GraphMessage(err); !strings.Contains(msg, "User not authorized to upload") {
+		t.Fatalf("message = %q", msg)
+	}
+	if strings.Contains(err.Error(), testToken) {
+		t.Fatalf("error leaks token: %v", err)
+	}
+	if _, ok := g.bodies["POST /v26.0/WABAID/message_templates"]; ok {
+		t.Fatalf("template must not be created after a failed upload")
+	}
+
+	// Session start failure in Graph error shape → graph code mapping.
+	g2 := newFakeGraph(t)
+	g2.on("POST /v26.0/APPID/uploads", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, 400, graphError(190)) })
+	_, err = g2.client().CreateTemplate(context.Background(), TemplateDefinition{Name: "x", Category: "UTILITY", HeaderDocument: true})
+	if model.ErrorCodeOf(err) != model.ErrCodeCloudAuthFailed || strings.Contains(err.Error(), testToken) {
+		t.Fatalf("session error: %v", err)
+	}
+}
+
+// TestClassifyHTTPErrorWithoutGraphBody: a non-2xx response the library
+// decoded without a Graph "error" is a send failure, not "cloud unavailable".
+func TestClassifyHTTPErrorWithoutGraphBody(t *testing.T) {
+	se := Classify(&whttp.ResponseError{Code: 400})
+	if se.Code != model.ErrCodeSendFailed || se.Retryable || GraphMessage(se) != "HTTP 400" {
+		t.Fatalf("400: %+v %q", se, GraphMessage(se))
+	}
+	if se := Classify(&whttp.ResponseError{Code: 503}); se.Code != model.ErrCodeCloudUnavailable || !se.Retryable {
+		t.Fatalf("503: %+v", se)
+	}
+	if se := Classify(&GraphAPIError{Status: 403, Message: "nope"}); se.Code != model.ErrCodeCloudAuthFailed || GraphMessage(se) != "nope" {
+		t.Fatalf("403: %+v", se)
 	}
 }
 

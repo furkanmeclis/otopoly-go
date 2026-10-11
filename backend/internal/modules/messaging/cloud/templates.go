@@ -3,18 +3,23 @@ package cloud
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/piusalfred/whatsapp/config"
 	"github.com/piusalfred/whatsapp/templates"
-	"github.com/piusalfred/whatsapp/uploads"
 )
 
 // Template management goes through the library's templates client
 // (/{waba_id}/message_templates); the DOCUMENT header example is uploaded
-// with its resumable upload client.
+// with the Resumable Upload API directly (see uploadExample).
 
 // TemplateDefinition is a template to create in Meta.
 type TemplateDefinition struct {
@@ -157,30 +162,138 @@ func (c *Client) EditTemplate(ctx context.Context, metaTemplateID string, def Te
 	return CreatedTemplate{ID: metaTemplateID, Status: "PENDING", Category: def.Category}, nil
 }
 
-// uploadExample uploads the sample PDF with the resumable upload API and
-// returns the header handle.
+// uploadExample uploads the sample PDF with the Resumable Upload API and
+// returns the header handle. The two calls are made directly (not through
+// the library): Meta's upload endpoint wants `Authorization: OAuth <token>`
+// (the library sends Bearer) and reports failures as `{"debug_info": …}`,
+// which the library cannot decode into an error.
+// https://developers.facebook.com/docs/graph-api/guides/upload
 func (c *Client) uploadExample(ctx context.Context, conf *config.Config) (string, error) {
 	if strings.TrimSpace(conf.AppID) == "" {
 		return "", model.NewSendError(model.ErrCodePlatformSenderNotConfigured, false,
 			fmt.Errorf("app_id is required to submit a document header template"))
 	}
-	up := uploads.NewClient(conf, c.senderOptions()...)
-	session, err := up.InitUploadSession(ctx, &uploads.InitUploadSessionRequest{
-		FileName: "teklif-ornek.pdf", FileLength: int64(len(samplePDF)), FileType: "application/pdf",
-	})
-	if err != nil {
-		return "", Classify(err)
+	base := strings.TrimRight(conf.BaseURL, "/") + "/" + strings.Trim(conf.APIVersion, "/")
+
+	// 1. Start the session: POST /{app_id}/uploads?file_name&file_length&file_type (token in the query).
+	q := url.Values{}
+	q.Set("file_name", "teklif-ornek.pdf")
+	q.Set("file_length", strconv.Itoa(len(samplePDF)))
+	q.Set("file_type", "application/pdf")
+	q.Set("access_token", conf.AccessToken)
+	var session struct {
+		ID string `json:"id"`
 	}
-	chunk, err := up.UploadChunk(ctx, &uploads.UploadChunkRequest{
-		UploadSessionID: session.ID, FileOffset: 0, FileReader: bytes.NewReader(samplePDF),
-	})
-	if err != nil {
-		return "", Classify(err)
+	if err := c.graphJSON(ctx, http.MethodPost, base+"/"+conf.AppID+"/uploads?"+q.Encode(), nil, nil, &session); err != nil {
+		return "", uploadError(err)
 	}
-	if chunk.FileHandle == "" {
+	if strings.TrimSpace(session.ID) == "" {
+		return "", model.NewSendError(model.ErrCodeMediaUploadFailed, true, fmt.Errorf("upload session: response without id"))
+	}
+
+	// 2. Upload the bytes: POST /upload:{id} with OAuth auth and file_offset.
+	var chunk struct {
+		Handle string `json:"h"`
+	}
+	headers := map[string]string{
+		"Authorization": "OAuth " + conf.AccessToken,
+		"file_offset":   "0",
+		"Content-Type":  "application/pdf",
+	}
+	if err := c.graphJSON(ctx, http.MethodPost, base+"/"+session.ID, headers, bytes.NewReader(samplePDF), &chunk); err != nil {
+		return "", uploadError(err)
+	}
+	if chunk.Handle == "" {
 		return "", model.NewSendError(model.ErrCodeMediaUploadFailed, true, fmt.Errorf("upload returned no handle"))
 	}
-	return chunk.FileHandle, nil
+	return chunk.Handle, nil
+}
+
+// uploadError classifies an upload failure; a generic send failure becomes
+// media_upload_failed so the admin sees where it broke.
+func uploadError(err error) *model.SendError {
+	se := Classify(err)
+	if se.Code == model.ErrCodeSendFailed {
+		se.Code = model.ErrCodeMediaUploadFailed
+	}
+	return se
+}
+
+// graphErrorBody is the union of Meta's error shapes: Graph API
+// (`{"error": {...}}`) and the upload endpoint (`{"debug_info": {...}}`).
+type graphErrorBody struct {
+	Error *struct {
+		Message   string `json:"message"`
+		Type      string `json:"type"`
+		Code      int    `json:"code"`
+		Subcode   int    `json:"error_subcode"`
+		UserMsg   string `json:"error_user_msg"`
+		ErrorData *struct {
+			Details string `json:"details"`
+		} `json:"error_data"`
+	} `json:"error"`
+	DebugInfo *struct {
+		Retriable bool   `json:"retriable"`
+		Type      string `json:"type"`
+		Message   string `json:"message"`
+	} `json:"debug_info"`
+}
+
+// graphJSON performs one Graph API call and decodes a JSON body into out.
+// Non-2xx responses become *GraphAPIError (message filled from either
+// error shape); transport failures are returned as is.
+func (c *Client) graphJSON(ctx context.Context, method, rawURL string, headers map[string]string, body io.Reader, out any) error {
+	req, err := http.NewRequestWithContext(ctx, method, rawURL, body)
+	if err != nil {
+		return err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		// url.Error carries the full URL, which holds the access token for
+		// the upload-session call: never let it reach logs or responses.
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return fmt.Errorf("graph api: %s %s: %w", method, req.URL.Path, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return fmt.Errorf("graph api: read response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		ge := &GraphAPIError{Status: resp.StatusCode}
+		var eb graphErrorBody
+		if json.Unmarshal(data, &eb) == nil {
+			switch {
+			case eb.Error != nil:
+				ge.Code, ge.Type, ge.Message = eb.Error.Code, eb.Error.Type, eb.Error.Message
+				if eb.Error.ErrorData != nil {
+					ge.Details = eb.Error.ErrorData.Details
+				}
+				if ge.Details == "" {
+					ge.Details = eb.Error.UserMsg
+				}
+			case eb.DebugInfo != nil:
+				ge.Type, ge.Message = eb.DebugInfo.Type, eb.DebugInfo.Message
+			}
+		}
+		if ge.Message == "" && len(data) > 0 && len(data) <= 300 {
+			ge.Message = strings.TrimSpace(string(data))
+		}
+		return ge
+	}
+	if out == nil || len(data) == 0 {
+		return nil
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("graph api: decode response: %w", err)
+	}
+	return nil
 }
 
 // maxTemplatePages bounds paging through the WABA template list.

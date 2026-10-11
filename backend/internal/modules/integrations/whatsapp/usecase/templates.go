@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -260,6 +261,9 @@ func (s *Templates) Submit(ctx context.Context, in SubmitInput) ([]SubmitResult,
 				res.Error = model.ErrCodeSendFailed
 			}
 			res.Message = cloud.GraphMessage(err)
+			slog.Warn("whatsapp template submit failed",
+				"key", e.Key, "language", e.Language, "meta_name", e.MetaName,
+				"error_code", res.Error, "error", err.Error())
 			out = append(out, res)
 			continue
 		}
