@@ -260,7 +260,7 @@ func (c *Client) graphJSON(ctx context.Context, method, rawURL string, headers m
 		}
 		return fmt.Errorf("graph api: %s %s: %w", method, req.URL.Path, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return fmt.Errorf("graph api: read response: %w", err)
