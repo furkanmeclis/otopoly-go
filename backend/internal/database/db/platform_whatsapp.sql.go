@@ -647,8 +647,9 @@ UPDATE whatsapp_cloud_templates
 SET status = $1,
     meta_template_id = $2,
     rejected_reason = $3,
+    category = COALESCE(NULLIF($4::text, ''), category),
     last_synced_at = NOW()
-WHERE key = $4 AND language = $5
+WHERE key = $5 AND language = $6
 RETURNING id, key, meta_name, override_name, language, category, status, meta_template_id, rejected_reason, last_synced_at, created_at, updated_at
 `
 
@@ -656,15 +657,18 @@ type UpdateWhatsAppCloudTemplateStatusParams struct {
 	Status         string `json:"status"`
 	MetaTemplateID string `json:"meta_template_id"`
 	RejectedReason string `json:"rejected_reason"`
+	Category       string `json:"category"`
 	Key            string `json:"key"`
 	Language       string `json:"language"`
 }
 
+// category: Meta's category of the template (empty keeps the stored one).
 func (q *Queries) UpdateWhatsAppCloudTemplateStatus(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusParams) (WhatsappCloudTemplate, error) {
 	row := q.db.QueryRow(ctx, updateWhatsAppCloudTemplateStatus,
 		arg.Status,
 		arg.MetaTemplateID,
 		arg.RejectedReason,
+		arg.Category,
 		arg.Key,
 		arg.Language,
 	)

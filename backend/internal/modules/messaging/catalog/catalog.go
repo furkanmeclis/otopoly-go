@@ -182,12 +182,16 @@ var entries = []Entry{
 		}},
 	},
 	{
+		// Pure status information about a quote the customer requested: no
+		// call to action, no urgency, no "respond" / "renew" wording. Meta
+		// classifies expiration nudges as MARKETING (see the categorization
+		// guidelines); the first wording of this entry was re-categorized.
 		Key: model.EventQuoteExpiring, MetaName: "otopoly_quote_expiring", Category: CategoryUtility,
-		Body:     "Sayın {{1}}, {{2}} tarafından iletilen {{3}} numaralı teklifinizin geçerlilik süresi {{4}} tarihinde sona eriyor. Bu mesaj teklif kaydınızla ilgili bilgilendirmedir.",
+		Body:     "Sayın {{1}}, {{2}} işletmesinden talep ettiğiniz {{3}} numaralı teklifin durum bilgisi: teklifin geçerlilik süresi {{4}} tarihinde sona erecektir. Herhangi bir işlem yapmanız gerekmez; teklif kaydınız işletmede saklanmaktadır.",
 		Params:   []string{"customer_name", "business_name", "quote_number", "valid_until"},
 		Examples: []string{"Ahmet Yılmaz", "Tech Oto", "TKL-000042", "30.09.2026"},
 		Translations: map[string]Translation{"en": {
-			Body:     "Dear {{1}}, {{2}} informs you that quote number {{3}} expires on {{4}}. This message is an update on your quote record.",
+			Body:     "Dear {{1}}, this is a status update from {{2}} on quote number {{3}} that you requested: its validity period ends on {{4}}. No action is required; your quote record is kept on file at the business.",
 			Examples: []string{"John Smith", "Tech Auto", "QTE-000042", "30.09.2026"},
 		}},
 	},

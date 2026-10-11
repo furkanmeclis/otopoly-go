@@ -54,12 +54,15 @@ func NewTemplates(q TemplateStore, api TemplateAPI) *Templates {
 
 // Template is one catalog entry with its stored Meta state.
 type Template struct {
-	Key            string     `json:"key"`
-	MetaName       string     `json:"meta_name"`
-	OverrideName   *string    `json:"override_name"`
-	EffectiveName  string     `json:"effective_name"`
-	Language       string     `json:"language"`
-	Category       string     `json:"category"`
+	Key           string  `json:"key"`
+	MetaName      string  `json:"meta_name"`
+	OverrideName  *string `json:"override_name"`
+	EffectiveName string  `json:"effective_name"`
+	Language      string  `json:"language"`
+	Category      string  `json:"category"`
+	// MetaCategory is the category Meta currently assigns (sync / submit);
+	// "" until known. Meta may re-categorize a template after review.
+	MetaCategory   string     `json:"meta_category"`
 	Status         string     `json:"status"`
 	MetaTemplateID string     `json:"meta_template_id"`
 	RejectedReason string     `json:"rejected_reason"`
@@ -81,6 +84,9 @@ func mapTemplate(e catalog.Entry, row *db.WhatsappCloudTemplate) Template {
 		return t
 	}
 	t.Status, t.MetaTemplateID, t.RejectedReason = row.Status, row.MetaTemplateID, row.RejectedReason
+	if row.Status != TemplateStatusNotSubmitted && row.MetaTemplateID != "" {
+		t.MetaCategory = row.Category
+	}
 	if row.OverrideName.Valid && row.OverrideName.String != "" {
 		name := row.OverrideName.String
 		t.OverrideName, t.EffectiveName = &name, name
@@ -155,10 +161,26 @@ type SubmitResult struct {
 
 // SubmitInput selects what to submit: every variant when both lists are
 // empty; otherwise the given keys (every language) narrowed to the given
-// languages.
+// languages. Resubmit (explicit keys only) also edits templates that are
+// already approved or paused in Meta with the current catalog text and
+// category, which sends them back to review.
 type SubmitInput struct {
 	Keys      []string `json:"keys"`
 	Languages []string `json:"languages"`
+	Resubmit  bool     `json:"resubmit"`
+}
+
+// editable reports whether a stored template can be edited in Meta
+// (Meta allows APPROVED, REJECTED and PAUSED).
+func editable(row db.WhatsappCloudTemplate) bool {
+	if strings.TrimSpace(row.MetaTemplateID) == "" {
+		return false
+	}
+	switch row.Status {
+	case TemplateStatusRejected, "approved", "paused":
+		return true
+	}
+	return false
 }
 
 // resolveTargets turns a SubmitInput into catalog variants (validated).
@@ -234,10 +256,11 @@ func (s *Templates) Submit(ctx context.Context, in SubmitInput) ([]SubmitResult,
 			return nil, err
 		}
 		res := SubmitResult{Key: e.Key, Language: e.Language, Status: row.Status}
+		resubmit := in.Resubmit && len(in.Keys) > 0 && editable(row)
 		switch {
 		case row.OverrideName.Valid && row.OverrideName.String != "":
 			res.Skipped = "override"
-		case row.Status != TemplateStatusNotSubmitted && row.Status != TemplateStatusRejected:
+		case row.Status != TemplateStatusNotSubmitted && row.Status != TemplateStatusRejected && !resubmit:
 			res.Skipped = "already_submitted"
 		}
 		if res.Skipped != "" {
@@ -247,7 +270,7 @@ func (s *Templates) Submit(ctx context.Context, in SubmitInput) ([]SubmitResult,
 			continue
 		}
 		var created cloud.CreatedTemplate
-		if row.Status == TemplateStatusRejected && strings.TrimSpace(row.MetaTemplateID) != "" {
+		if editable(row) {
 			created, err = s.api.EditTemplate(ctx, row.MetaTemplateID, definitionOf(e))
 		} else {
 			created, err = s.api.CreateTemplate(ctx, definitionOf(e))
@@ -269,6 +292,7 @@ func (s *Templates) Submit(ctx context.Context, in SubmitInput) ([]SubmitResult,
 		}
 		updated, err := s.q.UpdateWhatsAppCloudTemplateStatus(ctx, db.UpdateWhatsAppCloudTemplateStatusParams{
 			Key: e.Key, Language: e.Language, Status: cloud.MapStatus(created.Status), MetaTemplateID: created.ID,
+			Category: strings.ToUpper(strings.TrimSpace(created.Category)),
 		})
 		if err != nil {
 			return nil, err
@@ -312,9 +336,13 @@ func (s *Templates) Sync(ctx context.Context) ([]Template, error) {
 		p := db.UpdateWhatsAppCloudTemplateStatusParams{Key: e.Key, Language: e.Language, Status: TemplateStatusNotSubmitted}
 		if r, found := byName[remoteKey(name, row.Language)]; found {
 			p.Status, p.MetaTemplateID = cloud.MapStatus(r.Status), r.ID
+			p.Category = strings.ToUpper(strings.TrimSpace(r.Category))
 			if p.Status == TemplateStatusRejected && !strings.EqualFold(r.RejectedReason, "NONE") {
 				p.RejectedReason = r.RejectedReason
 			}
+		} else {
+			// Gone from Meta: back to the catalog category.
+			p.Category = e.Category
 		}
 		if _, err := s.q.UpdateWhatsAppCloudTemplateStatus(ctx, p); err != nil {
 			return nil, err

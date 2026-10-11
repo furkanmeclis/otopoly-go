@@ -82,6 +82,9 @@ func (m *memTemplates) UpdateWhatsAppCloudTemplateStatus(_ context.Context, p db
 		return r, pgx.ErrNoRows
 	}
 	r.Status, r.MetaTemplateID, r.RejectedReason = p.Status, p.MetaTemplateID, p.RejectedReason
+	if p.Category != "" {
+		r.Category = p.Category
+	}
 	r.LastSyncedAt = pgtype.Timestamptz{Valid: true}
 	m.rows[rk(p.Key, p.Language)] = r
 	return r, nil
@@ -283,6 +286,49 @@ func TestSubmitEditsRejectedTemplateInPlace(t *testing.T) {
 	}
 }
 
+// TestResubmitEditsApprovedTemplate: with explicit keys and resubmit, an
+// approved template (e.g. re-categorized to MARKETING by Meta) is edited
+// with the catalog text and category; "submit all" never touches it.
+func TestResubmitEditsApprovedTemplate(t *testing.T) {
+	store := seeded(t)
+	store.set(model.EventQuoteExpiring, "tr", func(r *db.WhatsappCloudTemplate) {
+		r.Status, r.MetaTemplateID, r.Category = "approved", "ID-otopoly_quote_expiring-tr", "MARKETING"
+	})
+	store.set(model.EventJobReady, "tr", func(r *db.WhatsappCloudTemplate) { r.Status, r.MetaTemplateID = "pending", "ID-otopoly_job_ready-tr" })
+	g := newGraph(t)
+	svc := NewTemplates(store, g.client())
+
+	// Without resubmit (or without keys) approved rows are skipped.
+	res, err := svc.Submit(context.Background(), SubmitInput{Keys: []string{model.EventQuoteExpiring}, Languages: []string{"tr"}})
+	if err != nil || len(res) != 1 || res[0].Skipped != "already_submitted" || len(g.edited) != 0 {
+		t.Fatalf("plain submit: %+v %v", res, err)
+	}
+	if _, err := svc.Submit(context.Background(), SubmitInput{Resubmit: true, Languages: []string{"tr"}}); err != nil || len(g.edited) != 0 {
+		t.Fatalf("resubmit without keys must not edit: %v", g.edited)
+	}
+
+	res, err = svc.Submit(context.Background(), SubmitInput{
+		Keys: []string{model.EventQuoteExpiring, model.EventJobReady}, Languages: []string{"tr"}, Resubmit: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	edit, ok := g.edited["ID-otopoly_quote_expiring-tr"]
+	if !ok || edit["category"] != "UTILITY" || !strings.Contains(edit["components"].([]any)[0].(map[string]any)["text"].(string), "Herhangi bir işlem yapmanız gerekmez") {
+		t.Fatalf("edit payload: %v", edit)
+	}
+	got := map[string]SubmitResult{}
+	for _, r := range res {
+		got[r.Key] = r
+	}
+	if got[model.EventQuoteExpiring].Status != "pending" || got[model.EventJobReady].Skipped != "already_submitted" {
+		t.Fatalf("results: %+v", res) // pending templates cannot be edited in Meta
+	}
+	if row := store.tr(model.EventQuoteExpiring); row.Status != "pending" || row.Category != "UTILITY" {
+		t.Fatalf("row after edit: %+v", row)
+	}
+}
+
 func TestSubmitAbortsOnAuthError(t *testing.T) {
 	g := newGraph(t)
 	g.authErr = true
@@ -303,6 +349,7 @@ func TestSyncMapsMetaStatuses(t *testing.T) {
 	g.remote = `{"data":[
 		{"id":"1","name":"otopoly_job_ready","language":"tr","status":"APPROVED","category":"UTILITY","rejected_reason":"NONE"},
 		{"id":"2","name":"otopoly_job_paid","language":"tr","status":"REJECTED","category":"UTILITY","rejected_reason":"INVALID_FORMAT"},
+		{"id":"6","name":"otopoly_quote_expiring","language":"tr","status":"APPROVED","category":"MARKETING"},
 		{"id":"3","name":"otopoly_job_created","language":"en","status":"APPROVED","category":"UTILITY"},
 		{"id":"4","name":"manual_cancel","language":"tr","status":"PAUSED","category":"UTILITY"},
 		{"id":"5","name":"otopoly_job_ready","language":"en_US","status":"APPROVED","category":"UTILITY"}
@@ -329,6 +376,16 @@ func TestSyncMapsMetaStatuses(t *testing.T) {
 	check(model.EventJobCreated, "en", "approved", "3", "")
 	check(model.EventJobCancelled, "tr", "paused", "4", "") // matched by override name
 	check(model.EventJobDelivered, "tr", "not_submitted", "", "")
+	check(model.EventQuoteExpiring, "tr", "approved", "6", "")
+	if it := by[rk(model.EventQuoteExpiring, "tr")]; it.MetaCategory != "MARKETING" || it.Category != "UTILITY" {
+		t.Fatalf("meta re-categorization must be visible: %+v", it)
+	}
+	if it := by[rk(model.EventJobReady, "tr")]; it.MetaCategory != "UTILITY" {
+		t.Fatalf("meta category: %+v", it)
+	}
+	if it := by[rk(model.EventJobDelivered, "tr")]; it.MetaCategory != "" {
+		t.Fatalf("unknown meta category must be empty: %+v", it)
+	}
 	if by[rk(model.EventJobCancelled, "tr")].EffectiveName != "manual_cancel" {
 		t.Fatalf("effective name: %+v", by[rk(model.EventJobCancelled, "tr")])
 	}

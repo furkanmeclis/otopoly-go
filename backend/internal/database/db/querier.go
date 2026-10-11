@@ -938,6 +938,7 @@ type Querier interface {
 	UpdateVehicleModel(ctx context.Context, arg UpdateVehicleModelParams) (VehicleModel, error)
 	UpdateWebAuthnCredentialCounter(ctx context.Context, arg UpdateWebAuthnCredentialCounterParams) error
 	UpdateWebAuthnCredentialName(ctx context.Context, arg UpdateWebAuthnCredentialNameParams) (WebauthnCredential, error)
+	// category: Meta's category of the template (empty keeps the stored one).
 	UpdateWhatsAppCloudTemplateStatus(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusParams) (WhatsappCloudTemplate, error)
 	UpdateWhatsAppCloudTemplateStatusByMetaID(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusByMetaIDParams) (int64, error)
 	// Webhook fallback when the Meta template id is not stored yet: match the
