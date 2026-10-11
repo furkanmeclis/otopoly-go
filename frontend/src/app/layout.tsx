@@ -64,6 +64,17 @@ export default function RootLayout({
         {/* Runtime browser config (Sentry DSN); must run before hydration. */}
         <Script src="/api/client-env" strategy="beforeInteractive" />
         <AppProviders>{children}</AppProviders>
+        {/*
+          Linear revision-request widget ("Revize Talepleri"). The script
+          mounts its own button and iframe (styles isolated in Shadow DOM);
+          it must run in the top page so it can capture screenshots. Loaded
+          once here for every shell. Allowed origins, the Linear team mapping
+          and the API key live on the widget server (/configure), never here.
+        */}
+        <Script
+          src="https://issue.technowide.tr/embed.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
