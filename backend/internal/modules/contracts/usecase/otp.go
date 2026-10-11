@@ -58,6 +58,9 @@ type OTPMessage struct {
 	ContractTitle string
 	ContractNo    string
 	Plate         string
+	// Locale is the contract instance locale (tr / en): the messaging
+	// module picks the platform template language from it.
+	Locale string
 }
 
 // OTPSender delivers contract OTP messages over the organization's own channel
@@ -163,7 +166,8 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 		Code:          code,
 		Minutes:       int(otpTTL.Minutes()),
 	}
-	body := buildOTPMessage(i18n.Normalize(inst.Locale), msgVars)
+	locale := i18n.Normalize(inst.Locale)
+	body := buildOTPMessage(locale, msgVars)
 
 	ref, err := s.otp.SendContractOTP(ctx, OTPMessage{
 		OrgID:         scope.InternalID,
@@ -178,6 +182,7 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 		ContractTitle: msgVars.ContractTitle,
 		ContractNo:    msgVars.ContractNo,
 		Plate:         msgVars.Plate,
+		Locale:        string(locale),
 	})
 	if err != nil {
 		return OTPChallenge{}, fmt.Errorf("%w: %v", ErrOTPChannelUnavailable, err)

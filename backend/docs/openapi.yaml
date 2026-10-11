@@ -855,9 +855,11 @@ paths:
       summary: Submit catalog templates to Meta
       description: >-
         Super admin only (`platform.integrations.whatsapp.write`). Creates every
-        `not_submitted` template (or only `keys`) in the WABA with example values;
-        entries with an override name are skipped. Per-key failures are reported in
-        `results`; auth / configuration failures return 409.
+        `not_submitted` template (every catalog language, or only `keys` ×
+        `languages`) in the WABA with example values; `rejected` templates are
+        edited in place (Meta reviews them again). Entries with an override name are
+        skipped. Per-template failures are reported in `results` with Meta's error
+        text; auth / configuration failures return 409.
       security:
         - bearerAuth: []
       requestBody:
@@ -891,8 +893,8 @@ paths:
       summary: Pull template statuses from Meta
       description: >-
         Super admin only (`platform.integrations.whatsapp.write`). Matches Meta
-        templates by effective name (override or catalog name) and language; templates
-        missing in Meta become `not_submitted`.
+        templates by effective name (override or catalog name) and language, for every
+        catalog language; templates missing in Meta become `not_submitted`.
       security:
         - bearerAuth: []
       responses:
@@ -911,15 +913,16 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
-  /v1/platform/integrations/whatsapp/templates/{key}:
+  /v1/platform/integrations/whatsapp/templates/{key}/{language}:
     patch:
       tags: [Platform]
       operationId: patchPlatformWhatsAppTemplate
       summary: Set or clear the Meta template name override
       description: >-
         Super admin only (`platform.integrations.whatsapp.write`). Maps a catalog key
-        to a template created manually in Meta (`null` / empty clears it). The stored
-        Meta state is reset to `not_submitted` until the next sync.
+        in one language to a template created manually in Meta (`null` / empty clears
+        it). The stored Meta state of that language is reset to `not_submitted` until
+        the next sync.
       security:
         - bearerAuth: []
       parameters:
@@ -927,6 +930,11 @@ paths:
           in: path
           required: true
           schema: { type: string, examples: ["job.ready"] }
+        - name: language
+          in: path
+          required: true
+          description: Catalog language (Meta language code).
+          schema: { type: string, enum: [tr, en] }
       requestBody:
         required: true
         content:
@@ -12727,6 +12735,10 @@ components:
         template_key:
           type: string
           description: Catalog key (e.g. `job.ready`); empty sends `hello_world` / a plain test line.
+        language:
+          type: string
+          enum: [tr, en]
+          description: Catalog language of `template_key` (default `tr`).
 
     PlatformWhatsAppTestResult:
       type: object
@@ -12767,7 +12779,10 @@ components:
         meta_name: { type: string, examples: ["otopoly_job_ready"] }
         override_name: { type: [string, "null"] }
         effective_name: { type: string }
-        language: { type: string, example: tr }
+        language:
+          type: string
+          enum: [tr, en]
+          description: Catalog language; one item per key and language.
         category: { type: string, enum: [UTILITY, AUTHENTICATION] }
         status:
           type: string
@@ -12775,7 +12790,7 @@ components:
         meta_template_id: { type: string }
         rejected_reason: { type: string }
         last_synced_at: { type: [string, "null"], format: date-time }
-        body: { type: string, description: "Turkish body with positional {{1}}…{{n}} params" }
+        body: { type: string, description: "Body in `language` with positional {{1}}…{{n}} params" }
         params:
           type: array
           items: { type: string }
@@ -12814,17 +12829,23 @@ components:
       properties:
         keys:
           type: array
-          description: Catalog keys to submit; omitted = every `not_submitted` entry.
+          description: Catalog keys to submit; omitted = every entry.
           items: { type: string }
+        languages:
+          type: array
+          description: Catalog languages to submit; omitted = every language.
+          items: { type: string, enum: [tr, en] }
 
     WhatsAppTemplateSubmitResult:
       type: object
-      required: [key, status]
+      required: [key, language, status]
       properties:
         key: { type: string }
+        language: { type: string, enum: [tr, en] }
         status: { type: string }
         skipped: { type: string, enum: [override, already_submitted] }
         error: { type: string, description: "Classified error code (e.g. `graph_100`)." }
+        message: { type: string, description: "Meta's error text, when the Graph API returned one." }
 
     WhatsAppTemplateSubmit:
       type: object

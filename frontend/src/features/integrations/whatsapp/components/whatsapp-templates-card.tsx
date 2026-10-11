@@ -7,6 +7,7 @@ import {
   Loader2,
   Pencil,
   RefreshCw,
+  RotateCcw,
   Upload,
   X,
 } from "lucide-react";
@@ -59,8 +60,17 @@ const STATUS_KEYS: Record<WhatsAppCloudTemplate["status"], string> = {
 
 const OVERRIDE_RE = /^[a-z0-9_]{1,512}$/;
 
+/** Row identity: one catalog key exists once per language. */
+function rowId(tpl: Pick<WhatsAppCloudTemplate, "key" | "language">) {
+  return `${tpl.key}:${tpl.language}`;
+}
+
+/** Not yet in Meta, or rejected (edited in place / re-created on submit). */
 function canSubmit(tpl: WhatsAppCloudTemplate) {
-  return tpl.status === "not_submitted" && !tpl.override_name;
+  return (
+    (tpl.status === "not_submitted" || tpl.status === "rejected") &&
+    !tpl.override_name
+  );
 }
 
 export function WhatsAppTemplatesCard({
@@ -80,9 +90,9 @@ export function WhatsAppTemplatesCard({
 }) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
-  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editingRow, setEditingRow] = useState<string | null>(null);
   const [overrideDraft, setOverrideDraft] = useState("");
-  const [submittingKey, setSubmittingKey] = useState<string | null>(null);
+  const [submittingRow, setSubmittingRow] = useState<string | null>(null);
 
   const apiErrorMessage = (error: unknown, fallbackKey: string) => {
     if (isApiError(error)) {
@@ -111,21 +121,29 @@ export function WhatsAppTemplatesCard({
         ok: submitted.length,
         failed: failed.length,
         details: failed
-          .map((r) => `${r.key}: ${sendErrorLabel(t, r.error)}`)
-          .join(", "),
+          .map((r) => {
+            const label = sendErrorLabel(t, r.error);
+            const detail = r.message ? ` – ${r.message}` : "";
+            return `${r.key} (${r.language.toUpperCase()}): ${label}${detail}`;
+          })
+          .join("; "),
       }),
     );
   };
 
   const submitMutation = useMutation({
-    mutationFn: (keys?: string[]) =>
-      whatsappIntegrationService.submitTemplates(keys),
+    mutationFn: (selection?: WhatsAppCloudTemplate) =>
+      whatsappIntegrationService.submitTemplates(
+        selection
+          ? { keys: [selection.key], languages: [selection.language] }
+          : {},
+      ),
     onSuccess: reportSubmit,
     onError: (error) =>
       appToast.error(
         apiErrorMessage(error, "integrations.whatsapp.templates.submit_failed"),
       ),
-    onSettled: () => setSubmittingKey(null),
+    onSettled: () => setSubmittingRow(null),
   });
 
   const syncMutation = useMutation({
@@ -141,13 +159,18 @@ export function WhatsAppTemplatesCard({
   });
 
   const overrideMutation = useMutation({
-    mutationFn: ({ key, name }: { key: string; name: string | null }) =>
-      whatsappIntegrationService.setOverride(key, name),
+    mutationFn: ({
+      tpl,
+      name,
+    }: {
+      tpl: WhatsAppCloudTemplate;
+      name: string | null;
+    }) => whatsappIntegrationService.setOverride(tpl.key, tpl.language, name),
     onSuccess: (updated) => {
       queryClient.setQueryData<WhatsAppCloudTemplate[]>(queryKey, (prev) =>
-        prev?.map((tpl) => (tpl.key === updated.key ? updated : tpl)),
+        prev?.map((tpl) => (rowId(tpl) === rowId(updated) ? updated : tpl)),
       );
-      setEditingKey(null);
+      setEditingRow(null);
       appToast.success(t("integrations.whatsapp.templates.override_saved"));
     },
     onError: (error) =>
@@ -196,7 +219,7 @@ export function WhatsAppTemplatesCard({
               onClick={() => submitMutation.mutate(undefined)}
               disabled={busy || pendingSubmitCount === 0}
             >
-              {submitMutation.isPending && submittingKey === null ? (
+              {submitMutation.isPending && submittingRow === null ? (
                 <Loader2 className="mr-2 size-4 animate-spin" />
               ) : (
                 <Upload className="mr-2 size-4" />
@@ -255,9 +278,11 @@ export function WhatsAppTemplatesCard({
               </thead>
               <tbody className="divide-y">
                 {templates.map((tpl) => {
-                  const editing = editingKey === tpl.key;
+                  const id = rowId(tpl);
+                  const editing = editingRow === id;
+                  const resubmit = tpl.status === "rejected";
                   return (
-                    <tr key={tpl.key} className="align-top">
+                    <tr key={id} className="align-top">
                       <td className="px-3 py-2">
                         <span className="font-mono text-xs">{tpl.key}</span>
                         <p
@@ -278,7 +303,7 @@ export function WhatsAppTemplatesCard({
                               e.preventDefault();
                               if (draftInvalid) return;
                               overrideMutation.mutate({
-                                key: tpl.key,
+                                tpl,
                                 name: draft || null,
                               });
                             }}
@@ -330,7 +355,7 @@ export function WhatsAppTemplatesCard({
                               type="button"
                               size="icon-sm"
                               variant="ghost"
-                              onClick={() => setEditingKey(null)}
+                              onClick={() => setEditingRow(null)}
                               aria-label={t("common.cancel")}
                             >
                               <X className="size-4" />
@@ -351,7 +376,7 @@ export function WhatsAppTemplatesCard({
                                 variant="ghost"
                                 onClick={() => {
                                   setOverrideDraft(tpl.override_name ?? "");
-                                  setEditingKey(tpl.key);
+                                  setEditingRow(id);
                                 }}
                                 aria-label={t(
                                   "integrations.whatsapp.templates.edit_override",
@@ -369,8 +394,10 @@ export function WhatsAppTemplatesCard({
                       <td className="px-3 py-2">
                         <Badge variant="outline">{tpl.category}</Badge>
                       </td>
-                      <td className="px-3 py-2 text-xs uppercase">
-                        {tpl.language}
+                      <td className="px-3 py-2">
+                        <Badge variant="secondary" className="uppercase">
+                          {tpl.language}
+                        </Badge>
                       </td>
                       <td className="px-3 py-2">
                         <div className="flex flex-col items-start gap-1">
@@ -403,18 +430,29 @@ export function WhatsAppTemplatesCard({
                               size="sm"
                               variant="outline"
                               disabled={busy}
+                              title={
+                                resubmit
+                                  ? t(
+                                      "integrations.whatsapp.templates.resubmit_hint",
+                                    )
+                                  : undefined
+                              }
                               onClick={() => {
-                                setSubmittingKey(tpl.key);
-                                submitMutation.mutate([tpl.key]);
+                                setSubmittingRow(id);
+                                submitMutation.mutate(tpl);
                               }}
                             >
                               {submitMutation.isPending &&
-                              submittingKey === tpl.key ? (
+                              submittingRow === id ? (
                                 <Loader2 className="mr-2 size-4 animate-spin" />
+                              ) : resubmit ? (
+                                <RotateCcw className="mr-2 size-4" />
                               ) : (
                                 <Upload className="mr-2 size-4" />
                               )}
-                              {t("integrations.whatsapp.templates.submit")}
+                              {resubmit
+                                ? t("integrations.whatsapp.templates.resubmit")
+                                : t("integrations.whatsapp.templates.submit")}
                             </Button>
                           ) : null}
                         </td>

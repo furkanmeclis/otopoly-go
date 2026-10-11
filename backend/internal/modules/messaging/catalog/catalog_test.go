@@ -49,19 +49,21 @@ var metaNameRE = regexp.MustCompile(`^otopoly_[a-z0-9_]+$`)
 func TestCatalogEntriesAreWellFormed(t *testing.T) {
 	seenKey := map[string]bool{}
 	seenName := map[string]bool{}
-	for _, e := range All() {
-		t.Run(e.Key, func(t *testing.T) {
-			if seenKey[e.Key] || seenName[e.MetaName] {
-				t.Fatalf("duplicate key or meta name")
+	for _, e := range AllVariants() {
+		t.Run(e.Key+"/"+e.Language, func(t *testing.T) {
+			if e.Language == Language {
+				if seenKey[e.Key] || seenName[e.MetaName] {
+					t.Fatalf("duplicate key or meta name")
+				}
+				seenKey[e.Key], seenName[e.MetaName] = true, true
 			}
-			seenKey[e.Key], seenName[e.MetaName] = true, true
 			if !metaNameRE.MatchString(e.MetaName) || len(e.MetaName) > 512 {
 				t.Errorf("meta name %q must be lowercase snake_case with otopoly_ prefix", e.MetaName)
 			}
 			if e.Category != CategoryUtility && e.Category != CategoryAuthentication {
 				t.Errorf("category %q not allowed (no MARKETING)", e.Category)
 			}
-			if e.Language != "tr" {
+			if !HasLanguage(e.Language) {
 				t.Errorf("language = %q", e.Language)
 			}
 			pos := Positions(e.Body)
@@ -107,12 +109,87 @@ func TestCatalogEntriesAreWellFormed(t *testing.T) {
 				t.Errorf("authentication entry needs copy-code button and expiry")
 			}
 			low := strings.ToLower(body)
-			for _, w := range []string{"indirim", "kampanya", "fırsat", "kaçırmayın", "hediye", "promosyon"} {
+			for _, w := range []string{"indirim", "kampanya", "fırsat", "kaçırmayın", "hediye", "promosyon",
+				"discount", "campaign", "don't miss", "gift", "promotion"} {
 				if strings.Contains(low, w) {
 					t.Errorf("promotional wording %q", w)
 				}
 			}
+			// Meta classifies any mention of a one-time / verification code as
+			// AUTHENTICATION and rejects the UTILITY submission
+			// (INCORRECT_CATEGORY), so UTILITY bodies never mention one.
+			if e.Category == CategoryUtility {
+				for _, w := range []string{"doğrulama kodu", "tek kullanımlık", "otp", "şifre", "verification code", "one-time", "passcode", "password"} {
+					if strings.Contains(low, w) {
+						t.Errorf("utility body mentions a code (%q): Meta rejects it as INCORRECT_CATEGORY", w)
+					}
+				}
+			}
 		})
+	}
+}
+
+// TestCatalogEveryEntryHasEveryLanguage: each entry is submitted once per
+// catalog language with the same parameter set, and the translation keeps
+// the parameter order (Meta positional params are shared across languages).
+func TestCatalogEveryEntryHasEveryLanguage(t *testing.T) {
+	if strings.Join(Languages, ",") != "tr,en" {
+		t.Fatalf("languages = %v", Languages)
+	}
+	for _, e := range All() {
+		for _, lang := range Languages {
+			v, ok := e.Localize(lang)
+			if !ok {
+				t.Errorf("%s has no %s translation", e.Key, lang)
+				continue
+			}
+			if v.Language != lang || v.Key != e.Key || v.MetaName != e.MetaName || v.Category != e.Category ||
+				v.HeaderDocument != e.HeaderDocument || v.CopyCodeButton != e.CopyCodeButton {
+				t.Errorf("%s/%s: identity fields changed: %+v", e.Key, lang, v)
+			}
+			if lang != Language && v.Body == e.Body {
+				t.Errorf("%s/%s: body not translated", e.Key, lang)
+			}
+			if len(Positions(v.Body)) != len(e.Params) {
+				t.Errorf("%s/%s: %d placeholders for %d params", e.Key, lang, len(Positions(v.Body)), len(e.Params))
+			}
+		}
+		if _, ok := e.Localize("de"); ok {
+			t.Errorf("%s: unknown language must not localize", e.Key)
+		}
+		if v, ok := e.Localize(""); !ok || v.Language != Language {
+			t.Errorf("%s: empty language must be the default", e.Key)
+		}
+	}
+	if got := len(AllVariants()); got != len(All())*len(Languages) {
+		t.Fatalf("variants = %d", got)
+	}
+	if !HasLanguage("en") || HasLanguage("de") || HasLanguage("") {
+		t.Fatalf("HasLanguage")
+	}
+}
+
+// TestEnglishRenderText: the platform whatsmeow number renders the English
+// text (or body) for an English delivery.
+func TestEnglishRenderText(t *testing.T) {
+	ready, _ := Lookup(model.EventJobReady)
+	en, _ := ready.Localize("en")
+	got := en.RenderText(map[string]string{"customer_name": "John", "plate": "34 ABC 1", "company_name": "Tech Auto", "job_id": "J1"})
+	if got != "Dear John, the work on your vehicle with plate 34 ABC 1 carried out by Tech Auto is complete and your vehicle is ready for pickup. Your job number is J1. Please contact the business to arrange delivery." {
+		t.Fatalf("en text = %q", got)
+	}
+	otp, _ := Lookup(model.EventContractOTP)
+	otpEN, _ := otp.Localize("en")
+	txt := otpEN.RenderText(map[string]string{"code": "482913", "business_name": "Tech Auto", "minutes": "5",
+		"contract_title": "Service Agreement", "contract_no": "CTR-1", "platform_name": "Brand", "platform_url": "https://brand.test"})
+	for _, w := range []string{"*Tech Auto*", "• Contract: Service Agreement", "Your approval code: *482913*", "5 minutes",
+		"Law No. 6698", "Tech Auto as data controller", "Article 11", "on behalf of Tech Auto via the Brand (https://brand.test)"} {
+		if !strings.Contains(txt, w) {
+			t.Errorf("en otp text lacks %q:\n%s", w, txt)
+		}
+	}
+	if strings.Contains(txt, "{{") {
+		t.Fatalf("unrendered placeholder: %s", txt)
 	}
 }
 
@@ -168,10 +245,22 @@ func TestContractOTPNoticeEntry(t *testing.T) {
 	if strings.Join(e.Params, ",") != strings.Join(wantParams, ",") || len(Positions(e.Body)) != 6 || len(e.Examples) != 6 {
 		t.Fatalf("params %v / positions %v / examples %v", e.Params, Positions(e.Body), e.Examples)
 	}
-	for _, w := range []string{"6698", "veri sorumlusu", "KVKK m.11", "Sözleşme: {{2}}", "No: {{3}}", "Plaka: {{4}}", "{{5}} ({{6}})"} {
+	for _, w := range []string{"6698", "veri sorumlusu", "KVKK m.11", "Sözleşme: {{2}}", "No: {{3}}", "Plaka: {{4}}", "{{5}} ({{6}})",
+		"onay bilgisini yalnızca işletme yetkilisiyle paylaşınız"} {
 		if !strings.Contains(e.Body, w) {
 			t.Errorf("notice body lacks %q", w)
 		}
+	}
+	// Meta rejected the first wording ("doğrulama kodunuz ... iletildi") with
+	// INCORRECT_CATEGORY: a UTILITY body must not talk about a code.
+	for _, w := range []string{"kod", "doğrulama"} {
+		if strings.Contains(strings.ToLower(e.Body), w) {
+			t.Errorf("notice body mentions %q", w)
+		}
+	}
+	en, ok := e.Localize("en")
+	if !ok || strings.Contains(strings.ToLower(en.Body), "code") || !strings.Contains(en.Body, "Contract: {{2}}, No: {{3}}, Plate: {{4}}") {
+		t.Errorf("en notice: %+v", en)
 	}
 	got := e.ParamValues(map[string]string{
 		"company_name": "Tech Oto", "contract_title": "Hizmet Sözleşmesi", "contract_no": "SZL-0042",

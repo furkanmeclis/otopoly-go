@@ -144,6 +144,8 @@ type outboundDelivery struct {
 	// Vars feed the platform catalog entry.
 	Vars map[string]string
 	Doc  *providers.Document
+	// Locale selects the platform catalog language (empty = default).
+	Locale string
 	// QuotaReserved is set for queued rows: QueueSend already checked and
 	// counted whatsapp.monthly, so only whatsapp.enabled is re-checked.
 	QuotaReserved bool
@@ -227,6 +229,9 @@ func (s *Service) sendVia(ctx context.Context, kind string, d outboundDelivery) 
 		if s.wp == nil {
 			return res, model.NewSendError(model.ErrCodePlatformSenderUnavailable, true, errors.New("whatsapp provider not configured"))
 		}
+		if loc, ok := entry.Localize(d.Locale); ok {
+			entry = loc
+		}
 		pctx := orgctx.WithScope(ctx, orgctx.Scope{InternalID: model.PlatformOrgKey})
 		_ = s.ensurePlatformConnected(pctx)
 		res.Ref, err = s.sendWhatsmeow(pctx, d.Phone, entry.RenderText(d.Vars), d.Doc)
@@ -234,19 +239,15 @@ func (s *Service) sendVia(ctx context.Context, kind string, d outboundDelivery) 
 	}
 
 	// platform_cloud
-	row, err := s.q.GetWhatsAppCloudTemplateByKey(ctx, entry.Key)
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
+	entry, row, err := s.cloudTemplate(ctx, entry, d.Locale)
+	if err != nil {
 		res.TemplateName = entry.MetaName
-		return res, model.NewSendError(model.ErrCodeTemplateNotApproved, false, fmt.Errorf("template %s not seeded", entry.Key))
-	case err != nil:
-		return res, fmt.Errorf("cloud template: %w", err)
+		if row.Key != "" {
+			res.TemplateName = EffectiveTemplateName(row)
+		}
+		return res, err
 	}
 	res.TemplateName = EffectiveTemplateName(row)
-	if row.Status != templateStatusApproved {
-		return res, model.NewSendError(model.ErrCodeTemplateNotApproved, false,
-			fmt.Errorf("template %s is %s", res.TemplateName, row.Status))
-	}
 	if s.cloud == nil {
 		return res, model.NewSendError(model.ErrCodePlatformSenderNotConfigured, false, errors.New("cloud sender not configured"))
 	}
@@ -265,6 +266,40 @@ func (s *Service) sendVia(ctx context.Context, kind string, d outboundDelivery) 
 	}
 	res.Ref, err = s.cloud.SendTemplate(ctx, d.Phone, msg)
 	return res, err
+}
+
+// cloudTemplate picks the approved Meta template of an entry for a locale:
+// the requested language when its row is approved, else the default
+// (Turkish) row. The returned entry is localized to the chosen row.
+func (s *Service) cloudTemplate(ctx context.Context, entry catalog.Entry, locale string) (catalog.Entry, db.WhatsappCloudTemplate, error) {
+	langs := []string{catalog.Language}
+	if loc, ok := entry.Localize(locale); ok && loc.Language != catalog.Language {
+		langs = []string{loc.Language, catalog.Language}
+	}
+	var firstErr error
+	var firstRow db.WhatsappCloudTemplate
+	for i, lang := range langs {
+		loc, _ := entry.Localize(lang)
+		row, err := s.q.GetWhatsAppCloudTemplate(ctx, db.GetWhatsAppCloudTemplateParams{Key: entry.Key, Language: lang})
+		switch {
+		case errors.Is(err, pgx.ErrNoRows):
+			err = model.NewSendError(model.ErrCodeTemplateNotApproved, false, fmt.Errorf("template %s (%s) not seeded", entry.Key, lang))
+		case err != nil:
+			return loc, row, fmt.Errorf("cloud template: %w", err)
+		case row.Status != templateStatusApproved:
+			err = model.NewSendError(model.ErrCodeTemplateNotApproved, false,
+				fmt.Errorf("template %s (%s) is %s", EffectiveTemplateName(row), lang, row.Status))
+		default:
+			return loc, row, nil
+		}
+		if i == len(langs)-1 {
+			// Report the default-language failure: that row is the one an
+			// admin has to get approved for sends to work at all.
+			return loc, row, err
+		}
+		firstErr, firstRow = err, row
+	}
+	return entry, firstRow, firstErr
 }
 
 // EffectiveTemplateName is the admin override or the catalog Meta name.

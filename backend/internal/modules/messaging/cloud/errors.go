@@ -3,6 +3,7 @@ package cloud
 import (
 	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	whttp "github.com/piusalfred/whatsapp/pkg/http"
@@ -66,4 +67,35 @@ func Classify(err error) *model.SendError {
 func GraphErrorCode(code int) string {
 	c, _ := graphCode(code)
 	return c
+}
+
+// GraphMessage returns Meta's human-readable error text (message and
+// details) of a classified error, or "" when the error carries none. It is
+// safe to show to a platform admin: credentials never appear in it.
+func GraphMessage(err error) string {
+	var re *whttp.ResponseError
+	if !errors.As(err, &re) || re.Err == nil {
+		return ""
+	}
+	parts := make([]string, 0, 3)
+	for _, p := range []string{re.Err.Message, re.Err.UserMsg, re.Err.Details} {
+		if p = strings.TrimSpace(p); p != "" && !containsFold(parts, p) {
+			parts = append(parts, p)
+		}
+	}
+	if re.Err.Data != nil {
+		if d := strings.TrimSpace(re.Err.Data.Details); d != "" && !containsFold(parts, d) {
+			parts = append(parts, d)
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+func containsFold(list []string, s string) bool {
+	for _, v := range list {
+		if strings.EqualFold(v, s) {
+			return true
+		}
+	}
+	return false
 }

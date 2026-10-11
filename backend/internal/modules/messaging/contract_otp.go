@@ -31,6 +31,7 @@ func (s *ContractOTPSender) SendContractOTP(ctx context.Context, msg contractsus
 		Body:           msg.Body,
 		SubjectType:    "contract_instance",
 		SubjectUUID:    &instanceUUID,
+		Locale:         msg.Locale,
 		Vars: map[string]string{
 			"code": msg.Code, "business_name": msg.BusinessName, "minutes": strconv.Itoa(msg.Minutes),
 			"customer_name": msg.CustomerName, "contract_title": msg.ContractTitle,

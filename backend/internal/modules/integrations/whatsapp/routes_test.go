@@ -130,21 +130,21 @@ func (r *routeTemplates) ListWhatsAppCloudTemplates(context.Context) ([]db.Whats
 
 func (r *routeTemplates) EnsureWhatsAppCloudTemplate(_ context.Context, p db.EnsureWhatsAppCloudTemplateParams) (db.WhatsappCloudTemplate, error) {
 	row := db.WhatsappCloudTemplate{Key: p.Key, MetaName: p.MetaName, Language: p.Language, Category: p.Category, Status: "not_submitted"}
-	r.rows[p.Key] = row
+	r.rows[p.Key+"|"+p.Language] = row
 	return row, nil
 }
 
 func (r *routeTemplates) SetWhatsAppCloudTemplateOverride(_ context.Context, p db.SetWhatsAppCloudTemplateOverrideParams) (db.WhatsappCloudTemplate, error) {
-	row := r.rows[p.Key]
+	row := r.rows[p.Key+"|"+p.Language]
 	row.OverrideName = p.OverrideName
-	r.rows[p.Key] = row
+	r.rows[p.Key+"|"+p.Language] = row
 	return row, nil
 }
 
 func (r *routeTemplates) UpdateWhatsAppCloudTemplateStatus(_ context.Context, p db.UpdateWhatsAppCloudTemplateStatusParams) (db.WhatsappCloudTemplate, error) {
-	row := r.rows[p.Key]
+	row := r.rows[p.Key+"|"+p.Language]
 	row.Status = p.Status
-	r.rows[p.Key] = row
+	r.rows[p.Key+"|"+p.Language] = row
 	return row, nil
 }
 
@@ -152,6 +152,10 @@ type routeAPI struct{}
 
 func (routeAPI) CreateTemplate(context.Context, messagingcloud.TemplateDefinition) (messagingcloud.CreatedTemplate, error) {
 	return messagingcloud.CreatedTemplate{ID: "1", Status: "PENDING"}, nil
+}
+
+func (routeAPI) EditTemplate(_ context.Context, id string, _ messagingcloud.TemplateDefinition) (messagingcloud.CreatedTemplate, error) {
+	return messagingcloud.CreatedTemplate{ID: id, Status: "PENDING"}, nil
 }
 
 func (routeAPI) ListTemplates(context.Context) ([]messagingcloud.RemoteTemplate, error) {
@@ -196,7 +200,7 @@ func TestPlatformWhatsAppRoutesAccess(t *testing.T) {
 		{http.MethodGet, "/v1/platform/integrations/whatsapp/templates", ``},
 		{http.MethodPost, "/v1/platform/integrations/whatsapp/templates/submit", `{"keys":["job.ready"]}`},
 		{http.MethodPost, "/v1/platform/integrations/whatsapp/templates/sync", ``},
-		{http.MethodPatch, "/v1/platform/integrations/whatsapp/templates/job.ready", `{"override_name":"my_tpl"}`},
+		{http.MethodPatch, "/v1/platform/integrations/whatsapp/templates/job.ready/tr", `{"override_name":"my_tpl"}`},
 	}
 	for _, rt := range routes {
 		for _, c := range []struct {

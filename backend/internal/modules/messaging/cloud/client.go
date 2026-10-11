@@ -99,16 +99,14 @@ func (c *Client) SendTemplate(ctx context.Context, phone string, m TemplateMessa
 		lang = "tr"
 	}
 
-	var tmpl *template.Template
 	if m.OTPCode != "" {
-		tmpl = template.NewAuthTemplate(&template.AuthTemplateRequest{
-			Name: m.Name, LanguageCode: lang, LanguagePolicy: "deterministic", OneTimePassword: m.OTPCode,
-		})
-	} else {
-		tmpl = &template.Template{
-			Name:     m.Name,
-			Language: &template.Language{Code: lang, Policy: "deterministic"},
-		}
+		return c.sendAuthTemplate(ctx, conf, to, m.Name, lang, m.OTPCode)
+	}
+	tmpl := &template.Template{
+		Name:     m.Name,
+		Language: &template.Language{Code: lang, Policy: "deterministic"},
+	}
+	{
 		if m.Document != nil {
 			mediaID, err := c.uploadDocument(ctx, conf, *m.Document)
 			if err != nil {
@@ -138,10 +136,78 @@ func (c *Client) SendTemplate(ctx context.Context, phone string, m TemplateMessa
 	if err != nil {
 		return "", Classify(err)
 	}
-	if resp == nil || len(resp.Messages) == 0 || resp.Messages[0] == nil || resp.Messages[0].ID == "" {
+	if resp == nil {
+		return wamidOf(nil)
+	}
+	return wamidOf(resp.Messages)
+}
+
+// wamidOf extracts the message id of a send response.
+func wamidOf(messages []*message.ID) (string, error) {
+	if len(messages) == 0 || messages[0] == nil || messages[0].ID == "" {
 		return "", model.NewSendError(model.ErrCodeSendFailed, true, fmt.Errorf("cloud api: response without message id"))
 	}
-	return resp.Messages[0].ID, nil
+	return messages[0].ID, nil
+}
+
+// authTemplateRequest is the wire payload of an AUTHENTICATION template
+// send. It exists because the library's component struct declares
+// `index` with omitempty: the copy-code button is at index 0, so the field
+// is dropped and Meta answers (#100) "missing parameter index for button
+// component". Here index is always serialized.
+type authTemplateRequest struct {
+	MessagingProduct string       `json:"messaging_product"`
+	To               string       `json:"to"`
+	Type             string       `json:"type"`
+	Template         authTemplate `json:"template"`
+}
+
+type authTemplate struct {
+	Name       string            `json:"name"`
+	Language   template.Language `json:"language"`
+	Components []authComponent   `json:"components"`
+}
+
+type authComponent struct {
+	Type       string          `json:"type"`
+	SubType    string          `json:"sub_type,omitempty"`
+	Index      *int            `json:"index,omitempty"`
+	Parameters []authParameter `json:"parameters"`
+}
+
+type authParameter struct {
+	Type string `json:"type"`
+	Text string `json:"text"`
+}
+
+// sendAuthTemplate sends an AUTHENTICATION template (body {{1}} = code,
+// copy-code button at index 0 with the same code) through the library's
+// HTTP stack, so errors classify like every other send.
+func (c *Client) sendAuthTemplate(ctx context.Context, conf *config.Config, to, name, lang, code string) (string, error) {
+	zero := 0
+	param := authParameter{Type: "text", Text: code}
+	body := &authTemplateRequest{
+		MessagingProduct: "whatsapp", To: to, Type: "template",
+		Template: authTemplate{
+			Name:     name,
+			Language: template.Language{Code: lang, Policy: "deterministic"},
+			Components: []authComponent{
+				{Type: "body", Parameters: []authParameter{param}},
+				{Type: "button", SubType: "url", Index: &zero, Parameters: []authParameter{param}},
+			},
+		},
+	}
+	b := whttp.NewRequestBuilder(http.MethodPost, conf.BaseURL).
+		Auth(conf.AuthConfig()).
+		Type(whttp.RequestTypeSendMessage).
+		Endpoints(conf.APIVersion, conf.PhoneNumberID, "messages")
+	req := whttp.BuildRequest(b, body)
+	resp := &message.BaseResponse{}
+	decoder := whttp.NewResponseCapturer(whttp.ResponseDecoderJSON(resp, whttp.DecodeOptionsStrict()))
+	if err := whttp.NewBaseClient[authTemplateRequest](c.senderOptions()...).Send(ctx, req, decoder); err != nil {
+		return "", Classify(fmt.Errorf("send auth template: %w", err))
+	}
+	return wamidOf(resp.Messages)
 }
 
 // uploadDocument uploads the file through the media endpoint (the library

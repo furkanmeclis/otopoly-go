@@ -49,8 +49,9 @@ func (f *fakeQ) GetPlatformWhatsAppSettings(context.Context) (db.PlatformWhatsap
 	return *f.platform, nil
 }
 
-func (f *fakeQ) GetWhatsAppCloudTemplateByKey(_ context.Context, key string) (db.WhatsappCloudTemplate, error) {
-	t, ok := f.templates[key]
+// templates is keyed by "<key>|<language>" like the unique constraint.
+func (f *fakeQ) GetWhatsAppCloudTemplate(_ context.Context, arg db.GetWhatsAppCloudTemplateParams) (db.WhatsappCloudTemplate, error) {
+	t, ok := f.templates[arg.Key+"|"+arg.Language]
 	if !ok {
 		return db.WhatsappCloudTemplate{}, pgx.ErrNoRows
 	}
@@ -183,8 +184,12 @@ func (r *rig) setProvider(provider string) {
 }
 
 func (r *rig) setTemplate(key, status string) {
+	r.setTemplateLang(key, "tr", status)
+}
+
+func (r *rig) setTemplateLang(key, lang, status string) {
 	e, _ := catalog.Lookup(key)
-	r.q.templates[e.Key] = db.WhatsappCloudTemplate{Key: e.Key, MetaName: e.MetaName, Language: "tr", Category: e.Category, Status: status}
+	r.q.templates[e.Key+"|"+lang] = db.WhatsappCloudTemplate{Key: e.Key, MetaName: e.MetaName, Language: lang, Category: e.Category, Status: status}
 }
 
 var jobVars = map[string]string{"customer_name": "Ahmet", "plate": "34 ABC 1", "business_name": "Tech Oto", "job_id": "J1"}
@@ -291,7 +296,7 @@ func checkSends(t *testing.T, r *rig, kind, code string) {
 func TestCloudUsesOverrideNameAndDocumentHeader(t *testing.T) {
 	r := newRig(false)
 	r.setProvider("cloud")
-	r.q.templates[model.EventQuoteSent] = db.WhatsappCloudTemplate{
+	r.q.templates[model.EventQuoteSent+"|tr"] = db.WhatsappCloudTemplate{
 		Key: model.EventQuoteSent, MetaName: "otopoly_quote_sent", Language: "tr", Status: "approved",
 		OverrideName: pgtype.Text{String: "manual_quote", Valid: true},
 	}
@@ -503,5 +508,53 @@ func TestWhatsAppAvailable(t *testing.T) {
 	r.setProvider("cloud")
 	if ok, err := r.svc.WhatsAppAvailable(context.Background(), testOrg); !ok || err != nil {
 		t.Fatalf("ok=%v err=%v", ok, err)
+	}
+}
+
+// TestCloudPicksLocaleWithTurkishFallback: an English delivery uses the
+// approved English template; while that one is not approved the Turkish
+// template is sent instead, and an unknown locale means Turkish.
+func TestCloudPicksLocaleWithTurkishFallback(t *testing.T) {
+	r := newRig(false)
+	r.setProvider("cloud")
+	r.setTemplate(model.EventJobReady, "approved")
+	r.setTemplateLang(model.EventJobReady, "en", "pending")
+	send := func(locale string) cloud.TemplateMessage {
+		t.Helper()
+		if _, err := r.svc.deliverWhatsApp(context.Background(), outboundDelivery{
+			OrgID: testOrg, EventType: model.EventJobReady, Phone: "905321112233", Vars: jobVars, Locale: locale,
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return r.cloud.msgs[len(r.cloud.msgs)-1]
+	}
+	if m := send("en"); m.Language != "tr" {
+		t.Fatalf("pending en must fall back to tr: %+v", m)
+	}
+	r.setTemplateLang(model.EventJobReady, "en", "approved")
+	if m := send("en"); m.Language != "en" || m.Name != "otopoly_job_ready" {
+		t.Fatalf("approved en must be used: %+v", m)
+	}
+	if m := send("de"); m.Language != "tr" {
+		t.Fatalf("unknown locale must use tr: %+v", m)
+	}
+	if m := send(""); m.Language != "tr" {
+		t.Fatalf("empty locale must use tr: %+v", m)
+	}
+}
+
+// TestWhatsmeowPlatformRendersLocalizedText: the platform whatsmeow number
+// renders the English catalog text for an English delivery.
+func TestWhatsmeowPlatformRendersLocalizedText(t *testing.T) {
+	r := newRig(false)
+	r.setProvider("whatsmeow")
+	if _, err := r.svc.deliverWhatsApp(context.Background(), outboundDelivery{
+		OrgID: testOrg, EventType: model.EventJobReady, Phone: "905321112233", Vars: jobVars, Locale: "en",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	got := r.wa.sends[len(r.wa.sends)-1].text
+	if !strings.HasPrefix(got, "Dear Ahmet, the work on your vehicle with plate 34 ABC 1") {
+		t.Fatalf("text = %q", got)
 	}
 }

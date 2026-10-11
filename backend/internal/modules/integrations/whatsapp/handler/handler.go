@@ -97,15 +97,13 @@ func (h *Handler) ListTemplates(w http.ResponseWriter, r *http.Request) {
 
 // SubmitTemplates submits not-yet-submitted templates (all or given keys).
 func (h *Handler) SubmitTemplates(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		Keys []string `json:"keys"`
-	}
+	var in whatsappusecase.SubmitInput
 	if r.ContentLength != 0 {
 		if err := decodeJSON(w, r, &in); err != nil {
 			return
 		}
 	}
-	results, err := h.templates.Submit(r.Context(), in.Keys)
+	results, err := h.templates.Submit(r.Context(), in)
 	if err != nil {
 		writeError(w, r, err)
 		return
@@ -136,14 +134,14 @@ func (h *Handler) PatchTemplate(w http.ResponseWriter, r *http.Request) {
 	if err := decodeJSON(w, r, &in); err != nil {
 		return
 	}
-	key := r.PathValue("key")
-	item, err := h.templates.SetOverride(r.Context(), key, in)
+	key, language := r.PathValue("key"), r.PathValue("language")
+	item, err := h.templates.SetOverride(r.Context(), key, language, in)
 	if err != nil {
 		writeError(w, r, err)
 		return
 	}
 	h.record(r, "integrations.whatsapp.template_override", map[string]any{
-		"key": key, "override_name": item.OverrideName,
+		"key": key, "language": language, "override_name": item.OverrideName,
 	})
 	response.JSON(w, r, http.StatusOK, item)
 }

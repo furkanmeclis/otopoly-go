@@ -74,6 +74,41 @@ func (c *Client) templatesClient(conf *config.Config) *templates.Client {
 	return templates.NewClient(&cp, c.senderOptions()...)
 }
 
+// components builds the Meta components of a definition (uploading the
+// DOCUMENT header example when needed).
+func (c *Client) components(ctx context.Context, conf *config.Config, def TemplateDefinition) ([]*templates.Component, error) {
+	if def.CopyCode {
+		return []*templates.Component{
+			{Type: "BODY", AddSecurityRecommendation: false},
+			{Type: "FOOTER", CodeExpirationMinutes: def.CodeExpirationMinutes},
+			{Type: "BUTTONS", Buttons: []*templates.Button{{Type: "OTP", OTPType: "COPY_CODE", Text: copyCodeText(def.Language)}}},
+		}, nil
+	}
+	var out []*templates.Component
+	if def.HeaderDocument {
+		handle, err := c.uploadExample(ctx, conf)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &templates.Component{
+			Type: "HEADER", Format: "DOCUMENT", Example: &templates.Example{HeaderHandle: []string{handle}},
+		})
+	}
+	body := &templates.Component{Type: "BODY", Text: def.Body}
+	if len(def.Examples) > 0 {
+		body.Example = &templates.Example{BodyText: [][]string{def.Examples}}
+	}
+	return append(out, body), nil
+}
+
+// copyCodeText is the copy-code button label per template language.
+func copyCodeText(lang string) string {
+	if strings.HasPrefix(strings.ToLower(lang), "en") {
+		return "Copy code"
+	}
+	return "Kodu kopyala"
+}
+
 // CreateTemplate submits a template (with examples) for review.
 func (c *Client) CreateTemplate(ctx context.Context, def TemplateDefinition) (CreatedTemplate, error) {
 	conf, err := c.config(ctx)
@@ -87,27 +122,8 @@ func (c *Client) CreateTemplate(ctx context.Context, def TemplateDefinition) (Cr
 	if req.Language == "" {
 		req.Language = "tr"
 	}
-	if def.CopyCode {
-		req.Components = []*templates.Component{
-			{Type: "BODY", AddSecurityRecommendation: false},
-			{Type: "FOOTER", CodeExpirationMinutes: def.CodeExpirationMinutes},
-			{Type: "BUTTONS", Buttons: []*templates.Button{{Type: "OTP", OTPType: "COPY_CODE", Text: "Kodu kopyala"}}},
-		}
-	} else {
-		if def.HeaderDocument {
-			handle, err := c.uploadExample(ctx, conf)
-			if err != nil {
-				return CreatedTemplate{}, err
-			}
-			req.Components = append(req.Components, &templates.Component{
-				Type: "HEADER", Format: "DOCUMENT", Example: &templates.Example{HeaderHandle: []string{handle}},
-			})
-		}
-		body := &templates.Component{Type: "BODY", Text: def.Body}
-		if len(def.Examples) > 0 {
-			body.Example = &templates.Example{BodyText: [][]string{def.Examples}}
-		}
-		req.Components = append(req.Components, body)
+	if req.Components, err = c.components(ctx, conf, def); err != nil {
+		return CreatedTemplate{}, err
 	}
 
 	resp, err := c.templatesClient(conf).Create(ctx, req)
@@ -118,6 +134,27 @@ func (c *Client) CreateTemplate(ctx context.Context, def TemplateDefinition) (Cr
 		return CreatedTemplate{}, model.NewSendError(model.ErrCodeSendFailed, true, fmt.Errorf("create template: response without id"))
 	}
 	return CreatedTemplate{ID: resp.ID, Status: resp.Status, Category: resp.Category}, nil
+}
+
+// EditTemplate resubmits an existing Meta template (APPROVED, REJECTED or
+// PAUSED) with new components; Meta reviews it again. The template keeps
+// its id, so the result carries the given id.
+func (c *Client) EditTemplate(ctx context.Context, metaTemplateID string, def TemplateDefinition) (CreatedTemplate, error) {
+	conf, err := c.config(ctx)
+	if err != nil {
+		return CreatedTemplate{}, err
+	}
+	if strings.TrimSpace(metaTemplateID) == "" {
+		return CreatedTemplate{}, model.NewSendError(model.ErrCodeTemplateMissing, false, fmt.Errorf("edit template: meta template id is required"))
+	}
+	req := &templates.EditRequest{TemplateID: metaTemplateID, Category: def.Category}
+	if req.Components, err = c.components(ctx, conf, def); err != nil {
+		return CreatedTemplate{}, err
+	}
+	if _, err := templates.NewClient(conf, c.senderOptions()...).Edit(ctx, req); err != nil {
+		return CreatedTemplate{}, Classify(err)
+	}
+	return CreatedTemplate{ID: metaTemplateID, Status: "PENDING", Category: def.Category}, nil
 }
 
 // uploadExample uploads the sample PDF with the resumable upload API and
