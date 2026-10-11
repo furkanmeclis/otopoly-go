@@ -69,6 +69,7 @@ export const whatsappIntegrationService = {
     if (selection.languages && selection.languages.length > 0) {
       body.languages = selection.languages;
     }
+    if (selection.resubmit) body.resubmit = true;
     return unwrap<WhatsAppTemplateSubmit>(
       await apiClient.POST(
         "/v1/platform/integrations/whatsapp/templates/submit",
