@@ -1,8 +1,16 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Fingerprint, Monitor, ShieldCheck } from "lucide-react";
+import {
+  Bell,
+  Fingerprint,
+  KeyRound,
+  Lock,
+  Monitor,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/layout";
@@ -12,8 +20,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/common/card";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { routes } from "@/config/routes";
 import { ChangePasswordForm } from "@/features/account/components/change-password-form";
 import { DeleteAccountDialog } from "@/features/account/components/delete-account-dialog";
@@ -33,6 +43,39 @@ import { fetchAppPublicConfig } from "@/services/app-config.service";
 import { cn } from "@/lib/utils";
 
 type AccountShell = "platform" | "cms" | "tenant";
+
+const tabs = [
+  { id: "account", labelKey: "auth.profile.tabs.account", icon: UserRound },
+  { id: "security", labelKey: "auth.profile.tabs.security", icon: Lock },
+  {
+    id: "notifications",
+    labelKey: "auth.profile.tabs.notifications",
+    icon: Bell,
+  },
+  {
+    id: "permissions",
+    labelKey: "auth.profile.tabs.permissions",
+    icon: KeyRound,
+  },
+] as const;
+
+type ProfileTab = (typeof tabs)[number]["id"];
+
+function isProfileTab(value: string): value is ProfileTab {
+  return tabs.some((item) => item.id === value);
+}
+
+function subscribeHash(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
+function initials(fullName?: string) {
+  const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
+  const a = parts[0]?.[0] ?? "";
+  const b = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  return `${a}${b}`.toUpperCase() || "U";
+}
 
 function homeHref(shell: AccountShell, tenantSlug?: string) {
   if (shell === "platform") return routes.platform.home;
@@ -59,6 +102,21 @@ export function AccountProfilePage({
     : user?.isSuperAdmin
       ? ["super_admin"]
       : [];
+
+  // The active section is mirrored in the URL hash (#security) so it
+  // survives a reload and can be linked to without a Suspense boundary.
+  const hash = useSyncExternalStore(
+    subscribeHash,
+    () => window.location.hash.slice(1),
+    () => "",
+  );
+  const [picked, setPicked] = useState<ProfileTab | null>(null);
+  const tab: ProfileTab = picked ?? (isProfileTab(hash) ? hash : "account");
+  const selectTab = (value: string) => {
+    if (!isProfileTab(value)) return;
+    setPicked(value);
+    window.history.replaceState(null, "", `#${value}`);
+  };
 
   const requestVerify = async () => {
     try {
@@ -89,212 +147,231 @@ export function AccountProfilePage({
         ]}
       />
 
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>{t("auth.profile.title")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <Fact
-              label={t("auth.profile.name")}
-              value={user?.fullName || "—"}
-            />
-            <Fact label={t("auth.profile.email")} value={user?.email || "—"} />
-            <Fact
-              label={t("auth.profile.email_verified")}
-              value={
-                user?.emailVerified ? (
-                  <Badge variant="success">{t("auth.profile.verified")}</Badge>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="warning">
-                      {t("auth.profile.unverified")}
-                    </Badge>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={requestVerify}
-                    >
-                      {t("auth.verify.request")}
-                    </Button>
-                  </div>
-                )
-              }
-            />
-            <Fact
-              label={t("auth.profile.status")}
-              value={
-                user?.status ? (
-                  <Badge variant="secondary">{user.status}</Badge>
-                ) : (
-                  "—"
-                )
-              }
-            />
-            <Fact
-              label={t("auth.profile.roles_title")}
-              value={
-                roles.length ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {roles.map((role) => (
-                      <Badge key={role} variant="secondary">
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  "—"
-                )
-              }
-            />
-            <Fact
-              label={t("auth.profile.uuid")}
-              value={
-                <span className="font-mono text-xs">{user?.uuid ?? "—"}</span>
-              }
-            />
-          </dl>
-
-          <div className="border-border space-y-3 border-t pt-5">
-            <div>
-              <h3 className="text-sm font-semibold">
-                {t("auth.profile.edit_title")}
-              </h3>
-              <CardHint>{t("auth.profile.edit_hint")}</CardHint>
-            </div>
-            <ProfileEditForm />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <Avatar className="size-14 shrink-0">
+          <AvatarFallback className="text-base font-semibold">
+            {initials(user?.fullName)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <p className="truncate text-lg font-semibold">
+            {user?.fullName || "—"}
+          </p>
+          <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+            <span className="min-w-0 break-all">{user?.email || "—"}</span>
+            {user?.emailVerified ? (
+              <Badge variant="success">{t("auth.profile.verified")}</Badge>
+            ) : (
+              <>
+                <Badge variant="warning">{t("auth.profile.unverified")}</Badge>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7"
+                  onClick={requestVerify}
+                >
+                  {t("auth.verify.request")}
+                </Button>
+              </>
+            )}
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 lg:grid-cols-2 lg:items-start xl:grid-cols-3">
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Fingerprint
-                className="text-muted-foreground size-5"
-                aria-hidden
-              />
-              {t("auth.passkey.title")}
-            </CardTitle>
-            <CardHint>{t("auth.passkey.description")}</CardHint>
-          </CardHeader>
-          <CardContent>
-            <PasskeyManager />
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShieldCheck
-                className="text-muted-foreground size-5"
-                aria-hidden
-              />
-              {t("auth.totp.title")}
-            </CardTitle>
-            <CardHint>{t("auth.totp.description")}</CardHint>
-          </CardHeader>
-          <CardContent>
-            <TotpManager />
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>{t("auth.oauth.title")}</CardTitle>
-            <CardHint>{t("auth.oauth.profile_hint")}</CardHint>
-          </CardHeader>
-          <CardContent>
-            <OAuthIdentityManager
-              providers={[
-                {
-                  id: "github",
-                  enabled: Boolean(appConfig?.auth_methods.github.login),
-                },
-                {
-                  id: "google",
-                  enabled: Boolean(appConfig?.auth_methods.google.login),
-                },
-                {
-                  id: "facebook",
-                  enabled: Boolean(appConfig?.auth_methods.facebook.login),
-                },
-                {
-                  id: "apple",
-                  enabled: Boolean(appConfig?.auth_methods.apple.login),
-                },
-              ]}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>{t("auth.password.title")}</CardTitle>
-            <CardHint>{t("auth.profile.change_password_body")}</CardHint>
-          </CardHeader>
-          <CardContent>
-            <ChangePasswordForm />
-          </CardContent>
-        </Card>
+          {roles.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {roles.map((role) => (
+                <Badge key={role} variant="secondary">
+                  {role}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
 
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Monitor className="text-muted-foreground size-5" aria-hidden />
-            {t("auth.sessions.title")}
-          </CardTitle>
-          <CardHint>{t("auth.sessions.description")}</CardHint>
-        </CardHeader>
-        <CardContent>
-          <SessionManager />
-        </CardContent>
-      </Card>
+      <Tabs value={tab} onValueChange={selectTab}>
+        {/* Scrolls horizontally on narrow screens instead of wrapping. */}
+        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <TabsList>
+            {tabs.map((item) => (
+              <TabsTrigger key={item.id} value={item.id} className="px-3">
+                <item.icon aria-hidden />
+                {t(item.labelKey)}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
 
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>{t("auth.preferences.title")}</CardTitle>
-          <CardHint>{t("auth.preferences.description")}</CardHint>
-        </CardHeader>
-        <CardContent>
-          <NotificationPreferencesForm />
-        </CardContent>
-      </Card>
+        <TabsContent value="account" className="mt-4 space-y-4">
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle>{t("auth.profile.edit_title")}</CardTitle>
+              <CardHint>{t("auth.profile.edit_hint")}</CardHint>
+            </CardHeader>
+            <CardContent>
+              <ProfileEditForm />
+            </CardContent>
+          </Card>
 
-      {shell === "tenant" && tenantSlug ? (
-        <Card className="shadow-none">
-          <CardHeader>
-            <CardTitle>{t("messaging.prefs.title")}</CardTitle>
-            <CardHint>{t("messaging.prefs.description")}</CardHint>
-          </CardHeader>
-          <CardContent>
-            <TenantNotificationPreferences />
-          </CardContent>
-        </Card>
-      ) : null}
+          <Card className="shadow-none">
+            <CardContent>
+              <dl className="grid gap-4 sm:grid-cols-2">
+                <Fact
+                  label={t("auth.profile.status")}
+                  value={
+                    user?.status ? (
+                      <Badge variant="secondary">{user.status}</Badge>
+                    ) : (
+                      "—"
+                    )
+                  }
+                />
+                <Fact
+                  label={t("auth.profile.uuid")}
+                  value={
+                    <span className="font-mono text-xs">
+                      {user?.uuid ?? "—"}
+                    </span>
+                  }
+                />
+              </dl>
+            </CardContent>
+          </Card>
 
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>{t("auth.profile.permissions_title")}</CardTitle>
-          <CardHint>{t("auth.profile.permissions_hint")}</CardHint>
-        </CardHeader>
-        <CardContent>
-          <ProfilePermissionsList granted={user?.permissions} />
-        </CardContent>
-      </Card>
+          <Card className="border-destructive/40 shadow-none">
+            <CardHeader>
+              <CardTitle>{t("auth.delete_account.title")}</CardTitle>
+              <CardHint>{t("auth.delete_account.description")}</CardHint>
+            </CardHeader>
+            <CardContent>
+              <DeleteAccountDialog />
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <Card className="border-destructive/40 shadow-none">
-        <CardHeader>
-          <CardTitle>{t("auth.delete_account.title")}</CardTitle>
-          <CardHint>{t("auth.delete_account.description")}</CardHint>
-        </CardHeader>
-        <CardContent>
-          <DeleteAccountDialog />
-        </CardContent>
-      </Card>
+        <TabsContent value="security" className="mt-4 space-y-4">
+          <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+            <Card className="shadow-none">
+              <CardHeader>
+                <CardTitle>{t("auth.password.title")}</CardTitle>
+                <CardHint>{t("auth.profile.change_password_body")}</CardHint>
+              </CardHeader>
+              <CardContent>
+                <ChangePasswordForm />
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-none">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ShieldCheck
+                    className="text-muted-foreground size-5"
+                    aria-hidden
+                  />
+                  {t("auth.totp.title")}
+                </CardTitle>
+                <CardHint>{t("auth.totp.description")}</CardHint>
+              </CardHeader>
+              <CardContent>
+                <TotpManager />
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-none">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Fingerprint
+                    className="text-muted-foreground size-5"
+                    aria-hidden
+                  />
+                  {t("auth.passkey.title")}
+                </CardTitle>
+                <CardHint>{t("auth.passkey.description")}</CardHint>
+              </CardHeader>
+              <CardContent>
+                <PasskeyManager />
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-none">
+              <CardHeader>
+                <CardTitle>{t("auth.oauth.title")}</CardTitle>
+                <CardHint>{t("auth.oauth.profile_hint")}</CardHint>
+              </CardHeader>
+              <CardContent>
+                <OAuthIdentityManager
+                  providers={[
+                    {
+                      id: "github",
+                      enabled: Boolean(appConfig?.auth_methods.github.login),
+                    },
+                    {
+                      id: "google",
+                      enabled: Boolean(appConfig?.auth_methods.google.login),
+                    },
+                    {
+                      id: "facebook",
+                      enabled: Boolean(appConfig?.auth_methods.facebook.login),
+                    },
+                    {
+                      id: "apple",
+                      enabled: Boolean(appConfig?.auth_methods.apple.login),
+                    },
+                  ]}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Monitor className="text-muted-foreground size-5" aria-hidden />
+                {t("auth.sessions.title")}
+              </CardTitle>
+              <CardHint>{t("auth.sessions.description")}</CardHint>
+            </CardHeader>
+            <CardContent>
+              <SessionManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notifications" className="mt-4 space-y-4">
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle>{t("auth.preferences.title")}</CardTitle>
+              <CardHint>{t("auth.preferences.description")}</CardHint>
+            </CardHeader>
+            <CardContent>
+              <NotificationPreferencesForm />
+            </CardContent>
+          </Card>
+
+          {shell === "tenant" && tenantSlug ? (
+            <Card className="shadow-none">
+              <CardHeader>
+                <CardTitle>{t("messaging.prefs.title")}</CardTitle>
+                <CardHint>{t("messaging.prefs.description")}</CardHint>
+              </CardHeader>
+              <CardContent>
+                <TenantNotificationPreferences />
+              </CardContent>
+            </Card>
+          ) : null}
+        </TabsContent>
+
+        <TabsContent value="permissions" className="mt-4">
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle>{t("auth.profile.permissions_title")}</CardTitle>
+              <CardHint>{t("auth.profile.permissions_hint")}</CardHint>
+            </CardHeader>
+            <CardContent>
+              <ProfilePermissionsList granted={user?.permissions} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
