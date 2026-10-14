@@ -21,9 +21,9 @@ export function SearchTrigger({
     return (
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         size="icon"
-        className={cn("size-9 shrink-0", className)}
+        className={cn("relative shrink-0", className)}
         onClick={() => setOpen(true)}
         aria-label={t("search.trigger_label")}
       >
