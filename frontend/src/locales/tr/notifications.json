@@ -77,5 +77,6 @@
   "inbox.view_all": "Platform günlüğünü gör",
   "inbox.mark_all_read": "Tümünü okundu yap",
   "inbox.trigger": "Bildirimler",
-  "inbox.trigger_unread": "{{count}} okunmamış bildirim"
+  "inbox.trigger_unread": "{{count}} okunmamış bildirim",
+  "inbox.no_body": "Bu bildirim için ek açıklama yok."
 }

@@ -77,5 +77,6 @@
   "inbox.view_all": "View platform log",
   "inbox.mark_all_read": "Mark all read",
   "inbox.trigger": "Notifications",
-  "inbox.trigger_unread": "{{count}} unread notifications"
+  "inbox.trigger_unread": "{{count}} unread notifications",
+  "inbox.no_body": "No additional details for this notification."
 }

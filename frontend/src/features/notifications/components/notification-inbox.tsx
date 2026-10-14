@@ -254,6 +254,7 @@ export function NotificationInbox() {
       </Popover>
 
       <NotificationDetailDrawer
+        variant="inbox"
         notification={selected}
         open={Boolean(selected)}
         onOpenChange={(next) => {
