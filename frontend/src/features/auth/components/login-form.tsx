@@ -411,12 +411,8 @@ export function LoginForm() {
               placeholder={t("auth.totp.code_placeholder")}
             />
 
-            <Field className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                type="submit"
-                disabled={authPending}
-                className="sm:flex-1"
-              >
+            <Field className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Button type="submit" disabled={authPending}>
                 <ShieldCheck aria-hidden />
                 {pending
                   ? t("auth.login.submitting")
@@ -500,12 +496,8 @@ export function LoginForm() {
                 autoComplete="email"
                 placeholder={t("auth.placeholders.email")}
               />
-              <Field className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  type="submit"
-                  disabled={authPending}
-                  className="sm:flex-1"
-                >
+              <Field className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Button type="submit" disabled={authPending}>
                   <Mail aria-hidden />
                   {pending
                     ? t("auth.email_code.sending")
@@ -539,12 +531,8 @@ export function LoginForm() {
                 maxLength={6}
                 placeholder={t("auth.email_code.code_placeholder")}
               />
-              <Field className="flex flex-col gap-2 sm:flex-row">
-                <Button
-                  type="submit"
-                  disabled={authPending}
-                  className="sm:flex-1"
-                >
+              <Field className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <Button type="submit" disabled={authPending}>
                   {pending
                     ? t("auth.login.submitting")
                     : t("auth.email_code.verify")}
