@@ -111,8 +111,6 @@
   "members.role_description": "{{name}} will become {{role}} in this business.",
   "members.remove_title": "Remove member?",
   "members.remove_description": "{{name}} loses access to this business immediately and is signed out of it. The user account itself is kept.",
-  "login.title": "Business sign-in",
-  "login.description": "Sign in with your account to continue.",
   "home.title": "Business console",
   "home.subtitle": "Manage daily operations from here.",
   "home.greeting": "Welcome, {{name}}.",

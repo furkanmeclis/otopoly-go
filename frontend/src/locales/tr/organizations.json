@@ -111,8 +111,6 @@
   "members.role_description": "{{name}} bu işletmede {{role}} olacak.",
   "members.remove_title": "Üye çıkarılsın mı?",
   "members.remove_description": "{{name}} bu işletmeye erişimini hemen kaybeder ve işletmedeki oturumu kapatılır. Kullanıcı hesabı silinmez.",
-  "login.title": "İşletme girişi",
-  "login.description": "Devam etmek için hesabınızla giriş yapın.",
   "home.title": "İşletme paneli",
   "home.subtitle": "Günlük operasyonlarınızı buradan yönetin.",
   "home.greeting": "Hoş geldiniz, {{name}}.",

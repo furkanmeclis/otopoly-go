@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,14 +18,9 @@ import { useAuthStore } from "@/lib/auth/session-store";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
 
-export function TenantRouteGuard({
-  children,
-  mode,
-}: {
-  children: ReactNode;
-  mode: "guest" | "tenant";
-}) {
+export function TenantRouteGuard({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { slug, organization } = useTenant();
   const { bootstrapped, isAuthenticated, user } = useAuth();
   const { t } = useLocale();
@@ -39,21 +34,13 @@ export function TenantRouteGuard({
 
   useEffect(() => {
     if (!bootstrapped) return;
-    if (mode === "guest" && isAuthenticated && membership && !accessExpired) {
-      router.replace(routes.tenant.home(slug));
+    if (!isAuthenticated) {
+      // Sign in at the business login and come back to this page.
+      router.replace(
+        routes.public.loginWithNext(pathname || routes.tenant.home(slug)),
+      );
     }
-    if (mode === "tenant" && !isAuthenticated) {
-      router.replace(routes.tenant.login(slug));
-    }
-  }, [
-    accessExpired,
-    bootstrapped,
-    isAuthenticated,
-    membership,
-    mode,
-    router,
-    slug,
-  ]);
+  }, [bootstrapped, isAuthenticated, pathname, router, slug]);
 
   // Show loading only when there is no cached user to render optimistically.
   // If cachedUser exists, render children immediately and let session
@@ -66,11 +53,11 @@ export function TenantRouteGuard({
     );
   }
 
-  if (mode === "tenant" && !isAuthenticated) {
+  if (!isAuthenticated) {
     return null;
   }
 
-  if (mode === "tenant" && isAuthenticated && !membership) {
+  if (!membership) {
     return (
       <div className="flex min-h-svh items-center justify-center p-6">
         <Card className="w-full max-w-md">
@@ -92,7 +79,7 @@ export function TenantRouteGuard({
     );
   }
 
-  if (mode === "tenant" && accessExpired) {
+  if (accessExpired) {
     return (
       <div className="flex min-h-svh items-center justify-center p-6">
         <Card className="w-full max-w-md">
