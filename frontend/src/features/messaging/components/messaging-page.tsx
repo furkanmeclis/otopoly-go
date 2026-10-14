@@ -57,12 +57,16 @@ export function MessagingPage() {
           ) : null}
         </TabsList>
         <TabsContent value="connection" className="mt-4">
-          <div className="grid gap-6 lg:grid-cols-2">
-            <WhatsAppSessionCard canWrite={canWrite} />
+          {/* Two independent columns so the short connection card does not
+              stretch to the height of the long rules list. */}
+          <div className="grid items-start gap-6 lg:grid-cols-2">
+            <div className="grid gap-6">
+              <WhatsAppSessionCard canWrite={canWrite} />
+              {/* Owner-only: the summary contains revenue and cash balances. */}
+              {canWrite ? <VehicleAlertsCard /> : null}
+              {canWrite ? <DailySummaryCard /> : null}
+            </div>
             <NotificationRulesCard />
-            {/* Owner-only: the summary contains revenue and cash balances. */}
-            {canWrite ? <VehicleAlertsCard /> : null}
-            {canWrite ? <DailySummaryCard /> : null}
           </div>
         </TabsContent>
         <TabsContent value="templates" className="mt-4">

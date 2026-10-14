@@ -1,18 +1,12 @@
 "use client";
 
-import {
-  AlertTriangle,
-  Check,
-  Copy,
-  Download,
-  MessageCircle,
-  Send,
-} from "lucide-react";
+import { AlertTriangle, Check, Copy, Download, Send } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -243,7 +237,7 @@ function SendQuoteDialogBody({
                   target="_blank"
                   rel="noreferrer"
                 >
-                  <MessageCircle className="size-4" />
+                  <WhatsAppIcon className="size-4" />
                   {t("quotes.send.open_whatsapp")}
                 </a>
               </Button>

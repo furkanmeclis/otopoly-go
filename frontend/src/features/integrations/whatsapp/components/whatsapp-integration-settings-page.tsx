@@ -1,11 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageCircle } from "lucide-react";
 import { useState } from "react";
 
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { PageHeader } from "@/components/layout/page-header";
 import { permissions } from "@/config/permissions";
 import { WhatsAppPlatformSessionCard } from "@/features/integrations/whatsapp/components/whatsapp-platform-session-card";
@@ -104,7 +104,7 @@ export function WhatsAppIntegrationSettingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        icon={<MessageCircle className="size-7" />}
+        icon={<WhatsAppIcon className="size-7" />}
         title={t("integrations.whatsapp.title")}
         description={t("integrations.whatsapp.description")}
       />
