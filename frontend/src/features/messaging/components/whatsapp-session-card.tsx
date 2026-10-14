@@ -1,15 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import {
-  CheckCircle2,
-  Loader2,
-  Lock,
-  MessageCircle,
-  Unplug,
-  XCircle,
-} from "lucide-react";
+import { CheckCircle2, Loader2, Lock, Unplug, XCircle } from "lucide-react";
 
+import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -93,7 +87,7 @@ export function WhatsAppSessionCard({
     <Card>
       <CardHeader>
         <div className="flex items-center gap-2">
-          <MessageCircle className="size-5 text-green-500" />
+          <WhatsAppIcon className="size-5 text-[#25D366]" />
           <CardTitle>{t("messaging.wa.title")}</CardTitle>
         </div>
         <CardDescription>
@@ -143,7 +137,7 @@ export function WhatsAppSessionCard({
               {connectMutation.isPending ? (
                 <Loader2 className="mr-2 size-4 animate-spin" />
               ) : (
-                <MessageCircle className="mr-2 size-4" />
+                <WhatsAppIcon className="mr-2 size-4" />
               )}
               {t("messaging.wa.connect")}
             </Button>
