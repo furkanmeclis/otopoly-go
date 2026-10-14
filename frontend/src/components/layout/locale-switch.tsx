@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Languages } from "lucide-react";
+import { Check } from "lucide-react";
 
+import { LocaleFlag } from "@/components/layout/locale-flag";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -42,7 +43,7 @@ export function LocaleSwitch() {
     <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="rounded-full">
-          <Languages className="size-[1.15rem]" />
+          <LocaleFlag locale={locale} />
           <span className="sr-only">{t("common.language")}</span>
         </Button>
       </DropdownMenuTrigger>
@@ -51,7 +52,9 @@ export function LocaleSwitch() {
           <DropdownMenuItem
             key={option.value}
             onClick={() => void applyLocale(option.value)}
+            className="gap-2.5"
           >
+            <LocaleFlag locale={option.value} />
             {option.label}
             <Check
               size={14}
