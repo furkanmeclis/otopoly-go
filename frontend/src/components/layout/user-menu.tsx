@@ -54,7 +54,7 @@ function resolveLogoutHref(
   const slug =
     tenantSlugFromPath(pathname) ?? primaryOrganizationSlug(user) ?? null;
   if (slug) {
-    return routes.tenant.login(slug);
+    return routes.public.login;
   }
   return routes.guest.login;
 }

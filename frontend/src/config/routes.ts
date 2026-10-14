@@ -1,6 +1,9 @@
 export const routes = {
   public: {
     root: "/",
+    /** Business login: tenant users sign in here (`?next=/t/{slug}/...`). */
+    login: "/login",
+    loginWithNext: (next: string) => `/login?next=${encodeURIComponent(next)}`,
     register: "/register",
     privacy: "/privacy",
     privacyEn: "/en/privacy",
@@ -17,7 +20,6 @@ export const routes = {
   },
   tenant: {
     home: (slug: string) => `/t/${slug}`,
-    login: (slug: string) => `/t/${slug}/login`,
     profile: {
       root: (slug: string) => `/t/${slug}/profile`,
       password: (slug: string) => `/t/${slug}/profile/password`,

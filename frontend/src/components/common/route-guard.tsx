@@ -18,6 +18,7 @@ import {
   isCmsUser,
   isPlatformUser,
 } from "@/lib/auth/types";
+import { safeNextPath } from "@/lib/routing/safe-next";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -65,7 +66,9 @@ export function RouteGuard({ children, mode }: RouteGuardProps) {
     if (!bootstrapped) return;
 
     if (mode === "guest" && isAuthenticated && user) {
-      router.replace(defaultHomeForUser(user));
+      // Already signed in: honour ?next= (e.g. a tenant page) like the login form.
+      const next = new URLSearchParams(window.location.search).get("next");
+      router.replace(safeNextPath(next, defaultHomeForUser(user)));
       return;
     }
 

@@ -33,6 +33,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  async redirects() {
+    // Tenant login pages were removed: everyone signs in at /login.
+    return [
+      {
+        source: "/t/:slug/login",
+        destination: "/login?next=/t/:slug",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 /**

@@ -81,17 +81,6 @@ export type OrganizationRegisterFormValues = z.infer<
   ReturnType<typeof createOrganizationRegisterSchema>
 >;
 
-export function createTenantLoginSchema(t: Translate) {
-  return z.object({
-    email: z.email(t("auth.validation.email")),
-    password: z.string().min(1, t("auth.validation.password_required")),
-  });
-}
-
-export type TenantLoginFormValues = z.infer<
-  ReturnType<typeof createTenantLoginSchema>
->;
-
 export function createRegisterSchema(t: Translate) {
   return z.object({
     email: z.email(t("auth.validation.email")),
