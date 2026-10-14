@@ -12,7 +12,7 @@ import { formatNotificationText } from "@/features/notifications/lib/notificatio
 import { runNotificationAction } from "@/features/notifications/lib/run-notification-action";
 import type { Notification } from "@/features/notifications/services/notifications.service";
 import { useOptionalTenant } from "@/features/organizations/providers/tenant-provider";
-import { datetime } from "@/lib/utils";
+import { datetime, relativeDatetime } from "@/lib/utils";
 import { appToast } from "@/providers/toast-provider";
 import { useLocale } from "@/providers/locale-provider";
 
@@ -20,6 +20,11 @@ type NotificationDetailDrawerProps = {
   notification: Notification | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * `inbox` is the end-user view opened from the bell: title, time, message
+   * and actions only. `admin` adds delivery metadata and the raw payload.
+   */
+  variant?: "inbox" | "admin";
 };
 
 function DetailField({ label, value }: { label: string; value: ReactNode }) {
@@ -44,6 +49,7 @@ export function NotificationDetailDrawer({
   notification,
   open,
   onOpenChange,
+  variant = "admin",
 }: NotificationDetailDrawerProps) {
   const { t, locale } = useLocale();
   const router = useRouter();
@@ -53,13 +59,21 @@ export function NotificationDetailDrawer({
     payload: notification?.payload,
   });
 
+  const isInbox = variant === "inbox";
+
   return (
     <EntityDrawer
       open={open}
       onOpenChange={onOpenChange}
       title={notification?.title ?? t("notifications.detail_title")}
-      description={t("notifications.detail_description")}
-      size="lg"
+      description={
+        isInbox
+          ? notification
+            ? `${relativeDatetime(notification.created_at, locale)} · ${datetime(notification.created_at, undefined, locale)}`
+            : undefined
+          : t("notifications.detail_description")
+      }
+      size={isInbox ? "md" : "lg"}
       footer={
         actions.length > 0 ? (
           <div className="flex flex-wrap justify-end gap-2">
@@ -69,6 +83,7 @@ export function NotificationDetailDrawer({
                 type="button"
                 variant={index === 0 ? "default" : "outline"}
                 onClick={() => {
+                  if (isInbox) onOpenChange(false);
                   void runNotificationAction({
                     action,
                     navigate: (href) => router.push(href),
@@ -85,7 +100,17 @@ export function NotificationDetailDrawer({
         ) : undefined
       }
     >
-      {notification ? (
+      {notification && isInbox ? (
+        notification.body ? (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {formatNotificationText(notification.body, t)}
+          </p>
+        ) : (
+          <p className="text-muted-foreground text-sm">
+            {t("notifications.inbox.no_body")}
+          </p>
+        )
+      ) : notification ? (
         <div className="space-y-6">
           <div className="flex flex-wrap gap-2">
             <StatusChip
