@@ -1,0 +1,94 @@
+-- Projection of the TSB vehicle catalog (catalog_display_brands / models /
+-- types) onto the legacy vehicle_brands / vehicle_models / vehicle_model_years
+-- tables that customer vehicles, quotes, jobs and the Meilisearch picker use.
+-- Rows are linked by catalog_display_brand_id / catalog_group_key so a
+-- re-apply updates the same rows. Nothing is ever deleted here.
+
+-- name: ProjectCatalogLinkBrandsByName :execrows
+UPDATE vehicle_brands b
+SET catalog_display_brand_id = d.id
+FROM catalog_display_brands d
+WHERE b.deleted_at IS NULL
+  AND b.catalog_display_brand_id IS NULL
+  AND lower(b.name) = lower(d.name)
+  AND NOT EXISTS (
+      SELECT 1 FROM vehicle_brands o
+      WHERE o.catalog_display_brand_id = d.id AND o.deleted_at IS NULL
+  );
+
+-- name: ProjectCatalogInsertBrands :execrows
+INSERT INTO vehicle_brands (name, catalog_display_brand_id, is_active)
+SELECT left(d.name, 150), d.id, d.is_active
+FROM catalog_display_brands d
+WHERE NOT EXISTS (
+      SELECT 1 FROM vehicle_brands b
+      WHERE b.catalog_display_brand_id = d.id AND b.deleted_at IS NULL
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM vehicle_brands b
+      WHERE lower(b.name) = lower(left(d.name, 150)) AND b.deleted_at IS NULL
+  );
+
+-- name: ProjectCatalogUpdateBrands :execrows
+UPDATE vehicle_brands b
+SET name = left(d.name, 150), is_active = d.is_active
+FROM catalog_display_brands d
+WHERE b.catalog_display_brand_id = d.id
+  AND b.deleted_at IS NULL
+  AND (b.name <> left(d.name, 150) OR b.is_active <> d.is_active)
+  AND NOT EXISTS (
+      SELECT 1 FROM vehicle_brands o
+      WHERE o.id <> b.id AND o.deleted_at IS NULL AND lower(o.name) = lower(left(d.name, 150))
+  );
+
+-- name: ProjectCatalogLinkModelsByName :execrows
+UPDATE vehicle_models vm
+SET catalog_group_key = g.group_key
+FROM (
+    SELECT cb.display_brand_id, m.group_key
+    FROM catalog_models m
+    JOIN catalog_brands cb ON cb.id = m.brand_id
+    GROUP BY cb.display_brand_id, m.group_key
+) g
+JOIN vehicle_brands b ON b.catalog_display_brand_id = g.display_brand_id AND b.deleted_at IS NULL
+WHERE vm.brand_id = b.id
+  AND vm.deleted_at IS NULL
+  AND vm.catalog_group_key IS NULL
+  AND lower(regexp_replace(btrim(vm.name), '\s+', ' ', 'g')) = g.group_key
+  AND NOT EXISTS (
+      SELECT 1 FROM vehicle_models o
+      WHERE o.brand_id = vm.brand_id AND o.catalog_group_key = g.group_key AND o.deleted_at IS NULL
+  );
+
+-- name: ProjectCatalogInsertModels :execrows
+INSERT INTO vehicle_models (brand_id, name, catalog_group_key, is_active)
+SELECT b.id, left(g.name, 200), g.group_key, TRUE
+FROM (
+    SELECT cb.display_brand_id, m.group_key, min(m.name) AS name
+    FROM catalog_models m
+    JOIN catalog_brands cb ON cb.id = m.brand_id
+    GROUP BY cb.display_brand_id, m.group_key
+) g
+JOIN vehicle_brands b ON b.catalog_display_brand_id = g.display_brand_id AND b.deleted_at IS NULL
+WHERE NOT EXISTS (
+      SELECT 1 FROM vehicle_models vm
+      WHERE vm.brand_id = b.id AND vm.catalog_group_key = g.group_key AND vm.deleted_at IS NULL
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM vehicle_models vm
+      WHERE vm.brand_id = b.id AND lower(vm.name) = lower(left(g.name, 200)) AND vm.deleted_at IS NULL
+  );
+
+-- name: ProjectCatalogInsertModelYears :execrows
+INSERT INTO vehicle_model_years (model_id, year)
+SELECT DISTINCT vm.id, y.year::smallint
+FROM vehicle_models vm
+JOIN vehicle_brands b ON b.id = vm.brand_id AND b.deleted_at IS NULL
+JOIN catalog_brands cb ON cb.display_brand_id = b.catalog_display_brand_id
+JOIN catalog_models m ON m.brand_id = cb.id AND m.group_key = vm.catalog_group_key
+JOIN catalog_types t ON t.model_id = m.id AND t.is_active
+CROSS JOIN LATERAL unnest(t.years) AS y(year)
+WHERE vm.deleted_at IS NULL
+  AND vm.catalog_group_key IS NOT NULL
+  AND y.year BETWEEN 1900 AND 2100
+ON CONFLICT (model_id, year) DO NOTHING;

@@ -223,9 +223,18 @@ export const routes = {
           : `/platform/organizations/${uuid}`,
       edit: (uuid: string) => `/platform/organizations/${uuid}/edit`,
     },
-    vehicleBrands: {
-      root: "/platform/vehicle-brands",
-      detail: (uuid: string) => `/platform/vehicle-brands/${uuid}`,
+    /** Vehicle catalog (TSB kasko list): tabs brands / models / types / unresolved queue / imports / logos. */
+    vehicleCatalog: {
+      root: "/platform/vehicle-catalog",
+      brands: "/platform/vehicle-catalog/brands",
+      models: "/platform/vehicle-catalog/models",
+      types: "/platform/vehicle-catalog/types",
+      typeDetail: (uuid: string) => `/platform/vehicle-catalog/types/${uuid}`,
+      unresolved: "/platform/vehicle-catalog/unresolved",
+      imports: "/platform/vehicle-catalog/imports",
+      importDetail: (uuid: string) =>
+        `/platform/vehicle-catalog/imports/${uuid}`,
+      logos: "/platform/vehicle-catalog/logos",
     },
     contractPresets: {
       root: "/platform/contract-presets",

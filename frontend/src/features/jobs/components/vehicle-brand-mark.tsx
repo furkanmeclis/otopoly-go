@@ -1,14 +1,10 @@
 "use client";
 
-import { useState } from "react";
-
-import { apiConfig } from "@/config/api";
-import { assertServiceMediaURL } from "@/lib/media/urls";
-import { cn } from "@/lib/utils";
+import { BrandMark } from "@/components/common/brand-mark";
 
 /**
- * Vehicle brand logo next to the plate; falls back to the brand initial when
- * no logo is uploaded (or it fails to load).
+ * Vehicle brand badge next to the plate; falls back to the brand initial
+ * when no logo is available. Thin wrapper kept for the job board / table.
  */
 export function VehicleBrandMark({
   brandName,
@@ -19,39 +15,5 @@ export function VehicleBrandMark({
   logoUrl?: string | null;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
-  const name = brandName?.trim() ?? "";
-  const path = assertServiceMediaURL(logoUrl);
-  const src =
-    path && !failed
-      ? path.startsWith("/")
-        ? `${apiConfig.baseUrl.replace(/\/$/, "")}${path}`
-        : path
-      : null;
-
-  if (!src && !name) return null;
-
-  return (
-    <span
-      title={name || undefined}
-      className={cn(
-        "grid size-6 shrink-0 place-items-center overflow-hidden rounded-md border bg-white",
-        className,
-      )}
-    >
-      {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt={name}
-          className="size-full object-contain p-0.5"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <span className="text-[10px] font-semibold text-neutral-600">
-          {name.charAt(0).toLocaleUpperCase("tr-TR")}
-        </span>
-      )}
-    </span>
-  );
+  return <BrandMark name={brandName} logoUrl={logoUrl} className={className} />;
 }

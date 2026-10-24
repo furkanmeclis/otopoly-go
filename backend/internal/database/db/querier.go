@@ -38,8 +38,12 @@ type Querier interface {
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
+	CatalogDisplayBrandSlugTaken(ctx context.Context, arg CatalogDisplayBrandSlugTakenParams) (bool, error)
 	// The pending → executing transition is the idempotency lock for confirm.
 	ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error)
+	// Moves an import into a working state only from an allowed state, so two
+	// apply requests cannot run at once.
+	ClaimCatalogImport(ctx context.Context, arg ClaimCatalogImportParams) (CatalogImport, error)
 	// Marks today's summary as sent; 0 rows when another sweep already claimed it.
 	ClaimDailySummary(ctx context.Context, arg ClaimDailySummaryParams) (int64, error)
 	// Atomic batch claim; concurrent sweepers skip each other's rows.
@@ -51,6 +55,7 @@ type Querier interface {
 	// Serialises flushes per org and enforces the batch window.
 	ClaimVehicleAlertFlush(ctx context.Context, organizationID int64) (int64, error)
 	ClearAppSettingsLogo(ctx context.Context) (AppSetting, error)
+	ClearCatalogDisplayBrandsSyncedLogos(ctx context.Context) (int64, error)
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
 	ClearOrganizationAccessEnd(ctx context.Context, id int64) error
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
@@ -69,10 +74,18 @@ type Querier interface {
 	CountAppLogs(ctx context.Context, arg CountAppLogsParams) (int64, error)
 	CountAppLogsByLevel(ctx context.Context) ([]CountAppLogsByLevelRow, error)
 	CountApprovedOrdersForOrg(ctx context.Context, organizationID int64) (int64, error)
+	CountBrandLogoSources(ctx context.Context) (int64, error)
+	CountBrandLogoSyncRuns(ctx context.Context) (int64, error)
 	CountBulkJobsForActor(ctx context.Context, actorID int64) (int64, error)
 	CountCariAccounts(ctx context.Context, arg CountCariAccountsParams) (int64, error)
 	CountCariEntries(ctx context.Context, arg CountCariEntriesParams) (int64, error)
+	CountCatalogBrands(ctx context.Context, arg CountCatalogBrandsParams) (int64, error)
 	CountCatalogCategories(ctx context.Context, arg CountCatalogCategoriesParams) (int64, error)
+	CountCatalogDisplayBrands(ctx context.Context, arg CountCatalogDisplayBrandsParams) (int64, error)
+	CountCatalogDisplayBrandsByMatchSource(ctx context.Context) ([]CountCatalogDisplayBrandsByMatchSourceRow, error)
+	CountCatalogImports(ctx context.Context, arg CountCatalogImportsParams) (int64, error)
+	CountCatalogModels(ctx context.Context, arg CountCatalogModelsParams) (int64, error)
+	CountCatalogTypes(ctx context.Context, arg CountCatalogTypesParams) (int64, error)
 	CountContractInstances(ctx context.Context, arg CountContractInstancesParams) (int64, error)
 	CountContractPresets(ctx context.Context, arg CountContractPresetsParams) (int64, error)
 	CountContractSignerOTPsSince(ctx context.Context, arg CountContractSignerOTPsSinceParams) (int64, error)
@@ -122,7 +135,9 @@ type Querier interface {
 	CountSubscriptionsAdmin(ctx context.Context, arg CountSubscriptionsAdminParams) (int64, error)
 	CountSuppliers(ctx context.Context, arg CountSuppliersParams) (int64, error)
 	CountTodos(ctx context.Context, arg CountTodosParams) (int64, error)
+	CountUnmatchedCatalogDisplayBrands(ctx context.Context, q_ pgtype.Text) (int64, error)
 	CountUnreadInappForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
+	CountUnresolvedCatalogTypesByCategory(ctx context.Context) ([]CountUnresolvedCatalogTypesByCategoryRow, error)
 	CountUserActiveSessions(ctx context.Context, userID int64) (int64, error)
 	CountUserActivity(ctx context.Context, arg CountUserActivityParams) (int64, error)
 	CountUserMemberships(ctx context.Context, userID int64) (int64, error)
@@ -132,6 +147,7 @@ type Querier interface {
 	CountVehicleBrands(ctx context.Context, arg CountVehicleBrandsParams) (int64, error)
 	CreateAIConversation(ctx context.Context, arg CreateAIConversationParams) (AiConversation, error)
 	CreateBillingPlan(ctx context.Context, arg CreateBillingPlanParams) (BillingPlan, error)
+	CreateBrandLogoSyncRun(ctx context.Context, triggeredBy pgtype.Int8) (BrandLogoSyncRun, error)
 	CreateBulkJob(ctx context.Context, arg CreateBulkJobParams) (BulkJob, error)
 	// Tenant cari (accounts receivable) accounts and ledger entries.
 	CreateCariAccount(ctx context.Context, arg CreateCariAccountParams) (CariAccount, error)
@@ -141,6 +157,9 @@ type Querier interface {
 	// Categories
 	// ============================================================================
 	CreateCatalogCategory(ctx context.Context, arg CreateCatalogCategoryParams) (CatalogCategory, error)
+	CreateCatalogDisplayBrand(ctx context.Context, arg CreateCatalogDisplayBrandParams) (CatalogDisplayBrand, error)
+	CreateCatalogImport(ctx context.Context, arg CreateCatalogImportParams) (CatalogImport, error)
+	CreateCatalogModel(ctx context.Context, arg CreateCatalogModelParams) (CatalogModel, error)
 	CreateContractInstance(ctx context.Context, arg CreateContractInstanceParams) (ContractInstance, error)
 	CreateContractMedia(ctx context.Context, arg CreateContractMediaParams) (ContractMedium, error)
 	CreateContractPreset(ctx context.Context, arg CreateContractPresetParams) (ContractPreset, error)
@@ -222,6 +241,8 @@ type Querier interface {
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteAppLogsByUUIDs(ctx context.Context, uuids []uuid.UUID) (int64, error)
 	DeleteAppLogsMatching(ctx context.Context, arg DeleteAppLogsMatchingParams) (int64, error)
+	DeleteCatalogDisplayBrand(ctx context.Context, id int64) (int64, error)
+	DeleteCatalogModel(ctx context.Context, id int64) (int64, error)
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
 	DeleteJobConsumption(ctx context.Context, arg DeleteJobConsumptionParams) error
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
@@ -278,6 +299,7 @@ type Querier interface {
 	// failed: for one conversation, or for all conversations when it is NULL.
 	FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error)
 	FinishAIPendingAction(ctx context.Context, arg FinishAIPendingActionParams) (AiPendingAction, error)
+	FinishBrandLogoSyncRun(ctx context.Context, arg FinishBrandLogoSyncRunParams) (BrandLogoSyncRun, error)
 	FinishOutboundMessage(ctx context.Context, arg FinishOutboundMessageParams) (OutboundMessage, error)
 	FinishQuoteDelivery(ctx context.Context, arg FinishQuoteDeliveryParams) (QuoteDelivery, error)
 	FinishQuoteReminder(ctx context.Context, arg FinishQuoteReminderParams) (QuoteReminder, error)
@@ -288,6 +310,10 @@ type Querier interface {
 	GetAIPendingActionForUser(ctx context.Context, arg GetAIPendingActionForUserParams) (GetAIPendingActionForUserRow, error)
 	GetAISettings(ctx context.Context) (AiSetting, error)
 	GetAIUserDisplay(ctx context.Context, id int64) (GetAIUserDisplayRow, error)
+	GetActiveBrandLogoSyncRun(ctx context.Context) (BrandLogoSyncRun, error)
+	// Resolves a tenant brand reference: a display brand uuid, or (older
+	// clients) a TSB brand uuid mapped to its display brand.
+	GetActiveCatalogDisplayBrandForTenant(ctx context.Context, ref uuid.UUID) (GetActiveCatalogDisplayBrandForTenantRow, error)
 	GetActiveJobConsumptionByProduct(ctx context.Context, arg GetActiveJobConsumptionByProductParams) (ServiceJobConsumption, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
 	GetAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (AppLog, error)
@@ -297,6 +323,11 @@ type Querier interface {
 	GetBillingPlanByUUID(ctx context.Context, argUuid uuid.UUID) (BillingPlan, error)
 	// Billing settings, discounts, orders and admin subscription queries.
 	GetBillingSettings(ctx context.Context) (BillingSetting, error)
+	GetBrandLogoSourceByMotomarksID(ctx context.Context, motomarksID string) (BrandLogoSource, error)
+	GetBrandLogoSyncRunByID(ctx context.Context, id int64) (BrandLogoSyncRun, error)
+	// Brand logo sync (motomarks-mirror): settings singleton, mirror brand
+	// sources, sync runs and the display brand <-> mirror links.
+	GetBrandLogoSyncSettings(ctx context.Context) (BrandLogoSyncSetting, error)
 	GetBulkJobByID(ctx context.Context, id int64) (BulkJob, error)
 	GetBulkJobByUUID(ctx context.Context, argUuid uuid.UUID) (BulkJob, error)
 	GetCariAccountByCustomerID(ctx context.Context, arg GetCariAccountByCustomerIDParams) (CariAccount, error)
@@ -305,12 +336,26 @@ type Querier interface {
 	GetCariAccountForSearch(ctx context.Context, arg GetCariAccountForSearchParams) (GetCariAccountForSearchRow, error)
 	GetCariEntryBySource(ctx context.Context, arg GetCariEntryBySourceParams) (CariEntry, error)
 	GetCariEntryByUUID(ctx context.Context, arg GetCariEntryByUUIDParams) (GetCariEntryByUUIDRow, error)
+	GetCatalogBrandByUUID(ctx context.Context, argUuid uuid.UUID) (GetCatalogBrandByUUIDRow, error)
 	GetCatalogCategoryByID(ctx context.Context, arg GetCatalogCategoryByIDParams) (CatalogCategory, error)
 	GetCatalogCategoryByName(ctx context.Context, arg GetCatalogCategoryByNameParams) (CatalogCategory, error)
 	GetCatalogCategoryByUUID(ctx context.Context, arg GetCatalogCategoryByUUIDParams) (CatalogCategory, error)
+	GetCatalogDisplayBrandByName(ctx context.Context, name string) (CatalogDisplayBrand, error)
+	GetCatalogDisplayBrandByUUID(ctx context.Context, argUuid uuid.UUID) (GetCatalogDisplayBrandByUUIDRow, error)
+	// Every logo object of a display brand: the admin upload and the synced variants.
+	GetCatalogDisplayBrandLogoKeys(ctx context.Context, argUuid uuid.UUID) (GetCatalogDisplayBrandLogoKeysRow, error)
+	GetCatalogImportByID(ctx context.Context, id int64) (CatalogImport, error)
+	GetCatalogImportByUUID(ctx context.Context, argUuid uuid.UUID) (CatalogImport, error)
+	GetCatalogLatestPeriod(ctx context.Context) (string, error)
+	GetCatalogModelByBrandName(ctx context.Context, arg GetCatalogModelByBrandNameParams) (CatalogModel, error)
+	GetCatalogModelByUUID(ctx context.Context, argUuid uuid.UUID) (GetCatalogModelByUUIDRow, error)
+	// The grouped model a tenant picked: every model with the same group key
+	// under the TSB brands of the model's display brand.
+	GetCatalogModelGroup(ctx context.Context, argUuid uuid.UUID) (GetCatalogModelGroupRow, error)
 	// Each aggregate reads its own table: joining products, services and
 	// categories together multiplies the product sums by the other row counts.
 	GetCatalogStats(ctx context.Context, organizationID int64) (GetCatalogStatsRow, error)
+	GetCatalogTypeByUUID(ctx context.Context, argUuid uuid.UUID) (GetCatalogTypeByUUIDRow, error)
 	GetContractInstanceByID(ctx context.Context, id int64) (ContractInstance, error)
 	GetContractInstanceByUUID(ctx context.Context, arg GetContractInstanceByUUIDParams) (ContractInstance, error)
 	GetContractInstanceMessagingByUUID(ctx context.Context, argUuid uuid.UUID) (GetContractInstanceMessagingByUUIDRow, error)
@@ -476,6 +521,8 @@ type Querier interface {
 	GetVehicleAlertSettings(ctx context.Context, organizationID int64) (VehicleAlertSetting, error)
 	GetVehicleBrandByName(ctx context.Context, lower string) (VehicleBrand, error)
 	GetVehicleBrandByUUID(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
+	// Same for a legacy vehicle brand, through its catalog display brand.
+	GetVehicleBrandLogoKeys(ctx context.Context, argUuid uuid.UUID) (GetVehicleBrandLogoKeysRow, error)
 	GetVehicleCatalogOption(ctx context.Context, arg GetVehicleCatalogOptionParams) (GetVehicleCatalogOptionRow, error)
 	GetVehicleModelByBrandAndName(ctx context.Context, arg GetVehicleModelByBrandAndNameParams) (VehicleModel, error)
 	GetVehicleModelByUUID(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
@@ -546,6 +593,7 @@ type Querier interface {
 	ListBillingFeatures(ctx context.Context, includeInactive bool) ([]BillingFeature, error)
 	ListBillingPlanUUIDsByIDs(ctx context.Context, ids []int64) ([]ListBillingPlanUUIDsByIDsRow, error)
 	ListBillingPlans(ctx context.Context, publicOnly bool) ([]BillingPlan, error)
+	ListBrandLogoSyncRuns(ctx context.Context, arg ListBrandLogoSyncRunsParams) ([]ListBrandLogoSyncRunsRow, error)
 	ListBulkChangesForJob(ctx context.Context, jobID int64) ([]BulkChange, error)
 	ListBulkJobsForActor(ctx context.Context, arg ListBulkJobsForActorParams) ([]BulkJob, error)
 	ListCariAccounts(ctx context.Context, arg ListCariAccountsParams) ([]ListCariAccountsRow, error)
@@ -553,7 +601,28 @@ type Querier interface {
 	ListCariAccountsForSearch(ctx context.Context) ([]ListCariAccountsForSearchRow, error)
 	ListCariEntries(ctx context.Context, arg ListCariEntriesParams) ([]ListCariEntriesRow, error)
 	ListCariEntriesForExport(ctx context.Context, arg ListCariEntriesForExportParams) ([]ListCariEntriesForExportRow, error)
+	// Platform vehicle catalog (TSB kasko list).
+	ListCatalogBrands(ctx context.Context, arg ListCatalogBrandsParams) ([]ListCatalogBrandsRow, error)
+	ListCatalogBrandsAll(ctx context.Context) ([]CatalogBrand, error)
+	ListCatalogBrandsByDisplayBrand(ctx context.Context, displayBrandID int64) ([]ListCatalogBrandsByDisplayBrandRow, error)
 	ListCatalogCategories(ctx context.Context, arg ListCatalogCategoriesParams) ([]ListCatalogCategoriesRow, error)
+	// ---------- display brands ----------
+	ListCatalogDisplayBrands(ctx context.Context, arg ListCatalogDisplayBrandsParams) ([]ListCatalogDisplayBrandsRow, error)
+	ListCatalogDisplayBrandsAll(ctx context.Context) ([]CatalogDisplayBrand, error)
+	ListCatalogDisplayBrandsToMatch(ctx context.Context) ([]ListCatalogDisplayBrandsToMatchRow, error)
+	ListCatalogImports(ctx context.Context, arg ListCatalogImportsParams) ([]ListCatalogImportsRow, error)
+	ListCatalogModelRulesAll(ctx context.Context) ([]CatalogModelRule, error)
+	ListCatalogModelRulesByModel(ctx context.Context, modelID int64) ([]CatalogModelRule, error)
+	ListCatalogModels(ctx context.Context, arg ListCatalogModelsParams) ([]ListCatalogModelsRow, error)
+	ListCatalogModelsAll(ctx context.Context) ([]CatalogModel, error)
+	ListCatalogModelsByUUIDs(ctx context.Context, uuids []uuid.UUID) ([]CatalogModel, error)
+	ListCatalogTypeValuations(ctx context.Context, typeID int64) ([]ListCatalogTypeValuationsRow, error)
+	ListCatalogTypes(ctx context.Context, arg ListCatalogTypesParams) ([]ListCatalogTypesRow, error)
+	// Types of a brand that a new prefix rule may (re)assign: no model yet, or
+	// an auto-derived one.
+	ListCatalogTypesForRule(ctx context.Context, brandID int64) ([]ListCatalogTypesForRuleRow, error)
+	ListCatalogTypesState(ctx context.Context) ([]ListCatalogTypesStateRow, error)
+	ListCatalogValuationsByPeriod(ctx context.Context, period string) ([]ListCatalogValuationsByPeriodRow, error)
 	ListConnectedWhatsAppSessions(ctx context.Context) ([]WhatsappSession, error)
 	ListContractInstances(ctx context.Context, arg ListContractInstancesParams) ([]ContractInstance, error)
 	ListContractMediaByInstance(ctx context.Context, instanceID int64) ([]ContractMedium, error)
@@ -694,6 +763,7 @@ type Querier interface {
 	ListTodoAssignees(ctx context.Context, organizationID int64) ([]ListTodoAssigneesRow, error)
 	// scope: overdue | today | upcoming | no_date | open_due (overdue + today); today is the local date.
 	ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTodosRow, error)
+	ListUnmatchedCatalogDisplayBrands(ctx context.Context, arg ListUnmatchedCatalogDisplayBrandsParams) ([]ListUnmatchedCatalogDisplayBrandsRow, error)
 	ListUsageCounters(ctx context.Context, arg ListUsageCountersParams) ([]ListUsageCountersRow, error)
 	ListUsageMetersForOrgAdmin(ctx context.Context, organizationID int64) ([]ListUsageMetersForOrgAdminRow, error)
 	// Per membership: the user's own conversations and quota tokens since the
@@ -762,6 +832,7 @@ type Querier interface {
 	// OAuth sign-up stores a random hash; the user never chose a password.
 	MarkUserPasswordUnset(ctx context.Context, id int64) error
 	MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicleAlertEventsSentParams) error
+	MoveCatalogBrandsDisplayBrand(ctx context.Context, arg MoveCatalogBrandsDisplayBrandParams) (int64, error)
 	MoveToGrace(ctx context.Context, arg MoveToGraceParams) (BillingSubscription, error)
 	MoveToReadOnly(ctx context.Context, id int64) (BillingSubscription, error)
 	NextContractInstanceNumber(ctx context.Context, organizationID int64) (int32, error)
@@ -773,9 +844,29 @@ type Querier interface {
 	NextQuoteNumber(ctx context.Context, arg NextQuoteNumberParams) (int32, error)
 	OrderStatusSummary(ctx context.Context) (OrderStatusSummaryRow, error)
 	PingDB(ctx context.Context) (int32, error)
+	// Legacy vehicle_brands.logo_object_key mirrors the effective display brand
+	// logo (admin upload, else synced badge, else full, else wordmark) so the
+	// legacy picker / job board / customer vehicle rows see it without joins.
+	// Brands without a catalog link keep their own key.
+	ProjectCatalogBrandLogos(ctx context.Context) (int64, error)
+	ProjectCatalogInsertBrands(ctx context.Context) (int64, error)
+	ProjectCatalogInsertModelYears(ctx context.Context) (int64, error)
+	ProjectCatalogInsertModels(ctx context.Context) (int64, error)
+	// Projection of the TSB vehicle catalog (catalog_display_brands / models /
+	// types) onto the legacy vehicle_brands / vehicle_models / vehicle_model_years
+	// tables that customer vehicles, quotes, jobs and the Meilisearch picker use.
+	// Rows are linked by catalog_display_brand_id / catalog_group_key so a
+	// re-apply updates the same rows. Nothing is ever deleted here.
+	ProjectCatalogLinkBrandsByName(ctx context.Context) (int64, error)
+	ProjectCatalogLinkModelsByName(ctx context.Context) (int64, error)
+	ProjectCatalogUpdateBrands(ctx context.Context) (int64, error)
 	QueueImportJob(ctx context.Context, argUuid uuid.UUID) (ImportJob, error)
 	QuoteSummary(ctx context.Context, arg QuoteSummaryParams) (QuoteSummaryRow, error)
+	ReassignCatalogModelRules(ctx context.Context, arg ReassignCatalogModelRulesParams) (int64, error)
+	ReassignCatalogTypesModel(ctx context.Context, arg ReassignCatalogTypesModelParams) (int64, error)
 	ReferenceCodeExists(ctx context.Context, referenceCode string) (bool, error)
+	// Denormalizes the synced variants and brand color of linked display brands.
+	RefreshCatalogDisplayBrandsSyncedLogos(ctx context.Context) (int64, error)
 	ReleaseStuckScheduledNotifications(ctx context.Context, staleBefore pgtype.Timestamptz) (int64, error)
 	RemoveUserRoleBySlug(ctx context.Context, arg RemoveUserRoleBySlugParams) error
 	ReplaceUserRoles(ctx context.Context, userID int64) error
@@ -813,8 +904,17 @@ type Querier interface {
 	// Sessions bound to an organization the user was removed from.
 	RevokeRefreshTokensForUserOrganization(ctx context.Context, arg RevokeRefreshTokensForUserOrganizationParams) error
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
+	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
+	SetBrandLogoSourceObjects(ctx context.Context, arg SetBrandLogoSourceObjectsParams) error
+	SetBrandLogoSyncState(ctx context.Context, arg SetBrandLogoSyncStateParams) error
+	// Points one TSB brand at a display brand; display_name mirrors its name.
+	SetCatalogBrandDisplayBrand(ctx context.Context, arg SetCatalogBrandDisplayBrandParams) (int64, error)
+	SetCatalogDisplayBrandLogo(ctx context.Context, arg SetCatalogDisplayBrandLogoParams) (CatalogDisplayBrand, error)
+	SetCatalogDisplayBrandMotomarks(ctx context.Context, arg SetCatalogDisplayBrandMotomarksParams) (CatalogDisplayBrand, error)
+	SetCatalogImportFileKey(ctx context.Context, arg SetCatalogImportFileKeyParams) (CatalogImport, error)
+	SetCatalogTypesModel(ctx context.Context, arg SetCatalogTypesModelParams) (int64, error)
 	SetContractInstancePDFError(ctx context.Context, arg SetContractInstancePDFErrorParams) error
 	SetInvoiceStatus(ctx context.Context, arg SetInvoiceStatusParams) (BillingInvoice, error)
 	// Used by the quotes module (quoted / won). Never reopens a closed lead
@@ -863,6 +963,7 @@ type Querier interface {
 	SoftDeleteUser(ctx context.Context, id int64) (User, error)
 	SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error)
 	SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
+	StartBrandLogoSyncRun(ctx context.Context, id int64) (BrandLogoSyncRun, error)
 	// Quota tokens = input + output + cache writes (cache reads are not counted).
 	SumAIOrganizationTokensSince(ctx context.Context, arg SumAIOrganizationTokensSinceParams) (int64, error)
 	SumCariBalances(ctx context.Context, organizationID int64) (SumCariBalancesRow, error)
@@ -874,6 +975,17 @@ type Querier interface {
 	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
 	// Outbound totals since a point in time for the platform organization overview.
 	SummarizeOutboundMessagesByOrg(ctx context.Context, arg SummarizeOutboundMessagesByOrgParams) (SummarizeOutboundMessagesByOrgRow, error)
+	SyncCatalogBrandsDisplayName(ctx context.Context, displayBrandID int64) (int64, error)
+	TenantCountCatalogBrands(ctx context.Context, arg TenantCountCatalogBrandsParams) (int64, error)
+	TenantCountCatalogModels(ctx context.Context, arg TenantCountCatalogModelsParams) (int64, error)
+	TenantCountCatalogTypes(ctx context.Context, arg TenantCountCatalogTypesParams) (int64, error)
+	// Tenant read-only search (vehicle forms). Brands are display brands;
+	// models are grouped by (display brand, group key).
+	TenantListCatalogBrands(ctx context.Context, arg TenantListCatalogBrandsParams) ([]TenantListCatalogBrandsRow, error)
+	// uuid / name come from the whole group (not only the filtered rows) so a
+	// grouped model keeps one id whatever the year filter is.
+	TenantListCatalogModels(ctx context.Context, arg TenantListCatalogModelsParams) ([]TenantListCatalogModelsRow, error)
+	TenantListCatalogTypes(ctx context.Context, arg TenantListCatalogTypesParams) ([]TenantListCatalogTypesRow, error)
 	TodoSummary(ctx context.Context, arg TodoSummaryParams) (TodoSummaryRow, error)
 	TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error
 	UpdateAIConversationTitle(ctx context.Context, arg UpdateAIConversationTitleParams) (AiConversation, error)
@@ -882,7 +994,13 @@ type Querier interface {
 	UpdateAppSettings(ctx context.Context, arg UpdateAppSettingsParams) (AppSetting, error)
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
 	UpdateBillingPlan(ctx context.Context, arg UpdateBillingPlanParams) (BillingPlan, error)
+	UpdateBrandLogoSyncSettings(ctx context.Context, arg UpdateBrandLogoSyncSettingsParams) (BrandLogoSyncSetting, error)
+	UpdateCatalogBrand(ctx context.Context, arg UpdateCatalogBrandParams) (CatalogBrand, error)
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
+	UpdateCatalogDisplayBrand(ctx context.Context, arg UpdateCatalogDisplayBrandParams) (CatalogDisplayBrand, error)
+	UpdateCatalogImportState(ctx context.Context, arg UpdateCatalogImportStateParams) (CatalogImport, error)
+	UpdateCatalogModel(ctx context.Context, arg UpdateCatalogModelParams) (CatalogModel, error)
+	UpdateCatalogType(ctx context.Context, arg UpdateCatalogTypeParams) (int64, error)
 	UpdateContractInstanceStatus(ctx context.Context, arg UpdateContractInstanceStatusParams) (ContractInstance, error)
 	UpdateContractPreset(ctx context.Context, arg UpdateContractPresetParams) (ContractPreset, error)
 	UpdateContractSignerPhone(ctx context.Context, arg UpdateContractSignerPhoneParams) error
@@ -946,7 +1064,9 @@ type Querier interface {
 	UpdateWhatsAppCloudTemplateStatusByName(ctx context.Context, arg UpdateWhatsAppCloudTemplateStatusByNameParams) (int64, error)
 	UpdateWhatsAppSessionQR(ctx context.Context, arg UpdateWhatsAppSessionQRParams) (WhatsappSession, error)
 	UpsertAIOrganizationSettings(ctx context.Context, arg UpsertAIOrganizationSettingsParams) (AiOrganizationSetting, error)
+	UpsertBrandLogoSource(ctx context.Context, arg UpsertBrandLogoSourceParams) (BrandLogoSource, error)
 	UpsertBuiltinFeature(ctx context.Context, arg UpsertBuiltinFeatureParams) error
+	UpsertCatalogModelRule(ctx context.Context, arg UpsertCatalogModelRuleParams) (CatalogModelRule, error)
 	UpsertDailySummarySettings(ctx context.Context, arg UpsertDailySummarySettingsParams) (DailySummarySetting, error)
 	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
 	UpsertNotificationMemberSettings(ctx context.Context, arg UpsertNotificationMemberSettingsParams) (NotificationMemberSetting, error)

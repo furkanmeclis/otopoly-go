@@ -379,6 +379,54 @@ type BillingUsageCounter struct {
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
+type BrandLogoSource struct {
+	ID                int64              `json:"id"`
+	MotomarksID       string             `json:"motomarks_id"`
+	Name              string             `json:"name"`
+	Color             string             `json:"color"`
+	Colors            []byte             `json:"colors"`
+	VehicleTypes      []string           `json:"vehicle_types"`
+	Logos             []byte             `json:"logos"`
+	SourceHash        string             `json:"source_hash"`
+	BadgeObjectKey    pgtype.Text        `json:"badge_object_key"`
+	WordmarkObjectKey pgtype.Text        `json:"wordmark_object_key"`
+	FullObjectKey     pgtype.Text        `json:"full_object_key"`
+	SyncedAt          pgtype.Timestamptz `json:"synced_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
+type BrandLogoSyncRun struct {
+	ID          int64              `json:"id"`
+	Uuid        uuid.UUID          `json:"uuid"`
+	Status      string             `json:"status"`
+	TriggeredBy pgtype.Int8        `json:"triggered_by"`
+	StartedAt   pgtype.Timestamptz `json:"started_at"`
+	FinishedAt  pgtype.Timestamptz `json:"finished_at"`
+	NotModified bool               `json:"not_modified"`
+	Requests    int32              `json:"requests"`
+	BrandsSeen  int32              `json:"brands_seen"`
+	Downloaded  int32              `json:"downloaded"`
+	Matched     int32              `json:"matched"`
+	Unmatched   int32              `json:"unmatched"`
+	Error       pgtype.Text        `json:"error"`
+	CreatedAt   pgtype.Timestamptz `json:"created_at"`
+}
+
+type BrandLogoSyncSetting struct {
+	ID                int16              `json:"id"`
+	BaseUrl           string             `json:"base_url"`
+	ApiTokenEnc       pgtype.Text        `json:"api_token_enc"`
+	Enabled           bool               `json:"enabled"`
+	AutoMatchMinScore int32              `json:"auto_match_min_score"`
+	LastRunAt         pgtype.Timestamptz `json:"last_run_at"`
+	LastEtag          pgtype.Text        `json:"last_etag"`
+	LastStatus        pgtype.Text        `json:"last_status"`
+	LastError         pgtype.Text        `json:"last_error"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt         pgtype.Timestamptz `json:"updated_at"`
+}
+
 type BulkChange struct {
 	ID           int64              `json:"id"`
 	Uuid         uuid.UUID          `json:"uuid"`
@@ -445,6 +493,19 @@ type CariEntry struct {
 	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
 }
 
+type CatalogBrand struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	TsbCode        string             `json:"tsb_code"`
+	TsbName        string             `json:"tsb_name"`
+	DisplayName    string             `json:"display_name"`
+	DisplayBrandID int64              `json:"display_brand_id"`
+	Category       string             `json:"category"`
+	IsActive       bool               `json:"is_active"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type CatalogCategory struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`
@@ -457,6 +518,84 @@ type CatalogCategory struct {
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type CatalogDisplayBrand struct {
+	ID                      int64              `json:"id"`
+	Uuid                    uuid.UUID          `json:"uuid"`
+	Name                    string             `json:"name"`
+	Slug                    string             `json:"slug"`
+	LogoObjectKey           pgtype.Text        `json:"logo_object_key"`
+	IsActive                bool               `json:"is_active"`
+	CreatedAt               pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt               pgtype.Timestamptz `json:"updated_at"`
+	MotomarksID             pgtype.Text        `json:"motomarks_id"`
+	MotomarksMatchScore     pgtype.Numeric     `json:"motomarks_match_score"`
+	MotomarksMatchSource    string             `json:"motomarks_match_source"`
+	MotomarksSuggestedID    pgtype.Text        `json:"motomarks_suggested_id"`
+	MotomarksSuggestedScore pgtype.Numeric     `json:"motomarks_suggested_score"`
+	BrandColor              pgtype.Text        `json:"brand_color"`
+	SyncedLogoVariants      []string           `json:"synced_logo_variants"`
+}
+
+type CatalogImport struct {
+	ID        int64              `json:"id"`
+	Uuid      uuid.UUID          `json:"uuid"`
+	Period    pgtype.Text        `json:"period"`
+	Filename  string             `json:"filename"`
+	FileKey   pgtype.Text        `json:"file_key"`
+	Status    string             `json:"status"`
+	Counts    []byte             `json:"counts"`
+	Diff      []byte             `json:"diff"`
+	Error     pgtype.Text        `json:"error"`
+	CreatedBy pgtype.Int8        `json:"created_by"`
+	AppliedAt pgtype.Timestamptz `json:"applied_at"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type CatalogModel struct {
+	ID        int64              `json:"id"`
+	Uuid      uuid.UUID          `json:"uuid"`
+	BrandID   int64              `json:"brand_id"`
+	Name      string             `json:"name"`
+	Source    string             `json:"source"`
+	GroupKey  pgtype.Text        `json:"group_key"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type CatalogModelRule struct {
+	ID        int64              `json:"id"`
+	BrandID   int64              `json:"brand_id"`
+	Prefix    string             `json:"prefix"`
+	ModelID   int64              `json:"model_id"`
+	CreatedAt pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
+}
+
+type CatalogType struct {
+	ID                    int64              `json:"id"`
+	Uuid                  uuid.UUID          `json:"uuid"`
+	BrandID               int64              `json:"brand_id"`
+	ModelID               pgtype.Int8        `json:"model_id"`
+	TsbTypeCode           string             `json:"tsb_type_code"`
+	RawName               string             `json:"raw_name"`
+	Years                 []int32            `json:"years"`
+	SuggestedTransmission pgtype.Text        `json:"suggested_transmission"`
+	SuggestedFuel         pgtype.Text        `json:"suggested_fuel"`
+	FirstSeenPeriod       string             `json:"first_seen_period"`
+	LastSeenPeriod        string             `json:"last_seen_period"`
+	IsActive              bool               `json:"is_active"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+}
+
+type CatalogValuation struct {
+	TypeID    int64          `json:"type_id"`
+	ModelYear int32          `json:"model_year"`
+	Period    string         `json:"period"`
+	Value     pgtype.Numeric `json:"value"`
 }
 
 type ContractInstance struct {
@@ -1708,25 +1847,27 @@ type VehicleAlertSetting struct {
 }
 
 type VehicleBrand struct {
-	ID            int64              `json:"id"`
-	Uuid          uuid.UUID          `json:"uuid"`
-	Name          string             `json:"name"`
-	LogoObjectKey pgtype.Text        `json:"logo_object_key"`
-	IsActive      bool               `json:"is_active"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
+	ID                    int64              `json:"id"`
+	Uuid                  uuid.UUID          `json:"uuid"`
+	Name                  string             `json:"name"`
+	LogoObjectKey         pgtype.Text        `json:"logo_object_key"`
+	IsActive              bool               `json:"is_active"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt             pgtype.Timestamptz `json:"deleted_at"`
+	CatalogDisplayBrandID pgtype.Int8        `json:"catalog_display_brand_id"`
 }
 
 type VehicleModel struct {
-	ID        int64              `json:"id"`
-	Uuid      uuid.UUID          `json:"uuid"`
-	BrandID   int64              `json:"brand_id"`
-	Name      string             `json:"name"`
-	IsActive  bool               `json:"is_active"`
-	CreatedAt pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt pgtype.Timestamptz `json:"deleted_at"`
+	ID              int64              `json:"id"`
+	Uuid            uuid.UUID          `json:"uuid"`
+	BrandID         int64              `json:"brand_id"`
+	Name            string             `json:"name"`
+	IsActive        bool               `json:"is_active"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
+	CatalogGroupKey pgtype.Text        `json:"catalog_group_key"`
 }
 
 type VehicleModelYear struct {

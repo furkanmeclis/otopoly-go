@@ -14,7 +14,7 @@ func TestBuildQuoteHTMLEscapesAndFormats(t *testing.T) {
 		LogoDataURI:  `javascript:alert(1)`,
 		CustomerName: `<script>alert("x")</script>`, VehiclePlate: "34ABC123", VehicleLabel: "BMW 3 Serisi 2020",
 		Currency: "TRY", PricesIncludeVAT: true,
-		Lines: []pdfLine{{Description: `Seramik & "Kaplama"`, Quantity: "2.000", Unit: "adet", UnitPrice: "1500", Discount: "150", VATRate: "20.00", Total: "2850"}},
+		Lines:    []pdfLine{{Description: `Seramik & "Kaplama"`, Quantity: "2.000", Unit: "adet", UnitPrice: "1500", Discount: "150", VATRate: "20.00", Total: "2850"}},
 		Subtotal: "3000", DiscountTotal: "150", VATTotal: "475", GrandTotal: "2850",
 		Notes: "Satır 1\n<b>Satır 2</b>", ShareURL: "https://app.test/q/tok",
 	})

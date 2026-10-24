@@ -1,637 +1,660 @@
+// Package usecase implements the platform vehicle catalog: TSB imports
+// (dry run + apply), catalog curation and the tenant read-only search.
 package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/model"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/repository"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/crypto"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/tsbcatalog"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-const SearchSpecVehicleModelYears = "vehicle_model_years"
 
 var (
 	ErrNotFound       = errors.New("not found")
 	ErrInvalidRequest = errors.New("invalid request")
 	ErrConflict       = errors.New("conflict")
+	// ErrImportState is returned when an import is not in a state that
+	// allows the requested action.
+	ErrImportState = errors.New("import is not in a state that allows this action")
 )
 
-type SearchIndexer interface {
-	EnqueueUpsert(ctx context.Context, spec, id string)
-	EnqueueDelete(ctx context.Context, spec, id string)
-	EnqueueReindex(ctx context.Context, spec string)
+// Repository is the persistence the service needs.
+type Repository interface {
+	Queries() *db.Queries
+	WithTx(ctx context.Context, fn func(q *db.Queries) error) error
+	LoadState(ctx context.Context, period string) (model.State, error)
+	Apply(ctx context.Context, plan model.Plan) (model.ApplyResult, error)
+	RebuildAutoModels(ctx context.Context) (model.RebuildResult, error)
 }
 
-type CatalogSearcher interface {
-	Enabled() bool
-	Search(ctx context.Context, specs []string, q string, limit int, filters map[string]string) ([]searchengine.Hit, error)
+// Enqueuer schedules background jobs.
+type Enqueuer interface {
+	Enqueue(task *asynq.Task, opts ...asynq.Option) (*asynq.TaskInfo, error)
 }
 
+// Service is the catalog use case.
 type Service struct {
-	pool     *pgxpool.Pool
+	repo     Repository
 	q        *db.Queries
-	act      *activity.Recorder
-	search   SearchIndexer
-	searcher CatalogSearcher
+	storage  storage.Driver
+	queue    Enqueuer
+	activity *activity.Recorder
+	log      *slog.Logger
+	events   Publisher
+	reindex  SearchReindexer
+	box      *crypto.SecretBox
+	mirror   MirrorClientFactory
 }
 
-func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
-	return &Service{pool: pool, q: q, act: act}
-}
-
-func (s *Service) SetSearchIndexer(indexer SearchIndexer) {
-	if s == nil {
-		return
+// New builds the service. A nil queue runs import jobs inline.
+func New(repo Repository, store storage.Driver, enq Enqueuer, rec *activity.Recorder, log *slog.Logger) *Service {
+	if log == nil {
+		log = slog.Default()
 	}
-	s.search = indexer
+	return &Service{repo: repo, q: repo.Queries(), storage: store, queue: enq, activity: rec, log: log}
 }
 
-func (s *Service) SetSearcher(searcher CatalogSearcher) {
-	if s == nil {
-		return
+func mapErr(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, repository.ErrNotFound):
+		return ErrNotFound
+	case errors.Is(err, repository.ErrConflict):
+		return fmt.Errorf("%w: %v", ErrConflict, err)
 	}
-	s.searcher = searcher
+	return err
 }
 
-func (s *Service) BrandsResourceMeta() resourcemeta.ResourceMeta {
-	return resourcemeta.PlatformVehicleBrands()
+func text(s string) pgtype.Text {
+	s = strings.TrimSpace(s)
+	return pgtype.Text{String: s, Valid: s != ""}
 }
 
-func ModelYearDocID(modelUUID uuid.UUID, year int) string {
-	return fmt.Sprintf("%s:%d", modelUUID.String(), year)
-}
-
-func ParseModelYearDocID(id string) (uuid.UUID, int, error) {
-	parts := strings.Split(strings.TrimSpace(id), ":")
-	if len(parts) != 2 {
-		return uuid.Nil, 0, fmt.Errorf("invalid vehicle catalog document id")
+func textPtr(p *string) pgtype.Text {
+	if p == nil {
+		return pgtype.Text{}
 	}
-	modelUUID, err := uuid.Parse(parts[0])
-	if err != nil {
-		return uuid.Nil, 0, err
-	}
-	var year int
-	if _, err := fmt.Sscanf(parts[1], "%d", &year); err != nil {
-		return uuid.Nil, 0, err
-	}
-	return modelUUID, year, nil
+	return pgtype.Text{String: strings.TrimSpace(*p), Valid: true}
 }
 
-func logoURL(brandUUID uuid.UUID, key pgtype.Text) *string {
-	if !key.Valid || strings.TrimSpace(key.String) == "" {
+func optString(t pgtype.Text) *string {
+	if !t.Valid {
 		return nil
 	}
-	u := fmt.Sprintf("/v1/public/vehicle-brands/logo/%s", brandUUID.String())
-	return &u
+	s := t.String
+	return &s
 }
 
-func (s *Service) recordActivity(ctx context.Context, action, resource string, resourceUUID *uuid.UUID, payload map[string]any) {
-	if s.act == nil {
-		return
+func boolPtr(b *bool) pgtype.Bool {
+	if b == nil {
+		return pgtype.Bool{}
 	}
-	var actorID *int64
-	if p, ok := authctx.PrincipalFrom(ctx); ok && p.UserInternal > 0 {
-		id := p.UserInternal
-		actorID = &id
-	}
-	s.act.Record(ctx, actorID, action, resource, resourceUUID, payload, nil)
+	return pgtype.Bool{Bool: *b, Valid: true}
 }
 
-func normalizeName(name string) (string, error) {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "", fmt.Errorf("%w: name is required", ErrInvalidRequest)
+func int4Ptr(v *int32) pgtype.Int4 {
+	if v == nil {
+		return pgtype.Int4{}
 	}
-	if len(name) > 200 {
-		return "", fmt.Errorf("%w: name is too long", ErrInvalidRequest)
-	}
-	return name, nil
+	return pgtype.Int4{Int32: *v, Valid: true}
 }
 
-func validYear(year int) error {
-	if year < 1900 || year > 2100 {
-		return fmt.Errorf("%w: year must be between 1900 and 2100", ErrInvalidRequest)
+func validCategory(c string) bool {
+	switch c {
+	case tsbcatalog.CategoryPassenger, tsbcatalog.CategoryLightCommercial, tsbcatalog.CategoryOther:
+		return true
 	}
-	return nil
+	return false
 }
 
-func (s *Service) ListBrands(ctx context.Context, limit, offset int32, filters BrandFilters) ([]Brand, int64, error) {
-	sort := strings.TrimSpace(filters.Sort)
-	if sort == "" {
-		sort = "name"
+func validFuel(f string) bool {
+	switch f {
+	case tsbcatalog.FuelPetrol, tsbcatalog.FuelDiesel, tsbcatalog.FuelHybrid, tsbcatalog.FuelElectric, tsbcatalog.FuelLPG:
+		return true
 	}
-	switch sort {
-	case "name", "-name", "created_at", "-created_at":
-	default:
-		return nil, 0, fmt.Errorf("%w: unsupported sort", ErrInvalidRequest)
+	return false
+}
+
+func validTransmission(t string) bool {
+	return t == tsbcatalog.TransmissionManual || t == tsbcatalog.TransmissionAutomatic
+}
+
+// ---------- brands ----------
+
+func mapBrand(b db.ListCatalogBrandsRow) model.Brand {
+	return model.Brand{
+		UUID: b.Uuid, TSBCode: b.TsbCode, TSBName: b.TsbName, DisplayName: b.DisplayName,
+		Category: b.Category, IsActive: b.IsActive, TypesCount: b.TypesCount,
+		ModelsCount: b.ModelsCount, UnresolvedCount: b.UnresolvedCount,
+		DisplayBrand: model.DisplayBrandRef{UUID: b.DisplayBrandUuid, Name: b.DisplayBrandName},
+		CreatedAt:    b.CreatedAt.Time, UpdatedAt: b.UpdatedAt.Time,
 	}
-	params := db.ListVehicleBrandsParams{
-		Sort:        sort,
-		OffsetCount: offset,
-		LimitCount:  limit,
+}
+
+func (s *Service) ListBrands(ctx context.Context, f model.BrandFilter) ([]model.Brand, int64, error) {
+	if f.Category != "" && !validCategory(f.Category) {
+		return nil, 0, fmt.Errorf("%w: unknown category", ErrInvalidRequest)
 	}
-	if filters.Q != "" {
-		params.Q = pgtype.Text{String: filters.Q, Valid: true}
-	}
-	if filters.IsActive != nil {
-		params.IsActive = pgtype.Bool{Bool: *filters.IsActive, Valid: true}
-	}
-	rows, err := s.q.ListVehicleBrands(ctx, params)
+	did, err := s.displayBrandID(ctx, f.DisplayBrandUUID)
 	if err != nil {
 		return nil, 0, err
 	}
-	total, err := s.q.CountVehicleBrands(ctx, db.CountVehicleBrandsParams{
-		IsActive: params.IsActive,
-		Q:        params.Q,
+	rows, err := s.q.ListCatalogBrands(ctx, db.ListCatalogBrandsParams{
+		Category: text(f.Category), IsActive: boolPtr(f.IsActive), Q: text(f.Q), DisplayBrandID: did,
+		SortField: f.SortField, SortDesc: f.SortDesc, LimitCount: f.Limit, OffsetCount: f.Offset,
 	})
 	if err != nil {
 		return nil, 0, err
 	}
-	out := make([]Brand, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, mapBrand(row.Uuid, row.Name, row.LogoObjectKey, row.IsActive, row.ModelCount, row.CreatedAt, row.UpdatedAt))
+	total, err := s.q.CountCatalogBrands(ctx, db.CountCatalogBrandsParams{
+		Category: text(f.Category), IsActive: boolPtr(f.IsActive), Q: text(f.Q), DisplayBrandID: did,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]model.Brand, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, mapBrand(r))
 	}
 	return out, total, nil
 }
 
-func mapBrand(id uuid.UUID, name string, logo pgtype.Text, active bool, modelCount int64, created, updated pgtype.Timestamptz) Brand {
-	return Brand{
-		UUID:       id,
-		Name:       name,
-		LogoURL:    logoURL(id, logo),
-		IsActive:   active,
-		ModelCount: modelCount,
-		CreatedAt:  created.Time,
-		UpdatedAt:  updated.Time,
+func (s *Service) GetBrand(ctx context.Context, id uuid.UUID) (model.Brand, error) {
+	b, err := s.q.GetCatalogBrandByUUID(ctx, id)
+	if err != nil {
+		return model.Brand{}, mapErr(repository.MapErr(err))
 	}
+	return mapBrand(db.ListCatalogBrandsRow(b)), nil
 }
 
-func (s *Service) GetBrand(ctx context.Context, id uuid.UUID) (BrandDetail, error) {
-	row, err := s.q.GetVehicleBrandByUUID(ctx, id)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return BrandDetail{}, ErrNotFound
-		}
-		return BrandDetail{}, err
+func (s *Service) PatchBrand(ctx context.Context, id uuid.UUID, in model.PatchBrandInput) (model.Brand, error) {
+	if in.DisplayName != nil && strings.TrimSpace(*in.DisplayName) == "" {
+		return model.Brand{}, fmt.Errorf("%w: display_name cannot be empty", ErrInvalidRequest)
 	}
-	count, err := s.q.CountActiveVehicleModelsByBrand(ctx, row.ID)
-	if err != nil {
-		return BrandDetail{}, err
+	if in.DisplayName != nil && in.DisplayBrandUUID != nil {
+		return model.Brand{}, fmt.Errorf("%w: send display_name or display_brand_uuid, not both", ErrInvalidRequest)
 	}
-	models, err := s.modelsForBrand(ctx, row.ID)
-	if err != nil {
-		return BrandDetail{}, err
+	if in.Category != nil && !validCategory(*in.Category) {
+		return model.Brand{}, fmt.Errorf("%w: unknown category", ErrInvalidRequest)
 	}
-	return BrandDetail{
-		Brand:  mapBrand(row.Uuid, row.Name, row.LogoObjectKey, row.IsActive, count, row.CreatedAt, row.UpdatedAt),
-		Models: models,
-	}, nil
-}
-
-func (s *Service) modelsForBrand(ctx context.Context, brandID int64) ([]Model, error) {
-	rows, err := s.q.ListVehicleModelsByBrand(ctx, brandID)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Model, 0, len(rows))
-	for _, row := range rows {
-		years, err := s.q.ListVehicleModelYears(ctx, row.ID)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, Model{
-			UUID:      row.Uuid,
-			Name:      row.Name,
-			IsActive:  row.IsActive,
-			Years:     yearsToInts(years),
-			CreatedAt: row.CreatedAt.Time,
-			UpdatedAt: row.UpdatedAt.Time,
+	var orphan *string
+	err := s.repo.WithTx(ctx, func(q *db.Queries) error {
+		b, err := q.UpdateCatalogBrand(ctx, db.UpdateCatalogBrandParams{
+			Category: textPtr(in.Category), IsActive: boolPtr(in.IsActive), Uuid: id,
 		})
+		if err != nil {
+			return err
+		}
+		// Re-map to another display brand: by name (created when missing)
+		// or by uuid. A display brand left without TSB brands is removed.
+		var targetID int64
+		switch {
+		case in.DisplayName != nil:
+			d, err := repository.EnsureDisplayBrand(ctx, q, *in.DisplayName)
+			if err != nil {
+				return err
+			}
+			targetID = d.ID
+		case in.DisplayBrandUUID != nil:
+			d, err := q.GetCatalogDisplayBrandByUUID(ctx, *in.DisplayBrandUUID)
+			if err != nil {
+				return err
+			}
+			targetID = d.ID
+		default:
+			return nil
+		}
+		if _, err := q.SetCatalogBrandDisplayBrand(ctx, db.SetCatalogBrandDisplayBrandParams{
+			BrandID: b.ID, DisplayBrandID: targetID,
+		}); err != nil {
+			return err
+		}
+		if b.DisplayBrandID != targetID {
+			orphan, err = deleteIfEmpty(ctx, q, b.DisplayBrandID)
+		}
+		return err
+	})
+	if err != nil {
+		return model.Brand{}, mapErr(repository.MapErr(err))
+	}
+	s.dropLogo(ctx, orphan)
+	s.publish(ctx, LiveBrands, ActionUpdated, id)
+	return s.GetBrand(ctx, id)
+}
+
+// ---------- models ----------
+
+func (s *Service) brandID(ctx context.Context, id *uuid.UUID) (pgtype.Int8, error) {
+	if id == nil {
+		return pgtype.Int8{}, nil
+	}
+	b, err := s.q.GetCatalogBrandByUUID(ctx, *id)
+	if err != nil {
+		return pgtype.Int8{}, mapErr(repository.MapErr(err))
+	}
+	return pgtype.Int8{Int64: b.ID, Valid: true}, nil
+}
+
+func (s *Service) modelID(ctx context.Context, id *uuid.UUID) (pgtype.Int8, error) {
+	if id == nil {
+		return pgtype.Int8{}, nil
+	}
+	m, err := s.q.GetCatalogModelByUUID(ctx, *id)
+	if err != nil {
+		return pgtype.Int8{}, mapErr(repository.MapErr(err))
+	}
+	return pgtype.Int8{Int64: m.ID, Valid: true}, nil
+}
+
+func mapModel(m db.ListCatalogModelsRow) model.Model {
+	return model.Model{
+		UUID: m.Uuid, Name: m.Name, Source: m.Source,
+		Brand: model.BrandRef{
+			UUID: m.BrandUuid, DisplayName: m.BrandDisplayName, TSBCode: m.BrandTsbCode, TSBName: m.BrandTsbName,
+		},
+		DisplayBrand: model.DisplayBrandRef{UUID: m.DisplayBrandUuid, Name: m.DisplayBrandName},
+		TypesCount:   m.TypesCount, GroupSize: m.GroupSize,
+		CreatedAt: m.CreatedAt.Time, UpdatedAt: m.UpdatedAt.Time,
+	}
+}
+
+func (s *Service) ListModels(ctx context.Context, f model.ModelFilter) ([]model.Model, int64, error) {
+	if f.Source != "" && f.Source != model.SourceAuto && f.Source != model.SourceManual {
+		return nil, 0, fmt.Errorf("%w: unknown source", ErrInvalidRequest)
+	}
+	bid, err := s.brandID(ctx, f.BrandUUID)
+	if err != nil {
+		return nil, 0, err
+	}
+	did, err := s.displayBrandID(ctx, f.DisplayBrandUUID)
+	if err != nil {
+		return nil, 0, err
+	}
+	rows, err := s.q.ListCatalogModels(ctx, db.ListCatalogModelsParams{
+		BrandID: bid, DisplayBrandID: did, Source: text(f.Source), Q: text(f.Q),
+		SortField: f.SortField, SortDesc: f.SortDesc, LimitCount: f.Limit, OffsetCount: f.Offset,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	total, err := s.q.CountCatalogModels(ctx, db.CountCatalogModelsParams{
+		BrandID: bid, DisplayBrandID: did, Source: text(f.Source), Q: text(f.Q),
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]model.Model, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, mapModel(r))
+	}
+	return out, total, nil
+}
+
+func (s *Service) GetModel(ctx context.Context, id uuid.UUID) (model.Model, error) {
+	m, err := s.q.GetCatalogModelByUUID(ctx, id)
+	if err != nil {
+		return model.Model{}, mapErr(repository.MapErr(err))
+	}
+	out := mapModel(db.ListCatalogModelsRow(m))
+	rules, err := s.q.ListCatalogModelRulesByModel(ctx, m.ID)
+	if err != nil {
+		return model.Model{}, err
+	}
+	out.Rules = make([]model.ModelRule, 0, len(rules))
+	for _, r := range rules {
+		out.Rules = append(out.Rules, model.ModelRule{Prefix: r.Prefix, CreatedAt: r.CreatedAt.Time})
 	}
 	return out, nil
 }
 
-func yearsToInts(years []int16) []int {
-	out := make([]int, 0, len(years))
-	for _, y := range years {
-		out = append(out, int(y))
+func (s *Service) CreateModel(ctx context.Context, brandUUID uuid.UUID, name string) (model.Model, error) {
+	name = strings.Join(strings.Fields(name), " ")
+	if name == "" {
+		return model.Model{}, fmt.Errorf("%w: name is required", ErrInvalidRequest)
+	}
+	bid, err := s.brandID(ctx, &brandUUID)
+	if err != nil {
+		return model.Model{}, err
+	}
+	m, err := s.q.CreateCatalogModel(ctx, db.CreateCatalogModelParams{BrandID: bid.Int64, Name: name, Source: model.SourceManual})
+	if err != nil {
+		return model.Model{}, mapErr(repository.MapErr(err))
+	}
+	s.publish(ctx, LiveModels, ActionCreated, m.Uuid)
+	return s.GetModel(ctx, m.Uuid)
+}
+
+// PatchModel renames a model. Any admin edit marks it "manual".
+func (s *Service) PatchModel(ctx context.Context, id uuid.UUID, in model.PatchModelInput) (model.Model, error) {
+	params := db.UpdateCatalogModelParams{Uuid: id, Source: text(model.SourceManual)}
+	if in.Name != nil {
+		name := strings.Join(strings.Fields(*in.Name), " ")
+		if name == "" {
+			return model.Model{}, fmt.Errorf("%w: name cannot be empty", ErrInvalidRequest)
+		}
+		params.Name = text(name)
+	}
+	if in.Source != nil {
+		if *in.Source != model.SourceAuto && *in.Source != model.SourceManual {
+			return model.Model{}, fmt.Errorf("%w: unknown source", ErrInvalidRequest)
+		}
+		params.Source = text(*in.Source)
+	}
+	if _, err := s.q.UpdateCatalogModel(ctx, params); err != nil {
+		return model.Model{}, mapErr(repository.MapErr(err))
+	}
+	s.publish(ctx, LiveModels, ActionUpdated, id)
+	return s.GetModel(ctx, id)
+}
+
+// MergeModel moves the types and rules of src into dst and deletes src.
+// Models of two TSB brands under one display brand cannot share rows (a
+// type keeps its TSB brand), so there src is renamed to dst's name: both
+// then form one grouped model for tenants. When src's brand already has a
+// model of that name, src is merged into it instead.
+func (s *Service) MergeModel(ctx context.Context, src, dst uuid.UUID) (model.Model, error) {
+	if src == dst {
+		return model.Model{}, fmt.Errorf("%w: cannot merge a model into itself", ErrInvalidRequest)
+	}
+	from, err := s.q.GetCatalogModelByUUID(ctx, src)
+	if err != nil {
+		return model.Model{}, mapErr(repository.MapErr(err))
+	}
+	to, err := s.q.GetCatalogModelByUUID(ctx, dst)
+	if err != nil {
+		return model.Model{}, mapErr(repository.MapErr(err))
+	}
+	if from.BrandID != to.BrandID {
+		if from.DisplayBrandUuid != to.DisplayBrandUuid {
+			return model.Model{}, fmt.Errorf("%w: models belong to different display brands", ErrInvalidRequest)
+		}
+		same, err := s.q.GetCatalogModelByBrandName(ctx, db.GetCatalogModelByBrandNameParams{BrandID: from.BrandID, Name: to.Name})
+		switch {
+		case err == nil && same.ID != from.ID:
+			return s.MergeModel(ctx, src, same.Uuid)
+		case err == nil || errors.Is(repository.MapErr(err), repository.ErrNotFound):
+			if _, err := s.q.UpdateCatalogModel(ctx, db.UpdateCatalogModelParams{
+				Uuid: from.Uuid, Name: text(to.Name), Source: text(model.SourceManual),
+			}); err != nil {
+				return model.Model{}, mapErr(repository.MapErr(err))
+			}
+			return s.GetModel(ctx, dst)
+		default:
+			return model.Model{}, err
+		}
+	}
+	err = s.repo.WithTx(ctx, func(q *db.Queries) error {
+		if _, err := q.ReassignCatalogTypesModel(ctx, db.ReassignCatalogTypesModelParams{
+			ToModelID:   pgtype.Int8{Int64: to.ID, Valid: true},
+			FromModelID: pgtype.Int8{Int64: from.ID, Valid: true},
+		}); err != nil {
+			return err
+		}
+		if _, err := q.ReassignCatalogModelRules(ctx, db.ReassignCatalogModelRulesParams{ToModelID: to.ID, FromModelID: from.ID}); err != nil {
+			return err
+		}
+		_, err := q.DeleteCatalogModel(ctx, from.ID)
+		return err
+	})
+	if err != nil {
+		return model.Model{}, mapErr(repository.MapErr(err))
+	}
+	s.publish(ctx, LiveModels, ActionDeleted, src)
+	s.publish(ctx, LiveModels, ActionUpdated, dst)
+	// The types of src now point at dst.
+	s.publish(ctx, LiveTypes, ActionBulk)
+	return s.GetModel(ctx, dst)
+}
+
+// ---------- types ----------
+
+func mapTypeRow(t db.ListCatalogTypesRow) model.Type {
+	out := model.Type{
+		UUID: t.Uuid, TSBTypeCode: t.TsbTypeCode, RawName: t.RawName, Years: t.Years,
+		SuggestedTransmission: optString(t.SuggestedTransmission), SuggestedFuel: optString(t.SuggestedFuel),
+		FirstSeenPeriod: t.FirstSeenPeriod, LastSeenPeriod: t.LastSeenPeriod, IsActive: t.IsActive,
+		Brand:        model.BrandRef{UUID: t.BrandUuid, DisplayName: t.BrandDisplayName, TSBCode: t.BrandTsbCode},
+		DisplayBrand: model.DisplayBrandRef{UUID: t.DisplayBrandUuid, Name: t.DisplayBrandName},
+		CreatedAt:    t.CreatedAt.Time, UpdatedAt: t.UpdatedAt.Time,
+	}
+	if out.Years == nil {
+		out.Years = []int32{}
+	}
+	if t.ModelUuid.Valid {
+		out.Model = &model.ModelRef{UUID: uuid.UUID(t.ModelUuid.Bytes), Name: t.ModelName.String, Source: t.ModelSource.String}
 	}
 	return out
 }
 
-func (s *Service) CreateBrand(ctx context.Context, in CreateBrandInput) (Brand, error) {
-	name, err := normalizeName(in.Name)
+func (s *Service) ListTypes(ctx context.Context, f model.TypeFilter) ([]model.Type, int64, error) {
+	if f.Category != "" && !validCategory(f.Category) {
+		return nil, 0, fmt.Errorf("%w: unknown category", ErrInvalidRequest)
+	}
+	if f.Fuel != "" && !validFuel(f.Fuel) {
+		return nil, 0, fmt.Errorf("%w: unknown fuel", ErrInvalidRequest)
+	}
+	if f.Transmission != "" && !validTransmission(f.Transmission) {
+		return nil, 0, fmt.Errorf("%w: unknown transmission", ErrInvalidRequest)
+	}
+	bid, err := s.brandID(ctx, f.BrandUUID)
 	if err != nil {
-		return Brand{}, err
+		return nil, 0, err
 	}
-	active := true
-	if in.IsActive != nil {
-		active = *in.IsActive
-	}
-	row, err := s.q.CreateVehicleBrand(ctx, db.CreateVehicleBrandParams{Name: name, IsActive: active})
+	mid, err := s.modelID(ctx, f.ModelUUID)
 	if err != nil {
-		if strings.Contains(err.Error(), "uq_vehicle_brands_name_active") {
-			return Brand{}, fmt.Errorf("%w: brand name already exists", ErrConflict)
-		}
-		return Brand{}, err
+		return nil, 0, err
 	}
-	s.recordActivity(ctx, "platform.vehicle_brand.create", "vehicle_brand", &row.Uuid, map[string]any{"name": row.Name})
-	return mapBrand(row.Uuid, row.Name, row.LogoObjectKey, row.IsActive, 0, row.CreatedAt, row.UpdatedAt), nil
-}
-
-func (s *Service) PatchBrand(ctx context.Context, id uuid.UUID, in PatchBrandInput) (BrandDetail, error) {
-	params := db.UpdateVehicleBrandParams{Uuid: id}
-	if in.Name != nil {
-		name, err := normalizeName(*in.Name)
-		if err != nil {
-			return BrandDetail{}, err
-		}
-		params.Name = pgtype.Text{String: name, Valid: true}
-	}
-	if in.IsActive != nil {
-		params.IsActive = pgtype.Bool{Bool: *in.IsActive, Valid: true}
-	}
-	row, err := s.q.UpdateVehicleBrand(ctx, params)
+	did, err := s.displayBrandID(ctx, f.DisplayBrandUUID)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return BrandDetail{}, ErrNotFound
-		}
-		if strings.Contains(err.Error(), "uq_vehicle_brands_name_active") {
-			return BrandDetail{}, fmt.Errorf("%w: brand name already exists", ErrConflict)
-		}
-		return BrandDetail{}, err
+		return nil, 0, err
 	}
-	s.recordActivity(ctx, "platform.vehicle_brand.update", "vehicle_brand", &row.Uuid, map[string]any{"name": row.Name})
-	s.reindexBrand(ctx, row.Uuid)
-	return s.GetBrand(ctx, row.Uuid)
-}
-
-func (s *Service) SetLogo(ctx context.Context, id uuid.UUID, objectKey string) (BrandDetail, error) {
-	row, err := s.q.UpdateVehicleBrand(ctx, db.UpdateVehicleBrandParams{
-		SetLogo:       pgtype.Bool{Bool: true, Valid: true},
-		LogoObjectKey: pgtype.Text{String: objectKey, Valid: objectKey != ""},
-		Uuid:          id,
+	rows, err := s.q.ListCatalogTypes(ctx, db.ListCatalogTypesParams{
+		BrandID: bid, DisplayBrandID: did, Category: text(f.Category), ModelID: mid, Year: int4Ptr(f.Year), Unresolved: f.Unresolved,
+		IsActive: boolPtr(f.IsActive), Fuel: text(f.Fuel), Transmission: text(f.Transmission), Q: text(f.Q),
+		SortField: f.SortField, SortDesc: f.SortDesc, LimitCount: f.Limit, OffsetCount: f.Offset,
 	})
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return BrandDetail{}, ErrNotFound
-		}
-		return BrandDetail{}, err
+		return nil, 0, err
 	}
-	s.recordActivity(ctx, "platform.vehicle_brand.logo", "vehicle_brand", &row.Uuid, nil)
-	return s.GetBrand(ctx, row.Uuid)
-}
-
-func (s *Service) LogoObjectKey(ctx context.Context, id uuid.UUID) (string, error) {
-	row, err := s.q.GetVehicleBrandByUUID(ctx, id)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return "", ErrNotFound
-		}
-		return "", err
-	}
-	if !row.LogoObjectKey.Valid || strings.TrimSpace(row.LogoObjectKey.String) == "" {
-		return "", ErrNotFound
-	}
-	return row.LogoObjectKey.String, nil
-}
-
-func (s *Service) DeleteBrand(ctx context.Context, id uuid.UUID) error {
-	row, err := s.q.GetVehicleBrandByUUID(ctx, id)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return ErrNotFound
-		}
-		return err
-	}
-	count, err := s.q.CountActiveVehicleModelsByBrand(ctx, row.ID)
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		return fmt.Errorf("%w: brand still has models", ErrConflict)
-	}
-	if _, err := s.q.SoftDeleteVehicleBrand(ctx, id); err != nil {
-		if err == pgx.ErrNoRows {
-			return ErrNotFound
-		}
-		return err
-	}
-	s.recordActivity(ctx, "platform.vehicle_brand.delete", "vehicle_brand", &id, map[string]any{"name": row.Name})
-	return nil
-}
-
-func (s *Service) CreateModel(ctx context.Context, brandUUID uuid.UUID, in CreateModelInput) (Model, error) {
-	brand, err := s.q.GetVehicleBrandByUUID(ctx, brandUUID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return Model{}, ErrNotFound
-		}
-		return Model{}, err
-	}
-	name, err := normalizeName(in.Name)
-	if err != nil {
-		return Model{}, err
-	}
-	active := true
-	if in.IsActive != nil {
-		active = *in.IsActive
-	}
-	row, err := s.q.CreateVehicleModel(ctx, db.CreateVehicleModelParams{
-		BrandID: brand.ID, Name: name, IsActive: active,
+	total, err := s.q.CountCatalogTypes(ctx, db.CountCatalogTypesParams{
+		BrandID: bid, DisplayBrandID: did, Category: text(f.Category), ModelID: mid, Year: int4Ptr(f.Year), Unresolved: f.Unresolved,
+		IsActive: boolPtr(f.IsActive), Fuel: text(f.Fuel), Transmission: text(f.Transmission), Q: text(f.Q),
 	})
 	if err != nil {
-		if strings.Contains(err.Error(), "uq_vehicle_models_brand_name_active") {
-			return Model{}, fmt.Errorf("%w: model name already exists for this brand", ErrConflict)
-		}
-		return Model{}, err
+		return nil, 0, err
 	}
-	years := make([]int, 0, len(in.Years))
-	for _, year := range in.Years {
-		if err := validYear(year); err != nil {
-			return Model{}, err
-		}
-		if err := s.q.AddVehicleModelYear(ctx, db.AddVehicleModelYearParams{ModelID: row.ID, Year: int16(year)}); err != nil {
-			return Model{}, err
-		}
-		s.indexModelYear(ctx, row.Uuid, year)
-		years = append(years, year)
+	out := make([]model.Type, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, mapTypeRow(r))
 	}
-	s.recordActivity(ctx, "platform.vehicle_model.create", "vehicle_model", &row.Uuid, map[string]any{"name": row.Name})
-	return Model{
-		UUID: row.Uuid, Name: row.Name, IsActive: row.IsActive, Years: years,
-		CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time,
-	}, nil
+	return out, total, nil
 }
 
-func (s *Service) AddYear(ctx context.Context, modelUUID uuid.UUID, year int) error {
-	if err := validYear(year); err != nil {
-		return err
-	}
-	model, err := s.q.GetVehicleModelByUUID(ctx, modelUUID)
+func (s *Service) GetType(ctx context.Context, id uuid.UUID) (model.TypeDetail, error) {
+	t, err := s.q.GetCatalogTypeByUUID(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return ErrNotFound
+		return model.TypeDetail{}, mapErr(repository.MapErr(err))
+	}
+	detail := model.TypeDetail{
+		Type: mapTypeRow(db.ListCatalogTypesRow{
+			ID: t.ID, Uuid: t.Uuid, TsbTypeCode: t.TsbTypeCode, RawName: t.RawName, Years: t.Years,
+			SuggestedTransmission: t.SuggestedTransmission, SuggestedFuel: t.SuggestedFuel,
+			FirstSeenPeriod: t.FirstSeenPeriod, LastSeenPeriod: t.LastSeenPeriod, IsActive: t.IsActive,
+			CreatedAt: t.CreatedAt, UpdatedAt: t.UpdatedAt, BrandUuid: t.BrandUuid,
+			BrandDisplayName: t.BrandDisplayName, BrandTsbCode: t.BrandTsbCode,
+			DisplayBrandUuid: t.DisplayBrandUuid, DisplayBrandName: t.DisplayBrandName,
+			ModelUuid: t.ModelUuid, ModelName: t.ModelName, ModelSource: t.ModelSource,
+		}),
+		BrandTSBName: t.BrandTsbName,
+		Valuations:   []model.Valuation{},
+		History:      []model.Valuation{},
+	}
+	vals, err := s.q.ListCatalogTypeValuations(ctx, t.ID)
+	if err != nil {
+		return model.TypeDetail{}, err
+	}
+	for _, v := range vals {
+		f, _ := repository.NumericToFloat(v.Value)
+		val := model.Valuation{ModelYear: v.ModelYear, Period: v.Period, Value: f}
+		if detail.LatestPeriod == "" {
+			detail.LatestPeriod = v.Period
 		}
-		return err
+		if v.Period == detail.LatestPeriod {
+			detail.Valuations = append(detail.Valuations, val)
+		}
+		detail.History = append(detail.History, val)
 	}
-	if err := s.q.AddVehicleModelYear(ctx, db.AddVehicleModelYearParams{ModelID: model.ID, Year: int16(year)}); err != nil {
-		return err
-	}
-	s.indexModelYear(ctx, model.Uuid, year)
-	s.recordActivity(ctx, "platform.vehicle_model.year_add", "vehicle_model", &model.Uuid, map[string]any{"year": year})
-	return nil
+	return detail, nil
 }
 
-func (s *Service) DeleteYear(ctx context.Context, modelUUID uuid.UUID, year int) error {
-	model, err := s.q.GetVehicleModelByUUID(ctx, modelUUID)
+// PatchType assigns a model (optionally saving a prefix rule) and/or
+// overrides the gearbox / fuel suggestions.
+func (s *Service) PatchType(ctx context.Context, id uuid.UUID, in model.PatchTypeInput) (model.TypeDetail, error) {
+	t, err := s.q.GetCatalogTypeByUUID(ctx, id)
 	if err != nil {
-		if err == pgx.ErrNoRows {
-			return ErrNotFound
-		}
-		return err
+		return model.TypeDetail{}, mapErr(repository.MapErr(err))
 	}
-	if err := s.q.DeleteVehicleModelYear(ctx, db.DeleteVehicleModelYearParams{ModelID: model.ID, Year: int16(year)}); err != nil {
-		if strings.Contains(err.Error(), "fk_customer_vehicles_model_year") {
-			return fmt.Errorf("%w: year is used by a customer vehicle", ErrConflict)
-		}
-		return err
-	}
-	s.deleteModelYear(ctx, model.Uuid, year)
-	s.recordActivity(ctx, "platform.vehicle_model.year_remove", "vehicle_model", &model.Uuid, map[string]any{"year": year})
-	return nil
-}
-
-func (s *Service) DeleteModel(ctx context.Context, modelUUID uuid.UUID) error {
-	model, err := s.q.GetVehicleModelByUUID(ctx, modelUUID)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			return ErrNotFound
-		}
-		return err
-	}
-	used, err := s.q.CountCustomerVehiclesByModel(ctx, model.ID)
-	if err != nil {
-		return err
-	}
-	if used > 0 {
-		return fmt.Errorf("%w: model is used by a customer vehicle", ErrConflict)
-	}
-	years, err := s.q.ListVehicleModelYears(ctx, model.ID)
-	if err != nil {
-		return err
-	}
-	if _, err := s.q.SoftDeleteVehicleModel(ctx, modelUUID); err != nil {
-		if err == pgx.ErrNoRows {
-			return ErrNotFound
-		}
-		return err
-	}
-	for _, year := range years {
-		s.deleteModelYear(ctx, model.Uuid, int(year))
-	}
-	s.recordActivity(ctx, "platform.vehicle_model.delete", "vehicle_model", &model.Uuid, map[string]any{"name": model.Name})
-	return nil
-}
-
-func (s *Service) SearchOptions(ctx context.Context, q string, limit int) ([]CatalogOption, error) {
-	q = strings.TrimSpace(q)
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 50 {
-		limit = 50
-	}
-	// Empty query is a browse list so the picker is not empty on open.
-	// Meilisearch rejects blank queries; fall through to SQL for those.
-	if q != "" && s.searcher != nil && s.searcher.Enabled() {
-		hits, err := s.searcher.Search(ctx, []string{SearchSpecVehicleModelYears}, q, limit, nil)
-		if err == nil && len(hits) > 0 {
-			options, hydrateErr := s.hydrateHits(ctx, hits)
-			if hydrateErr == nil && len(options) > 0 {
-				return options, nil
+	params := db.UpdateCatalogTypeParams{Uuid: id}
+	var target db.GetCatalogModelByUUIDRow
+	if in.SetModel {
+		params.SetModel = true
+		if in.ModelUUID != nil {
+			target, err = s.q.GetCatalogModelByUUID(ctx, *in.ModelUUID)
+			if err != nil {
+				return model.TypeDetail{}, mapErr(repository.MapErr(err))
 			}
-		}
-	}
-	rows, err := s.q.SearchVehicleCatalogOptions(ctx, db.SearchVehicleCatalogOptionsParams{
-		Q:          pgtype.Text{String: q, Valid: true},
-		LimitCount: int32(limit),
-	})
-	if err != nil {
-		return nil, err
-	}
-	out := make([]CatalogOption, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, CatalogOption{
-			BrandUUID: row.BrandUuid,
-			BrandName: row.BrandName,
-			LogoURL:   logoURL(row.BrandUuid, row.LogoObjectKey),
-			ModelUUID: row.ModelUuid,
-			ModelName: row.ModelName,
-			Year:      int(row.Year),
-		})
-	}
-	return out, nil
-}
-
-func (s *Service) hydrateHits(ctx context.Context, hits []searchengine.Hit) ([]CatalogOption, error) {
-	out := make([]CatalogOption, 0, len(hits))
-	for _, hit := range hits {
-		modelUUID, year, err := ParseModelYearDocID(hit.ID)
-		if err != nil {
-			continue
-		}
-		row, err := s.q.GetVehicleCatalogOption(ctx, db.GetVehicleCatalogOptionParams{
-			Uuid: modelUUID,
-			Year: int16(year),
-		})
-		if err != nil {
-			continue
-		}
-		out = append(out, CatalogOption{
-			BrandUUID: row.BrandUuid,
-			BrandName: row.BrandName,
-			LogoURL:   logoURL(row.BrandUuid, row.LogoObjectKey),
-			ModelUUID: row.ModelUuid,
-			ModelName: row.ModelName,
-			Year:      int(row.Year),
-		})
-	}
-	return out, nil
-}
-
-func (s *Service) Import(ctx context.Context, payload map[string]map[string][]string) (ImportResult, error) {
-	if len(payload) == 0 {
-		return ImportResult{}, fmt.Errorf("%w: import payload is empty", ErrInvalidRequest)
-	}
-	var result ImportResult
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return ImportResult{}, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	q := s.q.WithTx(tx)
-
-	for brandName, years := range payload {
-		name, err := normalizeName(brandName)
-		if err != nil {
-			return ImportResult{}, err
-		}
-		brand, created, err := upsertBrand(ctx, q, name)
-		if err != nil {
-			return ImportResult{}, err
-		}
-		if created {
-			result.BrandsCreated++
-		} else {
-			result.BrandsUpdated++
-		}
-		for yearText, models := range years {
-			var year int
-			if _, err := fmt.Sscanf(strings.TrimSpace(yearText), "%d", &year); err != nil {
-				return ImportResult{}, fmt.Errorf("%w: invalid year %q", ErrInvalidRequest, yearText)
-			}
-			if err := validYear(year); err != nil {
-				return ImportResult{}, err
-			}
-			for _, modelName := range models {
-				modelLabel, err := normalizeName(modelName)
+			if target.BrandID != t.BrandID {
+				// A model of a sibling TSB brand (same display brand): use
+				// the same-name model of the type's own brand, created when
+				// missing, so both group into one model.
+				if target.DisplayBrandUuid != t.DisplayBrandUuid {
+					return model.TypeDetail{}, fmt.Errorf("%w: model belongs to another brand", ErrInvalidRequest)
+				}
+				own, err := s.sameNameModel(ctx, t.BrandID, target.Name)
 				if err != nil {
-					return ImportResult{}, err
+					return model.TypeDetail{}, err
 				}
-				model, modelCreated, err := upsertModel(ctx, q, brand.ID, modelLabel)
-				if err != nil {
-					return ImportResult{}, err
-				}
-				if modelCreated {
-					result.ModelsCreated++
-				}
-				if err := q.AddVehicleModelYear(ctx, db.AddVehicleModelYearParams{ModelID: model.ID, Year: int16(year)}); err != nil {
-					return ImportResult{}, err
-				}
-				result.YearsAdded++
+				target.ID, target.Name, target.BrandID = own.ID, own.Name, own.BrandID
 			}
+			params.ModelID = pgtype.Int8{Int64: target.ID, Valid: true}
 		}
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return ImportResult{}, err
+	if in.SaveRule && (!in.SetModel || in.ModelUUID == nil) {
+		return model.TypeDetail{}, fmt.Errorf("%w: save_rule needs model_uuid", ErrInvalidRequest)
 	}
-	s.recordActivity(ctx, "platform.vehicle_brand.import", "vehicle_brand", nil, map[string]any{
-		"brands_created": result.BrandsCreated,
-		"models_created": result.ModelsCreated,
+	prefix := strings.Join(strings.Fields(in.RulePrefix), " ")
+	if in.SaveRule {
+		if prefix == "" {
+			prefix = target.Name
+		}
+		if !tsbcatalog.HasPrefixToken(t.RawName, prefix) {
+			return model.TypeDetail{}, fmt.Errorf("%w: rule_prefix must be a prefix of the type name", ErrInvalidRequest)
+		}
+	}
+	if in.SetTransmission {
+		params.SetTransmission = true
+		if in.SuggestedTransmission != nil && *in.SuggestedTransmission != "" {
+			if !validTransmission(*in.SuggestedTransmission) {
+				return model.TypeDetail{}, fmt.Errorf("%w: unknown transmission", ErrInvalidRequest)
+			}
+			params.SuggestedTransmission = text(*in.SuggestedTransmission)
+		}
+	}
+	if in.SetFuel {
+		params.SetFuel = true
+		if in.SuggestedFuel != nil && *in.SuggestedFuel != "" {
+			if !validFuel(*in.SuggestedFuel) {
+				return model.TypeDetail{}, fmt.Errorf("%w: unknown fuel", ErrInvalidRequest)
+			}
+			params.SuggestedFuel = text(*in.SuggestedFuel)
+		}
+	}
+	err = s.repo.WithTx(ctx, func(q *db.Queries) error {
+		if _, err := q.UpdateCatalogType(ctx, params); err != nil {
+			return err
+		}
+		if !in.SaveRule {
+			return nil
+		}
+		if _, err := q.UpsertCatalogModelRule(ctx, db.UpsertCatalogModelRuleParams{
+			BrandID: t.BrandID, Prefix: prefix, ModelID: target.ID,
+		}); err != nil {
+			return err
+		}
+		// Apply the rule to the brand's types that have no model yet or an
+		// auto-derived one.
+		cands, err := q.ListCatalogTypesForRule(ctx, t.BrandID)
+		if err != nil {
+			return err
+		}
+		ids := make([]int64, 0)
+		for _, c := range cands {
+			if tsbcatalog.HasPrefixToken(c.RawName, prefix) {
+				ids = append(ids, c.ID)
+			}
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		_, err = q.SetCatalogTypesModel(ctx, db.SetCatalogTypesModelParams{
+			ModelID: pgtype.Int8{Int64: target.ID, Valid: true}, Ids: ids,
+		})
+		return err
 	})
-	if s.search != nil {
-		s.search.EnqueueReindex(ctx, SearchSpecVehicleModelYears)
-	}
-	return result, nil
-}
-
-func upsertBrand(ctx context.Context, q *db.Queries, name string) (db.VehicleBrand, bool, error) {
-	existing, err := q.GetVehicleBrandByName(ctx, name)
-	if err == nil {
-		return existing, false, nil
-	}
-	if err != pgx.ErrNoRows {
-		return db.VehicleBrand{}, false, err
-	}
-	row, err := q.CreateVehicleBrand(ctx, db.CreateVehicleBrandParams{Name: name, IsActive: true})
 	if err != nil {
-		return db.VehicleBrand{}, false, err
+		return model.TypeDetail{}, mapErr(repository.MapErr(err))
 	}
-	return row, true, nil
+	if in.SaveRule {
+		// The rule may have reassigned other types of the brand too.
+		s.publish(ctx, LiveTypes, ActionBulk)
+	} else {
+		s.publish(ctx, LiveTypes, ActionUpdated, id)
+	}
+	return s.GetType(ctx, id)
 }
 
-func upsertModel(ctx context.Context, q *db.Queries, brandID int64, name string) (db.VehicleModel, bool, error) {
-	existing, err := q.GetVehicleModelByBrandAndName(ctx, db.GetVehicleModelByBrandAndNameParams{
-		BrandID: brandID,
-		Lower:   name,
-	})
-	if err == nil {
-		return existing, false, nil
+// ---------- shared helpers ----------
+
+func actorRef(id int64) *int64 {
+	if id <= 0 {
+		return nil
 	}
-	if err != pgx.ErrNoRows {
-		return db.VehicleModel{}, false, err
-	}
-	row, err := q.CreateVehicleModel(ctx, db.CreateVehicleModelParams{BrandID: brandID, Name: name, IsActive: true})
+	return &id
+}
+
+func mustJSON(v any) []byte {
+	b, err := json.Marshal(v)
 	if err != nil {
-		return db.VehicleModel{}, false, err
+		return []byte("{}")
 	}
-	return row, true, nil
+	return b
 }
 
-func (s *Service) indexModelYear(ctx context.Context, modelUUID uuid.UUID, year int) {
-	if s.search == nil {
-		return
+// enqueue schedules a catalog import step, or runs it inline without a queue.
+func (s *Service) enqueue(ctx context.Context, importID int64, action string) error {
+	if s.queue == nil {
+		return s.ProcessImport(ctx, importID, action)
 	}
-	s.search.EnqueueUpsert(ctx, SearchSpecVehicleModelYears, ModelYearDocID(modelUUID, year))
-}
-
-func (s *Service) deleteModelYear(ctx context.Context, modelUUID uuid.UUID, year int) {
-	if s.search == nil {
-		return
-	}
-	s.search.EnqueueDelete(ctx, SearchSpecVehicleModelYears, ModelYearDocID(modelUUID, year))
-}
-
-func (s *Service) reindexBrand(ctx context.Context, brandUUID uuid.UUID) {
-	if s.search == nil {
-		return
-	}
-	rows, err := s.q.ListVehicleModelYearIDsByBrand(ctx, brandUUID)
+	task, err := queue.NewCatalogImportTask(importID, action)
 	if err != nil {
-		s.search.EnqueueReindex(ctx, SearchSpecVehicleModelYears)
-		return
+		return err
 	}
-	for _, row := range rows {
-		s.search.EnqueueUpsert(ctx, SearchSpecVehicleModelYears, ModelYearDocID(row.ModelUuid, int(row.Year)))
-	}
+	_, err = s.queue.Enqueue(task, asynq.Queue(queue.QueueImports), asynq.MaxRetry(1), asynq.Timeout(15*time.Minute))
+	return err
 }

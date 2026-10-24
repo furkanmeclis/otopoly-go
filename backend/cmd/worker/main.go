@@ -32,10 +32,13 @@ import (
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts"
 	vausecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts/usecase"
+	vehiclecatalogrepository "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/repository"
+	vehiclecatalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/observability"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/crypto"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
@@ -218,7 +221,17 @@ func main() {
 	log = persist.Logger()
 	defer persist.Close()
 
+	vehicleCatalogSvc := vehiclecatalogusecase.New(vehiclecatalogrepository.NewPostgres(pool, queries), store, nil, activityRec, log)
+	vehicleCatalogSvc.SetSearchReindexer(searchIndexer)
+	if box, err := crypto.NewSecretBox(cfg.Encryption.Key); err == nil {
+		vehicleCatalogSvc.SetSecretBox(box)
+	} else {
+		log.Warn("brand_logo_sync_encryption_unavailable", "error", err)
+	}
+
 	worker := queue.NewWorker(cfg, log, notifSvc.Deliver).
+		WithCatalogImport(vehicleCatalogSvc.ProcessImport).
+		WithBrandLogoSync(vehicleCatalogSvc.ProcessBrandLogoSync).
 		WithExport(exportSvc.ProcessExport).
 		WithImport(importSvc.ProcessImport).
 		WithBulk(bulkSvc.ProcessBulk).

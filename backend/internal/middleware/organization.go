@@ -148,3 +148,9 @@ func orgAccessAllowed(status string, accessStarts, accessEnds pgtype.Timestamptz
 	}
 	return true
 }
+
+// OrganizationResolverFromQueries adapts sqlc queries to OrganizationResolver
+// for modules that take the resolver interface (so tests can stub it).
+func OrganizationResolverFromQueries(q *db.Queries) OrganizationResolver {
+	return orgResolver{q: q}
+}

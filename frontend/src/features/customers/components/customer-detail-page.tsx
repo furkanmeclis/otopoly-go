@@ -10,6 +10,7 @@ import { z } from "zod";
 
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
+import { BrandMark } from "@/components/common/brand-mark";
 import { StatusChip } from "@/components/common/status-chip";
 import {
   EntityActions,
@@ -40,7 +41,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
-import { apiConfig } from "@/config/api";
 import { routes } from "@/config/routes";
 import { useCariEntries } from "@/features/cari/hooks/use-cari";
 import { useTenantCariAccess } from "@/features/cari/hooks/use-tenant-cari-access";
@@ -114,22 +114,17 @@ export function CustomerDetailPage({
         labelKey: "customers.detail.brand_model",
         accessorFn: (row) => `${row.brand_name} ${row.model_name}`,
         filterVariant: "text",
-        cell: ({ row }) => {
-          const logo = row.original.logo_url
-            ? `${apiConfig.baseUrl.replace(/\/$/, "")}${row.original.logo_url}`
-            : null;
-          return (
-            <div className="flex items-center gap-3">
-              {logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logo} alt="" className="h-6 w-12 object-contain" />
-              ) : null}
-              <span>
-                {row.original.brand_name} {row.original.model_name}
-              </span>
-            </div>
-          );
-        },
+        cell: ({ row }) => (
+          <div className="flex items-center gap-3">
+            <BrandMark
+              name={row.original.brand_name}
+              logoUrl={row.original.logo_url}
+            />
+            <span>
+              {row.original.brand_name} {row.original.model_name}
+            </span>
+          </div>
+        ),
       }),
       createColumn<CustomerVehicle>({
         accessorKey: "year",
@@ -544,7 +539,8 @@ function CustomerEditDialog({
                 body: {
                   ...values,
                   tax_id: values.kind === "company" ? values.tax_id : "",
-                  tax_office: values.kind === "company" ? values.tax_office : "",
+                  tax_office:
+                    values.kind === "company" ? values.tax_office : "",
                 },
               });
               onOpenChange(false);
