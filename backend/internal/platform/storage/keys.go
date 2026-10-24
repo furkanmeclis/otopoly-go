@@ -58,3 +58,21 @@ func trimExt(ext string) string {
 	}
 	return ext
 }
+
+// CatalogImportObjectKey builds catalog/imports/{importUUID}/source.{ext}
+// for the uploaded TSB kasko list of a vehicle catalog import.
+func CatalogImportObjectKey(importUUID, ext string) string {
+	return fmt.Sprintf("catalog/imports/%s/source.%s", importUUID, trimExt(ext))
+}
+
+// CatalogBrandLogoObjectKey builds catalog/brands/{displayBrandUUID}/logo.{ext}
+// for catalog display brand logos (served through the API, never by URL).
+func CatalogBrandLogoObjectKey(displayBrandUUID, ext string) string {
+	return fmt.Sprintf("catalog/brands/%s/logo.%s", displayBrandUUID, trimExt(ext))
+}
+
+// BrandLogoObjectKey builds brand-logos/{motomarksID}/{variant}-md.{ext} for
+// a logo variant (badge, wordmark, full) copied from the brand logo mirror.
+func BrandLogoObjectKey(motomarksID, variant, ext string) string {
+	return fmt.Sprintf("brand-logos/%s/%s-md.%s", motomarksID, variant, trimExt(ext))
+}

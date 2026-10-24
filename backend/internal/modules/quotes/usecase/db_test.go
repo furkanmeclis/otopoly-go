@@ -92,20 +92,20 @@ func (f *fakeScheduler) Cancel(_ context.Context, r QuoteReminder) error {
 // --- fixtures
 
 type fixture struct {
-	pool                  *pgxpool.Pool
-	q                     *db.Queries
-	svc                   *Service
-	ctxA, ctxB            context.Context
-	orgA, orgB            int64
-	customerA, customerB  uuid.UUID
-	serviceA, serviceB    uuid.UUID
-	productA              uuid.UUID
-	modelUUID             uuid.UUID
-	leadA                 uuid.UUID
-	storage               *memStorage
-	pdf                   *fakePDF
-	messenger             *fakeMessenger
-	scheduler             *fakeScheduler
+	pool                 *pgxpool.Pool
+	q                    *db.Queries
+	svc                  *Service
+	ctxA, ctxB           context.Context
+	orgA, orgB           int64
+	customerA, customerB uuid.UUID
+	serviceA, serviceB   uuid.UUID
+	productA             uuid.UUID
+	modelUUID            uuid.UUID
+	leadA                uuid.UUID
+	storage              *memStorage
+	pdf                  *fakePDF
+	messenger            *fakeMessenger
+	scheduler            *fakeScheduler
 }
 
 func setup(t *testing.T) *fixture {

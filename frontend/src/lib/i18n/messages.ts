@@ -36,7 +36,7 @@ import enSales from "@/locales/en/sales.json";
 import enSuppliers from "@/locales/en/suppliers.json";
 import enPurchases from "@/locales/en/purchases.json";
 import enReports from "@/locales/en/reports.json";
-import enVehicleBrands from "@/locales/en/vehicle_brands.json";
+import enVehicleCatalog from "@/locales/en/vehicle_catalog.json";
 import enContracts from "@/locales/en/contracts.json";
 import enRegister from "@/locales/en/register.json";
 import enPermissions from "@/locales/en/permissions.json";
@@ -85,7 +85,7 @@ import trSales from "@/locales/tr/sales.json";
 import trSuppliers from "@/locales/tr/suppliers.json";
 import trPurchases from "@/locales/tr/purchases.json";
 import trReports from "@/locales/tr/reports.json";
-import trVehicleBrands from "@/locales/tr/vehicle_brands.json";
+import trVehicleCatalog from "@/locales/tr/vehicle_catalog.json";
 import trContracts from "@/locales/tr/contracts.json";
 import trRegister from "@/locales/tr/register.json";
 import trPermissions from "@/locales/tr/permissions.json";
@@ -141,7 +141,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     suppliers: trSuppliers,
     purchases: trPurchases,
     reports: trReports,
-    vehicle_brands: trVehicleBrands,
+    vehicle_catalog: trVehicleCatalog,
     contracts: trContracts,
     register: trRegister,
     stepup: trStepup,
@@ -192,7 +192,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     suppliers: enSuppliers,
     purchases: enPurchases,
     reports: enReports,
-    vehicle_brands: enVehicleBrands,
+    vehicle_catalog: enVehicleCatalog,
     contracts: enContracts,
     register: enRegister,
     stepup: enStepup,
@@ -219,7 +219,8 @@ export function translate(
   const path = rest.join(".");
   const primary = catalogs[locale]?.[ns]?.[path];
   const fallback = catalogs[fallbackLocale]?.[ns]?.[path];
-  if (primary === undefined) recordMissingKey(locale, key, fallback !== undefined);
+  if (primary === undefined)
+    recordMissingKey(locale, key, fallback !== undefined);
   let text = primary ?? fallback ?? key;
 
   if (params) {
@@ -247,8 +248,13 @@ export function translatePlural(
  * crawler (or `window.__i18nMissing` in devtools) can list them. No-op in
  * production builds.
  */
-function recordMissingKey(locale: AppLocale, key: string, hasFallback: boolean) {
-  if (process.env.NODE_ENV === "production" || typeof window === "undefined") return;
+function recordMissingKey(
+  locale: AppLocale,
+  key: string,
+  hasFallback: boolean,
+) {
+  if (process.env.NODE_ENV === "production" || typeof window === "undefined")
+    return;
   const w = window as unknown as { __i18nMissing?: Record<string, string> };
   w.__i18nMissing ??= {};
   w.__i18nMissing[`${locale}:${key}`] = hasFallback ? "fallback" : "missing";

@@ -83,9 +83,9 @@ export const platformNav = defineNav({
           permission: permissions.organizations.read,
         },
         {
-          id: "vehicle-brands",
-          titleKey: "layout.nav_vehicle_brands",
-          href: routes.platform.vehicleBrands.root,
+          id: "vehicle-catalog",
+          titleKey: "layout.nav_vehicle_catalog",
+          href: routes.platform.vehicleCatalog.root,
           icon: Car,
           permission: permissions.vehicleBrands.read,
         },

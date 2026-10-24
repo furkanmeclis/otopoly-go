@@ -81,7 +81,7 @@ const createVehicleBrand = `-- name: CreateVehicleBrand :one
 
 INSERT INTO vehicle_brands (name, is_active)
 VALUES ($1, $2)
-RETURNING id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at, catalog_display_brand_id
 `
 
 type CreateVehicleBrandParams struct {
@@ -102,6 +102,7 @@ func (q *Queries) CreateVehicleBrand(ctx context.Context, arg CreateVehicleBrand
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogDisplayBrandID,
 	)
 	return i, err
 }
@@ -109,7 +110,7 @@ func (q *Queries) CreateVehicleBrand(ctx context.Context, arg CreateVehicleBrand
 const createVehicleModel = `-- name: CreateVehicleModel :one
 INSERT INTO vehicle_models (brand_id, name, is_active)
 VALUES ($1, $2, $3)
-RETURNING id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at, catalog_group_key
 `
 
 type CreateVehicleModelParams struct {
@@ -130,6 +131,7 @@ func (q *Queries) CreateVehicleModel(ctx context.Context, arg CreateVehicleModel
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogGroupKey,
 	)
 	return i, err
 }
@@ -150,7 +152,7 @@ func (q *Queries) DeleteVehicleModelYear(ctx context.Context, arg DeleteVehicleM
 }
 
 const getVehicleBrandByName = `-- name: GetVehicleBrandByName :one
-SELECT id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at FROM vehicle_brands
+SELECT id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at, catalog_display_brand_id FROM vehicle_brands
 WHERE lower(name) = lower($1) AND deleted_at IS NULL
 `
 
@@ -166,12 +168,13 @@ func (q *Queries) GetVehicleBrandByName(ctx context.Context, lower string) (Vehi
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogDisplayBrandID,
 	)
 	return i, err
 }
 
 const getVehicleBrandByUUID = `-- name: GetVehicleBrandByUUID :one
-SELECT id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at FROM vehicle_brands
+SELECT id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at, catalog_display_brand_id FROM vehicle_brands
 WHERE uuid = $1 AND deleted_at IS NULL
 `
 
@@ -187,6 +190,7 @@ func (q *Queries) GetVehicleBrandByUUID(ctx context.Context, argUuid uuid.UUID) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogDisplayBrandID,
 	)
 	return i, err
 }
@@ -237,7 +241,7 @@ func (q *Queries) GetVehicleCatalogOption(ctx context.Context, arg GetVehicleCat
 }
 
 const getVehicleModelByBrandAndName = `-- name: GetVehicleModelByBrandAndName :one
-SELECT id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at FROM vehicle_models
+SELECT id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at, catalog_group_key FROM vehicle_models
 WHERE brand_id = $1 AND lower(name) = lower($2) AND deleted_at IS NULL
 `
 
@@ -258,12 +262,13 @@ func (q *Queries) GetVehicleModelByBrandAndName(ctx context.Context, arg GetVehi
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogGroupKey,
 	)
 	return i, err
 }
 
 const getVehicleModelByUUID = `-- name: GetVehicleModelByUUID :one
-SELECT id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at FROM vehicle_models
+SELECT id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at, catalog_group_key FROM vehicle_models
 WHERE uuid = $1 AND deleted_at IS NULL
 `
 
@@ -279,6 +284,7 @@ func (q *Queries) GetVehicleModelByUUID(ctx context.Context, argUuid uuid.UUID) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogGroupKey,
 	)
 	return i, err
 }
@@ -324,7 +330,7 @@ func (q *Queries) GetVehicleModelYearForSearch(ctx context.Context, arg GetVehic
 
 const listVehicleBrands = `-- name: ListVehicleBrands :many
 SELECT
-    b.id, b.uuid, b.name, b.logo_object_key, b.is_active, b.created_at, b.updated_at, b.deleted_at,
+    b.id, b.uuid, b.name, b.logo_object_key, b.is_active, b.created_at, b.updated_at, b.deleted_at, b.catalog_display_brand_id,
     (
         SELECT COUNT(*)::bigint
         FROM vehicle_models m
@@ -355,15 +361,16 @@ type ListVehicleBrandsParams struct {
 }
 
 type ListVehicleBrandsRow struct {
-	ID            int64              `json:"id"`
-	Uuid          uuid.UUID          `json:"uuid"`
-	Name          string             `json:"name"`
-	LogoObjectKey pgtype.Text        `json:"logo_object_key"`
-	IsActive      bool               `json:"is_active"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt     pgtype.Timestamptz `json:"deleted_at"`
-	ModelCount    int64              `json:"model_count"`
+	ID                    int64              `json:"id"`
+	Uuid                  uuid.UUID          `json:"uuid"`
+	Name                  string             `json:"name"`
+	LogoObjectKey         pgtype.Text        `json:"logo_object_key"`
+	IsActive              bool               `json:"is_active"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt             pgtype.Timestamptz `json:"deleted_at"`
+	CatalogDisplayBrandID pgtype.Int8        `json:"catalog_display_brand_id"`
+	ModelCount            int64              `json:"model_count"`
 }
 
 func (q *Queries) ListVehicleBrands(ctx context.Context, arg ListVehicleBrandsParams) ([]ListVehicleBrandsRow, error) {
@@ -390,6 +397,7 @@ func (q *Queries) ListVehicleBrands(ctx context.Context, arg ListVehicleBrandsPa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.CatalogDisplayBrandID,
 			&i.ModelCount,
 		); err != nil {
 			return nil, err
@@ -542,7 +550,7 @@ func (q *Queries) ListVehicleModelYearsForSearch(ctx context.Context) ([]ListVeh
 }
 
 const listVehicleModelsByBrand = `-- name: ListVehicleModelsByBrand :many
-SELECT m.id, m.uuid, m.brand_id, m.name, m.is_active, m.created_at, m.updated_at, m.deleted_at
+SELECT m.id, m.uuid, m.brand_id, m.name, m.is_active, m.created_at, m.updated_at, m.deleted_at, m.catalog_group_key
 FROM vehicle_models m
 WHERE m.brand_id = $1 AND m.deleted_at IS NULL
 ORDER BY m.name ASC
@@ -566,6 +574,7 @@ func (q *Queries) ListVehicleModelsByBrand(ctx context.Context, brandID int64) (
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.CatalogGroupKey,
 		); err != nil {
 			return nil, err
 		}
@@ -643,7 +652,7 @@ const softDeleteVehicleBrand = `-- name: SoftDeleteVehicleBrand :one
 UPDATE vehicle_brands
 SET deleted_at = NOW(), is_active = false
 WHERE uuid = $1 AND deleted_at IS NULL
-RETURNING id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at, catalog_display_brand_id
 `
 
 func (q *Queries) SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID) (VehicleBrand, error) {
@@ -658,6 +667,7 @@ func (q *Queries) SoftDeleteVehicleBrand(ctx context.Context, argUuid uuid.UUID)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogDisplayBrandID,
 	)
 	return i, err
 }
@@ -666,7 +676,7 @@ const softDeleteVehicleModel = `-- name: SoftDeleteVehicleModel :one
 UPDATE vehicle_models
 SET deleted_at = NOW(), is_active = false
 WHERE uuid = $1 AND deleted_at IS NULL
-RETURNING id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at, catalog_group_key
 `
 
 func (q *Queries) SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error) {
@@ -681,6 +691,7 @@ func (q *Queries) SoftDeleteVehicleModel(ctx context.Context, argUuid uuid.UUID)
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogGroupKey,
 	)
 	return i, err
 }
@@ -694,7 +705,7 @@ SET name = COALESCE($1, name),
         ELSE logo_object_key
     END
 WHERE uuid = $5 AND deleted_at IS NULL
-RETURNING id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, name, logo_object_key, is_active, created_at, updated_at, deleted_at, catalog_display_brand_id
 `
 
 type UpdateVehicleBrandParams struct {
@@ -723,6 +734,7 @@ func (q *Queries) UpdateVehicleBrand(ctx context.Context, arg UpdateVehicleBrand
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogDisplayBrandID,
 	)
 	return i, err
 }
@@ -732,7 +744,7 @@ UPDATE vehicle_models
 SET name = COALESCE($1, name),
     is_active = COALESCE($2, is_active)
 WHERE uuid = $3 AND deleted_at IS NULL
-RETURNING id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at
+RETURNING id, uuid, brand_id, name, is_active, created_at, updated_at, deleted_at, catalog_group_key
 `
 
 type UpdateVehicleModelParams struct {
@@ -753,6 +765,7 @@ func (q *Queries) UpdateVehicleModel(ctx context.Context, arg UpdateVehicleModel
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.CatalogGroupKey,
 	)
 	return i, err
 }

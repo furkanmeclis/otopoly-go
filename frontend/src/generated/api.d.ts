@@ -3390,15 +3390,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands/meta": {
+    "/v1/platform/vehicle-catalog/brands/meta": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Vehicle brand list metadata */
-        get: operations["getPlatformVehicleBrandsMeta"];
+        /** Catalog brands list metadata */
+        get: operations["getPlatformVehicleCatalogBrandsMeta"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3407,70 +3407,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands": {
+    "/v1/platform/vehicle-catalog/brands": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List vehicle brands */
-        get: operations["getPlatformVehicleBrands"];
-        put?: never;
-        /** Create a vehicle brand */
-        post: operations["createPlatformVehicleBrand"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/platform/vehicle-brands/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import brand, year, and model JSON */
-        post: operations["importPlatformVehicleBrands"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/platform/vehicle-brands/{uuid}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a vehicle brand and its models */
-        get: operations["getPlatformVehicleBrand"];
+        /**
+         * List catalog brands
+         * @description Requires `platform.catalog.read`. Sort fields `display_name`, `tsb_name`, `tsb_code`, `category`, `types_count`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogBrands"];
         put?: never;
         post?: never;
-        /** Soft-delete a vehicle brand with no models */
-        delete: operations["deletePlatformVehicleBrand"];
+        delete?: never;
         options?: never;
         head?: never;
-        /** Update a vehicle brand */
-        patch: operations["patchPlatformVehicleBrand"];
+        patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands/{uuid}/logo": {
+    "/v1/platform/vehicle-catalog/brands/{uuid}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        /** Upload a vehicle brand logo */
-        put: operations["putPlatformVehicleBrandLogo"];
+        /** Get catalog brand */
+        get: operations["getPlatformVehicleCatalogBrand"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update brand display brand, category or active flag
+         * @description Requires `platform.catalog.write`. TSB code and name are owned by the import.
+         *     `display_name` maps the TSB brand to the display brand of that name (created when missing);
+         *     `display_brand_uuid` maps it to an existing display brand. A display brand left without
+         *     TSB brands is deleted.
+         */
+        patch: operations["patchPlatformVehicleCatalogBrand"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/display-brands/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog display brands list metadata */
+        get: operations["getPlatformVehicleCatalogDisplayBrandsMeta"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -3478,41 +3468,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands/{uuid}/models": {
+    "/v1/platform/vehicle-catalog/display-brands": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List display brands
+         * @description Requires `platform.catalog.read`. A display brand is what users see; one or more TSB brands
+         *     (FIAT + TOFAS-FIAT) map to it. `q` matches the name, TSB names and TSB codes.
+         *     Sort fields `name`, `brands_count`, `types_count`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogDisplayBrands"];
         put?: never;
-        /** Add a model to a brand */
-        post: operations["createPlatformVehicleModel"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-models/{uuid}": {
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get a display brand with its TSB brands */
+        get: operations["getPlatformVehicleCatalogDisplayBrand"];
         put?: never;
         post?: never;
-        /** Soft-delete a vehicle model */
-        delete: operations["deletePlatformVehicleModel"];
+        delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename or (de)activate a display brand
+         * @description Requires `platform.catalog.write`. A rename also changes the slug and the display name of its TSB brands.
+         */
+        patch: operations["patchPlatformVehicleCatalogDisplayBrand"];
         trace?: never;
     };
-    "/v1/platform/vehicle-models/{uuid}/years": {
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/merge": {
         parameters: {
             query?: never;
             header?: never;
@@ -3521,15 +3520,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add a model year */
-        post: operations["addPlatformVehicleModelYear"];
+        /**
+         * Merge a display brand into another
+         * @description Requires `platform.catalog.write`. Moves every TSB brand of `{uuid}` to `into_uuid` and deletes `{uuid}` (and its logo). Returns the target.
+         */
+        post: operations["postPlatformVehicleCatalogDisplayBrandMerge"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-models/{uuid}/years/{year}": {
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/unmerge": {
         parameters: {
             query?: never;
             header?: never;
@@ -3538,9 +3540,503 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Detach a TSB brand into a new display brand
+         * @description Requires `platform.catalog.write`. Only for display brands with more than one TSB brand.
+         *     `name` defaults to the title-cased TSB name ("Tofas-Fiat"); 409 when that name exists.
+         */
+        post: operations["postPlatformVehicleCatalogDisplayBrandUnmerge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream a display brand logo
+         * @description Any signed-in user (tenant vehicle forms show it too). Use the
+         *     `logo_url` / `logo_badge_url` / `logo_wordmark_url` returned by the API.
+         *     The admin upload wins; otherwise the variant synced from the brand logo
+         *     mirror is served (`badge` = emblem, `wordmark` = text only, default =
+         *     full logo with fallbacks).
+         */
+        get: operations["getPlatformVehicleCatalogDisplayBrandLogo"];
+        /**
+         * Upload a display brand logo
+         * @description Requires `platform.catalog.write`. Multipart field `logo` (PNG, JPEG, WebP or SVG).
+         */
+        put: operations["putPlatformVehicleCatalogDisplayBrandLogo"];
         post?: never;
-        /** Remove a model year */
-        delete: operations["deletePlatformVehicleModelYear"];
+        /** Remove a display brand logo */
+        delete: operations["deletePlatformVehicleCatalogDisplayBrandLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/bulk-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save "type name starts with the model name" rules for many models
+         * @description Requires `platform.catalog.write`. For each model (max 500) stores a prefix rule equal to its
+         *     name and assigns it to the brand's types without a model or with an auto-derived one.
+         */
+        post: operations["postPlatformVehicleCatalogModelsBulkRules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog models list metadata */
+        get: operations["getPlatformVehicleCatalogModelsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List catalog models
+         * @description Sort fields `name`, `brand`, `source`, `types_count`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogModels"];
+        put?: never;
+        /** Create a manual model */
+        post: operations["postPlatformVehicleCatalogModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get catalog model with its prefix rules */
+        get: operations["getPlatformVehicleCatalogModel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename a model
+         * @description Any edit marks the model `manual` unless `source` is sent.
+         */
+        patch: operations["patchPlatformVehicleCatalogModel"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/{uuid}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge a model into another model
+         * @description Same TSB brand: moves the types and prefix rules of `{uuid}` to `into_uuid`, then deletes `{uuid}`.
+         *     Another TSB brand of the same display brand: `{uuid}` is renamed to the target's name (or merged
+         *     into its brand's model of that name) so both form one grouped model. Returns the target model.
+         */
+        post: operations["postPlatformVehicleCatalogModelMerge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/types/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog types list metadata */
+        get: operations["getPlatformVehicleCatalogTypesMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List catalog types (TSB type lines)
+         * @description Sort fields `raw_name`, `tsb_type_code`, `brand`, `model`, `last_seen_period`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/types/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get catalog type with kasko values
+         * @description `valuations` holds the latest period's value per model year; `history` every stored period.
+         */
+        get: operations["getPlatformVehicleCatalogType"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Assign a model / override suggestions
+         * @description `model_uuid` (null clears) assigns the model. With `save_rule: true` the
+         *     `rule_prefix` (default: the model name; must prefix the type name) is
+         *     stored as a prefix rule for the brand and applied to its types that
+         *     have no model or an auto-derived one; later imports use it too.
+         */
+        patch: operations["patchPlatformVehicleCatalogType"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Brand logo sync settings (mirror endpoint, masked token, counters) */
+        get: operations["getPlatformVehicleCatalogBrandLogoSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update brand logo sync settings
+         * @description Requires `platform.vehicle_brands.write`. The mirror base URL and API
+         *     token are stored in the database (token encrypted, never returned);
+         *     an empty `api_token` clears it.
+         */
+        patch: operations["patchPlatformVehicleCatalogBrandLogoSettings"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test the brand logo mirror connection with the stored token */
+        post: operations["postPlatformVehicleCatalogBrandLogoTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a brand logo sync run (background)
+         * @description Asks the live mirror for its brand list (ETag aware), copies new or
+         *     changed badge / wordmark / full files into this app's storage and
+         *     matches display brands without a logo link. One run at a time (409).
+         */
+        post: operations["postPlatformVehicleCatalogBrandLogoSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Brand logo sync run history (newest first) */
+        get: operations["getPlatformVehicleCatalogBrandLogoRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/unmatched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Display brands without a mirror logo link */
+        get: operations["getPlatformVehicleCatalogBrandLogoUnmatched"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search synced mirror brands (manual link picker) */
+        get: operations["getPlatformVehicleCatalogBrandLogoSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/sources/{id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview a synced mirror brand logo file */
+        get: operations["getPlatformVehicleCatalogBrandLogoSourceLogo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/motomarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link a display brand to a mirror brand by hand, skip it, or unlink
+         * @description Requires `platform.vehicle_brands.write`. A manual link or skip is never overwritten by a later sync run.
+         */
+        post: operations["postPlatformVehicleCatalogDisplayBrandMotomarks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog imports list metadata */
+        get: operations["getPlatformVehicleCatalogImportsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List TSB list imports
+         * @description Sort fields `period`, `status`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogImports"];
+        put?: never;
+        /**
+         * Upload a TSB kasko list (.xlsx) for a dry run
+         * @description Stores the file privately in object storage and queues a dry run that
+         *     parses it and computes the diff without changing the catalog. Poll
+         *     `GET /v1/platform/vehicle-catalog/imports/{uuid}` until `status` is `ready`
+         *     (or `failed`), then `POST .../apply`. The period is read from cell A1
+         *     ("Ekim 2026" → `2026-10`) unless `period` is sent.
+         */
+        post: operations["postPlatformVehicleCatalogImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get import status, counts and diff samples */
+        get: operations["getPlatformVehicleCatalogImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports/{uuid}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a dry-run import
+         * @description Queues the apply: one transaction upserts brands and types, creates
+         *     auto models, deactivates types missing from the period and writes the
+         *     period's valuations (older periods are kept). Idempotent: applying
+         *     the same period again changes nothing. Allowed from `ready`,
+         *     `applied` and `failed` (with a period); otherwise `409 CONFLICT`.
+         */
+        post: operations["postPlatformVehicleCatalogImportApply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/vehicle-catalog/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vehicle brands for forms
+         * @description Active display brands with active types (optionally for a model `year`). TSB brands that are
+         *     one make (FIAT + TOFAS-FIAT) are listed once. Any organization member.
+         */
+        get: operations["getTenantVehicleCatalogBrands"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/vehicle-catalog/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Vehicle models of a brand for forms */
+        get: operations["getTenantVehicleCatalogModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/vehicle-catalog/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vehicle types of a model with the latest kasko value
+         * @description Types of a grouped model across every TSB brand of its display brand. With `year`, only types
+         *     sold that model year and `kasko_value` is that year's value from the latest period.
+         */
+        get: operations["getTenantVehicleCatalogTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -11906,6 +12402,640 @@ export interface components {
             data: components["schemas"]["CariSummary"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        BulkVehicleCatalogModelRulesRequest: {
+            model_uuids: string[];
+        };
+        /** @description A TSB brand (keyed by TSB code). `display_name` mirrors its display brand's name. */
+        VehicleCatalogBrand: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 100 */
+            tsb_code: string;
+            /** @example TOFAS-FIAT */
+            tsb_name: string;
+            /** @example Fiat */
+            display_name: string;
+            display_brand: components["schemas"]["VehicleCatalogDisplayBrandRef"];
+            category: components["schemas"]["VehicleCatalogBrandCategory"];
+            is_active: boolean;
+            /**
+             * Format: int64
+             * @description Active types
+             */
+            types_count: number;
+            /** Format: int64 */
+            models_count: number;
+            /**
+             * Format: int64
+             * @description Active types without a model
+             */
+            unresolved_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogBrandCategory: "passenger" | "light_commercial" | "other";
+        VehicleCatalogBulkRulesResult: {
+            rules_saved: number;
+            types_assigned: number;
+        };
+        VehicleCatalogDisplayBrand: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example Fiat */
+            name: string;
+            /** @example fiat */
+            slug: string;
+            /** @description API-owned logo stream (`/v1/...`); never build storage URLs in the browser */
+            logo_url: string | null;
+            /** @description Emblem variant (synced), falls back to the upload */
+            logo_badge_url: string | null;
+            /** @description Text-only variant (synced only) */
+            logo_wordmark_url: string | null;
+            /** @description An admin upload exists (wins over synced files) */
+            logo_uploaded: boolean;
+            /** @example #9B1B30 */
+            brand_color: string | null;
+            motomarks: components["schemas"]["VehicleCatalogDisplayBrandMotomarks"];
+            is_active: boolean;
+            /**
+             * Format: int64
+             * @description TSB brands mapped to it
+             */
+            brands_count: number;
+            /**
+             * Format: int64
+             * @description Active types
+             */
+            types_count: number;
+            /**
+             * Format: int64
+             * @description Grouped models
+             */
+            models_count: number;
+            tsb_names: string[];
+            /** @description Detail only */
+            brands?: components["schemas"]["VehicleCatalogDisplayBrandMember"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        VehicleCatalogDisplayBrandMember: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 100 */
+            tsb_code: string;
+            /** @example TOFAS-FIAT */
+            tsb_name: string;
+            category: components["schemas"]["VehicleCatalogBrandCategory"];
+            is_active: boolean;
+            /** Format: int64 */
+            types_count: number;
+        };
+        VehicleCatalogDisplayBrandRef: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example Fiat */
+            name: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogFuel: "petrol" | "diesel" | "hybrid" | "electric" | "lpg";
+        VehicleCatalogImport: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 2026-10 */
+            period: string | null;
+            filename: string;
+            status: components["schemas"]["VehicleCatalogImportStatus"];
+            counts: components["schemas"]["VehicleCatalogImportCounts"];
+            diff?: components["schemas"]["VehicleCatalogImportDiff"];
+            error: string | null;
+            created_by_email?: string | null;
+            /** Format: date-time */
+            applied_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Dry-run counts while `ready`; what the apply changed once `applied`. */
+        VehicleCatalogImportCounts: {
+            rows?: number;
+            brands_new?: number;
+            brands_renamed?: number;
+            /** @description Display brands created for new TSB brands */
+            display_brands_new?: number;
+            models_new?: number;
+            types_new?: number;
+            types_renamed?: number;
+            types_reactivated?: number;
+            types_updated?: number;
+            types_deactivated?: number;
+            valuations_new?: number;
+            valuations_changed?: number;
+            valuations_upserted?: number;
+            unresolved_models?: number;
+            unresolved_by_category?: {
+                [key: string]: number;
+            };
+        };
+        /** @description Up to 25 samples per change kind. */
+        VehicleCatalogImportDiff: {
+            /** @example Ekim 2026 */
+            period_label?: string;
+            years?: number[];
+            new_brands?: {
+                code?: string;
+                name?: string;
+                old_name?: string;
+                display_name?: string;
+                category?: string;
+            }[];
+            renamed_brands?: {
+                code?: string;
+                name?: string;
+                old_name?: string;
+                display_name?: string;
+                category?: string;
+            }[];
+            new_models?: {
+                brand?: string;
+                name?: string;
+                types?: number;
+            }[];
+            new_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            renamed_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            deactivated_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            reactivated_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            unresolved_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            changed_valuations?: {
+                brand?: string;
+                code?: string;
+                name?: string;
+                year?: number;
+                old?: number;
+                new?: number;
+            }[];
+            dry_run_counts?: components["schemas"]["VehicleCatalogImportCounts"];
+        };
+        VehicleCatalogImportSampleType: {
+            brand: string;
+            code: string;
+            name: string;
+            old_name?: string;
+            model?: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogImportStatus: "queued" | "processing" | "ready" | "applying" | "applied" | "failed";
+        VehicleCatalogModel: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example EGEA CROSS */
+            name: string;
+            source: components["schemas"]["VehicleCatalogModelSource"];
+            brand: components["schemas"]["VehicleCatalogRef"];
+            display_brand: components["schemas"]["VehicleCatalogDisplayBrandRef"];
+            /** Format: int64 */
+            types_count: number;
+            /**
+             * Format: int64
+             * @description Models with the same name under the display brand (one per TSB brand); tenants see them as one model
+             */
+            group_size: number;
+            rules?: components["schemas"]["VehicleCatalogModelRule"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        VehicleCatalogModelRef: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example EGEA CROSS */
+            name: string;
+            source: components["schemas"]["VehicleCatalogModelSource"];
+        };
+        VehicleCatalogModelRule: {
+            /** @example EGEA CROSS */
+            prefix: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogModelSource: "auto" | "manual";
+        VehicleCatalogNamedRef: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+        };
+        VehicleCatalogRef: {
+            /** Format: uuid */
+            uuid: string;
+            display_name: string;
+            tsb_code?: string;
+            tsb_name?: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogTransmission: "manual" | "automatic";
+        VehicleCatalogType: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 1402 */
+            tsb_type_code: string;
+            /** @example EGEA CROSS STREET 1.4 FIRE 95 E6D */
+            raw_name: string;
+            /** @description Model years with a kasko value (newest first) */
+            years: number[];
+            suggested_transmission: components["schemas"]["VehicleCatalogTransmission"] | null;
+            suggested_fuel: components["schemas"]["VehicleCatalogFuel"] | null;
+            /** @example 2026-10 */
+            first_seen_period: string;
+            /** @example 2026-10 */
+            last_seen_period: string;
+            is_active: boolean;
+            brand: components["schemas"]["VehicleCatalogRef"];
+            display_brand: components["schemas"]["VehicleCatalogDisplayBrandRef"];
+            model: components["schemas"]["VehicleCatalogModelRef"] | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        VehicleCatalogTypeDetail: components["schemas"]["VehicleCatalogType"] & {
+            brand_tsb_name: string;
+            /** @description Empty when no value is stored */
+            latest_period: string;
+            /** @description Latest period, one entry per model year */
+            valuations: components["schemas"]["VehicleCatalogValuation"][];
+            /** @description All stored periods, newest first */
+            history: components["schemas"]["VehicleCatalogValuation"][];
+        };
+        VehicleCatalogValuation: {
+            /** @example 2024 */
+            model_year: number;
+            /** @example 2026-10 */
+            period: string;
+            /**
+             * @description Kasko value in TRY
+             * @example 1051836
+             */
+            value: number;
+        };
+        CreateVehicleCatalogModelRequest: {
+            /** Format: uuid */
+            brand_uuid: string;
+            name: string;
+        };
+        EnvelopeVehicleCatalogBrand: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBrand"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogBulkRulesResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBulkRulesResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogDisplayBrand: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogDisplayBrand"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Link between a display brand and the brand logo mirror. */
+        VehicleCatalogDisplayBrandMotomarks: {
+            /** @example fiat */
+            id: string | null;
+            /** @enum {string} */
+            match_source: "none" | "auto" | "manual" | "skip";
+            match_score: number | null;
+            /** @description Best candidate below the threshold */
+            suggested_id: string | null;
+            suggested_score: number | null;
+            synced_variants: ("badge" | "wordmark" | "full")[];
+        };
+        VehicleCatalogBrandLogoSettings: {
+            /** @example https://logos.example.com */
+            base_url: string;
+            token_configured: boolean;
+            enabled: boolean;
+            auto_match_min_score: number;
+            /** Format: date-time */
+            last_run_at: string | null;
+            /** @enum {string|null} */
+            last_status: "done" | "failed" | null;
+            last_error: string | null;
+            /**
+             * Format: int64
+             * @description Mirror brands stored
+             */
+            sources_count: number;
+            /** @description Display brands per match source */
+            match_counts: {
+                [key: string]: number;
+            };
+            active_run: components["schemas"]["VehicleCatalogBrandLogoSyncRun"] | null;
+        };
+        PatchVehicleCatalogBrandLogoSettingsRequest: {
+            base_url?: string;
+            /** @description New token; empty string clears it */
+            api_token?: string;
+            enabled?: boolean;
+            auto_match_min_score?: number;
+        };
+        EnvelopeVehicleCatalogBrandLogoSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBrandLogoSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        VehicleCatalogBrandLogoSyncRun: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "failed";
+            triggered_by: components["schemas"]["VehicleCatalogNamedRef"] | null;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description The mirror answered 304; only matching ran */
+            not_modified: boolean;
+            requests: number;
+            brands_seen: number;
+            /** @description Logo files copied */
+            downloaded: number;
+            matched: number;
+            unmatched: number;
+            error: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        EnvelopeVehicleCatalogBrandLogoSyncRun: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBrandLogoSyncRun"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogBrandLogoSyncRunPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogBrandLogoSyncRun"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        VehicleCatalogUnmatchedDisplayBrand: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            slug: string;
+            is_active: boolean;
+            /** Format: int64 */
+            types_count: number;
+            logo_url: string | null;
+            suggestion: {
+                id: string;
+                name: string;
+                score: number | null;
+            } | null;
+        };
+        EnvelopeVehicleCatalogUnmatchedDisplayBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogUnmatchedDisplayBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        VehicleCatalogBrandLogoSource: {
+            /** @example fiat */
+            id: string;
+            /** @example Fiat */
+            name: string;
+            color: string | null;
+            vehicle_types: string[];
+            variants: ("badge" | "wordmark" | "full")[];
+            badge_url: string | null;
+            wordmark_url: string | null;
+            full_url: string | null;
+            /** Format: date-time */
+            synced_at: string | null;
+        };
+        EnvelopeVehicleCatalogDisplayBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogDisplayBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogImport: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogImport"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogImportPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogImport"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogModel: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogModel"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogModelPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogModel"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogTypeDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogTypeDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogTypePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogType"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTenantVehicleCatalogBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["TenantVehicleCatalogBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTenantVehicleCatalogModelPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["TenantVehicleCatalogModel"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTenantVehicleCatalogTypePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["TenantVehicleCatalogType"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MergeVehicleCatalogModelRequest: {
+            /** Format: uuid */
+            into_uuid: string;
+        };
+        PatchVehicleCatalogBrandRequest: {
+            /** @description Map to the display brand of this name (created when missing) */
+            display_name?: string;
+            /**
+             * Format: uuid
+             * @description Map to an existing display brand
+             */
+            display_brand_uuid?: string;
+            category?: components["schemas"]["VehicleCatalogBrandCategory"];
+            is_active?: boolean;
+        };
+        PatchVehicleCatalogDisplayBrandRequest: {
+            name?: string;
+            is_active?: boolean;
+        };
+        PatchVehicleCatalogModelRequest: {
+            name?: string;
+            source?: components["schemas"]["VehicleCatalogModelSource"];
+        };
+        PatchVehicleCatalogTypeRequest: {
+            /**
+             * Format: uuid
+             * @description Model of the same TSB brand; a model of another TSB brand of the same display brand
+             *     assigns (creating when missing) the same-name model of the type's brand. null clears it.
+             */
+            model_uuid?: string | null;
+            /** @description Also store a prefix rule (needs model_uuid) */
+            save_rule?: boolean;
+            /** @description Prefix of the type name; defaults to the model name */
+            rule_prefix?: string;
+            suggested_transmission?: components["schemas"]["VehicleCatalogTransmission"] | null;
+            suggested_fuel?: components["schemas"]["VehicleCatalogFuel"] | null;
+        };
+        /** @description A display brand (FIAT and TOFAS-FIAT are one "Fiat"). */
+        TenantVehicleCatalogBrand: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example Fiat */
+            display_name: string;
+            /** @example fiat */
+            slug: string;
+            category: components["schemas"]["VehicleCatalogBrandCategory"];
+            /** @description API-owned logo stream */
+            logo_url: string | null;
+            /** @description Emblem variant for compact rows */
+            logo_badge_url: string | null;
+            /** @description Text-only variant for headers */
+            logo_wordmark_url: string | null;
+            brand_color: string | null;
+        };
+        /**
+         * @description A grouped model: models with the same name under the TSB brands of one display brand are
+         *     listed once. `uuid` is stable (its first model) and any model uuid of the group is accepted
+         *     by `/v1/tenant/vehicle-catalog/types`.
+         */
+        TenantVehicleCatalogModel: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example EGEA CROSS */
+            name: string;
+            brand: components["schemas"]["VehicleCatalogRef"];
+        };
+        TenantVehicleCatalogType: {
+            /** Format: uuid */
+            uuid: string;
+            tsb_type_code: string;
+            /** @example EGEA CROSS STREET 1.4 FIRE 95 E6D */
+            name: string;
+            years: number[];
+            suggested_transmission: components["schemas"]["VehicleCatalogTransmission"] | null;
+            suggested_fuel: components["schemas"]["VehicleCatalogFuel"] | null;
+            brand: components["schemas"]["VehicleCatalogRef"];
+            model: components["schemas"]["VehicleCatalogNamedRef"];
+        };
+        UnmergeVehicleCatalogDisplayBrandRequest: {
+            /**
+             * Format: uuid
+             * @description TSB brand to detach
+             */
+            brand_uuid: string;
+            /** @description Name of the new display brand */
+            name?: string;
+        };
     };
     responses: {
         /** @description Validation or malformed request */
@@ -12023,6 +13153,29 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /**
+         * @description `NO_TENANT_MEMBERSHIP` (unknown organization or not a member),
+         *     `ORGANIZATION_SUSPENDED`, `ORGANIZATION_ACCESS_EXPIRED`, `FORBIDDEN`
+         *     (tenant permission missing in this organization), or
+         *     `FEATURE_NOT_ENABLED` (TEC-674) on a change in a plan-gated area (site,
+         *     public API, channel managers, KABİS retry, HGS, e-invoice sending,
+         *     WhatsApp, SMS, integration accounts / job retries of those providers)
+         *     when the organization's plan does not include the feature;
+         *     `details[0].code` names the feature key. Reads (lists, details,
+         *     exports) and switching things off stay open on every plan, so history
+         *     never disappears after a downgrade
+         *     `SUPPORT_GRANT_REQUIRED` (TEC-678): an impersonated (support) session
+         *     and the organization has no active support access grant;
+         *     `SUPPORT_READ_ONLY`: a non-GET request under a `read_only` grant.
+         */
+        TenantForbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
         /** @description Legal page slug (e.g. `privacy`) */
@@ -12036,6 +13189,20 @@ export interface components {
         Q: string;
         /** @description Comma-separated fields; prefix `-` for descending */
         Sort: string;
+        /** @description Brand UUID */
+        VehicleCatalogBrandFilter: string;
+        VehicleCatalogCategory: components["schemas"]["VehicleCatalogBrandCategory"];
+        /** @description Display brand UUID (every TSB brand mapped to it) */
+        VehicleCatalogDisplayBrandFilter: string;
+        /** @description Model year */
+        VehicleCatalogYear: number;
+        /** @description Logo variant. Default = full logo (upload first), `badge` = emblem, `wordmark` = text-only. */
+        VehicleCatalogLogoVariant: "badge" | "wordmark" | "full";
+        /**
+         * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+         *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+         */
+        XOrganization: string;
     };
     requestBodies: never;
     headers: never;
@@ -17842,7 +19009,7 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    getPlatformVehicleBrandsMeta: {
+    getPlatformVehicleCatalogBrandsMeta: {
         parameters: {
             query?: never;
             header?: never;
@@ -17856,20 +19023,26 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
     };
-    getPlatformVehicleBrands: {
+    getPlatformVehicleCatalogBrands: {
         parameters: {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
-                sort?: string;
-                is_active?: string;
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                category?: components["parameters"]["VehicleCatalogCategory"];
+                /** @description Display brand UUID (every TSB brand mapped to it) */
+                display_brand?: components["parameters"]["VehicleCatalogDisplayBrandFilter"];
+                is_active?: boolean;
             };
             header?: never;
             path?: never;
@@ -17882,145 +19055,294 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrand"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
-    createPlatformVehicleBrand: {
+    patchPlatformVehicleCatalogBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogBrandRequest"];
+            };
+        };
+        responses: {
+            /** @description Brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogDisplayBrandsMeta: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogDisplayBrands: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                is_active?: boolean;
+                /** @description Only display brands with more than one TSB brand */
+                merged?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Display brand page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrandPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogDisplayBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformVehicleCatalogDisplayBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
         requestBody: {
             content: {
-                "application/json": {
-                    name: string;
-                    is_active?: boolean;
-                };
+                "application/json": components["schemas"]["PatchVehicleCatalogDisplayBrandRequest"];
             };
         };
         responses: {
-            /** @description Created brand */
+            /** @description Display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogDisplayBrandMerge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Target display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogDisplayBrandUnmerge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnmergeVehicleCatalogDisplayBrandRequest"];
+            };
+        };
+        responses: {
+            /** @description The new display brand */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
         };
     };
-    importPlatformVehicleBrands: {
+    getPlatformVehicleCatalogDisplayBrandLogo: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: {
-                        [key: string]: string[];
-                    };
-                };
+            query?: {
+                /** @description Logo variant. Default = full logo (upload first), `badge` = emblem, `wordmark` = text-only. */
+                variant?: components["parameters"]["VehicleCatalogLogoVariant"];
             };
-        };
-        responses: {
-            /** @description Import counts */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    getPlatformVehicleBrand: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Brand detail */
+            /** @description Logo image */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "image/svg+xml": string;
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
             404: components["responses"]["NotFound"];
         };
     };
-    deletePlatformVehicleBrand: {
+    putPlatformVehicleCatalogDisplayBrandLogo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
-    };
-    patchPlatformVehicleBrand: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name?: string;
-                    is_active?: boolean;
-                };
-            };
-        };
-        responses: {
-            /** @description Updated brand */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    putPlatformVehicleBrandLogo: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
@@ -18033,116 +19355,882 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Brand with logo */
+            /** @description Display brand */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
-    createPlatformVehicleModel: {
+    deletePlatformVehicleCatalogDisplayBrandLogo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogModelsBulkRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    name: string;
-                    is_active?: boolean;
-                    years?: number[];
-                };
+                "application/json": components["schemas"]["BulkVehicleCatalogModelRulesRequest"];
             };
         };
         responses: {
-            /** @description Created model */
+            /** @description Result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBulkRulesResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogModelsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogModels: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                /** @description Brand UUID */
+                brand?: components["parameters"]["VehicleCatalogBrandFilter"];
+                /** @description Display brand UUID (every TSB brand mapped to it) */
+                display_brand?: components["parameters"]["VehicleCatalogDisplayBrandFilter"];
+                source?: "auto" | "manual";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Model page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModelPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
         };
     };
-    deletePlatformVehicleModel: {
+    getPlatformVehicleCatalogModel: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Deleted */
+            /** @description Model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformVehicleCatalogModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogModelMerge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Target model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogTypesMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogTypes: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                /** @description Brand UUID */
+                brand?: components["parameters"]["VehicleCatalogBrandFilter"];
+                /** @description Display brand UUID (every TSB brand mapped to it) */
+                display_brand?: components["parameters"]["VehicleCatalogDisplayBrandFilter"];
+                category?: components["parameters"]["VehicleCatalogCategory"];
+                /** @description Model UUID */
+                model?: string;
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+                /** @description `true` = only types without a model */
+                unresolved?: boolean;
+                is_active?: boolean;
+                fuel?: components["schemas"]["VehicleCatalogFuel"];
+                transmission?: components["schemas"]["VehicleCatalogTransmission"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Type page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogTypePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Type detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogTypeDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformVehicleCatalogType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogTypeRequest"];
+            };
+        };
+        responses: {
+            /** @description Type detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogTypeDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    patchPlatformVehicleCatalogBrandLogoSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogBrandLogoSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postPlatformVehicleCatalogBrandLogoTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection ok */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postPlatformVehicleCatalogBrandLogoSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSyncRun"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
-    addPlatformVehicleModelYear: {
+    getPlatformVehicleCatalogBrandLogoRuns: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Runs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSyncRunPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoUnmatched: {
+        parameters: {
+            query?: {
+                q?: components["parameters"]["Q"];
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unmatched display brands */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogUnmatchedDisplayBrandPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoSources: {
+        parameters: {
+            query?: {
+                q?: components["parameters"]["Q"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mirror brands */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            items: components["schemas"]["VehicleCatalogBrandLogoSource"][];
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoSourceLogo: {
+        parameters: {
+            query?: {
+                /** @description Logo variant. Default = full logo (upload first), `badge` = emblem, `wordmark` = text-only. */
+                variant?: components["parameters"]["VehicleCatalogLogoVariant"];
+            };
+            header?: never;
+            path: {
+                /** @description Mirror brand id (slug) */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logo image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    postPlatformVehicleCatalogDisplayBrandMotomarks: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    year: number;
+                    /** @enum {string} */
+                    mode: "link" | "skip" | "unlink";
+                    /**
+                     * @description Required for link
+                     * @example fiat
+                     */
+                    motomarks_id?: string;
                 };
             };
         };
         responses: {
-            /** @description Year added */
+            /** @description Updated display brand */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
-    deletePlatformVehicleModelYear: {
+    getPlatformVehicleCatalogImportsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogImports: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                status?: components["schemas"]["VehicleCatalogImportStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImportPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /** @description Override the period (YYYY-MM) */
+                    period?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Import queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogImport: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
-                year: number;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Year removed */
+            /** @description Import */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImport"];
+                };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogImportApply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Apply queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImport"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantVehicleCatalogBrands: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                category?: components["parameters"]["VehicleCatalogCategory"];
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Brand page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantVehicleCatalogBrandPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["TenantForbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantVehicleCatalogModels: {
+        parameters: {
+            query: {
+                /** @description Display brand UUID (a TSB brand UUID is accepted and mapped to its display brand) */
+                brand: string;
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Model page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantVehicleCatalogModelPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["TenantForbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantVehicleCatalogTypes: {
+        parameters: {
+            query: {
+                /** @description Grouped model UUID (any model uuid of the group) */
+                model: string;
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Type page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantVehicleCatalogTypePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["TenantForbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     searchTenantVehicleCatalog: {

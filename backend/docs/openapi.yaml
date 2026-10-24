@@ -6054,142 +6054,303 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /v1/platform/vehicle-brands/meta:
+  /v1/platform/vehicle-catalog/brands/meta:
     get:
       tags: [Platform]
-      operationId: getPlatformVehicleBrandsMeta
-      summary: Vehicle brand list metadata
-      security: [{ bearerAuth: [] }]
+      operationId: getPlatformVehicleCatalogBrandsMeta
+      summary: Catalog brands list metadata
+      security:
+        - bearerAuth: []
       responses:
-        "200": { description: Resource meta }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
-  /v1/platform/vehicle-brands:
+  /v1/platform/vehicle-catalog/brands:
     get:
       tags: [Platform]
-      operationId: getPlatformVehicleBrands
-      summary: List vehicle brands
-      security: [{ bearerAuth: [] }]
+      operationId: getPlatformVehicleCatalogBrands
+      summary: List catalog brands
+      description: Requires `platform.catalog.read`. Sort fields `display_name`, `tsb_name`, `tsb_code`, `category`, `types_count`, `created_at`.
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/Limit"
         - $ref: "#/components/parameters/Offset"
         - $ref: "#/components/parameters/Q"
-        - name: sort
-          in: query
-          schema: { type: string }
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/VehicleCatalogCategory"
+        - $ref: "#/components/parameters/VehicleCatalogDisplayBrandFilter"
         - name: is_active
           in: query
-          schema: { type: string }
+          schema: { type: boolean }
       responses:
-        "200": { description: Brand page }
+        "200":
+          description: Brand page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogBrandPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
-    post:
-      tags: [Platform]
-      operationId: createPlatformVehicleBrand
-      summary: Create a vehicle brand
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [name]
-              properties:
-                name: { type: string }
-                is_active: { type: boolean }
-      responses:
-        "201": { description: Created brand }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
-  /v1/platform/vehicle-brands/import:
-    post:
-      tags: [Platform]
-      operationId: importPlatformVehicleBrands
-      summary: Import brand, year, and model JSON
-      security: [{ bearerAuth: [] }]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties:
-                type: object
-                additionalProperties:
-                  type: array
-                  items: { type: string }
-      responses:
-        "200": { description: Import counts }
-        "401": { $ref: "#/components/responses/Unauthenticated" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-
-  /v1/platform/vehicle-brands/{uuid}:
+  /v1/platform/vehicle-catalog/brands/{uuid}:
     get:
       tags: [Platform]
-      operationId: getPlatformVehicleBrand
-      summary: Get a vehicle brand and its models
-      security: [{ bearerAuth: [] }]
+      operationId: getPlatformVehicleCatalogBrand
+      summary: Get catalog brand
+      security:
+        - bearerAuth: []
       parameters:
-        - name: uuid
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/ResourceUUID"
       responses:
-        "200": { description: Brand detail }
+        "200":
+          description: Brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogBrand"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
     patch:
       tags: [Platform]
-      operationId: patchPlatformVehicleBrand
-      summary: Update a vehicle brand
-      security: [{ bearerAuth: [] }]
+      operationId: patchPlatformVehicleCatalogBrand
+      summary: Update brand display brand, category or active flag
+      description: |
+        Requires `platform.catalog.write`. TSB code and name are owned by the import.
+        `display_name` maps the TSB brand to the display brand of that name (created when missing);
+        `display_brand_uuid` maps it to an existing display brand. A display brand left without
+        TSB brands is deleted.
+      security:
+        - bearerAuth: []
       parameters:
-        - name: uuid
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/ResourceUUID"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                name: { type: string }
-                is_active: { type: boolean }
+              $ref: "#/components/schemas/PatchVehicleCatalogBrandRequest"
       responses:
-        "200": { description: Updated brand }
+        "200":
+          description: Brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogBrand"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-    delete:
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/display-brands/meta:
+    get:
       tags: [Platform]
-      operationId: deletePlatformVehicleBrand
-      summary: Soft-delete a vehicle brand with no models
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: uuid
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+      operationId: getPlatformVehicleCatalogDisplayBrandsMeta
+      summary: Catalog display brands list metadata
+      security:
+        - bearerAuth: []
       responses:
-        "200": { description: Deleted }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/display-brands:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogDisplayBrands
+      summary: List display brands
+      description: |
+        Requires `platform.catalog.read`. A display brand is what users see; one or more TSB brands
+        (FIAT + TOFAS-FIAT) map to it. `q` matches the name, TSB names and TSB codes.
+        Sort fields `name`, `brands_count`, `types_count`, `created_at`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Sort"
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+        - name: merged
+          in: query
+          description: Only display brands with more than one TSB brand
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Display brand page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrandPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/display-brands/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogDisplayBrand
+      summary: Get a display brand with its TSB brands
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: Display brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrand"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformVehicleCatalogDisplayBrand
+      summary: Rename or (de)activate a display brand
+      description: Requires `platform.catalog.write`. A rename also changes the slug and the display name of its TSB brands.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchVehicleCatalogDisplayBrandRequest"
+      responses:
+        "200":
+          description: Display brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrand"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
-  /v1/platform/vehicle-brands/{uuid}/logo:
+  /v1/platform/vehicle-catalog/display-brands/{uuid}/merge:
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogDisplayBrandMerge
+      summary: Merge a display brand into another
+      description: Requires `platform.catalog.write`. Moves every TSB brand of `{uuid}` to `into_uuid` and deletes `{uuid}` (and its logo). Returns the target.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MergeVehicleCatalogModelRequest"
+      responses:
+        "200":
+          description: Target display brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrand"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/display-brands/{uuid}/unmerge:
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogDisplayBrandUnmerge
+      summary: Detach a TSB brand into a new display brand
+      description: |
+        Requires `platform.catalog.write`. Only for display brands with more than one TSB brand.
+        `name` defaults to the title-cased TSB name ("Tofas-Fiat"); 409 when that name exists.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UnmergeVehicleCatalogDisplayBrandRequest"
+      responses:
+        "201":
+          description: The new display brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrand"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/display-brands/{uuid}/logo:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogDisplayBrandLogo
+      summary: Stream a display brand logo
+      description: |
+        Any signed-in user (tenant vehicle forms show it too). Use the
+        `logo_url` / `logo_badge_url` / `logo_wordmark_url` returned by the API.
+        The admin upload wins; otherwise the variant synced from the brand logo
+        mirror is served (`badge` = emblem, `wordmark` = text only, default =
+        full logo with fallbacks).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+        - $ref: "#/components/parameters/VehicleCatalogLogoVariant"
+      responses:
+        "200":
+          description: Logo image
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            image/svg+xml: { schema: { type: string, format: binary } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
     put:
       tags: [Platform]
-      operationId: putPlatformVehicleBrandLogo
-      summary: Upload a vehicle brand logo
-      security: [{ bearerAuth: [] }]
+      operationId: putPlatformVehicleCatalogDisplayBrandLogo
+      summary: Upload a display brand logo
+      description: Requires `platform.catalog.write`. Multipart field `logo` (PNG, JPEG, WebP or SVG).
+      security:
+        - bearerAuth: []
       parameters:
-        - name: uuid
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/ResourceUUID"
       requestBody:
         required: true
         content:
@@ -6200,95 +6361,758 @@ paths:
               properties:
                 logo: { type: string, format: binary }
       responses:
-        "200": { description: Brand with logo }
+        "200":
+          description: Display brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrand"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformVehicleCatalogDisplayBrandLogo
+      summary: Remove a display brand logo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: Display brand
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrand"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
-  /v1/platform/vehicle-brands/{uuid}/models:
+  /v1/platform/vehicle-catalog/models/bulk-rules:
     post:
       tags: [Platform]
-      operationId: createPlatformVehicleModel
-      summary: Add a model to a brand
-      security: [{ bearerAuth: [] }]
+      operationId: postPlatformVehicleCatalogModelsBulkRules
+      summary: Save "type name starts with the model name" rules for many models
+      description: |
+        Requires `platform.catalog.write`. For each model (max 500) stores a prefix rule equal to its
+        name and assigns it to the brand's types without a model or with an auto-derived one.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkVehicleCatalogModelRulesRequest"
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogBulkRulesResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/models/meta:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogModelsMeta
+      summary: Catalog models list metadata
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/models:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogModels
+      summary: List catalog models
+      description: Sort fields `name`, `brand`, `source`, `types_count`, `created_at`.
+      security:
+        - bearerAuth: []
       parameters:
-        - name: uuid
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/VehicleCatalogBrandFilter"
+        - $ref: "#/components/parameters/VehicleCatalogDisplayBrandFilter"
+        - name: source
+          in: query
+          schema: { type: string, enum: [auto, manual] }
+      responses:
+        "200":
+          description: Model page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogModelPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogModel
+      summary: Create a manual model
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateVehicleCatalogModelRequest"
+      responses:
+        "201":
+          description: Model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogModel"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/models/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogModel
+      summary: Get catalog model with its prefix rules
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: Model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogModel"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformVehicleCatalogModel
+      summary: Rename a model
+      description: Any edit marks the model `manual` unless `source` is sent.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchVehicleCatalogModelRequest"
+      responses:
+        "200":
+          description: Model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogModel"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/models/{uuid}/merge:
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogModelMerge
+      summary: Merge a model into another model
+      description: |
+        Same TSB brand: moves the types and prefix rules of `{uuid}` to `into_uuid`, then deletes `{uuid}`.
+        Another TSB brand of the same display brand: `{uuid}` is renamed to the target's name (or merged
+        into its brand's model of that name) so both form one grouped model. Returns the target model.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MergeVehicleCatalogModelRequest"
+      responses:
+        "200":
+          description: Target model
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogModel"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/types/meta:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogTypesMeta
+      summary: Catalog types list metadata
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/types:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogTypes
+      summary: List catalog types (TSB type lines)
+      description: Sort fields `raw_name`, `tsb_type_code`, `brand`, `model`, `last_seen_period`, `created_at`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Sort"
+        - $ref: "#/components/parameters/VehicleCatalogBrandFilter"
+        - $ref: "#/components/parameters/VehicleCatalogDisplayBrandFilter"
+        - $ref: "#/components/parameters/VehicleCatalogCategory"
+        - name: model
+          in: query
+          description: Model UUID
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/VehicleCatalogYear"
+        - name: unresolved
+          in: query
+          description: "`true` = only types without a model"
+          schema: { type: boolean }
+        - name: is_active
+          in: query
+          schema: { type: boolean }
+        - name: fuel
+          in: query
+          schema: { $ref: "#/components/schemas/VehicleCatalogFuel" }
+        - name: transmission
+          in: query
+          schema: { $ref: "#/components/schemas/VehicleCatalogTransmission" }
+      responses:
+        "200":
+          description: Type page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogTypePage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/types/{uuid}:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogType
+      summary: Get catalog type with kasko values
+      description: "`valuations` holds the latest period's value per model year; `history` every stored period."
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "200":
+          description: Type detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogTypeDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformVehicleCatalogType
+      summary: Assign a model / override suggestions
+      description: |
+        `model_uuid` (null clears) assigns the model. With `save_rule: true` the
+        `rule_prefix` (default: the model name; must prefix the type name) is
+        stored as a prefix rule for the brand and applied to its types that
+        have no model or an auto-derived one; later imports use it too.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatchVehicleCatalogTypeRequest"
+      responses:
+        "200":
+          description: Type detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogTypeDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/brand-logos/settings:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogBrandLogoSettings
+      summary: Brand logo sync settings (mirror endpoint, masked token, counters)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeVehicleCatalogBrandLogoSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    patch:
+      tags: [Platform]
+      operationId: patchPlatformVehicleCatalogBrandLogoSettings
+      summary: Update brand logo sync settings
+      description: |
+        Requires `platform.vehicle_brands.write`. The mirror base URL and API
+        token are stored in the database (token encrypted, never returned);
+        an empty `api_token` clears it.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PatchVehicleCatalogBrandLogoSettingsRequest" }
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeVehicleCatalogBrandLogoSettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/brand-logos/test:
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogBrandLogoTest
+      summary: Test the brand logo mirror connection with the stored token
+      security:
+        - bearerAuth: []
+      responses:
+        "200": { description: Connection ok }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/brand-logos/sync:
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogBrandLogoSync
+      summary: Start a brand logo sync run (background)
+      description: |
+        Asks the live mirror for its brand list (ETag aware), copies new or
+        changed badge / wordmark / full files into this app's storage and
+        matches display brands without a logo link. One run at a time (409).
+      security:
+        - bearerAuth: []
+      responses:
+        "202":
+          description: Run queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeVehicleCatalogBrandLogoSyncRun" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/platform/vehicle-catalog/brand-logos/runs:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogBrandLogoRuns
+      summary: Brand logo sync run history (newest first)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Runs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeVehicleCatalogBrandLogoSyncRunPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/brand-logos/unmatched:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogBrandLogoUnmatched
+      summary: Display brands without a mirror logo link
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Unmatched display brands
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeVehicleCatalogUnmatchedDisplayBrandPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/brand-logos/sources:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogBrandLogoSources
+      summary: Search synced mirror brands (manual link picker)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Mirror brands
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: "#/components/schemas/VehicleCatalogBrandLogoSource" }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/vehicle-catalog/brand-logos/sources/{id}/logo:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogBrandLogoSourceLogo
+      summary: Preview a synced mirror brand logo file
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
           in: path
           required: true
-          schema: { type: string, format: uuid }
+          description: Mirror brand id (slug)
+          schema: { type: string, example: mercedes-benz }
+        - $ref: "#/components/parameters/VehicleCatalogLogoVariant"
+      responses:
+        "200":
+          description: Logo image
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/vehicle-catalog/display-brands/{uuid}/motomarks:
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogDisplayBrandMotomarks
+      summary: Link a display brand to a mirror brand by hand, skip it, or unlink
+      description: Requires `platform.vehicle_brands.write`. A manual link or skip is never overwritten by a later sync run.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name]
+              required: [mode]
               properties:
-                name: { type: string }
-                is_active: { type: boolean }
-                years: { type: array, items: { type: integer } }
+                mode: { type: string, enum: [link, skip, unlink] }
+                motomarks_id: { type: string, description: "Required for link", example: fiat }
       responses:
-        "201": { description: Created model }
+        "200":
+          description: Updated display brand
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeVehicleCatalogDisplayBrand" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
 
-  /v1/platform/vehicle-models/{uuid}:
-    delete:
+  /v1/platform/vehicle-catalog/imports/meta:
+    get:
       tags: [Platform]
-      operationId: deletePlatformVehicleModel
-      summary: Soft-delete a vehicle model
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: uuid
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+      operationId: getPlatformVehicleCatalogImportsMeta
+      summary: Catalog imports list metadata
+      security:
+        - bearerAuth: []
       responses:
-        "200": { description: Deleted }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
+        "200":
+          description: Resource meta
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
 
-  /v1/platform/vehicle-models/{uuid}/years:
+  /v1/platform/vehicle-catalog/imports:
+    get:
+      tags: [Platform]
+      operationId: getPlatformVehicleCatalogImports
+      summary: List TSB list imports
+      description: Sort fields `period`, `status`, `created_at`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/Sort"
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/VehicleCatalogImportStatus" }
+      responses:
+        "200":
+          description: Import page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogImportPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
     post:
       tags: [Platform]
-      operationId: addPlatformVehicleModelYear
-      summary: Add a model year
-      security: [{ bearerAuth: [] }]
-      parameters:
-        - name: uuid
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+      operationId: postPlatformVehicleCatalogImport
+      summary: Upload a TSB kasko list (.xlsx) for a dry run
+      description: |
+        Stores the file privately in object storage and queues a dry run that
+        parses it and computes the diff without changing the catalog. Poll
+        `GET /v1/platform/vehicle-catalog/imports/{uuid}` until `status` is `ready`
+        (or `failed`), then `POST .../apply`. The period is read from cell A1
+        ("Ekim 2026" → `2026-10`) unless `period` is sent.
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
               type: object
-              required: [year]
+              required: [file]
               properties:
-                year: { type: integer }
+                file: { type: string, format: binary }
+                period:
+                  type: string
+                  pattern: "^[0-9]{4}-(0[1-9]|1[0-2])$"
+                  description: Override the period (YYYY-MM)
       responses:
-        "200": { description: Year added }
-        "404": { $ref: "#/components/responses/NotFound" }
+        "202":
+          description: Import queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogImport"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
-  /v1/platform/vehicle-models/{uuid}/years/{year}:
-    delete:
+  /v1/platform/vehicle-catalog/imports/{uuid}:
+    get:
       tags: [Platform]
-      operationId: deletePlatformVehicleModelYear
-      summary: Remove a model year
-      security: [{ bearerAuth: [] }]
+      operationId: getPlatformVehicleCatalogImport
+      summary: Get import status, counts and diff samples
+      security:
+        - bearerAuth: []
       parameters:
-        - name: uuid
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
-        - name: year
-          in: path
-          required: true
-          schema: { type: integer }
+        - $ref: "#/components/parameters/ResourceUUID"
       responses:
-        "200": { description: Year removed }
+        "200":
+          description: Import
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogImport"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/platform/vehicle-catalog/imports/{uuid}/apply:
+    post:
+      tags: [Platform]
+      operationId: postPlatformVehicleCatalogImportApply
+      summary: Apply a dry-run import
+      description: |
+        Queues the apply: one transaction upserts brands and types, creates
+        auto models, deactivates types missing from the period and writes the
+        period's valuations (older periods are kept). Idempotent: applying
+        the same period again changes nothing. Allowed from `ready`,
+        `applied` and `failed` (with a period); otherwise `409 CONFLICT`.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ResourceUUID"
+      responses:
+        "202":
+          description: Apply queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeVehicleCatalogImport"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/vehicle-catalog/brands:
+    get:
+      tags: [Tenant]
+      operationId: getTenantVehicleCatalogBrands
+      summary: Vehicle brands for forms
+      description: |
+        Active display brands with active types (optionally for a model `year`). TSB brands that are
+        one make (FIAT + TOFAS-FIAT) are listed once. Any organization member.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/VehicleCatalogCategory"
+        - $ref: "#/components/parameters/VehicleCatalogYear"
+      responses:
+        "200":
+          description: Brand page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantVehicleCatalogBrandPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/TenantForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/vehicle-catalog/models:
+    get:
+      tags: [Tenant]
+      operationId: getTenantVehicleCatalogModels
+      summary: Vehicle models of a brand for forms
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: brand
+          in: query
+          required: true
+          description: Display brand UUID (a TSB brand UUID is accepted and mapped to its display brand)
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - $ref: "#/components/parameters/VehicleCatalogYear"
+      responses:
+        "200":
+          description: Model page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantVehicleCatalogModelPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/TenantForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/vehicle-catalog/types:
+    get:
+      tags: [Tenant]
+      operationId: getTenantVehicleCatalogTypes
+      summary: Vehicle types of a model with the latest kasko value
+      description: |
+        Types of a grouped model across every TSB brand of its display brand. With `year`, only types
+        sold that model year and `kasko_value` is that year's value from the latest period.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: model
+          in: query
+          required: true
+          description: Grouped model UUID (any model uuid of the group)
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/VehicleCatalogYear"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+      responses:
+        "200":
+          description: Type page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeTenantVehicleCatalogTypePage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/TenantForbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
 
   /v1/tenant/vehicle-catalog/search:
     get:
@@ -11533,6 +12357,43 @@ components:
       in: query
       description: Comma-separated fields; prefix `-` for descending
       schema: { type: string }
+    VehicleCatalogBrandFilter:
+      name: brand
+      in: query
+      description: Brand UUID
+      schema: { type: string, format: uuid }
+
+    VehicleCatalogCategory:
+      name: category
+      in: query
+      schema: { $ref: "#/components/schemas/VehicleCatalogBrandCategory" }
+
+    VehicleCatalogDisplayBrandFilter:
+      name: display_brand
+      in: query
+      description: Display brand UUID (every TSB brand mapped to it)
+      schema: { type: string, format: uuid }
+
+    VehicleCatalogYear:
+      name: year
+      in: query
+      description: Model year
+      schema: { type: integer, minimum: 1950, maximum: 2100 }
+
+    VehicleCatalogLogoVariant:
+      name: variant
+      in: query
+      description: Logo variant. Default = full logo (upload first), `badge` = emblem, `wordmark` = text-only.
+      schema: { type: string, enum: [badge, wordmark, full] }
+
+    XOrganization:
+      name: X-Organization
+      in: header
+      required: true
+      description: |
+        Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+        in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+      schema: { type: string, maxLength: 64, example: acme }
 
   responses:
     BadRequest:
@@ -11604,6 +12465,26 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Error"
+    TenantForbidden:
+      description: |
+        `NO_TENANT_MEMBERSHIP` (unknown organization or not a member),
+        `ORGANIZATION_SUSPENDED`, `ORGANIZATION_ACCESS_EXPIRED`, `FORBIDDEN`
+        (tenant permission missing in this organization), or
+        `FEATURE_NOT_ENABLED` (TEC-674) on a change in a plan-gated area (site,
+        public API, channel managers, KABİS retry, HGS, e-invoice sending,
+        WhatsApp, SMS, integration accounts / job retries of those providers)
+        when the organization's plan does not include the feature;
+        `details[0].code` names the feature key. Reads (lists, details,
+        exports) and switching things off stay open on every plan, so history
+        never disappears after a downgrade
+        `SUPPORT_GRANT_REQUIRED` (TEC-678): an impersonated (support) session
+        and the organization has no active support access grant;
+        `SUPPORT_READ_ONLY`: a non-GET request under a `read_only` grant.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
 
   schemas:
 
@@ -17959,3 +18840,788 @@ components:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/CariSummary" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
+    BulkVehicleCatalogModelRulesRequest:
+      type: object
+      additionalProperties: false
+      required: [model_uuids]
+      properties:
+        model_uuids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items: { type: string, format: uuid }
+
+    VehicleCatalogBrand:
+      type: object
+      description: A TSB brand (keyed by TSB code). `display_name` mirrors its display brand's name.
+      required: [uuid, tsb_code, tsb_name, display_name, display_brand, category, is_active, types_count, models_count, unresolved_count, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        tsb_code: { type: string, example: "100" }
+        tsb_name: { type: string, example: TOFAS-FIAT }
+        display_name: { type: string, example: Fiat }
+        display_brand: { $ref: "#/components/schemas/VehicleCatalogDisplayBrandRef" }
+        category: { $ref: "#/components/schemas/VehicleCatalogBrandCategory" }
+        is_active: { type: boolean }
+        types_count: { type: integer, format: int64, description: Active types }
+        models_count: { type: integer, format: int64 }
+        unresolved_count: { type: integer, format: int64, description: Active types without a model }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    VehicleCatalogBrandCategory:
+      type: string
+      enum: [passenger, light_commercial, other]
+
+    VehicleCatalogBulkRulesResult:
+      type: object
+      required: [rules_saved, types_assigned]
+      properties:
+        rules_saved: { type: integer }
+        types_assigned: { type: integer }
+
+    VehicleCatalogDisplayBrand:
+      type: object
+      required: [uuid, name, slug, logo_url, logo_badge_url, logo_wordmark_url, logo_uploaded, brand_color, motomarks, is_active, brands_count, types_count, models_count, tsb_names, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string, example: Fiat }
+        slug: { type: string, example: fiat }
+        logo_url:
+          type: [string, "null"]
+          description: API-owned logo stream (`/v1/...`); never build storage URLs in the browser
+        logo_badge_url: { type: [string, "null"], description: "Emblem variant (synced), falls back to the upload" }
+        logo_wordmark_url: { type: [string, "null"], description: Text-only variant (synced only) }
+        logo_uploaded: { type: boolean, description: "An admin upload exists (wins over synced files)" }
+        brand_color: { type: [string, "null"], example: "#9B1B30" }
+        motomarks: { $ref: "#/components/schemas/VehicleCatalogDisplayBrandMotomarks" }
+        is_active: { type: boolean }
+        brands_count: { type: integer, format: int64, description: TSB brands mapped to it }
+        types_count: { type: integer, format: int64, description: Active types }
+        models_count: { type: integer, format: int64, description: Grouped models }
+        tsb_names:
+          type: array
+          items: { type: string }
+        brands:
+          type: array
+          description: Detail only
+          items: { $ref: "#/components/schemas/VehicleCatalogDisplayBrandMember" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    VehicleCatalogDisplayBrandMember:
+      type: object
+      required: [uuid, tsb_code, tsb_name, category, is_active, types_count]
+      properties:
+        uuid: { type: string, format: uuid }
+        tsb_code: { type: string, example: "100" }
+        tsb_name: { type: string, example: TOFAS-FIAT }
+        category: { $ref: "#/components/schemas/VehicleCatalogBrandCategory" }
+        is_active: { type: boolean }
+        types_count: { type: integer, format: int64 }
+
+    VehicleCatalogDisplayBrandRef:
+      type: object
+      required: [uuid, name]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string, example: Fiat }
+
+    VehicleCatalogFuel:
+      type: string
+      enum: [petrol, diesel, hybrid, electric, lpg]
+
+    VehicleCatalogImport:
+      type: object
+      required: [uuid, period, filename, status, counts, error, applied_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        period: { type: [string, "null"], example: 2026-10 }
+        filename: { type: string }
+        status: { $ref: "#/components/schemas/VehicleCatalogImportStatus" }
+        counts: { $ref: "#/components/schemas/VehicleCatalogImportCounts" }
+        diff: { $ref: "#/components/schemas/VehicleCatalogImportDiff" }
+        error: { type: [string, "null"] }
+        created_by_email: { type: [string, "null"] }
+        applied_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    VehicleCatalogImportCounts:
+      type: object
+      description: Dry-run counts while `ready`; what the apply changed once `applied`.
+      properties:
+        rows: { type: integer }
+        brands_new: { type: integer }
+        brands_renamed: { type: integer }
+        display_brands_new: { type: integer, description: Display brands created for new TSB brands }
+        models_new: { type: integer }
+        types_new: { type: integer }
+        types_renamed: { type: integer }
+        types_reactivated: { type: integer }
+        types_updated: { type: integer }
+        types_deactivated: { type: integer }
+        valuations_new: { type: integer }
+        valuations_changed: { type: integer }
+        valuations_upserted: { type: integer }
+        unresolved_models: { type: integer }
+        unresolved_by_category:
+          type: object
+          additionalProperties: { type: integer }
+
+    VehicleCatalogImportDiff:
+      type: object
+      description: Up to 25 samples per change kind.
+      properties:
+        period_label: { type: string, example: Ekim 2026 }
+        years:
+          type: array
+          items: { type: integer }
+        new_brands:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+              old_name: { type: string }
+              display_name: { type: string }
+              category: { type: string }
+        renamed_brands:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+              old_name: { type: string }
+              display_name: { type: string }
+              category: { type: string }
+        new_models:
+          type: array
+          items:
+            type: object
+            properties:
+              brand: { type: string }
+              name: { type: string }
+              types: { type: integer }
+        new_types:
+          type: array
+          items: { $ref: "#/components/schemas/VehicleCatalogImportSampleType" }
+        renamed_types:
+          type: array
+          items: { $ref: "#/components/schemas/VehicleCatalogImportSampleType" }
+        deactivated_types:
+          type: array
+          items: { $ref: "#/components/schemas/VehicleCatalogImportSampleType" }
+        reactivated_types:
+          type: array
+          items: { $ref: "#/components/schemas/VehicleCatalogImportSampleType" }
+        unresolved_types:
+          type: array
+          items: { $ref: "#/components/schemas/VehicleCatalogImportSampleType" }
+        changed_valuations:
+          type: array
+          items:
+            type: object
+            properties:
+              brand: { type: string }
+              code: { type: string }
+              name: { type: string }
+              year: { type: integer }
+              old: { type: integer }
+              new: { type: integer }
+        dry_run_counts: { $ref: "#/components/schemas/VehicleCatalogImportCounts" }
+
+    VehicleCatalogImportSampleType:
+      type: object
+      required: [brand, code, name]
+      properties:
+        brand: { type: string }
+        code: { type: string }
+        name: { type: string }
+        old_name: { type: string }
+        model: { type: string }
+
+    VehicleCatalogImportStatus:
+      type: string
+      enum: [queued, processing, ready, applying, applied, failed]
+
+    VehicleCatalogModel:
+      type: object
+      required: [uuid, name, source, brand, display_brand, types_count, group_size, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string, example: EGEA CROSS }
+        source: { $ref: "#/components/schemas/VehicleCatalogModelSource" }
+        brand: { $ref: "#/components/schemas/VehicleCatalogRef" }
+        display_brand: { $ref: "#/components/schemas/VehicleCatalogDisplayBrandRef" }
+        types_count: { type: integer, format: int64 }
+        group_size:
+          type: integer
+          format: int64
+          description: Models with the same name under the display brand (one per TSB brand); tenants see them as one model
+        rules:
+          type: array
+          items: { $ref: "#/components/schemas/VehicleCatalogModelRule" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    VehicleCatalogModelRef:
+      type: object
+      required: [uuid, name, source]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string, example: EGEA CROSS }
+        source: { $ref: "#/components/schemas/VehicleCatalogModelSource" }
+
+    VehicleCatalogModelRule:
+      type: object
+      required: [prefix, created_at]
+      properties:
+        prefix: { type: string, example: EGEA CROSS }
+        created_at: { type: string, format: date-time }
+
+    VehicleCatalogModelSource:
+      type: string
+      enum: [auto, manual]
+
+    VehicleCatalogNamedRef:
+      type: object
+      required: [uuid, name]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+
+    VehicleCatalogRef:
+      type: object
+      required: [uuid, display_name]
+      properties:
+        uuid: { type: string, format: uuid }
+        display_name: { type: string }
+        tsb_code: { type: string }
+        tsb_name: { type: string }
+
+    VehicleCatalogTransmission:
+      type: string
+      enum: [manual, automatic]
+
+    VehicleCatalogType:
+      type: object
+      required: [uuid, tsb_type_code, raw_name, years, suggested_transmission, suggested_fuel, first_seen_period, last_seen_period, is_active, brand, display_brand, model, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        tsb_type_code: { type: string, example: "1402" }
+        raw_name: { type: string, example: EGEA CROSS STREET 1.4 FIRE 95 E6D }
+        years:
+          type: array
+          description: Model years with a kasko value (newest first)
+          items: { type: integer }
+        suggested_transmission:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogTransmission"
+            - type: "null"
+        suggested_fuel:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogFuel"
+            - type: "null"
+        first_seen_period: { type: string, example: 2026-10 }
+        last_seen_period: { type: string, example: 2026-10 }
+        is_active: { type: boolean }
+        brand: { $ref: "#/components/schemas/VehicleCatalogRef" }
+        display_brand: { $ref: "#/components/schemas/VehicleCatalogDisplayBrandRef" }
+        model:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogModelRef"
+            - type: "null"
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    VehicleCatalogTypeDetail:
+      allOf:
+        - $ref: "#/components/schemas/VehicleCatalogType"
+        - type: object
+          required: [brand_tsb_name, latest_period, valuations, history]
+          properties:
+            brand_tsb_name: { type: string }
+            latest_period: { type: string, description: Empty when no value is stored }
+            valuations:
+              type: array
+              description: Latest period, one entry per model year
+              items: { $ref: "#/components/schemas/VehicleCatalogValuation" }
+            history:
+              type: array
+              description: All stored periods, newest first
+              items: { $ref: "#/components/schemas/VehicleCatalogValuation" }
+
+    VehicleCatalogValuation:
+      type: object
+      required: [model_year, period, value]
+      properties:
+        model_year: { type: integer, example: 2024 }
+        period: { type: string, example: 2026-10 }
+        value: { type: number, description: Kasko value in TRY, example: 1051836 }
+
+    CreateVehicleCatalogModelRequest:
+      type: object
+      additionalProperties: false
+      required: [brand_uuid, name]
+      properties:
+        brand_uuid: { type: string, format: uuid }
+        name: { type: string, minLength: 1 }
+
+    EnvelopeVehicleCatalogBrand:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogBrand" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogBrandPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/VehicleCatalogBrand" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogBulkRulesResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogBulkRulesResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogDisplayBrand:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogDisplayBrand" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    VehicleCatalogDisplayBrandMotomarks:
+      type: object
+      description: Link between a display brand and the brand logo mirror.
+      required: [id, match_source, match_score, suggested_id, suggested_score, synced_variants]
+      properties:
+        id: { type: [string, "null"], example: fiat }
+        match_source: { type: string, enum: [none, auto, manual, skip] }
+        match_score: { type: [number, "null"] }
+        suggested_id: { type: [string, "null"], description: Best candidate below the threshold }
+        suggested_score: { type: [number, "null"] }
+        synced_variants:
+          type: array
+          items: { type: string, enum: [badge, wordmark, full] }
+
+    VehicleCatalogBrandLogoSettings:
+      type: object
+      required: [base_url, token_configured, enabled, auto_match_min_score, last_run_at, last_status, last_error, sources_count, match_counts, active_run]
+      properties:
+        base_url: { type: string, example: https://logos.example.com }
+        token_configured: { type: boolean }
+        enabled: { type: boolean }
+        auto_match_min_score: { type: integer, minimum: 0, maximum: 100 }
+        last_run_at: { type: [string, "null"], format: date-time }
+        last_status: { type: [string, "null"], enum: [done, failed, null] }
+        last_error: { type: [string, "null"] }
+        sources_count: { type: integer, format: int64, description: Mirror brands stored }
+        match_counts:
+          type: object
+          description: Display brands per match source
+          additionalProperties: { type: integer, format: int64 }
+        active_run:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogBrandLogoSyncRun"
+            - type: "null"
+
+    PatchVehicleCatalogBrandLogoSettingsRequest:
+      type: object
+      properties:
+        base_url: { type: string }
+        api_token: { type: string, description: "New token; empty string clears it" }
+        enabled: { type: boolean }
+        auto_match_min_score: { type: integer, minimum: 0, maximum: 100 }
+
+    EnvelopeVehicleCatalogBrandLogoSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogBrandLogoSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    VehicleCatalogBrandLogoSyncRun:
+      type: object
+      required: [uuid, status, triggered_by, started_at, finished_at, not_modified, requests, brands_seen, downloaded, matched, unmatched, error, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        status: { type: string, enum: [queued, running, done, failed] }
+        triggered_by:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogNamedRef"
+            - type: "null"
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        not_modified: { type: boolean, description: "The mirror answered 304; only matching ran" }
+        requests: { type: integer }
+        brands_seen: { type: integer }
+        downloaded: { type: integer, description: Logo files copied }
+        matched: { type: integer }
+        unmatched: { type: integer }
+        error: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+
+    EnvelopeVehicleCatalogBrandLogoSyncRun:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogBrandLogoSyncRun" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogBrandLogoSyncRunPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/VehicleCatalogBrandLogoSyncRun" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    VehicleCatalogUnmatchedDisplayBrand:
+      type: object
+      required: [uuid, name, slug, is_active, types_count, logo_url, suggestion]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        is_active: { type: boolean }
+        types_count: { type: integer, format: int64 }
+        logo_url: { type: [string, "null"] }
+        suggestion:
+          oneOf:
+            - type: object
+              required: [id, name, score]
+              properties:
+                id: { type: string }
+                name: { type: string }
+                score: { type: [number, "null"] }
+            - type: "null"
+
+    EnvelopeVehicleCatalogUnmatchedDisplayBrandPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/VehicleCatalogUnmatchedDisplayBrand" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    VehicleCatalogBrandLogoSource:
+      type: object
+      required: [id, name, color, vehicle_types, variants, badge_url, wordmark_url, full_url, synced_at]
+      properties:
+        id: { type: string, example: fiat }
+        name: { type: string, example: Fiat }
+        color: { type: [string, "null"] }
+        vehicle_types:
+          type: array
+          items: { type: string }
+        variants:
+          type: array
+          items: { type: string, enum: [badge, wordmark, full] }
+        badge_url: { type: [string, "null"] }
+        wordmark_url: { type: [string, "null"] }
+        full_url: { type: [string, "null"] }
+        synced_at: { type: [string, "null"], format: date-time }
+
+    EnvelopeVehicleCatalogDisplayBrandPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/VehicleCatalogDisplayBrand" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogImport:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogImport" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogImportPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/VehicleCatalogImport" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogModel:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogModel" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogModelPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/VehicleCatalogModel" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogTypeDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/VehicleCatalogTypeDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeVehicleCatalogTypePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/VehicleCatalogType" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeTenantVehicleCatalogBrandPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/TenantVehicleCatalogBrand" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeTenantVehicleCatalogModelPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/TenantVehicleCatalogModel" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeTenantVehicleCatalogTypePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/TenantVehicleCatalogType" }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ------------------------------------------------------------ pricing
+
+    MergeVehicleCatalogModelRequest:
+      type: object
+      additionalProperties: false
+      required: [into_uuid]
+      properties:
+        into_uuid: { type: string, format: uuid }
+
+    PatchVehicleCatalogBrandRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        display_name:
+          type: string
+          minLength: 1
+          description: Map to the display brand of this name (created when missing)
+        display_brand_uuid:
+          type: string
+          format: uuid
+          description: Map to an existing display brand
+        category: { $ref: "#/components/schemas/VehicleCatalogBrandCategory" }
+        is_active: { type: boolean }
+
+    PatchVehicleCatalogDisplayBrandRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        is_active: { type: boolean }
+
+    PatchVehicleCatalogModelRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1 }
+        source: { $ref: "#/components/schemas/VehicleCatalogModelSource" }
+
+    PatchVehicleCatalogTypeRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        model_uuid:
+          type: [string, "null"]
+          format: uuid
+          description: |
+            Model of the same TSB brand; a model of another TSB brand of the same display brand
+            assigns (creating when missing) the same-name model of the type's brand. null clears it.
+        save_rule:
+          type: boolean
+          description: Also store a prefix rule (needs model_uuid)
+        rule_prefix:
+          type: string
+          description: Prefix of the type name; defaults to the model name
+        suggested_transmission:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogTransmission"
+            - type: "null"
+        suggested_fuel:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogFuel"
+            - type: "null"
+
+    TenantVehicleCatalogBrand:
+      type: object
+      description: A display brand (FIAT and TOFAS-FIAT are one "Fiat").
+      required: [uuid, display_name, slug, category, logo_url, logo_badge_url, logo_wordmark_url, brand_color]
+      properties:
+        uuid: { type: string, format: uuid }
+        display_name: { type: string, example: Fiat }
+        slug: { type: string, example: fiat }
+        category: { $ref: "#/components/schemas/VehicleCatalogBrandCategory" }
+        logo_url: { type: [string, "null"], description: API-owned logo stream }
+        logo_badge_url: { type: [string, "null"], description: Emblem variant for compact rows }
+        logo_wordmark_url: { type: [string, "null"], description: Text-only variant for headers }
+        brand_color: { type: [string, "null"] }
+
+    TenantVehicleCatalogModel:
+      type: object
+      description: |
+        A grouped model: models with the same name under the TSB brands of one display brand are
+        listed once. `uuid` is stable (its first model) and any model uuid of the group is accepted
+        by `/v1/tenant/vehicle-catalog/types`.
+      required: [uuid, name, brand]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string, example: EGEA CROSS }
+        brand: { $ref: "#/components/schemas/VehicleCatalogRef" }
+
+    TenantVehicleCatalogType:
+      type: object
+      required: [uuid, tsb_type_code, name, years, suggested_transmission, suggested_fuel, brand, model]
+      properties:
+        uuid: { type: string, format: uuid }
+        tsb_type_code: { type: string }
+        name: { type: string, example: EGEA CROSS STREET 1.4 FIRE 95 E6D }
+        years:
+          type: array
+          items: { type: integer }
+        suggested_transmission:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogTransmission"
+            - type: "null"
+        suggested_fuel:
+          oneOf:
+            - $ref: "#/components/schemas/VehicleCatalogFuel"
+            - type: "null"
+        brand: { $ref: "#/components/schemas/VehicleCatalogRef" }
+        model: { $ref: "#/components/schemas/VehicleCatalogNamedRef" }
+
+    UnmergeVehicleCatalogDisplayBrandRequest:
+      type: object
+      additionalProperties: false
+      required: [brand_uuid]
+      properties:
+        brand_uuid: { type: string, format: uuid, description: TSB brand to detach }
+        name: { type: string, description: Name of the new display brand }
+
+

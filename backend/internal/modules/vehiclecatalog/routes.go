@@ -1,50 +1,85 @@
+// Package vehiclecatalog is the platform vehicle catalog (TSB kasko list):
+// display brand / TSB brand / model / type / model-year kasko values,
+// imported monthly. Same engine as Rentopia (TEC-997).
 package vehiclecatalog
 
 import (
 	"net/http"
 
-	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
-	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
+	cataloghandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 )
 
+// RegisterRoutes mounts /v1/platform/vehicle-catalog/* and the read-only
+// /v1/tenant/vehicle-catalog/* lookups for organization members.
 func RegisterRoutes(
 	mux *http.ServeMux,
-	h *vehiclehandler.Handler,
+	h *cataloghandler.Handler,
 	tokens *jwt.Manager,
 	loader middleware.IdentityLoader,
-	q *db.Queries,
+	resolver middleware.OrganizationResolver,
 ) {
 	authn := middleware.Authenticate(tokens, loader)
-	requireRead := middleware.RequirePermission(rbac.PermPlatformVehicleBrandsRead)
-	requireWrite := middleware.RequirePermission(rbac.PermPlatformVehicleBrandsWrite)
-	requireCustomersRead := middleware.RequirePermission(rbac.PermTenantCustomersRead)
-	requireOrg := middleware.RequireOrganization(tokens, q)
-
-	read := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireRead)
-	}
-	write := func(handler http.HandlerFunc) http.Handler {
-		return middleware.Chain(http.HandlerFunc(handler), authn, requireWrite)
+	read := middleware.RequirePermission(rbac.PermPlatformVehicleBrandsRead)
+	write := middleware.RequirePermission(rbac.PermPlatformVehicleBrandsWrite)
+	route := func(pattern string, fn http.HandlerFunc, mws ...func(http.Handler) http.Handler) {
+		mux.Handle(pattern, middleware.Chain(fn, append([]func(http.Handler) http.Handler{authn}, mws...)...))
 	}
 
-	mux.HandleFunc("GET /v1/public/vehicle-brands/logo/{uuid}", h.PublicStreamLogo)
+	// /meta before /{uuid}.
+	route("GET /v1/platform/vehicle-catalog/brands/meta", h.BrandsMeta, read)
+	route("GET /v1/platform/vehicle-catalog/brands", h.ListBrands, read)
+	route("GET /v1/platform/vehicle-catalog/brands/{uuid}", h.GetBrand, read)
+	route("PATCH /v1/platform/vehicle-catalog/brands/{uuid}", h.PatchBrand, write)
 
-	mux.Handle("GET /v1/platform/vehicle-brands/meta", read(h.Meta))
-	mux.Handle("GET /v1/platform/vehicle-brands", read(h.List))
-	mux.Handle("POST /v1/platform/vehicle-brands", write(h.Create))
-	mux.Handle("POST /v1/platform/vehicle-brands/import", write(h.Import))
-	mux.Handle("GET /v1/platform/vehicle-brands/{uuid}", read(h.Get))
-	mux.Handle("PATCH /v1/platform/vehicle-brands/{uuid}", write(h.Patch))
-	mux.Handle("DELETE /v1/platform/vehicle-brands/{uuid}", write(h.Delete))
-	mux.Handle("PUT /v1/platform/vehicle-brands/{uuid}/logo", write(h.UploadLogo))
-	mux.Handle("POST /v1/platform/vehicle-brands/{uuid}/models", write(h.CreateModel))
-	mux.Handle("DELETE /v1/platform/vehicle-models/{uuid}", write(h.DeleteModel))
-	mux.Handle("POST /v1/platform/vehicle-models/{uuid}/years", write(h.AddYear))
-	mux.Handle("DELETE /v1/platform/vehicle-models/{uuid}/years/{year}", write(h.DeleteYear))
+	route("GET /v1/platform/vehicle-catalog/display-brands/meta", h.DisplayBrandsMeta, read)
+	route("GET /v1/platform/vehicle-catalog/display-brands", h.ListDisplayBrands, read)
+	route("GET /v1/platform/vehicle-catalog/display-brands/{uuid}", h.GetDisplayBrand, read)
+	route("PATCH /v1/platform/vehicle-catalog/display-brands/{uuid}", h.PatchDisplayBrand, write)
+	route("POST /v1/platform/vehicle-catalog/display-brands/{uuid}/merge", h.MergeDisplayBrand, write)
+	route("POST /v1/platform/vehicle-catalog/display-brands/{uuid}/unmerge", h.UnmergeDisplayBrand, write)
+	route("PUT /v1/platform/vehicle-catalog/display-brands/{uuid}/logo", h.UploadDisplayBrandLogo, write)
+	route("DELETE /v1/platform/vehicle-catalog/display-brands/{uuid}/logo", h.DeleteDisplayBrandLogo, write)
+	// Any signed-in user: tenant vehicle forms show the logo too.
+	route("GET /v1/platform/vehicle-catalog/display-brands/{uuid}/logo", h.StreamDisplayBrandLogo)
 
-	tenantSearch := middleware.Chain(http.HandlerFunc(h.Search), authn, requireOrg, requireCustomersRead)
-	mux.Handle("GET /v1/tenant/vehicle-catalog/search", tenantSearch)
+	route("GET /v1/platform/vehicle-catalog/models/meta", h.ModelsMeta, read)
+	route("POST /v1/platform/vehicle-catalog/models/bulk-rules", h.BulkModelRules, write)
+	route("GET /v1/platform/vehicle-catalog/models", h.ListModels, read)
+	route("POST /v1/platform/vehicle-catalog/models", h.CreateModel, write)
+	route("GET /v1/platform/vehicle-catalog/models/{uuid}", h.GetModel, read)
+	route("PATCH /v1/platform/vehicle-catalog/models/{uuid}", h.PatchModel, write)
+	route("POST /v1/platform/vehicle-catalog/models/{uuid}/merge", h.MergeModel, write)
+
+	route("GET /v1/platform/vehicle-catalog/types/meta", h.TypesMeta, read)
+	route("GET /v1/platform/vehicle-catalog/types", h.ListTypes, read)
+	route("GET /v1/platform/vehicle-catalog/types/{uuid}", h.GetType, read)
+	route("PATCH /v1/platform/vehicle-catalog/types/{uuid}", h.PatchType, write)
+
+	// Brand logo sync (motomarks-mirror). /brand-logos/* before /{uuid} routes.
+	route("GET /v1/platform/vehicle-catalog/brand-logos/settings", h.GetBrandLogoSettings, read)
+	route("PATCH /v1/platform/vehicle-catalog/brand-logos/settings", h.PatchBrandLogoSettings, write)
+	route("POST /v1/platform/vehicle-catalog/brand-logos/test", h.TestBrandLogoConnection, write)
+	route("POST /v1/platform/vehicle-catalog/brand-logos/sync", h.RequestBrandLogoSync, write)
+	route("GET /v1/platform/vehicle-catalog/brand-logos/runs", h.ListBrandLogoSyncRuns, read)
+	route("GET /v1/platform/vehicle-catalog/brand-logos/unmatched", h.ListUnmatchedDisplayBrands, read)
+	route("GET /v1/platform/vehicle-catalog/brand-logos/sources", h.SearchBrandLogoSources, read)
+	route("GET /v1/platform/vehicle-catalog/brand-logos/sources/{id}/logo", h.StreamSourceLogo, read)
+	route("POST /v1/platform/vehicle-catalog/display-brands/{uuid}/motomarks", h.SetDisplayBrandMotomarks, write)
+
+	route("GET /v1/platform/vehicle-catalog/imports/meta", h.ImportsMeta, read)
+	route("GET /v1/platform/vehicle-catalog/imports", h.ListImports, read)
+	route("POST /v1/platform/vehicle-catalog/imports", h.UploadImport, write)
+	route("GET /v1/platform/vehicle-catalog/imports/{uuid}", h.GetImport, read)
+	route("POST /v1/platform/vehicle-catalog/imports/{uuid}/apply", h.ApplyImport, write)
+
+	// Public: legacy vehicle brand logo (customer vehicles, job board, quotes).
+	mux.HandleFunc("GET /v1/public/vehicle-brands/logo/{uuid}", h.StreamVehicleBrandLogo)
+
+	org := middleware.RequireOrganizationResolver(tokens, resolver)
+	route("GET /v1/tenant/vehicle-catalog/brands", h.TenantBrands, org)
+	route("GET /v1/tenant/vehicle-catalog/models", h.TenantModels, org)
+	route("GET /v1/tenant/vehicle-catalog/types", h.TenantTypes, org)
 }

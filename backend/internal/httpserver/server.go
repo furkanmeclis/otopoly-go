@@ -115,9 +115,13 @@ import (
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts"
 	vausecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts/usecase"
-	vehiclemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog"
-	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
-	vehicleusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
+	vehiclemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclebrands"
+	vehiclehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclebrands/handler"
+	vehicleusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclebrands/usecase"
+	vehiclecatalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog"
+	vehiclecataloghandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/handler"
+	vehiclecatalogrepository "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/repository"
+	vehiclecatalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/appleauth"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
@@ -516,10 +520,20 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	)
 	bulkSvc := bulkusecase.New(deps.Queries, bulkReg, deps.Queue, notifSvc, activityRec, cfg.Bulk, log)
 	catalogmodule.RegisterRoutes(mux, catalogSvc, bulkhandler.New(bulkSvc), tokens, loader, deps.Queries)
-	vehicleSvc := vehicleusecase.New(deps.DB, deps.Queries, activityRec)
-	vehicleSvc.SetSearchIndexer(searchIndexer)
+	vehicleSvc := vehicleusecase.New(deps.Queries)
 	vehicleSvc.SetSearcher(searchClient)
-	vehiclemodule.RegisterRoutes(mux, vehiclehandler.New(vehicleSvc, deps.Storage), tokens, loader, deps.Queries)
+	vehiclemodule.RegisterRoutes(mux, vehiclehandler.New(vehicleSvc), tokens, loader, deps.Queries)
+	// TSB vehicle catalog (TEC-997): platform curation + monthly imports;
+	// read-only brand / model / type lookups for organization members. Applied
+	// imports project onto the legacy vehicle_* tables the picker above uses.
+	var vehicleCatalogQueue vehiclecatalogusecase.Enqueuer
+	if deps.Queue != nil {
+		vehicleCatalogQueue = deps.Queue
+	}
+	vehicleCatalogSvc := vehiclecatalogusecase.New(vehiclecatalogrepository.NewPostgres(deps.DB, deps.Queries), deps.Storage, vehicleCatalogQueue, activityRec, log)
+	vehicleCatalogSvc.SetSearchReindexer(searchIndexer)
+	vehicleCatalogSvc.SetSecretBox(secretBox)
+	vehiclecatalogmodule.RegisterRoutes(mux, vehiclecataloghandler.New(vehicleCatalogSvc, activityRec), tokens, loader, middleware.OrganizationResolverFromQueries(deps.Queries))
 	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
 	customersSvc.SetEntitlements(entitlementsSvc)
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
