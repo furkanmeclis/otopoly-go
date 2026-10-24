@@ -46,7 +46,7 @@ func (a *VehicleModelYearsAdapter) ListAll(ctx context.Context) ([]searchengine.
 }
 
 func (a *VehicleModelYearsAdapter) Document(ctx context.Context, id string) (searchengine.Document, error) {
-	modelUUID, year, err := parseModelYearID(id)
+	modelUUID, year, err := ParseModelYearDocID(id)
 	if err != nil {
 		return searchengine.Document{}, err
 	}
@@ -67,26 +67,38 @@ func documentFromYear(brandName, modelName string, brandUUID, modelUUID uuid.UUI
 	title := strings.TrimSpace(brandName + " " + modelName)
 	yearText := strconv.Itoa(int(year))
 	return searchengine.Document{
-		ID:       fmt.Sprintf("%s:%d", modelUUID.String(), year),
+		ID:       ModelYearDocID(modelUUID, int(year)),
 		Spec:     SpecVehicleModelYears,
 		Title:    title,
 		Subtitle: yearText,
 		Keywords: []string{brandName, modelName, yearText},
-		Href:     "/platform/vehicle-brands/" + brandUUID.String(),
+		Href:     "/platform/vehicle-catalog/brands",
 		Icon:     "car",
 	}
 }
 
-func parseModelYearID(id string) (uuid.UUID, int, error) {
-	parts := strings.Split(strings.TrimSpace(id), ":")
-	if len(parts) != 2 {
+// ModelYearDocID is the Meilisearch document id of one "model · year"
+// pair: "<model uuid>-<year>". Meilisearch only allows [a-zA-Z0-9_-] in a
+// primary key, so ":" is not an option; "_" is taken by TenantDocID (the
+// search client strips everything up to the first "_" when it maps a hit
+// back to an entity id), hence the hyphen. The uuid is fixed-width, so the
+// year is whatever follows the last hyphen.
+func ModelYearDocID(modelUUID uuid.UUID, year int) string {
+	return modelUUID.String() + "-" + strconv.Itoa(year)
+}
+
+// ParseModelYearDocID is the inverse of ModelYearDocID.
+func ParseModelYearDocID(id string) (uuid.UUID, int, error) {
+	id = strings.TrimSpace(id)
+	i := strings.LastIndex(id, "-")
+	if i <= 0 || i+1 >= len(id) {
 		return uuid.Nil, 0, fmt.Errorf("vehicle catalog search: invalid id")
 	}
-	modelUUID, err := uuid.Parse(parts[0])
+	modelUUID, err := uuid.Parse(id[:i])
 	if err != nil {
 		return uuid.Nil, 0, err
 	}
-	year, err := strconv.Atoi(parts[1])
+	year, err := strconv.Atoi(id[i+1:])
 	if err != nil {
 		return uuid.Nil, 0, err
 	}

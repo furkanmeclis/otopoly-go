@@ -43,7 +43,7 @@ func TestBrandsETagAndLogoURL(t *testing.T) {
 	if b.LogoURL(VariantBadge) != "http://cdn/badge.webp" || b.LogoURL(VariantFull) != "http://cdn/full.png" || b.LogoURL(VariantWordmark) != "" {
 		t.Fatalf("logo urls: %q %q %q", b.LogoURL(VariantBadge), b.LogoURL(VariantFull), b.LogoURL(VariantWordmark))
 	}
-	if b.Hash() == "" || b.Hash() != b.Hash() {
+	if h := b.Hash(); h == "" || h != b.Hash() {
 		t.Fatal("hash must be stable")
 	}
 	again, err := c.Brands(context.Background(), res.ETag)

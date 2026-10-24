@@ -13,6 +13,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -46,24 +47,14 @@ func (s *Service) SetSearcher(searcher CatalogSearcher) {
 	s.searcher = searcher
 }
 
+// ModelYearDocID / ParseModelYearDocID are the Meilisearch document id of
+// one "model · year" pair; the format is owned by the search adapter.
 func ModelYearDocID(modelUUID uuid.UUID, year int) string {
-	return fmt.Sprintf("%s:%d", modelUUID.String(), year)
+	return adapters.ModelYearDocID(modelUUID, year)
 }
 
 func ParseModelYearDocID(id string) (uuid.UUID, int, error) {
-	parts := strings.Split(strings.TrimSpace(id), ":")
-	if len(parts) != 2 {
-		return uuid.Nil, 0, fmt.Errorf("invalid vehicle catalog document id")
-	}
-	modelUUID, err := uuid.Parse(parts[0])
-	if err != nil {
-		return uuid.Nil, 0, err
-	}
-	var year int
-	if _, err := fmt.Sscanf(parts[1], "%d", &year); err != nil {
-		return uuid.Nil, 0, err
-	}
-	return modelUUID, year, nil
+	return adapters.ParseModelYearDocID(id)
 }
 
 // LogoURL is the API-owned public logo path of a legacy brand, or nil when

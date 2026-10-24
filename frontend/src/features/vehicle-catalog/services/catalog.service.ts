@@ -84,7 +84,7 @@ export type ListImportsParams = ServerListParams & {
   status?: string;
 };
 
-const base = "/v1/platform/catalog";
+const base = "/v1/platform/vehicle-catalog";
 
 export const catalogService = {
   brandsMeta() {
