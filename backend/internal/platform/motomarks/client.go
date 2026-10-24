@@ -142,7 +142,7 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, heade
 		return nil, fmt.Errorf("motomarks: %s %s: %w", method, path, err)
 	}
 	if res.StatusCode == http.StatusUnauthorized {
-		res.Body.Close()
+		_ = res.Body.Close()
 		return nil, ErrUnauthorized
 	}
 	return res, nil
@@ -154,7 +154,7 @@ func (c *Client) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("motomarks: healthz returned %d", res.StatusCode)
 	}
@@ -162,7 +162,7 @@ func (c *Client) Health(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer res2.Body.Close()
+	defer func() { _ = res2.Body.Close() }()
 	if res2.StatusCode != http.StatusOK {
 		return fmt.Errorf("motomarks: brands returned %d", res2.StatusCode)
 	}
@@ -187,7 +187,7 @@ func (c *Client) Brands(ctx context.Context, etag string) (BrandsResult, error) 
 	if err != nil {
 		return BrandsResult{}, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode == http.StatusNotModified {
 		return BrandsResult{ETag: etag, NotModified: true}, nil
 	}
@@ -224,7 +224,7 @@ func (c *Client) Match(ctx context.Context, queries []string, minScore float64) 
 			Results []MatchResult `json:"results"`
 		}
 		decodeErr := json.NewDecoder(io.LimitReader(res.Body, 32<<20)).Decode(&payload)
-		res.Body.Close()
+		_ = res.Body.Close()
 		if res.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("motomarks: match returned %d", res.StatusCode)
 		}
@@ -250,7 +250,7 @@ func (c *Client) Download(ctx context.Context, fileURL string) ([]byte, string, 
 	if err != nil {
 		return nil, "", fmt.Errorf("motomarks: download: %w", err)
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode != http.StatusOK {
 		return nil, "", fmt.Errorf("motomarks: download returned %d", res.StatusCode)
 	}
