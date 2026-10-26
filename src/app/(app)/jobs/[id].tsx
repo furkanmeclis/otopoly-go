@@ -43,8 +43,10 @@ import { useApiMutation } from '@/lib/mutation';
 import { LiveActivityCard } from '@/features/widgets/live-activity-card';
 import { useTheme } from '@/theme/provider';
 import { useMarkInteractive } from '@/lib/monitoring/observe';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function JobDetailScreen() {
+  useLiveResource(['tenant.jobs', 'tenant.contracts.instances', 'tenant.todos']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.jobsRead} title={tr('jobs.detail.title')}>

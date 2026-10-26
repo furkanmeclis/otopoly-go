@@ -33,10 +33,12 @@ import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const log = createLogger('screen.supplier_detail');
 
 export default function SupplierDetailScreen() {
+  useLiveResource(['tenant.suppliers', 'tenant.purchases']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.suppliersRead} title={tr('suppliers.detail.info')}>

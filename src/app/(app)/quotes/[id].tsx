@@ -21,8 +21,10 @@ import { LinkedTodos } from '@/features/todos/components/linked-todos';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function QuoteDetailScreen() {
+  useLiveResource('tenant.quotes');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.quotesRead} title={tr('quotes.title')}>

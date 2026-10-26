@@ -15,11 +15,13 @@ import { DaySwitcher, DocStatusBadge, StatStrip } from '@/features/sales/compone
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const STATUS_TABS = ['all', 'posted', 'voided'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
 
 export default function PurchasesScreen() {
+  useLiveResource('tenant.purchases');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.purchasesRead} title={tr('purchases.title')}>

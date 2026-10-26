@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
 import { LinkIntentHost } from '@/features/account/components/link-intent-host';
 import { TenantAccessGate } from '@/features/auth/components/tenant-access-gate';
+import { LiveHost } from '@/features/live/live-host';
 import { LimitReachedHost } from '@/features/billing/components/limit-reached-host';
 import { NotificationsHost } from '@/features/notifications/components/notifications-host';
 import { FirstRunHost } from '@/features/onboarding/components/first-run-host';
@@ -17,6 +18,7 @@ export default function AppLayout() {
   return (
     <>
       <WidgetSync />
+      <LiveHost />
       <LimitReachedHost />
       {/* Before NotificationsHost: resets the "first-run settled" signal the push sheet waits for. */}
       <FirstRunHost />

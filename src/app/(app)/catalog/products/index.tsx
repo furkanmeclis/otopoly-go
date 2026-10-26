@@ -14,6 +14,7 @@ import { useActiveCategories } from '@/features/catalog/queries';
 import { useCatalogSummary, useProductsInfinite } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'untracked';
 type ActiveFilter = 'all' | 'true' | 'false';
@@ -21,6 +22,7 @@ const SORTS = ['name', '-name', 'sale_price', '-sale_price', 'stock_quantity', '
 type Sort = (typeof SORTS)[number];
 
 export default function ProductsScreen() {
+  useLiveResource('tenant.catalog.products');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.catalogRead} title={tr('catalog.products.title')}>

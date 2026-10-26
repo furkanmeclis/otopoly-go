@@ -49,8 +49,10 @@ import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function CustomerDetailScreen() {
+  useLiveResource(['tenant.customers', 'tenant.vehicles', 'tenant.jobs', 'tenant.cari']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.customersRead} title={tr('customers.detail.info')}>

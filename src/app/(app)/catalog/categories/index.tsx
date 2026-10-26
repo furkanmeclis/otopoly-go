@@ -12,11 +12,13 @@ import { CategoryFormSheet } from '@/features/catalog/components/category-form-s
 import { useCategoryList } from '@/features/catalog/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type Tab = 'all' | 'product' | 'service';
 type ActiveFilter = 'all' | 'true' | 'false';
 
 export default function CategoriesScreen() {
+  useLiveResource('tenant.catalog.categories');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.catalogRead} title={tr('catalog.categories.title')}>

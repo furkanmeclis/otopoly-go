@@ -17,10 +17,12 @@ import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const log = createLogger('screen.catalog.product');
 
 export default function ProductDetailScreen() {
+  useLiveResource('tenant.catalog.products');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.catalogRead} title={tr('catalog.detail.product_title')}>

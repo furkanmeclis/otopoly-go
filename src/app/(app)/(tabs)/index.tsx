@@ -51,6 +51,7 @@ import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 import { useMarkInteractive } from '@/lib/monitoring/observe';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const CHART_DAYS = 30;
 
@@ -61,6 +62,7 @@ function greetingKey(hour: number) {
 }
 
 export default function DashboardScreen() {
+  useLiveResource(['tenant.jobs', 'tenant.sales', 'tenant.finance.transactions', 'tenant.todos']);
   useMarkInteractive();
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
