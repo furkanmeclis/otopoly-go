@@ -3,17 +3,16 @@
  * that is sent right away). The first message of a new chat creates the conversation and the route
  * param switches to its uuid without remounting the live chat.
  *
- * Keyboard: the KeyboardAvoidingView is the route's root view (it starts at the top of the window), so
- * its padding equals the keyboard overlap without an offset; the composer drops the home-indicator inset
- * while the keyboard is up.
+ * Keyboard: the shared KeyboardAvoider (keyboard-controller) is the route's root view on both platforms, so
+ * the composer rides on the keyboard; the composer drops the home-indicator inset while the keyboard is up.
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { MoreHorizontal, SquarePen } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Keyboard, KeyboardAvoidingView, Platform, View } from 'react-native';
+import { FlatList, Keyboard, Platform, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ErrorState, Header, IconButton, ListSkeleton, Txt } from '@/components/ui';
+import { ErrorState, Header, IconButton, KeyboardAvoider, ListSkeleton, Txt } from '@/components/ui';
 import { ChatActionsProvider } from '@/features/ai/components/action-blocks';
 import { AssistantGate, useAssistantAccess } from '@/features/ai/components/assistant-gate';
 import { ChatEmpty, Composer, MessageBubble } from '@/features/ai/components/chat';
@@ -66,7 +65,7 @@ function Conversation() {
   const onCreated = useCallback((uuid: string) => router.setParams({ id: uuid, prompt: '' }), []);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoider style={{ backgroundColor: theme.colors.background }}>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <Header
           title={title}
@@ -84,7 +83,7 @@ function Conversation() {
         <AssistantGate access={access}>{(status) => <Chat key={initial.nonce} conversation={initial.uuid} prompt={initial.prompt} status={status} onConversationCreated={onCreated} />}</AssistantGate>
       </SafeAreaView>
       {actions.sheet}
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 
@@ -150,7 +149,7 @@ function Chat({ conversation, prompt, status, onConversationCreated }: { convers
           gap: 6,
         }}
       >
-        <Composer onSend={(text) => void chat.send(text)} onStop={chat.stop} busy={chat.busy} />
+        <Composer keyboardSpacer={false} onSend={(text) => void chat.send(text)} onStop={chat.stop} busy={chat.busy} />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: t.spacing.md }}>
           <Txt variant="caption" tone="muted" style={{ fontSize: 11, flexShrink: 1 }}>
             {tr('ai.assistant.disclaimer')}
