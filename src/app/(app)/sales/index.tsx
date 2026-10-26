@@ -12,11 +12,13 @@ import { useSalesInfinite, useSalesSummary } from '@/features/queries';
 import { DaySwitcher, DocStatusBadge, StatStrip } from '@/features/sales/components/commerce-parts';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const STATUS_TABS = ['all', 'posted', 'voided'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
 
 export default function SalesScreen() {
+  useLiveResource('tenant.sales');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.salesRead} title={tr('sales.title')}>

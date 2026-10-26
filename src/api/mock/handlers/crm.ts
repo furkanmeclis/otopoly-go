@@ -38,7 +38,7 @@ function followState(date: string | null | undefined): LeadDetail['follow_up_sta
 
 // ═══ Leads ══════════════════════════════════════════════════════════════════
 
-function leadEvent(ctx: MockCtx, lead: LeadDetail, e: Partial<LeadEvent> & { kind: string }) {
+export function leadEvent(ctx: MockCtx, lead: LeadDetail, e: Partial<LeadEvent> & { kind: string }) {
   const at = now();
   lead.events.unshift({
     uuid: uuid(),
@@ -56,13 +56,20 @@ function leadEvent(ctx: MockCtx, lead: LeadDetail, e: Partial<LeadEvent> & { kin
   lead.updated_at = at;
 }
 
-function refreshLead(lead: LeadDetail) {
+/** `vehicle_brand_name` / `vehicle_brand_logo_url` of the linked customer vehicle ("" / null for free text). */
+function vehicleBrand(vehicleUuid: string | null | undefined) {
+  const v = vehicleUuid ? getDb().vehicles.find((x) => x.uuid === vehicleUuid) : undefined;
+  return { vehicle_brand_name: v?.brand_name ?? '', vehicle_brand_logo_url: v?.logo_url ?? null };
+}
+
+export function refreshLead(lead: LeadDetail) {
   lead.follow_up_state = lead.status === 'won' || lead.status === 'lost' ? 'none' : followState(lead.follow_up_date);
   const db = getDb();
   lead.quotes = db.quotes
     .filter((q) => q.lead_uuid === lead.uuid)
     .map((q) => ({ uuid: q.uuid, number: q.number, status: q.status, grand_total: q.grand_total, currency: q.currency, valid_until: q.valid_until, created_at: q.created_at }));
   lead.quote_count = lead.quotes.length;
+  Object.assign(lead, vehicleBrand(lead.vehicle_uuid));
   return lead;
 }
 
@@ -256,7 +263,7 @@ route('POST', '/v1/tenant/leads/:uuid/todo', (ctx) => {
 
 // ═══ Todos ══════════════════════════════════════════════════════════════════
 
-function todoView(t: Todo): Todo {
+export function todoView(t: Todo): Todo {
   t.overdue = t.status === 'open' && !!t.due_date && t.due_date < istanbulDay();
   // Date-only todos are due at 09:00 Europe/Istanbul; next_reminder_at = earliest future fire time.
   if (t.status === 'open' && t.due_date && t.reminder_offsets.length) {
@@ -554,6 +561,7 @@ const TRANSITIONS: Record<string, QuoteStatus[]> = {
 };
 
 function refreshQuote(q: QuoteDetail) {
+  Object.assign(q, vehicleBrand(q.vehicle_uuid));
   q.is_past_valid_until = !!q.valid_until && q.valid_until < istanbulDay();
   if (q.is_past_valid_until && ['draft', 'sent', 'viewed'].includes(q.status)) {
     q.status = 'expired';
@@ -582,6 +590,8 @@ function quoteListItem(q: QuoteDetail) {
     customer_phone: r.customer_phone,
     vehicle_plate: r.vehicle_plate,
     vehicle_label: r.vehicle_label,
+    vehicle_brand_name: r.vehicle_brand_name,
+    vehicle_brand_logo_url: r.vehicle_brand_logo_url,
     lead_uuid: r.lead_uuid,
     job_uuid: r.job_uuid,
     line_count: r.line_count,

@@ -7,7 +7,9 @@ import { useToast } from '@/components/feedback/toast';
 import { Badge, Button, Card, Row, Segmented, SwitchRow, Txt } from '@/components/ui';
 import { useCodeErrorMessage } from '@/features/messaging/components/daily-summary-card';
 import { CheckRow, ProfileHint, RoleBadge, WarningNote } from '@/features/messaging/components/parts';
+import { MessageChannelPicker } from '@/features/messaging/components/message-channel-picker';
 import { messagingKeys, useVehicleAlerts } from '@/features/messaging/queries';
+import type { MessageChannel } from '@/features/messaging/services/daily-summary.service';
 import {
   VEHICLE_ALERT_BATCH_OPTIONS,
   VEHICLE_ALERT_EVENTS,
@@ -39,7 +41,7 @@ export function VehicleAlertsCard() {
         </Txt>
       </Card>
     );
-  const savedKey = [data.enabled, data.batch_minutes, [...data.events].sort().join(','), [...data.service_uuids].sort().join(','), [...data.recipient_user_uuids].sort().join(',')].join('|');
+  const savedKey = [data.enabled, data.batch_minutes, data.channel, [...data.events].sort().join(','), [...data.service_uuids].sort().join(','), [...data.recipient_user_uuids].sort().join(',')].join('|');
   return <VehicleAlertsForm key={savedKey} data={data} />;
 }
 
@@ -78,11 +80,14 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
   const [services, setServices] = useState<string[]>(data.service_uuids);
   const [recipients, setRecipients] = useState<string[]>(data.recipient_user_uuids);
   const [batch, setBatch] = useState<number>(data.batch_minutes);
+  const [channel, setChannel] = useState<MessageChannel>(data.channel ?? 'whatsapp');
+  const channelReady = channel === 'sms' ? data.sms_available : data.whatsapp_connected;
 
   const effectiveServices = allServices ? [] : services;
   const dirty =
     data.enabled !== enabled ||
     data.batch_minutes !== batch ||
+    (data.channel ?? 'whatsapp') !== channel ||
     !sameSet(data.events, events) ||
     !sameSet(data.service_uuids, effectiveServices) ||
     !sameSet(data.recipient_user_uuids, recipients);
@@ -102,7 +107,11 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
   const sendTest = useMutation({
     mutationFn: vehicleAlertsService.sendTest,
     onSuccess: (res) => {
-      toast.success(tr('messaging.vehicle_alerts.test_sent', { in_app: res.in_app, whatsapp: res.whatsapp }));
+      toast.success(
+        data.channel === 'sms'
+          ? tr('mobile.messaging.vehicle_alerts.test_sent_sms', { in_app: res.in_app, sms: res.sms ?? 0 })
+          : tr('messaging.vehicle_alerts.test_sent', { in_app: res.in_app, whatsapp: res.whatsapp }),
+      );
       if (res.skipped.length > 0) toast.show('warning', tr('messaging.vehicle_alerts.test_skipped', { names: res.skipped.join(', ') }));
     },
     onError,
@@ -116,8 +125,11 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
       <Txt variant="caption" tone="secondary">
         {tr('messaging.vehicle_alerts.description')}
       </Txt>
-      {!data.whatsapp_connected ? <WarningNote>{tr('messaging.vehicle_alerts.not_connected')}</WarningNote> : null}
+      {!channelReady ? (
+        <WarningNote>{channel === 'sms' ? tr('mobile.messaging.channel_picker.sms_not_ready') : tr('messaging.vehicle_alerts.not_connected')}</WarningNote>
+      ) : null}
       <SwitchRow label={tr('messaging.vehicle_alerts.enabled')} value={enabled} onValueChange={setEnabled} />
+      <MessageChannelPicker value={channel} onChange={setChannel} smsAvailable={data.sms_available} />
 
       <Fieldset title={tr('messaging.vehicle_alerts.events')}>
         <View style={{ borderWidth: 1, borderColor: t.colors.border, borderRadius: t.radius.md, overflow: 'hidden' }}>
@@ -172,7 +184,15 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
                     size="sm"
                     tone={!m.has_push && !m.has_phone ? 'warning' : 'neutral'}
                     icon={m.has_push ? <BellRing size={11} color={t.colors.neutral} /> : undefined}
-                    label={m.has_push ? tr('messaging.vehicle_alerts.via_push') : m.has_phone ? tr('messaging.vehicle_alerts.via_whatsapp') : tr('messaging.vehicle_alerts.via_inapp_only')}
+                    label={
+                      m.has_push
+                        ? tr('messaging.vehicle_alerts.via_push')
+                        : m.has_phone
+                          ? channel === 'sms'
+                            ? tr('mobile.messaging.channel_picker.sms')
+                            : tr('messaging.vehicle_alerts.via_whatsapp')
+                          : tr('messaging.vehicle_alerts.via_inapp_only')
+                    }
                   />
                 </View>
               }
@@ -189,7 +209,7 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
           label={tr('common.save')}
           loading={save.isPending}
           disabled={!dirty}
-          onPress={() => save.mutate({ enabled, events, service_uuids: effectiveServices, recipient_user_uuids: recipients, batch_minutes: batch })}
+          onPress={() => save.mutate({ enabled, events, service_uuids: effectiveServices, recipient_user_uuids: recipients, batch_minutes: batch, channel })}
         />
         <Button
           variant="outline"

@@ -1,8 +1,8 @@
 import { AlertCircle, ArrowUp, Ban, Check, Clock, Sparkles, Square, TriangleAlert } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, TextInput, View } from 'react-native';
 
-import { BarChart, Card, RankBars, Row, Txt } from '@/components/ui';
+import { BarChart, Card, KeyboardSpacer, RankBars, Row, Txt } from '@/components/ui';
 import { ConfirmCard, PlanBlock } from '@/features/ai/components/action-blocks';
 import { Markdown } from '@/features/ai/components/markdown';
 import { errorKey, isSummaryKey, SUGGESTION_KEYS, toolLabelKey } from '@/features/ai/lib/labels';
@@ -208,7 +208,24 @@ export function ChatEmpty({ onPick, disabled }: { onPick: (text: string) => void
 
 // ─── Composer ────────────────────────────────────────────────────────────────
 
-export function Composer({ onSend, onStop, busy, disabled }: { onSend: (text: string) => void; onStop: () => void; busy: boolean; disabled?: boolean }) {
+/**
+ * Keyboard: on iOS the assistant screen's KeyboardAvoidingView lifts the composer; on Android (edge-to-edge,
+ * the window is not resized and that view has no behavior) a `KeyboardSpacer` under the input lifts it.
+ * Pass `keyboardSpacer={false}` once the screen wraps the chat in `KeyboardAvoider` (components/ui/layout).
+ */
+export function Composer({
+  onSend,
+  onStop,
+  busy,
+  disabled,
+  keyboardSpacer = Platform.OS === 'android',
+}: {
+  onSend: (text: string) => void;
+  onStop: () => void;
+  busy: boolean;
+  disabled?: boolean;
+  keyboardSpacer?: boolean;
+}) {
   const t = useTheme();
   const { t: tr } = useLocale();
   const [value, setValue] = useState('');
@@ -220,6 +237,7 @@ export function Composer({ onSend, onStop, busy, disabled }: { onSend: (text: st
   };
   const canSend = Boolean(value.trim()) && !disabled;
   return (
+    <>
     <View
       style={{
         flexDirection: 'row',
@@ -273,5 +291,7 @@ export function Composer({ onSend, onStop, busy, disabled }: { onSend: (text: st
         </Pressable>
       )}
     </View>
+    {keyboardSpacer ? <KeyboardSpacer /> : null}
+    </>
   );
 }

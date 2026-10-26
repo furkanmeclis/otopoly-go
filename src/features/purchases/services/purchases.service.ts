@@ -67,6 +67,8 @@ export const purchasesService = {
   },
   list(
     params?: ServerListParams & {
+      /** Only purchases from this supplier. */
+      supplier_uuid?: string;
       status?: string;
       date_from?: string;
       date_to?: string;

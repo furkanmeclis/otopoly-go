@@ -15,10 +15,12 @@ import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const log = createLogger('screen.finance.transaction');
 
 export default function FinanceTransactionDetailScreen() {
+  useLiveResource('tenant.finance.transactions');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.financeRead} title={tr('finance.detail.transaction_title')}>

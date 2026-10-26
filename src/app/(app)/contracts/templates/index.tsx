@@ -17,10 +17,12 @@ import { contractsService } from '@/features/contracts/services/contracts.servic
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type ActiveFilter = 'all' | 'true' | 'false';
 
 export default function ContractTemplatesScreen() {
+  useLiveResource('tenant.contracts');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.contractsRead} title={tr('contracts.templates.title')}>

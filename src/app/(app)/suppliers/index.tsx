@@ -10,10 +10,12 @@ import { P } from '@/features/auth/permissions';
 import { useSuppliersInfinite } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type ActiveFilter = 'all' | 'true' | 'false';
 
 export default function SuppliersScreen() {
+  useLiveResource('tenant.suppliers');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.suppliersRead} title={tr('suppliers.title')}>

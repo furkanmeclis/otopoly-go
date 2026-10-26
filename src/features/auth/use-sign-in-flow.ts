@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { isApiError } from '@/api/errors';
 import { setLinkIntent } from '@/features/account/link-intent';
 import type { Tokens } from '@/api/session';
-import { useAuth } from '@/features/auth/auth-provider';
+import { useAuth, type SignInOptions } from '@/features/auth/auth-provider';
 import { authErrorMessage, isMfaRequired, linkChoiceFrom, type LinkChoice } from '@/features/auth/lib/auth-errors';
 import type { OAuthProvider } from '@/features/auth/services/passwordless.service';
 import { useLocale } from '@/lib/i18n/provider';
@@ -14,7 +14,7 @@ const log = createLogger('auth.flow');
 /** One sign-in call; called again with `totp` after `MFA_REQUIRED`. */
 export type SignInAttempt = (totp?: string) => Promise<Tokens>;
 
-type PendingMfa = { attempt: SignInAttempt; provider?: OAuthProvider };
+type PendingMfa = { attempt: SignInAttempt; provider?: OAuthProvider; options?: SignInOptions };
 
 /**
  * Runs any sign-in call (password, e-mail code, Apple / Google, relay linking) and handles the
@@ -34,18 +34,18 @@ export function useSignInFlow() {
   const [notLinked, setNotLinked] = useState<OAuthProvider | null>(null);
 
   const execute = useCallback(
-    async (attempt: SignInAttempt, provider: OAuthProvider | undefined, totp?: string): Promise<string | null> => {
+    async (attempt: SignInAttempt, provider: OAuthProvider | undefined, totp?: string, options?: SignInOptions): Promise<string | null> => {
       setBusy(true);
       try {
         const tokens = await attempt(totp);
-        await completeSignIn(tokens);
+        await completeSignIn(tokens, options);
         return null;
       } catch (error) {
         const code = isApiError(error) ? error.code : 'UNKNOWN';
         log.warn('Sign-in step failed', { code, provider, mfa: Boolean(totp) });
         if (isMfaRequired(error)) {
           setLinkChoice(null);
-          setMfa({ attempt, provider });
+          setMfa({ attempt, provider, options });
           return null;
         }
         const choice = linkChoiceFrom(error);
@@ -72,15 +72,15 @@ export function useSignInFlow() {
   );
 
   const run = useCallback(
-    (attempt: SignInAttempt, provider?: OAuthProvider) => {
+    (attempt: SignInAttempt, provider?: OAuthProvider, options?: SignInOptions) => {
       setNotLinked(null);
-      return execute(attempt, provider);
+      return execute(attempt, provider, undefined, options);
     },
     [execute],
   );
 
   const submitTotp = useCallback(
-    (totp: string) => (mfa ? execute(mfa.attempt, mfa.provider, totp) : Promise.resolve(null)),
+    (totp: string) => (mfa ? execute(mfa.attempt, mfa.provider, totp, mfa.options) : Promise.resolve(null)),
     [execute, mfa],
   );
 

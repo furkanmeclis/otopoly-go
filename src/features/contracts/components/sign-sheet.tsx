@@ -5,18 +5,24 @@
  */
 import { MessageCircle, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 
 import { isApiError } from '@/api/errors';
-import { Button, Card, Row, Sheet, TextField, Txt } from '@/components/ui';
+import { Button, Card, KeyboardScroll, Row, Sheet, TextField, Txt } from '@/components/ui';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useAuth } from '@/features/auth/auth-provider';
+import { P } from '@/features/auth/permissions';
+import { MessageChannelPicker } from '@/features/messaging/components/message-channel-picker';
+import { useSmsChannel } from '@/features/messaging/queries';
+import type { MessageChannel } from '@/features/messaging/services/daily-summary.service';
 
 import { contractKeys } from '../queries';
 import { contractsService, type ContractInstance, type ContractOtpChallenge, type ContractSigner } from '../services/contracts.service';
-import { SignaturePad } from './signature-pad';
+import { SignaturePad, useSignaturePad } from './signature-pad';
 
 const log = createLogger('screen.contracts.sign');
 
@@ -74,7 +80,12 @@ export function SignerForm({
   const [challenge, setChallenge] = useState<ContractOtpChallenge | null>(null);
   const [code, setCode] = useState('');
   const [verified, setVerified] = useState(signer.otp_verified);
-  const [drawing, setDrawing] = useState(false);
+  // OTP channel: WhatsApp (default) or the organization's active SMS provider (Kanallar).
+  const canSeeChannels = useAuth().can(P.messagingRead);
+  const smsChannel = useSmsChannel(canSeeChannels && Boolean(signer.otp_required));
+  const smsAvailable = Boolean(smsChannel.data?.active_provider);
+  const [otpChannel, setOtpChannel] = useState<MessageChannel>(signer.otp_channel === 'sms' ? 'sms' : 'whatsapp');
+  const pad = useSignaturePad(setSignature);
   const resendIn = useSecondsUntil(challenge?.resend_at ?? null);
 
   const needsOtp = signer.otp_required && !verified;
@@ -82,7 +93,7 @@ export function SignerForm({
 
   const sendOtp = useApiMutation({
     key: 'contracts.otp.send',
-    fn: () => contractsService.sendSignerOtp(instance.uuid, signer.uuid, { phone: phone.trim() || undefined }),
+    fn: () => contractsService.sendSignerOtp(instance.uuid, signer.uuid, { phone: phone.trim() || undefined, ...(otpChannel === 'sms' ? { channel: 'sms' as const } : {}) }),
     success: (data) => tr('contracts.otp.toast.sent', { phone: data.phone_masked }),
     toastValidation: true,
     onSuccess: (data) => {
@@ -119,7 +130,7 @@ export function SignerForm({
 
   if (needsOtp) {
     return (
-      <ScrollView contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }} keyboardShouldPersistTaps="handled">
+      <KeyboardScroll contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }}>
         {header}
         <Card style={{ gap: t.spacing.xs, backgroundColor: t.colors.surfaceAlt }}>
           <Row gap={t.spacing.sm}>
@@ -155,6 +166,9 @@ export function SignerForm({
           autoComplete="tel"
           placeholder="05XX XXX XX XX"
         />
+        {canSeeChannels && (smsAvailable || otpChannel === 'sms') ? (
+          <MessageChannelPicker label={tr('mobile.messaging.otp.channel_label')} value={otpChannel} onChange={setOtpChannel} smsAvailable={smsAvailable} disabled={sendOtp.isPending} />
+        ) : null}
         <Button
           variant={challenge ? 'outline' : 'primary'}
           loading={sendOtp.isPending}
@@ -195,13 +209,17 @@ export function SignerForm({
         ) : null}
 
         <Button variant="outline" label={cancelLabel ?? tr('common.cancel')} onPress={onDone} />
-      </ScrollView>
+      </KeyboardScroll>
     );
   }
 
   return (
-    <ScrollView
-      scrollEnabled={!drawing}
+    // Gesture-handler scroll view that waits for the pad's pan: strokes in any direction draw instead of
+    // scrolling (iOS). `scrollEnabled` stays as a second guard for the rest of the stroke.
+    <GestureScrollView
+      requireToFail={pad.gesture}
+      scrollEnabled={!pad.drawing}
+      automaticallyAdjustKeyboardInsets
       contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }}
       keyboardShouldPersistTaps="handled"
     >
@@ -215,7 +233,7 @@ export function SignerForm({
         </Row>
       ) : null}
       <TextField label={tr('contracts.instances.sign_display_name')} value={displayName} onChangeText={setDisplayName} autoCapitalize="words" />
-      <SignaturePad onChange={setSignature} onDrawingChange={setDrawing} />
+      <SignaturePad pad={pad} />
       <Card style={{ gap: t.spacing.xs, backgroundColor: t.colors.surfaceAlt }}>
         <Txt variant="bodyStrong">{tr('contracts.instances.disclaimer')}</Txt>
         <Txt variant="caption" tone="secondary">
@@ -238,6 +256,6 @@ export function SignerForm({
         }}
       />
       <Button variant="outline" label={cancelLabel ?? tr('common.cancel')} onPress={onDone} />
-    </ScrollView>
+    </GestureScrollView>
   );
 }

@@ -39,6 +39,8 @@ export const P = {
   quotesWrite: 'tenant.quotes.write',
   todosRead: 'tenant.todos.read',
   todosWrite: 'tenant.todos.write',
+  calendarRead: 'tenant.calendar.read',
+  calendarWrite: 'tenant.calendar.write',
   aiUse: 'tenant.ai.use',
   messagingRead: 'tenant.messaging.read',
   messagingWrite: 'tenant.messaging.write',

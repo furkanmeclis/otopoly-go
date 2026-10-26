@@ -49,7 +49,7 @@ export type Job = {
   total_amount: string;
   assignee_uuid?: string | null;
   assignee_name?: string;
-  /** List rows only: vehicle brand for the board card mark. */
+  /** Vehicle brand (list rows, customer jobs and the detail). */
   brand_name?: string;
   brand_logo_url?: string | null;
   /** List rows only: service lines for the coloured card tags. */

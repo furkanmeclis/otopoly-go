@@ -14,11 +14,13 @@ import type { FinanceCategory } from '@/features/finance/services/finance.servic
 import { qk } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type KindFilter = 'all' | 'income' | 'expense';
 type SortKey = 'sort_order' | 'name';
 
 export default function FinanceCategoriesScreen() {
+  useLiveResource('tenant.finance.categories');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.financeRead} title={tr('finance.categories.title')}>

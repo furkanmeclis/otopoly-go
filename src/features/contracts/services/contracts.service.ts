@@ -204,6 +204,8 @@ export const contractsService = {
       status?: string;
       subject_type?: string;
       subject_uuid?: string;
+      /** Only contracts on this customer's service jobs. */
+      customer_uuid?: string;
     },
   ) {
     return platformRequest<ListPage<ContractInstance>>(
@@ -240,7 +242,7 @@ export const contractsService = {
   sendSignerOtp(
     instanceUuid: string,
     signerUuid: string,
-    body: { phone?: string } = {},
+    body: { phone?: string; channel?: 'whatsapp' | 'sms' } = {},
   ) {
     return platformRequest<ContractOtpChallenge>(
       "POST",

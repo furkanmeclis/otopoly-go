@@ -234,6 +234,12 @@ async function customersArea() {
   await ok('vehicle remove', () => customersService.removeVehicle(v.uuid));
   await ok('customer remove', () => customersService.remove(created.uuid));
   await err('customer get unknown', 'NOT_FOUND', () => customersService.get('00000000-0000-4000-8000-000000000000'));
+  // Customer 360 activity timeline: first page and "load more".
+  const busy = await ok('customers with vehicles', () => customersService.list({ limit: 5, offset: 0 }));
+  const withVehicles = busy.items.find((c) => c.vehicle_count > 0) ?? busy.items[0];
+  await ok('customer activity', () => customersService.activity(withVehicles.uuid, { limit: 5, offset: 0 }));
+  await ok('customer activity more', () => customersService.activity(withVehicles.uuid, { limit: 5, offset: 5 }));
+  await err('customer activity unknown', 'NOT_FOUND', () => customersService.activity('00000000-0000-4000-8000-000000000000'));
 }
 
 async function financeArea() {
@@ -288,6 +294,9 @@ async function commerceArea() {
   const sale = await ok('sale create', () => salesService.create({ customer_uuid: null, method: 'cash', finance_account_uuid: cash.uuid, lines: [{ product_uuid: sellable.uuid, qty: '1', unit_price: Number(sellable.sale_price) > 0 ? undefined : '10.00' }] }));
   const customers = await ok('customers', () => customersService.list({ limit: 1, offset: 0 }));
   await ok('sale create cari', () => salesService.create({ customer_uuid: customers.items[0].uuid, method: 'cari', lines: [{ product_uuid: products.items[0].uuid, unit_price: '99.00', qty: '1' }] }));
+  // Customer 360: recent sales of the customer (useCustomerSales).
+  await ok('sales by customer', () => salesService.list({ customer_uuid: customers.items[0].uuid, limit: 10, offset: 0 }));
+  await err('sales by malformed customer', 'VALIDATION_ERROR', () => salesService.list({ customer_uuid: 'nope', limit: 10, offset: 0 }));
   await err('sale create empty', 'VALIDATION_ERROR', () => salesService.create({ method: 'cash', lines: [] }));
   await ok('sale get', () => salesService.get(sale.uuid));
   await ok('sale void', () => salesService.void(sale.uuid));
@@ -299,6 +308,8 @@ async function commerceArea() {
   await ok('supplier update', () => suppliersService.update(sup.uuid, { name: 'Contract Tedarik 2' }));
   await ok('purchases meta', () => purchasesService.meta());
   await ok('purchases list', () => purchasesService.list({ limit: 20, offset: 0 }));
+  // Supplier 360: recent purchases from the supplier (useSupplierPurchases).
+  await ok('purchases by supplier', () => purchasesService.list({ supplier_uuid: sup.uuid, status: 'posted', limit: 100, offset: 0 }));
   const purchase = await ok('purchase create', () =>
     purchasesService.create({ supplier_uuid: sup.uuid, method: 'cash', finance_account_uuid: cash.uuid, lines: [{ product_uuid: products.items[0].uuid, unit_cost: '10.00', qty: '2' }] }),
   );
@@ -314,6 +325,8 @@ async function crmArea() {
   const services = await ok('services', () => catalogService.listServices({ limit: 2, offset: 0 }));
   const products = await ok('products', () => catalogService.listProducts({ limit: 2, offset: 0 }));
   await ok('quotes list', () => quotesService.list({ status: 'sent' }));
+  // Customer 360: the customer's quotes.
+  await ok('quotes by customer', () => quotesService.list({ customer_uuid: cust.uuid, limit: 20 }));
   await ok('quotes summary', () => quotesService.summary());
   const quote = await ok('quote create', () =>
     quotesService.create({
@@ -350,6 +363,8 @@ async function crmArea() {
   await err('quote convert twice', 'CONFLICT', () => quotesService.convert(quote.uuid, {}));
 
   await ok('leads list', () => leadsService.list({ status: 'new' }));
+  // Customer 360: the customer's leads.
+  await ok('leads by customer', () => leadsService.list({ customer_uuid: cust.uuid, limit: 20 }));
   await ok('leads summary', () => leadsService.summary());
   await ok('leads assignees', () => leadsService.assignees());
   const lead = await ok('lead create', () =>
@@ -434,6 +449,8 @@ async function documentsArea() {
   const jobs = await ok('jobs', () => jobsService.list({ limit: 1, offset: 0 }));
   const signed = templates.items.find((t) => t.signature_required) ?? templates.items[0];
   await ok('instances', () => contractsService.listInstances({ limit: 20, offset: 0, subject_type: 'service_job', subject_uuid: jobs.items[0].uuid }));
+  // Customer 360 contracts section.
+  await ok('instances by customer', () => contractsService.listInstances({ limit: 20, offset: 0, customer_uuid: jobs.items[0].customer_uuid }));
   const inst = await ok('instance create', () => contractsService.createInstance({ template_uuid: signed.uuid, subject_type: 'service_job', subject_uuid: jobs.items[0].uuid, title: 'Contract sözleşme' }));
   await ok('instance get', () => contractsService.getInstance(inst.uuid));
   const signer = inst?.signers?.[0];
@@ -477,6 +494,9 @@ async function settingsArea() {
   console.log('settings');
   await ok('settings get', () => exportSettingsService.get());
   await ok('settings patch', () => exportSettingsService.patch({ paper_size: 'A4' } as never));
+  await ok('settings sector', () => exportSettingsService.patch({ sector: 'detailing' }));
+  await ok('settings sector clear', () => exportSettingsService.patch({ sector: '' }));
+  await err('settings sector invalid', 'VALIDATION_ERROR', () => exportSettingsService.patch({ sector: 'bakery' } as never));
   await ok('logo upload', () => mockFormRequest('PUT', '/v1/tenant/settings/logo', (() => { const f = new FormData(); f.append('logo', file('logo.png', 'image/png') as unknown as Blob); return f; })()));
   await ok('logo delete', () => exportSettingsService.deleteLogo());
   await ok('staff meta', () => staffService.meta());

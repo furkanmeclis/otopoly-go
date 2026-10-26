@@ -81,6 +81,8 @@ export const salesService = {
   },
   list(
     params?: ServerListParams & {
+      /** Only this customer's sales. */
+      customer_uuid?: string;
       status?: string;
       date_from?: string;
       date_to?: string;

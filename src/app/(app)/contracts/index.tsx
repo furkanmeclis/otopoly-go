@@ -14,11 +14,13 @@ import { instanceStatusLabel, instanceStatusTone, useContractsAccess } from '@/f
 import { useContractInstancesInfinite } from '@/features/contracts/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const STATUS_TABS = ['all', 'draft', 'pending', 'executed', 'voided'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
 
 export default function ContractsScreen() {
+  useLiveResource('tenant.contracts.instances');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.contractsRead} title={tr('contracts.instances.title')}>

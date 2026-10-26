@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { BrandMark, MARK_RATIO } from '@/components/brand';
@@ -148,6 +149,9 @@ function RootLayout() {
   useAppStateQueryFocus();
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Keyboard tracking for the shared keyboard helpers (components/ui/layout.tsx). Android runs
+          edge-to-edge, so the window is not resized for the keyboard. */}
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent preserveEdgeToEdge>
       <SafeAreaProvider>
         <ThemeProvider>
           <LocaleProvider>
@@ -167,6 +171,7 @@ function RootLayout() {
           </LocaleProvider>
         </ThemeProvider>
       </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

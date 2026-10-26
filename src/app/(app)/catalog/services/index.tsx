@@ -13,12 +13,14 @@ import { useActiveCategories } from '@/features/catalog/queries';
 import { useCatalogSummary, useServicesInfinite } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type ActiveFilter = 'all' | 'true' | 'false';
 const SORTS = ['name', '-name', 'price', '-price', 'duration_minutes', '-duration_minutes'] as const;
 type Sort = (typeof SORTS)[number];
 
 export default function ServicesScreen() {
+  useLiveResource('tenant.catalog.services');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.catalogRead} title={tr('catalog.services.title')}>

@@ -14,10 +14,12 @@ import { qk, useProducts, useServices } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const PREVIEW = 20;
 
 export default function CategoryDetailScreen() {
+  useLiveResource('tenant.catalog.categories');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.catalogRead} title={tr('catalog.detail.category_title')}>

@@ -8,6 +8,7 @@ import trAuth from './tr/auth.json';
 import trBilling from './tr/billing.json';
 import trBranding from './tr/branding.json';
 import trBulk from './tr/bulk.json';
+import trCalendar from './tr/calendar.json';
 import trCari from './tr/cari.json';
 import trCatalog from './tr/catalog.json';
 import trChart from './tr/chart.json';
@@ -53,16 +54,19 @@ import trVehicleBrands from './tr/vehicle_brands.json';
 import trMobile from './mobile/tr.json';
 import trMobileAccount from './mobile/areas/account.tr.json';
 import trMobileAuth from './mobile/areas/auth.tr.json';
+import trMobileCalendar from './mobile/areas/calendar.tr.json';
 import trMobileCatalog from './mobile/areas/catalog.tr.json';
 import trMobileCommerce from './mobile/areas/commerce.tr.json';
 import trMobileCrm from './mobile/areas/crm.tr.json';
 import trMobileDocuments from './mobile/areas/documents.tr.json';
 import trMobileFinance from './mobile/areas/finance.tr.json';
+import trMobileMessaging from './mobile/areas/messaging.tr.json';
 import trMobileNotifications from './mobile/areas/notifications.tr.json';
 import trMobileOnboarding from './mobile/areas/onboarding.tr.json';
 import trMobilePlan from './mobile/areas/plan.tr.json';
 import trMobileQr from './mobile/areas/qr.tr.json';
 import trMobileSettings from './mobile/areas/settings.tr.json';
+import trMobileUx from './mobile/areas/ux.tr.json';
 import enAccess from './en/access.json';
 import enActivity from './en/activity.json';
 import enAi from './en/ai.json';
@@ -70,6 +74,7 @@ import enAuth from './en/auth.json';
 import enBilling from './en/billing.json';
 import enBranding from './en/branding.json';
 import enBulk from './en/bulk.json';
+import enCalendar from './en/calendar.json';
 import enCari from './en/cari.json';
 import enCatalog from './en/catalog.json';
 import enChart from './en/chart.json';
@@ -115,16 +120,19 @@ import enVehicleBrands from './en/vehicle_brands.json';
 import enMobile from './mobile/en.json';
 import enMobileAccount from './mobile/areas/account.en.json';
 import enMobileAuth from './mobile/areas/auth.en.json';
+import enMobileCalendar from './mobile/areas/calendar.en.json';
 import enMobileCatalog from './mobile/areas/catalog.en.json';
 import enMobileCommerce from './mobile/areas/commerce.en.json';
 import enMobileCrm from './mobile/areas/crm.en.json';
 import enMobileDocuments from './mobile/areas/documents.en.json';
 import enMobileFinance from './mobile/areas/finance.en.json';
+import enMobileMessaging from './mobile/areas/messaging.en.json';
 import enMobileNotifications from './mobile/areas/notifications.en.json';
 import enMobileOnboarding from './mobile/areas/onboarding.en.json';
 import enMobilePlan from './mobile/areas/plan.en.json';
 import enMobileQr from './mobile/areas/qr.en.json';
 import enMobileSettings from './mobile/areas/settings.en.json';
+import enMobileUx from './mobile/areas/ux.en.json';
 
 export const catalogs = {
   tr: {
@@ -135,6 +143,7 @@ export const catalogs = {
     billing: trBilling,
     branding: trBranding,
     bulk: trBulk,
+    calendar: trCalendar,
     cari: trCari,
     catalog: trCatalog,
     chart: trChart,
@@ -177,7 +186,7 @@ export const catalogs = {
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileSettings },
+    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCalendar, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileMessaging, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileSettings, ...trMobileUx },
   },
   en: {
     access: enAccess,
@@ -187,6 +196,7 @@ export const catalogs = {
     billing: enBilling,
     branding: enBranding,
     bulk: enBulk,
+    calendar: enCalendar,
     cari: enCari,
     catalog: enCatalog,
     chart: enChart,
@@ -229,7 +239,7 @@ export const catalogs = {
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileSettings },
+    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCalendar, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileMessaging, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileSettings, ...enMobileUx },
   },
 } as const;
 

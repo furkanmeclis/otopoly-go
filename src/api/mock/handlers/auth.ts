@@ -10,7 +10,7 @@ import { assertPasswordPolicy } from './account';
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
   organization_user: [
     'auth.session', 'notifications.read', 'tenant.ai.use', 'tenant.billing.read',
-    'tenant.cari.export', 'tenant.cari.read', 'tenant.catalog.export', 'tenant.catalog.read',
+    'tenant.calendar.read', 'tenant.calendar.write', 'tenant.cari.export', 'tenant.cari.read', 'tenant.catalog.export', 'tenant.catalog.read',
     'tenant.contracts.read', 'tenant.contracts.write', 'tenant.customers.read', 'tenant.customers.write',
     'tenant.finance.export', 'tenant.finance.read', 'tenant.jobs.export', 'tenant.jobs.read', 'tenant.jobs.write',
     'tenant.leads.read', 'tenant.leads.write', 'tenant.messaging.read', 'tenant.purchases.export',
@@ -20,7 +20,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   organization_owner: [
     'auth.session', 'notifications.read', 'tenant.ai.use', 'tenant.billing.read', 'tenant.billing.write',
-    'tenant.cari.export', 'tenant.cari.read', 'tenant.cari.write', 'tenant.catalog.export', 'tenant.catalog.import',
+    'tenant.calendar.read', 'tenant.calendar.write', 'tenant.cari.export', 'tenant.cari.read', 'tenant.cari.write', 'tenant.catalog.export', 'tenant.catalog.import',
     'tenant.catalog.products.bulk.activate', 'tenant.catalog.products.bulk.adjust_stock',
     'tenant.catalog.products.bulk.deactivate', 'tenant.catalog.products.bulk.delete',
     'tenant.catalog.products.bulk.raise_cost_price', 'tenant.catalog.products.bulk.raise_sale_price',
@@ -127,6 +127,7 @@ export function buildMe(user: MockUser, orgUuid: string | null): Me {
         name: o.name,
         role: m.role,
         logo_url: o.logo_url,
+        sector: o.sector ?? null,
         ...orgAccessView(o),
       };
     });
@@ -183,6 +184,44 @@ route(
     const slug = str(ctx.body.organization_slug).trim();
     const org = slug ? resolveOrganization(user!, slug) : null;
     return issueTokens(user!, org?.uuid ?? null);
+  },
+  { anonymous: true },
+);
+
+// Self-serve sign-up with a password (backend `AuthUseCase.Register`): creates the user, no tokens.
+route(
+  'POST',
+  '/v1/auth/register',
+  (ctx) => {
+    if ((getDb() as { _registrationEnabled?: boolean })._registrationEnabled === false) fail(403, 'FORBIDDEN', 'registration is disabled');
+    const email = str(ctx.body.email).trim().toLowerCase();
+    const name = str(ctx.body.name).trim();
+    const surname = str(ctx.body.surname).trim();
+    if (!email || !name || !surname || !/^\S+@\S+\.\S+$/.test(email)) fail(400, 'VALIDATION_ERROR', 'email, name, surname are required');
+    if (!str(ctx.body.password).trim()) fail(400, 'VALIDATION_ERROR', 'password is required');
+    const db = getDb();
+    if (db.users.some((u) => u.email.toLowerCase() === email)) fail(409, 'CONFLICT', 'email already registered');
+    // Backend answers a policy miss with a plain 400 VALIDATION_ERROR (no field details).
+    try {
+      assertPasswordPolicy(str(ctx.body.password), 'password');
+    } catch {
+      fail(400, 'VALIDATION_ERROR', 'password does not meet policy');
+    }
+    const user: MockUser = {
+      uuid: uuid(),
+      email,
+      password: str(ctx.body.password),
+      name,
+      surname,
+      locale: 'tr',
+      status: 'active',
+      roles: ['organization_user'],
+      totpEnabled: false,
+      created_at: now(),
+    };
+    db.users.push(user);
+    persist();
+    return { user: { uuid: user.uuid, email, name, surname, status: 'active', is_super_admin: false, email_verified: false, locale: 'tr' } };
   },
   { anonymous: true },
 );

@@ -8,12 +8,14 @@ import { P } from '@/features/auth/permissions';
 import { useCatalogSummary } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 /**
  * Web `/catalog` only redirects to products; on mobile it is a small hub with the catalog summary
  * (same `/catalog/summary` numbers the web shows above the products/services tables) and links.
  */
 export default function CatalogHubScreen() {
+  useLiveResource(['tenant.catalog.products', 'tenant.catalog.services', 'tenant.catalog.categories']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.catalogRead} title={tr('layout.section_catalog')}>

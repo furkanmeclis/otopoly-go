@@ -113,9 +113,14 @@ export interface paths {
          *     with the returned `slug` (or `/v1/auth/refresh`) to get an
          *     organization-scoped session.
          *
+         *     Optional `sector` (business type: `car_wash`, `detailing`,
+         *     `ppf_tint`, `auto_service`, `tyres`, `other`) is stored on the
+         *     organization and returned here, on `/v1/auth/me` organizations and on
+         *     `/v1/tenant/settings`.
+         *
          *     Errors: `400 VALIDATION_ERROR` (field details: `organization_name`
          *     2-120 characters; `phone` <= 32, `city` / `district` <= 100,
-         *     `address` <= 500), `401`, `403 FORBIDDEN` when self-registration is
+         *     `address` <= 500, `sector` one of the values above), `401`, `403 FORBIDDEN` when self-registration is
          *     disabled (`auth_settings.registration_enabled`), `409 CONFLICT` when
          *     the caller already owns a business (staff membership elsewhere does not
          *     count), `429 RATE_LIMITED` (5 per hour per user).
@@ -561,7 +566,7 @@ export interface paths {
         put?: never;
         /**
          * Submit catalog templates to Meta
-         * @description Super admin only (`platform.integrations.whatsapp.write`). Creates every `not_submitted` template (or only `keys`) in the WABA with example values; entries with an override name are skipped. Per-key failures are reported in `results`; auth / configuration failures return 409.
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Creates every `not_submitted` template (every catalog language, or only `keys` × `languages`) in the WABA with example values; `rejected` templates are edited in place (Meta reviews them again). Entries with an override name are skipped. Per-template failures are reported in `results` with Meta's error text; auth / configuration failures return 409.
          */
         post: operations["postPlatformWhatsAppTemplatesSubmit"];
         delete?: never;
@@ -581,7 +586,7 @@ export interface paths {
         put?: never;
         /**
          * Pull template statuses from Meta
-         * @description Super admin only (`platform.integrations.whatsapp.write`). Matches Meta templates by effective name (override or catalog name) and language; templates missing in Meta become `not_submitted`.
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Matches Meta templates by effective name (override or catalog name) and language, for every catalog language; templates missing in Meta become `not_submitted`.
          */
         post: operations["postPlatformWhatsAppTemplatesSync"];
         delete?: never;
@@ -590,7 +595,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/integrations/whatsapp/templates/{key}": {
+    "/v1/platform/integrations/whatsapp/templates/{key}/{language}": {
         parameters: {
             query?: never;
             header?: never;
@@ -605,7 +610,7 @@ export interface paths {
         head?: never;
         /**
          * Set or clear the Meta template name override
-         * @description Super admin only (`platform.integrations.whatsapp.write`). Maps a catalog key to a template created manually in Meta (`null` / empty clears it). The stored Meta state is reset to `not_submitted` until the next sync.
+         * @description Super admin only (`platform.integrations.whatsapp.write`). Maps a catalog key in one language to a template created manually in Meta (`null` / empty clears it). The stored Meta state of that language is reset to `not_submitted` until the next sync.
          */
         patch: operations["patchPlatformWhatsAppTemplate"];
         trace?: never;
@@ -1137,8 +1142,129 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update organization */
+        /**
+         * Update organization
+         * @description Requires `platform.organizations.write`. Changing `status`, `plan_code` or the access
+         *     window additionally requires step-up verification (`403 STEP_UP_REQUIRED`);
+         *     profile-only edits do not. `access_ends_at` is kept unless set or cleared
+         *     (`clear_access_ends_at`). Changes are audited as `organizations.updated`.
+         */
         patch: operations["patchPlatformOrganization"];
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization 360° overview
+         * @description Requires `platform.organizations.read`. One read for the platform organization
+         *     detail: profile, record counts and last activity (`stats`), billing (live
+         *     subscription, plan, usage vs limits incl. toggles, the 5 most recent invoices and
+         *     orders) and WhatsApp (own-number session without pairing secrets, fallback
+         *     setting, outbound totals of the last 30 days). `billing` / `whatsapp` are `null`
+         *     when those modules are not wired.
+         */
+        get: operations["getPlatformOrganizationOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization activity log
+         * @description Requires `platform.organizations.read` and `platform.activity.read`. Audit events
+         *     attributed to the organization (tenant actions inside it and platform actions on
+         *     it), newest first, with the acting user.
+         */
+        get: operations["listPlatformOrganizationActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/whatsapp/outbound": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Organization outbound WhatsApp/SMS log
+         * @description Requires `platform.organizations.read`. Same rows as the tenant outbound log
+         *     (sender route, delivery status, error code), newest first.
+         */
+        get: operations["listPlatformOrganizationOutbound"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Suspend or activate an organization
+         * @description Requires `platform.organizations.write` and step-up verification
+         *     (`403 STEP_UP_REQUIRED`). Audited as `organizations.suspended` /
+         *     `organizations.activated`; setting the current status again is a no-op.
+         */
+        post: operations["setPlatformOrganizationStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/organizations/{uuid}/extend-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Extend organization access
+         * @description Requires `platform.organizations.write` and step-up verification
+         *     (`403 STEP_UP_REQUIRED`). Moves `access_ends_at` to max(now, current end) + `days`.
+         *     With a live billing subscription the subscription end moves too (it owns the
+         *     access window). An `expired` organization becomes `active`; a `suspended` one stays
+         *     suspended. Unlimited access (`access_ends_at` null) cannot be extended (400).
+         *     Audited as `organizations.access_extended`.
+         */
+        post: operations["extendPlatformOrganizationAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/platform/organizations/{uuid}/logo": {
@@ -1176,6 +1302,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/platform/organizations/{uuid}/members/{userUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+                /** @description Member user UUID */
+                userUuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove organization member
+         * @description Requires `platform.organizations.write`. The last owner cannot be removed
+         *     (`409 LAST_ORGANIZATION_OWNER`). Refresh sessions bound to this organization are
+         *     revoked; tenant requests fail immediately because organization membership is
+         *     re-checked on every request. Global `organization_owner` / `organization_user`
+         *     roles are dropped when the user has no matching memberships left.
+         */
+        delete: operations["deletePlatformOrganizationMember"];
+        options?: never;
+        head?: never;
+        /**
+         * Change organization member role
+         * @description Requires `platform.organizations.write`. Switches the member between `owner` and
+         *     `staff`; the last owner cannot be demoted (`409 LAST_ORGANIZATION_OWNER`). The
+         *     user's global `organization_owner` role follows their owner memberships.
+         */
+        patch: operations["patchPlatformOrganizationMember"];
+        trace?: never;
+    };
     "/v1/platform/users": {
         parameters: {
             query?: never;
@@ -1204,15 +1365,55 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get platform user */
+        /**
+         * Get platform user
+         * @description Also returns soft-deleted users (`deleted_at` set) so they can be reviewed and restored.
+         */
         get: operations["getPlatformUser"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete platform user (soft delete)
+         * @description Requires `platform.users.delete` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Sets `deleted_at`, revokes every refresh session, deletes mobile push devices and
+         *     web push subscriptions, detaches OAuth identities (Apple tokens are revoked best
+         *     effort) and passkeys. Roles and organization memberships are kept for a restore but
+         *     ignored while the user is deleted. The email becomes available for a new account.
+         *
+         *     Guards (`409`): `CANNOT_DELETE_SELF`; `LAST_SUPER_ADMIN` (the only active super
+         *     admin); `SOLE_ORGANIZATION_OWNER` when the user is the only owner of one or more
+         *     organizations — `error.details[]` lists them as `{field: organization uuid,
+         *     message: name, code: slug}`; transfer ownership or close the business first.
+         *     Only a super admin can delete a super admin (`403`).
+         */
+        delete: operations["deletePlatformUser"];
         options?: never;
         head?: never;
         /** Update platform user */
         patch: operations["patchPlatformUser"];
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a deleted platform user
+         * @description Requires `platform.users.delete` and step-up verification. Clears `deleted_at`
+         *     when the email is still free (`409 EMAIL_IN_USE` otherwise; `409 CONFLICT` when the
+         *     user is not deleted). Sessions, push devices, OAuth identities and passkeys removed
+         *     by the deletion are not restored.
+         */
+        post: operations["restorePlatformUser"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/platform/users/{uuid}/password": {
@@ -1250,6 +1451,186 @@ export interface paths {
          *     and refresh token metadata. Requires step-up verification.
          */
         post: operations["postPlatformUserImpersonate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform user 360° overview
+         * @description Requires `platform.users.read`. The user detail (also soft-deleted users), sign-in
+         *     summary (created / last login, email verification, password set, 2FA, passkey
+         *     count), tab counters and the user's own AI assistant usage in the current quota
+         *     period per organization (`ai` is null when the assistant is not wired). Secrets
+         *     (token hashes, push tokens, TOTP secrets) are never returned.
+         */
+        get: operations["getPlatformUserOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User organization memberships
+         * @description Requires `platform.users.read`. Live organizations the user belongs to, by name,
+         *     with role and join date. Add / change role / remove through
+         *     `/v1/platform/organizations/{uuid}/members`.
+         */
+        get: operations["listPlatformUserOrganizations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User active sessions
+         * @description Requires `platform.users.read`. Active (not revoked, not expired) refresh sessions,
+         *     newest first: user agent, IP, organization context and whether the session is an
+         *     impersonation. Refresh tokens rotate on every use, so `last_used_at` is when the
+         *     current token was issued. Token values are never returned.
+         */
+        get: operations["listPlatformUserSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/sessions/{sessionUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke one user session
+         * @description Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Revokes the refresh session; the access token already issued for it lives until
+         *     it expires. Audited as `users.session_revoked`. `404` when the session does not
+         *     belong to the user or is already revoked.
+         */
+        delete: operations["revokePlatformUserSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/sessions/revoke-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke all user sessions
+         * @description Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Revokes every refresh session of the user (signs them out everywhere once their
+         *     access tokens expire). Audited as `users.sessions_revoked` with the count.
+         */
+        post: operations["revokeAllPlatformUserSessions"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/devices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User push devices
+         * @description Requires `platform.users.read`. Registered mobile push devices, active first, then
+         *     by last seen. The push token is never returned.
+         */
+        get: operations["listPlatformUserDevices"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/devices/{deviceUuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a user push device
+         * @description Requires `platform.users.write` and step-up verification (`403 STEP_UP_REQUIRED`).
+         *     Deletes the device so it stops receiving push notifications (the app registers it
+         *     again on next launch while signed in). Audited as `users.device_removed`. `404`
+         *     when the device does not belong to the user.
+         */
+        delete: operations["removePlatformUserDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/users/{uuid}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * User activity log
+         * @description Requires `platform.users.read` and `platform.activity.read`. Audit events the user
+         *     performed (as actor), newest first, with the organization they are attributed to.
+         *     `404` for an unknown `organization_uuid`.
+         */
+        get: operations["listPlatformUserActivity"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1308,8 +1689,32 @@ export interface paths {
         put?: never;
         /**
          * Issue Centrifugo subscription JWT
-         * @description Body `{ channel }`. Allowlist `user:{own_uuid}`, member `workspace:{uuid}`,
-         *     and `conversation:{uuid}` (authenticated session; HTTP inbox ACL is the hard boundary).
+         * @description Body `{ channel }`. Returns `{ token, channel, expires_at }` for Centrifugo
+         *     subscriptions (`allow_subscribe_for_client` is off, so every channel needs one).
+         *     Requires `auth.session`; disabled Centrifugo → `503 REALTIME_DISABLED`; a channel
+         *     the caller may not watch → `403`.
+         *
+         *     Allowed channels:
+         *     - `user:{own_uuid}` — the caller's own channel.
+         *     - `system.notifications` — platform super admins.
+         *     - `org:{org_uuid}:resource:{resource}` — **live lists** of an organization-owned
+         *       resource. The access token must be scoped to that organization (JWT `oid`, i.e.
+         *       signed in / switched with `organization_slug`), the caller must be an active
+         *       member with organization access, and must hold the resource's read permission
+         *       (e.g. `tenant.jobs` → `tenant.jobs.read`). Unknown resources are refused.
+         *       Resources: `tenant.customers`, `tenant.vehicles`, `tenant.jobs`, `tenant.sales`,
+         *       `tenant.quotes`, `tenant.leads`, `tenant.purchases`, `tenant.suppliers`,
+         *       `tenant.catalog.products`, `tenant.catalog.services`, `tenant.catalog.categories`,
+         *       `tenant.finance.accounts`, `tenant.finance.categories`, `tenant.finance.transactions`,
+         *       `tenant.cari`, `tenant.cari.entries`, `tenant.todos`, `tenant.contracts` (templates),
+         *       `tenant.contracts.instances`, `tenant.staff`, `tenant.calendar` (own calendar
+         *       events and calendar moves; needs `tenant.calendar.read`).
+         *
+         *     Live list publications carry
+         *     `{ "type": "resource.changed", "resource": "tenant.jobs", "action": "created|updated|deleted|bulk",
+         *     "uuids": ["…"], "truncated": false, "at": "RFC3339" }`. `bulk` without uuids (or
+         *     `truncated: true`) means an unknown set of rows changed: refetch. Events are hints;
+         *     always refetch over HTTP. See docs/ARCHITECTURE.md → "Live lists".
          */
         post: operations["postRealtimeSubscriptionToken"];
         delete?: never;
@@ -2822,7 +3227,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update organization export letterhead */
+        /**
+         * Update organization export letterhead
+         * @description Owner only (`tenant.settings.write`). Partial update of the letterhead
+         *     fields and the business `sector` (`""` clears it). Invalid values are
+         *     `400 VALIDATION_ERROR`.
+         */
         patch: operations["patchTenantSettings"];
         trace?: never;
     };
@@ -3004,7 +3414,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream a vehicle brand logo */
+        /**
+         * Stream a vehicle brand logo
+         * @description Public, cacheable (`Cache-Control: public, max-age=604800`). This is the
+         *     `logo_url` / `brand_logo_url` returned on vehicles, jobs, quotes, …;
+         *     append `?variant=badge` for the square emblem (app icons, lists).
+         */
         get: operations["getPublicVehicleBrandLogo"];
         put?: never;
         post?: never;
@@ -3014,15 +3429,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands/meta": {
+    "/v1/platform/vehicle-catalog/brands/meta": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Vehicle brand list metadata */
-        get: operations["getPlatformVehicleBrandsMeta"];
+        /** Catalog brands list metadata */
+        get: operations["getPlatformVehicleCatalogBrandsMeta"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3031,70 +3446,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands": {
+    "/v1/platform/vehicle-catalog/brands": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List vehicle brands */
-        get: operations["getPlatformVehicleBrands"];
-        put?: never;
-        /** Create a vehicle brand */
-        post: operations["createPlatformVehicleBrand"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/platform/vehicle-brands/import": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Import brand, year, and model JSON */
-        post: operations["importPlatformVehicleBrands"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/platform/vehicle-brands/{uuid}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a vehicle brand and its models */
-        get: operations["getPlatformVehicleBrand"];
+        /**
+         * List catalog brands
+         * @description Requires `platform.catalog.read`. Sort fields `display_name`, `tsb_name`, `tsb_code`, `category`, `types_count`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogBrands"];
         put?: never;
         post?: never;
-        /** Soft-delete a vehicle brand with no models */
-        delete: operations["deletePlatformVehicleBrand"];
+        delete?: never;
         options?: never;
         head?: never;
-        /** Update a vehicle brand */
-        patch: operations["patchPlatformVehicleBrand"];
+        patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands/{uuid}/logo": {
+    "/v1/platform/vehicle-catalog/brands/{uuid}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        /** Upload a vehicle brand logo */
-        put: operations["putPlatformVehicleBrandLogo"];
+        /** Get catalog brand */
+        get: operations["getPlatformVehicleCatalogBrand"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update brand display brand, category or active flag
+         * @description Requires `platform.catalog.write`. TSB code and name are owned by the import.
+         *     `display_name` maps the TSB brand to the display brand of that name (created when missing);
+         *     `display_brand_uuid` maps it to an existing display brand. A display brand left without
+         *     TSB brands is deleted.
+         */
+        patch: operations["patchPlatformVehicleCatalogBrand"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/display-brands/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog display brands list metadata */
+        get: operations["getPlatformVehicleCatalogDisplayBrandsMeta"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -3102,41 +3507,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-brands/{uuid}/models": {
+    "/v1/platform/vehicle-catalog/display-brands": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List display brands
+         * @description Requires `platform.catalog.read`. A display brand is what users see; one or more TSB brands
+         *     (FIAT + TOFAS-FIAT) map to it. `q` matches the name, TSB names and TSB codes.
+         *     Sort fields `name`, `brands_count`, `types_count`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogDisplayBrands"];
         put?: never;
-        /** Add a model to a brand */
-        post: operations["createPlatformVehicleModel"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-models/{uuid}": {
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Get a display brand with its TSB brands */
+        get: operations["getPlatformVehicleCatalogDisplayBrand"];
         put?: never;
         post?: never;
-        /** Soft-delete a vehicle model */
-        delete: operations["deletePlatformVehicleModel"];
+        delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename or (de)activate a display brand
+         * @description Requires `platform.catalog.write`. A rename also changes the slug and the display name of its TSB brands.
+         */
+        patch: operations["patchPlatformVehicleCatalogDisplayBrand"];
         trace?: never;
     };
-    "/v1/platform/vehicle-models/{uuid}/years": {
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/merge": {
         parameters: {
             query?: never;
             header?: never;
@@ -3145,15 +3559,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Add a model year */
-        post: operations["addPlatformVehicleModelYear"];
+        /**
+         * Merge a display brand into another
+         * @description Requires `platform.catalog.write`. Moves every TSB brand of `{uuid}` to `into_uuid` and deletes `{uuid}` (and its logo). Returns the target.
+         */
+        post: operations["postPlatformVehicleCatalogDisplayBrandMerge"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/platform/vehicle-models/{uuid}/years/{year}": {
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/unmerge": {
         parameters: {
             query?: never;
             header?: never;
@@ -3162,9 +3579,503 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Detach a TSB brand into a new display brand
+         * @description Requires `platform.catalog.write`. Only for display brands with more than one TSB brand.
+         *     `name` defaults to the title-cased TSB name ("Tofas-Fiat"); 409 when that name exists.
+         */
+        post: operations["postPlatformVehicleCatalogDisplayBrandUnmerge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stream a display brand logo
+         * @description Any signed-in user (tenant vehicle forms show it too). Use the
+         *     `logo_url` / `logo_badge_url` / `logo_wordmark_url` returned by the API.
+         *     The admin upload wins; otherwise the variant synced from the brand logo
+         *     mirror is served (`badge` = emblem, `wordmark` = text only, default =
+         *     full logo with fallbacks).
+         */
+        get: operations["getPlatformVehicleCatalogDisplayBrandLogo"];
+        /**
+         * Upload a display brand logo
+         * @description Requires `platform.catalog.write`. Multipart field `logo` (PNG, JPEG, WebP or SVG).
+         */
+        put: operations["putPlatformVehicleCatalogDisplayBrandLogo"];
         post?: never;
-        /** Remove a model year */
-        delete: operations["deletePlatformVehicleModelYear"];
+        /** Remove a display brand logo */
+        delete: operations["deletePlatformVehicleCatalogDisplayBrandLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/bulk-rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save "type name starts with the model name" rules for many models
+         * @description Requires `platform.catalog.write`. For each model (max 500) stores a prefix rule equal to its
+         *     name and assigns it to the brand's types without a model or with an auto-derived one.
+         */
+        post: operations["postPlatformVehicleCatalogModelsBulkRules"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog models list metadata */
+        get: operations["getPlatformVehicleCatalogModelsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List catalog models
+         * @description Sort fields `name`, `brand`, `source`, `types_count`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogModels"];
+        put?: never;
+        /** Create a manual model */
+        post: operations["postPlatformVehicleCatalogModel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get catalog model with its prefix rules */
+        get: operations["getPlatformVehicleCatalogModel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Rename a model
+         * @description Any edit marks the model `manual` unless `source` is sent.
+         */
+        patch: operations["patchPlatformVehicleCatalogModel"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/models/{uuid}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Merge a model into another model
+         * @description Same TSB brand: moves the types and prefix rules of `{uuid}` to `into_uuid`, then deletes `{uuid}`.
+         *     Another TSB brand of the same display brand: `{uuid}` is renamed to the target's name (or merged
+         *     into its brand's model of that name) so both form one grouped model. Returns the target model.
+         */
+        post: operations["postPlatformVehicleCatalogModelMerge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/types/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog types list metadata */
+        get: operations["getPlatformVehicleCatalogTypesMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List catalog types (TSB type lines)
+         * @description Sort fields `raw_name`, `tsb_type_code`, `brand`, `model`, `last_seen_period`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/types/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get catalog type with kasko values
+         * @description `valuations` holds the latest period's value per model year; `history` every stored period.
+         */
+        get: operations["getPlatformVehicleCatalogType"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Assign a model / override suggestions
+         * @description `model_uuid` (null clears) assigns the model. With `save_rule: true` the
+         *     `rule_prefix` (default: the model name; must prefix the type name) is
+         *     stored as a prefix rule for the brand and applied to its types that
+         *     have no model or an auto-derived one; later imports use it too.
+         */
+        patch: operations["patchPlatformVehicleCatalogType"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Brand logo sync settings (mirror endpoint, masked token, counters) */
+        get: operations["getPlatformVehicleCatalogBrandLogoSettings"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update brand logo sync settings
+         * @description Requires `platform.vehicle_brands.write`. The mirror base URL and API
+         *     token are stored in the database (token encrypted, never returned);
+         *     an empty `api_token` clears it.
+         */
+        patch: operations["patchPlatformVehicleCatalogBrandLogoSettings"];
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test the brand logo mirror connection with the stored token */
+        post: operations["postPlatformVehicleCatalogBrandLogoTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a brand logo sync run (background)
+         * @description Asks the live mirror for its brand list (ETag aware), copies new or
+         *     changed badge / wordmark / full files into this app's storage and
+         *     matches display brands without a logo link. One run at a time (409).
+         */
+        post: operations["postPlatformVehicleCatalogBrandLogoSync"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Brand logo sync run history (newest first) */
+        get: operations["getPlatformVehicleCatalogBrandLogoRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/unmatched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Display brands without a mirror logo link */
+        get: operations["getPlatformVehicleCatalogBrandLogoUnmatched"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Search synced mirror brands (manual link picker) */
+        get: operations["getPlatformVehicleCatalogBrandLogoSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/brand-logos/sources/{id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Preview a synced mirror brand logo file */
+        get: operations["getPlatformVehicleCatalogBrandLogoSourceLogo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/display-brands/{uuid}/motomarks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link a display brand to a mirror brand by hand, skip it, or unlink
+         * @description Requires `platform.vehicle_brands.write`. A manual link or skip is never overwritten by a later sync run.
+         */
+        post: operations["postPlatformVehicleCatalogDisplayBrandMotomarks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Catalog imports list metadata */
+        get: operations["getPlatformVehicleCatalogImportsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List TSB list imports
+         * @description Sort fields `period`, `status`, `created_at`.
+         */
+        get: operations["getPlatformVehicleCatalogImports"];
+        put?: never;
+        /**
+         * Upload a TSB kasko list (.xlsx) for a dry run
+         * @description Stores the file privately in object storage and queues a dry run that
+         *     parses it and computes the diff without changing the catalog. Poll
+         *     `GET /v1/platform/vehicle-catalog/imports/{uuid}` until `status` is `ready`
+         *     (or `failed`), then `POST .../apply`. The period is read from cell A1
+         *     ("Ekim 2026" → `2026-10`) unless `period` is sent.
+         */
+        post: operations["postPlatformVehicleCatalogImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get import status, counts and diff samples */
+        get: operations["getPlatformVehicleCatalogImport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/vehicle-catalog/imports/{uuid}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a dry-run import
+         * @description Queues the apply: one transaction upserts brands and types, creates
+         *     auto models, deactivates types missing from the period and writes the
+         *     period's valuations (older periods are kept). Idempotent: applying
+         *     the same period again changes nothing. Allowed from `ready`,
+         *     `applied` and `failed` (with a period); otherwise `409 CONFLICT`.
+         */
+        post: operations["postPlatformVehicleCatalogImportApply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/vehicle-catalog/brands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vehicle brands for forms
+         * @description Active display brands with active types (optionally for a model `year`). TSB brands that are
+         *     one make (FIAT + TOFAS-FIAT) are listed once. Any organization member.
+         */
+        get: operations["getTenantVehicleCatalogBrands"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/vehicle-catalog/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Vehicle models of a brand for forms */
+        get: operations["getTenantVehicleCatalogModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/vehicle-catalog/types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vehicle types of a model with the latest kasko value
+         * @description Types of a grouped model across every TSB brand of its display brand. With `year`, only types
+         *     sold that model year and `kasko_value` is that year's value from the latest period.
+         */
+        get: operations["getTenantVehicleCatalogTypes"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3471,7 +4382,7 @@ export interface paths {
         };
         /**
          * End-of-day WhatsApp summary settings (owner)
-         * @description Enabled flag, local send time (Europe/Istanbul, HH:MM), selected recipients, WhatsApp connection state and the members that can be selected (with whether they have a notification phone).
+         * @description Enabled flag, local send time (Europe/Istanbul, HH:MM), selected recipients, `channel` (`whatsapp` | `sms`), `whatsapp_connected`, `sms_available` (an active SMS provider exists) and the members that can be selected (with whether they have a notification phone).
          */
         get: operations["getTenantDailySummarySettings"];
         /** Save end-of-day WhatsApp summary settings (owner) */
@@ -3509,7 +4420,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send today's summary so far to the saved recipients now (owner) */
+        /**
+         * Send today's summary so far to the saved recipients now (owner)
+         * @description Uses the saved channel. 409 `WHATSAPP_NOT_CONNECTED` / `SMS_NOT_CONFIGURED` when that channel cannot send, `NO_RECIPIENT_PHONE` when no recipient has a phone.
+         */
         post: operations["sendTestTenantDailySummary"];
         delete?: never;
         options?: never;
@@ -3526,7 +4440,7 @@ export interface paths {
         };
         /**
          * Team vehicle alert settings (owner)
-         * @description Events (created/ready/delivered/cancelled), service filter (empty = all), recipients, WhatsApp batch window (0 = instant, 30, 60 min), plus selectable members (has_phone, has_push) and services. In-app/push is instant; WhatsApp goes only to recipients web push cannot reach.
+         * @description Events (created/ready/delivered/cancelled), service filter (empty = all), recipients, phone message batch window (0 = instant, 30, 60 min), `channel` of the phone messages (`whatsapp` | `sms`), `whatsapp_connected`, `sms_available`, plus selectable members (has_phone, has_push) and services. In-app/push is instant; WhatsApp / SMS goes only to recipients web push cannot reach.
          */
         get: operations["getTenantVehicleAlertSettings"];
         /** Save team vehicle alert settings (owner) */
@@ -3549,6 +4463,185 @@ export interface paths {
         put?: never;
         /** Send a sample vehicle alert to the saved recipients (owner) */
         post: operations["sendTestTenantVehicleAlert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SMS channel providers and the organization's accounts
+         * @description Lists the supported SMS providers (`netgsm`, `twilio`) with their credential fields and the
+         *     organization's connected account (masked hints only, never secrets). `active_provider` is the
+         *     provider that sends the organization's SMS ("" = SMS off). Requires `tenant.messaging.read`.
+         */
+        get: operations["getTenantMessagingSms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Character and part estimate of an SMS text
+         * @description GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150; Netgsm messages are always sent
+         *     with dil="TR" so they are counted at this size) or UCS-2 (70 / 67). `provider`
+         *     defaults to the active provider (else netgsm). Requires `tenant.messaging.read`.
+         */
+        post: operations["estimateTenantMessagingSms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Connect or update an SMS provider account
+         * @description Credentials are sealed per organization; empty or omitted credential values keep the stored
+         *     ones. Netgsm: `usercode`, `password`, sender = approved message header (msgheader).
+         *     Twilio: `account_sid`, `auth_token`, sender = From number (E.164), alphanumeric sender id or
+         *     Messaging Service SID (`MG…`). `activate` makes it the SMS channel (default: true when no SMS
+         *     provider is active yet); only one provider is active per organization. Changing credentials
+         *     resets `status` to `unchecked`. Requires `tenant.messaging.write` (owner).
+         */
+        put: operations["saveTenantMessagingSmsProvider"];
+        post?: never;
+        /**
+         * Disconnect an SMS provider (deletes its credentials)
+         * @description Requires `tenant.messaging.write` (owner).
+         */
+        delete: operations["deleteTenantMessagingSmsProvider"];
+        options?: never;
+        head?: never;
+        /**
+         * Enable or disable an SMS provider as the channel
+         * @description Enabling one provider disables the other. Requires `tenant.messaging.write` (owner).
+         */
+        patch: operations["setTenantMessagingSmsProviderActive"];
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the SMS provider connection (sends nothing)
+         * @description Netgsm: `POST /balance` (stip 2 TL credit, authoritative; stip 1 packages, best effort) →
+         *     `balance` ("1.234,56 TL") and `sms_credit` (sum of SMS packages). The message header is verified
+         *     by the test SMS (Netgsm answers 40 for an unknown header). Twilio: reads the account (and its
+         *     balance when visible). Stores `status` (`connected` | `error`) and
+         *     `last_error`. A failed check is still 200 with `ok: false`. Requires `tenant.messaging.write` (owner).
+         */
+        post: operations["testTenantMessagingSmsProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}/test-sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test SMS through a connected provider
+         * @description Works for a connected provider whether or not it is active. The number is normalized to E.164
+         *     (Turkish national numbers accepted); the message is logged in the outbound log
+         *     (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`. Test SMS are real
+         *     messages: they need plan feature `sms.enabled` and are counted on `sms.monthly` (parts); a plan
+         *     refusal is 200 with `status: failed` and `error_code` `feature_not_entitled` / `quota_exceeded`.
+         *     Requires `tenant.messaging.write` (owner).
+         */
+        post: operations["sendTenantMessagingTestSms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/messaging/sms/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform SMS report
+         * @description Totals (sent / failed messages, billed parts of sent messages), the split by provider, a daily
+         *     series (Europe/Istanbul days) and the organizations that have an SMS provider account or SMS
+         *     traffic in the range (up to 1000), with provider, account status, counts, last send (all time) and
+         *     the current calendar month's `sms.monthly` usage (`quota_limit` -1 = unlimited).
+         *     Requires `platform.messaging.sms.read`.
+         */
+        get: operations["getPlatformSmsReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/messaging/sms/organizations/{uuid}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An organization's recent SMS (numbers masked)
+         * @description Newest first. Requires `platform.messaging.sms.read`.
+         */
+        get: operations["listPlatformSmsOrganizationMessages"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -3794,7 +4887,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send a test WhatsApp notification (single event or full job lifecycle) */
+        /** Send a test WhatsApp / SMS notification (single event or full job lifecycle) */
         post: operations["postTenantMessagingSimulate"];
         delete?: never;
         options?: never;
@@ -4430,8 +5523,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Send a WhatsApp OTP (contract heading + KVKK notice) to a customer signer
-         * @description Sends a 6-digit code over the organization's connected WhatsApp session. The message carries the
+         * Send a WhatsApp or SMS OTP (contract heading + KVKK notice) to a customer signer
+         * @description Sends a 6-digit code over the organization's WhatsApp line (default) or, with `channel: sms`,
+         *     through the organization's active SMS provider (short SMS text). The message carries the
          *     contract title/number, plate and the KVKK (6698) disclosure. Codes expire after 5 minutes, allow
          *     5 attempts, can be resent after 60 seconds, and at most 5 codes per signer per hour.
          */
@@ -4751,6 +5845,40 @@ export interface paths {
         patch: operations["patchTenantCustomer"];
         trace?: never;
     };
+    "/v1/tenant/customers/{uuid}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer activity feed
+         * @description Requires `tenant.customers.read`. Audit events of the customer and its
+         *     records in this organization, newest first: the customer itself and
+         *     its vehicles always; jobs with `tenant.jobs.read`; contracts on its
+         *     jobs with `tenant.jobs.read` + `tenant.contracts.read`; sales with
+         *     `tenant.sales.read`; quotes with `tenant.quotes.read`; leads with
+         *     `tenant.leads.read`; cari entries with `tenant.cari.read`. Kinds the
+         *     caller cannot read are left out (also from `total`).
+         *
+         *     `subject` is the record kind (`customer`, `vehicle`, `job`, `sale`,
+         *     `quote`, `lead`, `cari_entry`, `contract`) and `resource_uuid` the
+         *     record, so clients can link each entry. `action` is the audit action
+         *     (e.g. `jobs.create`, `tenant.quote.status`, `cari.payment`); `payload`
+         *     carries action-specific details (e.g. `name`, `plate`, `number`,
+         *     `status`, `from` / `to`). `actor` is null for system / public-link
+         *     actions. Another organization's customer is `404`.
+         */
+        get: operations["listTenantCustomerActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/customers/{uuid}/vehicles": {
         parameters: {
             query?: never;
@@ -4936,6 +6064,117 @@ export interface paths {
         /** Cancel a pending assistant action (nothing is executed) */
         post: operations["cancelTenantAIAction"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar layers the caller may see / move, event colours, time zone
+         * @description Requires `tenant.calendar.read`. A layer is listed only when the member holds that module's read permission and the plan includes the module; `movable` is true when items of the layer can be rescheduled with `POST /v1/tenant/calendar/items/move`.
+         */
+        get: operations["getTenantCalendarMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar feed (own events + live module layers)
+         * @description Requires `tenant.calendar.read`. Returns the organization's events and dated records from other modules overlapping [from, to) (dates in Europe/Istanbul, `to` exclusive, at most 62 days). Layers the member may not read (module permission or plan) are left out silently; requesting an unknown layer is a 400.
+         */
+        get: operations["getTenantCalendarFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/items/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reschedule a calendar item (drag and drop)
+         * @description Requires `tenant.calendar.read` plus the write permission of the item's module: `tenant.calendar.write` (events), `tenant.todos.write` (todo due date / time), `tenant.leads.write` (lead follow-up date). Other layers answer 403. Timed placements send `starts_at` (+ `ends_at` for events); all-day placements send `start_date` (+ `end_date` for events). A todo moved to an all-day slot loses its time; leads keep only the date.
+         */
+        post: operations["moveTenantCalendarItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a calendar event
+         * @description Requires `tenant.calendar.write`.
+         */
+        post: operations["createTenantCalendarEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/events/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a calendar event
+         * @description Requires `tenant.calendar.read`.
+         */
+        get: operations["getTenantCalendarEvent"];
+        /**
+         * Replace a calendar event
+         * @description Requires `tenant.calendar.write`. Full replace (send every field).
+         */
+        put: operations["updateTenantCalendarEvent"];
+        post?: never;
+        /**
+         * Delete a calendar event (soft delete)
+         * @description Requires `tenant.calendar.write`.
+         */
+        delete: operations["deleteTenantCalendarEvent"];
         options?: never;
         head?: never;
         patch?: never;
@@ -6392,6 +7631,294 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/catalog/products/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Product 360 summary
+         * @description Stock, pricing / margin and, per the caller's permissions, sales
+         *     (tenant.sales.read), purchases (tenant.purchases.read) and job usage
+         *     (tenant.jobs.read) aggregates of a product. Blocks the caller cannot
+         *     read are null. The monthly trend covers the last 12 months (UTC).
+         */
+        get: operations["getTenantCatalogProductSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/products/{uuid}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Product stock ledger
+         * @description Purchases (+), sales (-) and job consumptions (-) of a product, newest
+         *     first. Each kind is included only with its read permission.
+         */
+        get: operations["listTenantCatalogProductMovements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Service 360 summary
+         * @description Price vs recipe cost and, with tenant.jobs.read, usage on jobs (count,
+         *     revenue, average job duration, 12-month trend).
+         */
+        get: operations["getTenantCatalogServiceSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jobs that used a service
+         * @description Requires tenant.catalog.read and tenant.jobs.read. Newest first.
+         */
+        get: operations["listTenantCatalogServiceJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/customers/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer 360 summary
+         * @description Vehicles, jobs (tenant.jobs.read), product sales (tenant.sales.read),
+         *     quotes (tenant.quotes.read) and leads (tenant.leads.read) of a
+         *     customer. Blocks the caller cannot read are null; total_spend sums the
+         *     readable blocks.
+         */
+        get: operations["getTenantCustomerSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/suppliers/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supplier 360 summary
+         * @description Purchase aggregates, top products and recent purchases (tenant.purchases.read; null otherwise).
+         */
+        get: operations["getTenantSupplierSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * MCP server URLs for the connect guides
+         * @description Public URLs of the two MCP endpoints (docs/MCP.md) and whether the
+         *     caller may connect them (`tenant.mcp.connect` / `platform.mcp.connect`).
+         */
+        get: operations["getMCPInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/oauth/requests/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Consent screen data of a pending MCP authorization request
+         * @description The client, its redirect host, the endpoint (`/mcp/org` or
+         *     `/mcp/platform`), the requested scopes and, for `/mcp/org`, the
+         *     organizations the user may bind the connection to (active membership,
+         *     `tenant.mcp.connect`, plan toggle `mcp.enabled`) with the tool count
+         *     there. `allowed` is false when the user cannot approve.
+         */
+        get: operations["getMCPOAuthRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/oauth/requests/{uuid}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or deny a pending MCP authorization request
+         * @description Approve binds the connection to `organization_uuid` (required for
+         *     `/mcp/org`) with the chosen `scopes` (a subset of the requested ones;
+         *     omitted = all). The request is consumed either way; the response is
+         *     where to send the browser (the client's redirect URI with `code` or
+         *     `error=access_denied`, plus `state` and `iss`).
+         */
+        post: operations["decideMCPOAuthRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current user's connected MCP apps */
+        get: operations["listMCPGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/grants/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect one of the user's MCP apps
+         * @description Revokes the grant and every token issued under it at once.
+         */
+        delete: operations["revokeMCPGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/mcp/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registered MCP (OAuth) clients
+         * @description Requires `platform.mcp.manage`.
+         */
+        get: operations["listPlatformMCPClients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/mcp/clients/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Block an MCP client
+         * @description Requires `platform.mcp.manage`. Revokes the client, every grant and
+         *     token issued to it, pending requests and unused codes. Blocking a
+         *     blocked client again succeeds.
+         */
+        delete: operations["revokePlatformMCPClient"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6519,6 +8046,11 @@ export interface components {
              * @example OAUTH_LINK_CHOICE_REQUIRED
              * @example INVALID_LINK_TICKET
              * @example OAUTH_PROVIDER_DISABLED
+             * @example CANNOT_DELETE_SELF
+             * @example LAST_SUPER_ADMIN
+             * @example SOLE_ORGANIZATION_OWNER
+             * @example LAST_ORGANIZATION_OWNER
+             * @example EMAIL_IN_USE
              */
             code: string;
             message: string;
@@ -6565,6 +8097,11 @@ export interface components {
              * @enum {string}
              */
             locale: "tr" | "en";
+            /**
+             * Format: date-time
+             * @description Set when a platform admin deleted the user (soft delete). Only platform endpoints return deleted users.
+             */
+            deleted_at?: string | null;
         };
         MeLinks: {
             /** @example /v1/auth/profile */
@@ -6600,6 +8137,13 @@ export interface components {
         MeImpersonation: {
             user: components["schemas"]["PublicUser"];
         };
+        /**
+         * @description Business type: `car_wash` (oto yıkama), `detailing`, `ppf_tint` (PPF /
+         *     cam filmi), `auto_service` (oto servis), `tyres` (lastik), `other`;
+         *     null when not set.
+         * @enum {string|null}
+         */
+        OrganizationSector: "car_wash" | "detailing" | "ppf_tint" | "auto_service" | "tyres" | "other" | null;
         OrganizationMembership: {
             /** Format: uuid */
             uuid: string;
@@ -6611,6 +8155,7 @@ export interface components {
             status: string;
             /** Format: date-time */
             access_ends_at?: string | null;
+            sector: components["schemas"]["OrganizationSector"];
         };
         PublicOrganization: {
             /** Format: uuid */
@@ -6637,6 +8182,7 @@ export interface components {
             /** Format: date-time */
             access_ends_at?: string | null;
             logo_url?: string | null;
+            sector: components["schemas"]["OrganizationSector"];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -6661,6 +8207,11 @@ export interface components {
             city?: string;
             district?: string;
             address?: string;
+            /**
+             * @description Optional business type; empty / omitted = not set (400 `VALIDATION_ERROR` field `sector` for other values)
+             * @enum {string}
+             */
+            sector?: "car_wash" | "detailing" | "ppf_tint" | "auto_service" | "tyres" | "other";
         };
         OwnedOrganizationCreated: {
             organization: {
@@ -6668,6 +8219,7 @@ export interface components {
                 uuid: string;
                 slug: string;
                 name: string;
+                sector: components["schemas"]["OrganizationSector"];
             };
         };
         EnvelopeOwnedOrganizationCreated: {
@@ -6833,6 +8385,7 @@ export interface components {
             ws_url: string;
         };
         RealtimeSubscriptionTokenRequest: {
+            /** @example org:2f6a4c1e-8d3b-4f7a-9c2e-1b5d7e9f0a12:resource:tenant.jobs */
             channel: string;
         };
         RealtimeSubscriptionToken: {
@@ -7145,6 +8698,11 @@ export interface components {
             phone: string;
             /** @description Catalog key (e.g. `job.ready`); empty sends `hello_world` / a plain test line. */
             template_key?: string;
+            /**
+             * @description Catalog language of `template_key` (default `tr`).
+             * @enum {string}
+             */
+            language?: "tr" | "en";
         };
         PlatformWhatsAppTestResult: {
             /** @enum {string} */
@@ -7166,17 +8724,25 @@ export interface components {
             meta_name: string;
             override_name: string | null;
             effective_name: string;
-            /** @example tr */
-            language: string;
-            /** @enum {string} */
+            /**
+             * @description Catalog language; one item per key and language.
+             * @enum {string}
+             */
+            language: "tr" | "en";
+            /**
+             * @description Catalog category (what is submitted).
+             * @enum {string}
+             */
             category: "UTILITY" | "AUTHENTICATION";
+            /** @description Category Meta currently assigns to the template (from sync / submit); empty until known. Differs from `category` when Meta re-categorized it (e.g. UTILITY → MARKETING). */
+            meta_category: string;
             /** @enum {string} */
             status: "not_submitted" | "pending" | "approved" | "rejected" | "paused" | "disabled";
             meta_template_id: string;
             rejected_reason: string;
             /** Format: date-time */
             last_synced_at: string | null;
-            /** @description Turkish body with positional {{1}}…{{n}} params */
+            /** @description Body in `language` with positional {{1}}…{{n}} params */
             body: string;
             params: string[];
             examples: string[];
@@ -7199,16 +8765,24 @@ export interface components {
             meta: components["schemas"]["ResponseMeta"];
         };
         SubmitWhatsAppTemplatesRequest: {
-            /** @description Catalog keys to submit; omitted = every `not_submitted` entry. */
+            /** @description Catalog keys to submit; omitted = every entry. */
             keys?: string[];
+            /** @description Catalog languages to submit; omitted = every language. */
+            languages?: ("tr" | "en")[];
+            /** @description With explicit `keys`: also edit templates that are already `approved` or `paused` in Meta with the current catalog text and category (they go back to review; sends use the Turkish fallback meanwhile). */
+            resubmit?: boolean;
         };
         WhatsAppTemplateSubmitResult: {
             key: string;
+            /** @enum {string} */
+            language: "tr" | "en";
             status: string;
             /** @enum {string} */
             skipped?: "override" | "already_submitted";
             /** @description Classified error code (e.g. `graph_100`). */
             error?: string;
+            /** @description Meta's error text, when the Graph API returned one. */
+            message?: string;
         };
         WhatsAppTemplateSubmit: {
             results: components["schemas"]["WhatsAppTemplateSubmitResult"][];
@@ -7249,6 +8823,242 @@ export interface components {
             /** @description The platform number can send right now. */
             platform_sender_available: boolean;
         };
+        SmsProviderField: {
+            /** @description netgsm: usercode, password; twilio: account_sid, auth_token */
+            key: string;
+            secret: boolean;
+            required: boolean;
+        };
+        SmsProviderAccount: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            /** @description Netgsm message header or Twilio From number / Messaging Service SID. */
+            sender: string;
+            /** @description This provider sends the organization's SMS. */
+            is_active: boolean;
+            /**
+             * @description Last connection test.
+             * @enum {string}
+             */
+            status: "unchecked" | "connected" | "error";
+            /** Format: date-time */
+            last_checked_at?: string;
+            last_error?: string;
+            /** @description Masked values per credential key (e.g. "••••••ab"); secrets are never returned. */
+            credential_hints: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        SmsProviderEntry: {
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            fields: components["schemas"]["SmsProviderField"][];
+            /** @enum {string} */
+            sender_kind: "msgheader" | "from";
+            /** @description null when not connected. */
+            account: components["schemas"]["SmsProviderAccount"] | null;
+        };
+        SmsChannelOverview: {
+            /** @enum {string} */
+            active_provider: "" | "netgsm" | "twilio";
+            providers: components["schemas"]["SmsProviderEntry"][];
+        };
+        SaveSmsProviderRequest: {
+            /** @description Field values by key; empty values keep the stored ones. */
+            credentials?: {
+                [key: string]: string;
+            };
+            sender?: string;
+            activate?: boolean;
+        };
+        SmsSegments: {
+            /** @enum {string} */
+            encoding: "gsm7" | "turkish" | "ucs2";
+            characters: number;
+            segments: number;
+            per_segment: number;
+            /** @description Characters left before the next part starts. */
+            remaining: number;
+        };
+        SmsEstimateRequest: {
+            body: string;
+            /** @enum {string} */
+            provider?: "netgsm" | "twilio";
+        };
+        SmsEstimate: {
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            segments: components["schemas"]["SmsSegments"];
+        };
+        SmsTestResult: {
+            ok: boolean;
+            /** @description sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, … */
+            error_code?: string;
+            message?: string;
+            /** @description Account name / matched header. */
+            detail?: string;
+            /** @description Account credit when the provider reports it (Netgsm TL credit "1.234,56 TL", Twilio "12.50 USD"). */
+            balance?: string;
+            /**
+             * Format: int64
+             * @description Netgsm SMS package credit (sum of packages named SMS).
+             */
+            sms_credit?: number;
+            /** @description Sender names / numbers of the account when the provider lists them. */
+            senders?: string[];
+            account: components["schemas"]["SmsProviderAccount"];
+        };
+        SmsTestSmsRequest: {
+            /** @example 0532 123 45 67 */
+            phone: string;
+            /** @description Defaults to a short Turkish test text. */
+            body?: string;
+        };
+        SmsTestSmsResult: {
+            /** @enum {string} */
+            status: "sent" | "failed";
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            /** @description Masked E.164 number. */
+            recipient: string;
+            provider_message_id?: string;
+            provider_status?: string;
+            error_code?: string;
+            error_message?: string;
+            segments: components["schemas"]["SmsSegments"];
+        };
+        SmsReportCounts: {
+            /** Format: int64 */
+            sent: number;
+            /** Format: int64 */
+            failed: number;
+            /**
+             * Format: int64
+             * @description Billed parts of sent messages.
+             */
+            segments: number;
+        };
+        SmsReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            totals: components["schemas"]["SmsReportCounts"];
+            by_provider: (components["schemas"]["SmsReportCounts"] & {
+                /** @enum {string} */
+                provider: "netgsm" | "twilio" | "unknown";
+            })[];
+            daily: (components["schemas"]["SmsReportCounts"] & {
+                /** Format: date */
+                date: string;
+            })[];
+            organizations: components["schemas"]["SmsReportOrganization"][];
+        };
+        SmsReportOrganization: components["schemas"]["SmsReportCounts"] & {
+            /** Format: uuid */
+            organization_uuid: string;
+            organization_name: string;
+            organization_slug: string;
+            /**
+             * @description Active (else latest) SMS account.
+             * @enum {string}
+             */
+            provider: "" | "netgsm" | "twilio";
+            is_active: boolean;
+            /** @enum {string} */
+            account_status: "" | "unchecked" | "connected" | "error";
+            /** Format: date-time */
+            last_sent_at: string | null;
+            /**
+             * Format: int64
+             * @description sms.monthly parts used this calendar month.
+             */
+            quota_used: number;
+            /**
+             * Format: int64
+             * @description sms.monthly limit (-1 = unlimited).
+             */
+            quota_limit: number;
+        };
+        SmsReportMessage: {
+            /** Format: uuid */
+            uuid: string;
+            event_type: string;
+            /** @description Masked number. */
+            recipient: string;
+            /** @enum {string} */
+            status: "queued" | "sending" | "sent" | "failed";
+            provider: string;
+            provider_reference?: string;
+            delivery_status?: string;
+            error_code?: string;
+            segments: number | null;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SmsReportMessagesPage: {
+            organization: {
+                /** Format: uuid */
+                uuid: string;
+                name: string;
+                slug: string;
+            };
+            items: components["schemas"]["SmsReportMessage"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeSmsReport: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsReport"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsReportMessagesPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsReportMessagesPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsChannelOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsChannelOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsProviderAccount: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsProviderAccount"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsEstimate: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsEstimate"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsTestSmsResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsTestSmsResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeWhatsAppSession: {
             /** @enum {boolean} */
             success: true;
@@ -7277,14 +9087,16 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            sender_kind?: "org_own" | "platform_whatsmeow" | "platform_cloud";
+            sender_kind?: "org_own" | "platform_whatsmeow" | "platform_cloud" | "sms_netgsm" | "sms_twilio";
             template_name?: string;
-            /** @description Cloud delivery status from the webhook (sent, delivered, read, failed). */
+            /** @description Cloud delivery status from the webhook (sent, delivered, read, failed), or the SMS provider's status at send time (Netgsm `accepted`; Twilio `queued`, `accepted`, `sent`…). */
             delivery_status?: string;
             /** Format: date-time */
             delivery_status_at?: string;
-            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>. */
+            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured, sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient, feature_not_entitled (plan excludes sms.enabled), quota_exceeded (sms.monthly reached). */
             error_code?: string;
+            /** @description Billed SMS parts of a sent SMS (counted on the sms.monthly plan quota). */
+            segments?: number;
         };
         OutboundMessagePage: {
             items: components["schemas"]["OutboundMessage"][];
@@ -7531,6 +9343,369 @@ export interface components {
             };
             meta: components["schemas"]["ResponseMeta"];
         };
+        OrganizationStats: {
+            /** Format: int64 */
+            customers: number;
+            /** Format: int64 */
+            jobs: number;
+            /** Format: int64 */
+            quotes: number;
+            /** Format: int64 */
+            contracts: number;
+            /** Format: int64 */
+            members: number;
+            /** @description Latest record change, sign-in or audit event in the organization */
+            last_activity_at: string | null;
+        };
+        OrganizationBilling: components["schemas"]["BillingOverview"] & {
+            recent_invoices: components["schemas"]["BillingInvoice"][];
+            recent_orders: components["schemas"]["BillingOrder"][];
+        };
+        OrganizationWhatsAppSession: {
+            /** @enum {string} */
+            status: "disconnected" | "qr_pending" | "connected" | "error";
+            phone_number?: string;
+            display_name?: string;
+            /** Format: date-time */
+            last_seen_at?: string;
+            error_message?: string;
+            own_number_entitled: boolean;
+            fallback_to_platform: boolean;
+            platform_sender_available: boolean;
+        };
+        OrganizationOutboundSummary: {
+            /** Format: date-time */
+            since: string;
+            /** Format: int64 */
+            total: number;
+            /** Format: int64 */
+            sent: number;
+            /**
+             * Format: int64
+             * @description delivery_status delivered or read
+             */
+            delivered: number;
+            /**
+             * Format: int64
+             * @description status or delivery_status failed
+             */
+            failed: number;
+            /**
+             * Format: int64
+             * @description sender_kind org_own
+             */
+            own_number: number;
+            /**
+             * Format: int64
+             * @description sender_kind platform_*
+             */
+            platform: number;
+            last_at: string | null;
+        };
+        OrganizationWhatsAppOverview: {
+            session: components["schemas"]["OrganizationWhatsAppSession"];
+            outbound: components["schemas"]["OrganizationOutboundSummary"];
+        };
+        OrganizationOverview: {
+            organization: components["schemas"]["Organization"];
+            stats: components["schemas"]["OrganizationStats"];
+            billing: components["schemas"]["OrganizationBilling"] | null;
+            whatsapp: components["schemas"]["OrganizationWhatsAppOverview"] | null;
+        };
+        EnvelopeOrganizationOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OrganizationOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        OrganizationActivityActor: {
+            /** Format: uuid */
+            uuid: string;
+            email: string;
+            name: string;
+            surname: string;
+        };
+        OrganizationActivityEntry: {
+            /** Format: uuid */
+            uuid: string;
+            action: string;
+            resource: string;
+            /** Format: uuid */
+            resource_uuid?: string;
+            payload: {
+                [key: string]: unknown;
+            };
+            actor: components["schemas"]["OrganizationActivityActor"] | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        OrganizationActivityPage: {
+            items: components["schemas"]["OrganizationActivityEntry"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeOrganizationActivityPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OrganizationActivityPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        CustomerActivityActor: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            surname: string;
+        };
+        CustomerActivityEntry: {
+            /** Format: uuid */
+            uuid: string;
+            /** @description Audit action, e.g. `tenant.customer.update`, `jobs.close`, `tenant.sales.create` */
+            action: string;
+            /** @description Audit resource name (`customer`, `customer_vehicle`, `jobs.job`, `sale`, `quote`, `lead`, `cari.entry`, `contract_instance`) */
+            resource: string;
+            /** @enum {string} */
+            subject: "customer" | "vehicle" | "job" | "sale" | "quote" | "lead" | "cari_entry" | "contract" | "other";
+            /** Format: uuid */
+            resource_uuid: string | null;
+            payload: {
+                [key: string]: unknown;
+            };
+            actor: components["schemas"]["CustomerActivityActor"] | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CustomerActivityPage: {
+            items: components["schemas"]["CustomerActivityEntry"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeCustomerActivityPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerActivityPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        SetOrganizationStatusRequest: {
+            /** @enum {string} */
+            status: "active" | "suspended";
+            /** @description Optional note stored in the audit event */
+            reason?: string;
+        };
+        ExtendOrganizationAccessRequest: {
+            days: number;
+            /** @description Optional note stored in the audit event and subscription note */
+            note?: string;
+        };
+        UserOrganizationRef: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+        };
+        UserSecuritySummary: {
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_login_at: string | null;
+            /** Format: date-time */
+            email_verified_at: string | null;
+            password_set: boolean;
+            /** @description TOTP enabled */
+            two_factor_enabled: boolean;
+            /** Format: int64 */
+            passkey_count: number;
+        };
+        UserCounts: {
+            /** Format: int64 */
+            organizations: number;
+            /** Format: int64 */
+            active_sessions: number;
+            /**
+             * Format: int64
+             * @description Active (not disabled) devices
+             */
+            push_devices: number;
+            /**
+             * Format: int64
+             * @description Unread in-app notifications
+             */
+            unread_notifications: number;
+        };
+        UserAIOrganizationUsage: {
+            organization: components["schemas"]["UserOrganizationRef"];
+            /**
+             * Format: int64
+             * @description The user's conversations (not deleted)
+             */
+            conversation_count: number;
+            /**
+             * Format: int64
+             * @description The user's quota tokens this period
+             */
+            tokens: number;
+            /** @description Organization-level assistant switch */
+            enabled: boolean;
+            /**
+             * Format: int64
+             * @description Organization monthly token quota (0 = unlimited)
+             */
+            quota_limit: number;
+            /**
+             * Format: int64
+             * @description Organization tokens used this period
+             */
+            quota_used: number;
+            unlimited: boolean;
+        };
+        UserAIUsage: {
+            /** Format: date-time */
+            period_start: string;
+            /** Format: date-time */
+            period_end: string;
+            /** Format: int64 */
+            conversation_count: number;
+            /** Format: int64 */
+            tokens: number;
+            organizations: components["schemas"]["UserAIOrganizationUsage"][];
+        };
+        PlatformUserOverview: {
+            user: components["schemas"]["PlatformUserDetail"];
+            security: components["schemas"]["UserSecuritySummary"];
+            counts: components["schemas"]["UserCounts"];
+            ai: components["schemas"]["UserAIUsage"] | null;
+        };
+        EnvelopePlatformUserOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformUserOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserMembership: {
+            organization: components["schemas"]["UserOrganizationRef"];
+            /** @enum {string} */
+            status: "pending" | "active" | "suspended" | "expired";
+            /** Format: date-time */
+            access_ends_at: string | null;
+            /** @enum {string} */
+            role: "owner" | "staff";
+            /** Format: date-time */
+            joined_at: string;
+        };
+        UserMembershipPage: {
+            items: components["schemas"]["UserMembership"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserMembershipPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserMembershipPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserSession: {
+            /** Format: uuid */
+            uuid: string;
+            user_agent: string | null;
+            ip_address: string | null;
+            /**
+             * Format: date-time
+             * @description When the current (rotated) refresh token was issued
+             */
+            last_used_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description Issued to a platform admin impersonating the user */
+            impersonated: boolean;
+            organization: components["schemas"]["UserOrganizationRef"] | null;
+        };
+        UserSessionPage: {
+            items: components["schemas"]["UserSession"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserSessionPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserSessionPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        RevokedSessions: {
+            /** @enum {string} */
+            status: "revoked";
+            /** Format: int64 */
+            revoked: number;
+        };
+        EnvelopeRevokedSessions: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["RevokedSessions"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserPushDevice: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            platform: "ios" | "android";
+            device_name: string;
+            app_version: string;
+            locale: string;
+            /** Format: date-time */
+            last_seen_at: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            disabled_at: string | null;
+            /** @description Why delivery stopped (e.g. DeviceNotRegistered) */
+            disabled_reason: string;
+        };
+        UserPushDevicePage: {
+            items: components["schemas"]["UserPushDevice"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserPushDevicePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserPushDevicePage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        UserActivityEntry: {
+            /** Format: uuid */
+            uuid: string;
+            action: string;
+            resource: string;
+            /** Format: uuid */
+            resource_uuid: string | null;
+            payload: {
+                [key: string]: unknown;
+            };
+            /** Format: date-time */
+            created_at: string;
+            organization: components["schemas"]["UserOrganizationRef"] | null;
+        };
+        UserActivityPage: {
+            items: components["schemas"]["UserActivityEntry"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeUserActivityPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["UserActivityPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeOrganization: {
             /** @enum {boolean} */
             success: true;
@@ -7724,6 +9899,39 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["AppConfig"];
+        };
+        OrganizationMember: {
+            /**
+             * Format: uuid
+             * @description User UUID
+             */
+            uuid: string;
+            /** Format: email */
+            email: string;
+            name: string;
+            surname: string;
+            /**
+             * @example active
+             * @example disabled
+             */
+            status: string;
+            /** @enum {string} */
+            role: "owner" | "staff";
+            /**
+             * Format: date-time
+             * @description When the user joined the organization
+             */
+            created_at: string;
+        };
+        PatchOrganizationMemberRequest: {
+            /** @enum {string} */
+            role: "owner" | "staff";
+        };
+        EnvelopeOrganizationMember: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["OrganizationMember"];
+            meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopePublicUser: {
             /** @enum {boolean} */
@@ -8276,6 +10484,7 @@ export interface components {
             /** @enum {string} */
             paper_size: "A4" | "A3" | "Letter" | "Legal";
             logo_url?: string | null;
+            sector: components["schemas"]["OrganizationSector"];
         };
         PatchTenantSettingsRequest: {
             company_name?: string;
@@ -8290,6 +10499,11 @@ export interface components {
             footer_text?: string;
             /** @enum {string} */
             paper_size?: "A4" | "A3" | "Letter" | "Legal";
+            /**
+             * @description Business type; `""` clears it, null / omitted keeps the current value
+             * @enum {string|null}
+             */
+            sector?: "car_wash" | "detailing" | "ppf_tint" | "auto_service" | "tyres" | "other" | "" | null;
         };
         EnvelopeTenantSettings: {
             /** @enum {boolean} */
@@ -8597,8 +10811,11 @@ export interface components {
             media?: components["schemas"]["ContractMedia"][];
         };
         ContractOtpChallenge: {
-            /** @enum {string} */
-            channel?: "whatsapp";
+            /**
+             * @description Channel the code was sent over (`sms` when requested and the organization has an active SMS provider)
+             * @enum {string}
+             */
+            channel?: "whatsapp" | "sms";
             phone_masked?: string;
             /** Format: date-time */
             expires_at?: string;
@@ -8899,8 +11116,18 @@ export interface components {
             uuid: string;
             title: string;
             message_count: number;
-            /** Format: date-time */
-            last_message_at?: string;
+            /**
+             * @description Plain-text excerpt (markdown stripped, single line, up to 120
+             *     characters plus `…`) of the last user or assistant text message;
+             *     `""` when the conversation has no text yet. A turn without text
+             *     (only tool activity or an error) keeps the previous preview.
+             */
+            last_message_preview: string;
+            /**
+             * Format: date-time
+             * @description Time of the last stored message; null for an empty conversation
+             */
+            last_message_at: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -8979,7 +11206,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
             /** Format: uuid */
             uuid: string;
         };
@@ -9198,6 +11425,185 @@ export interface components {
             data: components["schemas"]["Todo"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** @enum {string} */
+        CalendarColor: "blue" | "emerald" | "amber" | "rose" | "violet" | "sky" | "orange" | "teal" | "pink" | "slate";
+        /** @enum {string} */
+        CalendarLayer: "events" | "jobs" | "deliveries" | "todos" | "quotes" | "leads" | "finance" | "sales" | "purchases" | "contracts";
+        CalendarLayerInfo: {
+            key: components["schemas"]["CalendarLayer"];
+            /** @description Items of this layer can be rescheduled by the caller */
+            movable: boolean;
+        };
+        CalendarMeta: {
+            layers: components["schemas"]["CalendarLayerInfo"][];
+            colors: components["schemas"]["CalendarColor"][];
+            /** @example Europe/Istanbul */
+            timezone: string;
+            /** @example 62 */
+            max_range_days: number;
+        };
+        CalendarEvent: {
+            /** Format: uuid */
+            uuid: string;
+            title: string;
+            description: string;
+            location: string;
+            /** Format: date-time */
+            starts_at: string;
+            /**
+             * Format: date-time
+             * @description Exclusive
+             */
+            ends_at: string;
+            all_day: boolean;
+            /**
+             * Format: date
+             * @description All-day only: first day (inclusive)
+             */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description All-day only: last day (inclusive)
+             */
+            end_date?: string;
+            color: components["schemas"]["CalendarColor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Timed events send starts_at/ends_at (RFC 3339, at most 31 days long); all-day events send start_date and optional end_date (inclusive). */
+        CalendarEventInput: {
+            title: string;
+            description?: string;
+            location?: string;
+            all_day: boolean;
+            /** Format: date-time */
+            starts_at?: string;
+            /** Format: date-time */
+            ends_at?: string;
+            /** Format: date */
+            start_date?: string;
+            /** Format: date */
+            end_date?: string;
+            color?: components["schemas"]["CalendarColor"];
+        };
+        CalendarMoveInput: {
+            /** @enum {string} */
+            layer: "events" | "todos" | "leads";
+            /** Format: uuid */
+            ref_uuid: string;
+            all_day: boolean;
+            /** Format: date-time */
+            starts_at?: string;
+            /**
+             * Format: date-time
+             * @description Events only
+             */
+            ends_at?: string;
+            /** Format: date */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description Events only (inclusive)
+             */
+            end_date?: string;
+        };
+        CalendarFeedItem: {
+            /** @description Stable key, e.g. `jobs:<uuid>` or `finance:2026-10-08:income:TRY` */
+            id: string;
+            layer: components["schemas"]["CalendarLayer"];
+            /** @enum {string} */
+            kind: "event" | "job_opened" | "job_delivered" | "todo" | "quote_expiry" | "lead_follow_up" | "finance_income" | "finance_expense" | "sale" | "purchase" | "contract_executed";
+            title: string;
+            subtitle?: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            all_day: boolean;
+            /**
+             * Format: date
+             * @description All-day items only (inclusive)
+             */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description All-day items only (inclusive)
+             */
+            end_date?: string;
+            /** @description Layer specific: job status (jobs), payment status (deliveries), todo status, quote status, lead temperature, payment method (sales, purchases), contract status. */
+            status?: string;
+            /** @description Decimal string */
+            amount?: string;
+            currency?: string;
+            /**
+             * Format: int64
+             * @description finance: number of transactions in the day
+             */
+            count?: number;
+            /**
+             * @description Record type to open (absent for finance day totals)
+             * @enum {string}
+             */
+            ref_kind?: "event" | "job" | "todo" | "quote" | "lead" | "sale" | "purchase" | "contract";
+            /**
+             * Format: uuid
+             * @description Record to open
+             */
+            ref_uuid?: string;
+            movable: boolean;
+            event?: components["schemas"]["CalendarEvent"];
+        };
+        CalendarFeed: {
+            /** Format: date */
+            from: string;
+            /**
+             * Format: date
+             * @description Exclusive
+             */
+            to: string;
+            /** @example Europe/Istanbul */
+            timezone: string;
+            layers: components["schemas"]["CalendarLayerInfo"][];
+            items: components["schemas"]["CalendarFeedItem"][];
+            /** @description Item count per loaded layer */
+            counts: {
+                [key: string]: number;
+            };
+        };
+        EnvelopeCalendarMeta: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarMeta"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarFeed: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarFeed"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarFeedItem: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarFeedItem"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarEvent: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarEvent"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarDeleted: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                deleted: boolean;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeTodoSummary: {
             /** @enum {boolean} */
             success: true;
@@ -9399,6 +11805,10 @@ export interface components {
             customer_phone: string;
             vehicle_plate: string;
             vehicle_text: string;
+            /** @description Brand of the linked customer vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             interest: string;
             source: components["schemas"]["LeadSource"];
             /** @enum {string} */
@@ -10033,6 +12443,10 @@ export interface components {
             customer_phone: string;
             vehicle_plate: string;
             vehicle_label: string;
+            /** @description Brand of the catalog model or customer vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             /** Format: uuid */
             lead_uuid: string | null;
             /** Format: uuid */
@@ -10322,6 +12736,10 @@ export interface components {
             customer_name: string;
             vehicle_plate: string;
             vehicle_label: string;
+            /** @description Brand of the quote vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             currency: string;
             prices_include_vat: boolean;
             subtotal: string;
@@ -10653,9 +13071,9 @@ export interface components {
             /** Format: uuid */
             assignee_uuid?: string;
             assignee_name?: string;
-            /** @description List rows only */
+            /** @description Vehicle brand (list rows, customer jobs, detail) */
             brand_name?: string;
-            /** @description List rows only; public vehicle brand logo stream, omitted when none */
+            /** @description Public vehicle brand logo stream (list rows, customer jobs, detail); omitted when none */
             brand_logo_url?: string;
             /** @description List rows only (card tags); omitted when empty. */
             services?: components["schemas"]["JobServiceTag"][];
@@ -11140,6 +13558,1099 @@ export interface components {
             data: components["schemas"]["CariSummary"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        BulkVehicleCatalogModelRulesRequest: {
+            model_uuids: string[];
+        };
+        /** @description A TSB brand (keyed by TSB code). `display_name` mirrors its display brand's name. */
+        VehicleCatalogBrand: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 100 */
+            tsb_code: string;
+            /** @example TOFAS-FIAT */
+            tsb_name: string;
+            /** @example Fiat */
+            display_name: string;
+            display_brand: components["schemas"]["VehicleCatalogDisplayBrandRef"];
+            category: components["schemas"]["VehicleCatalogBrandCategory"];
+            is_active: boolean;
+            /**
+             * Format: int64
+             * @description Active types
+             */
+            types_count: number;
+            /** Format: int64 */
+            models_count: number;
+            /**
+             * Format: int64
+             * @description Active types without a model
+             */
+            unresolved_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogBrandCategory: "passenger" | "light_commercial" | "other";
+        VehicleCatalogBulkRulesResult: {
+            rules_saved: number;
+            types_assigned: number;
+        };
+        VehicleCatalogDisplayBrand: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example Fiat */
+            name: string;
+            /** @example fiat */
+            slug: string;
+            /** @description API-owned logo stream (`/v1/...`); never build storage URLs in the browser */
+            logo_url: string | null;
+            /** @description Emblem variant (synced), falls back to the upload */
+            logo_badge_url: string | null;
+            /** @description Text-only variant (synced only) */
+            logo_wordmark_url: string | null;
+            /** @description An admin upload exists (wins over synced files) */
+            logo_uploaded: boolean;
+            /** @example #9B1B30 */
+            brand_color: string | null;
+            motomarks: components["schemas"]["VehicleCatalogDisplayBrandMotomarks"];
+            is_active: boolean;
+            /**
+             * Format: int64
+             * @description TSB brands mapped to it
+             */
+            brands_count: number;
+            /**
+             * Format: int64
+             * @description Active types
+             */
+            types_count: number;
+            /**
+             * Format: int64
+             * @description Grouped models
+             */
+            models_count: number;
+            tsb_names: string[];
+            /** @description Detail only */
+            brands?: components["schemas"]["VehicleCatalogDisplayBrandMember"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        VehicleCatalogDisplayBrandMember: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 100 */
+            tsb_code: string;
+            /** @example TOFAS-FIAT */
+            tsb_name: string;
+            category: components["schemas"]["VehicleCatalogBrandCategory"];
+            is_active: boolean;
+            /** Format: int64 */
+            types_count: number;
+        };
+        VehicleCatalogDisplayBrandRef: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example Fiat */
+            name: string;
+            /** @description API-owned display brand logo stream (append `variant=badge` for the emblem); null without a logo */
+            logo_url?: string | null;
+        };
+        /** @enum {string} */
+        VehicleCatalogFuel: "petrol" | "diesel" | "hybrid" | "electric" | "lpg";
+        VehicleCatalogImport: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 2026-10 */
+            period: string | null;
+            filename: string;
+            status: components["schemas"]["VehicleCatalogImportStatus"];
+            counts: components["schemas"]["VehicleCatalogImportCounts"];
+            diff?: components["schemas"]["VehicleCatalogImportDiff"];
+            error: string | null;
+            created_by_email?: string | null;
+            /** Format: date-time */
+            applied_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Dry-run counts while `ready`; what the apply changed once `applied`. */
+        VehicleCatalogImportCounts: {
+            rows?: number;
+            brands_new?: number;
+            brands_renamed?: number;
+            /** @description Display brands created for new TSB brands */
+            display_brands_new?: number;
+            models_new?: number;
+            types_new?: number;
+            types_renamed?: number;
+            types_reactivated?: number;
+            types_updated?: number;
+            types_deactivated?: number;
+            valuations_new?: number;
+            valuations_changed?: number;
+            valuations_upserted?: number;
+            unresolved_models?: number;
+            unresolved_by_category?: {
+                [key: string]: number;
+            };
+        };
+        /** @description Up to 25 samples per change kind. */
+        VehicleCatalogImportDiff: {
+            /** @example Ekim 2026 */
+            period_label?: string;
+            years?: number[];
+            new_brands?: {
+                code?: string;
+                name?: string;
+                old_name?: string;
+                display_name?: string;
+                category?: string;
+            }[];
+            renamed_brands?: {
+                code?: string;
+                name?: string;
+                old_name?: string;
+                display_name?: string;
+                category?: string;
+            }[];
+            new_models?: {
+                brand?: string;
+                name?: string;
+                types?: number;
+            }[];
+            new_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            renamed_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            deactivated_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            reactivated_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            unresolved_types?: components["schemas"]["VehicleCatalogImportSampleType"][];
+            changed_valuations?: {
+                brand?: string;
+                code?: string;
+                name?: string;
+                year?: number;
+                old?: number;
+                new?: number;
+            }[];
+            dry_run_counts?: components["schemas"]["VehicleCatalogImportCounts"];
+        };
+        VehicleCatalogImportSampleType: {
+            brand: string;
+            code: string;
+            name: string;
+            old_name?: string;
+            model?: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogImportStatus: "queued" | "processing" | "ready" | "applying" | "applied" | "failed";
+        VehicleCatalogModel: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example EGEA CROSS */
+            name: string;
+            source: components["schemas"]["VehicleCatalogModelSource"];
+            brand: components["schemas"]["VehicleCatalogRef"];
+            display_brand: components["schemas"]["VehicleCatalogDisplayBrandRef"];
+            /** Format: int64 */
+            types_count: number;
+            /**
+             * Format: int64
+             * @description Models with the same name under the display brand (one per TSB brand); tenants see them as one model
+             */
+            group_size: number;
+            rules?: components["schemas"]["VehicleCatalogModelRule"][];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        VehicleCatalogModelRef: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example EGEA CROSS */
+            name: string;
+            source: components["schemas"]["VehicleCatalogModelSource"];
+        };
+        VehicleCatalogModelRule: {
+            /** @example EGEA CROSS */
+            prefix: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogModelSource: "auto" | "manual";
+        VehicleCatalogNamedRef: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+        };
+        VehicleCatalogRef: {
+            /** Format: uuid */
+            uuid: string;
+            display_name: string;
+            tsb_code?: string;
+            tsb_name?: string;
+        };
+        /** @enum {string} */
+        VehicleCatalogTransmission: "manual" | "automatic";
+        VehicleCatalogType: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example 1402 */
+            tsb_type_code: string;
+            /** @example EGEA CROSS STREET 1.4 FIRE 95 E6D */
+            raw_name: string;
+            /** @description Model years with a kasko value (newest first) */
+            years: number[];
+            suggested_transmission: components["schemas"]["VehicleCatalogTransmission"] | null;
+            suggested_fuel: components["schemas"]["VehicleCatalogFuel"] | null;
+            /** @example 2026-10 */
+            first_seen_period: string;
+            /** @example 2026-10 */
+            last_seen_period: string;
+            is_active: boolean;
+            brand: components["schemas"]["VehicleCatalogRef"];
+            display_brand: components["schemas"]["VehicleCatalogDisplayBrandRef"];
+            model: components["schemas"]["VehicleCatalogModelRef"] | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        VehicleCatalogTypeDetail: components["schemas"]["VehicleCatalogType"] & {
+            brand_tsb_name: string;
+            /** @description Empty when no value is stored */
+            latest_period: string;
+            /** @description Latest period, one entry per model year */
+            valuations: components["schemas"]["VehicleCatalogValuation"][];
+            /** @description All stored periods, newest first */
+            history: components["schemas"]["VehicleCatalogValuation"][];
+        };
+        VehicleCatalogValuation: {
+            /** @example 2024 */
+            model_year: number;
+            /** @example 2026-10 */
+            period: string;
+            /**
+             * @description Kasko value in TRY
+             * @example 1051836
+             */
+            value: number;
+        };
+        CreateVehicleCatalogModelRequest: {
+            /** Format: uuid */
+            brand_uuid: string;
+            name: string;
+        };
+        EnvelopeVehicleCatalogBrand: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBrand"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogBulkRulesResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBulkRulesResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogDisplayBrand: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogDisplayBrand"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Link between a display brand and the brand logo mirror. */
+        VehicleCatalogDisplayBrandMotomarks: {
+            /** @example fiat */
+            id: string | null;
+            /** @enum {string} */
+            match_source: "none" | "auto" | "manual" | "skip";
+            match_score: number | null;
+            /** @description Best candidate below the threshold */
+            suggested_id: string | null;
+            suggested_score: number | null;
+            synced_variants: ("badge" | "wordmark" | "full")[];
+        };
+        VehicleCatalogBrandLogoSettings: {
+            /** @example https://logos.example.com */
+            base_url: string;
+            token_configured: boolean;
+            enabled: boolean;
+            auto_match_min_score: number;
+            /** Format: date-time */
+            last_run_at: string | null;
+            /** @enum {string|null} */
+            last_status: "done" | "failed" | null;
+            last_error: string | null;
+            /**
+             * Format: int64
+             * @description Mirror brands stored
+             */
+            sources_count: number;
+            /** @description Display brands per match source */
+            match_counts: {
+                [key: string]: number;
+            };
+            active_run: components["schemas"]["VehicleCatalogBrandLogoSyncRun"] | null;
+        };
+        PatchVehicleCatalogBrandLogoSettingsRequest: {
+            base_url?: string;
+            /** @description New token; empty string clears it */
+            api_token?: string;
+            enabled?: boolean;
+            auto_match_min_score?: number;
+        };
+        EnvelopeVehicleCatalogBrandLogoSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBrandLogoSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        VehicleCatalogBrandLogoSyncRun: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "failed";
+            triggered_by: components["schemas"]["VehicleCatalogNamedRef"] | null;
+            /** Format: date-time */
+            started_at: string | null;
+            /** Format: date-time */
+            finished_at: string | null;
+            /** @description The mirror answered 304; only matching ran */
+            not_modified: boolean;
+            requests: number;
+            brands_seen: number;
+            /** @description Logo files copied */
+            downloaded: number;
+            matched: number;
+            unmatched: number;
+            error: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        EnvelopeVehicleCatalogBrandLogoSyncRun: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogBrandLogoSyncRun"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogBrandLogoSyncRunPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogBrandLogoSyncRun"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        VehicleCatalogUnmatchedDisplayBrand: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            slug: string;
+            is_active: boolean;
+            /** Format: int64 */
+            types_count: number;
+            logo_url: string | null;
+            suggestion: {
+                id: string;
+                name: string;
+                score: number | null;
+            } | null;
+        };
+        EnvelopeVehicleCatalogUnmatchedDisplayBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogUnmatchedDisplayBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        VehicleCatalogBrandLogoSource: {
+            /** @example fiat */
+            id: string;
+            /** @example Fiat */
+            name: string;
+            color: string | null;
+            vehicle_types: string[];
+            variants: ("badge" | "wordmark" | "full")[];
+            badge_url: string | null;
+            wordmark_url: string | null;
+            full_url: string | null;
+            /** Format: date-time */
+            synced_at: string | null;
+        };
+        EnvelopeVehicleCatalogDisplayBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogDisplayBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogImport: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogImport"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogImportPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogImport"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogModel: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogModel"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogModelPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogModel"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogTypeDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["VehicleCatalogTypeDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeVehicleCatalogTypePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["VehicleCatalogType"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTenantVehicleCatalogBrandPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["TenantVehicleCatalogBrand"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTenantVehicleCatalogModelPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["TenantVehicleCatalogModel"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeTenantVehicleCatalogTypePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["TenantVehicleCatalogType"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MergeVehicleCatalogModelRequest: {
+            /** Format: uuid */
+            into_uuid: string;
+        };
+        PatchVehicleCatalogBrandRequest: {
+            /** @description Map to the display brand of this name (created when missing) */
+            display_name?: string;
+            /**
+             * Format: uuid
+             * @description Map to an existing display brand
+             */
+            display_brand_uuid?: string;
+            category?: components["schemas"]["VehicleCatalogBrandCategory"];
+            is_active?: boolean;
+        };
+        PatchVehicleCatalogDisplayBrandRequest: {
+            name?: string;
+            is_active?: boolean;
+        };
+        PatchVehicleCatalogModelRequest: {
+            name?: string;
+            source?: components["schemas"]["VehicleCatalogModelSource"];
+        };
+        PatchVehicleCatalogTypeRequest: {
+            /**
+             * Format: uuid
+             * @description Model of the same TSB brand; a model of another TSB brand of the same display brand
+             *     assigns (creating when missing) the same-name model of the type's brand. null clears it.
+             */
+            model_uuid?: string | null;
+            /** @description Also store a prefix rule (needs model_uuid) */
+            save_rule?: boolean;
+            /** @description Prefix of the type name; defaults to the model name */
+            rule_prefix?: string;
+            suggested_transmission?: components["schemas"]["VehicleCatalogTransmission"] | null;
+            suggested_fuel?: components["schemas"]["VehicleCatalogFuel"] | null;
+        };
+        /** @description A display brand (FIAT and TOFAS-FIAT are one "Fiat"). */
+        TenantVehicleCatalogBrand: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example Fiat */
+            display_name: string;
+            /** @example fiat */
+            slug: string;
+            category: components["schemas"]["VehicleCatalogBrandCategory"];
+            /** @description API-owned logo stream */
+            logo_url: string | null;
+            /** @description Emblem variant for compact rows */
+            logo_badge_url: string | null;
+            /** @description Text-only variant for headers */
+            logo_wordmark_url: string | null;
+            brand_color: string | null;
+        };
+        /**
+         * @description A grouped model: models with the same name under the TSB brands of one display brand are
+         *     listed once. `uuid` is stable (its first model) and any model uuid of the group is accepted
+         *     by `/v1/tenant/vehicle-catalog/types`.
+         */
+        TenantVehicleCatalogModel: {
+            /** Format: uuid */
+            uuid: string;
+            /** @example EGEA CROSS */
+            name: string;
+            brand: components["schemas"]["VehicleCatalogRef"];
+        };
+        TenantVehicleCatalogType: {
+            /** Format: uuid */
+            uuid: string;
+            tsb_type_code: string;
+            /** @example EGEA CROSS STREET 1.4 FIRE 95 E6D */
+            name: string;
+            years: number[];
+            suggested_transmission: components["schemas"]["VehicleCatalogTransmission"] | null;
+            suggested_fuel: components["schemas"]["VehicleCatalogFuel"] | null;
+            brand: components["schemas"]["VehicleCatalogRef"];
+            model: components["schemas"]["VehicleCatalogNamedRef"];
+        };
+        UnmergeVehicleCatalogDisplayBrandRequest: {
+            /**
+             * Format: uuid
+             * @description TSB brand to detach
+             */
+            brand_uuid: string;
+            /** @description Name of the new display brand */
+            name?: string;
+        };
+        InsightsMonthPoint: {
+            /**
+             * @description YYYY-MM (UTC)
+             * @example 2026-10
+             */
+            month: string;
+            /**
+             * Format: int64
+             * @description Jobs / purchases in the month (0 where not applicable)
+             */
+            count: number;
+            /** @description Quantity sold (product trend only) */
+            qty?: string;
+            /**
+             * @description Product: revenue · service: revenue · customer: job spend · supplier: spend
+             * @example 1250.00
+             */
+            amount: string;
+            /**
+             * @description Customer trend only: product sale spend
+             * @example 300.00
+             */
+            amount_secondary?: string;
+        };
+        ProductSummary: {
+            /** Format: uuid */
+            product_uuid: string;
+            /** @example TRY */
+            currency: string;
+            stock: {
+                tracked: boolean;
+                /** @example 12 */
+                quantity: string;
+                /** @example 5 */
+                min_alert: string;
+                /** @enum {string} */
+                status: "in_stock" | "low_stock" | "out_of_stock" | "untracked";
+                /** @example 720.00 */
+                cost_value: string;
+                /** @example 1200.00 */
+                sale_value: string;
+                /**
+                 * @description quantity - min_alert
+                 * @example 7
+                 */
+                coverage_qty: string;
+            };
+            pricing: {
+                cost_price: string;
+                sale_price: string;
+                unit_margin: string;
+                /** @description unit_margin / sale_price * 100, one decimal */
+                margin_percent: number;
+            };
+            sales: {
+                /** Format: int64 */
+                sale_count: number;
+                sold_qty: string;
+                revenue: string;
+                /** Format: date-time */
+                last_sold_at: string | null;
+                last_sale_price: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+            } | null;
+            purchases: {
+                /** Format: int64 */
+                purchase_count: number;
+                purchased_qty: string;
+                spend: string;
+                avg_unit_cost: string;
+                /** Format: date-time */
+                last_purchased_at: string | null;
+                last_purchase_cost: string | null;
+            } | null;
+            jobs: {
+                /** Format: int64 */
+                line_job_count: number;
+                line_qty: string;
+                line_revenue: string;
+                /** Format: int64 */
+                consumption_job_count: number;
+                consumed_qty: string;
+                /** Format: date-time */
+                last_consumed_at: string | null;
+            } | null;
+        };
+        ProductMovement: {
+            /**
+             * @description ref_uuid is the purchase, sale or job uuid
+             * @enum {string}
+             */
+            kind: "purchase" | "sale" | "job";
+            /** Format: uuid */
+            ref_uuid: string;
+            /** @description Document status (posted / voided) or the job status */
+            status: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Supplier or customer name */
+            party_name: string;
+            /**
+             * Format: uuid
+             * @description Supplier uuid (purchase) or customer uuid (sale / job)
+             */
+            party_uuid: string | null;
+            /** @description Job plate (kind=job) */
+            plate?: string;
+            /** @description Recipe service that consumed the product (kind=job) */
+            service_name?: string;
+            /**
+             * @description Signed quantity (+ into stock, - out of stock)
+             * @example -2
+             */
+            qty: string;
+            /** @description Unit cost (purchase / job) or unit price (sale) */
+            unit_price: string;
+            total: string;
+            currency: string;
+            /** @description false for voided documents and reverted consumptions */
+            effective: boolean;
+        };
+        ServiceSummary: {
+            /** Format: uuid */
+            service_uuid: string;
+            currency: string;
+            pricing: {
+                price: string;
+                /** @description Sum of recipe qty x product cost price */
+                recipe_cost: string;
+                recipe_item_count: number;
+                unit_margin: string;
+                margin_percent: number;
+                duration_minutes: number;
+            };
+            usage: {
+                /** Format: int64 */
+                job_count: number;
+                /** Format: int64 */
+                line_count: number;
+                /** Format: int64 */
+                customer_count: number;
+                qty: string;
+                revenue: string;
+                avg_unit_price: string;
+                /** @description Average started → completed time of finished jobs */
+                avg_job_minutes: number;
+                /** Format: date-time */
+                first_used_at: string | null;
+                /** Format: date-time */
+                last_used_at: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+            } | null;
+        };
+        ServiceJob: {
+            /** Format: uuid */
+            uuid: string;
+            status: string;
+            payment_status: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+            plate: string;
+            vehicle_label: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            /** Format: uuid */
+            brand_uuid: string;
+            brand_name: string;
+            /** @description API-owned vehicle brand logo (`?variant=badge` for the emblem) */
+            brand_logo_url: string | null;
+            qty: string;
+            line_total: string;
+            currency: string;
+        };
+        CustomerSummary: {
+            /** Format: uuid */
+            customer_uuid: string;
+            vehicle_count: number;
+            total_spend: string;
+            /** Format: date-time */
+            last_visit_at: string | null;
+            jobs: {
+                /** Format: int64 */
+                job_count: number;
+                /** Format: int64 */
+                open_job_count: number;
+                /** Format: int64 */
+                unpaid_job_count: number;
+                spend: string;
+                unpaid_amount: string;
+                /** Format: date-time */
+                first_visit_at: string | null;
+                /** Format: date-time */
+                last_visit_at: string | null;
+            } | null;
+            sales: {
+                /** Format: int64 */
+                sale_count: number;
+                spend: string;
+                /** Format: date-time */
+                last_sold_at: string | null;
+            } | null;
+            quotes: {
+                /** Format: int64 */
+                quote_count: number;
+                /** Format: int64 */
+                open_quote_count: number;
+                /** Format: int64 */
+                accepted_quote_count: number;
+            } | null;
+            leads: {
+                /** Format: int64 */
+                lead_count: number;
+                /** Format: int64 */
+                open_lead_count: number;
+            } | null;
+            /** @description amount = job spend, amount_secondary = product sale spend */
+            monthly: components["schemas"]["InsightsMonthPoint"][];
+            top_services: {
+                /** Format: uuid */
+                service_uuid: string | null;
+                name: string;
+                /** Format: int64 */
+                job_count: number;
+                revenue: string;
+                /** Format: date-time */
+                last_used_at: string | null;
+            }[];
+            /** @description Per-vehicle job stats (empty without tenant.jobs.read) */
+            vehicles: {
+                /** Format: uuid */
+                vehicle_uuid: string;
+                /** Format: int64 */
+                job_count: number;
+                spend: string;
+                /** Format: date-time */
+                last_visit_at: string | null;
+            }[];
+            recent_sales: {
+                /** Format: uuid */
+                uuid: string;
+                status: string;
+                method: string;
+                total_amount: string;
+                currency: string;
+                /** Format: date-time */
+                sold_at: string;
+                /** Format: int64 */
+                line_count: number;
+            }[];
+        };
+        SupplierSummary: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            purchases: {
+                /** Format: int64 */
+                purchase_count: number;
+                spend: string;
+                avg_purchase: string;
+                /** Format: int64 */
+                product_count: number;
+                /** Format: date-time */
+                first_purchased_at: string | null;
+                /** Format: date-time */
+                last_purchased_at: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+                top_products: {
+                    /** Format: uuid */
+                    product_uuid: string;
+                    name: string;
+                    unit: string;
+                    qty: string;
+                    spend: string;
+                    /** Format: date-time */
+                    last_purchased_at: string | null;
+                }[];
+                recent: {
+                    /** Format: uuid */
+                    uuid: string;
+                    status: string;
+                    method: string;
+                    total_amount: string;
+                    currency: string;
+                    /** Format: date-time */
+                    purchased_at: string;
+                    /** Format: int64 */
+                    line_count: number;
+                }[];
+            } | null;
+        };
+        EnvelopeProductSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ProductSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeProductMovementList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["ProductMovement"][];
+                total: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeServiceSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ServiceSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeServiceJobList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["ServiceJob"][];
+                total: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSupplierSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SupplierSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPInfo: {
+            /** @example https://app.otopoly.com/mcp/org */
+            org_url: string;
+            /** @example https://app.otopoly.com/mcp/platform */
+            platform_url: string;
+            issuer: string;
+            scopes: ("mcp:read" | "mcp:write")[];
+            can_connect_org: boolean;
+            can_connect_platform: boolean;
+        };
+        EnvelopeMCPInfo: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MCPInfo"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPConsentOrganization: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+            /** @description Member role: owner or staff */
+            role: string;
+            /** @description Tools the user gets there with the requested scopes */
+            tool_count: number | null;
+        };
+        MCPConsent: {
+            /** Format: uuid */
+            request_uuid: string;
+            client_id: string;
+            client_name: string;
+            redirect_host: string;
+            /** @enum {string} */
+            resource: "/mcp/org" | "/mcp/platform";
+            resource_url: string;
+            /** @enum {string} */
+            realm: "org" | "platform";
+            scopes: ("mcp:read" | "mcp:write")[];
+            organizations: components["schemas"]["MCPConsentOrganization"][];
+            platform_tool_count: number | null;
+            allowed: boolean;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        EnvelopeMCPConsent: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MCPConsent"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPDecideRequest: {
+            /** @enum {string} */
+            decision: "approve" | "deny";
+            /** Format: uuid */
+            organization_uuid?: string | null;
+            scopes?: ("mcp:read" | "mcp:write")[];
+        };
+        EnvelopeMCPDecision: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                redirect_url: string;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPGrant: {
+            /** Format: uuid */
+            uuid: string;
+            client_id: string;
+            client_name: string;
+            /** @enum {string} */
+            resource: "/mcp/org" | "/mcp/platform";
+            /** @enum {string} */
+            realm: "org" | "platform";
+            scopes: string[];
+            /** Format: uuid */
+            organization_uuid: string | null;
+            organization_slug: string | null;
+            organization_name: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_used_at: string | null;
+        };
+        EnvelopeMCPGrantList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["MCPGrant"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPClient: {
+            /** Format: uuid */
+            uuid: string;
+            client_id: string;
+            client_name: string;
+            redirect_uris: string[];
+            created_ip: string | null;
+            /** @enum {string} */
+            status: "active" | "revoked";
+            active_grants: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_used_at: string | null;
+            /** Format: date-time */
+            revoked_at: string | null;
+        };
+        EnvelopeMCPClientList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["MCPClient"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
     };
     responses: {
         /** @description Validation or malformed request */
@@ -11257,8 +14768,33 @@ export interface components {
                 "application/json": components["schemas"]["Error"];
             };
         };
+        /**
+         * @description `NO_TENANT_MEMBERSHIP` (unknown organization or not a member),
+         *     `ORGANIZATION_SUSPENDED`, `ORGANIZATION_ACCESS_EXPIRED`, `FORBIDDEN`
+         *     (tenant permission missing in this organization), or
+         *     `FEATURE_NOT_ENABLED` (TEC-674) on a change in a plan-gated area (site,
+         *     public API, channel managers, KABİS retry, HGS, e-invoice sending,
+         *     WhatsApp, SMS, integration accounts / job retries of those providers)
+         *     when the organization's plan does not include the feature;
+         *     `details[0].code` names the feature key. Reads (lists, details,
+         *     exports) and switching things off stay open on every plan, so history
+         *     never disappears after a downgrade
+         *     `SUPPORT_GRANT_REQUIRED` (TEC-678): an impersonated (support) session
+         *     and the organization has no active support access grant;
+         *     `SUPPORT_READ_ONLY`: a non-GET request under a `read_only` grant.
+         */
+        TenantForbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
     };
     parameters: {
+        /** @description SMS provider code */
+        SmsProviderPath: "netgsm" | "twilio";
         /** @description Legal page slug (e.g. `privacy`) */
         LegalPageSlug: string;
         /** @description QR sign-in session id (from the QR URL) */
@@ -11270,6 +14806,20 @@ export interface components {
         Q: string;
         /** @description Comma-separated fields; prefix `-` for descending */
         Sort: string;
+        /** @description Brand UUID */
+        VehicleCatalogBrandFilter: string;
+        VehicleCatalogCategory: components["schemas"]["VehicleCatalogBrandCategory"];
+        /** @description Display brand UUID (every TSB brand mapped to it) */
+        VehicleCatalogDisplayBrandFilter: string;
+        /** @description Model year */
+        VehicleCatalogYear: number;
+        /** @description Logo variant. Default = full logo (upload first), `badge` = emblem, `wordmark` = text-only. */
+        VehicleCatalogLogoVariant: "badge" | "wordmark" | "full";
+        /**
+         * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+         *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+         */
+        XOrganization: string;
     };
     requestBodies: never;
     headers: never;
@@ -12103,6 +15653,8 @@ export interface operations {
             header?: never;
             path: {
                 key: string;
+                /** @description Catalog language (Meta language code). */
+                language: "tr" | "en";
             };
             cookie?: never;
         };
@@ -13224,6 +16776,159 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    getPlatformOrganizationOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationOverview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformOrganizationActivity: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                /** @description Exact action filter (e.g. `organizations.suspended`) */
+                action?: string;
+                /** @description Substring match on action or resource */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationActivityPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformOrganizationOutbound: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Outbound page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOutboundMessagePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setPlatformOrganizationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetOrganizationStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganization"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    extendPlatformOrganizationAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExtendOrganizationAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganization"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     putPlatformOrganizationLogo: {
         parameters: {
             query?: never;
@@ -13307,6 +17012,72 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    deletePlatformOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+                /** @description Member user UUID */
+                userUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformOrganizationMember: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization UUID */
+                uuid: string;
+                /** @description Member user UUID */
+                userUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchOrganizationMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated member */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeOrganizationMember"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     getPlatformUsers: {
         parameters: {
             query?: {
@@ -13315,7 +17086,12 @@ export interface operations {
                 q?: components["parameters"]["Q"];
                 /** @description Comma-separated fields; prefix `-` for descending */
                 sort?: components["parameters"]["Sort"];
-                status?: string;
+                /**
+                 * @description `active`, `pending` or `disabled`. `deleted` lists soft-deleted users
+                 *     instead of live ones (newest deletion first); deleted users are never
+                 *     returned otherwise.
+                 */
+                status?: "active" | "pending" | "disabled" | "deleted";
                 is_super_admin?: boolean;
             };
             header?: never;
@@ -13394,6 +17170,35 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    deletePlatformUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted user (with `deleted_at`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     patchPlatformUser: {
         parameters: {
             query?: never;
@@ -13411,6 +17216,35 @@ export interface operations {
         };
         responses: {
             /** @description Updated user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicUser"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    restorePlatformUser: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Restored user */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -13486,6 +17320,242 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformUserOverview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description User overview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformUserOverview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserOrganizations: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Membership page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserMembershipPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserSessions: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserSessionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokePlatformUserSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                sessionUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokeAllPlatformUserSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeRevokedSessions"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserDevices: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Device page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserPushDevicePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    removePlatformUserDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                deviceUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformUserActivity: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                /** @description Only events attributed to this organization */
+                organization_uuid?: string;
+                /** @description Exact action filter (e.g. `customers.created`) */
+                action?: string;
+                /** @description Substring match on action or resource */
+                q?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeUserActivityPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     postAuthImpersonationStop: {
@@ -16535,7 +20605,15 @@ export interface operations {
     };
     getPublicVehicleBrandLogo: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Which logo file to serve. Omitted / empty or `full`: uploaded logo →
+                 *     full → badge → wordmark. `badge`: emblem → uploaded → full.
+                 *     `wordmark`: the wordmark only (`404` when there is none). Any other
+                 *     value is `400`.
+                 */
+                variant?: "full" | "badge" | "wordmark";
+            };
             header?: never;
             path: {
                 uuid: string;
@@ -16553,10 +20631,11 @@ export interface operations {
                     "image/*": string;
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
-    getPlatformVehicleBrandsMeta: {
+    getPlatformVehicleCatalogBrandsMeta: {
         parameters: {
             query?: never;
             header?: never;
@@ -16570,20 +20649,26 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
         };
     };
-    getPlatformVehicleBrands: {
+    getPlatformVehicleCatalogBrands: {
         parameters: {
             query?: {
                 limit?: components["parameters"]["Limit"];
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
-                sort?: string;
-                is_active?: string;
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                category?: components["parameters"]["VehicleCatalogCategory"];
+                /** @description Display brand UUID (every TSB brand mapped to it) */
+                display_brand?: components["parameters"]["VehicleCatalogDisplayBrandFilter"];
+                is_active?: boolean;
             };
             header?: never;
             path?: never;
@@ -16596,145 +20681,294 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrand"];
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
-    createPlatformVehicleBrand: {
+    patchPlatformVehicleCatalogBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogBrandRequest"];
+            };
+        };
+        responses: {
+            /** @description Brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogDisplayBrandsMeta: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogDisplayBrands: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                is_active?: boolean;
+                /** @description Only display brands with more than one TSB brand */
+                merged?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Display brand page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrandPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogDisplayBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformVehicleCatalogDisplayBrand: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
         requestBody: {
             content: {
-                "application/json": {
-                    name: string;
-                    is_active?: boolean;
-                };
+                "application/json": components["schemas"]["PatchVehicleCatalogDisplayBrandRequest"];
             };
         };
         responses: {
-            /** @description Created brand */
+            /** @description Display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogDisplayBrandMerge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Target display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogDisplayBrandUnmerge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UnmergeVehicleCatalogDisplayBrandRequest"];
+            };
+        };
+        responses: {
+            /** @description The new display brand */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
             };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
         };
     };
-    importPlatformVehicleBrands: {
+    getPlatformVehicleCatalogDisplayBrandLogo: {
         parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    [key: string]: {
-                        [key: string]: string[];
-                    };
-                };
+            query?: {
+                /** @description Logo variant. Default = full logo (upload first), `badge` = emblem, `wordmark` = text-only. */
+                variant?: components["parameters"]["VehicleCatalogLogoVariant"];
             };
-        };
-        responses: {
-            /** @description Import counts */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    getPlatformVehicleBrand: {
-        parameters: {
-            query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Brand detail */
+            /** @description Logo image */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "image/svg+xml": string;
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
             404: components["responses"]["NotFound"];
         };
     };
-    deletePlatformVehicleBrand: {
+    putPlatformVehicleCatalogDisplayBrandLogo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Deleted */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
-    };
-    patchPlatformVehicleBrand: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    name?: string;
-                    is_active?: boolean;
-                };
-            };
-        };
-        responses: {
-            /** @description Updated brand */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: components["responses"]["NotFound"];
-        };
-    };
-    putPlatformVehicleBrandLogo: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
@@ -16747,116 +20981,882 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Brand with logo */
+            /** @description Display brand */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
-    createPlatformVehicleModel: {
+    deletePlatformVehicleCatalogDisplayBrandLogo: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Display brand */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogModelsBulkRules: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": {
-                    name: string;
-                    is_active?: boolean;
-                    years?: number[];
-                };
+                "application/json": components["schemas"]["BulkVehicleCatalogModelRulesRequest"];
             };
         };
         responses: {
-            /** @description Created model */
+            /** @description Result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBulkRulesResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogModelsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogModels: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                /** @description Brand UUID */
+                brand?: components["parameters"]["VehicleCatalogBrandFilter"];
+                /** @description Display brand UUID (every TSB brand mapped to it) */
+                display_brand?: components["parameters"]["VehicleCatalogDisplayBrandFilter"];
+                source?: "auto" | "manual";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Model page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModelPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
         };
     };
-    deletePlatformVehicleModel: {
+    getPlatformVehicleCatalogModel: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Deleted */
+            /** @description Model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformVehicleCatalogModel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogModelMerge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeVehicleCatalogModelRequest"];
+            };
+        };
+        responses: {
+            /** @description Target model */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogModel"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogTypesMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogTypes: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                /** @description Brand UUID */
+                brand?: components["parameters"]["VehicleCatalogBrandFilter"];
+                /** @description Display brand UUID (every TSB brand mapped to it) */
+                display_brand?: components["parameters"]["VehicleCatalogDisplayBrandFilter"];
+                category?: components["parameters"]["VehicleCatalogCategory"];
+                /** @description Model UUID */
+                model?: string;
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+                /** @description `true` = only types without a model */
+                unresolved?: boolean;
+                is_active?: boolean;
+                fuel?: components["schemas"]["VehicleCatalogFuel"];
+                transmission?: components["schemas"]["VehicleCatalogTransmission"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Type page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogTypePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Type detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogTypeDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    patchPlatformVehicleCatalogType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogTypeRequest"];
+            };
+        };
+        responses: {
+            /** @description Type detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogTypeDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    patchPlatformVehicleCatalogBrandLogoSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PatchVehicleCatalogBrandLogoSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postPlatformVehicleCatalogBrandLogoTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection ok */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            404: components["responses"]["NotFound"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    postPlatformVehicleCatalogBrandLogoSync: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Run queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSyncRun"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
         };
     };
-    addPlatformVehicleModelYear: {
+    getPlatformVehicleCatalogBrandLogoRuns: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Runs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogBrandLogoSyncRunPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoUnmatched: {
+        parameters: {
+            query?: {
+                q?: components["parameters"]["Q"];
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unmatched display brands */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogUnmatchedDisplayBrandPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoSources: {
+        parameters: {
+            query?: {
+                q?: components["parameters"]["Q"];
+                limit?: components["parameters"]["Limit"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mirror brands */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            items: components["schemas"]["VehicleCatalogBrandLogoSource"][];
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogBrandLogoSourceLogo: {
+        parameters: {
+            query?: {
+                /** @description Logo variant. Default = full logo (upload first), `badge` = emblem, `wordmark` = text-only. */
+                variant?: components["parameters"]["VehicleCatalogLogoVariant"];
+            };
+            header?: never;
+            path: {
+                /** @description Mirror brand id (slug) */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Logo image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/webp": string;
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    postPlatformVehicleCatalogDisplayBrandMotomarks: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    year: number;
+                    /** @enum {string} */
+                    mode: "link" | "skip" | "unlink";
+                    /**
+                     * @description Required for link
+                     * @example fiat
+                     */
+                    motomarks_id?: string;
                 };
             };
         };
         responses: {
-            /** @description Year added */
+            /** @description Updated display brand */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogDisplayBrand"];
+                };
             };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };
-    deletePlatformVehicleModelYear: {
+    getPlatformVehicleCatalogImportsMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resource meta */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getPlatformVehicleCatalogImports: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Comma-separated fields; prefix `-` for descending */
+                sort?: components["parameters"]["Sort"];
+                status?: components["schemas"]["VehicleCatalogImportStatus"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Import page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImportPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /** @description Override the period (YYYY-MM) */
+                    period?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Import queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformVehicleCatalogImport: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                uuid: string;
-                year: number;
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
             };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Year removed */
+            /** @description Import */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImport"];
+                };
             };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postPlatformVehicleCatalogImportApply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Apply queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeVehicleCatalogImport"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantVehicleCatalogBrands: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                category?: components["parameters"]["VehicleCatalogCategory"];
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Brand page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantVehicleCatalogBrandPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["TenantForbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantVehicleCatalogModels: {
+        parameters: {
+            query: {
+                /** @description Display brand UUID (a TSB brand UUID is accepted and mapped to its display brand) */
+                brand: string;
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Model page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantVehicleCatalogModelPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["TenantForbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantVehicleCatalogTypes: {
+        parameters: {
+            query: {
+                /** @description Grouped model UUID (any model uuid of the group) */
+                model: string;
+                /** @description Model year */
+                year?: components["parameters"]["VehicleCatalogYear"];
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Type page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeTenantVehicleCatalogTypePage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["TenantForbidden"];
+            500: components["responses"]["InternalError"];
         };
     };
     searchTenantVehicleCatalog: {
@@ -17472,6 +22472,11 @@ export interface operations {
                     /** @example 20:00 */
                     send_time: string;
                     recipient_user_uuids: string[];
+                    /**
+                     * @description Delivery channel; omitted keeps the saved one (default whatsapp).
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -17566,6 +22571,11 @@ export interface operations {
                     recipient_user_uuids: string[];
                     /** @enum {integer} */
                     batch_minutes: 0 | 30 | 60;
+                    /**
+                     * @description Phone message channel; omitted keeps the saved one (default whatsapp).
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -17591,7 +22601,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description { in_app, whatsapp, skipped[] } */
+            /** @description { in_app, whatsapp, sms, skipped[] } */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17601,6 +22611,258 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantMessagingSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsChannelOverview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    estimateTenantMessagingSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsEstimateRequest"];
+            };
+        };
+        responses: {
+            /** @description Estimate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsEstimate"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    saveTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSmsProviderRequest"];
+            };
+        };
+        responses: {
+            /** @description Account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsProviderAccount"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description { success: true } */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTenantMessagingSmsProviderActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    is_active: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsProviderAccount"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    testTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsTestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sendTenantMessagingTestSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsTestSmsRequest"];
+            };
+        };
+        responses: {
+            /** @description Send result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsTestSmsResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPlatformSmsReport: {
+        parameters: {
+            query?: {
+                /** @description First day (YYYY-MM-DD, inclusive). Default first day of the current month. */
+                from?: string;
+                /** @description Last day (YYYY-MM-DD, inclusive). Default today. At most 366 days after `from`. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsReport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformSmsOrganizationMessages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsReportMessagesPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantMessagingSession: {
@@ -18096,10 +23358,11 @@ export interface operations {
                     mode?: "event" | "job_lifecycle";
                     event_type?: string;
                     /**
+                     * @description `sms` sends the organization's SMS template through its active SMS provider.
                      * @default whatsapp
                      * @enum {string}
                      */
-                    channel?: "whatsapp";
+                    channel?: "whatsapp" | "sms";
                     phone: string;
                     vars?: {
                         [key: string]: string;
@@ -18352,6 +23615,11 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
                 sort?: string;
+                /**
+                 * @description Only sales of this customer (`total` is filtered too). A customer of
+                 *     another organization matches nothing; a malformed uuid is `400`.
+                 */
+                customer_uuid?: string;
                 status?: "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
@@ -18732,6 +24000,12 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
                 sort?: string;
+                /**
+                 * @description Only purchases from this supplier (`total` is filtered too). A
+                 *     supplier of another organization matches nothing; a malformed uuid
+                 *     is `400`.
+                 */
+                supplier_uuid?: string;
                 status?: "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
@@ -19317,6 +24591,12 @@ export interface operations {
                 status?: "draft" | "pending" | "executed" | "voided";
                 subject_type?: "service_job";
                 subject_uuid?: string;
+                /**
+                 * @description Only contracts on this customer's service jobs (contracts are bound to
+                 *     a job; the job's customer decides). A customer of another
+                 *     organization matches nothing; a malformed uuid is `400`.
+                 */
+                customer_uuid?: string;
             };
             header?: never;
             path?: never;
@@ -19500,6 +24780,11 @@ export interface operations {
                 "application/json": {
                     /** @description Override recipient; defaults to the signer phone. */
                     phone?: string;
+                    /**
+                     * @default whatsapp
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -20155,6 +25440,35 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    listTenantCustomerActivity: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerActivityPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     createTenantCustomerVehicle: {
         parameters: {
             query?: never;
@@ -20541,6 +25855,195 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantCalendarMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Calendar metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantCalendarFeed: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description Exclusive end date. */
+                to: string;
+                /** @description Comma-separated layers; empty means every layer the caller may see. */
+                layers?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarFeed"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    moveTenantCalendarItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarMoveInput"];
+            };
+        };
+        responses: {
+            /** @description The item at its new place */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarFeedItem"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarEventInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarEventInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantTodosMeta: {
@@ -23091,6 +28594,382 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getTenantCatalogProductSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Product summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProductSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listTenantCatalogProductMovements: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Movements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProductMovementList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantCatalogServiceSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeServiceSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listTenantCatalogServiceJobs: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jobs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeServiceJobList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantCustomerSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantSupplierSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Supplier summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplierSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getMCPInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MCP info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    getMCPOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consent data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPConsent"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    decideMCPOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPDecideRequest"];
+            };
+        };
+        responses: {
+            /** @description Redirect target */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPDecision"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMCPGrants: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                realm?: "org" | "platform";
+                organization_uuid?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connected apps */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPGrantList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    revokeMCPGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformMCPClients: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: "active" | "revoked";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clients */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPClientList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    revokePlatformMCPClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blocked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

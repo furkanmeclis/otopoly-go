@@ -1,15 +1,15 @@
 import { router } from 'expo-router';
 import { AlertTriangle, ChevronLeft, ChevronRight, Inbox, Lock, RefreshCw } from 'lucide-react-native';
-import { useEffect, type ReactNode } from 'react';
+import { forwardRef, useEffect, useState, type ReactNode } from 'react';
+import { Pressable, RefreshControl, View, type ScrollViewProps, type StyleProp, type ViewStyle } from 'react-native';
 import {
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  View,
-  type ScrollViewProps,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native';
+  KeyboardAvoidingView as KeyboardControllerAvoidingView,
+  KeyboardAwareScrollView,
+  KeyboardStickyView,
+  useReanimatedKeyboardAnimation,
+  type KeyboardAwareScrollViewProps,
+  type KeyboardAwareScrollViewRef,
+} from 'react-native-keyboard-controller';
 import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,11 +20,107 @@ import { makeStyles, useTheme } from '@/theme/provider';
 
 import { Button, IconButton, Txt } from './primitives';
 
+// ─── Keyboard ──────────────────────────────────────────────────────────────
+//
+// One keyboard strategy for the whole app (react-native-keyboard-controller, `KeyboardProvider` in the
+// root layout; Android is edge-to-edge, so the OS no longer resizes the window for the keyboard):
+// - scrolling content → `KeyboardScroll` keeps the focused input above the keyboard,
+// - bottom actions → `KeyboardFooter` rides on top of the keyboard,
+// - full-height custom layouts (chat) → `KeyboardAvoider` shrinks to the space above the keyboard,
+// - a single bottom bar inside a layout that does not avoid the keyboard → `KeyboardSpacer`.
+// `Screen` and `Sheet` already use the first two; use the helpers directly only in custom layouts.
+
+/** Gap kept between the focused input (or a sticky footer) and the keyboard. */
+export const KEYBOARD_GAP = 16;
+
+/**
+ * Drop-in ScrollView that scrolls the focused input above the keyboard. Pass the height of anything
+ * pinned above the keyboard (a `KeyboardFooter`) as `bottomOffset`.
+ */
+export const KeyboardScroll = forwardRef<KeyboardAwareScrollViewRef, KeyboardAwareScrollViewProps>(function KeyboardScroll(
+  { bottomOffset = 0, keyboardShouldPersistTaps = 'handled', keyboardDismissMode = 'on-drag', showsVerticalScrollIndicator = false, ...rest },
+  ref,
+) {
+  return (
+    <KeyboardAwareScrollView
+      ref={ref}
+      bottomOffset={bottomOffset + KEYBOARD_GAP}
+      keyboardShouldPersistTaps={keyboardShouldPersistTaps}
+      keyboardDismissMode={keyboardDismissMode}
+      showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+      {...rest}
+    />
+  );
+});
+
+/**
+ * Bottom action bar: pads the home-indicator area while the keyboard is closed and sits right on top
+ * of the keyboard while it is open. `onHeight` reports its height (feed it to `KeyboardScroll`).
+ */
+export function KeyboardFooter({
+  children,
+  style,
+  onHeight,
+  bordered = true,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  onHeight?: (height: number) => void;
+  bordered?: boolean;
+}) {
+  const t = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottom = Math.max(insets.bottom, t.spacing.md);
+  return (
+    <KeyboardStickyView
+      // The keyboard covers the home indicator: drop that padding (keep a small gap) while it is open.
+      offset={{ closed: 0, opened: bottom - t.spacing.md }}
+      onLayout={onHeight ? (e) => onHeight(e.nativeEvent.layout.height) : undefined}
+      style={[
+        {
+          paddingHorizontal: t.spacing.lg,
+          paddingTop: t.spacing.md,
+          paddingBottom: bottom,
+          backgroundColor: t.colors.surface,
+          gap: t.spacing.sm,
+        },
+        bordered ? { borderTopWidth: 1, borderTopColor: t.colors.border } : null,
+        style,
+      ]}
+    >
+      {children}
+    </KeyboardStickyView>
+  );
+}
+
+/**
+ * Full-height container that shrinks to the space above the keyboard (chat screens, layouts with a
+ * list and a bottom composer). Its position on screen (headers, sheets) is detected automatically.
+ */
+export function KeyboardAvoider({ children, style, enabled = true }: { children: ReactNode; style?: StyleProp<ViewStyle>; enabled?: boolean }) {
+  return (
+    <KeyboardControllerAvoidingView behavior="padding" automaticOffset enabled={enabled} style={[{ flex: 1 }, style]}>
+      {children}
+    </KeyboardControllerAvoidingView>
+  );
+}
+
+/**
+ * Animated spacer as tall as the open keyboard (minus `inset`, e.g. a bottom safe-area padding that the
+ * keyboard covers). Put it under a bottom bar whose screen does not avoid the keyboard.
+ */
+export function KeyboardSpacer({ enabled = true, inset = 0 }: { enabled?: boolean; inset?: number }) {
+  const { height } = useReanimatedKeyboardAnimation();
+  const style = useAnimatedStyle(() => ({ height: enabled ? Math.max(0, -height.value - inset) : 0 }), [enabled, inset]);
+  return <Animated.View style={style} pointerEvents="none" />;
+}
+
 // ─── Screen ────────────────────────────────────────────────────────────────
 
 /**
- * Standard screen shell: safe area (top), themed background, optional header,
- * optional scroll with pull-to-refresh. Bottom inset is added to scroll content.
+ * Standard screen shell: safe area (top), themed background, optional header, optional scroll with
+ * pull-to-refresh. Bottom inset is added to scroll content. The scroll keeps the focused input above
+ * the keyboard and the footer rides on top of it (see Keyboard above).
  */
 export function Screen({
   children,
@@ -50,16 +146,16 @@ export function Screen({
   const t = useTheme();
   const styles = useScreenStyles();
   const insets = useSafeAreaInsets();
+  const [footerHeight, setFooterHeight] = useState(0);
   return (
     <SafeAreaView style={styles.root} edges={edges}>
       {header}
       {scroll ? (
-        <ScrollView
+        <KeyboardScroll
           style={styles.flex}
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + t.spacing.xxxl }, contentStyle]}
+          contentContainerStyle={[styles.content, { paddingBottom: (footer ? t.spacing.xl : insets.bottom + t.spacing.xxxl) }, contentStyle]}
+          bottomOffset={footer ? footerHeight : 0}
           keyboardShouldPersistTaps={keyboardShouldPersistTaps}
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}
           refreshControl={
             onRefresh ? (
               <RefreshControl refreshing={Boolean(refreshing)} onRefresh={onRefresh} tintColor={t.colors.primary} colors={[t.colors.primary]} />
@@ -67,11 +163,11 @@ export function Screen({
           }
         >
           {children}
-        </ScrollView>
+        </KeyboardScroll>
       ) : (
         <View style={[styles.flex, contentStyle]}>{children}</View>
       )}
-      {footer ? <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, t.spacing.md) }]}>{footer}</View> : null}
+      {footer ? <KeyboardFooter onHeight={setFooterHeight}>{footer}</KeyboardFooter> : null}
     </SafeAreaView>
   );
 }
@@ -80,14 +176,6 @@ const useScreenStyles = makeStyles((t) => ({
   root: { flex: 1, backgroundColor: t.colors.background },
   flex: { flex: 1 },
   content: { paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.sm, gap: t.spacing.lg },
-  footer: {
-    paddingHorizontal: t.spacing.lg,
-    paddingTop: t.spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: t.colors.border,
-    backgroundColor: t.colors.surface,
-    gap: t.spacing.sm,
-  },
 }));
 
 // ─── Header ────────────────────────────────────────────────────────────────

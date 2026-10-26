@@ -16,6 +16,7 @@ import { useTodo, useTodoMutations, useTodosInfinite } from '@/features/todos/qu
 import type { Todo, TodoListParams } from '@/features/todos/types';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type Tab = 'due' | 'upcoming' | 'no_date' | 'mine' | 'done';
 
@@ -28,6 +29,7 @@ const TAB_PARAMS: Record<Tab, TodoListParams> = {
 };
 
 export default function TodosScreen() {
+  useLiveResource('tenant.todos');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.todosRead} title={tr('todos.title')}>

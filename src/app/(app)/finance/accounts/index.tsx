@@ -14,11 +14,13 @@ import { useAccountsInfinite } from '@/features/finance/queries';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type ActiveFilter = 'all' | 'true' | 'false';
 type SortKey = 'name' | '-current_balance' | 'current_balance' | 'currency';
 
 export default function FinanceAccountsScreen() {
+  useLiveResource('tenant.finance.accounts');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.financeRead} title={tr('finance.accounts.title')}>

@@ -51,6 +51,8 @@ export function areaOf(path) {
     [/^\/v1\/tenant\/(sales|purchases|suppliers)\b/, 'commerce'],
     [/^\/v1\/(tenant\/(quotes|leads|todos)|public\/quotes)\b/, 'crm'],
     [/^\/v1\/tenant\/ai\b/, 'ai'],
+    [/^\/v1\/tenant\/calendar\b/, 'calendar'],
+    [/^\/v1\/realtime\b/, 'realtime'],
     [/^\/v1\/tenant\/catalog\b/, 'catalog'],
     [/^\/v1\/tenant\/(contracts|imports|exports)\b/, 'documents'],
     [/^\/v1\/(tenant\/(settings|staff|messaging|daily-summary|vehicle-alerts)|platform\/contract-presets)\b/, 'settings'],
@@ -191,8 +193,9 @@ export function validateRecords({ specPath, allowlistPath, errorCodesPath, backe
     // Rejected requests (negative cases, permission checks) are not validated as request bodies.
     const negative = rec.status >= 400;
 
-    // Query parameters.
+    // Query parameters (a 400 answer is a deliberate invalid-input case, e.g. a malformed uuid filter).
     for (const [name, raw] of Object.entries(rec.query ?? {})) {
+      if (rec.status === 400) break;
       if (raw === undefined || raw === null || raw === '') continue;
       const p = o.params.find((x) => x.in === 'query' && x.name === name);
       if (!p) {

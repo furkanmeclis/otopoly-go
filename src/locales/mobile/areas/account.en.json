@@ -73,5 +73,18 @@
   "account.legal.login_notice": "By signing in you agree to the Terms of Use and the Privacy Policy.",
   "account.legal.delete_hint": "The Privacy Policy explains which records are kept, on what legal basis and for how long.",
   "account.legal.ai_hint": "The assistant's full data processing terms are in the Privacy Policy.",
-  "account.password.current_incorrect": "Current password is incorrect"
+  "account.password.current_incorrect": "Current password is incorrect",
+  "ai.list.messages_one": "{{count}} message",
+  "ai.list.messages_other": "{{count}} messages",
+  "ai.list.no_messages": "No messages yet",
+  "ai.list.load_failed": "Conversations couldn't be loaded.",
+  "ai.list.no_results": "No results",
+  "ai.list.no_results_body": "No conversation matches “{{q}}”.",
+  "ai.list.row_hint": "Tap to open, long press to rename or delete",
+  "ai.list.open": "Open",
+  "ai.list.manage": "Rename or delete",
+  "ai.list.manage_named": "{{title}}: rename or delete",
+  "ai.list.empty_title": "Ask the assistant your first question",
+  "ai.list.empty_body": "Ask about your jobs, cash and customers in plain words. Your conversations are listed here.",
+  "ai.list.suggestion_hint": "Opens a new chat and sends this question"
 }

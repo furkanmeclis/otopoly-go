@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 
 import { apiUrl } from '@/api/files';
-import { Button, Card, ErrorState, Header, ListSkeleton, Row, Screen, Section, Segmented, TextField, Txt } from '@/components/ui';
+import { Button, Card, ErrorState, Header, ListSkeleton, Row, Screen, Section, Segmented, SelectField, TextField, Txt } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
-import { BRAND_PRIMARY, exportSettingsKey, exportSettingsService, normalizeHexColor, PAPER_SIZES, useExportSettings, type PaperSize } from '@/features/export-settings/service';
-import type { AppSettings } from '@/features/io/types';
+import { BRAND_PRIMARY, exportSettingsKey, exportSettingsService, normalizeHexColor, PAPER_SIZES, useExportSettings, type AppSettings, type PaperSize } from '@/features/export-settings/service';
+import { SECTOR_KEYS, toSectorKey, type SectorKey } from '@/features/onboarding/data/sectors';
 import { useLocale } from '@/lib/i18n/provider';
 import { fieldErrors, useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
@@ -17,7 +17,7 @@ import { useTheme } from '@/theme/provider';
 /** Quick picks for the letterhead colour (the web uses a native colour input). */
 const SWATCHES = ['#EA6E43', '#DC2626', '#D97706', '#16A34A', '#0891B2', '#2563EB', '#7C3AED', '#1A1412'];
 
-/** Web tenant `settings` page (SettingsPage scope=tenant): export settings / letterhead. Owner-only like the backend. */
+/** Web tenant `settings` page (SettingsPage scope=tenant): business sector + export settings / letterhead. Owner-only like the backend. */
 export default function LetterheadScreen() {
   const { t: tr } = useLocale();
   return (
@@ -48,10 +48,11 @@ function Letterhead() {
   return <LetterheadForm key={JSON.stringify(query.data)} settings={query.data} canWrite={canWrite} refetch={() => void query.refetch()} refreshing={query.isRefetching} />;
 }
 
-type Values = { company_name: string; tagline: string; primary_color: string; paper_size: PaperSize; address: string; city: string; district: string; phone: string; email: string; website: string; footer_text: string };
+type Values = { sector: SectorKey | ''; company_name: string; tagline: string; primary_color: string; paper_size: PaperSize; address: string; city: string; district: string; phone: string; email: string; website: string; footer_text: string };
 
 function toValues(s: AppSettings): Values {
   return {
+    sector: toSectorKey(s.sector) ?? '',
     company_name: s.company_name,
     tagline: s.tagline,
     primary_color: normalizeHexColor(s.primary_color, BRAND_PRIMARY),
@@ -169,6 +170,18 @@ function LetterheadForm({ settings, canWrite, refetch, refreshing }: { settings:
             </View>
           </Row>
         </Card>
+
+        <SelectField
+          label={tr('settings.sector')}
+          value={v.sector}
+          disabled={!canWrite}
+          error={errs.sector}
+          options={[{ value: '', label: tr('settings.sectors.none') }, ...SECTOR_KEYS.map((key) => ({ value: key, label: tr(`settings.sectors.${key}`) }))]}
+          onChange={(x) => set('sector', toSectorKey(x) ?? '')}
+        />
+        <Txt variant="caption" tone="secondary">
+          {tr('settings.sector_hint')}
+        </Txt>
 
         <TextField label={tr('settings.company_name')} value={v.company_name} onChangeText={(x) => set('company_name', x)} editable={canWrite} error={errs.company_name} required />
         <TextField label={tr('settings.tagline')} value={v.tagline} onChangeText={(x) => set('tagline', x)} editable={canWrite} error={errs.tagline} />

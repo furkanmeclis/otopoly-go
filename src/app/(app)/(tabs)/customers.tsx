@@ -12,10 +12,12 @@ import { useCustomersInfinite } from '@/features/queries';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type KindFilter = 'all' | 'individual' | 'company' | 'passive';
 
 export default function CustomersScreen() {
+  useLiveResource('tenant.customers');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.customersRead} title={tr('customers.title')}>

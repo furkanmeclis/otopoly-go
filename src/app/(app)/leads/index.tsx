@@ -18,11 +18,13 @@ import { LEAD_STATUSES, type Lead, type LeadListParams, type LeadStatus } from '
 import { useLeadsSummary } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type StatusTab = 'open' | 'all' | 'won' | 'lost';
 type Quick = 'hot' | 'mine' | 'overdue' | 'today';
 
 export default function LeadsScreen() {
+  useLiveResource('tenant.leads');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.leadsRead} title={tr('leads.title')}>

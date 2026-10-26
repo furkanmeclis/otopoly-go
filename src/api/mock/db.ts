@@ -17,6 +17,7 @@ import type { QuoteDetail } from '@/features/quotes/types';
 import type { SaleDetail } from '@/features/sales/services/sales.service';
 import type { Supplier } from '@/features/suppliers/services/suppliers.service';
 import type { Todo } from '@/features/todos/types';
+import type { SectorKey } from '@/features/onboarding/data/sectors';
 import { createLogger } from '@/lib/logger';
 import { prefs, StorageKeys } from '@/lib/storage';
 
@@ -25,7 +26,7 @@ import type { MockMembership, MockUser } from './core';
 const log = createLogger('mock.db');
 
 /** Bump when the seed or row shapes change so stale persisted demo data is discarded. */
-export const MOCK_DB_VERSION = 6;
+export const MOCK_DB_VERSION = 7;
 
 export type MockOrganization = {
   uuid: string;
@@ -40,6 +41,8 @@ export type MockOrganization = {
   address: string;
   city: string;
   district: string;
+  /** Business type (`OrganizationSector`); null = not set. */
+  sector: SectorKey | null;
   created_at: string;
 };
 

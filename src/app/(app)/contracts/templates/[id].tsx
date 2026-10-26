@@ -20,8 +20,10 @@ import { contractsService, type ContractTemplate } from '@/features/contracts/se
 import { useLocale } from '@/lib/i18n/provider';
 import { fieldErrors, useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function ContractTemplateScreen() {
+  useLiveResource('tenant.contracts');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.contractsRead} title={tr('contracts.templates.edit_title')}>

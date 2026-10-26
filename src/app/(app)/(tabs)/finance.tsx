@@ -33,6 +33,7 @@ import { qk, useFinanceSummary, useTransactionsInfinite } from '@/features/queri
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type Preset = 'month' | '7d' | '30d' | 'custom';
 
@@ -42,6 +43,7 @@ function monthStart() {
 }
 
 export default function FinanceScreen() {
+  useLiveResource(['tenant.finance.transactions', 'tenant.finance.accounts', 'tenant.cari']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.financeRead} title={tr('finance.title')}>

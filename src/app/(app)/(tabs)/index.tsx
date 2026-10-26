@@ -1,38 +1,29 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { router, type Href } from 'expo-router';
 import {
   AlarmClock,
   CarFront,
-  CheckCircle2,
-  Circle,
-  ClipboardList,
-  FileSignature,
   FileText,
   KeyRound,
-  MessageCircle,
   Plus,
   ShoppingBag,
-  Sparkles,
   UserPlus,
   Wallet,
   Wrench,
-  X,
 } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, View } from 'react-native';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { View } from 'react-native';
 
-import { request } from '@/api/client';
 import { isFeatureDisabled } from '@/api/errors';
 import { BrandMark } from '@/components/brand';
-import type { ListPage } from '@/api/types';
 import {
   Avatar,
   BarChart,
   Button,
   Card,
   Group,
-  IconButton,
   ListRow,
+  BrandLogo,
   PlateBadge,
   RankBars,
   Row,
@@ -42,28 +33,26 @@ import {
   Txt,
 } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
+import { CalendarTodayCard } from '@/features/calendar/components/today-card';
 import { P } from '@/features/auth/permissions';
 import { JobElapsed, useNow } from '@/features/jobs/components/job-parts';
 import { isStale, localToday, shiftDate } from '@/features/jobs/lib/job-ui';
-import type { WhatsAppSession } from '@/features/messaging/types';
 import {
-  useCustomersInfinite,
   useJobs,
   useJobsSummary,
   useLeadsSummary,
   useQuotesSummary,
   useReportsOverview,
-  useServices,
   useTodos,
 } from '@/features/queries';
 import { TodoRow } from '@/features/todos/components/todo-row';
 import { NotificationBell } from '@/features/notifications/components/notification-parts';
-import { isWelcomePending } from '@/features/onboarding/state';
+import { SetupChecklist } from '@/features/onboarding/components/setup-checklist';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
-import { prefs, StorageKeys } from '@/lib/storage';
 import { useTheme } from '@/theme/provider';
 import { useMarkInteractive } from '@/lib/monitoring/observe';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const CHART_DAYS = 30;
 
@@ -74,10 +63,11 @@ function greetingKey(hour: number) {
 }
 
 export default function DashboardScreen() {
+  useLiveResource(['tenant.jobs', 'tenant.sales', 'tenant.finance.transactions', 'tenant.todos', 'tenant.calendar']);
   useMarkInteractive();
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
-  const { me, organization, can, isOwner } = useAuth();
+  const { me, organization, can } = useAuth();
   const firstName = me?.user.name ?? '';
   const [refreshKey, setRefreshKey] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -122,8 +112,9 @@ export default function DashboardScreen() {
         ) : null}
       </Row>
 
-      {isOwner ? <SetupChecklist key={`setup-${refreshKey}`} /> : null}
+      <SetupChecklist key={`setup-${refreshKey}`} />
       {can(P.jobsRead) ? <TodaySection /> : null}
+      <CalendarTodayCard />
       <PipelineSection />
       {can(P.todosRead) ? <TodosWidget /> : null}
       {can(P.reportsRead) ? <InsightsSection /> : null}
@@ -230,7 +221,12 @@ function TodaySection() {
                 key={job.uuid}
                 title={job.customer_name}
                 subtitle={job.vehicle_label}
-                left={<PlateBadge plate={job.plate} size="sm" />}
+                left={
+                  <Row gap={t.spacing.sm}>
+                    <BrandLogo name={job.brand_name} logoUrl={job.brand_logo_url} size="sm" />
+                    <PlateBadge plate={job.plate} size="sm" />
+                  </Row>
+                }
                 right={
                   job.status === 'ready' ? (
                     <Txt variant="caption" tone="info" style={{ fontWeight: '700' }}>
@@ -357,7 +353,7 @@ function InsightsSection() {
   const data = overview.data;
   const kpis = data?.kpis;
   const chart = useMemo(
-    () => (data?.timeseries ?? []).map((p) => ({ label: fmt.date(`${p.date}T12:00:00`, 'short'), value: toNumber(p.income) })),
+    () => (data?.timeseries ?? []).map((p) => ({ label: fmt.date(`${p.date}T12:00:00`, 'short'), title: fmt.date(`${p.date}T12:00:00`, 'long'), value: toNumber(p.income) })),
     [data?.timeseries, fmt],
   );
   const services = (data?.services ?? []).slice(0, 5);
@@ -389,7 +385,7 @@ function InsightsSection() {
               </View>
             ))}
           </View>
-          {overview.isLoading ? <Skeleton height={140} /> : <BarChart data={chart} formatValue={(n) => fmt.money(n)} />}
+          {overview.isLoading ? <Skeleton height={140} /> : <BarChart data={chart} formatValue={(n) => fmt.money(n)} seriesLabels={{ primary: tr('dashboard.tenant.kpi_income') }} />}
         </Card>
       </Section>
 
@@ -487,96 +483,3 @@ function MiniList({
 }
 
 // ─── Setup checklist (owner) ───────────────────────────────────────────────
-
-function SetupChecklist() {
-  const t = useTheme();
-  const { t: tr } = useLocale();
-  const { organization } = useAuth();
-  // `?welcome=1` after creating the business in the app (create-business); the in-memory flag covers a
-  // hand-off where the param got lost while the navigator switched to the app.
-  const { welcome } = useLocalSearchParams<{ welcome?: string }>();
-  const isWelcome = welcome === '1' || isWelcomePending(organization?.slug);
-  const storageKey = `${StorageKeys.dismissedSetup}.${organization?.slug}`;
-  const [dismissed, setDismissed] = useState<boolean | null>(null);
-  useEffect(() => {
-    prefs.get(storageKey, false).then(setDismissed);
-  }, [storageKey]);
-
-  const session = useQuery({ queryKey: ['messaging', 'session'], queryFn: () => request<WhatsAppSession>('GET', '/v1/tenant/messaging/session', { silent: true }) });
-  const templates = useQuery({ queryKey: ['contracts', 'templates', 'count'], queryFn: () => request<ListPage<unknown>>('GET', '/v1/tenant/contracts/templates', { query: { limit: 1 }, silent: true }) });
-  const services = useServices({ limit: 1 });
-  const customers = useCustomersInfinite({});
-  const jobs = useJobs({ limit: 1, offset: 0 });
-
-  const items: { key: string; icon: ReactNode; done: boolean; href: Href }[] = [
-    { key: 'services', icon: <Wrench size={14} color={t.colors.textSecondary} />, done: (services.data?.total ?? 0) > 0, href: '/catalog/services' },
-    { key: 'whatsapp', icon: <MessageCircle size={14} color={t.colors.textSecondary} />, done: session.data ? !session.data.own_number_entitled || session.data.status === 'connected' : false, href: '/settings/messaging' },
-    { key: 'customer', icon: <UserPlus size={14} color={t.colors.textSecondary} />, done: customers.total > 0, href: '/customers' },
-    { key: 'job', icon: <ClipboardList size={14} color={t.colors.textSecondary} />, done: (jobs.data?.total ?? 0) > 0, href: '/jobs/new' },
-    { key: 'contract', icon: <FileSignature size={14} color={t.colors.textSecondary} />, done: (templates.data?.total ?? 0) > 0, href: '/contracts/templates' },
-  ];
-  const loading = [session, templates, services, jobs].some((q) => q.isLoading) || customers.isLoading || dismissed === null;
-  const doneCount = items.filter((i) => i.done).length;
-  if (loading || dismissed || doneCount === items.length) return null;
-
-  return (
-    <Card style={{ gap: t.spacing.md, borderColor: t.colors.primarySoft }}>
-      <Row gap={t.spacing.md} style={{ alignItems: 'flex-start' }}>
-        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: t.colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Sparkles size={20} color={t.colors.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Txt variant="heading">{isWelcome ? tr('dashboard.tenant.setup.welcome_title') : tr('dashboard.tenant.setup.title')}</Txt>
-          <Txt variant="caption" tone="secondary">
-            {tr('dashboard.tenant.setup.progress', { done: doneCount, total: items.length })}
-          </Txt>
-        </View>
-        <IconButton
-          variant="ghost"
-          label={tr('dashboard.tenant.setup.dismiss')}
-          icon={<X size={18} color={t.colors.textMuted} />}
-          onPress={() => {
-            setDismissed(true);
-            prefs.set(storageKey, true);
-          }}
-        />
-      </Row>
-      <View style={{ height: 6, borderRadius: 3, backgroundColor: t.colors.surfaceSunken, overflow: 'hidden' }}>
-        <View style={{ width: `${(doneCount / items.length) * 100}%`, height: 6, backgroundColor: t.colors.primary }} />
-      </View>
-      <View style={{ gap: t.spacing.sm }}>
-        {items.map((item) => (
-          <Pressable
-            key={item.key}
-            onPress={() => router.push(item.href)}
-            accessibilityRole="button"
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              gap: t.spacing.md,
-              padding: t.spacing.md,
-              borderRadius: t.radius.md,
-              borderWidth: 1,
-              borderColor: t.colors.border,
-              backgroundColor: item.done ? t.colors.surfaceAlt : pressed ? t.colors.surfaceAlt : t.colors.surface,
-            })}
-          >
-            {item.done ? <CheckCircle2 size={18} color={t.colors.success} /> : <Circle size={18} color={t.colors.textMuted} />}
-            <View style={{ flex: 1, gap: 2 }}>
-              <Row gap={6}>
-                {item.icon}
-                <Txt variant="bodyStrong" tone={item.done ? 'muted' : 'default'} style={item.done ? { textDecorationLine: 'line-through' } : undefined}>
-                  {tr(`dashboard.tenant.setup.${item.key}.title`)}
-                </Txt>
-              </Row>
-              {!item.done ? (
-                <Txt variant="caption" tone="secondary">
-                  {tr(`dashboard.tenant.setup.${item.key}.hint`)}
-                </Txt>
-              ) : null}
-            </View>
-          </Pressable>
-        ))}
-      </View>
-    </Card>
-  );
-}

@@ -15,11 +15,13 @@ import { staffService, type StaffMember } from '@/features/staff/services/staff.
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 /** Web `useTenantStaffAccess`: writes need the owner membership + `tenant.staff.write`. */
 const STAFF_WRITE = ownerOnly(P.staffWrite);
 
 export default function StaffScreen() {
+  useLiveResource('tenant.staff');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.staffRead} title={tr('staff.title')}>

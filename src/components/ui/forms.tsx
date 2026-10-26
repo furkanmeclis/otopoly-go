@@ -4,7 +4,6 @@ import { Calendar, Check, ChevronDown, Search, X } from 'lucide-react-native';
 import { forwardRef, useMemo, useState, type ReactNode } from 'react';
 import {
   FlatList,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -15,12 +14,13 @@ import {
   type TextInputInstance,
   type TextInputProps,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 
-import { EmptyState } from './layout';
+import { EmptyState, KeyboardFooter, KeyboardScroll } from './layout';
 import { Button, IconButton, Txt } from './primitives';
 
 // ─── Field wrapper ─────────────────────────────────────────────────────────
@@ -319,9 +319,11 @@ export function Sheet({
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { t: tr } = useLocale();
+  const [footerHeight, setFooterHeight] = useState(0);
   return (
     <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.colors.background }}>
+      {/* A Modal is a separate native root: gestures inside it (signature pad, chart scrub) need their own root view. */}
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.colors.background }}>
         <View
           style={{
             flexDirection: 'row',
@@ -339,32 +341,25 @@ export function Sheet({
           </Txt>
           <IconButton label={tr('common.close')} icon={<X size={20} color={t.colors.text} />} onPress={onClose} />
         </View>
+        {/* Keyboard: the scroll keeps the focused input visible, the footer rides on the keyboard
+            (scroll={false} content handles its own scrolling, e.g. with KeyboardScroll). */}
         {scroll ? (
-          <ScrollView
+          <KeyboardScroll
             style={{ flex: 1 }}
             contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }}
-            keyboardShouldPersistTaps="handled"
+            bottomOffset={footer ? footerHeight : 0}
           >
             {children}
-          </ScrollView>
+          </KeyboardScroll>
         ) : (
           <View style={{ flex: 1 }}>{children}</View>
         )}
         {footer ? (
-          <View
-            style={{
-              padding: t.spacing.lg,
-              paddingBottom: Math.max(insets.bottom, t.spacing.lg),
-              borderTopWidth: 1,
-              borderTopColor: t.colors.border,
-              backgroundColor: t.colors.surface,
-              gap: t.spacing.sm,
-            }}
-          >
+          <KeyboardFooter onHeight={setFooterHeight} style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.lg, paddingBottom: Math.max(insets.bottom, t.spacing.lg) }}>
             {footer}
-          </View>
+          </KeyboardFooter>
         ) : null}
-      </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -476,6 +471,8 @@ export function SelectField({
           data={filtered}
           keyExtractor={(o) => o.value}
           keyboardShouldPersistTaps="handled"
+          // Keeps the last options reachable above the keyboard while searching.
+          renderScrollComponent={(props) => <KeyboardScroll {...props} />}
           contentContainerStyle={{ paddingHorizontal: t.spacing.lg, paddingBottom: t.spacing.xxxl }}
           ListEmptyComponent={loading ? undefined : <EmptyState />}
           renderItem={({ item }) => {

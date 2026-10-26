@@ -2,7 +2,7 @@ import { Plus } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
-import { Button, PlateBadge, Row, SelectField, Sheet, TextField, Txt } from '@/components/ui';
+import { BrandLogo, Button, PlateBadge, Row, SelectField, Sheet, TextField, Txt, type SelectOption } from '@/components/ui';
 import { customersService, type Customer, type CustomerDetail, type CustomerVehicle } from '@/features/customers/services/customers.service';
 import { qk, useCustomer, useCustomersSearch, useVehicleCatalog } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
@@ -125,20 +125,26 @@ function QuickCustomerSheet({ visible, onClose, onCreated }: { visible: boolean;
 export function VehicleModelPicker({ value, onChange, error, label }: { value: string | null; onChange: (v: string | null, label?: string) => void; error?: string | null; label?: string }) {
   const { t: tr } = useLocale();
   const [q, setQ] = useState('');
-  const [selectedLabel, setSelectedLabel] = useState<string | null>(null);
+  // Keeps the picked option (label + logo) visible after the search results change.
+  const [selected, setSelected] = useState<SelectOption | null>(null);
   const catalog = useVehicleCatalog(q);
   const options = useMemo(() => {
-    const items = (catalog.data?.items ?? []).map((i) => ({ value: `${i.model_uuid}:${i.year}`, label: `${i.brand_name} ${i.model_name} · ${i.year}`, description: i.brand_name }));
-    if (value && selectedLabel && !items.some((o) => o.value === value)) items.unshift({ value, label: selectedLabel, description: '' });
+    const items: SelectOption[] = (catalog.data?.items ?? []).map((i) => ({
+      value: `${i.model_uuid}:${i.year}`,
+      label: `${i.brand_name} ${i.model_name} · ${i.year}`,
+      description: i.brand_name,
+      left: <BrandLogo name={i.brand_name} logoUrl={i.logo_url} size="md" />,
+    }));
+    if (value && selected?.value === value && !items.some((o) => o.value === value)) items.unshift(selected);
     return items;
-  }, [catalog.data, value, selectedLabel]);
+  }, [catalog.data, value, selected]);
   return (
     <SelectField
       label={label ?? tr('customers.detail.catalog')}
       placeholder={tr('jobs.quick.catalog_placeholder')}
       value={value}
       onChange={(v, opt) => {
-        setSelectedLabel(opt?.label ?? null);
+        setSelected(opt ?? null);
         onChange(v, opt?.label);
       }}
       options={options}
@@ -178,7 +184,17 @@ export function VehiclePicker({
         loading={customer.isLoading}
         error={error}
         required
-        options={vehicles.map((v) => ({ value: v.uuid, label: `${v.plate} · ${v.brand_name} ${v.model_name}`, description: String(v.year), left: <PlateBadge plate={v.plate} size="sm" /> }))}
+        options={vehicles.map((v) => ({
+          value: v.uuid,
+          label: `${v.plate} · ${v.brand_name} ${v.model_name}`,
+          description: String(v.year),
+          left: (
+            <Row gap={t.spacing.sm}>
+              <BrandLogo name={v.brand_name} logoUrl={v.logo_url} size="sm" />
+              <PlateBadge plate={v.plate} size="sm" />
+            </Row>
+          ),
+        }))}
         footer={(close) => (
           <Button
             variant="secondary"

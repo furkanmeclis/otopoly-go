@@ -10,12 +10,14 @@ import { useCariInfinite, useCariSummary } from '@/features/queries';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type BalanceFilter = 'all' | 'true' | 'false';
 type ActiveFilter = 'all' | 'true' | 'false';
 type Sort = 'customer_name' | '-customer_name' | '-balance' | 'balance';
 
 export default function CariScreen() {
+  useLiveResource('tenant.cari');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.cariRead} title={tr('cari.title')}>

@@ -243,6 +243,33 @@ export function sortBy<T>(items: T[], sort: string | undefined, fallback = '-cre
 
 // ─── Values ────────────────────────────────────────────────────────────────
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Optional uuid query filter (`customer_uuid`, …): absent → undefined, malformed → 400 like the Go handlers. */
+export function uuidQuery(ctx: MockCtx, name: string): string | undefined {
+  const raw = (ctx.query[name] ?? '').trim();
+  if (!raw) return undefined;
+  if (!UUID_RE.test(raw)) fail(400, 'VALIDATION_ERROR', `${name} is invalid`, [{ field: name, message: 'invalid uuid', code: 'invalid' }]);
+  return raw;
+}
+
+/** Stable uuid-shaped id from a string (derived rows such as activity entries keep their id across pages). */
+export function stableUuid(seed: string) {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x01000193;
+  const hex: string[] = [];
+  for (let round = 0; round < 4; round++) {
+    for (let i = 0; i < seed.length; i++) {
+      const c = seed.charCodeAt(i) + round;
+      h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
+      h2 = Math.imul(h2 ^ (c + h1), 2246822507) >>> 0;
+    }
+    hex.push(((h1 ^ h2) >>> 0).toString(16).padStart(8, '0'));
+  }
+  const s = hex.join('');
+  return `${s.slice(0, 8)}-${s.slice(8, 12)}-4${s.slice(13, 16)}-${((parseInt(s[16], 16) & 0x3) | 0x8).toString(16)}${s.slice(17, 20)}-${s.slice(20, 32)}`;
+}
+
 export function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;

@@ -1,6 +1,6 @@
 /**
  * Self-service onboarding, mirroring the backend contract being added in parallel:
- *   POST /v1/auth/organizations   bearer, no organization context → 201 { organization: { uuid, slug, name } }
+ *   POST /v1/auth/organizations   bearer, no organization context → 201 { organization: { uuid, slug, name, sector } }
  *     400 VALIDATION_ERROR · 401 · 403 FORBIDDEN (self-registration disabled) · 409 CONFLICT (already owns a
  *     business) · 429 RATE_LIMITED. The new organization gets a 14-day trial and the caller is its owner.
  *   GET  /v1/app/config           public bootstrap config (`registration_enabled`, `auth_methods`).
@@ -8,6 +8,7 @@
  * Demo limitation: catalog, customers and most other mock tables are not scoped per organization, so a
  * business created here sees the demo business's records (the API scopes everything by organization).
  */
+import { SECTOR_KEYS, type SectorKey } from '@/features/onboarding/data/sectors';
 import { createLogger } from '@/lib/logger';
 
 import { fail, MockHttpError, now, route, str, uuid, validation } from '../core';
@@ -58,7 +59,7 @@ route(
       github_auth_enabled: false,
       registration_enabled: register,
       auth_methods: {
-        password: method(true, false),
+        password: method(true, true),
         passkey: { login: false },
         github: method(false, false),
         google: method(true, true),
@@ -87,6 +88,9 @@ route('POST', '/v1/auth/organizations', (ctx) => {
   const name = str(ctx.body.organization_name).trim();
   if (!name) validation([{ field: 'organization_name', message: 'required', code: 'required' }]);
   if (name.length < 2 || name.length > 120) validation([{ field: 'organization_name', message: 'must be between 2 and 120 characters', code: 'length' }]);
+  const sectorRaw = str(ctx.body.sector).trim();
+  if (sectorRaw && !(SECTOR_KEYS as string[]).includes(sectorRaw)) validation([{ field: 'sector', message: 'invalid sector', code: 'invalid' }]);
+  const sector = sectorRaw ? (sectorRaw as SectorKey) : null;
 
   if (db.memberships.some((m) => m.userUuid === user.uuid && m.role === 'owner')) fail(409, 'CONFLICT', 'You already own a business');
 
@@ -104,6 +108,7 @@ route('POST', '/v1/auth/organizations', (ctx) => {
     address: str(ctx.body.address).trim(),
     city: str(ctx.body.city).trim(),
     district: str(ctx.body.district).trim(),
+    sector,
     created_at: created,
   };
   db.organizations.push(org);
@@ -111,5 +116,5 @@ route('POST', '/v1/auth/organizations', (ctx) => {
   if (!user.roles.includes('organization_owner')) user.roles = [...user.roles, 'organization_owner'];
   persist();
   log.info('Demo business created', { slug: org.slug });
-  return { organization: { uuid: org.uuid, slug: org.slug, name: org.name } };
+  return { organization: { uuid: org.uuid, slug: org.slug, name: org.name, sector: org.sector } };
 });

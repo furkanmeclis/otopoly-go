@@ -1,16 +1,18 @@
 /** Quote detail — web `/t/[slug]/quotes/[uuid]` (`features/quotes/components/quote-detail-page.tsx`). `?send=1` opens the send sheet. */
 import { router, useLocalSearchParams } from 'expo-router';
-import { BellRing, CalendarClock, Check, Copy, CopyPlus, Download, ExternalLink, Eye, Hammer, MoreHorizontal, Pencil, RotateCw, Send, X } from 'lucide-react-native';
+import { BellRing, CalendarClock, Check, ChevronRight, Copy, CopyPlus, Download, ExternalLink, Eye, Hammer, MessageCircle, MoreHorizontal, Pencil, Phone, RotateCw, Send, User, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Linking, Pressable, View } from 'react-native';
 
-import { Badge, Button, Card, Divider, EmptyState, Group, Header, IconButton, InfoRow, ListRow, ListSkeleton, PlateBadge, Row, Screen, Section, Txt } from '@/components/ui';
+import { Badge, BrandLogo, Button, Card, Divider, EmptyState, Group, Header, IconButton, InfoRow, ListRow, ListSkeleton, PlateBadge, QuickActions, Row, Screen, Section, Txt, usePullRefresh } from '@/components/ui';
+import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { localToday } from '@/features/jobs/lib/job-ui';
 import { ActionMenu, Notice, Stepper, type MenuAction } from '@/features/leads/components/crm-ui';
 import { useQuote } from '@/features/queries';
+import { contact } from '@/lib/contact';
 import { ConvertQuoteSheet, DecisionSheet, RemindersSheet, SendQuoteSheet, useCopyShareLink, useQuotePdf, type Decision } from '@/features/quotes/components/quote-sheets';
 import { QUOTE_STEPS, daysUntil, deliveryErrorText, isOpenQuote, quoteStatusTone } from '@/features/quotes/lib/quote-ui';
 import { useQuoteMutations, useQuotesAccess } from '@/features/quotes/queries';
@@ -19,8 +21,10 @@ import { LinkedTodos } from '@/features/todos/components/linked-todos';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function QuoteDetailScreen() {
+  useLiveResource('tenant.quotes');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.quotesRead} title={tr('quotes.title')}>
@@ -46,6 +50,8 @@ function QuoteDetailContent() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { can } = useAuth();
+  const pull = usePullRefresh(query);
 
   if (query.isLoading) {
     return (
@@ -62,6 +68,7 @@ function QuoteDetailContent() {
     );
   }
   const q = query.data;
+  const phone = q.customer_phone?.trim();
   const money = (v: string | number) => fmt.money(v, q.currency);
   const shared = q.status !== 'draft';
   const open = isOpenQuote(q.status);
@@ -111,8 +118,8 @@ function QuoteDetailContent() {
           right={<IconButton label={tr('quotes.more_actions')} icon={<MoreHorizontal size={20} color={t.colors.text} />} onPress={() => setMenuOpen(true)} />}
         />
       }
-      refreshing={query.isRefetching}
-      onRefresh={() => void query.refetch()}
+      refreshing={pull.refreshing}
+      onRefresh={pull.onRefresh}
       footer={
         primary || (access.canWrite && q.can_edit) ? (
           <Row gap={t.spacing.sm}>
@@ -137,6 +144,7 @@ function QuoteDetailContent() {
             </Txt>
           </Pressable>
           <Row gap={t.spacing.sm} wrap>
+            {q.vehicle_brand_name || q.vehicle_brand_logo_url ? <BrandLogo name={q.vehicle_brand_name ?? ''} logoUrl={q.vehicle_brand_logo_url} size="sm" /> : null}
             {q.vehicle_plate ? <PlateBadge plate={q.vehicle_plate} size="sm" /> : null}
             {q.vehicle_label ? (
               <Txt variant="caption" tone="secondary">
@@ -169,6 +177,13 @@ function QuoteDetailContent() {
             </Row>
           ) : null}
         </Row>
+        <QuickActions
+          actions={[
+            can(P.customersRead) && { key: 'customer', label: tr('quotes.fields.customer'), icon: <User size={20} color={t.colors.primary} />, onPress: () => router.push(`/customers/${q.customer_uuid}`) },
+            phone && { key: 'call', label: tr('mobile.detail.call'), icon: <Phone size={20} color={t.colors.primary} />, onPress: () => contact.call(phone) },
+            phone && { key: 'wa', label: tr('mobile.detail.whatsapp'), icon: <MessageCircle size={20} color={t.colors.primary} />, onPress: () => contact.whatsapp(phone) },
+          ]}
+        />
         <Stepper
           steps={QUOTE_STEPS}
           current={q.status}
@@ -194,13 +209,28 @@ function QuoteDetailContent() {
         <Group>
           {q.lines.map((l, i) => {
             const disc = toNumber(l.line_discount) + toNumber(l.quote_discount_share);
+            const target = !can(P.catalogRead) ? null : l.service_uuid ? `/catalog/services/${l.service_uuid}` : l.product_uuid ? `/catalog/products/${l.product_uuid}` : null;
             return (
-              <View key={l.uuid} style={{ paddingHorizontal: t.spacing.lg, paddingVertical: t.spacing.md, gap: 2, borderBottomWidth: i === q.lines.length - 1 ? 0 : 1, borderBottomColor: t.colors.border }}>
+              <Pressable
+                key={l.uuid}
+                disabled={!target}
+                onPress={target ? () => router.push(target as never) : undefined}
+                accessibilityRole={target ? 'button' : undefined}
+                style={({ pressed }) => ({
+                  paddingHorizontal: t.spacing.lg,
+                  paddingVertical: t.spacing.md,
+                  gap: 2,
+                  borderBottomWidth: i === q.lines.length - 1 ? 0 : 1,
+                  borderBottomColor: t.colors.border,
+                  backgroundColor: pressed ? t.colors.surfaceAlt : 'transparent',
+                })}
+              >
                 <Row gap={t.spacing.sm} style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <Txt variant="bodyStrong" style={{ flex: 1 }}>
                     {l.description}
                   </Txt>
                   <Txt variant="mono">{money(l.line_total)}</Txt>
+                  {target ? <ChevronRight size={16} color={t.colors.textMuted} /> : null}
                 </Row>
                 <Txt variant="caption" tone="secondary">
                   {`${fmt.number(l.quantity, 3)} ${l.unit} × ${money(l.unit_price)}`}
@@ -209,7 +239,7 @@ function QuoteDetailContent() {
                 <Txt variant="caption" tone="muted">
                   {`${tr(`quotes.line_type.${l.line_type}`)} · %${toNumber(l.vat_rate)} ${tr('quotes.fields.vat')}`}
                 </Txt>
-              </View>
+              </Pressable>
             );
           })}
         </Group>

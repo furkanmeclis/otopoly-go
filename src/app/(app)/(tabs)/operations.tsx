@@ -33,6 +33,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
 import { useMarkInteractive } from '@/lib/monitoring/observe';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 type ListFilter = 'all' | 'in_progress' | 'ready' | 'delivered' | 'closed';
 const LIVE_REFRESH_MS = 30_000;
@@ -57,6 +58,7 @@ function matchesJob(job: Job, q: string) {
 }
 
 export default function OperationsScreen() {
+  useLiveResource('tenant.jobs');
   useMarkInteractive();
   const { t: tr } = useLocale();
   return (

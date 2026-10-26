@@ -1,3 +1,4 @@
+import type { components } from "@/api/generated/api";
 import type { ServerListParams } from "@/api/types";
 import { platformRequest } from "@/api/client";
 import type { ResourceMeta } from "@/features/io/types";
@@ -64,6 +65,10 @@ export type CreateVehicleInput = {
   model_uuid: string;
   year: number;
 };
+
+/** One entry of the customer activity feed (`GET /v1/tenant/customers/{uuid}/activity`), newest first. */
+export type CustomerActivityEntry = components["schemas"]["CustomerActivityEntry"];
+export type CustomerActivitySubject = CustomerActivityEntry["subject"];
 
 export const customersService = {
   meta() {
@@ -133,6 +138,13 @@ export const customersService = {
     return platformRequest<{ deleted: boolean }>(
       "DELETE",
       `/v1/tenant/customer-vehicles/${uuid}`,
+    );
+  },
+  activity(uuid: string, params?: { limit?: number; offset?: number }) {
+    return platformRequest<ListPage<CustomerActivityEntry>>(
+      "GET",
+      `/v1/tenant/customers/${uuid}/activity`,
+      { query: params },
     );
   },
   searchCatalog(q: string) {

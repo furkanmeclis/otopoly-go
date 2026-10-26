@@ -2,7 +2,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 
-import { Button, DateField, ErrorState, Field, Header, ListSkeleton, Screen, SelectField, TextField } from '@/components/ui';
+import { BrandLogo, Button, DateField, ErrorState, Field, Header, ListSkeleton, Screen, SelectField, TextField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
@@ -140,7 +140,7 @@ function LeadForm({ lead, initialCustomer }: { lead: LeadDetail | null; initialC
           label={tr('leads.fields.vehicle')}
           value={vehicleUuid || NONE}
           onChange={(v) => setVehicleUuid(!v || v === NONE ? '' : v)}
-          options={[{ value: NONE, label: tr('leads.placeholders.no_vehicle') }, ...vehicles.map((v) => ({ value: v.uuid, label: `${v.plate} · ${v.brand_name} ${v.model_name}` }))]}
+          options={[{ value: NONE, label: tr('leads.placeholders.no_vehicle') }, ...vehicles.map((v) => ({ value: v.uuid, label: `${v.plate} · ${v.brand_name} ${v.model_name}`, left: <BrandLogo name={v.brand_name} logoUrl={v.logo_url} size="sm" /> }))]}
         />
       ) : (
         <TextField label={tr('leads.fields.vehicle')} placeholder={tr('leads.placeholders.vehicle_text')} value={vehicleText} onChangeText={setVehicleText} maxLength={200} error={errs.vehicle_text} />

@@ -1,30 +1,31 @@
 #!/usr/bin/env bash
-# Rebuilds scripts/contract/openapi.yaml from the otopoly-go repo (3-way merge of two unmerged backend branches).
-# Usage: scripts/contract/refresh-spec.sh [path-to-otopoly-go]   (default ~/Documents/Projects/otopoly-go)
-# The merge is structural (merge-spec.mjs, on the parsed YAML): a line-based merge-file spliced a block into
-# the wrong mapping without reporting a conflict.
+# Refreshes scripts/contract/openapi.yaml (the contract test's spec fixture) from an otopoly-go checkout.
+# Usage: scripts/contract/refresh-spec.sh [path-to-otopoly-go]   (default ../otopoly-go, next to this repo)
+#
+# Normally a plain copy of backend/docs/openapi.yaml. While a backend branch is not merged yet, its spec can be
+# folded in with a structural 3-way merge (merge-spec.mjs):
+#   THEIRS=/path/to/branch/backend/docs/openapi.yaml BASE_REF=<commit the branch forked from> scripts/contract/refresh-spec.sh
 set -euo pipefail
-GO=${1:-$HOME/Documents/Projects/otopoly-go}
-OURS=${OURS:-origin/feat/openapi-gaps}           # main + auth + QR + identities + spec fixes (response schemas, statuses)
-THEIRS=${THEIRS:-origin/feat/expo-push-limits}   # push-devices, billing usage, LIMIT_REACHED
 HERE="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$HERE/../.." && pwd)"
+GO=${1:-$ROOT/../otopoly-go}
+SPEC="$GO/backend/docs/openapi.yaml"
 OUT="$HERE/openapi.yaml"
+[ -f "$SPEC" ] || { echo "no spec at $SPEC" >&2; exit 1; }
+sha=$(git -C "$GO" rev-parse --short HEAD 2>/dev/null || echo unknown)
 TMP=$(mktemp -d)
-git -C "$GO" fetch -q origin
-ours_sha=$(git -C "$GO" rev-parse "$OURS")
-theirs_sha=$(git -C "$GO" rev-parse "$THEIRS")
-base_sha=$(git -C "$GO" merge-base "$ours_sha" "$theirs_sha")
-git -C "$GO" show "$ours_sha:backend/docs/openapi.yaml" >"$TMP/ours.yaml"
-git -C "$GO" show "$base_sha:backend/docs/openapi.yaml" >"$TMP/base.yaml"
-git -C "$GO" show "$theirs_sha:backend/docs/openapi.yaml" >"$TMP/theirs.yaml"
-STRICT_MERGE=1 node "$HERE/merge-spec.mjs" "$TMP/ours.yaml" "$TMP/base.yaml" "$TMP/theirs.yaml" >"$TMP/combined.yaml"
+trap 'rm -rf "$TMP"' EXIT
 {
-  echo "# Combined OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND."
-  echo "# Source repo: otopoly-go backend/docs/openapi.yaml, structural 3-way merge (scripts/contract/refresh-spec.sh):"
-  echo "#   ours   $OURS $ours_sha"
-  echo "#   base   merge-base $base_sha"
-  echo "#   theirs $THEIRS $theirs_sha"
-  cat "$TMP/combined.yaml"
-} >"$OUT"
-rm -rf "$TMP"
+  echo "# OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND."
+  echo "# Source: otopoly-go backend/docs/openapi.yaml @ $sha (scripts/contract/refresh-spec.sh)."
+} >"$TMP/header"
+if [ -n "${THEIRS:-}" ]; then
+  : "${BASE_REF:?BASE_REF (commit the merged branch forked from) is required with THEIRS}"
+  git -C "$GO" show "$BASE_REF:backend/docs/openapi.yaml" >"$TMP/base.yaml"
+  STRICT_MERGE=1 node "$HERE/merge-spec.mjs" "$SPEC" "$TMP/base.yaml" "$THEIRS" >"$TMP/spec.yaml"
+  echo "# Merged with $THEIRS (base $BASE_REF) until that branch lands." >>"$TMP/header"
+else
+  cp "$SPEC" "$TMP/spec.yaml"
+fi
+cat "$TMP/header" "$TMP/spec.yaml" >"$OUT"
 echo "wrote $OUT"

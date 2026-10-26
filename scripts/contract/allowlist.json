@@ -1,8 +1,6 @@
 {
   "_doc": "Known, reasoned exceptions for scripts/contract (npm run test:contract). Every entry needs a reason; remove it once the backend spec is fixed.",
-  "missingInBackend": {
-    "POST /v1/auth/organizations": "Self-service business creation (mobile onboarding, feat/onboarding). Backend endpoint is being implemented in parallel in otopoly-go: bearer, no organization context, body {organization_name (2-120), phone?, city?, district?, address?} → 201 {organization: {uuid, slug, name}}; 400 VALIDATION_ERROR, 401, 403 (self-registration disabled), 409 CONFLICT (already owns a business), 429 RATE_LIMITED. Remove once it is in openapi.yaml."
-  },
+  "missingInBackend": {},
   "undocumentedStatus": {},
   "specFixes": [
     {

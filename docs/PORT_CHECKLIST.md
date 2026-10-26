@@ -24,8 +24,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] 2FA prompt when login returns TOTP required
 
 ### RBAC (exact sets from backend migrations)
-- [ ] `organization_owner`: 57 permissions (all tenant.* incl. writes, bulk, settings, imports, billing.write, messaging.write)
-- [ ] `organization_user` (staff): 34 permissions — read + export everywhere, write only jobs/customers/sales/contracts/leads/quotes/todos
+- [ ] `organization_owner`: 59 permissions (all tenant.* incl. writes, bulk, settings, imports, billing.write, messaging.write, calendar read/write)
+- [ ] `organization_user` (staff): 36 permissions — read + export everywhere, write only jobs/customers/sales/contracts/leads/quotes/todos/calendar
 - [ ] Owner-membership gate (`role === "owner"`) for voids, catalog/finance/cari/purchases/suppliers writes, staff write
 - [ ] `usePermission()`, `<Can>` component, route-level `RequirePermission` screen with forbidden state
 - [ ] Hidden nav items for missing permissions (same as web nav)
@@ -40,6 +40,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Services copied from web feature services (types unchanged)
 - [ ] OpenAPI types generated into `src/api/generated/api.d.ts`
 - [ ] TanStack Query: keys per module, invalidation after mutations, pull-to-refresh
+- [x] Live lists (Centrifugo, `centrifuge` JS SDK): one connection per signed-in organization (`LiveHost`), tokens from `/v1/realtime/connection-token` + `/subscription-token`, `org:{org_uuid}:resource:{resource}` channels; `useLiveResource()` on list + detail screens invalidates the matching keys (debounced 400 ms; details only when their uuid is in the event, `lib/realtime/live-targets.ts`); paused in the background, one refetch after reconnect / foreground; fail-soft on 403 / 503 / no network; silent mock driver in demo mode (`scripts/smoke/live.smoke.ts`); `EXPO_PUBLIC_REALTIME=off` disables it
 
 ### Logging & errors
 - [ ] `logger` with levels (debug/info/warn/error), scopes, ring buffer, dev console
@@ -65,7 +66,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ### UI kit (themed)
 - [ ] Screen, Header, Card, Button, IconButton, Badge, StatusBadge, Input, TextArea, Select/Picker sheet, DateField, MoneyInput, Switch, Segmented, SearchBar, FilterChips, ListItem, EmptyState, ErrorState, Skeleton, Toast, ConfirmDialog, BottomSheet, Avatar, PlateBadge, Amount, KPI tile, FAB
-- [ ] Keyboard-safe forms, validation messages from API `details[]`
+- [x] Keyboard-safe forms (react-native-keyboard-controller: `Screen` / `Sheet` use `KeyboardScroll` + `KeyboardFooter`; chat layouts `KeyboardAvoider`), validation messages from API `details[]`
 
 ---
 
@@ -82,7 +83,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Queue: in-progress + ready jobs (open board)
 - [ ] Unpaid jobs, receivables (cari), top customers, top services
 - [ ] Revenue chart (timeseries)
-- [ ] Setup checklist (onboarding progress, dismiss)
+- [x] Setup checklist (onboarding progress, dismiss): `features/onboarding/components/setup-checklist.tsx`, progress per user+org on device, skip by long press, Menu → "Başlangıç rehberi" brings it back
 - [ ] Quick actions: new job, quick sale, open reports
 
 ## 3. Operations / Jobs — `tenant.jobs.*`
@@ -91,7 +92,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Daily summary (job count, card, cari, net, paid)
 - [ ] Board card: plate, brand mark, services color tags, elapsed time, assignee, amount, paid badge
 - [ ] Create job **W**: customer picker (+ inline create), vehicle picker (+ add vehicle from catalog), services (catalog), price/qty override, assignee, notes, start time
-- [ ] Detail: info, lines, payments, consumptions (material cost), contracts section, linked todos
+- [x] Detail: info, lines, payments, consumptions (material cost), contracts section, linked todos — 360: brand logo, customer / call / WhatsApp / SMS, total / material / margin tiles, every line, product, payment and customer opens its record
   - [x] Contracts section (web `JobContractsSection`): job's contracts (status, signed/total, PDF), create with vehicle photos (camera/library) → sign every pending signer in one sheet
 - [ ] Actions **W**: ready, deliver, close (cash/card → account, cari), cancel, edit notes, change assignee
 - [ ] Void **O**
@@ -101,7 +102,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 ## 4. Customers — `tenant.customers.*`
 - [ ] List: search, kind filter, active filter, vehicle count, cari balance
 - [ ] Create/edit **W**: name, phone, email, kind, tax id/office, notes, active, first vehicle
-- [ ] Detail: info, vehicles (add from catalog search / remove), recent jobs, cari balance + recent entries, quotes/leads/todos links
+- [x] Detail: info, vehicles (add from catalog search / remove), recent jobs, cari balance + recent entries, quotes/leads/todos links — 360: sales (`customer_uuid` filter), contracts on its jobs (`customer_uuid` filter), stat tiles, call / WhatsApp / SMS / email / new job / quote / lead
+  - [x] Aktivite timeline (`GET /v1/tenant/customers/{uuid}/activity`): web `activity` action labels, subject + record + actor + relative time, tap → job / sale / quote / lead / contract / cari statement, "load more", live refresh from every listed module
 - [ ] Delete **W** (blocked when cari balance ≠ 0)
 
 ## 5. Cari — `tenant.cari.*`
@@ -125,6 +127,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ## 8. Suppliers — `tenant.suppliers.*`
 - [ ] List/search/active; detail; create/edit/delete **O** (delete blocked with purchases)
+- [x] Supplier 360: purchases via `supplier_uuid` filter, totals over posted purchases
 
 ## 9. Purchases — `tenant.purchases.*`
 - [ ] List (with lines); filters; detail
@@ -153,6 +156,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Create/edit **W**: title, notes, due, reminders, assignee, links (customer/lead/quote)
 - [ ] Complete / reopen / delete; summary for nav badge
 
+## 13b. Calendar — `tenant.calendar.*`
+- [x] `/calendar` (Menu → Takvim, `tenant.calendar.read`): month grid with a dot per layer colour + selected day agenda, 3-day timeline (lanes for overlaps, now line, tap an hour to add), 30-day agenda list; layer chips (colour / icon / count, remembered per device); pull-to-refresh; live refresh from the module channels
+- [x] Tap → source record (job, todo, quote, lead, sale, purchase, contract, finance list) or the event detail sheet; long press → reschedule movable items (events keep their length, todos date + optional time, leads date only; optimistic)
+- [x] Events **W** (`tenant.calendar.write`): create / edit / delete in a sheet — all-day / timed, date + time pickers, colour picker, location, note
+- [x] Home dashboard "Bugün ve yaklaşanlar" card (events, todos, quote expiries, lead follow-ups for 7 days)
+- [x] Live resource `tenant.calendar` (`tenant.calendar.read`): calendar screen and the Bugün card refresh on calendar event changes / moves
+- [x] Mock calendar API with seeded events and every module layer (`scripts/smoke/calendar.smoke.ts`)
+
 ## 14. Staff — `tenant.staff.*`
 - [ ] List (status, role)
 - [ ] Create **O** (name, surname, email, password), activate/deactivate **O**, reset password **O**
@@ -164,13 +175,16 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ## 16. Contracts — `tenant.contracts.*`
 - [x] Instances list + detail (signers, status, PDF)
-- [x] On-site signing with signature pad, WhatsApp OTP verify
+- [x] On-site signing with signature pad, OTP verify over WhatsApp or SMS (channel choice when an SMS provider is active)
 - [x] Gallery media upload: camera, photo library, Files (`expo-image-picker` / `expo-document-picker`; JPEG/PNG/WebP/GIF/PDF, 12 MB) with caption; delete while open
 - [ ] Templates list/detail; clone preset **O**; void **O**
 
 ## 17. Settings
 - [ ] Letterhead / export settings **O** (`tenant.settings.*`)
+  - [x] Business sector (`sector` on `/v1/tenant/settings`, "" clears) on the settings screen; the create-business wizard sends the chosen sector to `POST /v1/auth/organizations`
 - [ ] Messaging (WhatsApp session, templates, notification rules, daily summary, vehicle alerts)
+  - [x] Kanallar tab: WhatsApp / SMS – Netgsm / SMS – Twilio / e-posta cards with brand icons and status; connect / edit sheet (masked hints, empty keeps stored), activate switch (one active provider), connection test result, test SMS with live segment counter (`/sms/estimate`, debounced), disconnect with confirm; owner-only writes, read-only for others (`scripts/smoke/sms.smoke.ts`)
+  - [x] WhatsApp / SMS channel choice on the daily summary and vehicle alerts cards; SMS notification rules unlock when an SMS provider is active
 - [x] Usage & limits (`/settings/usage`, read-only): plan name/status, period end, usage meters (warn ≥ 80 %, full at 100 %, unlimited), included modules
 - [x] ~~Plans, checkout/order, report payment, invoices, invoice profile~~ — removed for good: no in-app purchases (App Store 3.1.1/3.1.3, Play payments policy); backend e-mails the owner
 
@@ -187,7 +201,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Preferences: AI data-sharing consent status + withdraw
 
 ## 20. Assistant — `tenant.ai.use`
-- [x] Conversations list, chat, tool activity — SSE streaming (tokens render as they arrive), same reader for mock and live
+- [x] Conversations list (last message preview, sorted and timed by `last_message_at`), chat, tool activity — SSE streaming (tokens render as they arrive), same reader for mock and live; list → conversation screens (`/assistant`, `/assistant/[id]`, `/assistant/new`), rename / delete by long press
 - [x] Confirm cards (edit / confirm / cancel, result + record link) and plan checklists (`actions` / `todos` features) — confirm streams the `action` result and the follow-up over SSE
 - [x] First-use AI data disclosure + explicit consent (App Store 5.1.2(i)): provider named from `/ai/status`, what is / isn't sent, stored per user, sending blocked until accepted, withdraw in Preferences
 

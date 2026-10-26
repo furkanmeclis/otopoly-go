@@ -77,4 +77,10 @@ export const StorageKeys = {
   onboardingIntroSeen: 'onboarding.intro_seen',
   /** First-run sheets already shown: `{ "<userUuid>:<orgSlug>": true }`. */
   onboardingFirstRun: 'onboarding.first_run',
+  /** Unfinished "create your business" wizard (`onboarding.business_draft.<userUuid>`), resumed on return. */
+  onboardingBusinessDraft: 'onboarding.business_draft',
+  /** Getting-started checklist per user and organization (`onboarding.setup.<userUuid>:<orgSlug>`). */
+  onboardingSetup: 'onboarding.setup',
+  /** Calendar layers the user switched off (per device). */
+  calendarHiddenLayers: 'calendar.hidden_layers',
 } as const;

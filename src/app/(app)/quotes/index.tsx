@@ -15,11 +15,13 @@ import { useQuotesAccess, useQuotesInfinite } from '@/features/quotes/queries';
 import type { Quote, QuoteListParams } from '@/features/quotes/types';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 const TABS = ['open', 'draft', 'sent', 'viewed', 'accepted', 'rejected', 'expired', 'all'] as const;
 type Tab = (typeof TABS)[number];
 
 export default function QuotesScreen() {
+  useLiveResource('tenant.quotes');
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.quotesRead} title={tr('quotes.title')}>

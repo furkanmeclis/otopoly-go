@@ -1,10 +1,10 @@
 /** Lead detail — web `/t/[slug]/leads/[uuid]` (`features/leads/components/lead-detail-page.tsx`). */
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, FilePlus2, ListTodo, MessageSquarePlus, MoreHorizontal, Pencil, Phone, RotateCcw, Trash2, X } from 'lucide-react-native';
+import { Check, FilePlus2, ListTodo, MessageCircle, MessageSquarePlus, MoreHorizontal, Pencil, Phone, RotateCcw, Trash2, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, Pressable, ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 
-import { Badge, Button, Card, DateField, EmptyState, Group, Header, IconButton, InfoRow, ListRow, ListSkeleton, PlateBadge, Row, Screen, Section, TextField, Txt, useConfirm } from '@/components/ui';
+import { Badge, BrandLogo, Button, Card, DateField, EmptyState, Group, Header, IconButton, InfoRow, ListRow, ListSkeleton, PlateBadge, Row, Screen, Section, TextField, Txt, useConfirm, usePullRefresh } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
@@ -16,12 +16,15 @@ import { LEAD_STEPS, leadStatusTone, nextLeadStatus } from '@/features/leads/lib
 import { useLeadMutations, useLeadsAccess } from '@/features/leads/queries';
 import type { LeadDetail, LeadEvent, PatchLeadInput } from '@/features/leads/types';
 import { useLead } from '@/features/queries';
+import { contact } from '@/lib/contact';
 import { quoteStatusTone } from '@/features/quotes/lib/quote-ui';
 import { LinkedTodos } from '@/features/todos/components/linked-todos';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
+import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function LeadDetailScreen() {
+  useLiveResource(['tenant.leads', 'tenant.todos']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.leadsRead} title={tr('leads.title')}>
@@ -43,6 +46,7 @@ function LeadDetailContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [todoOpen, setTodoOpen] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
+  const pull = usePullRefresh(query);
 
   if (query.isLoading) {
     return (
@@ -63,7 +67,7 @@ function LeadDetailContent() {
   const next = nextLeadStatus(lead.status);
   const patch = (body: PatchLeadInput) => m.patch.mutate({ uuid: lead.uuid, body });
   const newQuote = () => router.push({ pathname: '/quotes/form', params: { lead: lead.uuid, customer: lead.customer_uuid } });
-  const call = () => Linking.openURL(`tel:${lead.customer_phone.replace(/\s/g, '')}`);
+  const call = () => contact.call(lead.customer_phone);
   const stepIdx = LEAD_STEPS.indexOf(lead.status);
   const followColor = lead.follow_up_state === 'overdue' ? 'danger' : lead.follow_up_state === 'today' ? 'warning' : 'default';
 
@@ -76,8 +80,8 @@ function LeadDetailContent() {
           right={access.canWrite ? <IconButton label={tr('leads.more_actions')} icon={<MoreHorizontal size={20} color={t.colors.text} />} onPress={() => setMenuOpen(true)} /> : undefined}
         />
       }
-      refreshing={query.isRefetching}
-      onRefresh={() => void query.refetch()}
+      refreshing={pull.refreshing}
+      onRefresh={pull.onRefresh}
     >
       <Card style={{ gap: t.spacing.md }}>
         <Row gap={t.spacing.sm} wrap>
@@ -99,6 +103,9 @@ function LeadDetailContent() {
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: t.spacing.sm }}>
         {lead.customer_phone ? <Button size="sm" variant="outline" label={tr('leads.actions.call')} icon={<Phone size={16} color={t.colors.text} />} onPress={call} /> : null}
+        {lead.customer_phone ? (
+          <Button size="sm" variant="outline" label={tr('mobile.detail.whatsapp')} icon={<MessageCircle size={16} color={t.colors.text} />} onPress={() => contact.whatsapp(lead.customer_phone)} />
+        ) : null}
         {access.canWrite && next ? <Button size="sm" variant="outline" label={tr(`leads.advance.${next}`)} icon={<Check size={16} color={t.colors.text} />} onPress={() => patch({ status: next })} /> : null}
         {access.canQuote ? <Button size="sm" label={tr('leads.actions.quote')} icon={<FilePlus2 size={16} color={t.colors.onPrimary} />} onPress={newQuote} /> : null}
         {access.canTodo ? <Button size="sm" variant="outline" label={tr('leads.actions.todo')} icon={<ListTodo size={16} color={t.colors.text} />} onPress={() => setTodoOpen(true)} /> : null}
@@ -123,7 +130,16 @@ function LeadDetailContent() {
             </Txt>
           </Pressable>
         </InfoRow>
-        <InfoRow label={tr('leads.fields.vehicle')}>{lead.vehicle_plate ? <PlateBadge plate={lead.vehicle_plate} size="sm" /> : <Txt variant="bodyStrong">{lead.vehicle_text || '—'}</Txt>}</InfoRow>
+        <InfoRow label={tr('leads.fields.vehicle')}>
+          {lead.vehicle_plate ? (
+            <Row gap={t.spacing.sm}>
+              {lead.vehicle_brand_name || lead.vehicle_brand_logo_url ? <BrandLogo name={lead.vehicle_brand_name ?? ''} logoUrl={lead.vehicle_brand_logo_url} size="sm" /> : null}
+              <PlateBadge plate={lead.vehicle_plate} size="sm" />
+            </Row>
+          ) : (
+            <Txt variant="bodyStrong">{lead.vehicle_text || '—'}</Txt>
+          )}
+        </InfoRow>
         {access.canWrite && open ? (
           <View style={{ paddingVertical: t.spacing.md, gap: t.spacing.sm, borderBottomWidth: 1, borderBottomColor: t.colors.border }}>
             <DateField label={tr('leads.fields.follow_up_date')} value={lead.follow_up_date} onChange={(v) => patch({ follow_up_date: v ?? '' })} allowClear error={lead.follow_up_state === 'overdue' ? ' ' : undefined} />
