@@ -162,11 +162,21 @@ func (u *AuthUseCase) NativeOAuthLogin(ctx context.Context, in NativeOAuthInput,
 		return model.Tokens{}, fmt.Errorf("%w: the provider email is not verified", ErrInvalidRequest)
 	}
 
+	relay := provider == model.OAuthProviderApple && isAppleRelayEmail(email)
+
 	// Same policy as the web (NextAuth without dangerous email linking): an
-	// existing account is never linked implicitly by email.
-	if _, err := u.repo.FindUserByEmail(ctx, email); err == nil {
+	// existing account is never linked implicitly by email — except an Apple
+	// private-relay address, which only that Apple ID can present (see
+	// signInRelayOwner).
+	existing, err := u.repo.FindUserByEmail(ctx, email)
+	switch {
+	case err == nil && relay:
+		return u.signInRelayOwner(ctx, existing, linkTicket{
+			Provider: provider, Subject: claims.Subject, Email: email, ClientID: claims.Audience,
+		}, in.AuthorizationCode, in.TOTPCode, in.OrganizationSlug, meta)
+	case err == nil:
 		return model.Tokens{}, ErrOAuthNotLinked
-	} else if !errors.Is(err, repository.ErrNotFound) {
+	case !errors.Is(err, repository.ErrNotFound):
 		return model.Tokens{}, err
 	}
 
@@ -175,7 +185,7 @@ func (u *AuthUseCase) NativeOAuthLogin(ctx context.Context, in NativeOAuthInput,
 		refreshToken = u.exchangeAppleCode(ctx, claims.Audience, in.AuthorizationCode)
 	}
 
-	if provider == model.OAuthProviderApple && strings.HasSuffix(email, appleRelayDomain) {
+	if relay {
 		ticket, err := u.sealLinkTicket(linkTicket{
 			V: linkTicketV1, Provider: provider, Subject: claims.Subject, Email: email,
 			GivenName: givenName, FamilyName: familyName,
@@ -290,7 +300,50 @@ func (u *AuthUseCase) CreateAccountFromLinkTicket(ctx context.Context, rawTicket
 	} else if !errors.Is(err, repository.ErrNotFound) {
 		return model.Tokens{}, err
 	}
+	// The relay account exists without its identity (unlinked meanwhile, or a
+	// previous create stored the user and failed before linking): sign into it
+	// instead of answering CONFLICT on every retry.
+	if isAppleRelayEmail(ticket.Email) && ticket.Provider == model.OAuthProviderApple {
+		if user, err := u.repo.FindUserByEmail(ctx, ticket.Email); err == nil {
+			return u.signInRelayOwner(ctx, user, ticket, "", totpCode, organizationSlug, meta)
+		} else if !errors.Is(err, repository.ErrNotFound) {
+			return model.Tokens{}, err
+		}
+	}
 	return u.createAndLinkOAuthUser(ctx, ticket, organizationSlug, meta)
+}
+
+// isAppleRelayEmail reports an Apple "Hide My Email" address.
+func isAppleRelayEmail(email string) bool {
+	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(email)), appleRelayDomain)
+}
+
+// signInRelayOwner signs the owner of an Apple private-relay address in and
+// (re)links the Apple identity. Apple issues a relay address per Apple ID and
+// developer team and only puts it into id_tokens of that Apple ID, so a
+// verified token carrying it proves the same person. The account must be
+// usable, pass its own 2FA, and must not have a different Apple ID linked
+// (ensureLinkable answers CONFLICT then).
+func (u *AuthUseCase) signInRelayOwner(ctx context.Context, user model.User, t linkTicket, authorizationCode, totpCode, organizationSlug string, meta model.SessionMeta) (model.Tokens, error) {
+	if err := userStatusError(user); err != nil {
+		return model.Tokens{}, err
+	}
+	if err := u.ensureLinkable(ctx, user.ID, t); err != nil {
+		return model.Tokens{}, err
+	}
+	if err := u.checkLoginMFA(ctx, user.ID, totpCode, false); err != nil {
+		return model.Tokens{}, err
+	}
+	if t.RefreshToken == "" && strings.TrimSpace(authorizationCode) != "" {
+		t.RefreshToken = u.exchangeAppleCode(ctx, t.ClientID, authorizationCode)
+	}
+	if err := u.linkIdentity(ctx, user.ID, t); err != nil {
+		return model.Tokens{}, err
+	}
+	if u.log != nil {
+		u.log.Info("oauth_relay_identity_relinked", "provider", t.Provider, "user_id", user.ID)
+	}
+	return u.completeLogin(ctx, user, organizationSlug, meta)
 }
 
 func (u *AuthUseCase) createAndLinkOAuthUser(ctx context.Context, t linkTicket, organizationSlug string, meta model.SessionMeta) (model.Tokens, error) {

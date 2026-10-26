@@ -657,6 +657,41 @@ func TestNativeAppleRelayCreateAccount(t *testing.T) {
 	}
 }
 
+// A relay account that lost its Apple identity signs in again with that
+// relay address, but still has to pass its own authenticator 2FA, and a
+// different Apple ID already linked to it is never replaced.
+func TestNativeAppleRelayRelinkRequiresMFA(t *testing.T) {
+	e := newFlowEnv(t)
+	ctx := context.Background()
+	u := e.user(t, "rr@privaterelay.appleid.com")
+	secret := e.enableTOTP(t, u.ID)
+	e.verify.claims = oidc.Claims{Subject: "apple-rr", Email: "rr@privaterelay.appleid.com", EmailVerified: true, Audience: "com.otopoly.app"}
+	if _, err := e.uc.NativeOAuthLogin(ctx, NativeOAuthInput{Provider: "apple", IDToken: "t"}, model.SessionMeta{}); !errors.Is(err, ErrMFARequired) {
+		t.Fatalf("expected MFA required, got %v", err)
+	}
+	if len(e.repo.accounts) != 0 {
+		t.Fatal("identity linked before the second factor")
+	}
+	code, _ := pqtotp.GenerateCode(secret, time.Now())
+	if _, err := e.uc.NativeOAuthLogin(ctx, NativeOAuthInput{Provider: "apple", IDToken: "t", TOTPCode: code}, model.SessionMeta{}); err != nil {
+		t.Fatalf("with totp: %v", err)
+	}
+	if len(e.repo.accounts) != 1 || e.repo.accounts[0].UserID != u.ID || e.repo.accounts[0].ProviderAccountID != "apple-rr" {
+		t.Fatalf("identity = %+v", e.repo.accounts)
+	}
+
+	e.verify.claims.Subject = "apple-other"
+	if _, err := e.uc.NativeOAuthLogin(ctx, NativeOAuthInput{Provider: "apple", IDToken: "t", TOTPCode: code}, model.SessionMeta{}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("other Apple ID: %v", err)
+	}
+	// A non-relay address keeps the "sign in the usual way, then link" rule.
+	e.user(t, "plain@example.com")
+	e.verify.claims = oidc.Claims{Subject: "apple-plain", Email: "plain@example.com", EmailVerified: true, Audience: "com.otopoly.app"}
+	if _, err := e.uc.NativeOAuthLogin(ctx, NativeOAuthInput{Provider: "apple", IDToken: "t"}, model.SessionMeta{}); !errors.Is(err, ErrOAuthNotLinked) {
+		t.Fatalf("plain address: %v", err)
+	}
+}
+
 func TestLinkTicketExpires(t *testing.T) {
 	e := newFlowEnv(t)
 	e.verify.claims = oidc.Claims{Subject: "apple-5", Email: "q@privaterelay.appleid.com", EmailVerified: true, Audience: "com.otopoly.app"}
