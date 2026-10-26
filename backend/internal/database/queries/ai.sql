@@ -189,6 +189,44 @@ WHERE c.organization_id = sqlc.arg(organization_id)
 ORDER BY c.is_active DESC, c.name ASC
 LIMIT sqlc.arg(limit_count);
 
+-- name: AIFindCustomersByPhoneOrPlate :many
+-- Exact duplicate / identity lookup for the assistant: same phone (last 10
+-- digits, so "0532 123 45 67" == "+90 532 1234567") or same plate ignoring
+-- spaces, dashes and case. Empty arguments match nothing.
+SELECT
+    c.uuid,
+    c.name,
+    c.phone,
+    c.is_active,
+    (sqlc.arg(phone_digits)::text <> ''
+        AND right(regexp_replace(c.phone, '\D', '', 'g'), 10) = sqlc.arg(phone_digits)::text)::boolean AS phone_match,
+    -- uuid.Nil / '' when the plate did not match.
+    COALESCE(pv.uuid, '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS plate_vehicle_uuid,
+    COALESCE(pv.plate, '')::text AS plate_vehicle_plate,
+    COALESCE((
+        SELECT string_agg(v.plate, ', ' ORDER BY v.plate)
+        FROM customer_vehicles v
+        WHERE v.customer_id = c.id AND v.organization_id = c.organization_id AND v.deleted_at IS NULL
+    ), '')::text AS plates
+FROM customers c
+LEFT JOIN LATERAL (
+    SELECT v.uuid, v.plate
+    FROM customer_vehicles v
+    WHERE v.customer_id = c.id AND v.organization_id = c.organization_id AND v.deleted_at IS NULL
+      AND sqlc.arg(plate)::text <> ''
+      AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') = sqlc.arg(plate)::text
+    LIMIT 1
+) pv ON TRUE
+WHERE c.organization_id = sqlc.arg(organization_id)
+  AND c.deleted_at IS NULL
+  AND (
+    (sqlc.arg(phone_digits)::text <> ''
+        AND right(regexp_replace(c.phone, '\D', '', 'g'), 10) = sqlc.arg(phone_digits)::text)
+    OR pv.uuid IS NOT NULL
+  )
+ORDER BY (pv.uuid IS NOT NULL) DESC, c.is_active DESC, c.name ASC
+LIMIT sqlc.arg(limit_count);
+
 -- name: GetAIMessageByID :one
 SELECT * FROM ai_messages WHERE id = sqlc.arg(id);
 

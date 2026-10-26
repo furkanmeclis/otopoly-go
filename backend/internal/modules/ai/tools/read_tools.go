@@ -24,18 +24,25 @@ import (
 type (
 	CustomerSearchStore interface {
 		AISearchCustomers(ctx context.Context, arg db.AISearchCustomersParams) ([]db.AISearchCustomersRow, error)
+		AIFindCustomersByPhoneOrPlate(ctx context.Context, arg db.AIFindCustomersByPhoneOrPlateParams) ([]db.AIFindCustomersByPhoneOrPlateRow, error)
 	}
 	CustomerReader interface {
 		List(ctx context.Context, limit, offset int32, filters customersusecase.Filters) ([]customersusecase.Customer, int64, error)
 	}
 	CariReader interface {
 		Get(ctx context.Context, id uuid.UUID) (cariusecase.AccountDetail, error)
+		GetByCustomer(ctx context.Context, customerUUID uuid.UUID) (cariusecase.AccountDetail, error)
 		ListEntries(ctx context.Context, accountUUID uuid.UUID, limit, offset int32, filters cariusecase.EntryFilters) ([]cariusecase.Entry, int64, error)
 	}
 	JobsReader interface {
 		List(ctx context.Context, limit, offset int32, filters jobsusecase.ListFilters) ([]jobsusecase.Job, int64, error)
 		// SummaryIn takes day boundaries in loc (the assistant passes Europe/Istanbul).
 		SummaryIn(ctx context.Context, dateStr string, loc *time.Location) (jobsusecase.Summary, error)
+	}
+	// UnpaidJobsReader lists a customer's unpaid jobs (not in the cari ledger).
+	UnpaidJobsReader interface {
+		UnpaidByCustomer(ctx context.Context, customerUUID uuid.UUID, limit int32) (jobsusecase.UnpaidJobs, error)
+		UnpaidTotalsByCustomers(ctx context.Context, customerUUIDs []uuid.UUID) (map[uuid.UUID]jobsusecase.UnpaidTotal, error)
 	}
 	ReportsReader interface {
 		Overview(ctx context.Context, in reportsusecase.Query) (reportsusecase.Overview, error)
@@ -62,6 +69,8 @@ type Deps struct {
 	Finance         FinanceReader
 	Sales           SalesReader
 	Catalog         CatalogReader
+	// UnpaidJobs adds open (unpaid) jobs to get_customer_account / search_customers.
+	UnpaidJobs UnpaidJobsReader
 
 	// Write tools (Phase 2). A nil dependency skips the tools that need it.
 	CariWrite      CariWriter
@@ -81,10 +90,10 @@ type Deps struct {
 func DefaultRegistry(d Deps) *Registry {
 	r := NewRegistry(RenderChart{}, UpdatePlan{})
 	if d.Customers != nil {
-		r.Register(SearchCustomers{customers: d.Customers})
+		r.Register(SearchCustomers{customers: d.Customers, unpaid: d.UnpaidJobs})
 	}
 	if d.Cari != nil {
-		r.Register(GetCustomerAccount{cari: d.Cari})
+		r.Register(GetCustomerAccount{cari: d.Cari, unpaid: d.UnpaidJobs})
 	}
 	if d.Jobs != nil {
 		r.Register(ListJobs{jobs: d.Jobs})
@@ -100,6 +109,12 @@ func DefaultRegistry(d Deps) *Registry {
 	}
 	if d.Catalog != nil {
 		r.Register(SearchProducts{catalog: d.Catalog})
+	}
+	if d.CatalogLookup != nil {
+		r.Register(ListServices{catalog: d.CatalogLookup})
+	}
+	if d.FinanceWrite != nil {
+		r.Register(ListFinanceCategories{finance: d.FinanceWrite})
 	}
 	if d.Calendar != nil {
 		r.Register(ListCalendar{calendar: d.Calendar})
@@ -118,6 +133,12 @@ func registerWriteTools(r *Registry, d Deps) {
 	if d.FinanceWrite != nil {
 		r.Register(RecordFinanceEntry{finance: d.FinanceWrite})
 		r.Register(CreateFinanceTransfer{finance: d.FinanceWrite})
+		r.Register(UpdateFinanceEntry{finance: d.FinanceWrite})
+		r.Register(VoidFinanceEntry{finance: d.FinanceWrite, cari: d.CariWrite})
+	}
+	pay := jobPayment{cari: d.Cari}
+	if d.FinanceWrite != nil {
+		pay.finance = d.FinanceWrite
 	}
 	if d.CustomersWrite != nil {
 		r.Register(CreateCustomer{customers: d.CustomersWrite, search: d.CustomersSearch})
@@ -126,6 +147,10 @@ func registerWriteTools(r *Registry, d Deps) {
 		}
 		if d.JobsWrite != nil && d.CatalogLookup != nil {
 			r.Register(CreateJob{customers: d.CustomersWrite, jobs: d.JobsWrite, catalog: d.CatalogLookup})
+			if d.CustomersSearch != nil && d.VehicleCatalog != nil {
+				r.Register(QuickJob{customers: d.CustomersWrite, search: d.CustomersSearch, vehicles: d.VehicleCatalog,
+					jobs: d.JobsWrite, catalog: d.CatalogLookup, pay: pay})
+			}
 		}
 		if d.SalesWrite != nil && d.CatalogLookup != nil && d.FinanceWrite != nil {
 			r.Register(CreateQuickSale{sales: d.SalesWrite, catalog: d.CatalogLookup, finance: d.FinanceWrite, customers: d.CustomersWrite})
@@ -135,7 +160,9 @@ func registerWriteTools(r *Registry, d Deps) {
 		r.Register(SearchVehicleModels{catalog: d.VehicleCatalog})
 	}
 	if d.JobsWrite != nil {
-		r.Register(UpdateJobStatus{jobs: d.JobsWrite})
+		r.Register(UpdateJobStatus{jobs: d.JobsWrite, pay: pay})
+		r.Register(RecordJobPayment{jobs: d.JobsWrite, pay: pay})
+		r.Register(CancelJob{jobs: d.JobsWrite, pay: pay})
 	}
 	if d.Todos != nil {
 		r.Register(CreateTodo{todos: d.Todos, customers: d.CustomersWrite})
@@ -187,12 +214,15 @@ func fmtTime(t time.Time, loc *time.Location) string {
 // ---------------------------------------------------------------- customers
 
 // SearchCustomers lists customers or finds customers by name, phone or plate.
-type SearchCustomers struct{ customers CustomerReader }
+type SearchCustomers struct {
+	customers CustomerReader
+	unpaid    UnpaidJobsReader
+}
 
 var searchCustomersSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
-		"query": map[string]any{"type": "string", "maxLength": 100, "description": "Optional. Leave empty to list customers and get the total count; otherwise name, phone number or plate."},
+		"query": map[string]any{"type": "string", "maxLength": 100, "description": "Optional. Leave empty to list customers and get the total count; otherwise name, phone number or plate (spaces and case in plates/phones do not matter)."},
 		"limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 10, "description": "Max results (default 5)."},
 	},
 	"additionalProperties": false,
@@ -200,8 +230,10 @@ var searchCustomersSchema = map[string]any{
 
 func (SearchCustomers) Spec() Spec {
 	return Spec{
-		Name:        "search_customers",
-		Description: "Search the organization's customers by name, phone or vehicle plate, or leave query empty to list customers and get the total count (e.g. 'how many customers do I have'). Returns uuid, name, phone, vehicle count and cari (receivable) account with balance. Use before any customer-specific question; if several match, ask the user which one.",
+		Name: "search_customers",
+		Description: "Search the organization's customers by name, phone or vehicle plate, or leave query empty to list customers and get the total count (e.g. 'how many customers do I have'). " +
+			"Returns uuid, name, phone, vehicle count, the cari (receivable) account with its ledger balance and, separately, unpaid jobs (unpaid_jobs_total; not in the cari ledger). " +
+			"Use before any customer-specific question; if several match, ask the user which one.",
 		InputSchema: searchCustomersSchema,
 		Permissions: []string{rbac.PermTenantCustomersRead},
 		Feature:     FeatureChat,
@@ -222,23 +254,44 @@ func (t SearchCustomers) Run(ctx context.Context, env Env, raw json.RawMessage) 
 	if query != "" && len([]rune(query)) < 2 {
 		return ErrorResult("Invalid input: query: must be at least 2 characters"), nil
 	}
-	rows, total, err := t.customers.List(ctx, int32(limit), 0, customersusecase.Filters{
-		Q:    query,
-		Sort: "-created_at",
-	})
+	list := func(q string) ([]customersusecase.Customer, int64, error) {
+		return t.customers.List(ctx, int32(limit), 0, customersusecase.Filters{Q: q, Sort: "-created_at"})
+	}
+	rows, total, err := list(query)
 	if err != nil {
 		return userError(err)
+	}
+	// Phones are stored as typed ("0532 123 45 67"): retry a phone-looking
+	// query by its last digits.
+	if total == 0 {
+		if d := DigitsOnly(query); len(d) >= 7 && len(d) >= len([]rune(query))/2 {
+			if len(d) > 10 {
+				d = d[len(d)-10:]
+			}
+			if rows, total, err = list(d); err != nil {
+				return userError(err)
+			}
+		}
 	}
 	type item struct {
 		UUID            string `json:"uuid"`
 		Name            string `json:"name"`
 		Phone           string `json:"phone,omitempty"`
 		Kind            string `json:"kind"`
-		Plates          string `json:"plates,omitempty"`
 		VehicleCount    int64  `json:"vehicle_count"`
 		Active          bool   `json:"active"`
 		CariAccountUUID string `json:"cari_account_uuid,omitempty"`
 		CariBalance     string `json:"cari_balance,omitempty"`
+		UnpaidJobCount  *int64 `json:"unpaid_job_count,omitempty"`
+		UnpaidJobsTotal string `json:"unpaid_jobs_total,omitempty"`
+	}
+	var totals map[uuid.UUID]jobsusecase.UnpaidTotal
+	if t.unpaid != nil && env.Principal.HasPermission(rbac.PermTenantJobsRead) && len(rows) > 0 {
+		ids := make([]uuid.UUID, 0, len(rows))
+		for _, r := range rows {
+			ids = append(ids, r.UUID)
+		}
+		totals, _ = t.unpaid.UnpaidTotalsByCustomers(ctx, ids)
 	}
 	items := make([]item, 0, len(rows))
 	for _, r := range rows {
@@ -252,31 +305,47 @@ func (t SearchCustomers) Run(ctx context.Context, env Env, raw json.RawMessage) 
 				it.CariBalance = FormatMoney(*r.CariBalance, "TRY")
 			}
 		}
+		if totals != nil {
+			u := totals[r.UUID]
+			n := u.Count
+			it.UnpaidJobCount = &n
+			it.UnpaidJobsTotal = FormatMoney(firstNonBlank(u.TotalAmount, "0"), "TRY")
+		}
 		items = append(items, it)
 	}
-	return JSONResult(map[string]any{"count": len(items), "total": total, "customers": items},
-		"ai.tool_summary.customers_found", map[string]any{"count": total}), nil
+	out := map[string]any{"count": len(items), "total": total, "customers": items}
+	if totals != nil {
+		out["note"] = "cari_balance is the cari ledger only; unpaid_jobs_total are jobs not paid yet (collect them with record_job_payment)."
+	}
+	return JSONResult(out, "ai.tool_summary.customers_found", map[string]any{"count": total}), nil
 }
 
 // ---------------------------------------------------------------- cari
 
-// GetCustomerAccount returns a cari account balance and recent ledger entries.
-type GetCustomerAccount struct{ cari CariReader }
+// GetCustomerAccount returns a cari account balance, recent ledger entries
+// and the customer's unpaid jobs.
+type GetCustomerAccount struct {
+	cari   CariReader
+	unpaid UnpaidJobsReader
+}
 
 var customerAccountSchema = map[string]any{
 	"type": "object",
 	"properties": map[string]any{
 		"cari_account_uuid": map[string]any{"type": "string", "format": "uuid", "description": "cari_account_uuid from search_customers."},
+		"customer_uuid":     map[string]any{"type": "string", "format": "uuid", "description": "Alternative to cari_account_uuid: the customer's uuid."},
 		"entries_limit":     map[string]any{"type": "integer", "minimum": 0, "maximum": 20, "description": "Recent ledger entries to include (default 8)."},
+		"jobs_limit":        map[string]any{"type": "integer", "minimum": 0, "maximum": 20, "description": "Unpaid jobs to list (default 10)."},
 	},
-	"required":             []string{"cari_account_uuid"},
 	"additionalProperties": false,
 }
 
 func (GetCustomerAccount) Spec() Spec {
 	return Spec{
-		Name:        "get_customer_account",
-		Description: "Get a customer's cari (receivable) account: current balance (positive = customer owes us) and the most recent ledger entries (charges, payments, adjustments).",
+		Name: "get_customer_account",
+		Description: "Get what a customer owes. balance is the cari (receivable) ledger only (positive = customer owes us) with the recent ledger entries (charges, collections, adjustments). " +
+			"Unpaid jobs are NOT in the ledger: they are listed separately in open_jobs with unpaid_jobs_total, and total_due = balance + unpaid_jobs_total (what the customer page shows as debt). " +
+			"To collect a job use record_job_payment; record_cari_payment only reduces the cari ledger balance and record_finance_entry does not mark a job paid. Pass cari_account_uuid or customer_uuid.",
 		InputSchema: customerAccountSchema,
 		Permissions: []string{rbac.PermTenantCariRead},
 		Feature:     FeatureChat,
@@ -287,16 +356,29 @@ func (GetCustomerAccount) Spec() Spec {
 func (t GetCustomerAccount) Run(ctx context.Context, env Env, raw json.RawMessage) (Result, error) {
 	var in struct {
 		AccountUUID  string `json:"cari_account_uuid"`
+		CustomerUUID string `json:"customer_uuid"`
 		EntriesLimit *int   `json:"entries_limit"`
+		JobsLimit    *int   `json:"jobs_limit"`
 	}
 	if err := Decode(customerAccountSchema, raw, &in); err != nil {
 		return ErrorResult(err.Error()), nil
 	}
-	id, _ := uuid.Parse(in.AccountUUID)
-	acc, err := t.cari.Get(ctx, id)
+	var acc cariusecase.AccountDetail
+	var err error
+	switch {
+	case in.AccountUUID != "":
+		id, _ := uuid.Parse(in.AccountUUID)
+		acc, err = t.cari.Get(ctx, id)
+	case in.CustomerUUID != "":
+		id, _ := uuid.Parse(in.CustomerUUID)
+		acc, err = t.cari.GetByCustomer(ctx, id)
+	default:
+		return ErrorResult("Invalid input: pass cari_account_uuid or customer_uuid"), nil
+	}
 	if err != nil {
 		return userError(err)
 	}
+	id := acc.UUID
 	limit := 8
 	if in.EntriesLimit != nil {
 		limit = clampInt(*in.EntriesLimit, 8, 0, 20)
@@ -305,6 +387,7 @@ func (t GetCustomerAccount) Run(ctx context.Context, env Env, raw json.RawMessag
 		}
 	}
 	type entry struct {
+		UUID         string `json:"uuid"`
 		Date         string `json:"date"`
 		Type         string `json:"type"`
 		Status       string `json:"status,omitempty"`
@@ -321,7 +404,7 @@ func (t GetCustomerAccount) Run(ctx context.Context, env Env, raw json.RawMessag
 		}
 		for _, e := range rows {
 			en := entry{
-				Date: e.EntryDate, Type: e.Type, Amount: FormatMoney(e.Amount, acc.Currency),
+				UUID: e.UUID.String(), Date: e.EntryDate, Type: e.Type, Amount: FormatMoney(e.Amount, acc.Currency),
 				BalanceAfter: FormatMoney(e.BalanceAfter, acc.Currency), Description: DataText(e.Description, 80),
 			}
 			if e.Status != "posted" && e.Status != "" {
@@ -334,13 +417,51 @@ func (t GetCustomerAccount) Run(ctx context.Context, env Env, raw json.RawMessag
 		}
 	}
 	out := map[string]any{
-		"customer":       DataText(acc.CustomerName, maxNameChars),
-		"customer_uuid":  acc.CustomerUUID.String(),
-		"phone":          DataText(acc.CustomerPhone, 32),
-		"currency":       acc.Currency,
-		"balance":        FormatMoney(acc.Balance, acc.Currency),
-		"balance_number": Number(acc.Balance),
-		"recent_entries": entries,
+		"customer":          DataText(acc.CustomerName, maxNameChars),
+		"customer_uuid":     acc.CustomerUUID.String(),
+		"cari_account_uuid": acc.UUID.String(),
+		"phone":             DataText(acc.CustomerPhone, 32),
+		"currency":          acc.Currency,
+		"balance":           FormatMoney(acc.Balance, acc.Currency),
+		"balance_number":    Number(acc.Balance),
+		"recent_entries":    entries,
+	}
+	if t.unpaid != nil && env.Principal.HasPermission(rbac.PermTenantJobsRead) {
+		jl := 10
+		if in.JobsLimit != nil {
+			jl = *in.JobsLimit
+		}
+		lim := int32(jl)
+		if lim == 0 {
+			lim = 1
+		}
+		unpaid, err := t.unpaid.UnpaidByCustomer(ctx, acc.CustomerUUID, lim)
+		if err != nil {
+			return userError(err)
+		}
+		jobs := []map[string]any{}
+		for i, j := range unpaid.Jobs {
+			if i >= jl {
+				break
+			}
+			row := map[string]any{
+				"job_uuid": j.UUID.String(), "plate": DataText(j.Plate, 20), "vehicle": DataText(j.VehicleLabel, maxNameChars),
+				"status": j.Status, "total": FormatMoney(j.TotalAmount, j.Currency), "started_at": fmtTime(j.StartedAt, env.Location),
+			}
+			if j.DeliveredAt != nil {
+				row["delivered_at"] = fmtTime(*j.DeliveredAt, env.Location)
+			}
+			jobs = append(jobs, row)
+		}
+		due := ratOf(acc.Balance)
+		due.Add(due, ratOf(unpaid.TotalAmount))
+		out["open_jobs"] = jobs
+		out["unpaid_job_count"] = unpaid.Count
+		out["unpaid_jobs_total"] = FormatMoney(unpaid.TotalAmount, acc.Currency)
+		out["unpaid_jobs_total_number"] = Number(unpaid.TotalAmount)
+		out["total_due"] = FormatMoney(due.FloatString(2), acc.Currency)
+		out["total_due_number"] = Number(due.FloatString(2))
+		out["note"] = "balance = cari ledger only; unpaid jobs are separate (open_jobs). Collect a job with record_job_payment, not record_cari_payment or record_finance_entry."
 	}
 	return JSONResult(out, "ai.tool_summary.account_balance", map[string]any{
 		"name": DataText(acc.CustomerName, 60), "balance": FormatMoney(acc.Balance, acc.Currency),

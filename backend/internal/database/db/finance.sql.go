@@ -1809,6 +1809,76 @@ func (q *Queries) UpdateFinanceCategory(ctx context.Context, arg UpdateFinanceCa
 	return i, err
 }
 
+const updateManualFinanceTransaction = `-- name: UpdateManualFinanceTransaction :one
+UPDATE finance_transactions
+SET account_id = $1,
+    category_id = $2,
+    amount = $3,
+    currency = $4,
+    transaction_date = $5,
+    description = $6,
+    updated_at = NOW()
+WHERE uuid = $7 AND organization_id = $8
+  AND status = 'posted'
+  AND type IN ('income', 'expense')
+  AND (source_type IS NULL OR source_type = 'manual')
+RETURNING id, uuid, organization_id, type, status, account_id, counter_account_id, category_id, amount, currency, transaction_date, description, reference_no, payment_method, created_by, voided_at, voided_by, source_type, source_uuid, metadata, created_at, updated_at
+`
+
+type UpdateManualFinanceTransactionParams struct {
+	AccountID       int64          `json:"account_id"`
+	CategoryID      pgtype.Int8    `json:"category_id"`
+	Amount          pgtype.Numeric `json:"amount"`
+	Currency        string         `json:"currency"`
+	TransactionDate pgtype.Date    `json:"transaction_date"`
+	Description     string         `json:"description"`
+	Uuid            uuid.UUID      `json:"uuid"`
+	OrganizationID  int64          `json:"organization_id"`
+}
+
+// Corrects a posted manual income/expense row in place (account, category,
+// amount, date, description). Rows owned by a source document (jobs, sales,
+// purchases, cari collections) are never edited here; the caller adjusts the
+// account balances in the same transaction.
+func (q *Queries) UpdateManualFinanceTransaction(ctx context.Context, arg UpdateManualFinanceTransactionParams) (FinanceTransaction, error) {
+	row := q.db.QueryRow(ctx, updateManualFinanceTransaction,
+		arg.AccountID,
+		arg.CategoryID,
+		arg.Amount,
+		arg.Currency,
+		arg.TransactionDate,
+		arg.Description,
+		arg.Uuid,
+		arg.OrganizationID,
+	)
+	var i FinanceTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.Type,
+		&i.Status,
+		&i.AccountID,
+		&i.CounterAccountID,
+		&i.CategoryID,
+		&i.Amount,
+		&i.Currency,
+		&i.TransactionDate,
+		&i.Description,
+		&i.ReferenceNo,
+		&i.PaymentMethod,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
+		&i.SourceType,
+		&i.SourceUuid,
+		&i.Metadata,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const voidFinanceTransaction = `-- name: VoidFinanceTransaction :one
 UPDATE finance_transactions
 SET status = 'void', voided_at = NOW(), voided_by = $3

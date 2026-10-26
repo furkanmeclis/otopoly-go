@@ -25,6 +25,13 @@ const TOOL_LABEL_KEYS: Record<string, string> = {
   list_calendar: "ai.tools.list_calendar",
   create_calendar_event: "ai.tools.create_calendar_event",
   update_plan: "ai.tools.update_plan",
+  list_services: "ai.tools.list_services",
+  list_finance_categories: "ai.tools.list_finance_categories",
+  record_job_payment: "ai.tools.record_job_payment",
+  cancel_job: "ai.tools.cancel_job",
+  quick_job: "ai.tools.quick_job",
+  void_finance_entry: "ai.tools.void_finance_entry",
+  update_finance_entry: "ai.tools.update_finance_entry",
 };
 
 const TOOL_RUNNING_KEYS: Record<string, string> = {
@@ -52,6 +59,13 @@ const TOOL_RUNNING_KEYS: Record<string, string> = {
   list_calendar: "ai.tools_running.list_calendar",
   create_calendar_event: "ai.tools_running.create_calendar_event",
   update_plan: "ai.tools_running.update_plan",
+  list_services: "ai.tools_running.list_services",
+  list_finance_categories: "ai.tools_running.list_finance_categories",
+  record_job_payment: "ai.tools_running.record_job_payment",
+  cancel_job: "ai.tools_running.cancel_job",
+  quick_job: "ai.tools_running.quick_job",
+  void_finance_entry: "ai.tools_running.void_finance_entry",
+  update_finance_entry: "ai.tools_running.update_finance_entry",
 };
 
 const UNAVAILABLE_KEYS: Record<string, string> = {
@@ -134,6 +148,12 @@ const CONFIRM_FIELD_KEYS: Record<string, string> = {
   location: "ai.confirm.fields.location",
   start_time: "ai.confirm.fields.start_time",
   end_time: "ai.confirm.fields.end_time",
+  method: "ai.confirm.fields.payment_method",
+  job_status: "ai.confirm.fields.job_status",
+  reversed_payment: "ai.confirm.fields.reversed_payment",
+  stock_returned: "ai.confirm.fields.stock_returned",
+  customer_action: "ai.confirm.fields.customer_action",
+  vehicle_action: "ai.confirm.fields.vehicle_action",
 };
 
 const CONFIRM_WARNING_KEYS: Record<string, string> = {
@@ -142,6 +162,10 @@ const CONFIRM_WARNING_KEYS: Record<string, string> = {
   negative_balance: "ai.confirm.warnings.negative_balance",
   possible_duplicate: "ai.confirm.warnings.possible_duplicate",
   unpaid_delivery: "ai.confirm.warnings.unpaid_delivery",
+  payment_reversed: "ai.confirm.warnings.payment_reversed",
+  system_category: "ai.confirm.warnings.system_category",
+  phone_differs: "ai.confirm.warnings.phone_differs",
+  name_differs: "ai.confirm.warnings.name_differs",
 };
 
 const CONFIRM_STATUS_KEYS: Record<string, string> = {

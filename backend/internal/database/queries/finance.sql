@@ -166,6 +166,25 @@ SET status = 'void', voided_at = NOW(), voided_by = $3
 WHERE uuid = $1 AND organization_id = $2 AND status = 'posted'
 RETURNING *;
 
+-- name: UpdateManualFinanceTransaction :one
+-- Corrects a posted manual income/expense row in place (account, category,
+-- amount, date, description). Rows owned by a source document (jobs, sales,
+-- purchases, cari collections) are never edited here; the caller adjusts the
+-- account balances in the same transaction.
+UPDATE finance_transactions
+SET account_id = sqlc.arg(account_id),
+    category_id = sqlc.narg(category_id),
+    amount = sqlc.arg(amount),
+    currency = sqlc.arg(currency),
+    transaction_date = sqlc.arg(transaction_date),
+    description = sqlc.arg(description),
+    updated_at = NOW()
+WHERE uuid = sqlc.arg(uuid) AND organization_id = sqlc.arg(organization_id)
+  AND status = 'posted'
+  AND type IN ('income', 'expense')
+  AND (source_type IS NULL OR source_type = 'manual')
+RETURNING *;
+
 -- name: GetFinanceTransactionBySource :one
 SELECT * FROM finance_transactions
 WHERE organization_id = $1

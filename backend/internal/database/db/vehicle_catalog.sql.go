@@ -289,6 +289,39 @@ func (q *Queries) GetVehicleModelByUUID(ctx context.Context, argUuid uuid.UUID) 
 	return i, err
 }
 
+const getVehicleModelSummary = `-- name: GetVehicleModelSummary :one
+SELECT
+    b.uuid AS brand_uuid,
+    b.name AS brand_name,
+    m.uuid AS model_uuid,
+    m.name AS model_name,
+    COALESCE((SELECT array_agg(y.year ORDER BY y.year) FROM vehicle_model_years y WHERE y.model_id = m.id), '{}')::int[] AS years
+FROM vehicle_models m
+JOIN vehicle_brands b ON b.id = m.brand_id AND b.deleted_at IS NULL
+WHERE m.uuid = $1 AND m.deleted_at IS NULL
+`
+
+type GetVehicleModelSummaryRow struct {
+	BrandUuid uuid.UUID `json:"brand_uuid"`
+	BrandName string    `json:"brand_name"`
+	ModelUuid uuid.UUID `json:"model_uuid"`
+	ModelName string    `json:"model_name"`
+	Years     []int32   `json:"years"`
+}
+
+func (q *Queries) GetVehicleModelSummary(ctx context.Context, modelUuid uuid.UUID) (GetVehicleModelSummaryRow, error) {
+	row := q.db.QueryRow(ctx, getVehicleModelSummary, modelUuid)
+	var i GetVehicleModelSummaryRow
+	err := row.Scan(
+		&i.BrandUuid,
+		&i.BrandName,
+		&i.ModelUuid,
+		&i.ModelName,
+		&i.Years,
+	)
+	return i, err
+}
+
 const getVehicleModelYearForSearch = `-- name: GetVehicleModelYearForSearch :one
 SELECT
     m.uuid AS model_uuid,
@@ -399,6 +432,63 @@ func (q *Queries) ListVehicleBrands(ctx context.Context, arg ListVehicleBrandsPa
 			&i.DeletedAt,
 			&i.CatalogDisplayBrandID,
 			&i.ModelCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVehicleModelVariants = `-- name: ListVehicleModelVariants :many
+SELECT t.uuid, t.raw_name, t.years, t.suggested_fuel, t.suggested_transmission
+FROM vehicle_models vm
+JOIN vehicle_brands b ON b.id = vm.brand_id AND b.deleted_at IS NULL
+JOIN catalog_brands cb ON cb.display_brand_id = b.catalog_display_brand_id
+JOIN catalog_models m ON m.brand_id = cb.id AND m.group_key = vm.catalog_group_key
+JOIN catalog_types t ON t.model_id = m.id AND t.is_active
+WHERE vm.uuid = $1
+  AND vm.deleted_at IS NULL
+  AND ($2::int IS NULL OR $2::int = ANY (t.years))
+ORDER BY t.raw_name ASC
+LIMIT $3
+`
+
+type ListVehicleModelVariantsParams struct {
+	ModelUuid  uuid.UUID   `json:"model_uuid"`
+	Year       pgtype.Int4 `json:"year"`
+	LimitCount int32       `json:"limit_count"`
+}
+
+type ListVehicleModelVariantsRow struct {
+	Uuid                  uuid.UUID   `json:"uuid"`
+	RawName               string      `json:"raw_name"`
+	Years                 []int32     `json:"years"`
+	SuggestedFuel         pgtype.Text `json:"suggested_fuel"`
+	SuggestedTransmission pgtype.Text `json:"suggested_transmission"`
+}
+
+// TSB catalog types (trim / engine / package names) behind one projected
+// vehicle model, with the model years each one exists in. Platform catalog
+// data, not organization-owned.
+func (q *Queries) ListVehicleModelVariants(ctx context.Context, arg ListVehicleModelVariantsParams) ([]ListVehicleModelVariantsRow, error) {
+	rows, err := q.db.Query(ctx, listVehicleModelVariants, arg.ModelUuid, arg.Year, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListVehicleModelVariantsRow{}
+	for rows.Next() {
+		var i ListVehicleModelVariantsRow
+		if err := rows.Scan(
+			&i.Uuid,
+			&i.RawName,
+			&i.Years,
+			&i.SuggestedFuel,
+			&i.SuggestedTransmission,
 		); err != nil {
 			return nil, err
 		}
@@ -637,6 +727,69 @@ func (q *Queries) SearchVehicleCatalogOptions(ctx context.Context, arg SearchVeh
 			&i.ModelUuid,
 			&i.ModelName,
 			&i.Year,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchVehicleModelsGrouped = `-- name: SearchVehicleModelsGrouped :many
+SELECT
+    b.uuid AS brand_uuid,
+    b.name AS brand_name,
+    m.uuid AS model_uuid,
+    m.name AS model_name,
+    array_agg(y.year ORDER BY y.year)::int[] AS years
+FROM vehicle_models m
+JOIN vehicle_brands b ON b.id = m.brand_id AND b.deleted_at IS NULL AND b.is_active = true
+JOIN vehicle_model_years y ON y.model_id = m.id
+WHERE m.deleted_at IS NULL AND m.is_active = true
+  AND NOT EXISTS (
+      SELECT 1 FROM unnest($1::text[]) AS w(word)
+      WHERE (b.name || ' ' || m.name) NOT ILIKE '%' || w.word || '%'
+  )
+GROUP BY b.uuid, b.name, m.uuid, m.name
+HAVING $2::int IS NULL OR $2::int = ANY (array_agg(y.year)::int[])
+ORDER BY b.name ASC, m.name ASC
+LIMIT $3
+`
+
+type SearchVehicleModelsGroupedParams struct {
+	Words      []string    `json:"words"`
+	Year       pgtype.Int4 `json:"year"`
+	LimitCount int32       `json:"limit_count"`
+}
+
+type SearchVehicleModelsGroupedRow struct {
+	BrandUuid uuid.UUID `json:"brand_uuid"`
+	BrandName string    `json:"brand_name"`
+	ModelUuid uuid.UUID `json:"model_uuid"`
+	ModelName string    `json:"model_name"`
+	Years     []int32   `json:"years"`
+}
+
+// One row per active model whose "brand model" text contains every word,
+// with its model years (optionally only models that have year).
+func (q *Queries) SearchVehicleModelsGrouped(ctx context.Context, arg SearchVehicleModelsGroupedParams) ([]SearchVehicleModelsGroupedRow, error) {
+	rows, err := q.db.Query(ctx, searchVehicleModelsGrouped, arg.Words, arg.Year, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SearchVehicleModelsGroupedRow{}
+	for rows.Next() {
+		var i SearchVehicleModelsGroupedRow
+		if err := rows.Scan(
+			&i.BrandUuid,
+			&i.BrandName,
+			&i.ModelUuid,
+			&i.ModelName,
+			&i.Years,
 		); err != nil {
 			return nil, err
 		}

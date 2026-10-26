@@ -32,7 +32,15 @@ WHERE c.organization_id = sqlc.arg(organization_id) AND c.deleted_at IS NULL
     OR EXISTS (
         SELECT 1 FROM customer_vehicles v
         WHERE v.customer_id = c.id AND v.deleted_at IS NULL
-          AND v.plate ILIKE '%' || sqlc.narg(q) || '%'
+          AND (
+            v.plate ILIKE '%' || sqlc.narg(q) || '%'
+            -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+            OR (
+              regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') <> ''
+              AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g')
+                  LIKE '%' || regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') || '%'
+            )
+          )
     )
   )
 ORDER BY
@@ -57,7 +65,15 @@ WHERE c.organization_id = sqlc.arg(organization_id) AND c.deleted_at IS NULL
     OR EXISTS (
         SELECT 1 FROM customer_vehicles v
         WHERE v.customer_id = c.id AND v.deleted_at IS NULL
-          AND v.plate ILIKE '%' || sqlc.narg(q) || '%'
+          AND (
+            v.plate ILIKE '%' || sqlc.narg(q) || '%'
+            -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+            OR (
+              regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') <> ''
+              AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g')
+                  LIKE '%' || regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') || '%'
+            )
+          )
     )
   );
 

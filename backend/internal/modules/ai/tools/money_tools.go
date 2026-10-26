@@ -17,14 +17,20 @@ import (
 type (
 	CariWriter interface {
 		Get(ctx context.Context, id uuid.UUID) (cariusecase.AccountDetail, error)
+		GetByCustomer(ctx context.Context, customerUUID uuid.UUID) (cariusecase.AccountDetail, error)
+		GetEntry(ctx context.Context, entryUUID uuid.UUID) (cariusecase.EntryInfo, error)
 		CreatePayment(ctx context.Context, accountUUID uuid.UUID, in cariusecase.PaymentInput) (cariusecase.Entry, error)
 		CreateCharge(ctx context.Context, accountUUID uuid.UUID, in cariusecase.ChargeInput) (cariusecase.Entry, error)
+		VoidEntry(ctx context.Context, entryUUID uuid.UUID) (cariusecase.Entry, error)
 	}
 	FinanceWriter interface {
 		FinanceReader
 		ListCategories(ctx context.Context, kind string, isActive *bool) ([]financeusecase.Category, error)
 		CreateTransaction(ctx context.Context, actorID int64, in financeusecase.CreateTransactionInput, req *http.Request) (financeusecase.Transaction, error)
 		CreateTransfer(ctx context.Context, actorID int64, in financeusecase.CreateTransferInput, req *http.Request) (financeusecase.Transaction, error)
+		GetTransaction(ctx context.Context, id uuid.UUID) (financeusecase.Transaction, error)
+		VoidTransaction(ctx context.Context, actorID int64, id uuid.UUID, req *http.Request) (financeusecase.Transaction, error)
+		UpdateTransaction(ctx context.Context, actorID int64, id uuid.UUID, in financeusecase.UpdateTransactionInput, req *http.Request) (financeusecase.Transaction, error)
 	}
 )
 
@@ -165,8 +171,9 @@ type cariPaymentInput struct {
 func (RecordCariPayment) Spec() Spec {
 	return Spec{
 		Name: "record_cari_payment",
-		Description: "Propose recording money received from a customer against their cari (receivable) balance (cari tahsilat). " +
-			"Use when the customer has an open balance (> 0); otherwise propose record_finance_entry (income). Shows a confirmation card; nothing changes until the user approves.",
+		Description: "Propose recording money received from a customer against their cari (receivable) ledger balance (cari tahsilat). " +
+			"Use when the customer has an open cari balance (> 0). It does not pay a job: to collect an unpaid job use record_job_payment. " +
+			"The result has entry_uuid (undo with void_finance_entry). Shows a confirmation card; nothing changes until the user approves.",
 		InputSchema:          cariPaymentSchema,
 		Permissions:          []string{rbac.PermTenantCariWrite, rbac.PermTenantCariRead, rbac.PermTenantFinanceRead},
 		OrgRoles:             []string{"owner"},
@@ -270,9 +277,10 @@ func (t RecordCariPayment) Run(ctx context.Context, env Env, raw json.RawMessage
 		account = *entry.FinanceAccountName
 	}
 	res := JSONResult(map[string]any{
-		"done": true, "entry_uuid": entry.UUID.String(), "customer": name,
-		"amount": FormatMoney(entry.Amount, cur), "finance_account": account,
+		"done": true, "entry_uuid": entry.UUID.String(), "finance_transaction_uuid": uuidOrEmpty(entry.FinanceTransactionUUID),
+		"customer": name, "amount": FormatMoney(entry.Amount, cur), "finance_account": account,
 		"new_balance": FormatMoney(entry.BalanceAfter, cur),
+		"undo":        "void_finance_entry with cari_entry_uuid = entry_uuid",
 	}, "ai.tool_summary.payment_recorded", map[string]any{"amount": FormatMoney(entry.Amount, cur), "name": name})
 	res.Link = &Link{Kind: "cari", UUID: accID.String()}
 	return res, nil
@@ -379,6 +387,7 @@ func (t RecordCariCharge) Run(ctx context.Context, env Env, raw json.RawMessage)
 	res := JSONResult(map[string]any{
 		"done": true, "entry_uuid": entry.UUID.String(), "customer": name,
 		"amount": FormatMoney(entry.Amount, cur), "new_balance": FormatMoney(entry.BalanceAfter, cur),
+		"undo": "void_finance_entry with cari_entry_uuid = entry_uuid",
 	}, "ai.tool_summary.charge_recorded", map[string]any{"amount": FormatMoney(entry.Amount, cur), "name": name})
 	res.Link = &Link{Kind: "cari", UUID: accID.String()}
 	return res, nil
@@ -395,11 +404,12 @@ var financeEntrySchema = map[string]any{
 		"type":            map[string]any{"type": "string", "enum": []string{"income", "expense"}},
 		"amount":          map[string]any{"type": "number", "minimum": 0.01},
 		"finance_account": map[string]any{"type": "string", "maxLength": 100, "description": "Cash/bank account name or uuid. Omit for the default account matching payment_method."},
-		"category":        map[string]any{"type": "string", "maxLength": 100, "description": "Category name (required for expense, e.g. Kira, Maaş, Malzeme, Genel Gider; income defaults to Diğer Gelir)."},
+		"category":        map[string]any{"type": "string", "maxLength": 100, "description": "Required. Category name or uuid of the entry's type, from list_finance_categories (e.g. income: Diğer Gelir; expense: Kira, Maaş, Malzeme, Genel Gider)."},
 		"payment_method":  map[string]any{"type": "string", "enum": paymentMethodValues, "description": "Default cash."},
 		"date":            map[string]any{"type": "string", "format": "date", "description": "Default today."},
 		"description":     map[string]any{"type": "string", "maxLength": 300},
 	},
+	// category is required too; Propose answers a missing one with the names.
 	"required":             []string{"type", "amount"},
 	"additionalProperties": false,
 }
@@ -418,8 +428,10 @@ type financeEntryInput struct {
 func (RecordFinanceEntry) Spec() Spec {
 	return Spec{
 		Name: "record_finance_entry",
-		Description: "Propose an income (gelir) or expense (gider) entry on a cash register or bank account. " +
-			"Use for money not tied to a customer's open cari balance. Shows a confirmation card.",
+		Description: "Propose a manual income (gelir) or expense (gider) entry on a cash register or bank account, with a category (see list_finance_categories). " +
+			"Use for money not tied to a job, a sale or a customer's cari balance: to collect a job use record_job_payment, a cari balance record_cari_payment. " +
+			"The system categories Hizmet Geliri, Ürün Satışı, Cari Tahsilat and Stok Alımı are booked automatically by jobs, sales, cari collections and purchases. " +
+			"The result has transaction_uuid (undo with void_finance_entry, correct with update_finance_entry). Shows a confirmation card.",
 		InputSchema:          financeEntrySchema,
 		Permissions:          []string{rbac.PermTenantFinanceWrite, rbac.PermTenantFinanceRead},
 		OrgRoles:             []string{"owner"},
@@ -441,7 +453,14 @@ func resolveCategory(cats []financeusecase.Category, ref string) (financeusecase
 	if c, _, ok := matchByName(ref, cats, name); ok {
 		return c, nil
 	}
-	return financeusecase.Category{}, inputErr("category %q not found or ambiguous; available: %s", ref, names(cats, name, 15))
+	return financeusecase.Category{}, inputErr("category %q not found or ambiguous; available: %s", ref, names(cats, name, 20))
+}
+
+func uuidOrEmpty(id *uuid.UUID) string {
+	if id == nil {
+		return ""
+	}
+	return id.String()
 }
 
 // Propose implements ActionTool.
@@ -472,10 +491,7 @@ func (t RecordFinanceEntry) Propose(ctx context.Context, env Env, raw json.RawMe
 	}
 	ref := strings.TrimSpace(in.Category)
 	if ref == "" {
-		if in.Type == "expense" {
-			return Proposal{}, inputErr("category is required for an expense; available: %s", names(cats, func(c financeusecase.Category) string { return c.Name }, 15))
-		}
-		ref = "Diğer Gelir"
+		return Proposal{}, inputErr("category is required; %s categories: %s", in.Type, names(cats, func(c financeusecase.Category) string { return c.Name }, 20))
 	}
 	cat, err := resolveCategory(cats, ref)
 	if err != nil {
@@ -498,6 +514,9 @@ func (t RecordFinanceEntry) Propose(ctx context.Context, env Env, raw json.RawMe
 	after := balanceAfter(fa.CurrentBalance, delta)
 	if ratOf(after).Sign() < 0 {
 		warnings = append(warnings, "negative_balance")
+	}
+	if sc, ok := systemCategory(cat.Name, cat.Kind); ok && sc.AutoSource != "" {
+		warnings = append(warnings, "system_category")
 	}
 	fields := []Field{
 		{Key: "entry_type", ValueKey: "ai.confirm.values." + in.Type},
@@ -551,6 +570,7 @@ func (t RecordFinanceEntry) Run(ctx context.Context, env Env, raw json.RawMessag
 	out := map[string]any{
 		"done": true, "transaction_uuid": tx.UUID.String(), "type": tx.Type,
 		"amount": FormatMoney(tx.Amount, tx.Currency), "finance_account": tx.AccountName,
+		"undo": "void_finance_entry with transaction_uuid; correct with update_finance_entry",
 	}
 	if tx.CategoryName != nil {
 		out["category"] = *tx.CategoryName

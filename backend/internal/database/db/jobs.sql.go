@@ -42,6 +42,12 @@ WHERE j.organization_id = $1
     OR j.plate ILIKE '%' || $6 || '%'
     OR j.customer_name ILIKE '%' || $6 || '%'
     OR j.vehicle_label ILIKE '%' || $6 || '%'
+    -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+    OR (
+      regexp_replace(upper($6), '[^A-Z0-9]', '', 'g') <> ''
+      AND regexp_replace(upper(j.plate), '[^A-Z0-9]', '', 'g')
+          LIKE '%' || regexp_replace(upper($6), '[^A-Z0-9]', '', 'g') || '%'
+    )
   )
 `
 
@@ -842,6 +848,12 @@ WHERE j.organization_id = $1
     OR j.plate ILIKE '%' || $6 || '%'
     OR j.customer_name ILIKE '%' || $6 || '%'
     OR j.vehicle_label ILIKE '%' || $6 || '%'
+    -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+    OR (
+      regexp_replace(upper($6), '[^A-Z0-9]', '', 'g') <> ''
+      AND regexp_replace(upper(j.plate), '[^A-Z0-9]', '', 'g')
+          LIKE '%' || regexp_replace(upper($6), '[^A-Z0-9]', '', 'g') || '%'
+    )
   )
 ORDER BY
     CASE WHEN $7::text = 'started_at' THEN j.started_at END ASC,
@@ -1194,6 +1206,67 @@ func (q *Queries) ListServiceJobsForSearch(ctx context.Context) ([]ListServiceJo
 	return items, nil
 }
 
+const listUnpaidServiceJobsByCustomer = `-- name: ListUnpaidServiceJobsByCustomer :many
+SELECT j.uuid, j.plate, j.vehicle_label, j.status, j.total_amount, j.currency,
+       j.started_at, j.delivered_at
+FROM service_jobs j
+WHERE j.organization_id = $1
+  AND j.customer_id = $2
+  AND j.payment_status = 'unpaid'
+  AND j.status NOT IN ('cancelled', 'voided')
+ORDER BY j.started_at DESC
+LIMIT $3
+`
+
+type ListUnpaidServiceJobsByCustomerParams struct {
+	OrganizationID int64 `json:"organization_id"`
+	CustomerID     int64 `json:"customer_id"`
+	LimitCount     int32 `json:"limit_count"`
+}
+
+type ListUnpaidServiceJobsByCustomerRow struct {
+	Uuid         uuid.UUID          `json:"uuid"`
+	Plate        string             `json:"plate"`
+	VehicleLabel string             `json:"vehicle_label"`
+	Status       string             `json:"status"`
+	TotalAmount  pgtype.Numeric     `json:"total_amount"`
+	Currency     string             `json:"currency"`
+	StartedAt    pgtype.Timestamptz `json:"started_at"`
+	DeliveredAt  pgtype.Timestamptz `json:"delivered_at"`
+}
+
+// Unpaid jobs of a customer that still count as money owed: the same rule as
+// the customer summary's unpaid_amount (payment_status unpaid, not cancelled
+// or voided). They are not in the cari ledger until the job is closed on cari.
+func (q *Queries) ListUnpaidServiceJobsByCustomer(ctx context.Context, arg ListUnpaidServiceJobsByCustomerParams) ([]ListUnpaidServiceJobsByCustomerRow, error) {
+	rows, err := q.db.Query(ctx, listUnpaidServiceJobsByCustomer, arg.OrganizationID, arg.CustomerID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListUnpaidServiceJobsByCustomerRow{}
+	for rows.Next() {
+		var i ListUnpaidServiceJobsByCustomerRow
+		if err := rows.Scan(
+			&i.Uuid,
+			&i.Plate,
+			&i.VehicleLabel,
+			&i.Status,
+			&i.TotalAmount,
+			&i.Currency,
+			&i.StartedAt,
+			&i.DeliveredAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markServiceJobCancelled = `-- name: MarkServiceJobCancelled :one
 UPDATE service_jobs
 SET status = 'cancelled', completed_at = COALESCE(completed_at, NOW())
@@ -1474,6 +1547,77 @@ func (q *Queries) SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDai
 		&i.PaidTotal,
 	)
 	return i, err
+}
+
+const sumUnpaidServiceJobsByCustomer = `-- name: SumUnpaidServiceJobsByCustomer :one
+SELECT COUNT(*)::bigint AS job_count,
+       COALESCE(SUM(j.total_amount), 0)::numeric(18, 2) AS total_amount
+FROM service_jobs j
+WHERE j.organization_id = $1
+  AND j.customer_id = $2
+  AND j.payment_status = 'unpaid'
+  AND j.status NOT IN ('cancelled', 'voided')
+`
+
+type SumUnpaidServiceJobsByCustomerParams struct {
+	OrganizationID int64 `json:"organization_id"`
+	CustomerID     int64 `json:"customer_id"`
+}
+
+type SumUnpaidServiceJobsByCustomerRow struct {
+	JobCount    int64          `json:"job_count"`
+	TotalAmount pgtype.Numeric `json:"total_amount"`
+}
+
+func (q *Queries) SumUnpaidServiceJobsByCustomer(ctx context.Context, arg SumUnpaidServiceJobsByCustomerParams) (SumUnpaidServiceJobsByCustomerRow, error) {
+	row := q.db.QueryRow(ctx, sumUnpaidServiceJobsByCustomer, arg.OrganizationID, arg.CustomerID)
+	var i SumUnpaidServiceJobsByCustomerRow
+	err := row.Scan(&i.JobCount, &i.TotalAmount)
+	return i, err
+}
+
+const sumUnpaidServiceJobsByCustomers = `-- name: SumUnpaidServiceJobsByCustomers :many
+SELECT c.uuid AS customer_uuid,
+       COUNT(*)::bigint AS job_count,
+       COALESCE(SUM(j.total_amount), 0)::numeric(18, 2) AS total_amount
+FROM service_jobs j
+JOIN customers c ON c.id = j.customer_id AND c.organization_id = j.organization_id
+WHERE j.organization_id = $1
+  AND c.uuid = ANY ($2::uuid[])
+  AND j.payment_status = 'unpaid'
+  AND j.status NOT IN ('cancelled', 'voided')
+GROUP BY c.uuid
+`
+
+type SumUnpaidServiceJobsByCustomersParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	CustomerUuids  []uuid.UUID `json:"customer_uuids"`
+}
+
+type SumUnpaidServiceJobsByCustomersRow struct {
+	CustomerUuid uuid.UUID      `json:"customer_uuid"`
+	JobCount     int64          `json:"job_count"`
+	TotalAmount  pgtype.Numeric `json:"total_amount"`
+}
+
+func (q *Queries) SumUnpaidServiceJobsByCustomers(ctx context.Context, arg SumUnpaidServiceJobsByCustomersParams) ([]SumUnpaidServiceJobsByCustomersRow, error) {
+	rows, err := q.db.Query(ctx, sumUnpaidServiceJobsByCustomers, arg.OrganizationID, arg.CustomerUuids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SumUnpaidServiceJobsByCustomersRow{}
+	for rows.Next() {
+		var i SumUnpaidServiceJobsByCustomersRow
+		if err := rows.Scan(&i.CustomerUuid, &i.JobCount, &i.TotalAmount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateServiceJobAssignee = `-- name: UpdateServiceJobAssignee :one
