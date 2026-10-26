@@ -3,6 +3,7 @@ import type { AppLocale } from "@/config/i18n";
 import enAccess from "@/locales/en/access.json";
 import enAi from "@/locales/en/ai.json";
 import enTodos from "@/locales/en/todos.json";
+import enCalendar from "@/locales/en/calendar.json";
 import enMessaging from "@/locales/en/messaging.json";
 import enLeads from "@/locales/en/leads.json";
 import enQuotes from "@/locales/en/quotes.json";
@@ -52,6 +53,7 @@ import enUsers from "@/locales/en/users.json";
 import trAccess from "@/locales/tr/access.json";
 import trAi from "@/locales/tr/ai.json";
 import trTodos from "@/locales/tr/todos.json";
+import trCalendar from "@/locales/tr/calendar.json";
 import trMessaging from "@/locales/tr/messaging.json";
 import trLeads from "@/locales/tr/leads.json";
 import trQuotes from "@/locales/tr/quotes.json";
@@ -147,6 +149,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     stepup: trStepup,
     ai: trAi,
     todos: trTodos,
+    calendar: trCalendar,
     messaging: trMessaging,
     leads: trLeads,
     quotes: trQuotes,
@@ -198,6 +201,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     stepup: enStepup,
     ai: enAi,
     todos: enTodos,
+    calendar: enCalendar,
     messaging: enMessaging,
     leads: enLeads,
     quotes: enQuotes,

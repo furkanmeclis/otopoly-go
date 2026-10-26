@@ -5813,6 +5813,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/calendar/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar layers the caller may see / move, event colours, time zone
+         * @description Requires `tenant.calendar.read`. A layer is listed only when the member holds that module's read permission and the plan includes the module; `movable` is true when items of the layer can be rescheduled with `POST /v1/tenant/calendar/items/move`.
+         */
+        get: operations["getTenantCalendarMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar feed (own events + live module layers)
+         * @description Requires `tenant.calendar.read`. Returns the organization's events and dated records from other modules overlapping [from, to) (dates in Europe/Istanbul, `to` exclusive, at most 62 days). Layers the member may not read (module permission or plan) are left out silently; requesting an unknown layer is a 400.
+         */
+        get: operations["getTenantCalendarFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/items/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reschedule a calendar item (drag and drop)
+         * @description Requires `tenant.calendar.read` plus the write permission of the item's module: `tenant.calendar.write` (events), `tenant.todos.write` (todo due date / time), `tenant.leads.write` (lead follow-up date). Other layers answer 403. Timed placements send `starts_at` (+ `ends_at` for events); all-day placements send `start_date` (+ `end_date` for events). A todo moved to an all-day slot loses its time; leads keep only the date.
+         */
+        post: operations["moveTenantCalendarItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a calendar event
+         * @description Requires `tenant.calendar.write`.
+         */
+        post: operations["createTenantCalendarEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/events/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a calendar event
+         * @description Requires `tenant.calendar.read`.
+         */
+        get: operations["getTenantCalendarEvent"];
+        /**
+         * Replace a calendar event
+         * @description Requires `tenant.calendar.write`. Full replace (send every field).
+         */
+        put: operations["updateTenantCalendarEvent"];
+        post?: never;
+        /**
+         * Delete a calendar event (soft delete)
+         * @description Requires `tenant.calendar.write`.
+         */
+        delete: operations["deleteTenantCalendarEvent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/todos/meta": {
         parameters: {
             query?: never;
@@ -10241,7 +10352,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
             /** Format: uuid */
             uuid: string;
         };
@@ -10458,6 +10569,185 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["Todo"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @enum {string} */
+        CalendarColor: "blue" | "emerald" | "amber" | "rose" | "violet" | "sky" | "orange" | "teal" | "pink" | "slate";
+        /** @enum {string} */
+        CalendarLayer: "events" | "jobs" | "deliveries" | "todos" | "quotes" | "leads" | "finance" | "sales" | "purchases" | "contracts";
+        CalendarLayerInfo: {
+            key: components["schemas"]["CalendarLayer"];
+            /** @description Items of this layer can be rescheduled by the caller */
+            movable: boolean;
+        };
+        CalendarMeta: {
+            layers: components["schemas"]["CalendarLayerInfo"][];
+            colors: components["schemas"]["CalendarColor"][];
+            /** @example Europe/Istanbul */
+            timezone: string;
+            /** @example 62 */
+            max_range_days: number;
+        };
+        CalendarEvent: {
+            /** Format: uuid */
+            uuid: string;
+            title: string;
+            description: string;
+            location: string;
+            /** Format: date-time */
+            starts_at: string;
+            /**
+             * Format: date-time
+             * @description Exclusive
+             */
+            ends_at: string;
+            all_day: boolean;
+            /**
+             * Format: date
+             * @description All-day only: first day (inclusive)
+             */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description All-day only: last day (inclusive)
+             */
+            end_date?: string;
+            color: components["schemas"]["CalendarColor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Timed events send starts_at/ends_at (RFC 3339, at most 31 days long); all-day events send start_date and optional end_date (inclusive). */
+        CalendarEventInput: {
+            title: string;
+            description?: string;
+            location?: string;
+            all_day: boolean;
+            /** Format: date-time */
+            starts_at?: string;
+            /** Format: date-time */
+            ends_at?: string;
+            /** Format: date */
+            start_date?: string;
+            /** Format: date */
+            end_date?: string;
+            color?: components["schemas"]["CalendarColor"];
+        };
+        CalendarMoveInput: {
+            /** @enum {string} */
+            layer: "events" | "todos" | "leads";
+            /** Format: uuid */
+            ref_uuid: string;
+            all_day: boolean;
+            /** Format: date-time */
+            starts_at?: string;
+            /**
+             * Format: date-time
+             * @description Events only
+             */
+            ends_at?: string;
+            /** Format: date */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description Events only (inclusive)
+             */
+            end_date?: string;
+        };
+        CalendarFeedItem: {
+            /** @description Stable key, e.g. `jobs:<uuid>` or `finance:2026-10-08:income:TRY` */
+            id: string;
+            layer: components["schemas"]["CalendarLayer"];
+            /** @enum {string} */
+            kind: "event" | "job_opened" | "job_delivered" | "todo" | "quote_expiry" | "lead_follow_up" | "finance_income" | "finance_expense" | "sale" | "purchase" | "contract_executed";
+            title: string;
+            subtitle?: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            all_day: boolean;
+            /**
+             * Format: date
+             * @description All-day items only (inclusive)
+             */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description All-day items only (inclusive)
+             */
+            end_date?: string;
+            /** @description Layer specific: job status (jobs), payment status (deliveries), todo status, quote status, lead temperature, payment method (sales, purchases), contract status. */
+            status?: string;
+            /** @description Decimal string */
+            amount?: string;
+            currency?: string;
+            /**
+             * Format: int64
+             * @description finance: number of transactions in the day
+             */
+            count?: number;
+            /**
+             * @description Record type to open (absent for finance day totals)
+             * @enum {string}
+             */
+            ref_kind?: "event" | "job" | "todo" | "quote" | "lead" | "sale" | "purchase" | "contract";
+            /**
+             * Format: uuid
+             * @description Record to open
+             */
+            ref_uuid?: string;
+            movable: boolean;
+            event?: components["schemas"]["CalendarEvent"];
+        };
+        CalendarFeed: {
+            /** Format: date */
+            from: string;
+            /**
+             * Format: date
+             * @description Exclusive
+             */
+            to: string;
+            /** @example Europe/Istanbul */
+            timezone: string;
+            layers: components["schemas"]["CalendarLayerInfo"][];
+            items: components["schemas"]["CalendarFeedItem"][];
+            /** @description Item count per loaded layer */
+            counts: {
+                [key: string]: number;
+            };
+        };
+        EnvelopeCalendarMeta: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarMeta"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarFeed: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarFeed"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarFeedItem: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarFeedItem"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarEvent: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarEvent"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarDeleted: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                deleted: boolean;
+            };
             meta: components["schemas"]["ResponseMeta"];
         };
         EnvelopeTodoSummary: {
@@ -23915,6 +24205,195 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantCalendarMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Calendar metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantCalendarFeed: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description Exclusive end date. */
+                to: string;
+                /** @description Comma-separated layers; empty means every layer the caller may see. */
+                layers?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarFeed"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    moveTenantCalendarItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarMoveInput"];
+            };
+        };
+        responses: {
+            /** @description The item at its new place */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarFeedItem"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarEventInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarEventInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantTodosMeta: {

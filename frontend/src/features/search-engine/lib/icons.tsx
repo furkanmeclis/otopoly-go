@@ -1,6 +1,7 @@
 import {
   Activity,
   Bell,
+  CalendarDays,
   Car,
   Download,
   HardDrive,
@@ -32,6 +33,7 @@ const ICONS: Record<string, LucideIcon> = {
   exports: Download,
   settings: Settings2,
   home: LayoutDashboard,
+  calendar: CalendarDays,
   github: githubNavIcon,
   car: Car,
   wallet: Wallet,

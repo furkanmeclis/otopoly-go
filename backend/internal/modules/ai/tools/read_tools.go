@@ -73,6 +73,7 @@ type Deps struct {
 	CatalogLookup  CatalogLookup
 	SalesWrite     SalesWriter
 	Todos          TodosService
+	Calendar       CalendarService
 }
 
 // DefaultRegistry builds the tool set (read tools, charts, plan checklist and
@@ -99,6 +100,9 @@ func DefaultRegistry(d Deps) *Registry {
 	}
 	if d.Catalog != nil {
 		r.Register(SearchProducts{catalog: d.Catalog})
+	}
+	if d.Calendar != nil {
+		r.Register(ListCalendar{calendar: d.Calendar})
 	}
 	registerWriteTools(r, d)
 	return r
@@ -137,6 +141,9 @@ func registerWriteTools(r *Registry, d Deps) {
 		r.Register(CreateTodo{todos: d.Todos, customers: d.CustomersWrite})
 		r.Register(ListTodos{todos: d.Todos})
 		r.Register(CompleteTodo{todos: d.Todos})
+	}
+	if d.Calendar != nil {
+		r.Register(CreateCalendarEvent{calendar: d.Calendar})
 	}
 }
 

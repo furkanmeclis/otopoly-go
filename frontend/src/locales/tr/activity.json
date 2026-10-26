@@ -194,5 +194,9 @@
   "actions.catalog.display_brand_logo_linked": "Görünen marka logo kaynağına bağlandı",
   "actions.catalog.model_rules_saved": "Katalog model kuralları kaydedildi",
   "actions.catalog.brand_logos_settings_updated": "Logo senkron ayarları güncellendi",
-  "actions.catalog.brand_logos_sync_requested": "Logo senkronu başlatıldı"
+  "actions.catalog.brand_logos_sync_requested": "Logo senkronu başlatıldı",
+  "actions.calendar.event.create": "Takvim etkinliği oluşturuldu",
+  "actions.calendar.event.update": "Takvim etkinliği güncellendi",
+  "actions.calendar.event.delete": "Takvim etkinliği silindi",
+  "resources.calendar.event": "Takvim etkinliği"
 }

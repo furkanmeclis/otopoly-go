@@ -194,5 +194,9 @@
   "actions.catalog.display_brand_logo_linked": "Display brand linked to a logo source",
   "actions.catalog.model_rules_saved": "Catalog model rules saved",
   "actions.catalog.brand_logos_settings_updated": "Logo sync settings updated",
-  "actions.catalog.brand_logos_sync_requested": "Logo sync started"
+  "actions.catalog.brand_logos_sync_requested": "Logo sync started",
+  "actions.calendar.event.create": "Calendar event created",
+  "actions.calendar.event.update": "Calendar event updated",
+  "actions.calendar.event.delete": "Calendar event deleted",
+  "resources.calendar.event": "Calendar event"
 }

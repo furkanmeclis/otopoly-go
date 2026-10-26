@@ -363,5 +363,15 @@
   "usage.voice_stt": "STT (sesten metne) {{duration}}",
   "usage.voice_tts": "TTS {{characters}} karakter",
   "errors.rate_limited": "Kısa sürede çok fazla mesaj gönderildi. Biraz bekleyip tekrar deneyin.",
-  "errors.conversation_limit": "Bu sohbet çok uzadı (ya da çok fazla sohbetiniz var). Yeni bir sohbet başlatın veya eskileri silin."
+  "errors.conversation_limit": "Bu sohbet çok uzadı (ya da çok fazla sohbetiniz var). Yeni bir sohbet başlatın veya eskileri silin.",
+  "tools.list_calendar": "Takvim",
+  "tools_running.list_calendar": "Takvime bakılıyor…",
+  "tools.create_calendar_event": "Yeni takvim etkinliği",
+  "tools_running.create_calendar_event": "Etkinlik hazırlanıyor…",
+  "tool_summary.calendar_found": "Takvimde {{count}} kayıt",
+  "tool_summary.calendar_event_created": "Etkinlik eklendi: {{title}}",
+  "confirm.fields.when": "Zaman",
+  "confirm.fields.location": "Yer",
+  "confirm.fields.start_time": "Başlangıç saati",
+  "confirm.fields.end_time": "Bitiş saati"
 }

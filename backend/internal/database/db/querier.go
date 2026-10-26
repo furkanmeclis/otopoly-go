@@ -35,6 +35,16 @@ type Querier interface {
 	// Trials started in the window (any current status) and how many of those
 	// organizations later moved to a non-trial plan.
 	BillingTrialConversion(ctx context.Context, sinceAt pgtype.Timestamptz) (BillingTrialConversionRow, error)
+	CalendarContracts(ctx context.Context, arg CalendarContractsParams) ([]CalendarContractsRow, error)
+	// Posted income / expense per day (one calendar row per day, type and currency).
+	CalendarFinanceDaily(ctx context.Context, arg CalendarFinanceDailyParams) ([]CalendarFinanceDailyRow, error)
+	CalendarJobsDelivered(ctx context.Context, arg CalendarJobsDeliveredParams) ([]CalendarJobsDeliveredRow, error)
+	CalendarJobsOpened(ctx context.Context, arg CalendarJobsOpenedParams) ([]CalendarJobsOpenedRow, error)
+	CalendarLeadFollowUps(ctx context.Context, arg CalendarLeadFollowUpsParams) ([]CalendarLeadFollowUpsRow, error)
+	CalendarPurchases(ctx context.Context, arg CalendarPurchasesParams) ([]CalendarPurchasesRow, error)
+	CalendarQuotesExpiring(ctx context.Context, arg CalendarQuotesExpiringParams) ([]CalendarQuotesExpiringRow, error)
+	CalendarSales(ctx context.Context, arg CalendarSalesParams) ([]CalendarSalesRow, error)
+	CalendarTodos(ctx context.Context, arg CalendarTodosParams) ([]CalendarTodosRow, error)
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
@@ -149,6 +159,7 @@ type Querier interface {
 	CreateBillingPlan(ctx context.Context, arg CreateBillingPlanParams) (BillingPlan, error)
 	CreateBrandLogoSyncRun(ctx context.Context, triggeredBy pgtype.Int8) (BrandLogoSyncRun, error)
 	CreateBulkJob(ctx context.Context, arg CreateBulkJobParams) (BulkJob, error)
+	CreateCalendarEvent(ctx context.Context, arg CreateCalendarEventParams) (CalendarEvent, error)
 	// Tenant cari (accounts receivable) accounts and ledger entries.
 	CreateCariAccount(ctx context.Context, arg CreateCariAccountParams) (CariAccount, error)
 	CreateCariEntry(ctx context.Context, arg CreateCariEntryParams) (CariEntry, error)
@@ -330,6 +341,7 @@ type Querier interface {
 	GetBrandLogoSyncSettings(ctx context.Context) (BrandLogoSyncSetting, error)
 	GetBulkJobByID(ctx context.Context, id int64) (BulkJob, error)
 	GetBulkJobByUUID(ctx context.Context, argUuid uuid.UUID) (BulkJob, error)
+	GetCalendarEventByUUID(ctx context.Context, arg GetCalendarEventByUUIDParams) (CalendarEvent, error)
 	GetCariAccountByCustomerID(ctx context.Context, arg GetCariAccountByCustomerIDParams) (CariAccount, error)
 	GetCariAccountByID(ctx context.Context, arg GetCariAccountByIDParams) (CariAccount, error)
 	GetCariAccountByUUID(ctx context.Context, arg GetCariAccountByUUIDParams) (GetCariAccountByUUIDRow, error)
@@ -596,6 +608,8 @@ type Querier interface {
 	ListBrandLogoSyncRuns(ctx context.Context, arg ListBrandLogoSyncRunsParams) ([]ListBrandLogoSyncRunsRow, error)
 	ListBulkChangesForJob(ctx context.Context, jobID int64) ([]BulkChange, error)
 	ListBulkJobsForActor(ctx context.Context, arg ListBulkJobsForActorParams) ([]BulkJob, error)
+	// Events overlapping [range_from, range_to).
+	ListCalendarEventsInRange(ctx context.Context, arg ListCalendarEventsInRangeParams) ([]CalendarEvent, error)
 	ListCariAccounts(ctx context.Context, arg ListCariAccountsParams) ([]ListCariAccountsRow, error)
 	ListCariAccountsForExport(ctx context.Context, arg ListCariAccountsForExportParams) ([]ListCariAccountsForExportRow, error)
 	ListCariAccountsForSearch(ctx context.Context) ([]ListCariAccountsForSearchRow, error)
@@ -945,6 +959,7 @@ type Querier interface {
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteAIConversation(ctx context.Context, id int64) error
 	SoftDeleteBillingPlan(ctx context.Context, argUuid uuid.UUID) error
+	SoftDeleteCalendarEvent(ctx context.Context, arg SoftDeleteCalendarEventParams) (CalendarEvent, error)
 	SoftDeleteCariAccountByCustomer(ctx context.Context, arg SoftDeleteCariAccountByCustomerParams) (CariAccount, error)
 	SoftDeleteCatalogCategory(ctx context.Context, arg SoftDeleteCatalogCategoryParams) (CatalogCategory, error)
 	SoftDeleteContractPreset(ctx context.Context, argUuid uuid.UUID) error
@@ -995,6 +1010,7 @@ type Querier interface {
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
 	UpdateBillingPlan(ctx context.Context, arg UpdateBillingPlanParams) (BillingPlan, error)
 	UpdateBrandLogoSyncSettings(ctx context.Context, arg UpdateBrandLogoSyncSettingsParams) (BrandLogoSyncSetting, error)
+	UpdateCalendarEvent(ctx context.Context, arg UpdateCalendarEventParams) (CalendarEvent, error)
 	UpdateCatalogBrand(ctx context.Context, arg UpdateCatalogBrandParams) (CatalogBrand, error)
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
 	UpdateCatalogDisplayBrand(ctx context.Context, arg UpdateCatalogDisplayBrandParams) (CatalogDisplayBrand, error)
