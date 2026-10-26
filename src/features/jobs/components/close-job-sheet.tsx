@@ -3,15 +3,18 @@ import { View } from 'react-native';
 
 import { Button, SelectField, Segmented, Sheet, Txt } from '@/components/ui';
 import { MONEY_KEYS, useFinanceAccounts } from '@/features/queries';
-import { jobsService, type CloseJobInput, type Job } from '@/features/jobs/services/jobs.service';
+import { jobsService, type CloseJobInput, type Job, type JobLine } from '@/features/jobs/services/jobs.service';
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
 
-type Method = CloseJobInput['method'];
+type Method = NonNullable<CloseJobInput['method']>;
 
-/** Record payment without changing delivery status (web CloseJobDialog). */
-export function CloseJobSheet({ job, visible, onClose }: { job: Job | null; visible: boolean; onClose: () => void }) {
+/**
+ * Record payment without changing delivery status (web CloseJobDialog). When loyalty (package, subscription or
+ * a stamp reward) covered the whole job (total 0), it closes paid without a payment method.
+ */
+export function CloseJobSheet({ job, visible, onClose }: { job: (Job & { lines?: JobLine[] }) | null; visible: boolean; onClose: () => void }) {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const accounts = useFinanceAccounts(true);
@@ -26,6 +29,7 @@ export function CloseJobSheet({ job, visible, onClose }: { job: Job | null; visi
     return (items.find((a) => a.type === want && a.is_default) ?? items.find((a) => a.type === want) ?? items.find((a) => a.is_default) ?? items[0])?.uuid ?? null;
   }, [method, items]);
   const account = picked ?? defaultAccount;
+  const covered = Boolean(job && Number(job.total_amount) <= 0 && job.lines?.some((l) => l.discount_source));
 
   const dismiss = () => {
     setMethod('cash');
@@ -43,6 +47,10 @@ export function CloseJobSheet({ job, visible, onClose }: { job: Job | null; visi
   });
 
   const submit = () => {
+    if (covered) {
+      close.mutate({});
+      return;
+    }
     if (method !== 'cari' && !account) {
       setError(tr('jobs.validation.finance_account'));
       return;
@@ -57,7 +65,7 @@ export function CloseJobSheet({ job, visible, onClose }: { job: Job | null; visi
       title={tr('jobs.actions.close')}
       footer={<Button label={tr('jobs.actions.close')} onPress={submit} loading={close.isPending} size="lg" />}
     >
-      <Txt tone="secondary">{tr('jobs.close.description')}</Txt>
+      <Txt tone="secondary">{tr(covered ? 'jobs.close.covered' : 'jobs.close.description')}</Txt>
       {job ? (
         <View style={{ alignItems: 'center', gap: 4, paddingVertical: t.spacing.md }}>
           <Txt variant="caption" tone="secondary">
@@ -68,33 +76,37 @@ export function CloseJobSheet({ job, visible, onClose }: { job: Job | null; visi
           </Txt>
         </View>
       ) : null}
-      <View style={{ gap: 6 }}>
-        <Txt variant="caption" tone="secondary" style={{ fontWeight: '600' }}>
-          {tr('jobs.close.method')}
-        </Txt>
-        <Segmented<Method>
-          value={method}
-          onChange={(m) => {
-            setMethod(m);
-            setPicked(null);
-          }}
-          options={(['cash', 'card', 'cari'] as const).map((m) => ({ value: m, label: tr(`jobs.method.${m}`) }))}
-        />
-      </View>
-      {method !== 'cari' ? (
-        <SelectField
-          label={tr('jobs.finance_account')}
-          placeholder={tr('jobs.pick_finance_account')}
-          value={account}
-          onChange={(v) => {
-            setPicked(v);
-            setError(null);
-          }}
-          error={error}
-          required
-          options={items.map((a) => ({ value: a.uuid, label: a.name, description: fmt.money(a.current_balance, a.currency) }))}
-        />
-      ) : null}
+      {covered ? null : (
+        <>
+          <View style={{ gap: 6 }}>
+            <Txt variant="caption" tone="secondary" style={{ fontWeight: '600' }}>
+              {tr('jobs.close.method')}
+            </Txt>
+            <Segmented<Method>
+              value={method}
+              onChange={(m) => {
+                setMethod(m);
+                setPicked(null);
+              }}
+              options={(['cash', 'card', 'cari'] as const).map((m) => ({ value: m, label: tr(`jobs.method.${m}`) }))}
+            />
+          </View>
+          {method !== 'cari' ? (
+            <SelectField
+              label={tr('jobs.finance_account')}
+              placeholder={tr('jobs.pick_finance_account')}
+              value={account}
+              onChange={(v) => {
+                setPicked(v);
+                setError(null);
+              }}
+              error={error}
+              required
+              options={items.map((a) => ({ value: a.uuid, label: a.name, description: fmt.money(a.current_balance, a.currency) }))}
+            />
+          ) : null}
+        </>
+      )}
     </Sheet>
   );
 }

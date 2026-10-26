@@ -228,5 +228,9 @@
   "errors.unknown": "Unknown error ({{code}})",
   "group.reviews": "Reviews",
   "types.review_request": "Review request",
-  "types.review_low_score": "Low score review (team)"
+  "types.review_low_score": "Low score review (team)",
+  "platform_report.back": "SMS report",
+  "group.loyalty": "Loyalty & packages",
+  "types.loyalty_renewal_reminder": "Subscription renewal reminder",
+  "types.loyalty_team_renewal_due": "Subscription renewal coming up (team)"
 }

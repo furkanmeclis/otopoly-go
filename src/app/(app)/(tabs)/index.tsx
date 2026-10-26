@@ -35,6 +35,7 @@ import {
 import { useDonateOnMount } from '@/features/intents/use-donate';
 import { useAuth } from '@/features/auth/auth-provider';
 import { CalendarTodayCard } from '@/features/calendar/components/today-card';
+import { LoyaltyRenewalsCard } from '@/features/loyalty/components/renewals-card';
 import { P } from '@/features/auth/permissions';
 import { JobElapsed, useNow } from '@/features/jobs/components/job-parts';
 import { isStale, localToday, shiftDate } from '@/features/jobs/lib/job-ui';
@@ -64,7 +65,7 @@ function greetingKey(hour: number) {
 }
 
 export default function DashboardScreen() {
-  useLiveResource(['tenant.jobs', 'tenant.sales', 'tenant.finance.transactions', 'tenant.todos', 'tenant.calendar']);
+  useLiveResource(['tenant.jobs', 'tenant.sales', 'tenant.finance.transactions', 'tenant.todos', 'tenant.calendar', 'tenant.loyalty.subscriptions']);
   useMarkInteractive();
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
@@ -116,6 +117,7 @@ export default function DashboardScreen() {
       <SetupChecklist key={`setup-${refreshKey}`} />
       {can(P.jobsRead) ? <TodaySection /> : null}
       <CalendarTodayCard />
+      <LoyaltyRenewalsCard />
       <PipelineSection />
       {can(P.todosRead) ? <TodosWidget /> : null}
       {can(P.reportsRead) ? <InsightsSection /> : null}

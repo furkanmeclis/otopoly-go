@@ -76,5 +76,7 @@
   "nav_billing_dashboard": "Dashboard",
   "breadcrumb_label": "Breadcrumb",
   "nav_reviews": "Reviews",
-  "nav_stock_reorder": "Reorder suggestions"
+  "nav_stock_reorder": "Reorder suggestions",
+  "nav_mcp_tenant": "AI connections (MCP)",
+  "nav_loyalty": "Loyalty & Packages"
 }

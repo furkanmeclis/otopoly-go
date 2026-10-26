@@ -1,5 +1,5 @@
 # OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND.
-# Source: otopoly-go backend/docs/openapi.yaml @ a810a53 (scripts/contract/refresh-spec.sh).
+# Source: otopoly-go backend/docs/openapi.yaml @ 89ed4ed (scripts/contract/refresh-spec.sh).
 openapi: 3.1.0
 info:
   title: App API
@@ -3326,7 +3326,11 @@ paths:
           including the `MFA_REQUIRED` / `totp_code` round-trip).
         - Not linked, an account with the same email exists →
           `409 OAUTH_ACCOUNT_NOT_LINKED` (same policy as the web: sign in with
-          the existing method and link from the profile).
+          the existing method and link from the profile). Exception: an Apple
+          private-relay address only that Apple ID can present, so its
+          account is signed in and the identity re-linked (account status,
+          `MFA_REQUIRED` and `409 CONFLICT` when another Apple ID is linked
+          still apply).
         - Not linked, Apple private-relay email (`@privaterelay.appleid.com`),
           no account → `409 OAUTH_LINK_CHOICE_REQUIRED`; `error.details`
           carries `link_ticket`, `provider`, `expires_in` (seconds, 900) and
@@ -3477,8 +3481,10 @@ paths:
         OAuth sign-up (registration policy, default role, welcome email) with
         the ticket's relay email, links the identity and returns tokens.
         Retrying with the same ticket signs into the account created by the
-        first call. Errors: `400 INVALID_LINK_TICKET`, `403 FORBIDDEN`
-        (registration disabled), `409 CONFLICT` (email registered meanwhile).
+        first call, also when that account exists by its relay email without
+        the identity (it is re-linked). Errors: `400 INVALID_LINK_TICKET`,
+        `403 FORBIDDEN` (registration disabled), `403 ACCOUNT_DEACTIVATED`,
+        `409 CONFLICT` (another Apple ID is linked to that account).
       security: []
       requestBody:
         required: true
@@ -7740,7 +7746,9 @@ paths:
           application/json:
             schema:
               type: object
-              required: [method]
+              description: >-
+                `method` is required unless loyalty covered the whole job (total 0):
+                such a job closes as paid without a payment.
               properties:
                 method: { type: string, enum: [cash, card, cari] }
                 finance_account_uuid: { type: string, format: uuid }
@@ -11414,6 +11422,668 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/tenant/loyalty/overview:
+    get:
+      tags: [Tenant]
+      operationId: getTenantLoyaltyOverview
+      summary: Loyalty counters and upcoming renewals
+      description: >-
+        Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). Renewals: active subscriptions renewing
+        within `days` (default 7, max 60), overdue first, at most 10.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 60 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyOverview"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/loyalty/campaigns:
+    get:
+      tags: [Tenant]
+      operationId: listTenantLoyaltyCampaigns
+      summary: List stamp campaigns
+      description: >-
+        Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - { name: is_active, in: query, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCampaignPage"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantLoyaltyCampaign
+      summary: Create a stamp campaign
+      description: >-
+        Requires `tenant.loyalty.write`. Eligible services / categories must belong to the organization.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyCampaignInput" }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCampaign"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/loyalty/campaigns/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantLoyaltyCampaign
+      summary: Get a stamp campaign
+      description: >-
+        Requires `tenant.loyalty.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCampaign"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantLoyaltyCampaign
+      summary: Replace a stamp campaign
+      description: >-
+        Requires `tenant.loyalty.write`. Full replace.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyCampaignInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCampaign"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantLoyaltyCampaign
+      summary: Archive a stamp campaign
+      description: >-
+        Requires `tenant.loyalty.write`. Soft delete; history is kept.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/loyalty/packages:
+    get:
+      tags: [Tenant]
+      operationId: listTenantLoyaltyPackages
+      summary: List package definitions
+      description: >-
+        Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - { name: is_active, in: query, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPackagePage"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantLoyaltyPackage
+      summary: Create a package definition
+      description: >-
+        Requires `tenant.loyalty.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyPackageInput" }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPackage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/loyalty/packages/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantLoyaltyPackage
+      summary: Get a package definition
+      description: >-
+        Requires `tenant.loyalty.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPackage"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantLoyaltyPackage
+      summary: Replace a package definition
+      description: >-
+        Requires `tenant.loyalty.write`. Full replace.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyPackageInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPackage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantLoyaltyPackage
+      summary: Archive a package definition
+      description: >-
+        Requires `tenant.loyalty.write`. Soft delete; history is kept.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/loyalty/plans:
+    get:
+      tags: [Tenant]
+      operationId: listTenantLoyaltyPlans
+      summary: List subscription plans
+      description: >-
+        Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - { name: is_active, in: query, schema: { type: string, enum: ["true", "false"] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPlanPage"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [Tenant]
+      operationId: createTenantLoyaltyPlan
+      summary: Create a subscription plan
+      description: >-
+        Requires `tenant.loyalty.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyPlanInput" }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPlan"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/loyalty/plans/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantLoyaltyPlan
+      summary: Get a subscription plan
+      description: >-
+        Requires `tenant.loyalty.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPlan"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantLoyaltyPlan
+      summary: Replace a subscription plan
+      description: >-
+        Requires `tenant.loyalty.write`. Full replace.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyPlanInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyPlan"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantLoyaltyPlan
+      summary: Archive a subscription plan
+      description: >-
+        Requires `tenant.loyalty.write`. Soft delete; history is kept.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/loyalty/customer-packages:
+    get:
+      tags: [Tenant]
+      operationId: listTenantLoyaltyCustomerPackages
+      summary: List packages sold
+      description: >-
+        Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - { name: customer_uuid, in: query, schema: { type: string, format: uuid } }
+        - { name: state, in: query, schema: { type: string, enum: [active, expired, used_up, cancelled] } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCustomerPackagePage"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Tenant]
+      operationId: sellTenantLoyaltyPackage
+      summary: Sell a package to a customer
+      description: >-
+        Requires `tenant.loyalty.apply`. Creates the credits and takes the price: cash / card
+        into `finance_account_uuid` (income category "Paket Satışı") or a charge on
+        the customer's cari account.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltySellPackageInput" }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCustomerPackageDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/loyalty/customer-packages/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantLoyaltyCustomerPackage
+      summary: Get a package sold (with usage)
+      description: >-
+        Requires `tenant.loyalty.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCustomerPackageDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/loyalty/customer-packages/{uuid}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    post:
+      tags: [Tenant]
+      operationId: cancelTenantLoyaltyCustomerPackage
+      summary: Cancel a package sold
+      description: >-
+        Requires `tenant.loyalty.write`. With no credit used the payment is voided
+        (`refunded: true`); otherwise the remaining credits lapse. 409 while a credit
+        is applied on an open job.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltyCancelResult"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/loyalty/subscriptions:
+    get:
+      tags: [Tenant]
+      operationId: listTenantLoyaltySubscriptions
+      summary: List subscriptions
+      description: >-
+        Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). `due_within_days` lists active
+        subscriptions renewing within n days (overdue included), soonest first.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - { name: customer_uuid, in: query, schema: { type: string, format: uuid } }
+        - { name: state, in: query, schema: { type: string, enum: [active, past_due, cancelled] } }
+        - { name: due_within_days, in: query, schema: { type: integer, minimum: 0, maximum: 365 } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltySubscriptionPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      tags: [Tenant]
+      operationId: startTenantLoyaltySubscription
+      summary: Start a subscription
+      description: >-
+        Requires `tenant.loyalty.apply`. With `payment` the first period is collected at
+        once; otherwise the subscription is `past_due` until paid.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyStartSubscriptionInput" }
+      responses:
+        "201":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltySubscriptionDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/loyalty/subscriptions/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantLoyaltySubscription
+      summary: Get a subscription (payments, usage, next period)
+      description: >-
+        Requires `tenant.loyalty.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltySubscriptionDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/loyalty/subscriptions/{uuid}/payments:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    post:
+      tags: [Tenant]
+      operationId: payTenantLoyaltySubscription
+      summary: Collect the next period
+      description: >-
+        Requires `tenant.loyalty.apply`. Pays `next_period` (cash / card into a finance
+        account, income category "Abonelik Geliri", or cari) and moves the renewal date.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyPaymentInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltySubscriptionDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/loyalty/subscriptions/{uuid}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    post:
+      tags: [Tenant]
+      operationId: cancelTenantLoyaltySubscription
+      summary: Cancel a subscription
+      description: >-
+        Requires `tenant.loyalty.write`. Paid periods are not refunded; pending renewal
+        reminders are cancelled.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeLoyaltySubscriptionDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/customers/{uuid}/loyalty:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantCustomerLoyalty
+      summary: Customer loyalty (stamps, packages, subscriptions)
+      description: >-
+        Requires `tenant.customers.read` and `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerLoyalty"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/jobs/{uuid}/loyalty:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantJobLoyalty
+      summary: Job loyalty section
+      description: >-
+        Requires `tenant.jobs.read` and `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). What is applied,
+        what can be applied now (`options`, biggest saving first; only while the job
+        is open and unpaid) and the customer's stamp cards.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobLoyalty"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/jobs/{uuid}/loyalty/apply:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    post:
+      tags: [Tenant]
+      operationId: applyTenantJobLoyalty
+      summary: Apply a reward / package credit / subscription use to a job line
+      description: >-
+        Requires `tenant.jobs.write` and `tenant.loyalty.apply`. Send one of the
+        `options` of the job loyalty section. The line keeps its price; the covered
+        amount becomes its `discount_amount` and the job total drops. 409
+        `NOT_APPLICABLE` when the option no longer applies, `CONFLICT` when the job
+        is paid / closed or the line is already covered.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoyaltyApplyInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobLoyalty"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/jobs/{uuid}/loyalty/{applicationUuid}/revert:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+      - { name: applicationUuid, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Tenant]
+      operationId: revertTenantJobLoyalty
+      summary: Revert loyalty on a job line
+      description: >-
+        Requires `tenant.jobs.write` and `tenant.loyalty.apply`. The line is charged again
+        and the credits / use / stamps go back. Cancelling or voiding the job does
+        this for every application.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeJobLoyalty"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
   /v1/tenant/todos/meta:
     get:
       tags: [Tenant]
@@ -13800,6 +14470,324 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/reviews/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviewsMeta
+      summary: Review list metadata
+      description: Requires `tenant.reviews.read` and the `reviews.enabled` plan toggle.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviewsSummary
+      summary: Review KPIs and trend
+      description: >-
+        Requires `tenant.reviews.read` (plan `reviews.enabled`). Requests created
+        in the last `days` (default 30, test sends excluded): sent / opened /
+        answered counts, response rate (answered / sent), average score, the
+        1-5 distribution, NPS-like score (promoters = 5, passives = 4,
+        detractors = 1-3), Google redirects, open follow-ups and a weekly
+        (monthly above 120 days) trend in Europe/Istanbul.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 730, default: 30 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/settings:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviewSettings
+      summary: Review collection settings
+      description: >-
+        Requires `tenant.reviews.read` (plan `reviews.enabled`). Defaults when
+        never saved: disabled, channel `auto`, 120 min delay, quiet hours
+        21:00-09:00, threshold 4, 30 days between requests. Includes channel
+        availability, the effective review.request template with a preview
+        (edited in Ayarlar → Mesajlar) and the `reviews.monthly` usage
+        (`limit` -1 = unlimited).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewSettings"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantReviewSettings
+      summary: Save review collection settings (owner)
+      description: >-
+        Requires `tenant.reviews.write` and the owner role. Omitted (or null)
+        fields keep their value. `google_review_url` must be an https link
+        (or "" to clear).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReviewSettingsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewSettings"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/settings/test:
+    post:
+      tags: [Tenant]
+      operationId: sendTenantReviewTest
+      summary: Send a test review request to your own phone (owner)
+      description: >-
+        Requires `tenant.reviews.write` and the owner role. Sends now (no quiet
+        hours, frequency cap or `reviews.monthly` count) to `phone` or the
+        member's notification phone. Test requests are hidden from the list
+        unless `include_tests=true`; their detail includes `public_url`.
+        `409 CHANNEL_UNAVAILABLE` when neither WhatsApp nor SMS can send,
+        `409 CONFLICT` when the message could not be sent.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewTestRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewTestResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/reviews:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviews
+      summary: List review requests
+      description: Requires `tenant.reviews.read` (plan `reviews.enabled`). Test sends are excluded by default.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ReviewStatus" }
+        - name: follow_up
+          in: query
+          schema: { $ref: "#/components/schemas/ReviewFollowUpStatus" }
+        - name: rating
+          in: query
+          description: high = score at or above the threshold, low = below it
+          schema: { type: string, enum: [high, low] }
+        - name: score
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 5 }
+        - name: channel
+          in: query
+          schema: { type: string, enum: [sms, whatsapp] }
+        - name: customer_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: days
+          in: query
+          description: Only requests created in the last N days
+          schema: { type: integer, minimum: 1, maximum: 3650 }
+        - name: include_tests
+          in: query
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [-created_at, created_at, score, -score, answered_at, -answered_at] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewList"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/XOrganization"
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantReview
+      summary: Review request detail
+      description: Requires `tenant.reviews.read`. Another organization's request is 404.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/tenant/reviews/{uuid}/follow-up:
+    parameters:
+      - $ref: "#/components/parameters/XOrganization"
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: followUpTenantReview
+      summary: Mark an answered review handled ("ele alındı", owner)
+      description: >-
+        Requires `tenant.reviews.write` and the owner role. Sets
+        `follow_up_status` to `done` with an optional note. `409` when the
+        request is not answered.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewFollowUpRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/public/reviews/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token from the review link /r/{token} (not the uuid)
+        schema: { type: string, minLength: 22, maxLength: 22 }
+    get:
+      tags: [Public]
+      operationId: getPublicReview
+      summary: Customer review page
+      description: >-
+        No auth. Rate-limited per IP (60/min). Requests that were never sent
+        are 404. The first open marks the request opened. `state` is `open`,
+        `answered` (with `result` and, for high scores, `google_review_url`)
+        or `expired` (links are valid for 30 days).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicReview"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    post:
+      tags: [Public]
+      operationId: answerPublicReview
+      summary: Customer answers with 1-5 stars
+      description: >-
+        No auth. Rate-limited per IP (10 / 15 min). Answers once:
+        `409 ALREADY_ANSWERED` afterwards, `410 REVIEW_EXPIRED` after the link
+        expired. A score below the business's threshold needs a follow-up and
+        notifies the team (in-app + push).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicReviewAnswerRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicReview"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "410":
+          description: The review link has expired (REVIEW_EXPIRED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/public/reviews/{token}/google:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token from the review link /r/{token}
+        schema: { type: string, minLength: 22, maxLength: 22 }
+    post:
+      tags: [Public]
+      operationId: redirectPublicReviewGoogle
+      summary: Count a redirect to the Google review page
+      description: >-
+        No auth. Rate-limited per IP. Only for answered high scores when the
+        business configured a Google review URL; returns the URL to open.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewGoogleRedirect"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
 
 components:
   securitySchemes:
@@ -18329,7 +19317,7 @@ components:
       type: object
       required: [kind, uuid]
       properties:
-        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event, purchase] }
+        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event, review, purchase, customer_package] }
         uuid: { type: string, format: uuid }
 
     AIActionResult:
@@ -18787,6 +19775,542 @@ components:
           required: [deleted]
           properties:
             deleted: { type: boolean }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    LoyaltyRef:
+      type: object
+      required: [uuid, name]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+
+    LoyaltyRewardType:
+      type: string
+      enum: [free_service, percent, fixed]
+      description: free_service (reward_service for free), percent (reward_value % off an eligible line), fixed (reward_value off)
+
+    LoyaltyCampaign:
+      type: object
+      required: [uuid, name, description, services, categories, stamps_required, reward_type, reward_value, is_active, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        services: { type: array, items: { $ref: "#/components/schemas/LoyaltyRef" }, description: Eligible services }
+        categories: { type: array, items: { $ref: "#/components/schemas/LoyaltyRef" }, description: Eligible service categories }
+        stamps_required: { type: integer, minimum: 1, maximum: 100 }
+        reward_type: { $ref: "#/components/schemas/LoyaltyRewardType" }
+        reward_service: { $ref: "#/components/schemas/LoyaltyRef" }
+        reward_value: { type: string, description: "Percent or amount (0.00 for free_service)" }
+        valid_from: { type: string, format: date }
+        valid_until: { type: string, format: date }
+        is_active: { type: boolean }
+        per_customer_limit: { type: integer, minimum: 1, description: Max rewards per customer (omitted = unlimited) }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LoyaltyCampaignInput:
+      type: object
+      required: [name, stamps_required, reward_type]
+      description: At least one of service_uuids / category_uuids.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        description: { type: string }
+        service_uuids: { type: array, items: { type: string, format: uuid } }
+        category_uuids: { type: array, items: { type: string, format: uuid } }
+        stamps_required: { type: integer, minimum: 1, maximum: 100 }
+        reward_type: { $ref: "#/components/schemas/LoyaltyRewardType" }
+        reward_service_uuid: { type: [string, "null"], format: uuid, description: Required for free_service }
+        reward_value: { type: string, description: "Required for percent (1-100) and fixed (> 0)" }
+        valid_from: { type: [string, "null"], format: date }
+        valid_until: { type: [string, "null"], format: date }
+        is_active: { type: [boolean, "null"], description: Default true }
+        per_customer_limit: { type: [integer, "null"], minimum: 1, maximum: 1000 }
+
+    LoyaltyPackageItem:
+      type: object
+      required: [service_uuid, service_name, quantity, unit_price]
+      properties:
+        service_uuid: { type: string, format: uuid }
+        service_name: { type: string }
+        quantity: { type: integer, minimum: 1 }
+        unit_price: { type: string, description: The service's current list price }
+
+    LoyaltyPackage:
+      type: object
+      required: [uuid, name, description, price, currency, is_active, items, list_value, sold_count, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        price: { type: string }
+        currency: { type: string }
+        validity_days: { type: integer, minimum: 1, description: Omitted = never expires }
+        is_active: { type: boolean }
+        items: { type: array, items: { $ref: "#/components/schemas/LoyaltyPackageItem" } }
+        list_value: { type: string, description: Items at the services' current prices }
+        sold_count: { type: integer, format: int64 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LoyaltyPackageInput:
+      type: object
+      required: [name, price, items]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        description: { type: string }
+        price: { type: string, description: "> 0" }
+        currency: { type: string, minLength: 3, maxLength: 3, description: Default TRY }
+        validity_days: { type: [integer, "null"], minimum: 1, maximum: 3650 }
+        is_active: { type: [boolean, "null"] }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            required: [service_uuid, quantity]
+            properties:
+              service_uuid: { type: string, format: uuid }
+              quantity: { type: integer, minimum: 1, maximum: 1000 }
+
+    LoyaltyPlan:
+      type: object
+      required: [uuid, name, description, price, currency, period_months, services, categories, is_active, active_count, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        price: { type: string, description: Price per period }
+        currency: { type: string }
+        period_months: { type: integer, minimum: 1, maximum: 12 }
+        uses_per_period: { type: integer, minimum: 1, description: Omitted = unlimited }
+        services: { type: array, items: { $ref: "#/components/schemas/LoyaltyRef" } }
+        categories: { type: array, items: { $ref: "#/components/schemas/LoyaltyRef" } }
+        is_active: { type: boolean }
+        active_count: { type: integer, format: int64, description: Active subscriptions }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LoyaltyPlanInput:
+      type: object
+      required: [name, price]
+      description: At least one of service_uuids / category_uuids.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 150 }
+        description: { type: string }
+        price: { type: string }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        period_months: { type: integer, minimum: 1, maximum: 12, description: Default 1 }
+        uses_per_period: { type: [integer, "null"], minimum: 1, maximum: 1000, description: null = unlimited }
+        service_uuids: { type: array, items: { type: string, format: uuid } }
+        category_uuids: { type: array, items: { type: string, format: uuid } }
+        is_active: { type: [boolean, "null"] }
+
+    LoyaltyCredit:
+      type: object
+      required: [service_uuid, service_name, total, used, remaining]
+      properties:
+        service_uuid: { type: string, format: uuid }
+        service_name: { type: string }
+        total: { type: integer }
+        used: { type: integer }
+        remaining: { type: integer }
+
+    LoyaltyPaymentMethod:
+      type: string
+      enum: [cash, card, cari]
+
+    LoyaltyCustomerPackage:
+      type: object
+      required: [uuid, customer_uuid, customer_name, name, price, currency, state, purchased_at, payment_method, credits_total, credits_used, credits, notes]
+      properties:
+        uuid: { type: string, format: uuid }
+        package_uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        name: { type: string }
+        price: { type: string }
+        currency: { type: string }
+        state: { type: string, enum: [active, expired, used_up, cancelled] }
+        purchased_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        payment_method: { $ref: "#/components/schemas/LoyaltyPaymentMethod" }
+        credits_total: { type: integer, format: int64 }
+        credits_used: { type: integer, format: int64 }
+        credits: { type: array, items: { $ref: "#/components/schemas/LoyaltyCredit" } }
+        notes: { type: string }
+        cancelled_at: { type: string, format: date-time }
+
+    LoyaltyUsage:
+      type: object
+      required: [uuid, job_uuid, plate, line_name, units, discount_amount, status, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        job_uuid: { type: string, format: uuid }
+        plate: { type: string }
+        line_name: { type: string }
+        units: { type: integer }
+        discount_amount: { type: string }
+        status: { type: string, enum: [applied, reverted] }
+        period_start: { type: string, format: date }
+        created_at: { type: string, format: date-time }
+
+    LoyaltyCustomerPackageDetail:
+      allOf:
+        - $ref: "#/components/schemas/LoyaltyCustomerPackage"
+        - type: object
+          required: [usage]
+          properties:
+            usage: { type: array, items: { $ref: "#/components/schemas/LoyaltyUsage" } }
+
+    LoyaltyCancelResult:
+      allOf:
+        - $ref: "#/components/schemas/LoyaltyCustomerPackageDetail"
+        - type: object
+          required: [refunded]
+          properties:
+            refunded: { type: boolean, description: The sale was voided (no credit had been used) }
+
+    LoyaltySellPackageInput:
+      type: object
+      required: [package_uuid, customer_uuid, method]
+      properties:
+        package_uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        method: { $ref: "#/components/schemas/LoyaltyPaymentMethod" }
+        finance_account_uuid: { type: [string, "null"], format: uuid, description: Required for cash / card }
+        notes: { type: string, maxLength: 1000 }
+
+    LoyaltyPaymentInput:
+      type: object
+      required: [method]
+      properties:
+        method: { $ref: "#/components/schemas/LoyaltyPaymentMethod" }
+        finance_account_uuid: { type: [string, "null"], format: uuid, description: Required for cash / card }
+
+    LoyaltyPeriod:
+      type: object
+      required: [start, end, used]
+      properties:
+        start: { type: string, format: date }
+        end: { type: string, format: date, description: Exclusive }
+        used: { type: integer, format: int64 }
+        limit: { type: integer, description: Omitted = unlimited }
+        remaining: { type: integer, format: int64 }
+
+    LoyaltySubscription:
+      type: object
+      required: [uuid, customer_uuid, customer_name, customer_phone, name, price, currency, period_months, start_date, renewal_date, days_until_renewal, state, notes, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        plan_uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        vehicle_uuid: { type: string, format: uuid, description: Set when the subscription is for one vehicle }
+        plate: { type: string }
+        name: { type: string }
+        price: { type: string }
+        currency: { type: string }
+        period_months: { type: integer }
+        uses_per_period: { type: integer, description: Omitted = unlimited }
+        start_date: { type: string, format: date }
+        renewal_date: { type: string, format: date, description: Start of the next period to pay (paid through) }
+        days_until_renewal: { type: integer, description: Negative when overdue }
+        state: { type: string, enum: [active, past_due, cancelled] }
+        current_period: { $ref: "#/components/schemas/LoyaltyPeriod" }
+        notes: { type: string }
+        cancelled_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+
+    LoyaltySubscriptionPayment:
+      type: object
+      required: [uuid, period_start, period_end, amount, currency, method, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        period_start: { type: string, format: date }
+        period_end: { type: string, format: date }
+        amount: { type: string }
+        currency: { type: string }
+        method: { $ref: "#/components/schemas/LoyaltyPaymentMethod" }
+        finance_account_name: { type: string }
+        created_at: { type: string, format: date-time }
+
+    LoyaltySubscriptionDetail:
+      allOf:
+        - $ref: "#/components/schemas/LoyaltySubscription"
+        - type: object
+          required: [next_period, payments, usage]
+          properties:
+            next_period: { $ref: "#/components/schemas/LoyaltyPeriod" }
+            payments: { type: array, items: { $ref: "#/components/schemas/LoyaltySubscriptionPayment" } }
+            usage: { type: array, items: { $ref: "#/components/schemas/LoyaltyUsage" } }
+
+    LoyaltyStartSubscriptionInput:
+      type: object
+      required: [plan_uuid, customer_uuid]
+      properties:
+        plan_uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        vehicle_uuid: { type: [string, "null"], format: uuid }
+        start_date: { type: [string, "null"], format: date, description: "Default today (within ±62 days)" }
+        notes: { type: string, maxLength: 1000 }
+        payment:
+          oneOf:
+            - $ref: "#/components/schemas/LoyaltyPaymentInput"
+            - type: "null"
+
+    LoyaltyStampCard:
+      type: object
+      required: [campaign_uuid, campaign_name, stamps_required, stamps, balance, rewards_available, rewards_redeemed, reward_type, reward_value, active, limit_reached]
+      properties:
+        campaign_uuid: { type: string, format: uuid }
+        campaign_name: { type: string }
+        stamps_required: { type: integer }
+        stamps: { type: integer, format: int64, description: "Progress towards the next reward (0..required-1)" }
+        balance: { type: integer, format: int64, description: Every unredeemed stamp }
+        rewards_available: { type: integer, format: int64 }
+        rewards_redeemed: { type: integer, format: int64 }
+        reward_type: { $ref: "#/components/schemas/LoyaltyRewardType" }
+        reward_value: { type: string }
+        reward_service: { $ref: "#/components/schemas/LoyaltyRef" }
+        active: { type: boolean, description: The campaign runs today }
+        limit_reached: { type: boolean }
+
+    CustomerLoyalty:
+      type: object
+      required: [customer_uuid, stamps, packages, subscriptions, rewards_available]
+      properties:
+        customer_uuid: { type: string, format: uuid }
+        stamps: { type: array, items: { $ref: "#/components/schemas/LoyaltyStampCard" } }
+        packages: { type: array, items: { $ref: "#/components/schemas/LoyaltyCustomerPackage" }, description: Usable packages }
+        subscriptions: { type: array, items: { $ref: "#/components/schemas/LoyaltySubscription" }, description: Active and past due }
+        rewards_available: { type: integer, format: int64 }
+
+    LoyaltyKind:
+      type: string
+      enum: [reward, package, subscription]
+
+    LoyaltyApplication:
+      type: object
+      required: [uuid, kind, source_name, line_uuid, line_name, units, discount_amount, status, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/LoyaltyKind" }
+        source_uuid: { type: string, format: uuid, description: Campaign / customer package / subscription }
+        source_name: { type: string }
+        line_uuid: { type: string, format: uuid }
+        line_name: { type: string }
+        units: { type: integer, description: "Credits / uses consumed (stamps for a reward)" }
+        discount_amount: { type: string }
+        status: { type: string, enum: [applied, reverted] }
+        created_at: { type: string, format: date-time }
+
+    LoyaltyOption:
+      type: object
+      required: [kind, source_uuid, source_name, line_uuid, line_name, units, discount_amount]
+      properties:
+        kind: { $ref: "#/components/schemas/LoyaltyKind" }
+        source_uuid: { type: string, format: uuid }
+        source_name: { type: string }
+        line_uuid: { type: string, format: uuid }
+        line_name: { type: string }
+        units: { type: integer }
+        discount_amount: { type: string }
+        remaining: { type: integer, format: int64, description: Left after this use (omitted for rewards and unlimited subscriptions) }
+
+    JobLoyalty:
+      type: object
+      required: [job_uuid, customer_uuid, editable, applied, options, stamps, stamps_earned]
+      properties:
+        job_uuid: { type: string, format: uuid }
+        customer_uuid: { type: string, format: uuid }
+        editable: { type: boolean, description: Open and unpaid (apply / revert allowed) }
+        applied: { type: array, items: { $ref: "#/components/schemas/LoyaltyApplication" } }
+        options: { type: array, items: { $ref: "#/components/schemas/LoyaltyOption" } }
+        stamps: { type: array, items: { $ref: "#/components/schemas/LoyaltyStampCard" } }
+        stamps_earned: { type: array, items: { $ref: "#/components/schemas/LoyaltyRef" }, description: Campaigns this job earned a stamp in }
+
+    LoyaltyApplyInput:
+      type: object
+      required: [kind, source_uuid, line_uuid]
+      properties:
+        kind: { $ref: "#/components/schemas/LoyaltyKind" }
+        source_uuid: { type: string, format: uuid }
+        line_uuid: { type: string, format: uuid }
+
+    LoyaltyOverview:
+      type: object
+      required: [active_campaigns, active_packages, active_plans, customer_packages_active, subscriptions_active, subscriptions_past_due, renewals_upcoming, horizon_days, renewals]
+      properties:
+        active_campaigns: { type: integer, format: int64 }
+        active_packages: { type: integer, format: int64 }
+        active_plans: { type: integer, format: int64 }
+        customer_packages_active: { type: integer, format: int64 }
+        subscriptions_active: { type: integer, format: int64 }
+        subscriptions_past_due: { type: integer, format: int64 }
+        renewals_upcoming: { type: integer, format: int64 }
+        horizon_days: { type: integer }
+        renewals: { type: array, items: { $ref: "#/components/schemas/LoyaltySubscription" } }
+
+    EnvelopeLoyaltyCampaign:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LoyaltyCampaign" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyPackage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LoyaltyPackage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyPlan:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LoyaltyPlan" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyCustomerPackageDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LoyaltyCustomerPackageDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyCancelResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LoyaltyCancelResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltySubscriptionDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LoyaltySubscriptionDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCustomerLoyalty:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerLoyalty" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeJobLoyalty:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/JobLoyalty" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyOverview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LoyaltyOverview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyDeleted:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: 
+          type: object
+          required: [deleted]
+          properties:
+            deleted: { type: boolean }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyCampaignPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items: { type: array, items: { $ref: "#/components/schemas/LoyaltyCampaign" } }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyPackagePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items: { type: array, items: { $ref: "#/components/schemas/LoyaltyPackage" } }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyPlanPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items: { type: array, items: { $ref: "#/components/schemas/LoyaltyPlan" } }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltyCustomerPackagePage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items: { type: array, items: { $ref: "#/components/schemas/LoyaltyCustomerPackage" } }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeLoyaltySubscriptionPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items: { type: array, items: { $ref: "#/components/schemas/LoyaltySubscription" } }
+            total: { type: integer, format: int64 }
+            limit: { type: integer }
+            offset: { type: integer }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeTodoSummary:
@@ -20471,9 +21995,11 @@ components:
         unit_price: { type: string }
         qty: { type: string }
         vat_rate: { type: string }
-        line_total: { type: string }
+        line_total: { type: string, description: Net of discount_amount }
         currency: { type: string }
         sort_order: { type: integer }
+        discount_amount: { type: string, description: What loyalty (reward / package / subscription) covered on the line }
+        discount_source: { type: string, enum: [reward, package, subscription], description: Omitted when nothing covers the line }
 
     JobPayment:
       type: object
@@ -22459,4 +23985,275 @@ components:
             total: { type: integer }
             limit: { type: integer }
             offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Reviews (değerlendirme toplama)
+    # ---------------------------------------------------------------------
+    ReviewStatus:
+      type: string
+      enum: [scheduled, sent, opened, answered, expired, cancelled, skipped, failed]
+    ReviewFollowUpStatus:
+      type: string
+      enum: [none, required, done]
+    ReviewChannelPreference:
+      type: string
+      enum: [auto, sms, whatsapp]
+    Review:
+      type: object
+      required: [uuid, kind, status, skip_reason, error, channel, locale, customer_uuid, customer_name, customer_phone, job_uuid, plate, score, comment, rating, google_redirects, follow_up_status, follow_up_note, followed_up_at, followed_up_by_name, send_at, deferred, sent_at, opened_at, answered_at, expires_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        kind: { type: string, enum: [job, test] }
+        status: { $ref: "#/components/schemas/ReviewStatus" }
+        skip_reason:
+          type: string
+          description: >-
+            Why a request was skipped / cancelled / failed: disabled,
+            job_cancelled, plan_disabled, excluded, no_phone, frequency_cap,
+            monthly_limit, channel_unavailable, template_inactive, channel_plan,
+            channel_quota, send_failed ("" otherwise)
+        error: { type: string }
+        channel: { type: string, enum: ["", sms, whatsapp] }
+        locale: { type: string, enum: [tr, en] }
+        customer_uuid: { type: [string, "null"], format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        job_uuid: { type: [string, "null"], format: uuid }
+        plate: { type: string }
+        score: { type: [integer, "null"], minimum: 1, maximum: 5 }
+        comment: { type: string }
+        rating: { type: string, enum: ["", high, low] }
+        google_redirects: { type: integer }
+        follow_up_status: { $ref: "#/components/schemas/ReviewFollowUpStatus" }
+        follow_up_note: { type: string }
+        followed_up_at: { type: [string, "null"], format: date-time }
+        followed_up_by_name: { type: string }
+        send_at: { type: string, format: date-time, description: Planned (or actual) send time }
+        deferred: { type: boolean, description: The send was moved out of quiet hours }
+        sent_at: { type: [string, "null"], format: date-time }
+        opened_at: { type: [string, "null"], format: date-time }
+        answered_at: { type: [string, "null"], format: date-time }
+        expires_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ReviewDetail:
+      allOf:
+        - $ref: "#/components/schemas/Review"
+        - type: object
+          required: [consent, view_count, google_redirected_at, cancelled_at]
+          properties:
+            consent: { type: boolean }
+            view_count: { type: integer }
+            google_redirected_at: { type: [string, "null"], format: date-time }
+            cancelled_at: { type: [string, "null"], format: date-time }
+            public_url: { type: string, description: Customer link (test requests only) }
+    ReviewScoreCount:
+      type: object
+      required: [score, count]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+        count: { type: integer }
+    ReviewTrendPoint:
+      type: object
+      required: [period_start, sent, answered, average_score]
+      properties:
+        period_start: { type: string, format: date }
+        sent: { type: integer }
+        answered: { type: integer }
+        average_score: { type: number }
+    ReviewSummary:
+      type: object
+      required: [days, bucket, sent_count, opened_count, answered_count, scheduled_count, response_rate, average_score, distribution, promoters, passives, detractors, nps, google_redirects, follow_up_required, trend]
+      properties:
+        days: { type: integer }
+        bucket: { type: string, enum: [week, month] }
+        sent_count: { type: integer }
+        opened_count: { type: integer }
+        answered_count: { type: integer }
+        scheduled_count: { type: integer }
+        response_rate: { type: number, description: answered / sent (0..1) }
+        average_score: { type: number }
+        distribution:
+          type: array
+          description: Always five rows, scores 1..5
+          items: { $ref: "#/components/schemas/ReviewScoreCount" }
+        promoters: { type: integer }
+        passives: { type: integer }
+        detractors: { type: integer }
+        nps: { type: integer, description: promoters% - detractors% (-100..100) }
+        google_redirects: { type: integer }
+        follow_up_required: { type: integer }
+        trend:
+          type: array
+          items: { $ref: "#/components/schemas/ReviewTrendPoint" }
+    ReviewCustomerRef:
+      type: object
+      required: [uuid, name, phone]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+    ReviewTemplateInfo:
+      type: object
+      required: [channel, locale, body, is_custom, active, preview]
+      properties:
+        channel: { type: string, enum: [sms, whatsapp] }
+        locale: { type: string, enum: [tr, en] }
+        body: { type: string, description: "Template with {{musteri_adi}}, {{isletme_adi}}, {{link}} (short {musteri_adi} also works)" }
+        is_custom: { type: boolean }
+        active: { type: boolean }
+        preview: { type: string }
+    ReviewSettings:
+      type: object
+      required: [enabled, channel, delay_minutes, quiet_hours_enabled, quiet_start_hour, quiet_end_hour, google_review_url, high_score_threshold, min_days_between, consent_text, default_locale, excluded_customers, whatsapp_available, sms_available, effective_channel, template, usage]
+      properties:
+        enabled: { type: boolean }
+        channel: { $ref: "#/components/schemas/ReviewChannelPreference" }
+        delay_minutes: { type: integer, minimum: 30, maximum: 2880 }
+        quiet_hours_enabled: { type: boolean }
+        quiet_start_hour: { type: integer, minimum: 0, maximum: 23 }
+        quiet_end_hour: { type: integer, minimum: 0, maximum: 23 }
+        google_review_url: { type: string }
+        high_score_threshold: { type: integer, minimum: 2, maximum: 5 }
+        min_days_between: { type: integer, minimum: 0, maximum: 365 }
+        consent_text: { type: string }
+        default_locale: { type: string, enum: [tr, en] }
+        excluded_customers:
+          type: array
+          items: { $ref: "#/components/schemas/ReviewCustomerRef" }
+        whatsapp_available: { type: boolean }
+        sms_available: { type: boolean }
+        effective_channel: { type: string, enum: ["", sms, whatsapp], description: Channel a request would use now }
+        template: { $ref: "#/components/schemas/ReviewTemplateInfo" }
+        usage:
+          type: object
+          required: [used, limit]
+          properties:
+            used: { type: integer }
+            limit: { type: integer, description: -1 = unlimited }
+    UpdateReviewSettingsRequest:
+      type: object
+      properties:
+        enabled: { type: [boolean, "null"] }
+        channel:
+          oneOf:
+            - $ref: "#/components/schemas/ReviewChannelPreference"
+            - type: "null"
+        delay_minutes: { type: [integer, "null"], minimum: 30, maximum: 2880 }
+        quiet_hours_enabled: { type: [boolean, "null"] }
+        quiet_start_hour: { type: [integer, "null"], minimum: 0, maximum: 23 }
+        quiet_end_hour: { type: [integer, "null"], minimum: 0, maximum: 23 }
+        google_review_url: { type: [string, "null"], maxLength: 500 }
+        high_score_threshold: { type: [integer, "null"], minimum: 2, maximum: 5 }
+        min_days_between: { type: [integer, "null"], minimum: 0, maximum: 365 }
+        consent_text: { type: [string, "null"], maxLength: 500 }
+        default_locale: { type: [string, "null"], enum: [tr, en, null] }
+        excluded_customer_uuids:
+          type: [array, "null"]
+          maxItems: 500
+          items: { type: string, format: uuid }
+    ReviewTestRequest:
+      type: object
+      properties:
+        phone: { type: string, maxLength: 32, description: Defaults to the member's notification phone }
+    ReviewTestResult:
+      type: object
+      required: [review, channel, phone, public_url]
+      properties:
+        review: { $ref: "#/components/schemas/ReviewDetail" }
+        channel: { type: string, enum: [sms, whatsapp] }
+        phone: { type: string }
+        public_url: { type: string }
+    ReviewFollowUpRequest:
+      type: object
+      properties:
+        note: { type: string, maxLength: 1000 }
+    PublicReview:
+      type: object
+      required: [state, organization_name, organization_logo_url, organization_phone, primary_color, customer_first_name, locale, consent_text, expires_at, score, comment, answered_at]
+      properties:
+        state: { type: string, enum: [open, answered, expired] }
+        organization_name: { type: string }
+        organization_logo_url: { type: [string, "null"], description: API-owned logo stream path }
+        organization_phone: { type: string }
+        primary_color: { type: string }
+        customer_first_name: { type: string }
+        locale: { type: string, enum: [tr, en], description: Business default language of the request }
+        consent_text: { type: string, description: Optional consent checkbox text ("" = none) }
+        expires_at: { type: [string, "null"], format: date-time }
+        score: { type: [integer, "null"] }
+        comment: { type: string }
+        answered_at: { type: [string, "null"], format: date-time }
+        result: { type: string, enum: [high, low] }
+        google_review_url: { type: string, description: Set for answered high scores when configured }
+    PublicReviewAnswerRequest:
+      type: object
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 1000 }
+        consent: { type: boolean }
+    ReviewGoogleRedirect:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
+    EnvelopeReviewList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Review" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewTestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopePublicReview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PublicReview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewGoogleRedirect:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewGoogleRedirect" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }

@@ -42,6 +42,8 @@ export function actionLinkHref(link: AIActionLink): Href {
       return `/sales/${link.uuid}`;
     case 'finance_account':
       return `/finance/accounts/${link.uuid}`;
+    case 'customer_package':
+      return `/loyalty/customer-packages/${link.uuid}`;
     default:
       return '/todos';
   }

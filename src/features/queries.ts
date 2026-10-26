@@ -46,6 +46,7 @@ export const qk = {
   calendar: ['calendar'] as const,
   reviews: ['reviews'] as const,
   stockReorder: ['stock-reorder'] as const,
+  loyalty: ['loyalty'] as const,
 };
 
 /** Everything money-related a document write can change. */

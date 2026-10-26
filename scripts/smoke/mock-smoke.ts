@@ -26,7 +26,7 @@ async function login(email: string) {
   console.log('auth');
   await expectError(request('POST', '/v1/auth/login', { body: { email: 'demo@otopoly.com', password: 'x' }, anonymous: true }), 'INVALID_CREDENTIALS', 'wrong password rejected');
   const me = await login('demo@otopoly.com');
-  ok(me.permissions.length === 61, `owner has 61 permissions (57 + calendar read/write 000085 + reviews read/write 000096) (${me.permissions.length})`);
+  ok(me.permissions.length === 64, `owner has 64 permissions (57 + calendar read/write 000085 + loyalty read/apply/write 000093 + reviews read/write 000096) (${me.permissions.length})`);
   ok(me.organizations[0].role === 'owner', 'owner membership');
 
   console.log('dashboard data');
@@ -76,7 +76,7 @@ async function login(email: string) {
   console.log('staff permissions');
   await login('personel@otopoly.com');
   const staffMe = await request<any>('GET', '/v1/auth/me');
-  ok(staffMe.permissions.length === 37, `staff has 37 permissions (34 + calendar read/write + reviews read) (${staffMe.permissions.length})`);
+  ok(staffMe.permissions.length === 39, `staff has 39 permissions (34 + calendar read/write + loyalty read/apply + reviews read) (${staffMe.permissions.length})`);
   await expectError(request('POST', '/v1/tenant/finance/transactions', { body: { type: 'expense' } }), 'FORBIDDEN', 'staff cannot write finance');
   await expectError(request('POST', `/v1/tenant/jobs/${conv.job_uuid}/void`), 'FORBIDDEN', 'staff cannot void');
   const staffJob = await request<any>('POST', `/v1/tenant/jobs/${conv.job_uuid}/ready`);

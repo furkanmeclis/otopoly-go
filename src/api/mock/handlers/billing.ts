@@ -45,11 +45,13 @@ const FEATURES: FeatureDef[] = [
   { key: 'reviews.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Değerlendirme toplama', label_en: 'Review collection', value: true },
   { key: 'reviews.monthly', kind: 'limit', period: 'month', unit: 'istek', label_tr: 'Aylık değerlendirme isteği', label_en: 'Monthly review requests', value: 300 },
   { key: 'stock_reorder.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Stok sipariş önerileri', label_en: 'Stock reorder suggestions', value: true },
+  // Migration 000093.
+  { key: 'loyalty.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Sadakat ve paketler', label_en: 'Loyalty & packages', value: true },
 ];
 
 /** Modules each scenario turns off (each has the shared lock state in the app). */
 const DISABLED_IN_SCENARIO: Partial<Record<PlanScenario, Set<string>>> = {
-  feature_disabled: new Set(['module.contracts', 'module.reports', 'ai.enabled', 'reviews.enabled', 'stock_reorder.enabled']),
+  feature_disabled: new Set(['module.contracts', 'module.reports', 'ai.enabled', 'reviews.enabled', 'stock_reorder.enabled', 'loyalty.enabled']),
   quotes_disabled: new Set(['module.quotes']),
 };
 
@@ -170,6 +172,8 @@ const GATED_PREFIXES: { prefix: string; feature: string }[] = [
   { prefix: '/v1/tenant/leads', feature: 'module.quotes' },
   { prefix: '/v1/tenant/reviews', feature: 'reviews.enabled' },
   { prefix: '/v1/tenant/stock-reorder', feature: 'stock_reorder.enabled' },
+  // Loyalty; the customer / job loyalty sections check the feature in their handlers.
+  { prefix: '/v1/tenant/loyalty/', feature: 'loyalty.enabled' },
 ];
 
 /** Writes still allowed in read-only mode (backend `readOnlyAllowed`). */

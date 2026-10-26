@@ -24,3 +24,4 @@ import './qr-login';
 import './realtime';
 import './calendar';
 import './reviews';
+import './loyalty';

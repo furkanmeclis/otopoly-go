@@ -25,11 +25,12 @@ export const PLAN_FEATURES = [
   'reviews.enabled',
   'reviews.monthly',
   'stock_reorder.enabled',
+  'loyalty.enabled',
 ] as const;
 export type PlanFeatureKey = (typeof PLAN_FEATURES)[number];
 
 /** Modules that can be switched off by the plan and show the shared lock state. */
-export type LockedModule = 'module.contracts' | 'module.reports' | 'module.quotes' | 'ai.enabled' | 'reviews.enabled' | 'stock_reorder.enabled';
+export type LockedModule = 'module.contracts' | 'module.reports' | 'module.quotes' | 'ai.enabled' | 'reviews.enabled' | 'stock_reorder.enabled' | 'loyalty.enabled';
 
 /** Warn from this share of the limit on when the meter doesn't say otherwise. */
 export const DEFAULT_WARN_PCT = 80;

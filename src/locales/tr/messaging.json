@@ -228,5 +228,9 @@
   "errors.unknown": "Bilinmeyen hata ({{code}})",
   "group.reviews": "Değerlendirmeler",
   "types.review_request": "Değerlendirme isteği",
-  "types.review_low_score": "Düşük puanlı değerlendirme (ekip)"
+  "types.review_low_score": "Düşük puanlı değerlendirme (ekip)",
+  "platform_report.back": "SMS raporu",
+  "group.loyalty": "Sadakat ve paketler",
+  "types.loyalty_renewal_reminder": "Abonelik yenileme hatırlatması",
+  "types.loyalty_team_renewal_due": "Abonelik yenilemesi yaklaşıyor (ekip)"
 }
