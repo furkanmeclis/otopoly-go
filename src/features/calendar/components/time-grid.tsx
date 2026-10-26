@@ -1,5 +1,6 @@
 import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, View, type ScrollViewInstance } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Txt } from '@/components/ui';
 import { useLocale } from '@/lib/i18n/provider';
@@ -38,6 +39,7 @@ export function TimeGrid({
 }) {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
+  const insets = useSafeAreaInsets();
   const scroll = useRef<ScrollViewInstance>(null);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -97,7 +99,7 @@ export function TimeGrid({
       <ScrollView
         ref={scroll}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: t.spacing.xxxl }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + t.spacing.xxxl }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.colors.primary} colors={[t.colors.primary]} />}
       >
         <View style={{ flexDirection: 'row', height: HOUR * 24 }}>

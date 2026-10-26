@@ -24,8 +24,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] 2FA prompt when login returns TOTP required
 
 ### RBAC (exact sets from backend migrations)
-- [ ] `organization_owner`: 57 permissions (all tenant.* incl. writes, bulk, settings, imports, billing.write, messaging.write)
-- [ ] `organization_user` (staff): 34 permissions — read + export everywhere, write only jobs/customers/sales/contracts/leads/quotes/todos
+- [ ] `organization_owner`: 59 permissions (all tenant.* incl. writes, bulk, settings, imports, billing.write, messaging.write, calendar read/write)
+- [ ] `organization_user` (staff): 36 permissions — read + export everywhere, write only jobs/customers/sales/contracts/leads/quotes/todos/calendar
 - [ ] Owner-membership gate (`role === "owner"`) for voids, catalog/finance/cari/purchases/suppliers writes, staff write
 - [ ] `usePermission()`, `<Can>` component, route-level `RequirePermission` screen with forbidden state
 - [ ] Hidden nav items for missing permissions (same as web nav)
@@ -40,6 +40,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Services copied from web feature services (types unchanged)
 - [ ] OpenAPI types generated into `src/api/generated/api.d.ts`
 - [ ] TanStack Query: keys per module, invalidation after mutations, pull-to-refresh
+- [x] Live lists (Centrifugo, `centrifuge` JS SDK): one connection per signed-in organization (`LiveHost`), tokens from `/v1/realtime/connection-token` + `/subscription-token`, `org:{org_uuid}:resource:{resource}` channels; `useLiveResource()` on list + detail screens invalidates the matching keys (debounced 400 ms; details only when their uuid is in the event, `lib/realtime/live-targets.ts`); paused in the background, one refetch after reconnect / foreground; fail-soft on 403 / 503 / no network; silent mock driver in demo mode (`scripts/smoke/live.smoke.ts`); `EXPO_PUBLIC_REALTIME=off` disables it
 
 ### Logging & errors
 - [ ] `logger` with levels (debug/info/warn/error), scopes, ring buffer, dev console
@@ -153,6 +154,13 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Create/edit **W**: title, notes, due, reminders, assignee, links (customer/lead/quote)
 - [ ] Complete / reopen / delete; summary for nav badge
 
+## 13b. Calendar — `tenant.calendar.*`
+- [x] `/calendar` (Menu → Takvim, `tenant.calendar.read`): month grid with a dot per layer colour + selected day agenda, 3-day timeline (lanes for overlaps, now line, tap an hour to add), 30-day agenda list; layer chips (colour / icon / count, remembered per device); pull-to-refresh; live refresh from the module channels
+- [x] Tap → source record (job, todo, quote, lead, sale, purchase, contract, finance list) or the event detail sheet; long press → reschedule movable items (events keep their length, todos date + optional time, leads date only; optimistic)
+- [x] Events **W** (`tenant.calendar.write`): create / edit / delete in a sheet — all-day / timed, date + time pickers, colour picker, location, note
+- [x] Home dashboard "Bugün ve yaklaşanlar" card (events, todos, quote expiries, lead follow-ups for 7 days)
+- [x] Mock calendar API with seeded events and every module layer (`scripts/smoke/calendar.smoke.ts`)
+
 ## 14. Staff — `tenant.staff.*`
 - [ ] List (status, role)
 - [ ] Create **O** (name, surname, email, password), activate/deactivate **O**, reset password **O**
@@ -164,13 +172,15 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ## 16. Contracts — `tenant.contracts.*`
 - [x] Instances list + detail (signers, status, PDF)
-- [x] On-site signing with signature pad, WhatsApp OTP verify
+- [x] On-site signing with signature pad, OTP verify over WhatsApp or SMS (channel choice when an SMS provider is active)
 - [x] Gallery media upload: camera, photo library, Files (`expo-image-picker` / `expo-document-picker`; JPEG/PNG/WebP/GIF/PDF, 12 MB) with caption; delete while open
 - [ ] Templates list/detail; clone preset **O**; void **O**
 
 ## 17. Settings
 - [ ] Letterhead / export settings **O** (`tenant.settings.*`)
 - [ ] Messaging (WhatsApp session, templates, notification rules, daily summary, vehicle alerts)
+  - [x] Kanallar tab: WhatsApp / SMS – Netgsm / SMS – Twilio / e-posta cards with brand icons and status; connect / edit sheet (masked hints, empty keeps stored), activate switch (one active provider), connection test result, test SMS with live segment counter (`/sms/estimate`, debounced), disconnect with confirm; owner-only writes, read-only for others (`scripts/smoke/sms.smoke.ts`)
+  - [x] WhatsApp / SMS channel choice on the daily summary and vehicle alerts cards; SMS notification rules unlock when an SMS provider is active
 - [x] Usage & limits (`/settings/usage`, read-only): plan name/status, period end, usage meters (warn ≥ 80 %, full at 100 %, unlimited), included modules
 - [x] ~~Plans, checkout/order, report payment, invoices, invoice profile~~ — removed for good: no in-app purchases (App Store 3.1.1/3.1.3, Play payments policy); backend e-mails the owner
 
