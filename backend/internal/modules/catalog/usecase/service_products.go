@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -129,5 +130,6 @@ func (s *Service) SetServiceProducts(ctx context.Context, id uuid.UUID, items []
 		return nil, err
 	}
 	s.recordActivity(ctx, "tenant.catalog.service.products", "service", &id, map[string]any{"count": len(lines)})
+	s.live(ctx, resourceevents.TenantCatalogServices, resourceevents.ActionUpdated, id.String())
 	return s.ListServiceProducts(ctx, id)
 }

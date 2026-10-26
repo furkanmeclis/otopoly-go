@@ -2880,8 +2880,31 @@ paths:
       operationId: postRealtimeSubscriptionToken
       summary: Issue Centrifugo subscription JWT
       description: |
-        Body `{ channel }`. Allowlist `user:{own_uuid}`, member `workspace:{uuid}`,
-        and `conversation:{uuid}` (authenticated session; HTTP inbox ACL is the hard boundary).
+        Body `{ channel }`. Returns `{ token, channel, expires_at }` for Centrifugo
+        subscriptions (`allow_subscribe_for_client` is off, so every channel needs one).
+        Requires `auth.session`; disabled Centrifugo → `503 REALTIME_DISABLED`; a channel
+        the caller may not watch → `403`.
+
+        Allowed channels:
+        - `user:{own_uuid}` — the caller's own channel.
+        - `system.notifications` — platform super admins.
+        - `org:{org_uuid}:resource:{resource}` — **live lists** of an organization-owned
+          resource. The access token must be scoped to that organization (JWT `oid`, i.e.
+          signed in / switched with `organization_slug`), the caller must be an active
+          member with organization access, and must hold the resource's read permission
+          (e.g. `tenant.jobs` → `tenant.jobs.read`). Unknown resources are refused.
+          Resources: `tenant.customers`, `tenant.vehicles`, `tenant.jobs`, `tenant.sales`,
+          `tenant.quotes`, `tenant.leads`, `tenant.purchases`, `tenant.suppliers`,
+          `tenant.catalog.products`, `tenant.catalog.services`, `tenant.catalog.categories`,
+          `tenant.finance.accounts`, `tenant.finance.categories`, `tenant.finance.transactions`,
+          `tenant.cari`, `tenant.cari.entries`, `tenant.todos`, `tenant.contracts` (templates),
+          `tenant.contracts.instances`, `tenant.staff`.
+
+        Live list publications carry
+        `{ "type": "resource.changed", "resource": "tenant.jobs", "action": "created|updated|deleted|bulk",
+        "uuids": ["…"], "truncated": false, "at": "RFC3339" }`. `bulk` without uuids (or
+        `truncated: true`) means an unknown set of rows changed: refetch. Events are hints;
+        always refetch over HTTP. See docs/ARCHITECTURE.md → "Live lists".
       security:
         - bearerAuth: []
       requestBody:
@@ -13198,7 +13221,9 @@ components:
       type: object
       required: [channel]
       properties:
-        channel: { type: string }
+        channel:
+          type: string
+          example: "org:2f6a4c1e-8d3b-4f7a-9c2e-1b5d7e9f0a12:resource:tenant.jobs"
 
     RealtimeSubscriptionToken:
       type: object

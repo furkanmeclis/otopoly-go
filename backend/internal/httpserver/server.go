@@ -138,6 +138,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/stepup"
@@ -576,6 +577,24 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	quotesSvc.SetNotifier(sales)
 	sales.SetQuotes(quotesSvc)
 	quotesmodule.RegisterRoutes(mux, quotesSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries, entitlementsSvc)
+
+	// Live lists: tenant mutations publish resource.changed events on
+	// org:{org_uuid}:resource:{name}; subscription tokens need the resource's
+	// read permission inside that organization (docs/ARCHITECTURE.md).
+	liveEvents := resourceevents.New(deps.Realtime, log)
+	liveResources := resourceevents.NewRegistry()
+	resourceevents.RegisterTenantResources(liveResources)
+	liveEvents.AddResolver(resourceevents.OrgChannelResolver(resourceevents.QueriesLookup(deps.Queries)))
+	uc.AddChannelRules(resourceevents.OrgChannelRule(liveResources,
+		middleware.OrganizationAccess(middleware.OrganizationResolverFromQueries(deps.Queries))))
+	for _, svc := range []interface {
+		SetResourceEvents(resourceevents.Publisher)
+	}{
+		customersSvc, jobsSvc, salesSvc, quotesSvc, leadsSvc, purchasesSvc, suppliersSvc,
+		catalogSvc, financeSvc, cariSvc, todosSvc, contractsSvc, staffSvc, importSvc, bulkSvc,
+	} {
+		svc.SetResourceEvents(liveEvents)
+	}
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:       customersSvc,
 		CustomersSearch: deps.Queries,

@@ -17,6 +17,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -40,12 +41,13 @@ const (
 
 // Service is the leads use case.
 type Service struct {
-	pool  *pgxpool.Pool
-	q     *db.Queries
-	act   *activity.Recorder
-	todos TodoCreator
-	loc   *time.Location
-	now   func() time.Time
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	todos      TodoCreator
+	loc        *time.Location
+	now        func() time.Time
 }
 
 // New builds the service with the no-op TodoCreator.
@@ -84,6 +86,8 @@ func actor(ctx context.Context) pgtype.Int8 {
 }
 
 func (s *Service) record(ctx context.Context, action string, id uuid.UUID, payload map[string]any) {
+	// Every mutation records activity after it succeeds: open lists follow.
+	s.live(ctx, resourceevents.TenantLeads, liveAction(action), id.String())
 	if s.act == nil {
 		return
 	}

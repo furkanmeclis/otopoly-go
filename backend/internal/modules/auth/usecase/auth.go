@@ -18,6 +18,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/password"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/realtime"
 	"github.com/google/uuid"
 )
 
@@ -128,6 +129,15 @@ type AuthUseCase struct {
 	// reviewAccounts maps email -> fixed sign-in code (app store review).
 	reviewAccounts map[string]string
 	native         NativeOAuthConfig
+	// channelRules authorize extra Centrifugo channel families (live lists).
+	channelRules []realtime.ChannelRule
+}
+
+// AddChannelRules lets other packages authorize their own channel families
+// in CanSubscribeChannel (for example org:{uuid}:resource:{name} live list
+// channels). Rules run before the built-in checks.
+func (u *AuthUseCase) AddChannelRules(rules ...realtime.ChannelRule) {
+	u.channelRules = append(u.channelRules, rules...)
 }
 
 // SecretBox encrypts at-rest secrets (TOTP).

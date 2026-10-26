@@ -12,6 +12,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -26,6 +27,7 @@ var (
 )
 
 type Service struct {
+	liveEvents    resourceevents.Publisher
 	pool          *pgxpool.Pool
 	q             *db.Queries
 	act           *activity.Recorder
@@ -292,6 +294,7 @@ func (s *Service) CreateAccount(ctx context.Context, in CreateAccountInput) (Acc
 		return Account{}, err
 	}
 	s.indexAccount(ctx, row.Uuid)
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionCreated, row.Uuid.String())
 	return mapAccount(row), nil
 }
 
@@ -341,6 +344,7 @@ func (s *Service) PatchAccount(ctx context.Context, id uuid.UUID, in PatchAccoun
 		return Account{}, err
 	}
 	s.indexAccount(ctx, row.Uuid)
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionUpdated, row.Uuid.String())
 	return mapAccount(row), nil
 }
 
@@ -355,6 +359,7 @@ func (s *Service) DeleteAccount(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	s.deleteAccountIndex(ctx, id)
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionDeleted, id.String())
 	return nil
 }
 
@@ -416,6 +421,7 @@ func (s *Service) CreateCategory(ctx context.Context, in CreateCategoryInput) (C
 		return Category{}, err
 	}
 	s.indexCategory(ctx, row.Uuid)
+	s.live(ctx, resourceevents.TenantFinanceCategories, resourceevents.ActionCreated, row.Uuid.String())
 	return mapCategory(row, nil), nil
 }
 
@@ -454,6 +460,7 @@ func (s *Service) PatchCategory(ctx context.Context, id uuid.UUID, in PatchCateg
 		return Category{}, err
 	}
 	s.indexCategory(ctx, row.Uuid)
+	s.live(ctx, resourceevents.TenantFinanceCategories, resourceevents.ActionUpdated, row.Uuid.String())
 	return mapCategory(row, nil), nil
 }
 
@@ -468,6 +475,7 @@ func (s *Service) DeleteCategory(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	s.deleteCategoryIndex(ctx, id)
+	s.live(ctx, resourceevents.TenantFinanceCategories, resourceevents.ActionDeleted, id.String())
 	return nil
 }
 
@@ -689,6 +697,8 @@ func (s *Service) CreateTransaction(ctx context.Context, actorID int64, in Creat
 	s.recordActivity(ctx, &actorID, "finance.transaction.create", "finance.transaction", &row.Uuid, map[string]any{
 		"type": in.Type, "amount": numericToString(amount),
 	}, req)
+	s.live(ctx, resourceevents.TenantFinanceTransactions, resourceevents.ActionCreated, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionBulk)
 	s.indexTransaction(ctx, row.Uuid)
 	s.indexAccount(ctx, account.Uuid)
 	return mapTransactionDetail(row, account, nil, nil, catUUID, catName), nil
@@ -761,6 +771,8 @@ func (s *Service) CreateTransfer(ctx context.Context, actorID int64, in CreateTr
 	s.recordActivity(ctx, &actorID, "finance.transfer.create", "finance.transaction", &row.Uuid, map[string]any{
 		"amount": numericToString(amount),
 	}, req)
+	s.live(ctx, resourceevents.TenantFinanceTransactions, resourceevents.ActionCreated, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionBulk)
 	s.indexTransaction(ctx, row.Uuid)
 	s.indexAccounts(ctx, from.Uuid, to.Uuid)
 	toName := to.Name
@@ -828,6 +840,8 @@ func (s *Service) VoidTransaction(ctx context.Context, actorID int64, id uuid.UU
 		return Transaction{}, err
 	}
 	s.recordActivity(ctx, &actorID, "finance.transaction.void", "finance.transaction", &voided.Uuid, nil, req)
+	s.live(ctx, resourceevents.TenantFinanceTransactions, resourceevents.ActionUpdated, voided.Uuid.String())
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionBulk)
 	account, _ := s.q.GetFinanceAccountByID(ctx, db.GetFinanceAccountByIDParams{
 		ID: voided.AccountID, OrganizationID: orgID,
 	})

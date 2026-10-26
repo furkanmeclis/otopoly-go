@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -153,4 +154,27 @@ func orgAccessAllowed(status string, accessStarts, accessEnds pgtype.Timestamptz
 // for modules that take the resolver interface (so tests can stub it).
 func OrganizationResolverFromQueries(q *db.Queries) OrganizationResolver {
 	return orgResolver{q: q}
+}
+
+// OrganizationAccess returns a check with the same membership rules as
+// RequireOrganization (member row exists, organization not suspended and
+// inside its access window). Used outside HTTP chains, e.g. to authorize
+// organization-scoped realtime channels.
+func OrganizationAccess(resolver OrganizationResolver) func(ctx context.Context, userInternal int64, orgUUID uuid.UUID) (bool, error) {
+	return func(ctx context.Context, userInternal int64, orgUUID uuid.UUID) (bool, error) {
+		if resolver == nil || userInternal <= 0 || orgUUID == uuid.Nil {
+			return false, nil
+		}
+		row, err := resolver.GetOrganizationMemberByUserAndOrgUUID(ctx, userInternal, orgUUID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return false, nil
+			}
+			return false, err
+		}
+		if row.OrganizationStatus == "suspended" {
+			return false, nil
+		}
+		return orgAccessAllowed(row.OrganizationStatus, row.AccessStartsAt, row.AccessEndsAt), nil
+	}
 }

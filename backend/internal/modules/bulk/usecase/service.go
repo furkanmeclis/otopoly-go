@@ -15,6 +15,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
@@ -63,14 +64,15 @@ type BulkJobView struct {
 
 // Service orchestrates bulk jobs.
 type Service struct {
-	q        *db.Queries
-	registry *bulkengine.Registry
-	queue    Enqueuer
-	notifier Notifier
-	activity *activity.Recorder
-	cfg      config.BulkConfig
-	log      *slog.Logger
-	syncMode bool
+	liveEvents resourceevents.Publisher
+	q          *db.Queries
+	registry   *bulkengine.Registry
+	queue      Enqueuer
+	notifier   Notifier
+	activity   *activity.Recorder
+	cfg        config.BulkConfig
+	log        *slog.Logger
+	syncMode   bool
 }
 
 func New(
@@ -116,10 +118,11 @@ func (s *Service) Execute(ctx context.Context, actorID int64, in ExecuteInput) (
 	targetJSON, _ := json.Marshal(in.Target)
 	if len(targets) <= s.cfg.SyncMax {
 		ctx = bulkengine.WithRun(ctx, bulkengine.Run{Params: in.Target.Params, Query: in.Target.Query})
-		summary, err := s.applyTargets(ctx, 0, adapter, def, in.Action, targets)
+		summary, affected, err := s.applyTargets(ctx, 0, adapter, def, in.Action, targets)
 		if err != nil {
 			return ExecuteResult{}, err
 		}
+		s.liveBulk(ctx, in.Resource, affected)
 		if s.activity != nil {
 			uid := actorID
 			s.activity.Record(ctx, &uid, "bulk.completed", in.Resource, nil, map[string]any{
@@ -180,10 +183,11 @@ func (s *Service) ProcessBulk(ctx context.Context, jobID int64) error {
 		return s.failBulk(ctx, jobID, err.Error())
 	}
 	ctx = bulkengine.WithRun(ctx, bulkengine.Run{Params: target.Params, Query: target.Query})
-	summary, err := s.applyTargets(ctx, jobID, adapter, def, job.Action, targets)
+	summary, affected, err := s.applyTargets(ctx, jobID, adapter, def, job.Action, targets)
 	if err != nil {
 		return s.failBulk(ctx, jobID, err.Error())
 	}
+	s.liveBulk(liveJobScope(ctx, target), job.Resource, affected)
 	resultJSON, _ := json.Marshal(summary)
 	var rollbackUntil pgtype.Timestamptz
 	if def.Reversible && summary.Succeeded > 0 {
@@ -246,13 +250,16 @@ func (s *Service) Rollback(ctx context.Context, jobUUID uuid.UUID, actorID int64
 		return BulkJobView{}, err
 	}
 	failed := 0
+	var reverted []string
 	for i := len(changes) - 1; i >= 0; i-- {
 		ch := changes[i]
 		var prev map[string]any
 		_ = json.Unmarshal(ch.PreviousJson, &prev)
 		if err := adapter.RevertItem(ctx, job.Action, ch.EntityUuid.String(), prev); err != nil {
 			failed++
+			continue
 		}
+		reverted = collectLive(reverted, ch.EntityUuid.String())
 	}
 	status := "rolled_back"
 	if failed > 0 {
@@ -270,6 +277,7 @@ func (s *Service) Rollback(ctx context.Context, jobUUID uuid.UUID, actorID int64
 			"failed_rollback": failed,
 		}, nil)
 	}
+	s.liveBulk(ctx, job.Resource, reverted)
 	return mapBulkJob(row), nil
 }
 
@@ -314,8 +322,9 @@ func (s *Service) applyTargets(
 	def bulkengine.BulkActionDef,
 	action string,
 	targets []string,
-) (bulkengine.BulkSummary, error) {
+) (bulkengine.BulkSummary, []string, error) {
 	summary := bulkengine.BulkSummary{Total: len(targets)}
+	var affected []string
 	for _, entityUUID := range targets {
 		res, err := adapter.ApplyItem(ctx, action, entityUUID)
 		if err != nil {
@@ -327,6 +336,7 @@ func (s *Service) applyTargets(
 			continue
 		}
 		summary.Succeeded++
+		affected = collectLive(affected, res.EntityUUID)
 		if jobID > 0 && def.Reversible {
 			prev, _ := json.Marshal(res.Previous)
 			_, _ = s.q.InsertBulkChange(ctx, db.InsertBulkChangeParams{
@@ -336,7 +346,7 @@ func (s *Service) applyTargets(
 			})
 		}
 	}
-	return summary, nil
+	return summary, affected, nil
 }
 
 func (s *Service) failBulk(ctx context.Context, jobID int64, msg string) error {

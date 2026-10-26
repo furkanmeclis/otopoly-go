@@ -11,6 +11,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -30,11 +31,12 @@ type SearchIndexer interface {
 }
 
 type Service struct {
-	pool   *pgxpool.Pool
-	q      *db.Queries
-	act    *activity.Recorder
-	search SearchIndexer
-	bus    events.Bus
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	search     SearchIndexer
+	bus        events.Bus
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
@@ -197,6 +199,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Supplier, error) 
 		return Supplier{}, err
 	}
 	s.recordActivity(ctx, "tenant.supplier.create", "supplier", &row.Uuid, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantSuppliers, resourceevents.ActionCreated, row.Uuid.String())
 	s.publish(ctx, events.SuppliersCreated, map[string]any{"uuid": row.Uuid.String()})
 	s.indexSupplier(ctx, row.Uuid)
 	return mapSupplier(row), nil
@@ -238,6 +241,7 @@ func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (Suppl
 		return Supplier{}, err
 	}
 	s.recordActivity(ctx, "tenant.supplier.update", "supplier", &row.Uuid, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantSuppliers, resourceevents.ActionUpdated, row.Uuid.String())
 	s.publish(ctx, events.SuppliersUpdated, map[string]any{"uuid": row.Uuid.String()})
 	s.indexSupplier(ctx, row.Uuid)
 	return mapSupplier(row), nil
@@ -271,6 +275,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	s.recordActivity(ctx, "tenant.supplier.delete", "supplier", &id, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantSuppliers, resourceevents.ActionDeleted, id.String())
 	s.publish(ctx, events.SuppliersDeleted, map[string]any{"uuid": id.String()})
 	s.deleteFromIndex(ctx, id)
 	return nil

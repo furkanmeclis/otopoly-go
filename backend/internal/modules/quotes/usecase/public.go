@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 )
 
 // ValidShareToken reports whether raw looks like a share token (43 url-safe
@@ -158,6 +160,9 @@ func (s *Service) PublicDecide(ctx context.Context, token string, accept bool, i
 	}
 	s.afterReminderChange(ctx, updated, cancelled, nil)
 	s.notify(ctx, "decided", updated)
+	// Public route: no organization on the request, scope the event here.
+	s.live(orgctx.WithScope(ctx, orgctx.Scope{InternalID: updated.OrganizationID}),
+		resourceevents.TenantQuotes, resourceevents.ActionUpdated, updated.Uuid.String())
 	if s.act != nil {
 		s.act.Record(ctx, nil, "tenant.quote.public_decision", "quote", &updated.Uuid, map[string]any{
 			"number": updated.Number, "status": to, "ip": client.IP, "at": time.Now().UTC().Format(time.RFC3339),

@@ -9,6 +9,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -266,6 +267,8 @@ func (s *Service) AddConsumption(ctx context.Context, jobUUID uuid.UUID, in Cons
 		return JobDetail{}, err
 	}
 	s.recordActivity(ctx, "jobs.consumption.add", "jobs.job", &job.Uuid, map[string]any{"product": product.Name, "qty": qty.FloatString(3)})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, job.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionBulk)
 	return s.Get(ctx, jobUUID)
 }
 
@@ -315,6 +318,8 @@ func (s *Service) UpdateConsumption(ctx context.Context, jobUUID, id uuid.UUID, 
 		return JobDetail{}, err
 	}
 	s.recordActivity(ctx, "jobs.consumption.update", "jobs.job", &job.Uuid, map[string]any{"product": row.Name, "qty": qty.FloatString(3)})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, job.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionBulk)
 	return s.Get(ctx, jobUUID)
 }
 
@@ -353,5 +358,7 @@ func (s *Service) DeleteConsumption(ctx context.Context, jobUUID, id uuid.UUID) 
 		return JobDetail{}, err
 	}
 	s.recordActivity(ctx, "jobs.consumption.delete", "jobs.job", &job.Uuid, map[string]any{"product": row.Name})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, job.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionBulk)
 	return s.Get(ctx, jobUUID)
 }

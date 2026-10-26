@@ -15,6 +15,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -34,12 +35,13 @@ type SearchIndexer interface {
 }
 
 type Service struct {
-	pool    *pgxpool.Pool
-	q       *db.Queries
-	act     *activity.Recorder
-	finance *financeusecase.Service
-	search  SearchIndexer
-	bus     events.Bus
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	finance    *financeusecase.Service
+	search     SearchIndexer
+	bus        events.Bus
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder, finance *financeusecase.Service) *Service {
@@ -387,6 +389,10 @@ func (s *Service) CreatePayment(ctx context.Context, accountUUID uuid.UUID, in P
 	s.recordActivity(ctx, "cari.payment", "cari.entry", &linked.Uuid, map[string]any{
 		"amount": financeusecase.NumericToString(amount),
 	})
+	s.live(ctx, resourceevents.TenantCariEntries, resourceevents.ActionCreated, linked.Uuid.String())
+	s.live(ctx, resourceevents.TenantCari, resourceevents.ActionUpdated, account.Uuid.String())
+	s.live(ctx, resourceevents.TenantFinanceTransactions, resourceevents.ActionBulk)
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionBulk)
 	s.publish(ctx, events.CariPaymentPosted, map[string]any{"entry_uuid": linked.Uuid.String()})
 	s.indexAccount(ctx, account.Uuid)
 	s.finance.NotifyIndexed(ctx, financeTx.Uuid, financeAccount.Uuid)
@@ -492,6 +498,8 @@ func (s *Service) postEntry(ctx context.Context, accountUUID uuid.UUID, in entry
 		"type": in.Type, "amount": financeusecase.NumericToString(amount),
 	})
 	s.publish(ctx, eventName, map[string]any{"entry_uuid": entry.Uuid.String()})
+	s.live(ctx, resourceevents.TenantCariEntries, resourceevents.ActionCreated, entry.Uuid.String())
+	s.live(ctx, resourceevents.TenantCari, resourceevents.ActionUpdated, account.Uuid.String())
 	s.indexAccount(ctx, account.Uuid)
 	return mapCreatedEntry(entry, account.Uuid), nil
 }
@@ -587,6 +595,10 @@ func (s *Service) VoidEntry(ctx context.Context, entryUUID uuid.UUID) (Entry, er
 		ID: row.AccountID, OrganizationID: orgID,
 	})
 	s.recordActivity(ctx, "cari.entry_void", "cari.entry", &voided.Uuid, nil)
+	s.live(ctx, resourceevents.TenantCariEntries, resourceevents.ActionUpdated, voided.Uuid.String())
+	s.live(ctx, resourceevents.TenantCari, resourceevents.ActionBulk)
+	s.live(ctx, resourceevents.TenantFinanceTransactions, resourceevents.ActionBulk)
+	s.live(ctx, resourceevents.TenantFinanceAccounts, resourceevents.ActionBulk)
 	s.publish(ctx, events.CariEntryVoided, map[string]any{"entry_uuid": voided.Uuid.String()})
 	if account.Uuid != uuid.Nil {
 		s.indexAccount(ctx, account.Uuid)

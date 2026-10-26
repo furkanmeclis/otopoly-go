@@ -14,6 +14,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -28,10 +29,11 @@ var (
 )
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
-	act  *activity.Recorder
-	ent  *entitlements.Service
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	ent        *entitlements.Service
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
@@ -277,6 +279,11 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (CustomerDetail, e
 	}
 	_ = s.ent.Consume(ctx, orgID, "customers.count", 1)
 	s.recordActivity(ctx, "tenant.customer.create", "customer", &row.Uuid, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantCustomers, resourceevents.ActionCreated, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantCari, resourceevents.ActionCreated)
+	if in.Vehicle != nil {
+		s.live(ctx, resourceevents.TenantVehicles, resourceevents.ActionCreated)
+	}
 	return s.Get(ctx, row.Uuid)
 }
 
@@ -326,6 +333,8 @@ func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (Custo
 		return CustomerDetail{}, err
 	}
 	s.recordActivity(ctx, "tenant.customer.update", "customer", &row.Uuid, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantCustomers, resourceevents.ActionUpdated, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantCari, resourceevents.ActionBulk)
 	return s.Get(ctx, row.Uuid)
 }
 
@@ -372,6 +381,9 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	s.recordActivity(ctx, "tenant.customer.delete", "customer", &id, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantCustomers, resourceevents.ActionDeleted, id.String())
+	s.live(ctx, resourceevents.TenantCari, resourceevents.ActionBulk)
+	s.live(ctx, resourceevents.TenantVehicles, resourceevents.ActionBulk)
 	return nil
 }
 
@@ -398,6 +410,8 @@ func (s *Service) AddVehicle(ctx context.Context, customerUUID uuid.UUID, in Cre
 	for _, v := range vehicles {
 		if v.Plate == plate {
 			s.recordActivity(ctx, "tenant.customer.vehicle_add", "customer_vehicle", &v.UUID, map[string]any{"plate": v.Plate})
+			s.live(ctx, resourceevents.TenantVehicles, resourceevents.ActionCreated, v.UUID.String())
+			s.live(ctx, resourceevents.TenantCustomers, resourceevents.ActionUpdated, customer.Uuid.String())
 			return v, nil
 		}
 	}
@@ -456,5 +470,8 @@ func (s *Service) DeleteVehicle(ctx context.Context, vehicleUUID uuid.UUID) erro
 		return err
 	}
 	s.recordActivity(ctx, "tenant.customer.vehicle_remove", "customer_vehicle", &row.Uuid, map[string]any{"plate": row.Plate})
+	s.live(ctx, resourceevents.TenantVehicles, resourceevents.ActionDeleted, row.Uuid.String())
+	// Only the customer id is at hand: let customer views refetch.
+	s.live(ctx, resourceevents.TenantCustomers, resourceevents.ActionBulk)
 	return nil
 }
