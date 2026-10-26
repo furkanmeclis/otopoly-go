@@ -302,6 +302,54 @@ Spec: `docs/superpowers/specs/2026-09-27-abonelik-ve-plan-yonetimi-design.md`.
 
 Media: the browser must only use API-returned `public_url` / stream paths. See `frontend/src/lib/media/urls.ts`.
 
+## Live lists (realtime resource events)
+
+Open lists and detail pages follow data changes over Centrifugo. Events are **hints**: a client always refetches over HTTP; nothing is replayed after a disconnect.
+
+**Channel.** One per organization and resource: `org:{org_uuid}:resource:{resource}` (Centrifugo namespace `org`, client subscribe/publish off). Only the API publishes. Resources (`internal/platform/resourceevents/catalog.go` → read permission):
+
+| Resource | Read permission | Published by |
+|----------|-----------------|--------------|
+| `tenant.customers` | `tenant.customers.read` | customer create / update / delete, vehicle add / remove (`bulk`) |
+| `tenant.vehicles` | `tenant.customers.read` | customer vehicle add / remove |
+| `tenant.jobs` | `tenant.jobs.read` | job create / patch / ready / delivered / cancel / close / void / consumptions, quote convert |
+| `tenant.sales` | `tenant.sales.read` | sale create / void |
+| `tenant.quotes` | `tenant.quotes.read` | create / update / status / send / convert / public decision, worker expiry (`bulk`) |
+| `tenant.leads` | `tenant.leads.read` | create / update / status / note / todo / delete |
+| `tenant.purchases` | `tenant.purchases.read` | purchase create / void |
+| `tenant.suppliers` | `tenant.suppliers.read` | create / update / delete |
+| `tenant.catalog.products` · `.services` · `.categories` | `tenant.catalog.read` | catalog CRUD, stock moves (`bulk`), bulk actions, imports |
+| `tenant.finance.accounts` · `.categories` · `.transactions` | `tenant.finance.read` | finance CRUD, transfers, voids; payments from jobs / sales / purchases / cari (`bulk`) |
+| `tenant.cari` · `tenant.cari.entries` | `tenant.cari.read` | charges, payments, adjustments, voids, customer changes |
+| `tenant.todos` | `tenant.todos.read` | create / update / complete / reopen / delete |
+| `tenant.contracts` (templates) · `tenant.contracts.instances` | `tenant.contracts.read` | template CRUD / clone; instance create / sign / OTP verify / media / void |
+| `tenant.staff` | `tenant.staff.read` | staff create / status change |
+
+**Payload** (`resourceevents.Event`, the Centrifugo publication `data`):
+
+```json
+{
+  "type": "resource.changed",
+  "resource": "tenant.jobs",
+  "action": "created",
+  "uuids": ["5b0c…"],
+  "truncated": false,
+  "at": "2026-10-26T09:41:00Z"
+}
+```
+
+`action` is `created`, `updated`, `deleted` or `bulk` (one event per import / bulk job / batch). `uuids` holds at most 200 ids; `truncated: true`, or `bulk` with no uuids, means "an unknown set of rows changed" (refetch). `created` without uuids counts as one new row. Ignore unknown `type`s and resources.
+
+**Tokens (web and mobile).** Both endpoints take `Authorization: Bearer <access token>` and need `auth.session`; `503 REALTIME_DISABLED` when Centrifugo is off.
+
+1. Get an organization-scoped access token: sign in with `organization_slug`, or `POST /v1/auth/organization-context {"organization_slug": "…"}`. There is no `X-Organization` header; the organization is the JWT `oid` claim, and the token's permissions belong to that organization.
+2. `POST /v1/realtime/connection-token` → `{ token, expires_at, ws_url }`. Connect the Centrifugo client to `ws_url` with `token` (refresh it through the same call).
+3. `POST /v1/realtime/subscription-token {"channel": "org:{org_uuid}:resource:tenant.jobs"}` → `{ token, channel, expires_at }`. Use it as the subscription token (refresh through the same call). `403` unless the access token is scoped to that organization (`oid` = `org_uuid`), the user is an active member with organization access (not suspended, inside the access window), and holds the resource's read permission. A user of another organization never gets a token, so never receives its events. `org_uuid` is the `uuid` of the membership in `GET /v1/auth/me` → `organizations`.
+
+**Publishing.** Use cases call `live(ctx, resource, action, uuids...)` after commit (`SetResourceEvents` in `server.go` / `cmd/worker`). The `resourceevents.Broadcaster` resolves the channel from `orgctx` (looking the uuid up when only the internal id is known, e.g. in the worker), publishes in a goroutine with a 5 s timeout and only logs failures, so a request is never slowed or failed. A `tenant.*` event without an organization is dropped, never sent to a shared channel. Subscriptions are checked by `resourceevents.OrgChannelRule` inside `CanSubscribeChannel`.
+
+**Web.** `useServerListState({ realtime: useTenantLiveList(resource) })` + `realtime={listState.realtimeFor(refetch)}` on the DataTable (`useTenantLiveTable` for client-side tables): silent refetch when visible rows change or on page 1 at the top, fade-out of deleted rows, a "N yeni kayıt – Yenile" banner otherwise, one refetch after reconnect. Boards, card lists and detail pages use `useTenantLiveRefetch(resource, refetch, { uuid })` (`features/organizations/hooks/use-tenant-live.ts`).
+
 ## RBAC
 
 Users are global. Permissions are the union of assigned roles.
