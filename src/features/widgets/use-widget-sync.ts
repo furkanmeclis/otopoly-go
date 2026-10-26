@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { useAuth } from '@/features/auth/auth-provider';
 import { P } from '@/features/auth/permissions';
@@ -7,7 +8,18 @@ import { useJobs, useJobsSummary } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 
-import { endAllJobActivities, endJobActivity, ensureWidgetLogo, pushTodaySnapshot, runningJobActivities, updateJobActivity, widgetsAvailable } from './bridge';
+import {
+  activityPush,
+  endAllJobActivities,
+  endJobActivity,
+  ensureWidgetLogo,
+  pushTodaySnapshot,
+  runningJobActivities,
+  updateJobActivity,
+  widgetDevice,
+  widgetOrg,
+  widgetsAvailable,
+} from './bridge';
 import { buildJobActivityProps, buildTodayProps } from './props';
 
 const log = createLogger('widgets.sync');
@@ -46,10 +58,36 @@ export function useWidgetSync() {
     if (orgRef.current && orgRef.current !== orgId) {
       log.info('Organization changed, ending Live Activities');
       activitySnapshots.current.clear();
-      void endAllJobActivities();
+      // The token already carries the new organization: old rows expire on the server.
+      void endAllJobActivities({ server: false });
     }
     orgRef.current = orgId;
   }, [available, orgId]);
+
+  // iOS 17.2+: the push-to-start token lets the server start a job activity remotely; it is stored
+  // with the device link (not used for automatic starts yet, see docs/LIVE_WIDGETS.md).
+  useEffect(() => {
+    if (!available || Platform.OS !== 'ios') return;
+    let sub: { remove(): void } | null = null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- native widgets module, loaded only when available
+      const widgets = require('expo-widgets') as typeof import('expo-widgets');
+      sub = widgets.addPushToStartTokenListener((event) => {
+        widgetDevice.setPushToStartToken(event.activityPushToStartToken);
+        if (orgRef.current) void widgetDevice.sync({ orgUuid: orgRef.current, orgName });
+      });
+    } catch (error) {
+      log.warn('Push-to-start token listener failed', error);
+    }
+    return () => sub?.remove();
+  }, [available, orgName]);
+
+  // Background refresh pushes: tell the backend which organization this device's widgets show.
+  useEffect(() => {
+    if (!available || !canJobs || !orgId) return;
+    void widgetOrg.set({ uuid: orgId, name: orgName });
+    void widgetDevice.sync({ orgUuid: orgId, orgName });
+  }, [available, canJobs, orgId, orgName, jobs.data]);
 
   useEffect(() => {
     if (!available) return;
@@ -66,6 +104,8 @@ export function useWidgetSync() {
       const running = await runningJobActivities();
       for (const [jobId, activity] of running) {
         if (cancelled) return;
+        // After a relaunch: re-register for server updates and follow token rotations (deduped).
+        void activityPush.track(jobId, activity);
         const job = list.find((j) => j.uuid === jobId);
         if (!job) continue;
         if (job.status === 'voided') {

@@ -10,6 +10,7 @@ import { router, useRootNavigationState } from 'expo-router';
 import { useEffect } from 'react';
 
 import { session } from '@/api/session';
+import { isSilentPush } from '@/features/widgets/push-payload';
 import { createLogger } from '@/lib/logger';
 
 import { linkHref, toWebPath } from '../deep-links';
@@ -20,13 +21,12 @@ import { notificationsService } from '../services/notifications.service';
 const log = createLogger('notifications.tap');
 
 // Foreground presentation: show the banner (the inbox badge refreshes via NotificationsHost).
+// Silent Live Update / widget messages (no title, see docs/LIVE_WIDGETS.md) are never presented.
 notificationsModule()?.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    const show = !isSilentPush(notification);
+    return { shouldShowBanner: show, shouldShowList: show, shouldPlaySound: show, shouldSetBadge: false };
+  },
 });
 
 const handled = new Set<string>();

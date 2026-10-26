@@ -10,7 +10,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { isSupportedLocale } from '@/lib/i18n/translate';
 import { createLogger } from '@/lib/logger';
 import { setMonitoringUser } from '@/lib/monitoring';
-import { clearWidgetsForSignOut } from '@/features/widgets/bridge';
+import { activityPush, clearWidgetsForSignOut } from '@/features/widgets/bridge';
 import { registerPushDevice, unregisterPushDevice } from '@/features/notifications/push';
 import { loadIntroSeen, markIntroSeen as persistIntroSeen, subscribeIntroReset } from '@/features/onboarding/state';
 
@@ -241,6 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async (options?: { serverRevoked?: boolean }) => {
     // Push device must go while the access token is still valid (never throws). When the server already
     // revoked every session (account deletion) the caller unregistered beforehand; only forget it locally.
+    // Same for the job Live Activities registered for server updates (docs/LIVE_WIDGETS.md).
+    if (!options?.serverRevoked) await activityPush.untrackAll();
     await unregisterPushDevice({ localOnly: options?.serverRevoked });
     const s = session.get();
     if (s?.refreshToken && !options?.serverRevoked) {
