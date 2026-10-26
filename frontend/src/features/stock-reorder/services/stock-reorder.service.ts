@@ -121,6 +121,9 @@ export const stockReorderService = {
     );
   },
   deleteDraft(uuid: string) {
-    return platformRequest<void>("DELETE", `/v1/tenant/purchases/${uuid}`);
+    return platformRequest<{ deleted: boolean }>(
+      "DELETE",
+      `/v1/tenant/purchases/${uuid}`,
+    );
   },
 };

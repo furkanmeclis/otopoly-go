@@ -24515,8 +24515,7 @@ export interface operations {
                  *     another organization matches nothing; a malformed uuid is `400`.
                  */
                 customer_uuid?: string;
-                /** @description Omitted lists posted and voided purchases; `draft` lists drafts. */
-                status?: "draft" | "posted" | "voided";
+                status?: "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
             };
@@ -24902,7 +24901,8 @@ export interface operations {
                  *     is `400`.
                  */
                 supplier_uuid?: string;
-                status?: "posted" | "voided";
+                /** @description Omitted lists posted and voided purchases; `draft` lists drafts. */
+                status?: "draft" | "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
             };
@@ -25035,11 +25035,20 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Draft deleted */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            deleted: boolean;
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
@@ -25371,12 +25380,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Removed */
-            204: {
+            /** @description Override removed */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            deleted: boolean;
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];

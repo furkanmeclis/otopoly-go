@@ -8904,10 +8904,9 @@ paths:
           schema: { type: string, format: uuid }
         - name: status
           in: query
-          description: Omitted lists posted and voided purchases; `draft` lists drafts.
           schema:
             type: string
-            enum: [draft, posted, voided]
+            enum: [posted, voided]
         - name: date_from
           in: query
           schema: { type: string, format: date }
@@ -9248,9 +9247,10 @@ paths:
           schema: { type: string, format: uuid }
         - name: status
           in: query
+          description: Omitted lists posted and voided purchases; `draft` lists drafts.
           schema:
             type: string
-            enum: [posted, voided]
+            enum: [draft, posted, voided]
         - name: date_from
           in: query
           schema: { type: string, format: date }
@@ -9343,7 +9343,21 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "204": { description: Draft deleted }
+        "200":
+          description: Draft deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [deleted]
+                    properties:
+                      deleted: { type: boolean }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -9659,7 +9673,21 @@ paths:
       summary: Remove a product's reorder override (owner)
       security: [{ bearerAuth: [] }]
       responses:
-        "204": { description: Removed }
+        "200":
+          description: Override removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [deleted]
+                    properties:
+                      deleted: { type: boolean }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }

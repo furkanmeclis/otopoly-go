@@ -163,5 +163,5 @@ func (h *Handler) DeleteDraft(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	response.JSON(w, r, http.StatusOK, map[string]bool{"deleted": true})
 }

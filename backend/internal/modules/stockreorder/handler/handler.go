@@ -145,7 +145,7 @@ func (h *Handler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, err)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+	response.JSON(w, r, http.StatusOK, map[string]bool{"deleted": true})
 }
 
 // CreateDrafts: POST /v1/tenant/stock-reorder/drafts
