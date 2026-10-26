@@ -220,5 +220,10 @@
   "actions.jobs.consumption.update": "Job material updated",
   "actions.jobs.consumption.delete": "Job material removed",
   "actions.tenant.contract_instance.otp_send": "Contract verification code sent",
-  "actions.tenant.contract_instance.otp_verify": "Contract verification code confirmed"
+  "actions.tenant.contract_instance.otp_verify": "Contract verification code confirmed",
+  "actions.tenant.review.answer": "Customer left a review",
+  "actions.tenant.review.follow_up": "Review handled",
+  "actions.tenant.review.settings_update": "Review settings updated",
+  "actions.tenant.review.test_send": "Test review request sent",
+  "resources.review_request": "Review"
 }

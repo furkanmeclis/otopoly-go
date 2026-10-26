@@ -40,7 +40,7 @@ async function login(email: string) {
   const r = await request<any>('PATCH', `/v1/tenant/messaging/rules/${rules[0].event_type}/whatsapp`, { body: { enabled: true } });
   ok(r.enabled === true, 'toggle rule');
   const cat = await request<any[]>('GET', '/v1/tenant/messaging/template-types');
-  ok(cat.length === 16, `template types: ${cat.length}`);
+  ok(cat.length === 18, `template types (16 + review.request, review.low_score): ${cat.length}`);
   const saved = await request<any>('PUT', '/v1/tenant/messaging/template-types/job.ready/whatsapp/tr', { body: { subject: 'Hazır', body: 'Merhaba {{customer_name}}', is_active: true } });
   ok(saved.is_custom && saved.body === 'Merhaba {{customer_name}}', 'template saved as override');
   await expectError(request('PUT', '/v1/tenant/messaging/template-types/job.ready/whatsapp/tr', { body: { body: 'x {{nope}}' } }), 'VALIDATION_ERROR', 'unknown placeholder rejected');

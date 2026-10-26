@@ -220,5 +220,10 @@
   "actions.jobs.consumption.update": "İş emri malzemesi güncellendi",
   "actions.jobs.consumption.delete": "İş emri malzemesi kaldırıldı",
   "actions.tenant.contract_instance.otp_send": "Sözleşme doğrulama kodu gönderildi",
-  "actions.tenant.contract_instance.otp_verify": "Sözleşme doğrulama kodu onaylandı"
+  "actions.tenant.contract_instance.otp_verify": "Sözleşme doğrulama kodu onaylandı",
+  "actions.tenant.review.answer": "Müşteri değerlendirme yaptı",
+  "actions.tenant.review.follow_up": "Değerlendirme ele alındı",
+  "actions.tenant.review.settings_update": "Değerlendirme ayarları güncellendi",
+  "actions.tenant.review.test_send": "Test değerlendirme isteği gönderildi",
+  "resources.review_request": "Değerlendirme"
 }

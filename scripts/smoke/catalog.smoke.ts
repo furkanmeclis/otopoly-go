@@ -48,7 +48,7 @@ async function login(email: string, password = 'demo1234') {
 
   console.log('profile');
   const tp = await request<any>('GET', '/v1/tenant/notification-preferences');
-  ok(tp.types.length === 5 && tp.types.every((x: any) => x.prefs.inapp), 'tenant prefs defaults');
+  ok(tp.types.length === 6 && tp.types.every((x: any) => x.prefs.inapp), 'tenant prefs defaults (quotes ×4, review.low_score, todo.reminder)');
   await expectError(request('PUT', '/v1/tenant/notification-preferences', { body: { types: [{ type: 'todo.reminder', prefs: { inapp: true, email: false, whatsapp: true, sms: false } }] } }), 'VALIDATION_ERROR', 'whatsapp needs phone');
   const saved = await request<any>('PUT', '/v1/tenant/notification-preferences', { body: { phone: '0555 111 22 33', types: [{ type: 'todo.reminder', prefs: { inapp: true, email: true, whatsapp: true, sms: false } }] } });
   ok(saved.types.find((x: any) => x.type === 'todo.reminder').custom, 'tenant prefs saved');

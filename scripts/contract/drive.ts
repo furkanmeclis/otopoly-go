@@ -39,6 +39,7 @@ import { purchasesService } from '@/features/purchases/services/purchases.servic
 import { qrLoginService } from '@/features/qr-login/qr-login.service';
 import { quotesService } from '@/features/quotes/services/quotes.service';
 import { reportsService } from '@/features/reports/services/reports.service';
+import { reviewsService } from '@/features/reviews/services/reviews.service';
 import { salesService } from '@/features/sales/services/sales.service';
 import { staffService } from '@/features/staff/services/staff.service';
 import { suppliersService } from '@/features/suppliers/services/suppliers.service';
@@ -594,12 +595,39 @@ async function qrArea() {
   await err('qr unknown', 'QR_SESSION_NOT_FOUND', () => qrLoginService.get('unknown-session'));
 }
 
+async function reviewsArea() {
+  console.log('reviews');
+  await ok('reviews meta', () => request('GET', '/v1/tenant/reviews/meta'));
+  const list = await ok('reviews list', () => reviewsService.list());
+  await ok('reviews filters', () => reviewsService.list({ follow_up: 'required', rating: 'low', channel: 'whatsapp', days: 90, q: 'a', sort: '-score' }));
+  await ok('reviews summary', () => reviewsService.summary(30));
+  await ok('reviews summary year', () => reviewsService.summary(365));
+  const low = (await ok('reviews follow-up list', () => reviewsService.list({ follow_up: 'required' })))?.items[0];
+  const first = list?.items[0];
+  if (first) await ok('review detail', () => reviewsService.get(first.uuid));
+  if (low) await ok('review follow-up', () => reviewsService.followUp(low.uuid, 'Arandı'));
+  const waiting = (await ok('reviews sent', () => reviewsService.list({ status: 'sent' })))?.items[0];
+  if (waiting) await err('follow-up unanswered', 'CONFLICT', () => reviewsService.followUp(waiting.uuid, ''));
+  await err('review unknown', 'NOT_FOUND', () => reviewsService.get('00000000-0000-4000-8000-000000000000'));
+  await err('reviews bad status', 'VALIDATION_ERROR', () => reviewsService.list({ status: 'bogus' as never }));
+  const st = await ok('review settings', () => reviewsService.settings());
+  await ok('review settings save', () => reviewsService.saveSettings({ enabled: true, channel: 'auto', delay_minutes: st?.delay_minutes ?? 120, google_review_url: 'https://g.page/r/demo/review', excluded_customer_uuids: [] }));
+  await err('review settings bad url', 'VALIDATION_ERROR', () => reviewsService.saveSettings({ google_review_url: 'http://x.test' }));
+  await ok('review test send', () => reviewsService.sendTest('+90 555 123 45 67'));
+  await ok('reviews with tests', () => reviewsService.list({ include_tests: true }));
+  setPlanScenario('feature_disabled');
+  await err('reviews plan off', 'FEATURE_DISABLED', () => reviewsService.list());
+  setPlanScenario('normal');
+}
+
 async function staffView() {
   console.log('staff permissions');
   await ok('login staff', () => login('personel@otopoly.com'));
   await err('staff finance write', 'FORBIDDEN', () => financeService.createTransaction({ type: 'expense', account_uuid: 'x', amount: '1', transaction_date: today }));
   await err('staff void', 'FORBIDDEN', () => jobsService.void('00000000-0000-4000-8000-000000000000'));
   await ok('staff jobs', () => jobsService.list({ limit: 5, offset: 0 }));
+  await ok('staff reviews', () => reviewsService.list());
+  await err('staff review settings', 'FORBIDDEN', () => reviewsService.saveSettings({ enabled: false }));
 }
 
 (async () => {
@@ -619,6 +647,7 @@ async function staffView() {
   await notificationsArea();
   await billingArea();
   await qrArea();
+  await reviewsArea();
   await staffView();
   await deactivation();
   await ok('logout', () => authService.logout(session.get()!.refreshToken));

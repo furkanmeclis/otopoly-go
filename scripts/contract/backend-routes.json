@@ -1,5 +1,5 @@
 {
- "source": "otopoly-go mux.Handle(\"METHOD /v1/...\") registrations under backend/internal/** at feat/identity-native-link 872e194 and feat/expo-push-limits 569bc63 (union). Used to tell spec gaps (route exists, not documented) from missing backend endpoints.",
+ "source": "otopoly-go mux.Handle(\"METHOD /v1/...\") registrations under backend/internal/** at feat/identity-native-link 872e194 and feat/expo-push-limits 569bc63 (union). Used to tell spec gaps (route exists, not documented) from missing backend endpoints.; plus the review routes of otopoly-go wt/reviews (modules/reviews/routes.go)",
  "routes": [
   "DELETE /v1/auth/identities/{provider}",
   "DELETE /v1/auth/passkeys/{uuid}",
@@ -503,6 +503,17 @@
   "PUT /v1/tenant/live-activities/device",
   "DELETE /v1/tenant/live-activities/device/{token}",
   "PUT /v1/tenant/live-activities/jobs/{uuid}",
-  "POST /v1/tenant/live-activities/jobs/{uuid}/unregister"
+  "POST /v1/tenant/live-activities/jobs/{uuid}/unregister",
+  "GET /v1/tenant/reviews/meta",
+  "GET /v1/tenant/reviews/summary",
+  "GET /v1/tenant/reviews/settings",
+  "PUT /v1/tenant/reviews/settings",
+  "POST /v1/tenant/reviews/settings/test",
+  "GET /v1/tenant/reviews",
+  "GET /v1/tenant/reviews/{uuid}",
+  "POST /v1/tenant/reviews/{uuid}/follow-up",
+  "GET /v1/public/reviews/{token}",
+  "POST /v1/public/reviews/{token}",
+  "POST /v1/public/reviews/{token}/google"
  ]
 }
