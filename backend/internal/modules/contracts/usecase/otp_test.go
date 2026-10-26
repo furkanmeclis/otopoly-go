@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
@@ -18,7 +20,6 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestMaskPhone(t *testing.T) {
@@ -158,7 +159,7 @@ func TestContractOTPFlow_DB(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := database.NewPoolFromDSN(ctx, dsn)
 	if err != nil {
 		t.Fatalf("pool: %v", err)
 	}

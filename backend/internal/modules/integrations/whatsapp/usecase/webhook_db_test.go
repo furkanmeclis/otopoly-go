@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestWebhookStatusOrdering_DB runs ApplyOutboundDeliveryStatus (the
@@ -25,7 +26,7 @@ func TestWebhookStatusOrdering_DB(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := database.NewPoolFromDSN(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

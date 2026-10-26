@@ -7,6 +7,8 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -152,7 +154,7 @@ func NewFixtures(t testing.TB) *Fixtures {
 		t.Skip("TEST_DATABASE_URL not set")
 	}
 	dsn := FreshDatabase(t, base)
-	pool, err := pgxpool.New(context.Background(), dsn)
+	pool, err := database.NewPoolFromDSN(context.Background(), dsn)
 	if err != nil {
 		t.Fatalf("dbtest: pool: %v", err)
 	}

@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	authusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
@@ -52,7 +54,7 @@ func newRouteEnv(t *testing.T) *routeEnv {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	pool, err := pgxpool.New(context.Background(), dsn)
+	pool, err := database.NewPoolFromDSN(context.Background(), dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

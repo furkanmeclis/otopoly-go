@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	orgusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/organizations/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
@@ -28,7 +30,7 @@ func newMembersEnv(t *testing.T) *membersEnv {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	pool, err := pgxpool.New(context.Background(), dsn)
+	pool, err := database.NewPoolFromDSN(context.Background(), dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

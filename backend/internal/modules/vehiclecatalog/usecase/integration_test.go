@@ -6,13 +6,14 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/dbtest"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/repository"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/tsbcatalog"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type liveEvent struct{ resource, action, uuid string }
@@ -53,7 +54,7 @@ func TestCatalogImportAgainstPostgres(t *testing.T) {
 	}
 	dsn = dbtest.FreshDatabase(t, dsn)
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := database.NewPoolFromDSN(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

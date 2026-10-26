@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	notifmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/model"
 	centerusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifycenter/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func TestCleanOffsets(t *testing.T) {
@@ -67,7 +68,7 @@ func TestTodoRemindersLifecycleDB(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	bg := context.Background()
-	pool, err := pgxpool.New(bg, dsn)
+	pool, err := database.NewPoolFromDSN(bg, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}
