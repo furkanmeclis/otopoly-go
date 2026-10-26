@@ -17018,7 +17018,7 @@ components:
     ContractOtpChallenge:
       type: object
       properties:
-        channel: { type: string, enum: [whatsapp] }
+        channel: { type: string, enum: [whatsapp, sms], description: "Channel the code was sent over (`sms` when requested and the organization has an active SMS provider)" }
         phone_masked: { type: string }
         expires_at: { type: string, format: date-time }
         resend_at: { type: string, format: date-time }
