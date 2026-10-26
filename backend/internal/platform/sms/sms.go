@@ -73,6 +73,8 @@ type CheckResult struct {
 	Detail string `json:"detail,omitempty"`
 	// Balance is the account credit when the provider reports it.
 	Balance string `json:"balance,omitempty"`
+	// SMSCredit is the SMS package credit (Netgsm), when reported.
+	SMSCredit *int64 `json:"sms_credit,omitempty"`
 	// Senders are the sender names / numbers the account may use, when known.
 	Senders []string `json:"senders,omitempty"`
 }

@@ -3,7 +3,9 @@ package smschannel
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -164,25 +166,49 @@ type providerFakes struct {
 }
 
 func (f *providerFakes) netgsm(w http.ResponseWriter, r *http.Request) {
-	if u, p, _ := r.BasicAuth(); u != "8503001122" || p != "ng-pass" {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
+	raw, _ := io.ReadAll(r.Body)
 	switch r.URL.Path {
-	case netgsm.PathMsgHeader:
-		_, _ = w.Write([]byte(`{"code":"00","msgheaders":["OTOPOLY"]}`))
-	case netgsm.PathSend:
-		var body map[string]any
-		_ = json.NewDecoder(r.Body).Decode(&body)
+	case netgsm.PathBalance:
+		if !strings.Contains(string(raw), `"usercode":"8503001122"`) || !strings.Contains(string(raw), `"password":"ng-pass"`) {
+			_, _ = w.Write([]byte(`{"code":"30"}`))
+			return
+		}
+		if strings.Contains(string(raw), `"stip":2`) {
+			_, _ = w.Write([]byte(`{"code":"00","balance":"99,90"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"code":"00","balance":[{"amount":1000,"balance_name":"SMS"}]}`))
+	case netgsm.PathSendXML:
+		var mb struct {
+			Header struct {
+				Company struct {
+					Dil string `xml:"dil,attr"`
+				} `xml:"company"`
+				UserCode  string `xml:"usercode"`
+				Password  string `xml:"password"`
+				MsgHeader string `xml:"msgheader"`
+			} `xml:"header"`
+			Body struct {
+				Msg string `xml:"msg"`
+				No  string `xml:"no"`
+			} `xml:"body"`
+		}
+		_ = xml.Unmarshal(raw, &mb)
+		if mb.Header.UserCode != "8503001122" || mb.Header.Password != "ng-pass" {
+			_, _ = w.Write([]byte("30"))
+			return
+		}
 		f.mu.Lock()
-		f.netgsmSends = append(f.netgsmSends, body)
+		f.netgsmSends = append(f.netgsmSends, map[string]any{
+			"dil": mb.Header.Company.Dil, "msgheader": mb.Header.MsgHeader, "no": mb.Body.No, "msg": mb.Body.Msg,
+		})
 		code := f.netgsmCode
 		f.mu.Unlock()
 		if code != "" {
-			_, _ = w.Write([]byte(`{"code":"` + code + `"}`))
+			_, _ = w.Write([]byte(code))
 			return
 		}
-		_, _ = w.Write([]byte(`{"code":"00","jobid":"NG-1"}`))
+		_, _ = w.Write([]byte("00 NG-1"))
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
@@ -272,7 +298,8 @@ func TestSaveSealsAndMasks(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if res, err := r.svc.Test(context.Background(), org, nil, sms.ProviderNetgsm); err != nil || !res.OK {
+	if res, err := r.svc.Test(context.Background(), org, nil, sms.ProviderNetgsm); err != nil || !res.OK ||
+		res.Balance != "99,90 TL" || res.SMSCredit == nil || *res.SMSCredit != 1000 {
 		t.Fatalf("test after keep-secret update: %+v %v", res, err)
 	}
 
@@ -346,11 +373,8 @@ func TestDeliverNetgsmAndClassification(t *testing.T) {
 		t.Fatalf("%+v %v", d, err)
 	}
 	sent := r.fakes.netgsmSends[0]
-	if sent["encoding"] != "TR" || sent["msgheader"] != "OTOPOLY" {
+	if sent["dil"] != "TR" || sent["msgheader"] != "OTOPOLY" || sent["no"] != "905321234567" || sent["msg"] != "Aracınız hazır" {
 		t.Fatalf("netgsm body %+v", sent)
-	}
-	if no := sent["messages"].([]any)[0].(map[string]any)["no"]; no != "905321234567" {
-		t.Fatalf("netgsm number %v", no)
 	}
 
 	_, err = r.svc.Deliver(context.Background(), org, "12", "x", sms.ClassTransactional)

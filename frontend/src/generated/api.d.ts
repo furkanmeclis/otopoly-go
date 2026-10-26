@@ -4463,7 +4463,8 @@ export interface paths {
         put?: never;
         /**
          * Character and part estimate of an SMS text
-         * @description GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150) or UCS-2 (70 / 67). `provider`
+         * @description GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150; Netgsm messages are always sent
+         *     with dil="TR" so they are counted at this size) or UCS-2 (70 / 67). `provider`
          *     defaults to the active provider (else netgsm). Requires `tenant.messaging.read`.
          */
         post: operations["estimateTenantMessagingSms"];
@@ -4523,8 +4524,10 @@ export interface paths {
         put?: never;
         /**
          * Test the SMS provider connection (sends nothing)
-         * @description Netgsm: lists the account's message headers and checks the configured one. Twilio: reads the
-         *     account (and its balance when visible). Stores `status` (`connected` | `error`) and
+         * @description Netgsm: `POST /balance` (stip 2 TL credit, authoritative; stip 1 packages, best effort) →
+         *     `balance` ("1.234,56 TL") and `sms_credit` (sum of SMS packages). The message header is verified
+         *     by the test SMS (Netgsm answers 40 for an unknown header). Twilio: reads the account (and its
+         *     balance when visible). Stores `status` (`connected` | `error`) and
          *     `last_error`. A failed check is still 200 with `ok: false`. Requires `tenant.messaging.write` (owner).
          */
         post: operations["testTenantMessagingSmsProvider"];
@@ -8366,9 +8369,14 @@ export interface components {
             message?: string;
             /** @description Account name / matched header. */
             detail?: string;
-            /** @description Account credit when the provider reports it (Twilio). */
+            /** @description Account credit when the provider reports it (Netgsm TL credit "1.234,56 TL", Twilio "12.50 USD"). */
             balance?: string;
-            /** @description Message headers of the account (Netgsm). */
+            /**
+             * Format: int64
+             * @description Netgsm SMS package credit (sum of packages named SMS).
+             */
+            sms_credit?: number;
+            /** @description Sender names / numbers of the account when the provider lists them. */
             senders?: string[];
             account: components["schemas"]["SmsProviderAccount"];
         };

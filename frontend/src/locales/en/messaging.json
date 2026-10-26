@@ -300,6 +300,7 @@
   "sms.toast.disconnected": "SMS provider disconnected",
   "sms.toast.disconnect_failed": "Could not disconnect",
   "sms.toast.test_ok": "Connection successful",
+  "sms.toast.sms_credit": "{{count}} SMS credits",
   "sms.toast.test_ok_detail": "Connection successful: {{detail}}",
   "sms.toast.test_failed": "Connection test failed: {{reason}}",
   "sms.toast.test_error": "Test could not run",

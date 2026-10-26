@@ -3,31 +3,85 @@ package netgsm
 import (
 	"context"
 	"encoding/json"
+	"encoding/xml"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms"
 )
 
-var creds = sms.Credentials{FieldUserCode: "8503001122", FieldPassword: "pw"}
+var creds = sms.Credentials{FieldUserCode: "8503001122", FieldPassword: "p&ss<w>"}
 
-func fake(t *testing.T, h func(w http.ResponseWriter, r *http.Request, body map[string]any)) *Adapter {
-	t.Helper()
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		user, pass, ok := r.BasicAuth()
-		if !ok || user != "8503001122" || pass != "pw" {
-			w.WriteHeader(http.StatusUnauthorized)
+// mainbody mirrors the XML the production implementation sends.
+type mainbody struct {
+	Header struct {
+		Company struct {
+			Dil  string `xml:"dil,attr"`
+			Name string `xml:",chardata"`
+		} `xml:"company"`
+		UserCode  string `xml:"usercode"`
+		Password  string `xml:"password"`
+		Type      string `xml:"type"`
+		MsgHeader string `xml:"msgheader"`
+	} `xml:"header"`
+	Body struct {
+		Msg string   `xml:"msg"`
+		No  []string `xml:"no"`
+	} `xml:"body"`
+}
+
+type fakeNetgsm struct {
+	t        *testing.T
+	sendBody string // plain-text answer of the XML endpoint
+	sendCode int
+	balance  map[int]string // stip → JSON answer
+	sent     []mainbody
+	ctype    string
+}
+
+func (f *fakeNetgsm) handler(w http.ResponseWriter, r *http.Request) {
+	raw, _ := io.ReadAll(r.Body)
+	switch r.URL.Path {
+	case PathSendXML:
+		f.ctype = r.Header.Get("Content-Type")
+		var mb mainbody
+		if err := xml.Unmarshal(raw, &mb); err != nil {
+			f.t.Errorf("invalid xml: %v\n%s", err, raw)
+		}
+		f.sent = append(f.sent, mb)
+		if f.sendCode != 0 {
+			w.WriteHeader(f.sendCode)
+		}
+		_, _ = w.Write([]byte(f.sendBody))
+	case PathBalance:
+		var req struct {
+			UserCode string `json:"usercode"`
+			Password string `json:"password"`
+			Stip     int    `json:"stip"`
+		}
+		_ = json.Unmarshal(raw, &req)
+		if req.UserCode != "8503001122" || req.Password != "p&ss<w>" {
+			_, _ = w.Write([]byte(`{"code":"30","description":"error"}`))
 			return
 		}
-		var body map[string]any
-		if r.Body != nil {
-			_ = json.NewDecoder(r.Body).Decode(&body)
-		}
-		h(w, r, body)
-	}))
+		_, _ = w.Write([]byte(f.balance[req.Stip]))
+	default:
+		w.WriteHeader(http.StatusNotFound)
+	}
+}
+
+func newFake(t *testing.T) (*fakeNetgsm, *Adapter) {
+	t.Helper()
+	f := &fakeNetgsm{t: t, sendBody: "00 1737721534", balance: map[int]string{
+		2: `{"code":"00","balance":"1.234,56"}`,
+		1: `{"code":"00","balance":[{"amount":1500,"balance_name":"SMS"},{"amount":300,"balance_name":"Ses Dakika"},{"amount":250,"balance_name":"SMS Paket 2"}]}`,
+	}}
+	srv := httptest.NewServer(http.HandlerFunc(f.handler))
 	t.Cleanup(srv.Close)
-	return New(Config{BaseURL: srv.URL})
+	return f, New(Config{BaseURL: srv.URL})
 }
 
 func TestNumber(t *testing.T) {
@@ -39,104 +93,128 @@ func TestNumber(t *testing.T) {
 	}
 }
 
-func TestSendTurkishEncoding(t *testing.T) {
-	var got map[string]any
-	a := fake(t, func(w http.ResponseWriter, r *http.Request, body map[string]any) {
-		if r.URL.Path != PathSend || r.Method != http.MethodPost {
-			t.Errorf("path %s %s", r.Method, r.URL.Path)
-		}
-		got = body
-		_, _ = w.Write([]byte(`{"code":"00","jobid":"17377215342605050417149344","description":"queued"}`))
-	})
-	res, err := a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "Aracınız hazır", Sender: "FIRMA"})
+func TestSendXML(t *testing.T) {
+	f, a := newFake(t)
+	res, err := a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "Aracınız hazır ]]> <b>", Sender: "FİRMA&CO"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.MessageID != "17377215342605050417149344" || res.Status != "accepted" {
+	if res.MessageID != "1737721534" || res.Status != "accepted" {
 		t.Fatalf("result %+v", res)
 	}
-	if got["msgheader"] != "FIRMA" || got["encoding"] != "TR" || got["iysfilter"] != "0" {
-		t.Fatalf("body %+v", got)
+	if !strings.HasPrefix(f.ctype, "text/xml") {
+		t.Fatalf("content type %q", f.ctype)
 	}
-	msgs := got["messages"].([]any)
-	m := msgs[0].(map[string]any)
-	if m["no"] != "905321234567" || m["msg"] != "Aracınız hazır" {
-		t.Fatalf("message %+v", m)
+	mb := f.sent[0]
+	if mb.Header.Company.Dil != "TR" || mb.Header.Company.Name != "Netgsm" || mb.Header.Type != "1:n" {
+		t.Fatalf("header %+v", mb.Header)
+	}
+	if mb.Header.UserCode != "8503001122" || mb.Header.Password != "p&ss<w>" || mb.Header.MsgHeader != "FİRMA&CO" {
+		t.Fatalf("credentials / header escaping %+v", mb.Header)
+	}
+	if mb.Body.Msg != "Aracınız hazır ]]> <b>" || len(mb.Body.No) != 1 || mb.Body.No[0] != "905321234567" {
+		t.Fatalf("body %+v", mb.Body)
 	}
 }
 
-func TestSendPlainHasNoEncoding(t *testing.T) {
-	var got map[string]any
-	a := fake(t, func(w http.ResponseWriter, _ *http.Request, body map[string]any) {
-		got = body
-		_, _ = w.Write([]byte(`{"code":"00","jobid":"1"}`))
-	})
-	if _, err := a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "Hello", Sender: "FIRMA"}); err != nil {
+func TestSendAnswerCodes(t *testing.T) {
+	f, a := newFake(t)
+	msg := sms.Message{To: "+905321234567", Body: "x", Sender: "FIRMA"}
+	for _, ok := range []string{"01 55", "02 56\n"} {
+		f.sendBody = ok
+		if _, err := a.Send(context.Background(), creds, msg); err != nil {
+			t.Fatalf("%q: %v", ok, err)
+		}
+	}
+	cases := map[string]struct {
+		retryable, auth bool
+	}{
+		"30": {auth: true}, "40": {}, "50": {}, "51": {}, "70": {}, "85": {}, "80": {retryable: true}, "100": {retryable: true},
+	}
+	for code, want := range cases {
+		f.sendBody = code
+		_, err := a.Send(context.Background(), creds, msg)
+		rej, isRej := sms.AsRejected(err)
+		if !isRej || rej.Code != code || rej.Retryable != want.retryable || rej.Auth != want.auth {
+			t.Fatalf("code %s: %v (%+v)", code, err, rej)
+		}
+	}
+	for _, uncertain := range []string{"", "00", "<html>gateway</html>"} {
+		f.sendBody = uncertain
+		if _, err := a.Send(context.Background(), creds, msg); !sms.IsUncertain(err) {
+			t.Fatalf("%q should be uncertain, got %v", uncertain, err)
+		}
+	}
+	f.sendBody, f.sendCode = "", http.StatusBadGateway
+	if _, err := a.Send(context.Background(), creds, msg); !sms.IsUncertain(err) {
+		t.Fatalf("502 should be uncertain, got %v", err)
+	}
+}
+
+func TestSendUnreachable(t *testing.T) {
+	a := New(Config{BaseURL: "http://127.0.0.1:1"})
+	_, err := a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "x", Sender: "FIRMA"})
+	if !sms.IsUnavailable(err) {
+		t.Fatalf("want unavailable, got %v", err)
+	}
+}
+
+func TestCheckBalance(t *testing.T) {
+	f, a := newFake(t)
+	res, err := a.Check(context.Background(), creds, "FIRMA")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := got["encoding"]; ok {
-		t.Fatalf("encoding set for plain text: %+v", got)
-	}
-}
-
-func TestSendOTPLane(t *testing.T) {
-	a := fake(t, func(w http.ResponseWriter, r *http.Request, body map[string]any) {
-		if r.URL.Path != PathOTP || body["no"] != "905321234567" || body["msg"] != "Kod: 123456" {
-			t.Errorf("otp %s %+v", r.URL.Path, body)
-		}
-		_, _ = w.Write([]byte(`{"code":"00","jobid":"otp-1"}`))
-	})
-	res, err := a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "Kod: 123456", Sender: "FIRMA", Class: sms.ClassOTP})
-	if err != nil || res.MessageID != "otp-1" {
-		t.Fatalf("%+v %v", res, err)
-	}
-}
-
-func TestSendRejectedAndUncertain(t *testing.T) {
-	a := fake(t, func(w http.ResponseWriter, _ *http.Request, _ map[string]any) {
-		_, _ = w.Write([]byte(`{"code":"40","description":"header"}`))
-	})
-	_, err := a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "x", Sender: "NOPE"})
-	rej, ok := sms.AsRejected(err)
-	if !ok || rej.Code != "40" || rej.Retryable {
-		t.Fatalf("want rejected 40, got %v", err)
+	if res.Balance != "1.234,56 TL" || res.SMSCredit == nil || *res.SMSCredit != 1750 {
+		t.Fatalf("check %+v", res)
 	}
 
-	a = fake(t, func(w http.ResponseWriter, _ *http.Request, _ map[string]any) {
-		w.WriteHeader(http.StatusBadGateway)
-	})
-	_, err = a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "x", Sender: "FIRMA"})
-	if !sms.IsUncertain(err) {
-		t.Fatalf("want uncertain, got %v", err)
-	}
-
-	a = fake(t, func(w http.ResponseWriter, _ *http.Request, _ map[string]any) {
-		_, _ = w.Write([]byte(`not json`))
-	})
-	_, err = a.Send(context.Background(), creds, sms.Message{To: "+905321234567", Body: "x", Sender: "FIRMA"})
-	if !sms.IsUncertain(err) {
-		t.Fatalf("want uncertain on unreadable 2xx, got %v", err)
+	// No packages ("60") is not a failure.
+	f.balance[1] = `{"code":"60"}`
+	res, err = a.Check(context.Background(), creds, "FIRMA")
+	if err != nil || res.SMSCredit != nil {
+		t.Fatalf("no packages: %+v %v", res, err)
 	}
 
 	bad := sms.Credentials{FieldUserCode: "8503001122", FieldPassword: "wrong"}
-	_, err = a.Send(context.Background(), bad, sms.Message{To: "+905321234567", Body: "x", Sender: "FIRMA"})
-	if rej, ok := sms.AsRejected(err); !ok || !rej.Auth {
+	if _, err := a.Check(context.Background(), bad, ""); err == nil {
+		t.Fatal("bad credentials should fail")
+	} else if rej, ok := sms.AsRejected(err); !ok || !rej.Auth {
 		t.Fatalf("want auth rejection, got %v", err)
 	}
 }
 
-func TestCheck(t *testing.T) {
-	a := fake(t, func(w http.ResponseWriter, r *http.Request, _ map[string]any) {
-		if r.URL.Path != PathMsgHeader || r.Method != http.MethodGet {
-			t.Errorf("path %s %s", r.Method, r.URL.Path)
-		}
-		_, _ = w.Write([]byte(`{"code":"00","msgheaders":["FIRMA","OTOPOLY"]}`))
-	})
-	res, err := a.Check(context.Background(), creds, "otopoly")
-	if err != nil || len(res.Senders) != 2 {
-		t.Fatalf("%+v %v", res, err)
+func TestParseBalance(t *testing.T) {
+	cases := []struct {
+		in     string
+		code   string
+		amount float64
+	}{
+		{`{"code":"00","balance":"1.234,56"}`, "00", 1234.56},
+		{`{"code":"00","balance":"12,5"}`, "00", 12.5},
+		{`{"code":"00","balance":"1234.56"}`, "00", 1234.56},
+		{`{"code":"00","balance":42}`, "00", 42},
+		{"00 123,45", "00", 123.45},
 	}
-	if _, err := a.Check(context.Background(), creds, "OTHER"); err == nil {
-		t.Fatal("unknown header should be rejected")
+	for _, c := range cases {
+		b := ParseBalance([]byte(c.in))
+		if b.Code != c.code || b.Amount == nil || *b.Amount != c.amount {
+			t.Errorf("%s → %+v", c.in, b)
+		}
+	}
+	if b := ParseBalance([]byte("30")); b.Code != "30" || b.Amount != nil {
+		t.Errorf("bare code %+v", b)
+	}
+	b := ParseBalance([]byte(`{"code":"00","balances":[{"amount":"1.500,00","balance_name":"sms"}]}`))
+	if len(b.Packages) != 1 || b.Packages[0].Amount != 1500 {
+		t.Errorf("balances %+v", b)
+	}
+}
+
+func TestFormatTL(t *testing.T) {
+	for in, want := range map[float64]string{0: "0,00 TL", 5.5: "5,50 TL", 1234.56: "1.234,56 TL", 1234567: "1.234.567,00 TL"} {
+		if got := formatTL(in); got != want {
+			t.Errorf("formatTL(%v) = %q, want %q", in, got, want)
+		}
 	}
 }

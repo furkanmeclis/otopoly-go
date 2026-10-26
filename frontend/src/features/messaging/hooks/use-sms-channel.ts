@@ -106,7 +106,13 @@ export function useTestSmsProvider() {
     onSuccess: (result) => {
       invalidate();
       if (result.ok) {
-        const detail = [result.detail, result.balance]
+        const detail = [
+          result.detail,
+          result.balance,
+          result.sms_credit != null
+            ? t("messaging.sms.toast.sms_credit", { count: result.sms_credit })
+            : "",
+        ]
           .filter(Boolean)
           .join(" · ");
         toast.success(

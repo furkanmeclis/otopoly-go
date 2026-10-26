@@ -65,6 +65,9 @@ func TestEstimate(t *testing.T) {
 	if got := Estimate("Hi 😀", ProviderNetgsm); got.Encoding != EncodingUCS2 || got.Characters != 5 {
 		t.Fatalf("emoji: %+v", got)
 	}
+	if got := Estimate("Hello", ProviderNetgsm); got.Encoding != EncodingTurkish || got.PerSegment != 155 {
+		t.Fatalf("netgsm plain is counted at the Turkish size: %+v", got)
+	}
 	if got := Estimate("", ProviderNetgsm); got.Segments != 0 {
 		t.Fatalf("empty: %+v", got)
 	}

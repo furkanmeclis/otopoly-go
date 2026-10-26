@@ -153,6 +153,7 @@ type TestResult struct {
 	Message   string   `json:"message,omitempty"`
 	Detail    string   `json:"detail,omitempty"`
 	Balance   string   `json:"balance,omitempty"`
+	SMSCredit *int64   `json:"sms_credit,omitempty"`
 	Senders   []string `json:"senders,omitempty"`
 	Account   Account  `json:"account"`
 }
@@ -421,7 +422,7 @@ func (s *Service) Test(ctx context.Context, orgID int64, actorID *int64, provide
 	cctx, cancel := context.WithTimeout(ctx, checkTimeout)
 	check, checkErr := p.Check(cctx, creds, row.Sender)
 	cancel()
-	out := TestResult{OK: checkErr == nil, Detail: check.Detail, Balance: check.Balance, Senders: check.Senders}
+	out := TestResult{OK: checkErr == nil, Detail: check.Detail, Balance: check.Balance, SMSCredit: check.SMSCredit, Senders: check.Senders}
 	status, lastErr := StatusConnected, ""
 	if checkErr != nil {
 		se := Classify(checkErr)

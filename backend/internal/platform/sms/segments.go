@@ -43,11 +43,16 @@ var partSizes = map[string][2]int{
 	EncodingUCS2:    {70, 67},
 }
 
-// Estimate counts characters and parts for a provider. Netgsm sends Turkish
-// letters with its Turkish encoding; other providers (Twilio) fall back to
-// UCS-2 for them, which shortens a part to 70 characters.
+// Estimate counts characters and parts for a provider. Netgsm messages are
+// always sent with its Turkish language option (dil="TR"), so a Netgsm part
+// is counted at the Turkish size (155 / 150) even without Turkish letters
+// (conservative: never fewer parts than billed). Other providers (Twilio)
+// send Turkish letters as UCS-2, which shortens a part to 70 characters.
 func Estimate(body, provider string) Segments {
 	enc := EncodingGSM7
+	if provider == ProviderNetgsm {
+		enc = EncodingTurkish
+	}
 	chars := 0
 	for _, r := range body {
 		switch {
@@ -56,9 +61,6 @@ func Estimate(body, provider string) Segments {
 		case strings.ContainsRune(gsmExtended, r):
 			chars += 2
 		case strings.ContainsRune(turkishOnly, r) && provider == ProviderNetgsm:
-			if enc == EncodingGSM7 {
-				enc = EncodingTurkish
-			}
 			chars++
 		default:
 			enc = EncodingUCS2

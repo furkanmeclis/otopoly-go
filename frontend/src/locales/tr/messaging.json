@@ -300,6 +300,7 @@
   "sms.toast.disconnected": "SMS sağlayıcısının bağlantısı kaldırıldı",
   "sms.toast.disconnect_failed": "Bağlantı kaldırılamadı",
   "sms.toast.test_ok": "Bağlantı başarılı",
+  "sms.toast.sms_credit": "{{count}} SMS kredisi",
   "sms.toast.test_ok_detail": "Bağlantı başarılı: {{detail}}",
   "sms.toast.test_failed": "Bağlantı testi başarısız: {{reason}}",
   "sms.toast.test_error": "Test yapılamadı",

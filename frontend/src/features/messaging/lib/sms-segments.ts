@@ -30,7 +30,8 @@ export function estimateSms(
   body: string,
   provider: SegmentProvider = "netgsm",
 ): SmsSegmentEstimate {
-  let encoding: SmsEncoding = "gsm7";
+  // Netgsm always sends with dil="TR": a part is counted at the Turkish size.
+  let encoding: SmsEncoding = provider === "netgsm" ? "turkish" : "gsm7";
   let characters = 0;
   for (const ch of body) {
     if (GSM_BASIC.includes(ch)) {
@@ -38,7 +39,6 @@ export function estimateSms(
     } else if (GSM_EXTENDED.includes(ch)) {
       characters += 2;
     } else if (TURKISH_ONLY.includes(ch) && provider === "netgsm") {
-      if (encoding === "gsm7") encoding = "turkish";
       characters += 1;
     } else {
       encoding = "ucs2";

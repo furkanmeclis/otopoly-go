@@ -7782,7 +7782,8 @@ paths:
       operationId: estimateTenantMessagingSms
       summary: Character and part estimate of an SMS text
       description: |
-        GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150) or UCS-2 (70 / 67). `provider`
+        GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150; Netgsm messages are always sent
+        with dil="TR" so they are counted at this size) or UCS-2 (70 / 67). `provider`
         defaults to the active provider (else netgsm). Requires `tenant.messaging.read`.
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -7876,8 +7877,10 @@ paths:
       operationId: testTenantMessagingSmsProvider
       summary: Test the SMS provider connection (sends nothing)
       description: |
-        Netgsm: lists the account's message headers and checks the configured one. Twilio: reads the
-        account (and its balance when visible). Stores `status` (`connected` | `error`) and
+        Netgsm: `POST /balance` (stip 2 TL credit, authoritative; stip 1 packages, best effort) →
+        `balance` ("1.234,56 TL") and `sms_credit` (sum of SMS packages). The message header is verified
+        by the test SMS (Netgsm answers 40 for an unknown header). Twilio: reads the account (and its
+        balance when visible). Stores `status` (`connected` | `error`) and
         `last_error`. A failed check is still 200 with `ok: false`. Requires `tenant.messaging.write` (owner).
       security: [{ bearerAuth: [] }]
       responses:
@@ -14072,11 +14075,12 @@ components:
         error_code: { type: string, description: "sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, …" }
         message: { type: string }
         detail: { type: string, description: Account name / matched header. }
-        balance: { type: string, description: Account credit when the provider reports it (Twilio). }
+        balance: { type: string, description: "Account credit when the provider reports it (Netgsm TL credit \"1.234,56 TL\", Twilio \"12.50 USD\")." }
+        sms_credit: { type: integer, format: int64, description: Netgsm SMS package credit (sum of packages named SMS). }
         senders:
           type: array
           items: { type: string }
-          description: Message headers of the account (Netgsm).
+          description: Sender names / numbers of the account when the provider lists them.
         account: { $ref: "#/components/schemas/SmsProviderAccount" }
 
     SmsTestSmsRequest:
