@@ -1,10 +1,11 @@
-import { useLocalSearchParams } from 'expo-router';
-import { Ban, CheckCircle2, KeyRound, Minus, PackagePlus, Plus, Trash2, Undo2, Wallet } from 'lucide-react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { Ban, CheckCircle2, ChevronRight, KeyRound, MessageCircle, MessageSquare, Minus, PackagePlus, Phone, Plus, Trash2, Undo2, User, Wallet } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import {
   Badge,
+  BrandLogo,
   Button,
   Card,
   EmptyState,
@@ -12,16 +13,20 @@ import {
   Group,
   Header,
   InfoRow,
+  LinkValue,
   ListSkeleton,
   PlateBadge,
+  QuickActions,
   Row,
   Screen,
   Section,
   SelectField,
   Sheet,
+  StatGrid,
   TextField,
   Txt,
   useConfirm,
+  usePullRefresh,
 } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
@@ -30,7 +35,8 @@ import { JobContractsSection } from '@/features/contracts/components/job-contrac
 import { CloseJobSheet } from '@/features/jobs/components/close-job-sheet';
 import { JobStatusBadge, PaymentBadge, ServiceTags } from '@/features/jobs/components/job-parts';
 import { jobsService, type JobDetail } from '@/features/jobs/services/jobs.service';
-import { MONEY_KEYS, qk, useJob, useProducts, useStaffOptions } from '@/features/queries';
+import { MONEY_KEYS, qk, useCustomer, useJob, useProducts, useStaffOptions } from '@/features/queries';
+import { contact } from '@/lib/contact';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { useApiMutation } from '@/lib/mutation';
@@ -57,6 +63,10 @@ function JobDetailContent() {
   // Opened from widgets, Live Activities / Updates and notifications: interactive once the job has loaded.
   useMarkInteractive(!job.isLoading);
   const d = job.data;
+  // Customer record: brand logo of the job's vehicle (the job detail has none) and the cari account link.
+  const customer = useCustomer(can(P.customersRead) ? d?.customer_uuid : null);
+  const vehicle = customer.data?.vehicles.find((v) => v.uuid === d?.vehicle_uuid);
+  const pull = usePullRefresh(job, can(P.customersRead) && customer);
   const canWrite = can(P.jobsWrite);
   const canVoid = isOwner && canWrite;
   const status = d?.status;
@@ -117,31 +127,71 @@ function JobDetailContent() {
   return (
     <Screen
       header={<Header title={d.plate} subtitle={d.customer_name} />}
-      refreshing={job.isRefetching}
-      onRefresh={() => void job.refetch()}
+      refreshing={pull.refreshing}
+      onRefresh={pull.onRefresh}
       footer={actions && (status === 'in_progress' || status === 'ready' || canPay) ? actions : undefined}
     >
       <Card style={{ gap: t.spacing.md }}>
         <Row gap={t.spacing.sm} style={{ justifyContent: 'space-between' }}>
-          <PlateBadge plate={d.plate} size="lg" />
+          <Row gap={t.spacing.sm} style={{ flexShrink: 1 }}>
+            <BrandLogo name={vehicle?.brand_name ?? d.vehicle_label} logoUrl={vehicle?.logo_url} size="md" />
+            <PlateBadge plate={d.plate} size="lg" />
+          </Row>
           <Txt variant="title" style={{ fontVariant: ['tabular-nums'] }}>
             {fmt.money(d.total_amount, d.currency)}
           </Txt>
         </Row>
+        {d.vehicle_label ? (
+          <Txt variant="caption" tone="secondary" numberOfLines={1}>
+            {d.vehicle_label}
+          </Txt>
+        ) : null}
         <Row gap={t.spacing.sm} wrap>
           <JobStatusBadge status={d.status} />
           <PaymentBadge status={d.payment_status} />
         </Row>
         <ServiceTags services={d.lines.map((l) => ({ uuid: l.service_uuid, name: l.name, color: '' }))} max={6} />
+        <QuickActions
+          actions={[
+            can(P.customersRead) && {
+              key: 'customer',
+              label: tr('jobs.customer'),
+              icon: <User size={20} color={t.colors.primary} />,
+              onPress: () => router.push(`/customers/${d.customer_uuid}`),
+            },
+            d.customer_phone && { key: 'call', label: tr('mobile.detail.call'), icon: <Phone size={20} color={t.colors.primary} />, onPress: () => contact.call(d.customer_phone) },
+            d.customer_phone && { key: 'wa', label: tr('mobile.detail.whatsapp'), icon: <MessageCircle size={20} color={t.colors.primary} />, onPress: () => contact.whatsapp(d.customer_phone) },
+            d.customer_phone && { key: 'sms', label: tr('mobile.detail.sms'), icon: <MessageSquare size={20} color={t.colors.primary} />, onPress: () => contact.sms(d.customer_phone) },
+          ]}
+        />
       </Card>
+
+      <StatGrid
+        items={[
+          { label: tr('jobs.consumptions.service_total'), value: fmt.money(d.total_amount, d.currency) },
+          { label: tr('jobs.consumptions.material_cost'), value: fmt.money(d.material_cost), tone: toNumber(d.material_cost) > 0 ? 'danger' : 'default' },
+          {
+            label: tr('jobs.consumptions.margin'),
+            value: fmt.money(toNumber(d.total_amount) - toNumber(d.material_cost)),
+            tone: toNumber(d.total_amount) - toNumber(d.material_cost) >= 0 ? 'success' : 'danger',
+          },
+          { label: tr('jobs.started_at'), value: fmt.dateTime(d.started_at), hint: d.completed_at ? `${tr('jobs.completed_at')}: ${fmt.dateTime(d.completed_at)}` : undefined },
+        ]}
+      />
 
       <LiveActivityCard job={d} />
 
       <Section title={tr('jobs.detail.info')} action={canEdit ? { label: tr('jobs.actions.edit_notes'), onPress: () => setNotesOpen(true) } : undefined}>
         <Card padded={false} style={{ paddingHorizontal: t.spacing.lg }}>
-          <InfoRow label={tr('jobs.customer')} value={d.customer_name} />
-          <InfoRow label={tr('jobs.customer_phone')} value={d.customer_phone} />
-          <InfoRow label={tr('jobs.vehicle')} value={d.vehicle_label} />
+          <InfoRow label={tr('jobs.customer')}>
+            <LinkValue label={d.customer_name} onPress={can(P.customersRead) ? () => router.push(`/customers/${d.customer_uuid}`) : undefined} />
+          </InfoRow>
+          <InfoRow label={tr('jobs.customer_phone')}>
+            <LinkValue label={d.customer_phone || '—'} onPress={d.customer_phone ? () => contact.call(d.customer_phone) : undefined} />
+          </InfoRow>
+          <InfoRow label={tr('jobs.vehicle')}>
+            <LinkValue label={d.vehicle_label} leading={<BrandLogo name={vehicle?.brand_name ?? d.vehicle_label} logoUrl={vehicle?.logo_url} size="xs" />} />
+          </InfoRow>
           <InfoRow label={tr('jobs.assignee')} value={d.assignee_name || tr('jobs.assignee_none')} />
           <InfoRow label={tr('jobs.started_at')} value={fmt.dateTime(d.started_at)} />
           {d.completed_at ? <InfoRow label={tr('jobs.completed_at')} value={fmt.dateTime(d.completed_at)} /> : null}
@@ -157,17 +207,35 @@ function JobDetailContent() {
               {tr('jobs.detail.lines_empty')}
             </Txt>
           ) : (
-            d.lines.map((l, i) => (
-              <View key={l.uuid} style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, padding: t.spacing.lg, borderBottomWidth: i === d.lines.length - 1 ? 0 : 1, borderBottomColor: t.colors.border }}>
-                <View style={{ flex: 1 }}>
-                  <Txt variant="bodyStrong">{l.name}</Txt>
-                  <Txt variant="caption" tone="secondary">
-                    {fmt.number(l.qty)} × {fmt.money(l.unit_price, l.currency)} · KDV %{fmt.number(l.vat_rate)}
-                  </Txt>
-                </View>
-                <Txt variant="mono">{fmt.money(l.line_total, l.currency)}</Txt>
-              </View>
-            ))
+            d.lines.map((l, i) => {
+              const open = l.service_uuid && can(P.catalogRead) ? () => router.push(`/catalog/services/${l.service_uuid}`) : undefined;
+              return (
+                <Pressable
+                  key={l.uuid}
+                  onPress={open}
+                  disabled={!open}
+                  accessibilityRole={open ? 'button' : undefined}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: t.spacing.md,
+                    padding: t.spacing.lg,
+                    borderBottomWidth: i === d.lines.length - 1 ? 0 : 1,
+                    borderBottomColor: t.colors.border,
+                    backgroundColor: pressed ? t.colors.surfaceAlt : 'transparent',
+                  })}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="bodyStrong">{l.name}</Txt>
+                    <Txt variant="caption" tone="secondary">
+                      {fmt.number(l.qty)} × {fmt.money(l.unit_price, l.currency)} · KDV %{fmt.number(l.vat_rate)}
+                    </Txt>
+                  </View>
+                  <Txt variant="mono">{fmt.money(l.line_total, l.currency)}</Txt>
+                  {open ? <ChevronRight size={16} color={t.colors.textMuted} /> : null}
+                </Pressable>
+              );
+            })
           )}
         </Group>
       </Section>
@@ -183,23 +251,48 @@ function JobDetailContent() {
               {tr('jobs.detail.payments_empty')}
             </Txt>
           ) : (
-            d.payments.map((p, i) => (
-              <View key={p.uuid} style={{ flexDirection: 'row', alignItems: 'center', gap: t.spacing.md, padding: t.spacing.lg, borderBottomWidth: i === d.payments.length - 1 ? 0 : 1, borderBottomColor: t.colors.border }}>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Row gap={t.spacing.sm}>
-                    <Txt variant="bodyStrong">{tr(`jobs.payment_method.${p.method}`)}</Txt>
-                    <Badge size="sm" tone={p.status === 'posted' ? 'success' : 'danger'} label={tr(`jobs.payment_status.${p.status}`)} />
-                  </Row>
-                  <Txt variant="caption" tone="secondary">
-                    {fmt.dateTime(p.created_at)}
-                    {p.finance_account_name ? ` · ${p.finance_account_name}` : ''}
+            d.payments.map((p, i) => {
+              // Cash / card → the finance transaction; cari → the customer's statement.
+              const cariAccount = customer.data?.cari_account_uuid;
+              const open =
+                p.finance_transaction_uuid && can(P.financeRead)
+                  ? () => router.push(`/finance/transactions/${p.finance_transaction_uuid}`)
+                  : p.method === 'cari' && cariAccount && can(P.cariRead)
+                    ? () => router.push(`/cari/${cariAccount}`)
+                    : undefined;
+              return (
+                <Pressable
+                  key={p.uuid}
+                  onPress={open}
+                  disabled={!open}
+                  accessibilityRole={open ? 'button' : undefined}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: t.spacing.md,
+                    padding: t.spacing.lg,
+                    borderBottomWidth: i === d.payments.length - 1 ? 0 : 1,
+                    borderBottomColor: t.colors.border,
+                    backgroundColor: pressed ? t.colors.surfaceAlt : 'transparent',
+                  })}
+                >
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Row gap={t.spacing.sm}>
+                      <Txt variant="bodyStrong">{tr(`jobs.payment_method.${p.method}`)}</Txt>
+                      <Badge size="sm" tone={p.status === 'posted' ? 'success' : 'danger'} label={tr(`jobs.payment_status.${p.status}`)} />
+                    </Row>
+                    <Txt variant="caption" tone="secondary">
+                      {fmt.dateTime(p.created_at)}
+                      {p.finance_account_name ? ` · ${p.finance_account_name}` : ''}
+                    </Txt>
+                  </View>
+                  <Txt variant="mono" style={p.status === 'void' ? { textDecorationLine: 'line-through' } : undefined}>
+                    {fmt.money(p.amount, p.currency)}
                   </Txt>
-                </View>
-                <Txt variant="mono" style={p.status === 'void' ? { textDecorationLine: 'line-through' } : undefined}>
-                  {fmt.money(p.amount, p.currency)}
-                </Txt>
-              </View>
-            ))
+                  {open ? <ChevronRight size={16} color={t.colors.textMuted} /> : null}
+                </Pressable>
+              );
+            })
           )}
         </Group>
       </Section>
@@ -282,8 +375,10 @@ function NotesSheet({ job, visible, onClose }: { job: JobDetail; visible: boolea
 
 function ConsumptionsSection({ job, canWrite }: { job: JobDetail; canWrite: boolean }) {
   const t = useTheme();
+  const { can } = useAuth();
   const { t: tr, fmt } = useLocale();
   const editable = canWrite && job.status !== 'cancelled' && job.status !== 'voided';
+  const canOpenProduct = can(P.catalogRead);
   const [addOpen, setAddOpen] = useState(false);
   const [product, setProduct] = useState<string | null>(null);
   const [qty, setQty] = useState('1');
@@ -329,9 +424,20 @@ function ConsumptionsSection({ job, canWrite }: { job: JobDetail; canWrite: bool
             <View key={c.uuid} style={{ padding: t.spacing.lg, gap: t.spacing.sm, borderBottomWidth: i === rows.length - 1 ? 0 : 1, borderBottomColor: t.colors.border }}>
               <Row gap={t.spacing.sm} style={{ justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
-                  <Txt variant="bodyStrong" tone={c.reverted ? 'muted' : 'default'} style={c.reverted ? { textDecorationLine: 'line-through' } : undefined}>
-                    {c.name}
-                  </Txt>
+                  <Pressable
+                    onPress={canOpenProduct ? () => router.push(`/catalog/products/${c.product_uuid}`) : undefined}
+                    disabled={!canOpenProduct}
+                    accessibilityRole={canOpenProduct ? 'link' : undefined}
+                    hitSlop={4}
+                  >
+                    <Txt
+                      variant="bodyStrong"
+                      tone={c.reverted ? 'muted' : canOpenProduct ? 'primary' : 'default'}
+                      style={c.reverted ? { textDecorationLine: 'line-through' } : undefined}
+                    >
+                      {c.name}
+                    </Txt>
+                  </Pressable>
                   <Txt variant="caption" tone="secondary">
                     {c.service_name ? tr('jobs.consumptions.from_recipe', { service: c.service_name }) : tr('jobs.consumptions.added_by_hand')}
                     {!c.stock_applied ? ` · ${tr('jobs.consumptions.untracked')}` : ''}

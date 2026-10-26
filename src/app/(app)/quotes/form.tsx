@@ -8,7 +8,7 @@ import { Car, Package, PenLine, Send, Trash2, Wrench } from 'lucide-react-native
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Button, Card, EmptyState, ErrorState, Field, Header, IconButton, InfoRow, ListSkeleton, Row, Screen, Section, Segmented, SelectField, SwitchRow, TextField, Txt, DateField } from '@/components/ui';
+import { BrandLogo, Button, Card, EmptyState, ErrorState, Field, Header, IconButton, InfoRow, ListSkeleton, Row, Screen, Section, Segmented, SelectField, SwitchRow, TextField, Txt, DateField } from '@/components/ui';
 import { RequirePermission } from '@/features/auth/guard';
 import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
@@ -410,7 +410,7 @@ function QuoteEditor({ quote, initial, leadLabel }: { quote?: QuoteDetail; initi
             placeholder={tr('quotes.editor.pick_vehicle')}
             value={s.vehicleUuid || null}
             onChange={(v) => set('vehicleUuid', v ?? '')}
-            options={vehicles.map((v) => ({ value: v.uuid, label: `${v.plate} · ${v.brand_name} ${v.model_name} ${v.year}` }))}
+            options={vehicles.map((v) => ({ value: v.uuid, label: `${v.plate} · ${v.brand_name} ${v.model_name} ${v.year}`, left: <BrandLogo name={v.brand_name} logoUrl={v.logo_url} size="sm" /> }))}
           />
         ) : null}
         {s.vehicleMode === 'free' ? (

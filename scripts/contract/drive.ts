@@ -288,6 +288,8 @@ async function commerceArea() {
   const sale = await ok('sale create', () => salesService.create({ customer_uuid: null, method: 'cash', finance_account_uuid: cash.uuid, lines: [{ product_uuid: sellable.uuid, qty: '1', unit_price: Number(sellable.sale_price) > 0 ? undefined : '10.00' }] }));
   const customers = await ok('customers', () => customersService.list({ limit: 1, offset: 0 }));
   await ok('sale create cari', () => salesService.create({ customer_uuid: customers.items[0].uuid, method: 'cari', lines: [{ product_uuid: products.items[0].uuid, unit_price: '99.00', qty: '1' }] }));
+  // Customer 360: recent sales searched by the customer's name (useCustomerSales).
+  await ok('sales by customer name', () => salesService.list({ q: customers.items[0].name, limit: 50, offset: 0 }));
   await err('sale create empty', 'VALIDATION_ERROR', () => salesService.create({ method: 'cash', lines: [] }));
   await ok('sale get', () => salesService.get(sale.uuid));
   await ok('sale void', () => salesService.void(sale.uuid));
@@ -299,6 +301,8 @@ async function commerceArea() {
   await ok('supplier update', () => suppliersService.update(sup.uuid, { name: 'Contract Tedarik 2' }));
   await ok('purchases meta', () => purchasesService.meta());
   await ok('purchases list', () => purchasesService.list({ limit: 20, offset: 0 }));
+  // Supplier 360: recent purchases searched by the supplier's name (useSupplierPurchases).
+  await ok('purchases by supplier name', () => purchasesService.list({ q: sup.name, limit: 50, offset: 0 }));
   const purchase = await ok('purchase create', () =>
     purchasesService.create({ supplier_uuid: sup.uuid, method: 'cash', finance_account_uuid: cash.uuid, lines: [{ product_uuid: products.items[0].uuid, unit_cost: '10.00', qty: '2' }] }),
   );
@@ -314,6 +318,8 @@ async function crmArea() {
   const services = await ok('services', () => catalogService.listServices({ limit: 2, offset: 0 }));
   const products = await ok('products', () => catalogService.listProducts({ limit: 2, offset: 0 }));
   await ok('quotes list', () => quotesService.list({ status: 'sent' }));
+  // Customer 360: the customer's quotes.
+  await ok('quotes by customer', () => quotesService.list({ customer_uuid: cust.uuid, limit: 20 }));
   await ok('quotes summary', () => quotesService.summary());
   const quote = await ok('quote create', () =>
     quotesService.create({
@@ -350,6 +356,8 @@ async function crmArea() {
   await err('quote convert twice', 'CONFLICT', () => quotesService.convert(quote.uuid, {}));
 
   await ok('leads list', () => leadsService.list({ status: 'new' }));
+  // Customer 360: the customer's leads.
+  await ok('leads by customer', () => leadsService.list({ customer_uuid: cust.uuid, limit: 20 }));
   await ok('leads summary', () => leadsService.summary());
   await ok('leads assignees', () => leadsService.assignees());
   const lead = await ok('lead create', () =>

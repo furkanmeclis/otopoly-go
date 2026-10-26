@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ban } from 'lucide-react-native';
 import { Pressable } from 'react-native';
 
-import { Button, Card, ErrorState, Group, Header, InfoRow, ListRow, ListSkeleton, Screen, Section, Txt, useConfirm } from '@/components/ui';
+import { Button, Card, ErrorState, Group, Header, InfoRow, LinkValue, ListRow, ListSkeleton, Screen, Section, Txt, useConfirm } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
@@ -82,7 +82,18 @@ function PurchaseDetail() {
             </Pressable>
           </InfoRow>
           <InfoRow label={tr('purchases.method')} value={tr(`purchases.payment_method.${purchase.method}`)} />
-          <InfoRow label={tr('purchases.finance_account')} value={purchase.finance_account_name || '—'} />
+          <InfoRow label={tr('purchases.finance_account')}>
+            <LinkValue
+              label={purchase.finance_account_name || '—'}
+              onPress={
+                purchase.finance_transaction_uuid && can(P.financeRead)
+                  ? () => router.push(`/finance/transactions/${purchase.finance_transaction_uuid}`)
+                  : purchase.finance_account_uuid && can(P.financeRead)
+                    ? () => router.push(`/finance/accounts/${purchase.finance_account_uuid}`)
+                    : undefined
+              }
+            />
+          </InfoRow>
           <InfoRow label={tr('purchases.purchased_at')} value={fmt.dateTime(purchase.purchased_at)} />
           <InfoRow label={tr('purchases.voided_at')} value={purchase.voided_at ? fmt.dateTime(purchase.voided_at) : '—'} />
           <InfoRow label={tr('purchases.notes')} value={purchase.notes || '—'} last />
@@ -102,7 +113,7 @@ function PurchaseDetail() {
                 title={line.name}
                 subtitle={`${fmt.money(line.unit_cost, line.currency)} × ${fmt.number(line.qty, 3)}`}
                 right={<Txt variant="mono">{fmt.money(line.line_total, line.currency)}</Txt>}
-                chevron={false}
+                onPress={can(P.catalogRead) ? () => router.push(`/catalog/products/${line.product_uuid}`) : undefined}
                 last={i === lines.length - 1}
               />
             ))

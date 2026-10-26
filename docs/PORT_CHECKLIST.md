@@ -65,7 +65,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ### UI kit (themed)
 - [ ] Screen, Header, Card, Button, IconButton, Badge, StatusBadge, Input, TextArea, Select/Picker sheet, DateField, MoneyInput, Switch, Segmented, SearchBar, FilterChips, ListItem, EmptyState, ErrorState, Skeleton, Toast, ConfirmDialog, BottomSheet, Avatar, PlateBadge, Amount, KPI tile, FAB
-- [ ] Keyboard-safe forms, validation messages from API `details[]`
+- [x] Keyboard-safe forms (react-native-keyboard-controller: `Screen` / `Sheet` use `KeyboardScroll` + `KeyboardFooter`; chat layouts `KeyboardAvoider`), validation messages from API `details[]`
 
 ---
 
@@ -91,7 +91,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] Daily summary (job count, card, cari, net, paid)
 - [ ] Board card: plate, brand mark, services color tags, elapsed time, assignee, amount, paid badge
 - [ ] Create job **W**: customer picker (+ inline create), vehicle picker (+ add vehicle from catalog), services (catalog), price/qty override, assignee, notes, start time
-- [ ] Detail: info, lines, payments, consumptions (material cost), contracts section, linked todos
+- [x] Detail: info, lines, payments, consumptions (material cost), contracts section, linked todos — 360: brand logo, customer / call / WhatsApp / SMS, total / material / margin tiles, every line, product, payment and customer opens its record
   - [x] Contracts section (web `JobContractsSection`): job's contracts (status, signed/total, PDF), create with vehicle photos (camera/library) → sign every pending signer in one sheet
 - [ ] Actions **W**: ready, deliver, close (cash/card → account, cari), cancel, edit notes, change assignee
 - [ ] Void **O**
@@ -101,7 +101,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 ## 4. Customers — `tenant.customers.*`
 - [ ] List: search, kind filter, active filter, vehicle count, cari balance
 - [ ] Create/edit **W**: name, phone, email, kind, tax id/office, notes, active, first vehicle
-- [ ] Detail: info, vehicles (add from catalog search / remove), recent jobs, cari balance + recent entries, quotes/leads/todos links
+- [x] Detail: info, vehicles (add from catalog search / remove), recent jobs, cari balance + recent entries, quotes/leads/todos links — 360: sales, stat tiles, call / WhatsApp / SMS / email / new job / quote / lead (no sales customer filter or activity feed in the API yet)
 - [ ] Delete **W** (blocked when cari balance ≠ 0)
 
 ## 5. Cari — `tenant.cari.*`

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Check } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -10,7 +10,7 @@ import { serviceSwatch } from '@/features/catalog/lib/service-colors';
 import { CustomerPicker, VehiclePicker } from '@/features/customers/components/pickers';
 import type { Customer } from '@/features/customers/services/customers.service';
 import { jobsService } from '@/features/jobs/services/jobs.service';
-import { qk, useServices, useStaffOptions } from '@/features/queries';
+import { qk, useCustomer, useServices, useStaffOptions } from '@/features/queries';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { fieldErrors, useApiMutation } from '@/lib/mutation';
@@ -30,8 +30,15 @@ type Line = { service_uuid: string; unit_price: string };
 function NewJobForm() {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [vehicle, setVehicle] = useState<string | null>(null);
+  // Opened from a customer / vehicle (customer 360): start with them picked.
+  const params = useLocalSearchParams<{ customer?: string; vehicle?: string }>();
+  const prefill = useCustomer(params.customer ?? null);
+  const [picked, setPicked] = useState<{ customer: Customer | null; vehicle: string | null } | null>(null);
+  const prefillVehicle = prefill.data ? (params.vehicle ?? (prefill.data.vehicles.length === 1 ? prefill.data.vehicles[0].uuid : null)) : null;
+  const customer = picked ? picked.customer : (prefill.data ?? null);
+  const vehicle = picked ? picked.vehicle : prefillVehicle;
+  const setCustomer = (c: Customer | null) => setPicked({ customer: c, vehicle: null });
+  const setVehicle = (v: string | null) => setPicked({ customer, vehicle: v });
   const [lines, setLines] = useState<Line[]>([]);
   const [assignee, setAssignee] = useState('');
   const [notes, setNotes] = useState('');
@@ -87,10 +94,7 @@ function NewJobForm() {
     >
       <CustomerPicker
         value={customer}
-        onChange={(c) => {
-          setCustomer(c);
-          setVehicle(null);
-        }}
+        onChange={setCustomer}
         error={errors.customer ?? apiErrors.customer_uuid}
       />
       <VehiclePicker customerUuid={customer?.uuid ?? null} value={vehicle} onChange={setVehicle} error={errors.vehicle ?? apiErrors.vehicle_uuid} />
