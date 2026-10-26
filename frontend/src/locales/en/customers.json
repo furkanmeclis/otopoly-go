@@ -107,5 +107,20 @@
   "related.quotes_none": "No quotes",
   "related.quotes_empty": "Quotes prepared for this customer are listed here.",
   "related.leads_none": "No leads",
-  "related.leads_empty": "Leads of this customer are listed here."
+  "related.leads_empty": "Leads of this customer are listed here.",
+  "insights.tabs.activity": "Activity",
+  "activity.title": "Activity",
+  "activity.empty_title": "No activity yet",
+  "activity.empty_description": "Actions on the customer, its vehicles, jobs, sales, quotes, leads and cari entries are listed here.",
+  "activity.load_more": "Load more",
+  "activity.system": "System",
+  "activity.subject.customer": "Customer",
+  "activity.subject.vehicle": "Vehicle",
+  "activity.subject.job": "Job",
+  "activity.subject.sale": "Sale",
+  "activity.subject.quote": "Quote",
+  "activity.subject.lead": "Lead",
+  "activity.subject.cari_entry": "Cari entry",
+  "activity.subject.contract": "Contract",
+  "activity.subject.other": "Record"
 }

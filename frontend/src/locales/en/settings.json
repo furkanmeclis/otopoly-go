@@ -34,5 +34,14 @@
   "toast.saved": "Settings saved.",
   "toast.logo_saved": "Logo updated.",
   "toast.logo_removed": "Logo removed.",
-  "toast.save_failed": "Could not save settings."
+  "toast.save_failed": "Could not save settings.",
+  "sector": "Sector",
+  "sector_hint": "Your line of business; app suggestions and reports adapt to it.",
+  "sectors.none": "Not set",
+  "sectors.car_wash": "Car wash",
+  "sectors.detailing": "Detailing",
+  "sectors.ppf_tint": "PPF / window tint",
+  "sectors.auto_service": "Auto service",
+  "sectors.tyres": "Tyres",
+  "sectors.other": "Other"
 }

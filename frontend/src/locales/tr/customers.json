@@ -107,5 +107,20 @@
   "related.quotes_none": "Teklif yok",
   "related.quotes_empty": "Bu müşteriye hazırlanan teklifler burada listelenir.",
   "related.leads_none": "Fırsat yok",
-  "related.leads_empty": "Bu müşteriyle ilgili fırsatlar burada listelenir."
+  "related.leads_empty": "Bu müşteriyle ilgili fırsatlar burada listelenir.",
+  "insights.tabs.activity": "Aktivite",
+  "activity.title": "Aktivite",
+  "activity.empty_title": "Henüz aktivite yok",
+  "activity.empty_description": "Müşteri, araçları, işleri, satışları, teklifleri, fırsatları ve cari hareketleriyle ilgili işlemler burada listelenir.",
+  "activity.load_more": "Daha fazla yükle",
+  "activity.system": "Sistem",
+  "activity.subject.customer": "Müşteri",
+  "activity.subject.vehicle": "Araç",
+  "activity.subject.job": "İş emri",
+  "activity.subject.sale": "Satış",
+  "activity.subject.quote": "Teklif",
+  "activity.subject.lead": "Fırsat",
+  "activity.subject.cari_entry": "Cari hareket",
+  "activity.subject.contract": "Sözleşme",
+  "activity.subject.other": "Kayıt"
 }

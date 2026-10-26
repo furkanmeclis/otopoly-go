@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
@@ -7,6 +8,8 @@ export type TimelineItem = {
   title: string;
   description?: string;
   meta?: ReactNode;
+  /** Optional link on the title (e.g. the record the entry is about). */
+  href?: string;
 };
 
 export function Timeline({
@@ -27,16 +30,27 @@ export function Timeline({
         <li key={item.id} className="relative">
           <span className="bg-primary absolute -start-[1.9rem] top-1.5 h-2.5 w-2.5 rounded-full" />
           <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">{item.title}</p>
+            <div className="min-w-0">
+              {item.href ? (
+                <Link
+                  href={item.href}
+                  className="text-sm font-medium hover:underline"
+                >
+                  {item.title}
+                </Link>
+              ) : (
+                <p className="text-sm font-medium">{item.title}</p>
+              )}
               {item.description ? (
-                <p className="text-muted-foreground text-sm">
+                <p className="text-muted-foreground text-sm break-words">
                   {item.description}
                 </p>
               ) : null}
             </div>
             {item.meta ? (
-              <div className="text-muted-foreground text-xs">{item.meta}</div>
+              <div className="text-muted-foreground shrink-0 text-xs">
+                {item.meta}
+              </div>
             ) : null}
           </div>
         </li>
