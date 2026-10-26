@@ -14,8 +14,7 @@ const read = 'tenant.finance.read';
 const write = 'tenant.finance.write';
 
 function monthStart() {
-  const d = new Date();
-  return istanbulDay(new Date(d.getFullYear(), d.getMonth(), 1, 12));
+  return `${istanbulDay().slice(0, 7)}-01`;
 }
 
 route('GET', '/v1/tenant/finance/summary', (ctx) => {

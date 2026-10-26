@@ -29,6 +29,7 @@ import { P } from '@/features/auth/permissions';
 import { AccountSheet } from '@/features/finance/components/account-sheet';
 import { accountTypeKey, TransactionRow } from '@/features/finance/components/finance-parts';
 import { localToday, shiftDate } from '@/features/jobs/lib/job-ui';
+import { businessMonthStart } from '@/lib/business-date';
 import { qk, useFinanceSummary, useTransactionsInfinite } from '@/features/queries';
 import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
@@ -37,10 +38,7 @@ import { useLiveResource } from '@/features/live/use-live-resource';
 
 type Preset = 'month' | '7d' | '30d' | 'custom';
 
-function monthStart() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
-}
+const monthStart = () => businessMonthStart();
 
 export default function FinanceScreen() {
   useLiveResource(['tenant.finance.transactions', 'tenant.finance.accounts', 'tenant.cari']);

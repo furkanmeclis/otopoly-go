@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { businessDayOf } from '@/lib/business-date';
 import { router, type Href } from 'expo-router';
 import {
   AlarmClock,
@@ -143,7 +144,7 @@ function TodaySection() {
   const jobs = jobsQuery.data?.items ?? [];
   const inProgress = jobs.filter((j) => j.status === 'in_progress');
   const ready = jobs.filter((j) => j.status === 'ready');
-  const delivered = jobs.filter((j) => j.status === 'delivered' && (j.delivered_at ?? '').slice(0, 10) >= shiftDate(today, -1));
+  const delivered = jobs.filter((j) => j.status === 'delivered' && !!j.delivered_at && businessDayOf(j.delivered_at) >= shiftDate(today, -1));
   const unpaidDelivered = delivered.filter((j) => j.payment_status === 'unpaid');
   const stale = inProgress.filter((j) => isStale(j, now));
   const queue = [...ready, ...inProgress].slice(0, 6);

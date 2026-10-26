@@ -8,6 +8,7 @@
  * on sign-out and on organization switch.
  */
 import type { Gate } from '@/features/auth/permissions';
+import { businessDayOf } from '@/lib/business-date';
 
 import { INTENT_GATES, normalizePlate, type ShortcutName } from './routing';
 
@@ -30,7 +31,7 @@ export function todayFigures(jobs: TodayJob[], yesterday: string, collected: str
   return {
     inProgress: jobs.filter((j) => j.status === 'in_progress').length,
     ready: jobs.filter((j) => j.status === 'ready').length,
-    delivered: jobs.filter((j) => j.status === 'delivered' && (j.delivered_at ?? '').slice(0, 10) >= yesterday).length,
+    delivered: jobs.filter((j) => j.status === 'delivered' && !!j.delivered_at && businessDayOf(j.delivered_at) >= yesterday).length,
     collected,
   };
 }

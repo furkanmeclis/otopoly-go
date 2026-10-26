@@ -1,4 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { businessToday } from '@/lib/business-date';
 import { memo, useMemo } from 'react';
 import { Pressable, View } from 'react-native';
 import { Directions, GestureDetector, useCompetingGestures, useFlingGesture } from 'react-native-gesture-handler';
@@ -33,7 +34,7 @@ export function MonthGrid({
   const { t: tr, fmt } = useLocale();
   const reduceMotion = useReducedMotion();
   const days = useMemo(() => monthGrid(month), [month]);
-  const today = dayKey(new Date());
+  const today = businessToday();
   const weekdays = useMemo(() => {
     const f = new Intl.DateTimeFormat(fmt.locale, { weekday: 'narrow' });
     return days.slice(0, 7).map((d) => f.format(d));

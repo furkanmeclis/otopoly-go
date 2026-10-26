@@ -204,7 +204,7 @@ function Reports() {
                     {r.customer_name}
                   </Txt>
                   <Txt variant="caption" tone="secondary">
-                    {r.customer_phone || '—'} · {tr('reports.tables.last_entry')}: {r.last_entry_date ? fmt.date(`${r.last_entry_date.slice(0, 10)}T12:00:00`) : '—'}
+                    {r.customer_phone || '—'} · {tr('reports.tables.last_entry')}: {r.last_entry_date ? fmt.date(r.last_entry_date.slice(0, 10)) : '—'}
                   </Txt>
                 </View>
                 <Txt variant="mono" tone="warning">

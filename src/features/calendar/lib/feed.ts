@@ -1,8 +1,13 @@
 /**
  * Pure helpers for calendar feed items: local days, placement, labels and grouping. Kept free of React /
  * React Native so the smoke tests can run them.
+ *
+ * The grid works on wall-clock Dates of the business time zone (Europe/Istanbul, the zone the API
+ * buckets days in): timed items are converted with `businessWallClock`, moves go back through
+ * `wallClockToISO`. On a phone set to Türkiye time both are the identity.
  */
 import type { CalendarFeedItem, CalendarMoveInput } from '../types';
+import { businessDateTimeISO, businessWallClock } from '@/lib/business-date';
 import { kindKey } from './kinds';
 
 type T = (key: string, params?: Record<string, string | number>) => string;
@@ -31,12 +36,15 @@ export function monthGrid(month: Date) {
 }
 
 export function itemStart(item: CalendarFeedItem): Date {
-  return item.all_day && item.start_date ? localDay(item.start_date) : new Date(item.starts_at);
+  return item.all_day && item.start_date ? localDay(item.start_date) : businessWallClock(item.starts_at);
 }
+
+/** "Now" on the business wall clock. */
+export const businessNow = (now: number | Date = Date.now()) => businessWallClock(now);
 
 /** Exclusive end. */
 export function itemEnd(item: CalendarFeedItem): Date {
-  return item.all_day && item.end_date ? addDays(localDay(item.end_date), 1) : new Date(item.ends_at);
+  return item.all_day && item.end_date ? addDays(localDay(item.end_date), 1) : businessWallClock(item.ends_at);
 }
 
 /** Every local day the item covers (multi-day events show on each day). */
@@ -96,11 +104,9 @@ export function moveBody(item: CalendarFeedItem, day: string, time: string | nul
     const span = item.layer === 'events' && item.all_day ? Math.max(0, itemDays(item).length - 1) : 0;
     return { layer, ref_uuid: refUuid, all_day: true, start_date: day, end_date: shiftDay(day, span) };
   }
-  const [h, m] = time.split(':').map(Number);
-  const start = localDay(day);
-  start.setHours(h || 0, m || 0, 0, 0);
+  const startsAt = businessDateTimeISO(day, time);
   const duration = item.all_day ? 60 * 60000 : Math.max(15 * 60000, itemEnd(item).getTime() - itemStart(item).getTime());
-  return { layer, ref_uuid: refUuid, all_day: false, starts_at: start.toISOString(), ends_at: new Date(start.getTime() + duration).toISOString() };
+  return { layer, ref_uuid: refUuid, all_day: false, starts_at: startsAt, ends_at: new Date(new Date(startsAt).getTime() + duration).toISOString() };
 }
 
 /** Optimistic placement of a moved item in a cached feed (web `placeInFeeds`). */

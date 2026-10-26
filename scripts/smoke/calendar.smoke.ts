@@ -8,6 +8,7 @@ import { session } from '@/api/session';
 import { addDays, dayKey, groupByDay, itemDays, layoutDay, monthGrid, moveBody, placeItem, shiftDay } from '@/features/calendar/lib/feed';
 import { calendarService } from '@/features/calendar/services/calendar.service';
 import type { CalendarFeedItem } from '@/features/calendar/types';
+import { businessDateTimeISO } from '@/lib/business-date';
 
 let failures = 0;
 const ok = (cond: unknown, msg: string) => {
@@ -49,18 +50,18 @@ const item = (over: Partial<CalendarFeedItem>): CalendarFeedItem => ({
   ok(grid.length === 42 && grid[0].getDay() === 1 && dayKey(grid[0]) <= '2026-03-01', 'month grid: 6 weeks, Monday first');
   const span = item({ id: 'span', all_day: true, start_date: '2026-03-02', end_date: '2026-03-04' });
   ok(itemDays(span).join(',') === '2026-03-02,2026-03-03,2026-03-04', 'multi-day all-day item covers each day');
-  const byDay = groupByDay([span, item({ id: 'a', starts_at: new Date(2026, 2, 3, 9).toISOString(), ends_at: new Date(2026, 2, 3, 10).toISOString() })]);
+  const byDay = groupByDay([span, item({ id: 'a', starts_at: businessDateTimeISO('2026-03-03', '09:00'), ends_at: businessDateTimeISO('2026-03-03', '10:00') })]);
   ok(byDay.get('2026-03-03')?.length === 2 && byDay.get('2026-03-03')?.[0].id === 'span', 'grouped per day, all-day first');
   const lanes = layoutDay(
     [
-      item({ id: 'l1', starts_at: new Date(2026, 2, 3, 9).toISOString(), ends_at: new Date(2026, 2, 3, 11).toISOString() }),
-      item({ id: 'l2', starts_at: new Date(2026, 2, 3, 10).toISOString(), ends_at: new Date(2026, 2, 3, 12).toISOString() }),
-      item({ id: 'l3', starts_at: new Date(2026, 2, 3, 13).toISOString(), ends_at: new Date(2026, 2, 3, 14).toISOString() }),
+      item({ id: 'l1', starts_at: businessDateTimeISO('2026-03-03', '09:00'), ends_at: businessDateTimeISO('2026-03-03', '11:00') }),
+      item({ id: 'l2', starts_at: businessDateTimeISO('2026-03-03', '10:00'), ends_at: businessDateTimeISO('2026-03-03', '12:00') }),
+      item({ id: 'l3', starts_at: businessDateTimeISO('2026-03-03', '13:00'), ends_at: businessDateTimeISO('2026-03-03', '14:00') }),
     ],
     '2026-03-03',
   );
   ok(lanes[0].lanes === 2 && lanes[1].lane === 1 && lanes[2].lanes === 1 && lanes[0].top === 9 * 60, 'overlapping items split into lanes');
-  const timed = item({ id: 't', starts_at: new Date(2026, 2, 3, 9).toISOString(), ends_at: new Date(2026, 2, 3, 10, 30).toISOString() });
+  const timed = item({ id: 't', starts_at: businessDateTimeISO('2026-03-03', '09:00'), ends_at: businessDateTimeISO('2026-03-03', '10:30') });
   const moved = moveBody(timed, '2026-03-10', '14:00');
   ok(!moved.all_day && new Date(moved.ends_at!).getTime() - new Date(moved.starts_at!).getTime() === 90 * 60000, 'timed move keeps the length');
   const allDayMove = moveBody(span, '2026-03-20', null);

@@ -1,4 +1,5 @@
 import type { Job, JobsSummary } from '@/features/jobs/services/jobs.service';
+import { businessDayOf } from '@/lib/business-date';
 import { isStale, shiftDate } from '@/features/jobs/lib/job-ui';
 import type { Formatters } from '@/lib/i18n/format';
 import type { TranslateParams } from '@/lib/i18n/translate';
@@ -41,7 +42,7 @@ export function buildTodayProps(input: {
   const now = Date.now();
   const inProgress = jobs.filter((j) => j.status === 'in_progress');
   const ready = jobs.filter((j) => j.status === 'ready');
-  const delivered = jobs.filter((j) => j.status === 'delivered' && (j.delivered_at ?? '').slice(0, 10) >= shiftDate(today, -1));
+  const delivered = jobs.filter((j) => j.status === 'delivered' && !!j.delivered_at && businessDayOf(j.delivered_at) >= shiftDate(today, -1));
   const queue = [...ready, ...inProgress].map((j) => ({
     id: j.uuid,
     plate: j.plate,

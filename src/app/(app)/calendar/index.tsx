@@ -5,6 +5,7 @@
  * movable items (events / todos / lead follow-ups).
  */
 import { useLocalSearchParams } from 'expo-router';
+import { businessToday } from '@/lib/business-date';
 import { CalendarCheck, ChevronLeft, ChevronRight, EyeOff, Plus } from 'lucide-react-native';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { RefreshControl, ScrollView, SectionList, View } from 'react-native';
@@ -22,7 +23,7 @@ import { LayerChips } from '@/features/calendar/components/layer-chips';
 import { gridRange, MonthGrid, shiftMonth } from '@/features/calendar/components/month-grid';
 import { RescheduleSheet } from '@/features/calendar/components/reschedule-sheet';
 import { TimeGrid } from '@/features/calendar/components/time-grid';
-import { dayKey, groupByDay, localDay, shiftDay } from '@/features/calendar/lib/feed';
+import { groupByDay, localDay, shiftDay } from '@/features/calendar/lib/feed';
 import { openItem, useHiddenLayers } from '@/features/calendar/lib/use-calendar-ui';
 import { useCalendarFeed, useCalendarMeta } from '@/features/calendar/queries';
 import { CALENDAR_LAYERS, type CalendarEvent, type CalendarFeedItem, type CalendarLayer } from '@/features/calendar/types';
@@ -54,7 +55,7 @@ function CalendarView() {
   const canWrite = can(P.calendarWrite);
   useDonateOnMount('calendarToday');
   const params = useLocalSearchParams<{ date?: string; item?: string }>();
-  const today = dayKey(new Date());
+  const today = businessToday();
   const initialDay = params.date && DAY_RE.test(params.date) ? params.date : today;
 
   const [view, setView] = useState<View_>('month');
