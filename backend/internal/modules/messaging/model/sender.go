@@ -7,7 +7,13 @@ const (
 	SenderOrgOwn            = "org_own"
 	SenderPlatformWhatsmeow = "platform_whatsmeow"
 	SenderPlatformCloud     = "platform_cloud"
+	// SMS through the organization's own provider account.
+	SenderSMSNetgsm = "sms_netgsm"
+	SenderSMSTwilio = "sms_twilio"
 )
+
+// SMSSenderKind returns the sender kind of an SMS provider code.
+func SMSSenderKind(provider string) string { return "sms_" + provider }
 
 // PlatformOrgKey is the reserved whatsmeow client key of the platform number
 // (organization ids start at 1).
@@ -32,7 +38,25 @@ const (
 	// Plan gates of platform-number sends (whatsapp.enabled / whatsapp.monthly).
 	ErrCodeFeatureNotEntitled = "feature_not_entitled"
 	ErrCodeQuotaExceeded      = "quota_exceeded"
+	// SMS channel (organization provider account).
+	ErrCodeSMSNotConfigured = "sms_not_configured"
+	ErrCodeSMSAuthFailed    = "sms_auth_failed"
+	ErrCodeSMSRejected      = "sms_rejected"
+	ErrCodeSMSUnavailable   = "sms_unavailable"
+	// ErrCodeSMSOutcomeUnknown: the provider may have accepted the message;
+	// it is not retried automatically (no duplicate SMS).
+	ErrCodeSMSOutcomeUnknown = "sms_outcome_unknown"
 )
+
+// SMSDelivery is an SMS accepted by the organization's provider.
+type SMSDelivery struct {
+	Provider  string
+	MessageID string
+	// Status is the provider's initial status (accepted, queued…).
+	Status string
+	// To is the normalized E.164 recipient.
+	To string
+}
 
 // SendError is a classified WhatsApp send failure. Retryable errors are
 // retried by the messaging queue; the others fail the message immediately.

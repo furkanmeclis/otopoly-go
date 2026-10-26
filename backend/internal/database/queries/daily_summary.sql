@@ -3,12 +3,13 @@ SELECT * FROM daily_summary_settings
 WHERE organization_id = $1;
 
 -- name: UpsertDailySummarySettings :one
-INSERT INTO daily_summary_settings (organization_id, enabled, send_time, recipient_user_ids)
-VALUES (sqlc.arg(organization_id), sqlc.arg(enabled), sqlc.arg(send_time), sqlc.arg(recipient_user_ids)::bigint[])
+INSERT INTO daily_summary_settings (organization_id, enabled, send_time, recipient_user_ids, channel)
+VALUES (sqlc.arg(organization_id), sqlc.arg(enabled), sqlc.arg(send_time), sqlc.arg(recipient_user_ids)::bigint[], sqlc.arg(channel))
 ON CONFLICT (organization_id) DO UPDATE
 SET enabled = EXCLUDED.enabled,
     send_time = EXCLUDED.send_time,
-    recipient_user_ids = EXCLUDED.recipient_user_ids
+    recipient_user_ids = EXCLUDED.recipient_user_ids,
+    channel = EXCLUDED.channel
 RETURNING *;
 
 -- name: ListEnabledDailySummarySettings :many

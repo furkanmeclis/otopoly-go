@@ -774,6 +774,7 @@ type DailySummarySetting struct {
 	LastSentOn       pgtype.Date        `json:"last_sent_on"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	Channel          string             `json:"channel"`
 }
 
 type ExportJob struct {
@@ -1683,6 +1684,24 @@ type ServiceProduct struct {
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
+type SmsProviderAccount struct {
+	ID              int64              `json:"id"`
+	Uuid            uuid.UUID          `json:"uuid"`
+	OrganizationID  int64              `json:"organization_id"`
+	Provider        string             `json:"provider"`
+	Sender          string             `json:"sender"`
+	CredentialsEnc  string             `json:"credentials_enc"`
+	CredentialHints []byte             `json:"credential_hints"`
+	IsActive        bool               `json:"is_active"`
+	Status          string             `json:"status"`
+	LastCheckedAt   pgtype.Timestamptz `json:"last_checked_at"`
+	LastError       string             `json:"last_error"`
+	CreatedBy       pgtype.Int8        `json:"created_by"`
+	UpdatedBy       pgtype.Int8        `json:"updated_by"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type StepupSetting struct {
 	ID                        int16              `json:"id"`
 	TtlHours                  int32              `json:"ttl_hours"`
@@ -1844,6 +1863,7 @@ type VehicleAlertSetting struct {
 	LastFlushedAt    pgtype.Timestamptz `json:"last_flushed_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	Channel          string             `json:"channel"`
 }
 
 type VehicleBrand struct {

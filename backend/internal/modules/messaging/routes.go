@@ -6,6 +6,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/middleware"
 	messaginghandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/handler"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/smschannel"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/jwt"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
@@ -60,4 +61,37 @@ func RegisterRoutes(
 	mux.Handle("DELETE /v1/tenant/messaging/template-types/{event_type}/{channel}/{locale}", tWrite(h.ResetTemplateByKey))
 
 	mux.Handle("POST /v1/tenant/messaging/simulate", tWrite(h.Simulate))
+}
+
+// RegisterSMSRoutes mounts the organization SMS channel (own Netgsm / Twilio
+// account). Reads need tenant.messaging.read; changes, connection tests and
+// test SMS need tenant.messaging.write and the owner role (like WhatsApp).
+func RegisterSMSRoutes(
+	mux *http.ServeMux,
+	svc *smschannel.Service,
+	tokens *jwt.Manager,
+	loader middleware.IdentityLoader,
+	q *db.Queries,
+) {
+	h := smschannel.NewHandler(svc)
+	authn := middleware.Authenticate(tokens, loader)
+	requireOrg := middleware.RequireOrganization(tokens, q)
+	tenantRead := middleware.RequirePermission(rbac.PermTenantMessagingRead)
+	tenantWrite := middleware.RequirePermission(rbac.PermTenantMessagingWrite)
+	requireOwner := middleware.RequireOrgRole("owner")
+
+	tRead := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantRead)
+	}
+	tWrite := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, requireOrg, tenantWrite, requireOwner)
+	}
+
+	mux.Handle("GET /v1/tenant/messaging/sms", tRead(h.Overview))
+	mux.Handle("POST /v1/tenant/messaging/sms/estimate", tRead(h.Estimate))
+	mux.Handle("PUT /v1/tenant/messaging/sms/{provider}", tWrite(h.Save))
+	mux.Handle("PATCH /v1/tenant/messaging/sms/{provider}", tWrite(h.SetActive))
+	mux.Handle("DELETE /v1/tenant/messaging/sms/{provider}", tWrite(h.Disconnect))
+	mux.Handle("POST /v1/tenant/messaging/sms/{provider}/test", tWrite(h.Test))
+	mux.Handle("POST /v1/tenant/messaging/sms/{provider}/test-sms", tWrite(h.SendTest))
 }

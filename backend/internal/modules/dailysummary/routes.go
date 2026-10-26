@@ -54,17 +54,21 @@ func NewMessagingSender(svc *messagingusecase.Service) *MessagingSender {
 	return &MessagingSender{svc: svc}
 }
 
-// WhatsAppConnected reports whether WhatsApp can be sent now (own session or
-// platform number fallback).
-func (m *MessagingSender) WhatsAppConnected(ctx context.Context, orgID int64) (bool, error) {
-	return m.svc.WhatsAppAvailable(ctx, orgID)
+// ChannelAvailable reports whether the channel can be sent now: WhatsApp
+// (own session or platform number fallback) or SMS (active SMS provider).
+func (m *MessagingSender) ChannelAvailable(ctx context.Context, orgID int64, channel string) (bool, error) {
+	return m.svc.ChannelAvailable(ctx, orgID, channel)
 }
 
-func (m *MessagingSender) QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string, vars map[string]string) error {
+// Queue persists and queues one message on channel (whatsapp | sms).
+func (m *MessagingSender) Queue(ctx context.Context, orgID int64, channel, phone, body, eventType, subjectType string, vars map[string]string) error {
+	if channel == "" {
+		channel = messagingmodel.ChannelWhatsApp
+	}
 	_, err := m.svc.QueueSend(ctx, messagingusecase.OutboundRequest{
 		OrgID:       orgID,
 		EventType:   eventType,
-		Channel:     messagingmodel.ChannelWhatsApp,
+		Channel:     channel,
 		Phone:       phone,
 		Body:        body,
 		SubjectType: subjectType,

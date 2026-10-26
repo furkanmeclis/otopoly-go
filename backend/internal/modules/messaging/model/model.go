@@ -38,6 +38,8 @@ const (
 	EventDailySummary = "daily.summary"
 	// EventVehicleAlert is the staff vehicle movement alert (vehiclealerts module).
 	EventVehicleAlert = "vehicle.alert"
+	// EventSMSTest is the "send test SMS" of the channel settings.
+	EventSMSTest = "sms.test"
 
 	SimulateModeEvent        = "event"
 	SimulateModeJobLifecycle = "job_lifecycle"

@@ -237,6 +237,7 @@ func (s *Service) processOutboundObserved(ctx context.Context, id int64, final b
 		return fmt.Errorf("finish outbound: %w", err)
 	}
 	s.recordSender(ctx, row.ID, res, sendErr)
+	s.recordDeliveryStatus(ctx, row.OrganizationID, row.ID, res, sendErr)
 	if observe != nil && (sendErr == nil || final) {
 		o := OutboundOutcome{
 			OrgID: row.OrganizationID, EventType: row.EventType, Channel: row.Channel,
@@ -252,8 +253,11 @@ func (s *Service) processOutboundObserved(ctx context.Context, id int64, final b
 }
 
 func (s *Service) sendOutbound(ctx context.Context, row db.OutboundMessage, inlineData []byte) (deliveryResult, error) {
+	if row.Channel == model.ChannelSMS && s.smsCh != nil {
+		// SMS carries the text only (attachments are not sent).
+		return s.deliverSMS(ctx, row.OrganizationID, row.RecipientPhone, row.Body, smsClassTransactional)
+	}
 	if row.Channel != model.ChannelWhatsApp {
-		// SMS carries the text only.
 		sender, ok := s.channels[row.Channel]
 		if !ok {
 			return deliveryResult{}, fmt.Errorf("%w: %s", ErrChannelUnavailable, row.Channel)

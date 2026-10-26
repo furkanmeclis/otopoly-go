@@ -156,6 +156,8 @@ type deliveryResult struct {
 	Ref          string
 	SenderKind   string
 	TemplateName string
+	// DeliveryStatus is the provider's initial status (SMS: accepted, queued…).
+	DeliveryStatus string
 }
 
 // deliverWhatsApp sends through the resolved sender. Every WhatsApp path

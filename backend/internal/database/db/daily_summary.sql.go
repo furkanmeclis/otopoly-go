@@ -256,7 +256,7 @@ func (q *Queries) DailySummaryServiceBreakdown(ctx context.Context, arg DailySum
 }
 
 const getDailySummarySettings = `-- name: GetDailySummarySettings :one
-SELECT organization_id, enabled, send_time, recipient_user_ids, last_sent_on, created_at, updated_at FROM daily_summary_settings
+SELECT organization_id, enabled, send_time, recipient_user_ids, last_sent_on, created_at, updated_at, channel FROM daily_summary_settings
 WHERE organization_id = $1
 `
 
@@ -271,6 +271,7 @@ func (q *Queries) GetDailySummarySettings(ctx context.Context, organizationID in
 		&i.LastSentOn,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Channel,
 	)
 	return i, err
 }
@@ -332,7 +333,7 @@ func (q *Queries) ListDailySummaryMembers(ctx context.Context, organizationID in
 }
 
 const listEnabledDailySummarySettings = `-- name: ListEnabledDailySummarySettings :many
-SELECT organization_id, enabled, send_time, recipient_user_ids, last_sent_on, created_at, updated_at FROM daily_summary_settings
+SELECT organization_id, enabled, send_time, recipient_user_ids, last_sent_on, created_at, updated_at, channel FROM daily_summary_settings
 WHERE enabled
 ORDER BY organization_id
 `
@@ -354,6 +355,7 @@ func (q *Queries) ListEnabledDailySummarySettings(ctx context.Context) ([]DailyS
 			&i.LastSentOn,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Channel,
 		); err != nil {
 			return nil, err
 		}
@@ -366,13 +368,14 @@ func (q *Queries) ListEnabledDailySummarySettings(ctx context.Context) ([]DailyS
 }
 
 const upsertDailySummarySettings = `-- name: UpsertDailySummarySettings :one
-INSERT INTO daily_summary_settings (organization_id, enabled, send_time, recipient_user_ids)
-VALUES ($1, $2, $3, $4::bigint[])
+INSERT INTO daily_summary_settings (organization_id, enabled, send_time, recipient_user_ids, channel)
+VALUES ($1, $2, $3, $4::bigint[], $5)
 ON CONFLICT (organization_id) DO UPDATE
 SET enabled = EXCLUDED.enabled,
     send_time = EXCLUDED.send_time,
-    recipient_user_ids = EXCLUDED.recipient_user_ids
-RETURNING organization_id, enabled, send_time, recipient_user_ids, last_sent_on, created_at, updated_at
+    recipient_user_ids = EXCLUDED.recipient_user_ids,
+    channel = EXCLUDED.channel
+RETURNING organization_id, enabled, send_time, recipient_user_ids, last_sent_on, created_at, updated_at, channel
 `
 
 type UpsertDailySummarySettingsParams struct {
@@ -380,6 +383,7 @@ type UpsertDailySummarySettingsParams struct {
 	Enabled          bool        `json:"enabled"`
 	SendTime         pgtype.Time `json:"send_time"`
 	RecipientUserIds []int64     `json:"recipient_user_ids"`
+	Channel          string      `json:"channel"`
 }
 
 func (q *Queries) UpsertDailySummarySettings(ctx context.Context, arg UpsertDailySummarySettingsParams) (DailySummarySetting, error) {
@@ -388,6 +392,7 @@ func (q *Queries) UpsertDailySummarySettings(ctx context.Context, arg UpsertDail
 		arg.Enabled,
 		arg.SendTime,
 		arg.RecipientUserIds,
+		arg.Channel,
 	)
 	var i DailySummarySetting
 	err := row.Scan(
@@ -398,6 +403,7 @@ func (q *Queries) UpsertDailySummarySettings(ctx context.Context, arg UpsertDail
 		&i.LastSentOn,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Channel,
 	)
 	return i, err
 }

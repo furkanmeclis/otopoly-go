@@ -59,6 +59,8 @@ type Querier interface {
 	UpdatePlatformWhatsAppSession(ctx context.Context, arg db.UpdatePlatformWhatsAppSessionParams) (db.PlatformWhatsappSetting, error)
 	UpdatePlatformWhatsAppQR(ctx context.Context, arg db.UpdatePlatformWhatsAppQRParams) (db.PlatformWhatsappSetting, error)
 	GetWhatsAppCloudTemplate(ctx context.Context, arg db.GetWhatsAppCloudTemplateParams) (db.WhatsappCloudTemplate, error)
+	// SMS provider status of a sent message.
+	SetOutboundMessageDeliveryStatus(ctx context.Context, arg db.SetOutboundMessageDeliveryStatusParams) error
 }
 
 // ChannelSender is a generic send interface for a messaging channel.
@@ -80,6 +82,8 @@ type Service struct {
 	cloud    CloudSender
 	// platformInfo is the platform brand used by platform-number messages.
 	platformInfo PlatformInfoFunc
+	// smsCh delivers SMS through the organization's own provider account.
+	smsCh SMSChannel
 }
 
 // New builds a messaging service.
@@ -479,11 +483,14 @@ func (s *Service) Dispatch(ctx context.Context, in model.DispatchInput) error {
 
 		var res deliveryResult
 		var sendErr error
-		if ch == model.ChannelWhatsApp {
+		switch {
+		case ch == model.ChannelWhatsApp:
 			res, sendErr = s.deliverWhatsApp(ctx, outboundDelivery{
 				OrgID: in.OrgID, EventType: in.EventType, Phone: in.RecipientPhone, Body: body, Vars: in.Vars,
 			})
-		} else {
+		case ch == model.ChannelSMS && s.smsCh != nil:
+			res, sendErr = s.deliverSMS(ctx, in.OrgID, in.RecipientPhone, body, smsClassTransactional)
+		default:
 			sender, ok := s.channels[ch]
 			if !ok {
 				continue
@@ -549,6 +556,7 @@ func (s *Service) logOutbound(ctx context.Context, l outboundLog, res deliveryRe
 		SentAt:            sentAt,
 	})
 	s.recordSender(ctx, outMsg.ID, res, sendErr)
+	s.recordDeliveryStatus(ctx, l.OrgID, outMsg.ID, res, sendErr)
 }
 
 // ErrChannelUnavailable is returned when a transactional send cannot use the org channel.
@@ -588,12 +596,19 @@ func (s *Service) SendDirect(ctx context.Context, in SendDirectInput) (string, e
 	}
 	var res deliveryResult
 	var sendErr error
-	if channel == model.ChannelWhatsApp {
+	switch {
+	case channel == model.ChannelWhatsApp:
 		res, sendErr = s.deliverWhatsApp(ctx, outboundDelivery{
 			OrgID: in.OrgID, EventType: in.EventType, Phone: in.RecipientPhone, Body: in.Body, Vars: in.Vars,
 			Locale: in.Locale,
 		})
-	} else {
+	case channel == model.ChannelSMS && s.smsCh != nil:
+		class := smsClassTransactional
+		if in.EventType == model.EventContractOTP {
+			class = smsClassOTP
+		}
+		res, sendErr = s.deliverSMS(ctx, in.OrgID, in.RecipientPhone, in.Body, class)
+	default:
 		sender, ok := s.channels[channel]
 		if !ok {
 			return "", fmt.Errorf("%w: %s", ErrChannelUnavailable, channel)
@@ -644,8 +659,11 @@ func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateIn
 	if channel == "" {
 		channel = model.ChannelWhatsApp
 	}
-	if channel != model.ChannelWhatsApp {
-		return model.SimulateResult{}, fmt.Errorf("%w: only whatsapp simulate is supported", ErrInvalidRequest)
+	if channel != model.ChannelWhatsApp && channel != model.ChannelSMS {
+		return model.SimulateResult{}, fmt.Errorf("%w: channel must be whatsapp or sms", ErrInvalidRequest)
+	}
+	if channel == model.ChannelSMS && s.smsCh == nil {
+		return model.SimulateResult{}, fmt.Errorf("%w: sms channel is not available", ErrInvalidRequest)
 	}
 	mode := strings.TrimSpace(in.Mode)
 	if mode == "" {
@@ -686,9 +704,15 @@ func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateIn
 		}
 		item.Body = body
 
-		res, sendErr := s.deliverWhatsApp(ctx, outboundDelivery{
-			OrgID: orgID, EventType: eventType, Phone: phone, Body: body, Vars: vars,
-		})
+		var res deliveryResult
+		var sendErr error
+		if channel == model.ChannelSMS {
+			res, sendErr = s.deliverSMS(ctx, orgID, phone, body, smsClassTransactional)
+		} else {
+			res, sendErr = s.deliverWhatsApp(ctx, outboundDelivery{
+				OrgID: orgID, EventType: eventType, Phone: phone, Body: body, Vars: vars,
+			})
+		}
 		item.SenderKind = res.SenderKind
 		if sendErr != nil {
 			item.Status = model.OutboundStatusFailed
@@ -697,7 +721,7 @@ func (s *Service) Simulate(ctx context.Context, orgID int64, in model.SimulateIn
 		} else {
 			item.Status = model.OutboundStatusSent
 			item.ProviderReference = res.Ref
-			if res.SenderKind != model.SenderOrgOwn {
+			if channel == model.ChannelWhatsApp && res.SenderKind != model.SenderOrgOwn {
 				// The platform number sends the catalog text, not the org template.
 				if e, ok := catalog.Lookup(eventType); ok {
 					item.Body = e.RenderText(vars)
