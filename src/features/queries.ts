@@ -158,13 +158,13 @@ export const useReportsOverview = (filters: ReportsOverviewFilters, enabled = tr
 // ─── CRM ───────────────────────────────────────────────────────────────────
 
 export const useLeadsSummary = (enabled = true) => useQuery({ queryKey: [...qk.leads, 'summary'], queryFn: () => leadsService.summary(), enabled });
-export const useLeads = (params: LeadListParams) =>
-  useQuery({ queryKey: [...qk.leads, 'list', params], queryFn: () => leadsService.list(params), placeholderData: keepPreviousData });
+export const useLeads = (params: LeadListParams, enabled = true) =>
+  useQuery({ queryKey: [...qk.leads, 'list', params], queryFn: () => leadsService.list(params), enabled, placeholderData: keepPreviousData });
 export const useLead = (uuid: string) => useQuery({ queryKey: [...qk.leads, 'detail', uuid], queryFn: () => leadsService.get(uuid), enabled: Boolean(uuid) });
 export const useLeadAssignees = () => useQuery({ queryKey: [...qk.leads, 'assignees'], queryFn: () => leadsService.assignees(), staleTime: 5 * 60_000 });
 export const useQuotesSummary = (enabled = true) => useQuery({ queryKey: [...qk.quotes, 'summary'], queryFn: () => quotesService.summary(), enabled });
-export const useQuotes = (params: QuoteListParams) =>
-  useQuery({ queryKey: [...qk.quotes, 'list', params], queryFn: () => quotesService.list(params), placeholderData: keepPreviousData });
+export const useQuotes = (params: QuoteListParams, enabled = true) =>
+  useQuery({ queryKey: [...qk.quotes, 'list', params], queryFn: () => quotesService.list(params), enabled, placeholderData: keepPreviousData });
 export const useQuote = (uuid: string) => useQuery({ queryKey: [...qk.quotes, 'detail', uuid], queryFn: () => quotesService.get(uuid), enabled: Boolean(uuid) });
 export const useQuoteConvertPreview = (uuid: string, enabled: boolean) =>
   useQuery({ queryKey: [...qk.quotes, 'convert', uuid], queryFn: () => quotesService.convertPreview(uuid), enabled });
