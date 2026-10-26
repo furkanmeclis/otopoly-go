@@ -6,6 +6,7 @@
 import { MessageCircle, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 
 import { isApiError } from '@/api/errors';
 import { Button, Card, Row, Sheet, TextField, Txt } from '@/components/ui';
@@ -16,7 +17,7 @@ import { useTheme } from '@/theme/provider';
 
 import { contractKeys } from '../queries';
 import { contractsService, type ContractInstance, type ContractOtpChallenge, type ContractSigner } from '../services/contracts.service';
-import { SignaturePad } from './signature-pad';
+import { SignaturePad, useSignaturePad } from './signature-pad';
 
 const log = createLogger('screen.contracts.sign');
 
@@ -74,7 +75,7 @@ export function SignerForm({
   const [challenge, setChallenge] = useState<ContractOtpChallenge | null>(null);
   const [code, setCode] = useState('');
   const [verified, setVerified] = useState(signer.otp_verified);
-  const [drawing, setDrawing] = useState(false);
+  const pad = useSignaturePad(setSignature);
   const resendIn = useSecondsUntil(challenge?.resend_at ?? null);
 
   const needsOtp = signer.otp_required && !verified;
@@ -200,8 +201,12 @@ export function SignerForm({
   }
 
   return (
-    <ScrollView
-      scrollEnabled={!drawing}
+    // Gesture-handler scroll view that waits for the pad's pan: strokes in any direction draw instead of
+    // scrolling (iOS). `scrollEnabled` stays as a second guard for the rest of the stroke.
+    <GestureScrollView
+      requireToFail={pad.gesture}
+      scrollEnabled={!pad.drawing}
+      automaticallyAdjustKeyboardInsets
       contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }}
       keyboardShouldPersistTaps="handled"
     >
@@ -215,7 +220,7 @@ export function SignerForm({
         </Row>
       ) : null}
       <TextField label={tr('contracts.instances.sign_display_name')} value={displayName} onChangeText={setDisplayName} autoCapitalize="words" />
-      <SignaturePad onChange={setSignature} onDrawingChange={setDrawing} />
+      <SignaturePad pad={pad} />
       <Card style={{ gap: t.spacing.xs, backgroundColor: t.colors.surfaceAlt }}>
         <Txt variant="bodyStrong">{tr('contracts.instances.disclaimer')}</Txt>
         <Txt variant="caption" tone="secondary">
@@ -238,6 +243,6 @@ export function SignerForm({
         }}
       />
       <Button variant="outline" label={cancelLabel ?? tr('common.cancel')} onPress={onDone} />
-    </ScrollView>
+    </GestureScrollView>
   );
 }

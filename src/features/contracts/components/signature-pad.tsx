@@ -1,6 +1,7 @@
 import { Eraser, Undo2 } from 'lucide-react-native';
-import { useRef, useState } from 'react';
-import { View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View, type LayoutChangeEvent } from 'react-native';
+import { GestureDetector, usePanGesture, type PanGesture } from 'react-native-gesture-handler';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Button, Row, Txt } from '@/components/ui';
@@ -15,106 +16,150 @@ function toPath(stroke: Stroke) {
   return stroke.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
 }
 
+export type SignaturePadController = {
+  gesture: PanGesture;
+  strokes: Stroke[];
+  live: Stroke | null;
+  drawing: boolean;
+  onLayout: (e: LayoutChangeEvent) => void;
+  undo: () => void;
+  clear: () => void;
+};
+
 /**
- * Finger signature pad (web `SignaturePad` with `showButtons`). Emits a PNG data URL after each stroke,
- * or null when cleared. `onDrawingChange` lets the parent lock its ScrollView while the finger is down.
+ * Signature state + the drawing gesture. The gesture lives in the parent so a surrounding scroll view can
+ * wait for it (`<ScrollView requireToFail={pad.gesture}>` from react-native-gesture-handler): on iOS the
+ * UIScrollView pan otherwise wins every vertical stroke (only horizontal lines drew), and toggling
+ * `scrollEnabled` from JS arrives too late because the native scroll has already started.
+ *
+ * Emits a PNG data URL after each stroke, or null when cleared.
  */
-export function SignaturePad({ onChange, onDrawingChange }: { onChange: (dataUrl: string | null) => void; onDrawingChange?: (drawing: boolean) => void }) {
-  const t = useTheme();
-  const { t: tr } = useLocale();
+export function useSignaturePad(onChange: (dataUrl: string | null) => void): SignaturePadController {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [live, setLive] = useState<Stroke | null>(null);
-  const [size, setSize] = useState({ width: 0, height: PAD_HEIGHT });
+  const [drawing, setDrawing] = useState(false);
+  const size = useRef({ width: 0, height: PAD_HEIGHT });
   const current = useRef<Point[]>([]);
+  // Strokes mirror for the gesture callbacks: the gesture config stays stable across renders.
+  const strokesRef = useRef<Stroke[]>([]);
+  const onChangeRef = useRef(onChange);
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
-  const emit = (next: Stroke[]) => {
-    setStrokes(next);
-    onChange(next.length ? strokesToPngDataUrl(next, size.width, size.height) : null);
+  const { config, emit } = useMemo(() => {
+    const emitStrokes = (next: Stroke[]) => {
+      strokesRef.current = next;
+      setStrokes(next);
+      onChangeRef.current(next.length ? strokesToPngDataUrl(next, size.current.width, size.current.height) : null);
+    };
+    const clamp = (x: number, y: number): Point => ({
+      x: Math.max(0, Math.min(size.current.width, x)),
+      y: Math.max(0, Math.min(size.current.height, y)),
+    });
+    return {
+      emit: emitStrokes,
+      config: {
+        runOnJS: true,
+        // Start on touch-down: a dot is a valid stroke and the scroll view must not get a head start.
+        minDistance: 0,
+        maxPointers: 1,
+        shouldCancelWhenOutside: false,
+        onBegin: (e: { x: number; y: number }) => {
+          current.current = [clamp(e.x, e.y)];
+          setDrawing(true);
+          setLive([...current.current]);
+        },
+        onUpdate: (e: { x: number; y: number }) => {
+          if (!current.current.length) return;
+          current.current.push(clamp(e.x, e.y));
+          setLive([...current.current]);
+        },
+        onFinalize: () => {
+          const stroke = current.current;
+          current.current = [];
+          setDrawing(false);
+          setLive(null);
+          if (stroke.length) emitStrokes([...strokesRef.current, stroke]);
+        },
+      },
+    };
+  }, []);
+  const gesture = usePanGesture(config);
+
+  return {
+    gesture,
+    strokes,
+    live,
+    drawing,
+    onLayout: (e) => {
+      size.current = { width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height };
+    },
+    undo: () => emit(strokes.slice(0, -1)),
+    clear: () => emit([]),
   };
+}
 
-  const point = (e: GestureResponderEvent): Point => ({
-    x: Math.max(0, Math.min(size.width, e.nativeEvent.locationX)),
-    y: Math.max(0, Math.min(size.height, e.nativeEvent.locationY)),
-  });
-
-  const end = (commit: boolean) => {
-    onDrawingChange?.(false);
-    const stroke = current.current;
-    current.current = [];
-    setLive(null);
-    if (commit && stroke.length) emit([...strokes, stroke]);
-  };
-
-  const onLayout = (e: LayoutChangeEvent) => setSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height });
-
-  const all = live ? [...strokes, live] : strokes;
+/** Finger signature pad (web `SignaturePad` with `showButtons`). Pair with {@link useSignaturePad}. */
+export function SignaturePad({ pad }: { pad: SignaturePadController }) {
+  const t = useTheme();
+  const { t: tr } = useLocale();
+  const all = pad.live ? [...pad.strokes, pad.live] : pad.strokes;
 
   return (
     <View style={{ gap: t.spacing.sm }}>
-      <View
-        onLayout={onLayout}
-        accessible
-        accessibilityLabel={tr('mobile.documents.signature_pad')}
-        accessibilityHint={tr('mobile.documents.signature_pad_hint')}
-        style={{
-          height: PAD_HEIGHT,
-          borderRadius: t.radius.md,
-          borderWidth: 1.5,
-          borderStyle: 'dashed',
-          borderColor: t.colors.borderStrong,
-          backgroundColor: t.colors.surface,
-          overflow: 'hidden',
-        }}
-        onStartShouldSetResponder={() => true}
-        onStartShouldSetResponderCapture={() => true}
-        onMoveShouldSetResponder={() => true}
-        onResponderTerminationRequest={() => false}
-        onResponderGrant={(e) => {
-          onDrawingChange?.(true);
-          current.current = [point(e)];
-          setLive([...current.current]);
-        }}
-        onResponderMove={(e) => {
-          current.current.push(point(e));
-          setLive([...current.current]);
-        }}
-        onResponderRelease={() => end(true)}
-        onResponderTerminate={() => end(false)}
-      >
-        <Svg width="100%" height="100%" pointerEvents="none">
-          {all.map((s, i) =>
-            s.length === 1 ? (
-              <Circle key={i} cx={s[0].x} cy={s[0].y} r={1.8} fill={t.colors.text} />
-            ) : (
-              <Path key={i} d={toPath(s)} stroke={t.colors.text} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            ),
-          )}
-        </Svg>
-        {all.length === 0 ? (
-          <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: t.spacing.lg, alignItems: 'center' }}>
-            <View style={{ width: '70%', height: 1, backgroundColor: t.colors.border, marginBottom: t.spacing.sm }} />
-            <Txt variant="caption" tone="muted">
-              {tr('mobile.documents.signature_placeholder')}
-            </Txt>
-          </View>
-        ) : null}
-      </View>
+      <GestureDetector gesture={pad.gesture}>
+        <View
+          onLayout={pad.onLayout}
+          collapsable={false}
+          accessible
+          accessibilityLabel={tr('mobile.documents.signature_pad')}
+          accessibilityHint={tr('mobile.documents.signature_pad_hint')}
+          style={{
+            height: PAD_HEIGHT,
+            borderRadius: t.radius.md,
+            borderWidth: 1.5,
+            borderStyle: 'dashed',
+            borderColor: pad.drawing ? t.colors.primary : t.colors.borderStrong,
+            backgroundColor: t.colors.surface,
+            overflow: 'hidden',
+          }}
+        >
+          <Svg width="100%" height="100%" pointerEvents="none">
+            {all.map((s, i) =>
+              s.length === 1 ? (
+                <Circle key={i} cx={s[0].x} cy={s[0].y} r={1.8} fill={t.colors.text} />
+              ) : (
+                <Path key={i} d={toPath(s)} stroke={t.colors.text} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              ),
+            )}
+          </Svg>
+          {all.length === 0 ? (
+            <View pointerEvents="none" style={{ position: 'absolute', left: 0, right: 0, bottom: t.spacing.lg, alignItems: 'center' }}>
+              <View style={{ width: '70%', height: 1, backgroundColor: t.colors.border, marginBottom: t.spacing.sm }} />
+              <Txt variant="caption" tone="muted">
+                {tr('mobile.documents.signature_placeholder')}
+              </Txt>
+            </View>
+          ) : null}
+        </View>
+      </GestureDetector>
       <Row gap={t.spacing.sm}>
         <Button
           size="sm"
           variant="outline"
           label={tr('contracts.editor.undo')}
           icon={<Undo2 size={16} color={t.colors.text} />}
-          disabled={strokes.length === 0}
-          onPress={() => emit(strokes.slice(0, -1))}
+          disabled={pad.strokes.length === 0}
+          onPress={pad.undo}
         />
         <Button
           size="sm"
           variant="outline"
           label={tr('common.clear')}
           icon={<Eraser size={16} color={t.colors.text} />}
-          disabled={strokes.length === 0}
-          onPress={() => emit([])}
+          disabled={pad.strokes.length === 0}
+          onPress={pad.clear}
         />
       </Row>
     </View>

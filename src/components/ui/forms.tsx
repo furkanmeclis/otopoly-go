@@ -15,6 +15,7 @@ import {
   type TextInputInstance,
   type TextInputProps,
 } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useLocale } from '@/lib/i18n/provider';
@@ -321,6 +322,8 @@ export function Sheet({
   const { t: tr } = useLocale();
   return (
     <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}>
+      {/* A Modal is a separate native root: gestures inside it (signature pad, chart scrub) need their own root view. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: t.colors.background }}>
         <View
           style={{
@@ -365,6 +368,7 @@ export function Sheet({
           </View>
         ) : null}
       </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
