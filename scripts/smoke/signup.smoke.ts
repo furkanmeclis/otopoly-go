@@ -96,7 +96,7 @@ const canFor = (perms: string[], owner: boolean) => (gate: Permission | Gate) =>
   console.log('sector templates');
   for (const key of SECTOR_KEYS) ok(servicesFor(key, 'tr').length > 0 && servicesFor(key, 'en').every((s) => s.name && s.price), `${key}: services in tr + en`);
   ok(servicesFor('other', 'tr').every((s) => !s.selected), '"other" preselects nothing');
-  ok(servicesFor('tire', 'en')[0].name !== servicesFor('tire', 'tr')[0].name, 'names follow the app language');
+  ok(servicesFor('tyres', 'en')[0].name !== servicesFor('tyres', 'tr')[0].name, 'names follow the app language');
 
   console.log('getting-started checklist');
   const ownerPerms = ['tenant.catalog.write', 'tenant.customers.write', 'tenant.jobs.write', 'tenant.sales.write', 'tenant.messaging.write', 'tenant.staff.write', 'tenant.contracts.write'];

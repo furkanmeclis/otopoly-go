@@ -125,6 +125,7 @@ export function seedDb(): MockDb {
     address: 'Bağdat Cad. No: 214',
     city: 'İstanbul',
     district: 'Kadıköy',
+    sector: 'car_wash' as const,
     created_at: created,
   };
 

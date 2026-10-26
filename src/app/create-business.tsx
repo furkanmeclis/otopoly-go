@@ -1,7 +1,7 @@
 /**
  * "Create your business": the setup wizard for a signed-in user without a business (new e-mail sign-up,
  * first Apple / Google sign-in, or a user whose business is gone). Steps:
- *   1. business type  — picks the starter service template (the API has no sector field),
+ *   1. business type  — organization `sector` (sent on create) + the starter service template,
  *   2. business info  — name, phone, province, district, address (POST /v1/auth/organizations),
  *   3. starter services — editable names / prices, own services can be added,
  *   4. logo (optional) — uploaded as the letterhead logo once the business exists.
@@ -26,7 +26,7 @@ import { orgBlock, useAuth } from '@/features/auth/auth-provider';
 import { catalogService } from '@/features/catalog/services/catalog.service';
 import { exportSettingsService, LOGO_MAX_BYTES, LOGO_TYPES } from '@/features/export-settings/service';
 import { TR_PROVINCES } from '@/features/onboarding/data/provinces';
-import { SECTOR_KEYS, servicesFor, type SectorKey } from '@/features/onboarding/data/sectors';
+import { SECTOR_KEYS, servicesFor, toSectorKey, type SectorKey } from '@/features/onboarding/data/sectors';
 import { normalizePrice, type StarterService } from '@/features/onboarding/data/starter-services';
 import { onboardingService, registrationOpen, type CreateOrganizationInput } from '@/features/onboarding/services/onboarding.service';
 import { setWelcomePending } from '@/features/onboarding/state';
@@ -38,7 +38,7 @@ import { useTheme } from '@/theme/provider';
 
 const log = createLogger('onboarding.create');
 
-type Values = Required<CreateOrganizationInput>;
+type Values = Required<Omit<CreateOrganizationInput, 'sector'>>;
 type Field = keyof Values;
 type Task = 'create' | 'services' | 'logo' | 'enter';
 type TaskState = 'pending' | 'running' | 'done' | 'skipped';
@@ -90,7 +90,7 @@ export default function CreateBusinessScreen() {
       if (!active) return;
       if (draft?.values) {
         setValues({ ...EMPTY, ...draft.values });
-        setSector(draft.sector);
+        setSector(toSectorKey(draft.sector));
         if (draft.services?.length) setServices(draft.services);
         setStep(Math.min(Math.max(0, draft.step), STEPS.length - 1));
         log.info('Business draft resumed', { step: draft.step });
@@ -208,6 +208,7 @@ export default function CreateBusinessScreen() {
     setTasks({ create: 'running', services: withServices.length ? 'pending' : 'skipped', logo: withLogo ? 'pending' : 'skipped', enter: 'pending' });
     const body: CreateOrganizationInput = { organization_name: values.organization_name.trim() };
     for (const key of ['phone', 'city', 'district', 'address'] as const) if (values[key].trim()) body[key] = values[key].trim();
+    if (sector) body.sector = sector;
 
     let slug: string;
     try {
@@ -422,7 +423,7 @@ export default function CreateBusinessScreen() {
 
 // ─── Steps ─────────────────────────────────────────────────────────────────
 
-const SECTOR_ICONS: Record<SectorKey, LucideIcon> = { car_wash: Droplets, detailing: Sparkles, film: Shield, service: Wrench, tire: Car, other: CircleDashed };
+const SECTOR_ICONS: Record<SectorKey, LucideIcon> = { car_wash: Droplets, detailing: Sparkles, ppf_tint: Shield, auto_service: Wrench, tyres: Car, other: CircleDashed };
 
 function SectorStep({ value, onChange }: { value: SectorKey | null; onChange: (key: SectorKey) => void }) {
   const t = useTheme();
@@ -431,9 +432,9 @@ function SectorStep({ value, onChange }: { value: SectorKey | null; onChange: (k
   const label: Record<SectorKey, { title: string; body: string }> = {
     car_wash: { title: tr('mobile.onboarding.sector.car_wash'), body: tr('mobile.onboarding.sector.car_wash_body') },
     detailing: { title: tr('mobile.onboarding.sector.detailing'), body: tr('mobile.onboarding.sector.detailing_body') },
-    film: { title: tr('mobile.onboarding.sector.film'), body: tr('mobile.onboarding.sector.film_body') },
-    service: { title: tr('mobile.onboarding.sector.service'), body: tr('mobile.onboarding.sector.service_body') },
-    tire: { title: tr('mobile.onboarding.sector.tire'), body: tr('mobile.onboarding.sector.tire_body') },
+    ppf_tint: { title: tr('mobile.onboarding.sector.ppf_tint'), body: tr('mobile.onboarding.sector.ppf_tint_body') },
+    auto_service: { title: tr('mobile.onboarding.sector.auto_service'), body: tr('mobile.onboarding.sector.auto_service_body') },
+    tyres: { title: tr('mobile.onboarding.sector.tyres'), body: tr('mobile.onboarding.sector.tyres_body') },
     other: { title: tr('mobile.onboarding.sector.other'), body: tr('mobile.onboarding.sector.other_body') },
   };
   return (

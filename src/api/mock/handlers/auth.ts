@@ -127,6 +127,7 @@ export function buildMe(user: MockUser, orgUuid: string | null): Me {
         name: o.name,
         role: m.role,
         logo_url: o.logo_url,
+        sector: o.sector ?? null,
         ...orgAccessView(o),
       };
     });

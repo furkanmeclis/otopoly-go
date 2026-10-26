@@ -4,13 +4,14 @@
  * State lives in this module (per organization), created lazily from the shared demo DB.
  */
 import type { AppSettings } from '@/features/io/types';
+import { SECTOR_KEYS, type SectorKey } from '@/features/onboarding/data/sectors';
 import type { DailySummaryMember, DailySummarySettings } from '@/features/messaging/services/daily-summary.service';
 import type { MessageTemplateEntry, MessageTemplateType } from '@/features/messaging/services/templates.service';
 import type { VehicleAlertEvent, VehicleAlertMember, VehicleAlertSettings } from '@/features/messaging/services/vehicle-alerts.service';
 import type { NotificationRule, RuleList, SimulateResultItem, WhatsAppSession } from '@/features/messaging/types';
 
 import { bool, fail, istanbulDay, money, now, num, requireOwner, requirePerm, route, str, uuid, validation, type MockCtx } from '../core';
-import { getDb } from '../db';
+import { getDb, persist } from '../db';
 import { activeSmsProvider } from './sms';
 
 // ─── WhatsApp session ────────────────────────────────────────────────────────
@@ -603,9 +604,15 @@ function settingsFor(ctx: MockCtx): AppSettings {
 const PAPER_SIZES = ['A4', 'A3', 'Letter', 'Legal'];
 const TEXT_FIELDS = ['company_name', 'tagline', 'address', 'city', 'district', 'phone', 'email', 'website', 'footer_text'] as const;
 
+/** Settings response: the letterhead plus the organization's `sector` (stored on the organization). */
+function settingsView(ctx: MockCtx) {
+  const org = getDb().organizations.find((o) => o.uuid === ctx.orgUuid);
+  return { ...settingsFor(ctx), sector: org?.sector ?? null };
+}
+
 route('GET', '/v1/tenant/settings', (ctx) => {
   requireOwner(ctx, 'tenant.settings.read');
-  return settingsFor(ctx);
+  return settingsView(ctx);
 });
 
 route('PATCH', '/v1/tenant/settings', (ctx) => {
@@ -616,12 +623,20 @@ route('PATCH', '/v1/tenant/settings', (ctx) => {
   if (b.primary_color !== undefined && !/^#[0-9A-Fa-f]{6}$/.test(str(b.primary_color))) errs.push({ field: 'primary_color', message: 'invalid color', code: 'invalid' });
   if (b.paper_size !== undefined && !PAPER_SIZES.includes(str(b.paper_size))) errs.push({ field: 'paper_size', message: 'invalid paper size', code: 'invalid' });
   if (b.email !== undefined && str(b.email).trim() && !/^\S+@\S+\.\S+$/.test(str(b.email).trim())) errs.push({ field: 'email', message: 'invalid email', code: 'invalid' });
+  if (b.sector !== undefined && b.sector !== null && b.sector !== '' && !(SECTOR_KEYS as string[]).includes(str(b.sector))) errs.push({ field: 'sector', message: 'invalid sector', code: 'invalid' });
   if (errs.length) validation(errs);
   const s = settingsFor(ctx);
   for (const f of TEXT_FIELDS) if (b[f] !== undefined) s[f] = str(b[f]).trim();
   if (b.primary_color !== undefined) s.primary_color = str(b.primary_color).toUpperCase();
   if (b.paper_size !== undefined) s.paper_size = str(b.paper_size);
-  return s;
+  if (b.sector !== undefined && b.sector !== null) {
+    const org = getDb().organizations.find((o) => o.uuid === ctx.orgUuid);
+    if (org) {
+      org.sector = b.sector === '' ? null : (str(b.sector) as SectorKey);
+      persist();
+    }
+  }
+  return settingsView(ctx);
 });
 
 route('PUT', '/v1/tenant/settings/logo', (ctx) => {
@@ -630,12 +645,12 @@ route('PUT', '/v1/tenant/settings/logo', (ctx) => {
   if (!ctx.body.logo) validation([{ field: 'logo', message: 'logo file is required', code: 'required' }]);
   const s = settingsFor(ctx);
   s.logo_url = `/v1/tenant/settings/logo/${uuid()}`;
-  return s;
+  return settingsView(ctx);
 });
 
 route('DELETE', '/v1/tenant/settings/logo', (ctx) => {
   requireOwner(ctx, 'tenant.settings.write');
   const s = settingsFor(ctx);
   s.logo_url = null;
-  return s;
+  return settingsView(ctx);
 });
