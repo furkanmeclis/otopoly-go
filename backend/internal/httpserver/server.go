@@ -36,6 +36,8 @@ import (
 	bulkmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk"
 	bulkhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/handler"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
+	calendarmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/calendar"
+	calendarusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/calendar/usecase"
 	carimodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari"
 	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
 	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
@@ -576,6 +578,11 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	quotesSvc.SetNotifier(sales)
 	sales.SetQuotes(quotesSvc)
 	quotesmodule.RegisterRoutes(mux, quotesSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries, entitlementsSvc)
+	// Calendar: own events plus a live feed of the modules above; drag and
+	// drop of todos / lead follow-ups goes through their use cases.
+	calendarSvc := calendarusecase.New(deps.Queries, activityRec, entitlementsSvc)
+	calendarSvc.SetSchedulers(todosSvc, leadsSvc)
+	calendarmodule.RegisterRoutes(mux, calendarSvc, tokens, loader, deps.Queries)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:       customersSvc,
 		CustomersSearch: deps.Queries,
@@ -594,6 +601,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		CatalogLookup:   catalogSvc,
 		SalesWrite:      salesSvc,
 		Todos:           todosSvc,
+		Calendar:        calendarSvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
 	aiSvc.SetEntitlements(entitlementsSvc)

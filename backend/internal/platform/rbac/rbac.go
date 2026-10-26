@@ -115,6 +115,8 @@ const (
 	PermPlatformBillingSettings                 = "platform.billing.settings"
 	PermTenantBillingRead                       = "tenant.billing.read"
 	PermTenantBillingWrite                      = "tenant.billing.write"
+	PermTenantCalendarRead                      = "tenant.calendar.read"
+	PermTenantCalendarWrite                     = "tenant.calendar.write"
 	PermPlatformIntegrationsWhatsAppRead        = "platform.integrations.whatsapp.read"
 	PermPlatformIntegrationsWhatsAppWrite       = "platform.integrations.whatsapp.write"
 	PermPlatformLegalRead                       = "platform.legal.read"

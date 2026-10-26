@@ -455,6 +455,23 @@ type BulkJob struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
+type CalendarEvent struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Title          string             `json:"title"`
+	Description    string             `json:"description"`
+	Location       string             `json:"location"`
+	StartsAt       pgtype.Timestamptz `json:"starts_at"`
+	EndsAt         pgtype.Timestamptz `json:"ends_at"`
+	AllDay         bool               `json:"all_day"`
+	Color          string             `json:"color"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type CariAccount struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`

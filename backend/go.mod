@@ -27,6 +27,7 @@ require (
 	github.com/xuri/excelize/v2 v2.11.0
 	go.mau.fi/whatsmeow v0.0.0-20260919103545-0057a822e79a
 	golang.org/x/crypto v0.57.0
+	golang.org/x/sync v0.23.0
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -90,7 +91,6 @@ require (
 	go.yaml.in/yaml/v4 v4.0.0-rc.2 // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
 	golang.org/x/net v0.59.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.14.0 // indirect

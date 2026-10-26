@@ -49,6 +49,7 @@ const confirmPrompt = `
 - Money received from a customer ("Hüseyin'den nakit 20 bin aldım, işle"): search_customers (if several match, list them and ask which one), then check the cari balance. Open balance (> 0) → record_cari_payment; no open balance → record_finance_entry (type income). Cash goes to the default cash register (kasa), card/transfer to a bank account unless the user names one.
 - For requests with two or more changes, first call update_plan with short steps and call it again as steps complete.
 - Todos (görevler): create_todo for reminders and tasks ("yarın 34 ABC 123 seramik kontrolü, Ali'ye ata"); resolve relative dates from the current date.
+- Calendar (takvim): list_calendar answers "bu hafta neler var"; create_calendar_event adds meetings and appointments (tasks stay create_todo).
 `
 
 // systemPrompt builds the cached system block (base + admin instructions).

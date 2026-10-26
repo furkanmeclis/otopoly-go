@@ -10249,6 +10249,175 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
 
+  /v1/tenant/calendar/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCalendarMeta
+      summary: Calendar layers the caller may see / move, event colours, time zone
+      description: >-
+        Requires `tenant.calendar.read`. A layer is listed only when the member
+        holds that module's read permission and the plan includes the module;
+        `movable` is true when items of the layer can be rescheduled with
+        `POST /v1/tenant/calendar/items/move`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Calendar metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/calendar/feed:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCalendarFeed
+      summary: Calendar feed (own events + live module layers)
+      description: >-
+        Requires `tenant.calendar.read`. Returns the organization's events and
+        dated records from other modules overlapping [from, to) (dates in
+        Europe/Istanbul, `to` exclusive, at most 62 days). Layers the member may
+        not read (module permission or plan) are left out silently; requesting
+        an unknown layer is a 400.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date, example: "2026-10-01" }
+        - name: to
+          in: query
+          required: true
+          description: Exclusive end date.
+          schema: { type: string, format: date, example: "2026-11-01" }
+        - name: layers
+          in: query
+          description: Comma-separated layers; empty means every layer the caller may see.
+          schema: { type: string, example: "events,jobs,todos" }
+      responses:
+        "200":
+          description: Feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarFeed"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/calendar/items/move:
+    post:
+      tags: [Tenant]
+      operationId: moveTenantCalendarItem
+      summary: Reschedule a calendar item (drag and drop)
+      description: >-
+        Requires `tenant.calendar.read` plus the write permission of the item's
+        module: `tenant.calendar.write` (events), `tenant.todos.write` (todo due
+        date / time), `tenant.leads.write` (lead follow-up date). Other layers
+        answer 403. Timed placements send `starts_at` (+ `ends_at` for events);
+        all-day placements send `start_date` (+ `end_date` for events). A todo
+        moved to an all-day slot loses its time; leads keep only the date.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarMoveInput" }
+      responses:
+        "200":
+          description: The item at its new place
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarFeedItem"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/calendar/events:
+    post:
+      tags: [Tenant]
+      operationId: createTenantCalendarEvent
+      summary: Create a calendar event
+      description: Requires `tenant.calendar.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarEventInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarEvent"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/calendar/events/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantCalendarEvent
+      summary: Get a calendar event
+      description: Requires `tenant.calendar.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarEvent"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantCalendarEvent
+      summary: Replace a calendar event
+      description: Requires `tenant.calendar.write`. Full replace (send every field).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarEventInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarEvent"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantCalendarEvent
+      summary: Delete a calendar event (soft delete)
+      description: Requires `tenant.calendar.write`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/tenant/todos/meta:
     get:
       tags: [Tenant]
@@ -16599,6 +16768,177 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/Todo" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    CalendarColor:
+      type: string
+      enum: [blue, emerald, amber, rose, violet, sky, orange, teal, pink, slate]
+
+    CalendarLayer:
+      type: string
+      enum: [events, jobs, deliveries, todos, quotes, leads, finance, sales, purchases, contracts]
+
+    CalendarLayerInfo:
+      type: object
+      required: [key, movable]
+      properties:
+        key: { $ref: "#/components/schemas/CalendarLayer" }
+        movable: { type: boolean, description: Items of this layer can be rescheduled by the caller }
+
+    CalendarMeta:
+      type: object
+      required: [layers, colors, timezone, max_range_days]
+      properties:
+        layers:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarLayerInfo" }
+        colors:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarColor" }
+        timezone: { type: string, example: Europe/Istanbul }
+        max_range_days: { type: integer, example: 62 }
+
+    CalendarEvent:
+      type: object
+      required: [uuid, title, description, location, starts_at, ends_at, all_day, color, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        location: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time, description: Exclusive }
+        all_day: { type: boolean }
+        start_date: { type: string, format: date, description: "All-day only: first day (inclusive)" }
+        end_date: { type: string, format: date, description: "All-day only: last day (inclusive)" }
+        color: { $ref: "#/components/schemas/CalendarColor" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CalendarEventInput:
+      type: object
+      required: [title, all_day]
+      description: >-
+        Timed events send starts_at/ends_at (RFC 3339, at most 31 days long);
+        all-day events send start_date and optional end_date (inclusive).
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string }
+        location: { type: string, maxLength: 200 }
+        all_day: { type: boolean }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        color: { $ref: "#/components/schemas/CalendarColor" }
+
+    CalendarMoveInput:
+      type: object
+      required: [layer, ref_uuid, all_day]
+      properties:
+        layer:
+          type: string
+          enum: [events, todos, leads]
+        ref_uuid: { type: string, format: uuid }
+        all_day: { type: boolean }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time, description: Events only }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date, description: Events only (inclusive) }
+
+    CalendarFeedItem:
+      type: object
+      required: [id, layer, kind, title, starts_at, ends_at, all_day, movable]
+      properties:
+        id: { type: string, description: "Stable key, e.g. `jobs:<uuid>` or `finance:2026-10-08:income:TRY`" }
+        layer: { $ref: "#/components/schemas/CalendarLayer" }
+        kind:
+          type: string
+          enum: [event, job_opened, job_delivered, todo, quote_expiry, lead_follow_up, finance_income, finance_expense, sale, purchase, contract_executed]
+        title: { type: string }
+        subtitle: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        all_day: { type: boolean }
+        start_date: { type: string, format: date, description: All-day items only (inclusive) }
+        end_date: { type: string, format: date, description: All-day items only (inclusive) }
+        status:
+          type: string
+          description: >-
+            Layer specific: job status (jobs), payment status (deliveries),
+            todo status, quote status, lead temperature, payment method
+            (sales, purchases), contract status.
+        amount: { type: string, description: Decimal string }
+        currency: { type: string }
+        count: { type: integer, format: int64, description: "finance: number of transactions in the day" }
+        ref_kind:
+          type: string
+          enum: [event, job, todo, quote, lead, sale, purchase, contract]
+          description: Record type to open (absent for finance day totals)
+        ref_uuid: { type: string, format: uuid, description: Record to open }
+        movable: { type: boolean }
+        event: { $ref: "#/components/schemas/CalendarEvent" }
+
+    CalendarFeed:
+      type: object
+      required: [from, to, timezone, layers, items, counts]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date, description: Exclusive }
+        timezone: { type: string, example: Europe/Istanbul }
+        layers:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarLayerInfo" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarFeedItem" }
+        counts:
+          type: object
+          description: Item count per loaded layer
+          additionalProperties: { type: integer, format: int64 }
+
+    EnvelopeCalendarMeta:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarMeta" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarFeed:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarFeed" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarFeedItem:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarFeedItem" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarEvent:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarEvent" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarDeleted:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [deleted]
+          properties:
+            deleted: { type: boolean }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     EnvelopeTodoSummary:
