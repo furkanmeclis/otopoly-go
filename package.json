@@ -34,6 +34,7 @@
     "expo-sharing": "~58.0.20",
     "expo-splash-screen": "~58.0.11",
     "expo-status-bar": "~58.0.4",
+    "expo-task-manager": "~58.0.12",
     "expo-updates": "~58.0.18",
     "expo-widgets": "~58.0.23",
     "lucide-react-native": "^1.48.0",
@@ -81,7 +82,9 @@
       "ios": {
         "buildFromSource": [
           "expo-image",
-          "expo-app-intents"
+          "expo-app-intents",
+          "expo-task-manager",
+          "unimodules-app-loader"
         ]
       }
     }

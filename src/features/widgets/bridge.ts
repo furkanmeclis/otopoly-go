@@ -4,11 +4,14 @@ import { File } from 'expo-file-system';
 import type { Widget } from 'expo-widgets';
 import { Platform } from 'react-native';
 
+import { getCurrentLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
-import { prefs } from '@/lib/storage';
+import { prefs, StorageKeys } from '@/lib/storage';
 import type { JobActivityProps, TodayWidgetProps } from '@/widgets/types';
 
 import { androidJobActivityFactory, ensureAndroidNotificationPermission } from './android-live-updates';
+import { createActivityPushRegistry, createWidgetDeviceLink, type PushTokenEvent } from './live-push';
+import { liveActivitiesService } from './services/live-activities.service';
 
 const log = createLogger('widgets');
 
@@ -20,6 +23,9 @@ export type JobActivityHandle = {
   getId(): string;
   update(props: JobActivityProps): Promise<void>;
   end(dismissal?: 'default' | 'immediate', props?: JobActivityProps, contentDate?: Date): Promise<void>;
+  /** iOS only (expo-widgets with enablePushNotifications): the ActivityKit push token for server updates. */
+  getPushToken?: () => Promise<string | null>;
+  addPushTokenListener?: (listener: (event: PushTokenEvent) => void) => { remove(): void };
 };
 
 export type JobActivityFactory = {
@@ -72,6 +78,34 @@ export function getWidgetBridge(): Bridge | null {
 }
 
 export const widgetsAvailable = () => getWidgetBridge() !== null;
+
+// ─── Server-side updates while the app is closed (docs/LIVE_WIDGETS.md) ────
+
+const pushDeps = {
+  service: liveActivitiesService,
+  deviceToken: () => prefs.get<string | null>(StorageKeys.pushToken, null),
+  log,
+};
+
+/** Registers running job activities with the backend so it can update them over APNs / FCM. */
+export const activityPush = createActivityPushRegistry({
+  ...pushDeps,
+  platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'other',
+  locale: getCurrentLocale,
+});
+
+/** Links this device's widgets to the active organization for background refresh pushes. */
+export const widgetDevice = createWidgetDeviceLink(pushDeps);
+
+const WIDGET_ORG_KEY = 'widgets.org';
+export type WidgetOrg = { uuid: string; name: string };
+
+/** The organization the widgets show; background pushes for any other organization are ignored. */
+export const widgetOrg = {
+  get: () => prefs.get<WidgetOrg | null>(WIDGET_ORG_KEY, null),
+  set: (org: WidgetOrg) => prefs.set(WIDGET_ORG_KEY, org),
+  clear: () => prefs.remove(WIDGET_ORG_KEY),
+};
 /** iOS Live Activities or Android Live Updates (local module `otopoly-live-updates`). */
 export const liveActivitiesAvailable = () => Boolean(getWidgetBridge()?.jobActivity);
 
@@ -122,6 +156,10 @@ export function pushTodaySnapshot(props: TodayWidgetProps) {
 
 /** Replaces business data with a signed-out card (no figures stay on the Home Screen after logout). */
 export function clearWidgetsForSignOut() {
+  widgetDevice.reset();
+  void widgetOrg.clear();
+  // The session is gone already: the server rows go with the push device / expire on their own.
+  void endAllJobActivities({ server: false });
   if (!lastProps) return;
   pushTodaySnapshot({
     ...lastProps,
@@ -133,7 +171,6 @@ export function clearWidgetsForSignOut() {
     updatedAt: Date.now(),
     updatedTime: '',
   });
-  void endAllJobActivities();
 }
 
 // ─── Job Live Activities ───────────────────────────────────────────────────
@@ -186,9 +223,11 @@ export async function startJobActivity(props: JobActivityProps): Promise<boolean
     const existing = await findJobActivity(props.jobId);
     if (existing) {
       await existing.update(props);
+      void activityPush.track(props.jobId, existing);
       return true;
     }
     const activity = factory.start(props, `otopoly://jobs/${props.jobId}`);
+    void activityPush.track(props.jobId, activity);
     const index = await readIndex();
     // Drop entries whose activity is gone so the index does not grow forever.
     const alive = new Set(factory.getInstances().map((a) => a.getId()));
@@ -208,6 +247,7 @@ export async function updateJobActivity(activity: JobActivityHandle, props: JobA
   try {
     if (props.status === 'delivered' || props.status === 'cancelled') {
       await activity.end('default', props, new Date());
+      void activityPush.untrack(props.jobId);
       log.info('Live Activity ended', { jobId: props.jobId, status: props.status });
     } else {
       await activity.update(props);
@@ -218,6 +258,7 @@ export async function updateJobActivity(activity: JobActivityHandle, props: JobA
 }
 
 export async function endJobActivity(jobId: string) {
+  void activityPush.untrack(jobId);
   const activity = await findJobActivity(jobId);
   if (!activity) return;
   try {
@@ -228,7 +269,9 @@ export async function endJobActivity(jobId: string) {
   }
 }
 
-export async function endAllJobActivities() {
+/** `server: false` when the session or organization already changed (the backend rows expire on their own). */
+export async function endAllJobActivities(options: { server?: boolean } = {}) {
+  await activityPush.untrackAll(options);
   const factory = getWidgetBridge()?.jobActivity;
   if (!factory) return;
   try {
