@@ -493,6 +493,13 @@ func (u *AuthUseCase) LoadUserByUUID(ctx context.Context, id uuid.UUID) (model.U
 	return user, nil
 }
 
+// ResolveUserAccess returns the stored roles, super admin flag and resolved
+// permissions of a user (the same access a fresh session would carry). The
+// MCP server re-reads it on every request so revocations apply at once.
+func (u *AuthUseCase) ResolveUserAccess(ctx context.Context, userID int64) (roles []string, isSuperAdmin bool, perms []string, err error) {
+	return u.resolveUserAccess(ctx, userID)
+}
+
 func (u *AuthUseCase) resolveUserAccess(ctx context.Context, userID int64) ([]string, bool, []string, error) {
 	roles, err := u.repo.ListUserRoleSlugs(ctx, userID)
 	if err != nil {

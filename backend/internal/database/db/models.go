@@ -965,6 +965,77 @@ type LogPurgeRule struct {
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
+type McpOauthAuthRequest struct {
+	ID            uuid.UUID          `json:"id"`
+	ClientID      string             `json:"client_id"`
+	RedirectUri   string             `json:"redirect_uri"`
+	CodeChallenge string             `json:"code_challenge"`
+	State         pgtype.Text        `json:"state"`
+	Scopes        []string           `json:"scopes"`
+	Resource      string             `json:"resource"`
+	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type McpOauthClient struct {
+	ID           int64              `json:"id"`
+	Uuid         uuid.UUID          `json:"uuid"`
+	ClientID     string             `json:"client_id"`
+	ClientName   string             `json:"client_name"`
+	RedirectUris []string           `json:"redirect_uris"`
+	CreatedIp    pgtype.Text        `json:"created_ip"`
+	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
+	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type McpOauthCode struct {
+	CodeHash       string             `json:"code_hash"`
+	GrantID        int64              `json:"grant_id"`
+	ClientID       string             `json:"client_id"`
+	UserID         int64              `json:"user_id"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	RedirectUri    string             `json:"redirect_uri"`
+	CodeChallenge  string             `json:"code_challenge"`
+	Resource       string             `json:"resource"`
+	Scopes         []string           `json:"scopes"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	UsedAt         pgtype.Timestamptz `json:"used_at"`
+	Family         pgtype.UUID        `json:"family"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type McpOauthGrant struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	UserID         int64              `json:"user_id"`
+	ClientID       string             `json:"client_id"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	Resource       string             `json:"resource"`
+	Scopes         []string           `json:"scopes"`
+	LastUsedAt     pgtype.Timestamptz `json:"last_used_at"`
+	RevokedAt      pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type McpOauthToken struct {
+	ID             int64              `json:"id"`
+	TokenHash      string             `json:"token_hash"`
+	Kind           string             `json:"kind"`
+	Family         uuid.UUID          `json:"family"`
+	GrantID        int64              `json:"grant_id"`
+	ClientID       string             `json:"client_id"`
+	UserID         int64              `json:"user_id"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	Resource       string             `json:"resource"`
+	Scopes         []string           `json:"scopes"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt      pgtype.Timestamptz `json:"revoked_at"`
+	LastUsedAt     pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
 type MessageTemplate struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`

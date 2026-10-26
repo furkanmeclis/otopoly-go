@@ -176,17 +176,19 @@ type Server struct {
 	reminderSched *asynq.Scheduler
 	// reminderTick runs the notification sweep in-process when the queue is
 	// disabled (single-process local setups).
-	reminderTick  func(ctx context.Context) error
-	reminderStop  context.CancelFunc
-	events        events.Bus
-	outboxPub     *outbox.Publisher
-	outboxStop    func()
-	searchClient  *searchengine.Client
-	searchIndexer *searchengine.Indexer
-	githubSvc     *githubusecase.Service
-	oauthProvSvc  *oauthproviderusecase.Service
-	authSettings  *authsettingsusecase.Service
-	http          *http.Server
+	reminderTick func(ctx context.Context) error
+	reminderStop context.CancelFunc
+	// mcpCleanupStop stops the hourly MCP OAuth cleanup.
+	mcpCleanupStop context.CancelFunc
+	events         events.Bus
+	outboxPub      *outbox.Publisher
+	outboxStop     func()
+	searchClient   *searchengine.Client
+	searchIndexer  *searchengine.Indexer
+	githubSvc      *githubusecase.Service
+	oauthProvSvc   *oauthproviderusecase.Service
+	authSettings   *authsettingsusecase.Service
+	http           *http.Server
 }
 
 // New wires router and middleware for the API skeleton.
@@ -678,6 +680,11 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		tokens,
 		loader,
 	)
+	s.registerMCP(mux, mcpDeps{
+		auth: uc, orgs: orgSvc, billing: billingSvc, ai: aiSvc, aiTools: aiTools, logs: logsSvc,
+		leads: leadsSvc, quotes: quotesSvc, entitlements: entitlementsSvc, activity: activityRec,
+		limiter: ratelimit.New(deps.Redis, cfg.App.Env), tokens: tokens, loader: loader,
+	})
 
 	outboxStore := outbox.NewStore(deps.DB, deps.Queries)
 	outboxPub := outbox.NewPublisher(outboxStore, eventBus, log)
@@ -743,6 +750,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.reminderStop != nil {
 		s.reminderStop()
+	}
+	if s.mcpCleanupStop != nil {
+		s.mcpCleanupStop()
 	}
 	if s.msgWorker != nil {
 		s.msgWorker.Shutdown()

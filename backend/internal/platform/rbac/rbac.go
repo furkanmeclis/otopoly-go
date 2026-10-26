@@ -120,6 +120,9 @@ const (
 	PermPlatformLegalRead                       = "platform.legal.read"
 	PermPlatformLegalWrite                      = "platform.legal.write"
 	PermPlatformUsersDelete                     = "platform.users.delete"
+	PermTenantMCPConnect                        = "tenant.mcp.connect"
+	PermPlatformMCPConnect                      = "platform.mcp.connect"
+	PermPlatformMCPManage                       = "platform.mcp.manage"
 )
 
 // IsSystemRole reports whether slug is a protected system role.

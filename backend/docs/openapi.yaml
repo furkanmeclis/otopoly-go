@@ -50,6 +50,8 @@ tags:
     description: Centrifugo connection and subscription tokens
   - name: Notifications
     description: In-app notification center, preferences, and admin send
+  - name: MCP
+    description: Remote MCP server OAuth consent, connected apps and client management (docs/MCP.md)
 
 paths:
   /healthz:
@@ -12312,6 +12314,157 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
+  /v1/mcp/info:
+    get:
+      tags: [MCP]
+      operationId: getMCPInfo
+      summary: MCP server URLs for the connect guides
+      description: |
+        Public URLs of the two MCP endpoints (docs/MCP.md) and whether the
+        caller may connect them (`tenant.mcp.connect` / `platform.mcp.connect`).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: MCP info
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPInfo" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/mcp/oauth/requests/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [MCP]
+      operationId: getMCPOAuthRequest
+      summary: Consent screen data of a pending MCP authorization request
+      description: |
+        The client, its redirect host, the endpoint (`/mcp/org` or
+        `/mcp/platform`), the requested scopes and, for `/mcp/org`, the
+        organizations the user may bind the connection to (active membership,
+        `tenant.mcp.connect`, plan toggle `mcp.enabled`) with the tool count
+        there. `allowed` is false when the user cannot approve.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Consent data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPConsent" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/mcp/oauth/requests/{uuid}/decide:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    post:
+      tags: [MCP]
+      operationId: decideMCPOAuthRequest
+      summary: Approve or deny a pending MCP authorization request
+      description: |
+        Approve binds the connection to `organization_uuid` (required for
+        `/mcp/org`) with the chosen `scopes` (a subset of the requested ones;
+        omitted = all). The request is consumed either way; the response is
+        where to send the browser (the client's redirect URI with `code` or
+        `error=access_denied`, plus `state` and `iss`).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MCPDecideRequest" }
+      responses:
+        "200":
+          description: Redirect target
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPDecision" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/mcp/grants:
+    get:
+      tags: [MCP]
+      operationId: listMCPGrants
+      summary: The current user's connected MCP apps
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: realm
+          in: query
+          schema: { type: string, enum: [org, platform] }
+        - name: organization_uuid
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Connected apps
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPGrantList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/mcp/grants/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    delete:
+      tags: [MCP]
+      operationId: revokeMCPGrant
+      summary: Disconnect one of the user's MCP apps
+      description: Revokes the grant and every token issued under it at once.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Disconnected }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/mcp/clients:
+    get:
+      tags: [MCP]
+      operationId: listPlatformMCPClients
+      summary: Registered MCP (OAuth) clients
+      description: Requires `platform.mcp.manage`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, revoked] }
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPClientList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/mcp/clients/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    delete:
+      tags: [MCP]
+      operationId: revokePlatformMCPClient
+      summary: Block an MCP client
+      description: |
+        Requires `platform.mcp.manage`. Revokes the client, every grant and
+        token issued to it, pending requests and unused codes. Blocking a
+        blocked client again succeeds.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Blocked }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -19624,4 +19777,144 @@ components:
         brand_uuid: { type: string, format: uuid, description: TSB brand to detach }
         name: { type: string, description: Name of the new display brand }
 
+    MCPInfo:
+      type: object
+      required: [org_url, platform_url, issuer, scopes, can_connect_org, can_connect_platform]
+      properties:
+        org_url: { type: string, example: "https://app.otopoly.com/mcp/org" }
+        platform_url: { type: string, example: "https://app.otopoly.com/mcp/platform" }
+        issuer: { type: string }
+        scopes: { type: array, items: { type: string, enum: ["mcp:read", "mcp:write"] } }
+        can_connect_org: { type: boolean }
+        can_connect_platform: { type: boolean }
 
+    EnvelopeMCPInfo:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/MCPInfo" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPConsentOrganization:
+      type: object
+      required: [uuid, slug, name, role, tool_count]
+      properties:
+        uuid: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        role: { type: string, description: "Member role: owner or staff" }
+        tool_count: { type: [integer, "null"], description: Tools the user gets there with the requested scopes }
+
+    MCPConsent:
+      type: object
+      required: [request_uuid, client_id, client_name, redirect_host, resource, resource_url, realm, scopes, organizations, platform_tool_count, allowed, expires_at]
+      properties:
+        request_uuid: { type: string, format: uuid }
+        client_id: { type: string }
+        client_name: { type: string }
+        redirect_host: { type: string }
+        resource: { type: string, enum: [/mcp/org, /mcp/platform] }
+        resource_url: { type: string }
+        realm: { type: string, enum: [org, platform] }
+        scopes: { type: array, items: { type: string, enum: ["mcp:read", "mcp:write"] } }
+        organizations:
+          type: array
+          items: { $ref: "#/components/schemas/MCPConsentOrganization" }
+        platform_tool_count: { type: [integer, "null"] }
+        allowed: { type: boolean }
+        expires_at: { type: string, format: date-time }
+
+    EnvelopeMCPConsent:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/MCPConsent" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPDecideRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, deny] }
+        organization_uuid: { type: [string, "null"], format: uuid }
+        scopes: { type: array, items: { type: string, enum: ["mcp:read", "mcp:write"] } }
+
+    EnvelopeMCPDecision:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [redirect_url]
+          properties:
+            redirect_url: { type: string }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPGrant:
+      type: object
+      required: [uuid, client_id, client_name, resource, realm, scopes, organization_uuid, organization_slug, organization_name, created_at, last_used_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        client_id: { type: string }
+        client_name: { type: string }
+        resource: { type: string, enum: [/mcp/org, /mcp/platform] }
+        realm: { type: string, enum: [org, platform] }
+        scopes: { type: array, items: { type: string } }
+        organization_uuid: { type: [string, "null"], format: uuid }
+        organization_slug: { type: [string, "null"] }
+        organization_name: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time }
+
+    EnvelopeMCPGrantList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/MCPGrant" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPClient:
+      type: object
+      required: [uuid, client_id, client_name, redirect_uris, created_ip, status, active_grants, created_at, last_used_at, revoked_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        client_id: { type: string }
+        client_name: { type: string }
+        redirect_uris: { type: array, items: { type: string } }
+        created_ip: { type: [string, "null"] }
+        status: { type: string, enum: [active, revoked] }
+        active_grants: { type: integer }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+
+    EnvelopeMCPClientList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/MCPClient" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }

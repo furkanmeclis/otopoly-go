@@ -54,6 +54,14 @@ type Querier interface {
 	ClaimScheduledNotificationByID(ctx context.Context, id int64) (ScheduledNotification, error)
 	// Serialises flushes per org and enforces the batch window.
 	ClaimVehicleAlertFlush(ctx context.Context, organizationID int64) (int64, error)
+	CleanupMCPOAuthAuthRequests(ctx context.Context) (int64, error)
+	// Registrations that never connected (no grant, token or pending request)
+	// and are older than created_before.
+	CleanupMCPOAuthClients(ctx context.Context, createdBefore pgtype.Timestamptz) (int64, error)
+	// Used codes stay one day past expiry so a late replay still revokes.
+	CleanupMCPOAuthCodes(ctx context.Context) (int64, error)
+	// Rotated refresh tokens stay until they expire, for reuse detection.
+	CleanupMCPOAuthTokens(ctx context.Context) (int64, error)
 	ClearAppSettingsLogo(ctx context.Context) (AppSetting, error)
 	ClearCatalogDisplayBrandsSyncedLogos(ctx context.Context) (int64, error)
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
@@ -105,6 +113,7 @@ type Querier interface {
 	CountInvoicesForOrg(ctx context.Context, organizationID int64) (int64, error)
 	CountLeads(ctx context.Context, arg CountLeadsParams) (int64, error)
 	CountLiveSubscriptionsByPlan(ctx context.Context, planID int64) (int64, error)
+	CountMCPOAuthClients(ctx context.Context, arg CountMCPOAuthClientsParams) (int64, error)
 	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
 	CountOrders(ctx context.Context, arg CountOrdersParams) (int64, error)
 	CountOrdersForOrg(ctx context.Context, arg CountOrdersForOrgParams) (int64, error)
@@ -140,6 +149,7 @@ type Querier interface {
 	CountUnresolvedCatalogTypesByCategory(ctx context.Context) ([]CountUnresolvedCatalogTypesByCategoryRow, error)
 	CountUserActiveSessions(ctx context.Context, userID int64) (int64, error)
 	CountUserActivity(ctx context.Context, arg CountUserActivityParams) (int64, error)
+	CountUserMCPOAuthGrants(ctx context.Context, arg CountUserMCPOAuthGrantsParams) (int64, error)
 	CountUserMemberships(ctx context.Context, userID int64) (int64, error)
 	CountUserPushDevices(ctx context.Context, userID int64) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
@@ -186,6 +196,11 @@ type Querier interface {
 	CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, error)
 	CreateLeadEvent(ctx context.Context, arg CreateLeadEventParams) (LeadEvent, error)
 	CreateLogPurgeRule(ctx context.Context, arg CreateLogPurgeRuleParams) (LogPurgeRule, error)
+	CreateMCPOAuthAuthRequest(ctx context.Context, arg CreateMCPOAuthAuthRequestParams) (McpOauthAuthRequest, error)
+	// MCP OAuth 2.1 authorization server (docs/MCP.md).
+	CreateMCPOAuthClient(ctx context.Context, arg CreateMCPOAuthClientParams) (McpOauthClient, error)
+	CreateMCPOAuthCode(ctx context.Context, arg CreateMCPOAuthCodeParams) error
+	CreateMCPOAuthToken(ctx context.Context, arg CreateMCPOAuthTokenParams) error
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreateOAuthAccount(ctx context.Context, arg CreateOAuthAccountParams) (OauthAccount, error)
 	CreateOTPCode(ctx context.Context, arg CreateOTPCodeParams) (OtpCode, error)
@@ -246,6 +261,8 @@ type Querier interface {
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
 	DeleteJobConsumption(ctx context.Context, arg DeleteJobConsumptionParams) error
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
+	// Deleting is the claim: a concurrent second decision finds nothing.
+	DeleteMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error
 	DeleteMessageTemplateByKey(ctx context.Context, arg DeleteMessageTemplateByKeyParams) (int64, error)
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
@@ -315,6 +332,8 @@ type Querier interface {
 	// clients) a TSB brand uuid mapped to its display brand.
 	GetActiveCatalogDisplayBrandForTenant(ctx context.Context, ref uuid.UUID) (GetActiveCatalogDisplayBrandForTenantRow, error)
 	GetActiveJobConsumptionByProduct(ctx context.Context, arg GetActiveJobConsumptionByProductParams) (ServiceJobConsumption, error)
+	// A live token of a live grant and client, with the user's status.
+	GetActiveMCPOAuthToken(ctx context.Context, arg GetActiveMCPOAuthTokenParams) (GetActiveMCPOAuthTokenRow, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
 	GetAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (AppLog, error)
 	GetAppSettings(ctx context.Context) (AppSetting, error)
@@ -412,6 +431,11 @@ type Querier interface {
 	GetLiveSubscription(ctx context.Context, organizationID int64) (GetLiveSubscriptionRow, error)
 	GetLiveSubscriptionForUpdate(ctx context.Context, organizationID int64) (BillingSubscription, error)
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
+	// A pending request that has not expired, with its live client.
+	GetMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (GetMCPOAuthAuthRequestRow, error)
+	GetMCPOAuthClient(ctx context.Context, clientID string) (McpOauthClient, error)
+	GetMCPOAuthClientByUUID(ctx context.Context, argUuid uuid.UUID) (McpOauthClient, error)
+	GetMCPOAuthTokenAnyState(ctx context.Context, arg GetMCPOAuthTokenAnyStateParams) (McpOauthToken, error)
 	GetMessageTemplate(ctx context.Context, arg GetMessageTemplateParams) (MessageTemplate, error)
 	GetMessageTemplateByKey(ctx context.Context, arg GetMessageTemplateByKeyParams) (MessageTemplate, error)
 	GetMessageTemplateDefault(ctx context.Context, arg GetMessageTemplateDefaultParams) (MessageTemplateDefault, error)
@@ -507,6 +531,7 @@ type Querier interface {
 	GetTodoReminderState(ctx context.Context, arg GetTodoReminderStateParams) (string, error)
 	GetTodoRowByID(ctx context.Context, arg GetTodoRowByIDParams) (Todo, error)
 	GetUsageCounter(ctx context.Context, arg GetUsageCounterParams) (int64, error)
+	GetUsedMCPOAuthCodeFamily(ctx context.Context, codeHash string) (pgtype.UUID, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
@@ -662,6 +687,9 @@ type Querier interface {
 	ListLeadQuotes(ctx context.Context, arg ListLeadQuotesParams) ([]ListLeadQuotesRow, error)
 	ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLeadsRow, error)
 	ListLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
+	ListMCPOAuthClients(ctx context.Context, arg ListMCPOAuthClientsParams) ([]ListMCPOAuthClientsRow, error)
+	// The user's active organizations (consent organization picker).
+	ListMCPOAuthSelectableOrgs(ctx context.Context, userID int64) ([]ListMCPOAuthSelectableOrgsRow, error)
 	ListMessageTemplateDefaults(ctx context.Context) ([]MessageTemplateDefault, error)
 	ListMessageTemplatesByOrg(ctx context.Context, organizationID int64) ([]MessageTemplate, error)
 	ListNotificationRulesByOrg(ctx context.Context, organizationID int64) ([]NotificationRule, error)
@@ -772,6 +800,7 @@ type Querier interface {
 	// Refresh tokens rotate on every refresh, so created_at is the last use.
 	ListUserActiveSessionsPaged(ctx context.Context, arg ListUserActiveSessionsPagedParams) ([]ListUserActiveSessionsPagedRow, error)
 	ListUserActivityPaged(ctx context.Context, arg ListUserActivityPagedParams) ([]ListUserActivityPagedRow, error)
+	ListUserMCPOAuthGrants(ctx context.Context, arg ListUserMCPOAuthGrantsParams) ([]ListUserMCPOAuthGrantsRow, error)
 	ListUserMembershipsPaged(ctx context.Context, arg ListUserMembershipsPagedParams) ([]ListUserMembershipsPagedRow, error)
 	ListUserPushDevicesPaged(ctx context.Context, arg ListUserPushDevicesPagedParams) ([]ListUserPushDevicesPagedRow, error)
 	ListUserRoleSlugs(ctx context.Context, userID int64) ([]string, error)
@@ -898,12 +927,22 @@ type Querier interface {
 	RevertJobConsumptions(ctx context.Context, arg RevertJobConsumptionsParams) ([]RevertJobConsumptionsRow, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
 	RevokeAllUserSessions(ctx context.Context, userID int64) (int64, error)
+	// Blocks the client and everything issued to it: grants, tokens, pending
+	// requests and unused codes.
+	RevokeMCPOAuthClient(ctx context.Context, clientID string) error
+	RevokeMCPOAuthFamily(ctx context.Context, family uuid.UUID) error
+	// Every token family of a grant; unused codes of the grant go too.
+	RevokeMCPOAuthGrantTokens(ctx context.Context, grantID int64) error
+	// Revoking is the claim: of two concurrent refreshes only one wins.
+	RevokeMCPOAuthToken(ctx context.Context, id int64) (int64, error)
 	RevokeOtherRefreshTokensForUser(ctx context.Context, arg RevokeOtherRefreshTokensForUserParams) error
 	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
 	RevokeRefreshTokenByUUIDForUser(ctx context.Context, arg RevokeRefreshTokenByUUIDForUserParams) (int64, error)
 	// Sessions bound to an organization the user was removed from.
 	RevokeRefreshTokensForUserOrganization(ctx context.Context, arg RevokeRefreshTokensForUserOrganizationParams) error
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
+	// Disconnects one of the user's apps; no row when missing, foreign or revoked.
+	RevokeUserMCPOAuthGrant(ctx context.Context, arg RevokeUserMCPOAuthGrantParams) (RevokeUserMCPOAuthGrantRow, error)
 	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
@@ -988,6 +1027,9 @@ type Querier interface {
 	TenantListCatalogTypes(ctx context.Context, arg TenantListCatalogTypesParams) ([]TenantListCatalogTypesRow, error)
 	TodoSummary(ctx context.Context, arg TodoSummaryParams) (TodoSummaryRow, error)
 	TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error
+	TouchMCPOAuthClient(ctx context.Context, clientID string) error
+	// Last use of the token and its grant (connected apps list).
+	TouchMCPOAuthToken(ctx context.Context, id int64) error
 	UpdateAIConversationTitle(ctx context.Context, arg UpdateAIConversationTitleParams) (AiConversation, error)
 	UpdateAIMessageContentUI(ctx context.Context, arg UpdateAIMessageContentUIParams) error
 	UpdateAISettings(ctx context.Context, arg UpdateAISettingsParams) (AiSetting, error)
@@ -1068,6 +1110,8 @@ type Querier interface {
 	UpsertBuiltinFeature(ctx context.Context, arg UpsertBuiltinFeatureParams) error
 	UpsertCatalogModelRule(ctx context.Context, arg UpsertCatalogModelRuleParams) (CatalogModelRule, error)
 	UpsertDailySummarySettings(ctx context.Context, arg UpsertDailySummarySettingsParams) (DailySummarySetting, error)
+	// Consent creates the user's connected app or brings a revoked one back.
+	UpsertMCPOAuthGrant(ctx context.Context, arg UpsertMCPOAuthGrantParams) (McpOauthGrant, error)
 	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
 	UpsertNotificationMemberSettings(ctx context.Context, arg UpsertNotificationMemberSettingsParams) (NotificationMemberSetting, error)
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)
@@ -1081,6 +1125,8 @@ type Querier interface {
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error)
 	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)
+	// Marking the code used is the claim; an expired or used code returns no row.
+	UseMCPOAuthCode(ctx context.Context, arg UseMCPOAuthCodeParams) (McpOauthCode, error)
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)
 	VehicleModelYearExists(ctx context.Context, arg VehicleModelYearExistsParams) (bool, error)
 	VoidCariEntry(ctx context.Context, arg VoidCariEntryParams) (CariEntry, error)
