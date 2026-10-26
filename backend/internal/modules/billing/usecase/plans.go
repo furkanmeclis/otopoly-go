@@ -28,6 +28,7 @@ var builtinFeatures = []db.UpsertBuiltinFeatureParams{
 	{Key: "mcp.enabled", Kind: "toggle", Unit: "", Period: "none", LabelTr: "MCP bağlantıları (Claude, Cursor…)", LabelEn: "MCP connections (Claude, Cursor…)", SortOrder: 72},
 	{Key: "module.contracts", Kind: "toggle", Unit: "", Period: "none", LabelTr: "Sözleşme modülü", LabelEn: "Contracts module", SortOrder: 80},
 	{Key: "module.quotes", Kind: "toggle", Unit: "", Period: "none", LabelTr: "Teklif ve fırsat modülü", LabelEn: "Quotes & leads module", SortOrder: 90},
+	{Key: "loyalty.enabled", Kind: "toggle", Unit: "", Period: "none", LabelTr: "Sadakat ve paketler", LabelEn: "Loyalty & packages", SortOrder: 95},
 	{Key: "module.reports", Kind: "toggle", Unit: "", Period: "none", LabelTr: "Raporlar ve dışa aktarım", LabelEn: "Reports & exports", SortOrder: 100},
 }
 

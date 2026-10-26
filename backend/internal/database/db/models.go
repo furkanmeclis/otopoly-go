@@ -1015,6 +1015,180 @@ type LogPurgeRule struct {
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
 }
 
+type LoyaltyApplication struct {
+	ID                int64              `json:"id"`
+	Uuid              uuid.UUID          `json:"uuid"`
+	OrganizationID    int64              `json:"organization_id"`
+	JobID             int64              `json:"job_id"`
+	JobLineID         int64              `json:"job_line_id"`
+	CustomerID        int64              `json:"customer_id"`
+	Kind              string             `json:"kind"`
+	CampaignID        pgtype.Int8        `json:"campaign_id"`
+	CustomerPackageID pgtype.Int8        `json:"customer_package_id"`
+	CreditID          pgtype.Int8        `json:"credit_id"`
+	SubscriptionID    pgtype.Int8        `json:"subscription_id"`
+	PeriodStart       pgtype.Date        `json:"period_start"`
+	SourceName        string             `json:"source_name"`
+	Units             int32              `json:"units"`
+	DiscountAmount    pgtype.Numeric     `json:"discount_amount"`
+	Status            string             `json:"status"`
+	CreatedBy         pgtype.Int8        `json:"created_by"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	RevertedAt        pgtype.Timestamptz `json:"reverted_at"`
+	RevertedBy        pgtype.Int8        `json:"reverted_by"`
+}
+
+type LoyaltyCampaign struct {
+	ID               int64              `json:"id"`
+	Uuid             uuid.UUID          `json:"uuid"`
+	OrganizationID   int64              `json:"organization_id"`
+	Name             string             `json:"name"`
+	Description      string             `json:"description"`
+	ServiceIds       []int64            `json:"service_ids"`
+	CategoryIds      []int64            `json:"category_ids"`
+	StampsRequired   int32              `json:"stamps_required"`
+	RewardType       string             `json:"reward_type"`
+	RewardServiceID  pgtype.Int8        `json:"reward_service_id"`
+	RewardValue      pgtype.Numeric     `json:"reward_value"`
+	ValidFrom        pgtype.Date        `json:"valid_from"`
+	ValidUntil       pgtype.Date        `json:"valid_until"`
+	IsActive         bool               `json:"is_active"`
+	PerCustomerLimit pgtype.Int4        `json:"per_customer_limit"`
+	CreatedBy        pgtype.Int8        `json:"created_by"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt        pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type LoyaltyCustomerPackage struct {
+	ID                   int64              `json:"id"`
+	Uuid                 uuid.UUID          `json:"uuid"`
+	OrganizationID       int64              `json:"organization_id"`
+	PackageID            pgtype.Int8        `json:"package_id"`
+	CustomerID           int64              `json:"customer_id"`
+	Name                 string             `json:"name"`
+	Price                pgtype.Numeric     `json:"price"`
+	Currency             string             `json:"currency"`
+	Status               string             `json:"status"`
+	PurchasedAt          pgtype.Timestamptz `json:"purchased_at"`
+	ExpiresAt            pgtype.Timestamptz `json:"expires_at"`
+	PaymentMethod        string             `json:"payment_method"`
+	FinanceAccountID     pgtype.Int8        `json:"finance_account_id"`
+	FinanceTransactionID pgtype.Int8        `json:"finance_transaction_id"`
+	CariEntryID          pgtype.Int8        `json:"cari_entry_id"`
+	Notes                string             `json:"notes"`
+	CreatedBy            pgtype.Int8        `json:"created_by"`
+	CancelledAt          pgtype.Timestamptz `json:"cancelled_at"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt            pgtype.Timestamptz `json:"updated_at"`
+}
+
+type LoyaltyCustomerPackageCredit struct {
+	ID                int64  `json:"id"`
+	OrganizationID    int64  `json:"organization_id"`
+	CustomerPackageID int64  `json:"customer_package_id"`
+	ServiceID         int64  `json:"service_id"`
+	ServiceName       string `json:"service_name"`
+	Total             int32  `json:"total"`
+	Used              int32  `json:"used"`
+}
+
+type LoyaltyPackage struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Name           string             `json:"name"`
+	Description    string             `json:"description"`
+	Price          pgtype.Numeric     `json:"price"`
+	Currency       string             `json:"currency"`
+	ValidityDays   pgtype.Int4        `json:"validity_days"`
+	IsActive       bool               `json:"is_active"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type LoyaltyPackageItem struct {
+	ID             int64 `json:"id"`
+	OrganizationID int64 `json:"organization_id"`
+	PackageID      int64 `json:"package_id"`
+	ServiceID      int64 `json:"service_id"`
+	Quantity       int32 `json:"quantity"`
+	SortOrder      int32 `json:"sort_order"`
+}
+
+type LoyaltyStampEvent struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	CampaignID     int64              `json:"campaign_id"`
+	CustomerID     int64              `json:"customer_id"`
+	JobID          pgtype.Int8        `json:"job_id"`
+	Kind           string             `json:"kind"`
+	Stamps         int32              `json:"stamps"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type LoyaltySubscription struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	PlanID         pgtype.Int8        `json:"plan_id"`
+	CustomerID     int64              `json:"customer_id"`
+	VehicleID      pgtype.Int8        `json:"vehicle_id"`
+	Name           string             `json:"name"`
+	Price          pgtype.Numeric     `json:"price"`
+	Currency       string             `json:"currency"`
+	PeriodMonths   int32              `json:"period_months"`
+	UsesPerPeriod  pgtype.Int4        `json:"uses_per_period"`
+	StartDate      pgtype.Date        `json:"start_date"`
+	PaidThrough    pgtype.Date        `json:"paid_through"`
+	Status         string             `json:"status"`
+	Notes          string             `json:"notes"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CancelledAt    pgtype.Timestamptz `json:"cancelled_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type LoyaltySubscriptionPayment struct {
+	ID                   int64              `json:"id"`
+	Uuid                 uuid.UUID          `json:"uuid"`
+	OrganizationID       int64              `json:"organization_id"`
+	SubscriptionID       int64              `json:"subscription_id"`
+	PeriodStart          pgtype.Date        `json:"period_start"`
+	PeriodEnd            pgtype.Date        `json:"period_end"`
+	Amount               pgtype.Numeric     `json:"amount"`
+	Currency             string             `json:"currency"`
+	Method               string             `json:"method"`
+	FinanceAccountID     pgtype.Int8        `json:"finance_account_id"`
+	FinanceTransactionID pgtype.Int8        `json:"finance_transaction_id"`
+	CariEntryID          pgtype.Int8        `json:"cari_entry_id"`
+	CreatedBy            pgtype.Int8        `json:"created_by"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+}
+
+type LoyaltySubscriptionPlan struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Name           string             `json:"name"`
+	Description    string             `json:"description"`
+	Price          pgtype.Numeric     `json:"price"`
+	Currency       string             `json:"currency"`
+	PeriodMonths   int32              `json:"period_months"`
+	UsesPerPeriod  pgtype.Int4        `json:"uses_per_period"`
+	ServiceIds     []int64            `json:"service_ids"`
+	CategoryIds    []int64            `json:"category_ids"`
+	IsActive       bool               `json:"is_active"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type McpOauthAuthRequest struct {
 	ID            uuid.UUID          `json:"id"`
 	ClientID      string             `json:"client_id"`
@@ -1794,6 +1968,8 @@ type ServiceJobLine struct {
 	SortOrder      int32              `json:"sort_order"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DiscountAmount pgtype.Numeric     `json:"discount_amount"`
+	DiscountSource pgtype.Text        `json:"discount_source"`
 }
 
 type ServiceJobPayment struct {

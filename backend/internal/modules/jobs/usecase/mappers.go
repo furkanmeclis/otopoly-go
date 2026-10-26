@@ -194,6 +194,11 @@ func mapLine(row db.ListServiceJobLinesRow) Line {
 		LineTotal: financeusecase.NumericToString(row.LineTotal),
 		Currency:  row.Currency,
 		SortOrder: row.SortOrder,
+
+		DiscountAmount: financeusecase.NumericToString(row.DiscountAmount),
+	}
+	if row.DiscountSource.Valid {
+		line.DiscountSource = row.DiscountSource.String
 	}
 	if row.ServiceUuid.Valid {
 		id := uuid.UUID(row.ServiceUuid.Bytes)

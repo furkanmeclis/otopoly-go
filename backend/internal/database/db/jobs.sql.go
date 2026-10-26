@@ -174,7 +174,7 @@ INSERT INTO service_job_lines (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
-RETURNING id, uuid, organization_id, job_id, line_type, service_id, product_id, name, unit_price, qty, vat_rate, line_total, currency, sort_order, created_at, updated_at
+RETURNING id, uuid, organization_id, job_id, line_type, service_id, product_id, name, unit_price, qty, vat_rate, line_total, currency, sort_order, created_at, updated_at, discount_amount, discount_source
 `
 
 type CreateServiceJobLineParams struct {
@@ -223,6 +223,8 @@ func (q *Queries) CreateServiceJobLine(ctx context.Context, arg CreateServiceJob
 		&i.SortOrder,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.DiscountAmount,
+		&i.DiscountSource,
 	)
 	return i, err
 }
@@ -604,7 +606,7 @@ func (q *Queries) LinkServiceJobPaymentFinance(ctx context.Context, arg LinkServ
 }
 
 const listServiceJobLines = `-- name: ListServiceJobLines :many
-SELECT l.id, l.uuid, l.organization_id, l.job_id, l.line_type, l.service_id, l.product_id, l.name, l.unit_price, l.qty, l.vat_rate, l.line_total, l.currency, l.sort_order, l.created_at, l.updated_at,
+SELECT l.id, l.uuid, l.organization_id, l.job_id, l.line_type, l.service_id, l.product_id, l.name, l.unit_price, l.qty, l.vat_rate, l.line_total, l.currency, l.sort_order, l.created_at, l.updated_at, l.discount_amount, l.discount_source,
        s.uuid AS service_uuid
 FROM service_job_lines l
 LEFT JOIN services s ON s.id = l.service_id
@@ -634,6 +636,8 @@ type ListServiceJobLinesRow struct {
 	SortOrder      int32              `json:"sort_order"`
 	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DiscountAmount pgtype.Numeric     `json:"discount_amount"`
+	DiscountSource pgtype.Text        `json:"discount_source"`
 	ServiceUuid    pgtype.UUID        `json:"service_uuid"`
 }
 
@@ -663,6 +667,8 @@ func (q *Queries) ListServiceJobLines(ctx context.Context, arg ListServiceJobLin
 			&i.SortOrder,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.DiscountAmount,
+			&i.DiscountSource,
 			&i.ServiceUuid,
 		); err != nil {
 			return nil, err

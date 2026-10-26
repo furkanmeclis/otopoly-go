@@ -83,6 +83,9 @@ type Deps struct {
 	SalesWrite     SalesWriter
 	Todos          TodosService
 	Calendar       CalendarService
+	// Loyalty adds get_customer_loyalty / list_loyalty_programs, and with
+	// Finance / JobsWrite the sell_package / redeem_reward write tools.
+	Loyalty LoyaltyService
 }
 
 // DefaultRegistry builds the tool set (read tools, charts, plan checklist and
@@ -119,6 +122,7 @@ func DefaultRegistry(d Deps) *Registry {
 	if d.Calendar != nil {
 		r.Register(ListCalendar{calendar: d.Calendar})
 	}
+	registerLoyaltyTools(r, d)
 	registerWriteTools(r, d)
 	return r
 }
