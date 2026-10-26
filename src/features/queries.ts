@@ -148,6 +148,29 @@ export const useSuppliers = () =>
 export const useSupplier = (uuid: string) => useQuery({ queryKey: [...qk.suppliers, 'detail', uuid], queryFn: () => suppliersService.get(uuid), enabled: Boolean(uuid) });
 export const usePurchasesInfinite = (params: Params) => useInfiniteList(qk.purchases, (p) => purchasesService.list(p as never), params);
 export const usePurchase = (uuid: string) => useQuery({ queryKey: [...qk.purchases, 'detail', uuid], queryFn: () => purchasesService.get(uuid), enabled: Boolean(uuid) });
+/**
+ * Recent sales of one customer. The sales list has no customer filter: search by the customer's name and keep
+ * the rows of that customer (recent ones; the backend sorts by date).
+ */
+export const useCustomerSales = (customer: { uuid: string; name: string } | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: [...qk.sales, 'by-customer', customer?.uuid],
+    queryFn: async () => {
+      const page = await salesService.list({ q: customer!.name, limit: 50, offset: 0 } as never);
+      return page.items.filter((s) => s.customer_uuid === customer!.uuid);
+    },
+    enabled: enabled && Boolean(customer?.uuid && customer.name),
+  });
+/** Recent purchases from one supplier (same approach: search by name, keep that supplier's rows). */
+export const useSupplierPurchases = (supplier: { uuid: string; name: string } | null | undefined, enabled = true) =>
+  useQuery({
+    queryKey: [...qk.purchases, 'by-supplier', supplier?.uuid],
+    queryFn: async () => {
+      const page = await purchasesService.list({ q: supplier!.name, limit: 50, offset: 0 } as never);
+      return page.items.filter((p) => p.supplier_uuid === supplier!.uuid);
+    },
+    enabled: enabled && Boolean(supplier?.uuid && supplier.name),
+  });
 
 // ─── Staff / reports ───────────────────────────────────────────────────────
 

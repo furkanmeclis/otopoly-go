@@ -40,7 +40,8 @@ import { AddVehicleSheet } from '@/features/customers/components/pickers';
 import { customersService } from '@/features/customers/services/customers.service';
 import { JobStatusBadge, PaymentBadge } from '@/features/jobs/components/job-parts';
 import { leadStatusTone } from '@/features/leads/lib/lead-ui';
-import { qk, useCariEntriesInfinite, useCustomer, useCustomerJobs, useLeads, useQuotes, useTodos } from '@/features/queries';
+import { qk, useCariEntriesInfinite, useCustomer, useCustomerJobs, useCustomerSales, useLeads, useQuotes, useTodos } from '@/features/queries';
+import { DocStatusBadge } from '@/features/sales/components/commerce-parts';
 import { quoteStatusTone } from '@/features/quotes/lib/quote-ui';
 import { TodoRow } from '@/features/todos/components/todo-row';
 import { contact } from '@/lib/contact';
@@ -71,9 +72,10 @@ function CustomerDetail() {
   const quotes = useQuotes({ customer_uuid: id, limit: 20 }, can(P.quotesRead));
   const leads = useLeads({ customer_uuid: id, limit: 20 }, can(P.leadsRead));
   const todos = useTodos({ customer: id, limit: 10 }, can(P.todosRead));
+  const sales = useCustomerSales(c, can(P.salesRead));
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const canWrite = can(P.customersWrite);
-  const pull = usePullRefresh(customer, can(P.jobsRead) && jobs, can(P.quotesRead) && quotes, can(P.leadsRead) && leads, can(P.todosRead) && todos);
+  const pull = usePullRefresh(customer, can(P.jobsRead) && jobs, can(P.quotesRead) && quotes, can(P.leadsRead) && leads, can(P.todosRead) && todos, can(P.salesRead) && sales);
 
   const remove = useApiMutation({
     key: 'customers.delete',
@@ -266,6 +268,27 @@ function CustomerDetail() {
                 </View>
               }
               onPress={() => router.push(`/jobs/${j.uuid}`)}
+              last={last}
+            />
+          )}
+        />
+      ) : null}
+
+      {can(P.salesRead) ? (
+        <RelatedSection
+          title={tr('sales.title')}
+          items={sales.data}
+          loading={sales.isLoading}
+          error={isFeatureDisabled(sales.error) ? undefined : sales.error}
+          onRetry={() => void sales.refetch()}
+          empty={tr('sales.empty_title')}
+          renderItem={(sale, i, last) => (
+            <ListRow
+              key={sale.uuid}
+              title={fmt.money(sale.total_amount, sale.currency)}
+              subtitle={`${fmt.dateTime(sale.sold_at)} · ${tr(`sales.payment_method.${sale.method}`)}`}
+              right={<DocStatusBadge ns="sales" status={sale.status} />}
+              onPress={() => router.push(`/sales/${sale.uuid}`)}
               last={last}
             />
           )}

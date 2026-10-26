@@ -1,8 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowUpDown, Pencil, Trash2 } from 'lucide-react-native';
+import { ArrowUpDown, Package, Pencil, ShoppingCart, Trash2 } from 'lucide-react-native';
+import { View } from 'react-native';
 import { useState } from 'react';
 
-import { Button, Card, ErrorState, Header, IconButton, InfoRow, ListSkeleton, Row, Screen, Section, Txt, useConfirm } from '@/components/ui';
+import { Button, Card, DetailHero, ErrorState, Header, IconButton, InfoRow, LinkValue, ListSkeleton, QuickActions, Screen, Section, StatGrid, Txt, useConfirm } from '@/components/ui';
+import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { ActiveBadge, StockBadge, useCatalogAccess } from '@/features/catalog/components/catalog-parts';
@@ -10,6 +12,7 @@ import { StockAdjustSheet } from '@/features/catalog/components/stock-adjust-she
 import { catalogUnitLabel } from '@/features/catalog/lib/units';
 import { catalogService } from '@/features/catalog/services/catalog.service';
 import { qk, useProduct } from '@/features/queries';
+import { toNumber } from '@/lib/i18n/format';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
@@ -31,6 +34,7 @@ function ProductDetail() {
   const { t: tr, fmt } = useLocale();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { canWrite } = useCatalogAccess();
+  const { can } = useAuth();
   const confirm = useConfirm();
   const query = useProduct(id);
   const p = query.data;
@@ -63,6 +67,11 @@ function ProductDetail() {
     );
   }
   const unit = catalogUnitLabel(tr, p.unit);
+  const qty = toNumber(p.stock_quantity);
+  const cost = toNumber(p.cost_price);
+  const price = toNumber(p.sale_price);
+  const marginPct = price > 0 ? (price - cost) / price : null;
+  const stockTone = p.stock_status === 'out_of_stock' ? 'danger' : p.stock_status === 'low_stock' ? 'warning' : 'success';
 
   return (
     <Screen
@@ -76,17 +85,54 @@ function ProductDetail() {
       refreshing={query.isRefetching}
       onRefresh={() => void query.refetch()}
     >
-      <Row gap={t.spacing.sm} wrap>
-        <ActiveBadge active={p.is_active} size="md" />
-        <StockBadge status={p.stock_status} size="md" />
-      </Row>
+      <DetailHero
+        leading={
+          <View style={{ width: 52, height: 52, borderRadius: t.radius.lg, backgroundColor: t.colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Package size={24} color={t.colors.primary} />
+          </View>
+        }
+        title={p.name}
+        subtitle={[p.category_name, p.sku].filter(Boolean).join(' · ') || undefined}
+        badges={
+          <>
+            <ActiveBadge active={p.is_active} />
+            {p.track_stock ? <StockBadge status={p.stock_status} /> : null}
+          </>
+        }
+      >
+        <QuickActions
+          actions={[
+            canWrite &&
+              p.track_stock && {
+                key: 'stock',
+                label: tr('catalog.products.adjust_stock'),
+                tone: 'primary',
+                icon: <ArrowUpDown size={20} color={t.colors.onPrimary} />,
+                onPress: () => setAdjusting(true),
+              },
+            can(P.salesWrite) && { key: 'sale', label: tr('mobile.detail.new_sale'), icon: <ShoppingCart size={20} color={t.colors.primary} />, onPress: () => router.push('/sales/new') },
+            canWrite && { key: 'edit', label: tr('common.edit'), icon: <Pencil size={20} color={t.colors.primary} />, onPress: () => router.push({ pathname: '/catalog/products/form', params: { id: p.uuid } }) },
+          ]}
+        />
+      </DetailHero>
 
-      {canWrite && p.track_stock ? <Button variant="outline" label={tr('catalog.products.adjust_stock')} icon={<ArrowUpDown size={16} color={t.colors.text} />} onPress={() => setAdjusting(true)} /> : null}
+      <StatGrid
+        items={[
+          p.track_stock
+            ? { label: tr('catalog.products.stock_quantity'), value: `${fmt.number(qty, 3)} ${unit}`, hint: `${tr('catalog.products.min_stock_alert')}: ${fmt.number(p.min_stock_alert, 3)}`, tone: stockTone }
+            : { label: tr('catalog.products.track_stock'), value: tr('common.no') },
+          { label: tr('catalog.products.sale_price'), value: fmt.money(p.sale_price, p.currency), hint: `${tr('catalog.products.cost_price')}: ${fmt.money(p.cost_price, p.currency)}` },
+          { label: tr('jobs.consumptions.margin'), value: marginPct == null ? '—' : fmt.percent(marginPct), tone: marginPct == null ? 'default' : marginPct >= 0 ? 'success' : 'danger' },
+          ...(p.track_stock ? [{ label: tr('catalog.summary.total_stock_cost_value'), value: fmt.money(qty * cost, p.currency) }] : []),
+        ]}
+      />
 
       <Section title={tr('catalog.detail.product_info')}>
         <Card padded={false} style={{ paddingHorizontal: t.spacing.lg }}>
           <InfoRow label={tr('catalog.products.name')} value={p.name} />
-          <InfoRow label={tr('catalog.products.category')} value={p.category_name || '—'} />
+          <InfoRow label={tr('catalog.products.category')}>
+            <LinkValue label={p.category_name || '—'} onPress={p.category_uuid ? () => router.push(`/catalog/categories/${p.category_uuid}`) : undefined} />
+          </InfoRow>
           <InfoRow label={tr('catalog.products.sku')} value={p.sku || '—'} />
           <InfoRow label={tr('catalog.products.barcode')} value={p.barcode || '—'} />
           <InfoRow label={tr('catalog.products.unit')} value={unit} last />

@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { Plus, Trash2 } from 'lucide-react-native';
 import { useDeferredValue, useMemo, useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 
 import { Badge, Button, Card, Divider, IconButton, Row, SelectField, Skeleton, Txt } from '@/components/ui';
 import { catalogUnitLabel, normalizeDecimal } from '@/features/catalog/lib/units';
@@ -84,14 +85,19 @@ export function ServiceRecipeCard({ service, canWrite }: { service: CatalogServi
               <View key={r.product_uuid}>
                 {i > 0 ? <Divider /> : null}
                 <Row gap={t.spacing.sm} style={{ paddingVertical: t.spacing.sm }}>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Txt variant="bodyStrong" numberOfLines={1}>
+                  <Pressable
+                    style={{ flex: 1, gap: 2 }}
+                    disabled={editing}
+                    onPress={() => router.push(`/catalog/products/${r.product_uuid}`)}
+                    accessibilityRole={editing ? undefined : 'link'}
+                  >
+                    <Txt variant="bodyStrong" tone={editing ? 'default' : 'primary'} numberOfLines={1}>
                       {r.name}
                     </Txt>
                     <Txt variant="caption" tone="muted" numberOfLines={1}>
                       {`${fmt.money(r.cost, service.currency)} / ${catalogUnitLabel(tr, r.unit)}${stock?.track_stock ? ` · ${tr('catalog.products.stock_quantity')}: ${fmt.number(stock.stock_quantity, 3)}` : ''}`}
                     </Txt>
-                  </View>
+                  </Pressable>
                   {editing ? (
                     <View style={{ width: 72 }}>
                       <QtyInput value={r.qty} label={tr('jobs.consumptions.qty')} onChange={(qty) => setDraft((prev) => prev.map((d, j) => (j === i ? { ...d, qty } : d)))} />

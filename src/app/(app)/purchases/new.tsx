@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
@@ -6,7 +6,7 @@ import { Button, ErrorState, Header, Screen, Section, Segmented, SelectField, Te
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { purchasesService, type CreatePurchaseInput, type PurchaseMethod } from '@/features/purchases/services/purchases.service';
-import { MONEY_KEYS, useFinanceAccounts } from '@/features/queries';
+import { MONEY_KEYS, useFinanceAccounts, useSupplier } from '@/features/queries';
 import { defaultAccountUuid, draftFromProduct, DraftLines, draftTotal, ProductPicker, TotalRow, type DraftLine } from '@/features/sales/components/commerce-parts';
 import { useSupplierSearch } from '@/features/suppliers/queries';
 import type { Supplier } from '@/features/suppliers/services/suppliers.service';
@@ -31,7 +31,11 @@ function NewPurchaseForm() {
   const { t: tr, fmt } = useLocale();
   const accountsQuery = useFinanceAccounts(true);
   const accounts = useMemo(() => accountsQuery.data?.items ?? [], [accountsQuery.data]);
-  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  // Opened from a supplier (supplier detail): start with it picked.
+  const params = useLocalSearchParams<{ supplier?: string }>();
+  const prefill = useSupplier(params.supplier ?? '');
+  const [pickedSupplier, setSupplier] = useState<Supplier | null | undefined>(undefined);
+  const supplier = pickedSupplier === undefined ? (prefill.data ?? null) : pickedSupplier;
   const [supplierQ, setSupplierQ] = useState('');
   const suppliers = useSupplierSearch(supplierQ);
   const [lines, setLines] = useState<DraftLine[]>([]);
