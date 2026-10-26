@@ -62,6 +62,8 @@ jobs:
         run: pnpm typecheck
       - name: Lint
         run: pnpm lint
+      - name: Business-day helpers
+        run: pnpm test:dates
       - name: i18n
         working-directory: .
         run: node scripts/check-i18n.mjs

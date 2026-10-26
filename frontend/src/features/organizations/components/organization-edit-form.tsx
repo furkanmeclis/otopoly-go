@@ -32,6 +32,7 @@ import {
 import type { Organization } from "@/features/organizations/services/organizations.service";
 import { FilePickButton } from "@/components/common/file-pick-button";
 import { useLocale } from "@/providers/locale-provider";
+import { businessDayOf, businessDayStartISO } from "@/lib/utils/business-date";
 
 type OrganizationEditFormProps = {
   organization: Organization;
@@ -103,9 +104,11 @@ function AccessEndsField() {
             label={t("organizations.fields.access_ends_at")}
           >
             <DatePicker
-              value={clearAccess ? "" : (field.value?.slice(0, 10) ?? "")}
+              value={
+                clearAccess || !field.value ? "" : businessDayOf(field.value)
+              }
               onChange={(value) =>
-                field.onChange(value ? new Date(value).toISOString() : "")
+                field.onChange(value ? businessDayStartISO(value) : "")
               }
               disabled={clearAccess}
             />

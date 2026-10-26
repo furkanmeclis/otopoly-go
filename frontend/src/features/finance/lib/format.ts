@@ -1,14 +1,14 @@
 import type { AppLocale } from "@/config/i18n";
+import { businessMonthStart, businessToday } from "@/lib/utils/business-date";
 
+/** First day of this business month (Europe/Istanbul, yyyy-MM-dd). */
 export function financeMonthStart(): string {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+  return businessMonthStart();
 }
 
+/** Today's business day (Europe/Istanbul, yyyy-MM-dd). */
 export function financeToday(): string {
-  return new Date().toISOString().slice(0, 10);
+  return businessToday();
 }
 
 export function formatFinanceAmount(

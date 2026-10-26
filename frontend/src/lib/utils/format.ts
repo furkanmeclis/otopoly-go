@@ -12,6 +12,7 @@ import {
 } from "react-day-picker/locale";
 
 import { i18nConfig, type AppLocale } from "@/config/i18n";
+import { businessWallClock, isDayString } from "@/lib/utils/business-date";
 
 export function dateFnsLocale(
   locale: AppLocale = i18nConfig.defaultLocale,
@@ -49,13 +50,28 @@ export function money(
   }).format(value);
 }
 
+/**
+ * Display value of an API date: a bare calendar day (yyyy-MM-dd) stays that
+ * day; a timestamp is shown on the Türkiye wall clock (Europe/Istanbul),
+ * whatever zone the browser or the server renders in.
+ */
+function displayDate(value: Date | string): Date {
+  if (typeof value === "string") {
+    return isDayString(value)
+      ? parseISO(value)
+      : businessWallClock(parseISO(value));
+  }
+  return value;
+}
+
 export function date(
   value: Date | string,
   pattern = "dd.MM.yyyy",
   locale: AppLocale = i18nConfig.defaultLocale,
 ) {
-  const d = typeof value === "string" ? parseISO(value) : value;
-  return formatDateFns(d, pattern, { locale: dateLocale(locale) });
+  return formatDateFns(displayDate(value), pattern, {
+    locale: dateLocale(locale),
+  });
 }
 
 export function datetime(
@@ -63,7 +79,8 @@ export function datetime(
   pattern = "dd.MM.yyyy HH:mm",
   locale: AppLocale = i18nConfig.defaultLocale,
 ) {
-  const d = typeof value === "string" ? parseISO(value) : value;
+  const d =
+    typeof value === "string" ? displayDate(value) : businessWallClock(value);
   return formatDateFns(d, pattern, { locale: dateLocale(locale) });
 }
 

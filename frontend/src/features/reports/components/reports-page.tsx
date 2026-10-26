@@ -49,12 +49,12 @@ import {
 import { useTenantReportsAccess } from "@/features/reports/hooks/use-tenant-reports-access";
 import type { ReportsOverviewFilters } from "@/features/reports/services/reports.service";
 import { isApiError } from "@/lib/api";
+import { businessToday, shiftDay } from "@/lib/utils/business-date";
 import { useLocale } from "@/providers/locale-provider";
 
+/** Business day (Europe/Istanbul) n days before today. */
 function daysAgo(n: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
+  return shiftDay(businessToday(), -n);
 }
 
 type DraftFilters = {

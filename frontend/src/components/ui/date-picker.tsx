@@ -11,6 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { businessToday } from "@/lib/utils/business-date";
 import { dateFnsLocale, dayPickerLocale } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
@@ -85,7 +86,9 @@ export function DatePicker({
           onSelect={(date) => {
             onChange?.(date ? format(date, "yyyy-MM-dd") : "");
           }}
-          defaultMonth={selected}
+          defaultMonth={selected ?? parseISO(businessToday())}
+          // "Today" is the business day (Europe/Istanbul), not the browser's.
+          today={parseISO(businessToday())}
           captionLayout={captionLayout}
         />
       </PopoverContent>

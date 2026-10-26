@@ -1,7 +1,6 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { useMemo } from "react";
 import { useFormContext } from "react-hook-form";
 import { z } from "zod";
@@ -37,6 +36,7 @@ import {
 } from "@/features/loyalty/hooks/use-loyalty";
 import type { LoyaltyPlan } from "@/features/loyalty/services/loyalty.service";
 import { useLocale } from "@/providers/locale-provider";
+import { businessToday } from "@/lib/utils/business-date";
 
 export function StartSubscriptionDialog({
   open,
@@ -102,7 +102,7 @@ export function StartSubscriptionDialog({
             customer_uuid: customerUuid ?? "",
             plan_uuid: "",
             vehicle_uuid: "",
-            start_date: format(new Date(), "yyyy-MM-dd"),
+            start_date: businessToday(),
             collect: true,
             method: "cash",
             finance_account_uuid: defaultUuid,

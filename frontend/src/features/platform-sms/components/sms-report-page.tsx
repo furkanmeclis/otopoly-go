@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import type { ColumnDef } from "@tanstack/react-table";
-import { format, startOfMonth } from "date-fns";
 import { MessageSquareText } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -38,6 +37,7 @@ import {
 import { date as formatDate, datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
+import { businessMonthStart, businessToday } from "@/lib/utils/business-date";
 
 type Tone = "default" | "success" | "warning" | "danger";
 
@@ -52,10 +52,8 @@ export function SmsReportPage() {
   const { can } = usePermission();
   const router = useRouter();
   const canRead = can(permissions.platformSms.read);
-  const [from, setFrom] = useState(() =>
-    format(startOfMonth(new Date()), "yyyy-MM-dd"),
-  );
-  const [to, setTo] = useState(() => format(new Date(), "yyyy-MM-dd"));
+  const [from, setFrom] = useState(() => businessMonthStart());
+  const [to, setTo] = useState(() => businessToday());
   const nf = useMemo(
     () => new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US"),
     [locale],

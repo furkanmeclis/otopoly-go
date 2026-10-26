@@ -1,7 +1,5 @@
 "use client";
 
-import { addDays, format } from "date-fns";
-
 import { createNavAdornment, type NavAdornment } from "@/features/nav-engine";
 import { useCalendarFeed } from "@/features/calendar/hooks/use-calendar";
 import { LAYER_DEFS } from "@/features/calendar/lib/layers";
@@ -9,6 +7,7 @@ import { CALENDAR_LAYERS, type CalendarLayer } from "@/features/calendar/types";
 import { permissions } from "@/config/permissions";
 import { usePermission } from "@/providers/permission-provider";
 import { useLocale } from "@/providers/locale-provider";
+import { businessToday, shiftDay } from "@/lib/utils/business-date";
 
 /** Layers counted as "today" in the sidebar (finance day totals are not). */
 const COUNTED: CalendarLayer[] = CALENDAR_LAYERS.filter((l) => l !== "finance");
@@ -17,13 +16,8 @@ function useCalendarNavAdornment(): NavAdornment {
   const { t } = useLocale();
   const { hasPermission } = usePermission();
   const canRead = hasPermission(permissions.calendar.read);
-  const today = new Date();
-  const { data } = useCalendarFeed(
-    format(today, "yyyy-MM-dd"),
-    format(addDays(today, 1), "yyyy-MM-dd"),
-    COUNTED,
-    canRead,
-  );
+  const today = businessToday();
+  const { data } = useCalendarFeed(today, shiftDay(today, 1), COUNTED, canRead);
   if (!data) return {};
   const total = data.items.length;
   const rows = COUNTED.filter((l) => (data.counts[l] ?? 0) > 0)
