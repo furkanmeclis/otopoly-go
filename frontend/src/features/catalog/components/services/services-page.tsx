@@ -37,6 +37,10 @@ import {
 import { ResourceIOToolbar } from "@/features/io";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function ServicesPage({
   slug,
@@ -56,7 +60,10 @@ export function ServicesPage({
     null,
   );
 
+  const liveList = useTenantLiveList(TenantLiveResources.catalogServices);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "name",
     initialPageSize: 20,
   });
@@ -176,6 +183,9 @@ export function ServicesPage({
       ) : null}
 
       <EntityTable
+        realtime={listState.realtimeFor(() =>
+          Promise.all([listQuery.refetch(), summaryQuery.refetch()]),
+        )}
         columns={columns}
         data={listQuery.data?.items ?? []}
         getRowId={(row) => row.uuid}

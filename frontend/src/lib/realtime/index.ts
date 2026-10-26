@@ -25,3 +25,8 @@ export {
   readNumericUserIdFromConnectionToken,
   readUserIdFromConnectionToken,
 } from "./utils";
+export {
+  parseResourceChanged,
+  type ResourceChangeAction,
+  type ResourceChangedEvent,
+} from "./resource-events";

@@ -23,6 +23,10 @@ import type { CatalogCategory } from "@/features/catalog/services/catalog.servic
 import { ResourceIOToolbar } from "@/features/io";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function CategoriesPage({ slug }: { slug: string }) {
   const { t } = useLocale();
@@ -38,7 +42,10 @@ export function CategoriesPage({ slug }: { slug: string }) {
   const [editingCategory, setEditingCategory] =
     useState<CatalogCategory | null>(null);
 
+  const liveList = useTenantLiveList(TenantLiveResources.catalogCategories);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "sort_order",
     initialPageSize: 50,
   });
@@ -131,6 +138,7 @@ export function CategoriesPage({ slug }: { slug: string }) {
       </div>
 
       <EntityTable
+        realtime={listState.realtimeFor(() => listQuery.refetch())}
         columns={columns}
         data={items}
         getRowId={(row) => row.uuid}

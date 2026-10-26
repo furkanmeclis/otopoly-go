@@ -52,6 +52,10 @@ type View = "board" | "list";
 type ListFilter = "all" | (typeof BOARD_STATUSES)[number] | "closed";
 
 const ALL_ASSIGNEES = "__all__";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 const LIVE_REFRESH_MS = 30_000;
 
 /** Ticks every 30s so elapsed times and "stale" flags stay current. */
@@ -112,6 +116,9 @@ export function JobsPage({ slug }: { slug: string }) {
     refetchInterval: isToday ? LIVE_REFRESH_MS : false,
   });
   const summaryQuery = useJobsSummary(date);
+  useTenantLiveRefetch(TenantLiveResources.jobs, () =>
+    Promise.all([listQuery.refetch(), summaryQuery.refetch()]),
+  );
   const metaQuery = useJobsMeta();
 
   const allJobs = useMemo(() => listQuery.data?.items ?? [], [listQuery.data]);

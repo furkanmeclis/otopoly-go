@@ -21,6 +21,10 @@ import type { Todo, TodoListParams } from "@/features/todos/types";
 import { useLocale } from "@/providers/locale-provider";
 
 type Tab = "due" | "upcoming" | "no_date" | "mine" | "done";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const TAB_PARAMS: Record<Tab, TodoListParams> = {
   due: { status: "open", scope: "open_due" },
@@ -38,6 +42,11 @@ export function TodosPage({ slug }: { slug: string }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const summary = useTodoSummary(access.canRead);
   const list = useTodos(TAB_PARAMS[tab], access.canRead);
+  useTenantLiveRefetch(
+    TenantLiveResources.todos,
+    () => Promise.all([list.refetch(), summary.refetch()]),
+    { enabled: access.canRead },
+  );
   const { toggle, remove } = useTodoMutations();
   // Deep link from reminder notifications: /t/{slug}/todos?todo={uuid}
   const router = useRouter();

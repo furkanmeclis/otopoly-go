@@ -26,6 +26,10 @@ import type { FinanceTransaction } from "@/features/finance/services/finance.ser
 import { ResourceIOToolbar } from "@/features/io";
 import { useLocale } from "@/providers/locale-provider";
 import type { ColumnFiltersState } from "@tanstack/react-table";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function columnSelectValue(columnFilters: ColumnFiltersState, id: string) {
   const raw = columnFilters.find((filter) => filter.id === id)?.value;
@@ -61,7 +65,10 @@ export function FinanceTransactionsPage({ slug }: { slug: string }) {
     () => searchParams.get("create") === "expense",
   );
 
+  const liveList = useTenantLiveList(TenantLiveResources.financeTransactions);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "-transaction_date",
     initialPageSize: 25,
   });
@@ -166,6 +173,7 @@ export function FinanceTransactionsPage({ slug }: { slug: string }) {
       }
     >
       <EntityTable
+        realtime={listState.realtimeFor(() => listQuery.refetch())}
         columns={columns}
         data={listQuery.data?.items ?? []}
         getRowId={(row) => row.uuid}

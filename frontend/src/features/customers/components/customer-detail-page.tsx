@@ -64,6 +64,10 @@ import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-acces
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function CustomerDetailPage({
   slug,
@@ -79,6 +83,7 @@ export function CustomerDetailPage({
   const { canRead: canReadCari } = useTenantCariAccess(slug);
   const { canRead: canReadJobs } = useTenantJobsAccess(slug);
   const query = useCustomer(uuid);
+  useTenantLiveRefetch(TenantLiveResources.customers, query.refetch, { uuid });
   const mutations = useCustomerMutations();
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -95,6 +100,7 @@ export function CustomerDetailPage({
     offset: 0,
     sort: "-started_at",
   });
+  useTenantLiveRefetch(TenantLiveResources.jobs, recentJobsQuery.refetch);
 
   const columns = useMemo<ColumnDef<CustomerVehicle>[]>(() => {
     const base: ColumnDef<CustomerVehicle>[] = [

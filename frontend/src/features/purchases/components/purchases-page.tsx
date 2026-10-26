@@ -55,6 +55,10 @@ import { suppliersService } from "@/features/suppliers/services/suppliers.servic
 import { datetime } from "@/lib/utils/format";
 import { localToday } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveTable,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const STATUS_TABS = ["all", "posted", "voided"] as const;
 const PURCHASE_METHODS = ["cash", "card"] as const;
@@ -106,6 +110,10 @@ export function PurchasesPage({ slug }: { slug: string }) {
   );
 
   const listQuery = usePurchases(listParams);
+  const liveTable = useTenantLiveTable(
+    TenantLiveResources.purchases,
+    listQuery.refetch,
+  );
   const metaQuery = usePurchasesMeta();
   const columns = usePurchaseColumns();
 
@@ -226,6 +234,7 @@ export function PurchasesPage({ slug }: { slug: string }) {
       </Tabs>
 
       <EntityTable
+        realtime={liveTable}
         columns={columns}
         data={items}
         getRowId={(row) => row.uuid}

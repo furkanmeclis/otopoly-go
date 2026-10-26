@@ -1,4 +1,8 @@
 "use client";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 // TODO(finance): Reuse useFinanceTransactionsColumns filterOptions for ledger parity with list page;
 // optional date range props from parent detail pages.
@@ -35,7 +39,10 @@ export function FinanceLedgerSection({
   const { t } = useLocale();
   const router = useRouter();
 
+  const liveList = useTenantLiveList(TenantLiveResources.financeTransactions);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "-transaction_date",
     initialPageSize: 15,
   });
@@ -70,6 +77,7 @@ export function FinanceLedgerSection({
   return (
     <EntitySectionCard title={title} badge={listQuery.data?.total}>
       <EntityTable
+        realtime={listState.realtimeFor(() => listQuery.refetch())}
         columns={columns}
         data={listQuery.data?.items ?? []}
         getRowId={(row) => row.uuid}

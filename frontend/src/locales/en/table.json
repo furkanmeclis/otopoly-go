@@ -54,5 +54,10 @@
   "bulk": "Bulk",
   "select_all": "Select all",
   "select_row": "Select row",
-  "double_click_to_edit": "Double-click to edit"
+  "double_click_to_edit": "Double-click to edit",
+  "live_new_record": "{{count}} new record",
+  "live_new_records": "{{count}} new records",
+  "live_changed": "List updated",
+  "live_refresh": "Refresh",
+  "live_dismiss": "Dismiss"
 }

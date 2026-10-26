@@ -52,6 +52,10 @@ import type {
 import { useJobs } from "@/features/jobs/hooks/use-jobs";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const STATUS_TABS = ["all", "draft", "pending", "executed", "voided"] as const;
 
@@ -86,7 +90,10 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
   // Support ?job_uuid=xxx from URL for automatic subject binding
   const jobUuidFromUrl = searchParams?.get("job_uuid") ?? undefined;
 
+  const liveList = useTenantLiveList(TenantLiveResources.contractInstances);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "created_at",
     initialPageSize: 20,
   });
@@ -259,6 +266,7 @@ export function ContractInstancesPage({ slug }: { slug: string }) {
         <FeatureLocked slug={slug} />
       ) : (
         <EntityTable
+          realtime={listState.realtimeFor(() => listQuery.refetch())}
           columns={columns}
           data={listQuery.data?.items ?? []}
           getRowId={(row) => row.uuid}

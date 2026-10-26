@@ -35,6 +35,10 @@ import type { Quote, QuoteListParams } from "@/features/quotes/types";
 import { cn } from "@/lib/utils";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const TABS = [
   "open",
@@ -68,6 +72,11 @@ export function QuotesPage({ slug }: { slug: string }) {
   );
   const list = useQuotes(params, access.canRead);
   const summary = useQuoteSummary(access.canRead);
+  useTenantLiveRefetch(
+    TenantLiveResources.quotes,
+    () => Promise.all([list.refetch(), summary.refetch()]),
+    { enabled: access.canRead },
+  );
 
   if (!access.canRead) {
     return (
