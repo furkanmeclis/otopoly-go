@@ -15,22 +15,35 @@ import (
 const countContractInstances = `-- name: CountContractInstances :one
 SELECT count(*)::bigint
 FROM contract_instances
-WHERE organization_id = $1
+WHERE contract_instances.organization_id = $1
   AND (
     $2::text IS NULL
-    OR status = $2::text
+    OR contract_instances.status = $2::text
   )
   AND (
     $3::text IS NULL
-    OR subject_type = $3::text
+    OR contract_instances.subject_type = $3::text
   )
   AND (
     $4::uuid IS NULL
-    OR subject_uuid = $4::uuid
+    OR contract_instances.subject_uuid = $4::uuid
   )
   AND (
-    $5::text IS NULL
-    OR title ILIKE '%' || $5::text || '%'
+    $5::uuid IS NULL
+    OR (
+        contract_instances.subject_type = 'service_job'
+        AND contract_instances.subject_uuid IN (
+            SELECT fj.uuid FROM service_jobs fj
+            JOIN customers fc ON fc.id = fj.customer_id
+            WHERE fj.organization_id = $1
+              AND fc.organization_id = $1
+              AND fc.uuid = $5::uuid
+        )
+    )
+  )
+  AND (
+    $6::text IS NULL
+    OR contract_instances.title ILIKE '%' || $6::text || '%'
   )
 `
 
@@ -39,6 +52,7 @@ type CountContractInstancesParams struct {
 	Status         pgtype.Text `json:"status"`
 	SubjectType    pgtype.Text `json:"subject_type"`
 	SubjectUuid    pgtype.UUID `json:"subject_uuid"`
+	CustomerUuid   pgtype.UUID `json:"customer_uuid"`
 	Q              pgtype.Text `json:"q"`
 }
 
@@ -48,6 +62,7 @@ func (q *Queries) CountContractInstances(ctx context.Context, arg CountContractI
 		arg.Status,
 		arg.SubjectType,
 		arg.SubjectUuid,
+		arg.CustomerUuid,
 		arg.Q,
 	)
 	var column_1 int64
@@ -881,25 +896,38 @@ func (q *Queries) IncrementContractSignerOTPAttempts(ctx context.Context, id int
 const listContractInstances = `-- name: ListContractInstances :many
 SELECT id, uuid, organization_id, template_id, title, subject_type, subject_uuid, content_json, content_html, variables_resolved, signature_required, status, content_sha256, pdf_object_key, pdf_error, created_by, executed_at, voided_at, voided_by, created_at, updated_at, number, locale, otp_required
 FROM contract_instances
-WHERE organization_id = $1
+WHERE contract_instances.organization_id = $1
   AND (
     $2::text IS NULL
-    OR status = $2::text
+    OR contract_instances.status = $2::text
   )
   AND (
     $3::text IS NULL
-    OR subject_type = $3::text
+    OR contract_instances.subject_type = $3::text
   )
   AND (
     $4::uuid IS NULL
-    OR subject_uuid = $4::uuid
+    OR contract_instances.subject_uuid = $4::uuid
   )
   AND (
-    $5::text IS NULL
-    OR title ILIKE '%' || $5::text || '%'
+    $5::uuid IS NULL
+    OR (
+        contract_instances.subject_type = 'service_job'
+        AND contract_instances.subject_uuid IN (
+            SELECT fj.uuid FROM service_jobs fj
+            JOIN customers fc ON fc.id = fj.customer_id
+            WHERE fj.organization_id = $1
+              AND fc.organization_id = $1
+              AND fc.uuid = $5::uuid
+        )
+    )
   )
-ORDER BY created_at DESC
-LIMIT $7 OFFSET $6
+  AND (
+    $6::text IS NULL
+    OR contract_instances.title ILIKE '%' || $6::text || '%'
+  )
+ORDER BY contract_instances.created_at DESC
+LIMIT $8 OFFSET $7
 `
 
 type ListContractInstancesParams struct {
@@ -907,6 +935,7 @@ type ListContractInstancesParams struct {
 	Status         pgtype.Text `json:"status"`
 	SubjectType    pgtype.Text `json:"subject_type"`
 	SubjectUuid    pgtype.UUID `json:"subject_uuid"`
+	CustomerUuid   pgtype.UUID `json:"customer_uuid"`
 	Q              pgtype.Text `json:"q"`
 	OffsetCount    int32       `json:"offset_count"`
 	LimitCount     int32       `json:"limit_count"`
@@ -918,6 +947,7 @@ func (q *Queries) ListContractInstances(ctx context.Context, arg ListContractIns
 		arg.Status,
 		arg.SubjectType,
 		arg.SubjectUuid,
+		arg.CustomerUuid,
 		arg.Q,
 		arg.OffsetCount,
 		arg.LimitCount,

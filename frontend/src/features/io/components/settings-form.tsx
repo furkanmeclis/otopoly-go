@@ -25,6 +25,8 @@ import { brand } from "@/config/brand";
 import { apiConfig } from "@/config/api";
 import {
   PAPER_SIZES,
+  SECTOR_NONE,
+  SECTORS,
   settingsFormSchema,
   toPatchPayload,
   toSettingsFormValues,
@@ -41,6 +43,8 @@ type SettingsFormProps = {
   isLogoUploading: boolean;
   isLogoRemoving: boolean;
   showLocation?: boolean;
+  /** Business type select (tenant settings). */
+  showSector?: boolean;
   onSubmit: (payload: ReturnType<typeof toPatchPayload>) => Promise<void>;
   onUploadLogo: (file: File) => void;
   onRemoveLogo: () => void;
@@ -54,6 +58,7 @@ function SettingsFormFields({
   isLogoUploading,
   isLogoRemoving,
   showLocation,
+  showSector,
   onCancel,
   onUploadLogo,
   onRemoveLogo,
@@ -65,6 +70,7 @@ function SettingsFormFields({
   isLogoUploading: boolean;
   isLogoRemoving: boolean;
   showLocation?: boolean;
+  showSector?: boolean;
   onCancel: () => void;
   onUploadLogo: (file: File) => void;
   onRemoveLogo: () => void;
@@ -94,6 +100,14 @@ function SettingsFormFields({
   const logoSrc = settings.logo_url
     ? `${apiConfig.baseUrl.replace(/\/$/, "")}${settings.logo_url}`
     : null;
+
+  const sectorOptions = [
+    { value: SECTOR_NONE, label: t("settings.sectors.none") },
+    ...SECTORS.map((sector) => ({
+      value: sector,
+      label: t(`settings.sectors.${sector}`),
+    })),
+  ];
 
   const paperOptions = PAPER_SIZES.map((size) => ({
     value: size,
@@ -152,6 +166,17 @@ function SettingsFormFields({
           label={t("settings.tagline")}
           disabled={!canWrite}
         />
+
+        {showSector ? (
+          <AppSelect
+            name="sector"
+            label={t("settings.sector")}
+            description={t("settings.sector_hint")}
+            options={sectorOptions}
+            disabled={!canWrite}
+            className="sm:col-span-2"
+          />
+        ) : null}
 
         <ColorField disabled={!canWrite} label={t("settings.primary_color")} />
 
@@ -313,6 +338,7 @@ export function SettingsForm({
   isLogoUploading,
   isLogoRemoving,
   showLocation,
+  showSector,
   onSubmit,
   onUploadLogo,
   onRemoveLogo,
@@ -327,7 +353,7 @@ export function SettingsForm({
       schema={settingsFormSchema}
       defaultValues={defaultValues}
       onSubmit={async (values) => {
-        await onSubmit(toPatchPayload(values));
+        await onSubmit(toPatchPayload(values, showSector));
       }}
     >
       {(form) => (
@@ -339,6 +365,7 @@ export function SettingsForm({
           isLogoUploading={isLogoUploading}
           isLogoRemoving={isLogoRemoving}
           showLocation={showLocation}
+          showSector={showSector}
           onCancel={() => form.reset(defaultValues)}
           onUploadLogo={onUploadLogo}
           onRemoveLogo={onRemoveLogo}

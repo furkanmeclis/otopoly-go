@@ -20,10 +20,17 @@ WHERE s.organization_id = $1
   AND ($3::timestamptz IS NULL OR s.sold_at >= $3)
   AND ($4::timestamptz IS NULL OR s.sold_at < $4)
   AND (
-    $5::text IS NULL
-    OR s.customer_name ILIKE '%' || $5 || '%'
-    OR s.customer_phone ILIKE '%' || $5 || '%'
-    OR s.notes ILIKE '%' || $5 || '%'
+    $5::uuid IS NULL
+    OR s.customer_id = (
+        SELECT fc.id FROM customers fc
+        WHERE fc.uuid = $5 AND fc.organization_id = $1
+    )
+  )
+  AND (
+    $6::text IS NULL
+    OR s.customer_name ILIKE '%' || $6 || '%'
+    OR s.customer_phone ILIKE '%' || $6 || '%'
+    OR s.notes ILIKE '%' || $6 || '%'
   )
 `
 
@@ -32,6 +39,7 @@ type CountProductSalesParams struct {
 	Status         pgtype.Text        `json:"status"`
 	DateFrom       pgtype.Timestamptz `json:"date_from"`
 	DateTo         pgtype.Timestamptz `json:"date_to"`
+	CustomerUuid   pgtype.UUID        `json:"customer_uuid"`
 	Q              pgtype.Text        `json:"q"`
 }
 
@@ -41,6 +49,7 @@ func (q *Queries) CountProductSales(ctx context.Context, arg CountProductSalesPa
 		arg.Status,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.CustomerUuid,
 		arg.Q,
 	)
 	var column_1 int64
@@ -468,18 +477,25 @@ WHERE s.organization_id = $1
   AND ($3::timestamptz IS NULL OR s.sold_at >= $3)
   AND ($4::timestamptz IS NULL OR s.sold_at < $4)
   AND (
-    $5::text IS NULL
-    OR s.customer_name ILIKE '%' || $5 || '%'
-    OR s.customer_phone ILIKE '%' || $5 || '%'
-    OR s.notes ILIKE '%' || $5 || '%'
+    $5::uuid IS NULL
+    OR s.customer_id = (
+        SELECT fc.id FROM customers fc
+        WHERE fc.uuid = $5 AND fc.organization_id = $1
+    )
+  )
+  AND (
+    $6::text IS NULL
+    OR s.customer_name ILIKE '%' || $6 || '%'
+    OR s.customer_phone ILIKE '%' || $6 || '%'
+    OR s.notes ILIKE '%' || $6 || '%'
   )
 ORDER BY
-    CASE WHEN $6::text = 'sold_at' THEN s.sold_at END ASC,
-    CASE WHEN $6::text = '-sold_at' THEN s.sold_at END DESC,
-    CASE WHEN $6::text = 'total_amount' THEN s.total_amount END ASC,
-    CASE WHEN $6::text = '-total_amount' THEN s.total_amount END DESC,
+    CASE WHEN $7::text = 'sold_at' THEN s.sold_at END ASC,
+    CASE WHEN $7::text = '-sold_at' THEN s.sold_at END DESC,
+    CASE WHEN $7::text = 'total_amount' THEN s.total_amount END ASC,
+    CASE WHEN $7::text = '-total_amount' THEN s.total_amount END DESC,
     s.sold_at DESC
-LIMIT $8 OFFSET $7
+LIMIT $9 OFFSET $8
 `
 
 type ListProductSalesParams struct {
@@ -487,6 +503,7 @@ type ListProductSalesParams struct {
 	Status         pgtype.Text        `json:"status"`
 	DateFrom       pgtype.Timestamptz `json:"date_from"`
 	DateTo         pgtype.Timestamptz `json:"date_to"`
+	CustomerUuid   pgtype.UUID        `json:"customer_uuid"`
 	Q              pgtype.Text        `json:"q"`
 	Sort           string             `json:"sort"`
 	OffsetCount    int32              `json:"offset_count"`
@@ -523,6 +540,7 @@ func (q *Queries) ListProductSales(ctx context.Context, arg ListProductSalesPara
 		arg.Status,
 		arg.DateFrom,
 		arg.DateTo,
+		arg.CustomerUuid,
 		arg.Q,
 		arg.Sort,
 		arg.OffsetCount,

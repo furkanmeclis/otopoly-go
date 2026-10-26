@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -77,14 +78,20 @@ func TestParseRange(t *testing.T) {
 	}
 }
 
-// fakeStore records which layers were queried.
+// fakeStore records which layers were queried. GetFeed loads layers
+// concurrently, so marks are guarded.
 type fakeStore struct {
 	Store
+	mu     sync.Mutex
 	called map[string]bool
 	events []db.CalendarEvent
 }
 
-func (f *fakeStore) mark(k string) { f.called[k] = true }
+func (f *fakeStore) mark(k string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.called[k] = true
+}
 
 func (f *fakeStore) ListCalendarEventsInRange(_ context.Context, _ db.ListCalendarEventsInRangeParams) ([]db.CalendarEvent, error) {
 	f.mark(LayerEvents)

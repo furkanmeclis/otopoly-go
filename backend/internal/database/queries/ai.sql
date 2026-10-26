@@ -130,7 +130,11 @@ RETURNING *;
 -- name: TouchAIConversation :exec
 UPDATE ai_conversations
 SET message_count = message_count + sqlc.arg(added)::int,
-    last_message_at = now()
+    last_message_at = now(),
+    last_message_preview = CASE
+        WHEN sqlc.arg(preview)::text <> '' THEN sqlc.arg(preview)::text
+        ELSE last_message_preview
+    END
 WHERE id = sqlc.arg(id);
 
 -- name: SoftDeleteAIConversation :exec

@@ -49,6 +49,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		DateFrom: strings.TrimSpace(r.URL.Query().Get("date_from")),
 		DateTo:   strings.TrimSpace(r.URL.Query().Get("date_to")),
 		Sort:     strings.TrimSpace(r.URL.Query().Get("sort")),
+
+		SupplierUUID: strings.TrimSpace(r.URL.Query().Get("supplier_uuid")),
 	})
 	if err != nil {
 		writeError(w, r, err)

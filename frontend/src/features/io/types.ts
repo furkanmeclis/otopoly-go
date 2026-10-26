@@ -70,6 +70,8 @@ export type AppSettings = {
   footer_text: string;
   paper_size: string;
   logo_url?: string | null;
+  /** Business type (tenant settings only); null when not set. */
+  sector?: string | null;
 };
 
 export type ActivityEvent = {

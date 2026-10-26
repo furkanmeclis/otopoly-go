@@ -113,9 +113,14 @@ export interface paths {
          *     with the returned `slug` (or `/v1/auth/refresh`) to get an
          *     organization-scoped session.
          *
+         *     Optional `sector` (business type: `car_wash`, `detailing`,
+         *     `ppf_tint`, `auto_service`, `tyres`, `other`) is stored on the
+         *     organization and returned here, on `/v1/auth/me` organizations and on
+         *     `/v1/tenant/settings`.
+         *
          *     Errors: `400 VALIDATION_ERROR` (field details: `organization_name`
          *     2-120 characters; `phone` <= 32, `city` / `district` <= 100,
-         *     `address` <= 500), `401`, `403 FORBIDDEN` when self-registration is
+         *     `address` <= 500, `sector` one of the values above), `401`, `403 FORBIDDEN` when self-registration is
          *     disabled (`auth_settings.registration_enabled`), `409 CONFLICT` when
          *     the caller already owns a business (staff membership elsewhere does not
          *     count), `429 RATE_LIMITED` (5 per hour per user).
@@ -1702,7 +1707,8 @@ export interface paths {
          *       `tenant.catalog.products`, `tenant.catalog.services`, `tenant.catalog.categories`,
          *       `tenant.finance.accounts`, `tenant.finance.categories`, `tenant.finance.transactions`,
          *       `tenant.cari`, `tenant.cari.entries`, `tenant.todos`, `tenant.contracts` (templates),
-         *       `tenant.contracts.instances`, `tenant.staff`.
+         *       `tenant.contracts.instances`, `tenant.staff`, `tenant.calendar` (own calendar
+         *       events and calendar moves; needs `tenant.calendar.read`).
          *
          *     Live list publications carry
          *     `{ "type": "resource.changed", "resource": "tenant.jobs", "action": "created|updated|deleted|bulk",
@@ -3221,7 +3227,12 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update organization export letterhead */
+        /**
+         * Update organization export letterhead
+         * @description Owner only (`tenant.settings.write`). Partial update of the letterhead
+         *     fields and the business `sector` (`""` clears it). Invalid values are
+         *     `400 VALIDATION_ERROR`.
+         */
         patch: operations["patchTenantSettings"];
         trace?: never;
     };
@@ -3403,7 +3414,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Stream a vehicle brand logo */
+        /**
+         * Stream a vehicle brand logo
+         * @description Public, cacheable (`Cache-Control: public, max-age=604800`). This is the
+         *     `logo_url` / `brand_logo_url` returned on vehicles, jobs, quotes, …;
+         *     append `?variant=badge` for the square emblem (app icons, lists).
+         */
         get: operations["getPublicVehicleBrandLogo"];
         put?: never;
         post?: never;
@@ -5829,6 +5845,40 @@ export interface paths {
         patch: operations["patchTenantCustomer"];
         trace?: never;
     };
+    "/v1/tenant/customers/{uuid}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer activity feed
+         * @description Requires `tenant.customers.read`. Audit events of the customer and its
+         *     records in this organization, newest first: the customer itself and
+         *     its vehicles always; jobs with `tenant.jobs.read`; contracts on its
+         *     jobs with `tenant.jobs.read` + `tenant.contracts.read`; sales with
+         *     `tenant.sales.read`; quotes with `tenant.quotes.read`; leads with
+         *     `tenant.leads.read`; cari entries with `tenant.cari.read`. Kinds the
+         *     caller cannot read are left out (also from `total`).
+         *
+         *     `subject` is the record kind (`customer`, `vehicle`, `job`, `sale`,
+         *     `quote`, `lead`, `cari_entry`, `contract`) and `resource_uuid` the
+         *     record, so clients can link each entry. `action` is the audit action
+         *     (e.g. `jobs.create`, `tenant.quote.status`, `cari.payment`); `payload`
+         *     carries action-specific details (e.g. `name`, `plate`, `number`,
+         *     `status`, `from` / `to`). `actor` is null for system / public-link
+         *     actions. Another organization's customer is `404`.
+         */
+        get: operations["listTenantCustomerActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/customers/{uuid}/vehicles": {
         parameters: {
             query?: never;
@@ -8087,6 +8137,13 @@ export interface components {
         MeImpersonation: {
             user: components["schemas"]["PublicUser"];
         };
+        /**
+         * @description Business type: `car_wash` (oto yıkama), `detailing`, `ppf_tint` (PPF /
+         *     cam filmi), `auto_service` (oto servis), `tyres` (lastik), `other`;
+         *     null when not set.
+         * @enum {string|null}
+         */
+        OrganizationSector: "car_wash" | "detailing" | "ppf_tint" | "auto_service" | "tyres" | "other" | null;
         OrganizationMembership: {
             /** Format: uuid */
             uuid: string;
@@ -8098,6 +8155,7 @@ export interface components {
             status: string;
             /** Format: date-time */
             access_ends_at?: string | null;
+            sector: components["schemas"]["OrganizationSector"];
         };
         PublicOrganization: {
             /** Format: uuid */
@@ -8124,6 +8182,7 @@ export interface components {
             /** Format: date-time */
             access_ends_at?: string | null;
             logo_url?: string | null;
+            sector: components["schemas"]["OrganizationSector"];
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -8148,6 +8207,11 @@ export interface components {
             city?: string;
             district?: string;
             address?: string;
+            /**
+             * @description Optional business type; empty / omitted = not set (400 `VALIDATION_ERROR` field `sector` for other values)
+             * @enum {string}
+             */
+            sector?: "car_wash" | "detailing" | "ppf_tint" | "auto_service" | "tyres" | "other";
         };
         OwnedOrganizationCreated: {
             organization: {
@@ -8155,6 +8219,7 @@ export interface components {
                 uuid: string;
                 slug: string;
                 name: string;
+                sector: components["schemas"]["OrganizationSector"];
             };
         };
         EnvelopeOwnedOrganizationCreated: {
@@ -9387,6 +9452,43 @@ export interface components {
             data: components["schemas"]["OrganizationActivityPage"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        CustomerActivityActor: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            surname: string;
+        };
+        CustomerActivityEntry: {
+            /** Format: uuid */
+            uuid: string;
+            /** @description Audit action, e.g. `tenant.customer.update`, `jobs.close`, `tenant.sales.create` */
+            action: string;
+            /** @description Audit resource name (`customer`, `customer_vehicle`, `jobs.job`, `sale`, `quote`, `lead`, `cari.entry`, `contract_instance`) */
+            resource: string;
+            /** @enum {string} */
+            subject: "customer" | "vehicle" | "job" | "sale" | "quote" | "lead" | "cari_entry" | "contract" | "other";
+            /** Format: uuid */
+            resource_uuid: string | null;
+            payload: {
+                [key: string]: unknown;
+            };
+            actor: components["schemas"]["CustomerActivityActor"] | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CustomerActivityPage: {
+            items: components["schemas"]["CustomerActivityEntry"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeCustomerActivityPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerActivityPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         SetOrganizationStatusRequest: {
             /** @enum {string} */
             status: "active" | "suspended";
@@ -10382,6 +10484,7 @@ export interface components {
             /** @enum {string} */
             paper_size: "A4" | "A3" | "Letter" | "Legal";
             logo_url?: string | null;
+            sector: components["schemas"]["OrganizationSector"];
         };
         PatchTenantSettingsRequest: {
             company_name?: string;
@@ -10396,6 +10499,11 @@ export interface components {
             footer_text?: string;
             /** @enum {string} */
             paper_size?: "A4" | "A3" | "Letter" | "Legal";
+            /**
+             * @description Business type; `""` clears it, null / omitted keeps the current value
+             * @enum {string|null}
+             */
+            sector?: "car_wash" | "detailing" | "ppf_tint" | "auto_service" | "tyres" | "other" | "" | null;
         };
         EnvelopeTenantSettings: {
             /** @enum {boolean} */
@@ -10703,8 +10811,11 @@ export interface components {
             media?: components["schemas"]["ContractMedia"][];
         };
         ContractOtpChallenge: {
-            /** @enum {string} */
-            channel?: "whatsapp";
+            /**
+             * @description Channel the code was sent over (`sms` when requested and the organization has an active SMS provider)
+             * @enum {string}
+             */
+            channel?: "whatsapp" | "sms";
             phone_masked?: string;
             /** Format: date-time */
             expires_at?: string;
@@ -11005,8 +11116,18 @@ export interface components {
             uuid: string;
             title: string;
             message_count: number;
-            /** Format: date-time */
-            last_message_at?: string;
+            /**
+             * @description Plain-text excerpt (markdown stripped, single line, up to 120
+             *     characters plus `…`) of the last user or assistant text message;
+             *     `""` when the conversation has no text yet. A turn without text
+             *     (only tool activity or an error) keeps the previous preview.
+             */
+            last_message_preview: string;
+            /**
+             * Format: date-time
+             * @description Time of the last stored message; null for an empty conversation
+             */
+            last_message_at: string | null;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -20484,7 +20605,15 @@ export interface operations {
     };
     getPublicVehicleBrandLogo: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Which logo file to serve. Omitted / empty or `full`: uploaded logo →
+                 *     full → badge → wordmark. `badge`: emblem → uploaded → full.
+                 *     `wordmark`: the wordmark only (`404` when there is none). Any other
+                 *     value is `400`.
+                 */
+                variant?: "full" | "badge" | "wordmark";
+            };
             header?: never;
             path: {
                 uuid: string;
@@ -20502,6 +20631,7 @@ export interface operations {
                     "image/*": string;
                 };
             };
+            400: components["responses"]["BadRequest"];
             404: components["responses"]["NotFound"];
         };
     };
@@ -23485,6 +23615,11 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
                 sort?: string;
+                /**
+                 * @description Only sales of this customer (`total` is filtered too). A customer of
+                 *     another organization matches nothing; a malformed uuid is `400`.
+                 */
+                customer_uuid?: string;
                 status?: "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
@@ -23865,6 +24000,12 @@ export interface operations {
                 offset?: components["parameters"]["Offset"];
                 q?: components["parameters"]["Q"];
                 sort?: string;
+                /**
+                 * @description Only purchases from this supplier (`total` is filtered too). A
+                 *     supplier of another organization matches nothing; a malformed uuid
+                 *     is `400`.
+                 */
+                supplier_uuid?: string;
                 status?: "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
@@ -24450,6 +24591,12 @@ export interface operations {
                 status?: "draft" | "pending" | "executed" | "voided";
                 subject_type?: "service_job";
                 subject_uuid?: string;
+                /**
+                 * @description Only contracts on this customer's service jobs (contracts are bound to
+                 *     a job; the job's customer decides). A customer of another
+                 *     organization matches nothing; a malformed uuid is `400`.
+                 */
+                customer_uuid?: string;
             };
             header?: never;
             path?: never;
@@ -25285,6 +25432,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeCustomerDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTenantCustomerActivity: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Activity page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerActivityPage"];
                 };
             };
             400: components["responses"]["BadRequest"];

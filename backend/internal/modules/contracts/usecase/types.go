@@ -146,6 +146,8 @@ type InstanceFilters struct {
 	Status      string
 	SubjectType string
 	SubjectUUID *uuid.UUID
+	// CustomerUUID limits the list to contracts of that customer's jobs.
+	CustomerUUID *uuid.UUID
 }
 
 // CreatePresetInput creates a platform preset.

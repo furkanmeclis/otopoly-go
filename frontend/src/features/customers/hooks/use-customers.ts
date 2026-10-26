@@ -1,6 +1,11 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { isLimitError } from "@/lib/api/limit-events";
@@ -15,7 +20,29 @@ export const customerKeys = {
   detail: (uuid: string) => [...customerKeys.all, "detail", uuid] as const,
   summary: (uuid: string) =>
     [...customerKeys.all, "detail", uuid, "summary"] as const,
+  activity: (uuid: string) =>
+    [...customerKeys.all, "detail", uuid, "activity"] as const,
 };
+
+const ACTIVITY_PAGE_SIZE = 20;
+
+/** Customer activity feed, newest first, loaded page by page. */
+export function useCustomerActivity(uuid: string, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: customerKeys.activity(uuid),
+    queryFn: ({ pageParam }) =>
+      customersService.activity(uuid, {
+        limit: ACTIVITY_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (last) => {
+      const next = last.offset + last.items.length;
+      return last.items.length > 0 && next < last.total ? next : undefined;
+    },
+    enabled: Boolean(uuid) && enabled,
+  });
+}
 
 export function useCustomerSummary(uuid: string) {
   return useQuery({

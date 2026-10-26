@@ -60,6 +60,10 @@ import {
 import { localDay, toViewItem } from "@/features/calendar/lib/feed-items";
 import { LAYER_DEFS } from "@/features/calendar/lib/layers";
 import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
+import {
   CALENDAR_LAYERS,
   type CalendarEvent,
   type CalendarFeedItem,
@@ -186,6 +190,22 @@ export function CalendarPage({ slug }: { slug: string }) {
   const to = format(range.to, "yyyy-MM-dd");
   const feedQuery = useCalendarFeed(from, to, layers, canRead);
   const feed = feedQuery.data;
+  // Live: own events plus the feed layers that change most often.
+  const refetchFeed = feedQuery.refetch;
+  useTenantLiveRefetch(
+    [
+      TenantLiveResources.calendar,
+      TenantLiveResources.jobs,
+      TenantLiveResources.todos,
+    ],
+    refetchFeed,
+    { enabled: canRead },
+  );
+  useTenantLiveRefetch(
+    [TenantLiveResources.leads, TenantLiveResources.quotes],
+    refetchFeed,
+    { enabled: canRead },
+  );
 
   const { items, byId } = useMemo(() => {
     const map = new Map<string, CalendarFeedItem>();

@@ -72,6 +72,10 @@ export function customerVehicleOptions(vehicles: CustomerVehicle[]) {
   }));
 }
 
+/** One entry of `GET /v1/tenant/customers/{uuid}/activity`. */
+export type CustomerActivityEntry =
+  components["schemas"]["CustomerActivityEntry"];
+
 /** 360° summary of a customer (`GET /v1/tenant/customers/{uuid}/summary`). */
 export type CustomerSummary = components["schemas"]["CustomerSummary"];
 
@@ -107,6 +111,13 @@ export const customersService = {
     return platformRequest<CustomerSummary>(
       "GET",
       `/v1/tenant/customers/${uuid}/summary`,
+    );
+  },
+  activity(uuid: string, params: { limit: number; offset: number }) {
+    return platformRequest<ListPage<CustomerActivityEntry>>(
+      "GET",
+      `/v1/tenant/customers/${uuid}/activity`,
+      { query: params },
     );
   },
   create(body: {

@@ -26,16 +26,17 @@ type ActivityEvent struct {
 }
 
 type AiConversation struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	OrganizationID int64              `json:"organization_id"`
-	UserID         int64              `json:"user_id"`
-	Title          string             `json:"title"`
-	MessageCount   int32              `json:"message_count"`
-	LastMessageAt  pgtype.Timestamptz `json:"last_message_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+	ID                 int64              `json:"id"`
+	Uuid               uuid.UUID          `json:"uuid"`
+	OrganizationID     int64              `json:"organization_id"`
+	UserID             int64              `json:"user_id"`
+	Title              string             `json:"title"`
+	MessageCount       int32              `json:"message_count"`
+	LastMessageAt      pgtype.Timestamptz `json:"last_message_at"`
+	CreatedAt          pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt          pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt          pgtype.Timestamptz `json:"deleted_at"`
+	LastMessagePreview string             `json:"last_message_preview"`
 }
 
 type AiMessage struct {
@@ -1236,6 +1237,7 @@ type Organization struct {
 	InvoiceAddress   string             `json:"invoice_address"`
 	InvoiceCity      string             `json:"invoice_city"`
 	InvoiceEmail     string             `json:"invoice_email"`
+	Sector           pgtype.Text        `json:"sector"`
 }
 
 type OrganizationMember struct {

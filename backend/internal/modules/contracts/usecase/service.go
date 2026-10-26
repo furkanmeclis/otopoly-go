@@ -625,6 +625,9 @@ func (s *Service) ListInstances(ctx context.Context, limit, offset int32, filter
 	if filters.SubjectUUID != nil {
 		params.SubjectUuid = pgtype.UUID{Bytes: *filters.SubjectUUID, Valid: true}
 	}
+	if filters.CustomerUUID != nil {
+		params.CustomerUuid = pgtype.UUID{Bytes: *filters.CustomerUUID, Valid: true}
+	}
 	rows, err := s.q.ListContractInstances(ctx, params)
 	if err != nil {
 		return nil, 0, err
@@ -634,6 +637,7 @@ func (s *Service) ListInstances(ctx context.Context, limit, offset int32, filter
 		Status:         params.Status,
 		SubjectType:    params.SubjectType,
 		SubjectUuid:    params.SubjectUuid,
+		CustomerUuid:   params.CustomerUuid,
 		Q:              params.Q,
 	})
 	if err != nil {

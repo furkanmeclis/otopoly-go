@@ -221,6 +221,10 @@ func (m *memStore) TouchAIConversation(_ context.Context, p db.TouchAIConversati
 	for i := range m.convs {
 		if m.convs[i].ID == p.ID {
 			m.convs[i].MessageCount += p.Added
+			m.convs[i].LastMessageAt = pgtype.Timestamptz{Time: time.Now(), Valid: true}
+			if p.Preview != "" {
+				m.convs[i].LastMessagePreview = p.Preview
+			}
 		}
 	}
 	return nil

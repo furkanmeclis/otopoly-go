@@ -112,11 +112,19 @@ func (h *Handler) CreateOwnedOrganization(w http.ResponseWriter, r *http.Request
 		City             string `json:"city"`
 		District         string `json:"district"`
 		Address          string `json:"address"`
+		Sector           string `json:"sector"`
 	}
 	if err := decodeJSON(w, r, &in); err != nil {
 		return
 	}
-	if details := validateOwnedOrganization(in.OrganizationName, in.Phone, in.City, in.District, in.Address); len(details) > 0 {
+	details := validateOwnedOrganization(in.OrganizationName, in.Phone, in.City, in.District, in.Address)
+	if sector := strings.TrimSpace(in.Sector); sector != "" && !orgusecase.ValidSector(sector) {
+		details = append(details, response.Detail{
+			Field: "sector", Code: "invalid",
+			Message: "sector must be one of " + strings.Join(orgusecase.Sectors, ", "),
+		})
+	}
+	if len(details) > 0 {
 		response.ValidationError(w, r, details)
 		return
 	}
@@ -140,7 +148,7 @@ func (h *Handler) CreateOwnedOrganization(w http.ResponseWriter, r *http.Request
 	}
 	result, err := h.svc.CreateOwnedOrganization(r.Context(), orgusecase.RegisterInput{
 		OrganizationName: in.OrganizationName, City: in.City, District: in.District,
-		Phone: in.Phone, Address: in.Address,
+		Phone: in.Phone, Address: in.Address, Sector: in.Sector,
 	}, p.UserInternal)
 	if err != nil {
 		if errors.Is(err, orgusecase.ErrAlreadyOwnsOrganization) {
@@ -152,9 +160,10 @@ func (h *Handler) CreateOwnedOrganization(w http.ResponseWriter, r *http.Request
 	}
 	response.JSON(w, r, http.StatusCreated, map[string]any{
 		"organization": map[string]any{
-			"uuid": result.Organization.UUID,
-			"slug": result.Organization.Slug,
-			"name": result.Organization.Name,
+			"uuid":   result.Organization.UUID,
+			"slug":   result.Organization.Slug,
+			"name":   result.Organization.Name,
+			"sector": result.Organization.Sector,
 		},
 	})
 }
@@ -446,7 +455,11 @@ func (h *Handler) TenantPatchSettings(w http.ResponseWriter, r *http.Request) {
 	s, err := h.svc.PatchTenantSettings(r.Context(), scope.InternalID, in)
 	if err != nil {
 		if errors.Is(err, orgusecase.ErrInvalidRequest) {
-			response.BadRequest(w, r, response.CodeValidationError, "invalid letterhead settings")
+			msg := "invalid letterhead settings"
+			if in.Sector != nil && strings.Contains(err.Error(), "sector") {
+				msg = strings.TrimPrefix(err.Error(), orgusecase.ErrInvalidRequest.Error()+": ")
+			}
+			response.BadRequest(w, r, response.CodeValidationError, msg)
 			return
 		}
 		writeError(w, r, err)
