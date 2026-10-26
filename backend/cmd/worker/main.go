@@ -19,6 +19,8 @@ import (
 	dsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/dailysummary/usecase"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
+	livepushmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/livepush"
+	livepushusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/livepush/usecase"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
 	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/smschannel"
@@ -248,10 +250,14 @@ func main() {
 	liveEvents := resourceevents.New(publisher, log)
 	defer liveEvents.Wait()
 	liveEvents.AddResolver(resourceevents.OrgChannelResolver(resourceevents.QueriesLookup(queries)))
-	importSvc.SetResourceEvents(liveEvents)
-	bulkSvc.SetResourceEvents(liveEvents)
-	quotesSvc.SetResourceEvents(liveEvents)
-	contractsSvc.SetResourceEvents(liveEvents)
+	// Job changes made here (imports, bulk, quote → job) also reach the
+	// mobile Live Activities and widgets (modules/livepush).
+	livePushSvc := livepushmodule.NewService(cfg, queries, queueClient, log)
+	livePub := livepushusecase.Publisher{Next: liveEvents, Svc: livePushSvc}
+	importSvc.SetResourceEvents(livePub)
+	bulkSvc.SetResourceEvents(livePub)
+	quotesSvc.SetResourceEvents(livePub)
+	contractsSvc.SetResourceEvents(livePub)
 
 	worker := queue.NewWorker(cfg, log, notifSvc.Deliver).
 		WithCatalogImport(vehicleCatalogSvc.ProcessImport).
@@ -276,6 +282,7 @@ func main() {
 		}).
 		WithBillingDigest(billingSvc.SendAdminDigest).
 		WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts).
+		WithLivePush(livePushSvc.ProcessJob, livePushSvc.ProcessWidgets, livePushSvc.PurgeExpired).
 		WithSearch(
 			searchIndexer.ProcessUpsert,
 			searchIndexer.ProcessDelete,
@@ -325,6 +332,10 @@ func main() {
 	}
 	if err := queue.RegisterPushReceiptsSchedule(scheduler); err != nil {
 		log.Error("push_receipts_scheduler_failed", "error", err)
+		exit(1)
+	}
+	if err := queue.RegisterLiveTokensPurgeSchedule(scheduler); err != nil {
+		log.Error("live_tokens_purge_scheduler_failed", "error", err)
 		exit(1)
 	}
 	go func() {

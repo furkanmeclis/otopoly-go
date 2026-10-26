@@ -965,6 +965,37 @@ type LegalPage struct {
 	UpdatedBy pgtype.Int8        `json:"updated_by"`
 }
 
+type LiveActivityDevice struct {
+	ID               int64              `json:"id"`
+	OrganizationID   int64              `json:"organization_id"`
+	UserID           int64              `json:"user_id"`
+	PushDeviceID     int64              `json:"push_device_id"`
+	PushToStartToken string             `json:"push_to_start_token"`
+	WidgetsEnabled   bool               `json:"widgets_enabled"`
+	LastWidgetPushAt pgtype.Timestamptz `json:"last_widget_push_at"`
+	CreatedAt        pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type LiveActivityToken struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	UserID         int64              `json:"user_id"`
+	JobID          int64              `json:"job_id"`
+	Platform       string             `json:"platform"`
+	ActivityID     string             `json:"activity_id"`
+	PushToken      string             `json:"push_token"`
+	DeviceToken    string             `json:"device_token"`
+	Locale         string             `json:"locale"`
+	LastStatus     string             `json:"last_status"`
+	LastHash       string             `json:"last_hash"`
+	LastSentAt     pgtype.Timestamptz `json:"last_sent_at"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type LogPurgeRule struct {
 	ID               int64              `json:"id"`
 	Uuid             uuid.UUID          `json:"uuid"`

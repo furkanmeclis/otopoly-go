@@ -278,7 +278,12 @@ type Querier interface {
 	DeleteCatalogDisplayBrand(ctx context.Context, id int64) (int64, error)
 	DeleteCatalogModel(ctx context.Context, id int64) (int64, error)
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
+	// Maintenance sweep across organizations (rows past their activity lifetime).
+	DeleteExpiredLiveActivityTokens(ctx context.Context) (int64, error)
 	DeleteJobConsumption(ctx context.Context, arg DeleteJobConsumptionParams) error
+	DeleteLiveActivityDeviceForUser(ctx context.Context, arg DeleteLiveActivityDeviceForUserParams) (int64, error)
+	DeleteLiveActivityToken(ctx context.Context, arg DeleteLiveActivityTokenParams) error
+	DeleteLiveActivityTokensForUser(ctx context.Context, arg DeleteLiveActivityTokensForUserParams) (int64, error)
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	// Deleting is the claim: a concurrent second decision finds nothing.
 	DeleteMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (int64, error)
@@ -355,6 +360,7 @@ type Querier interface {
 	// A live token of a live grant and client, with the user's status.
 	GetActiveMCPOAuthToken(ctx context.Context, arg GetActiveMCPOAuthTokenParams) (GetActiveMCPOAuthTokenRow, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
+	GetActivePushDeviceForUser(ctx context.Context, arg GetActivePushDeviceForUserParams) (PushDevice, error)
 	GetActiveSMSProviderAccount(ctx context.Context, organizationID int64) (SmsProviderAccount, error)
 	GetAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (AppLog, error)
 	GetAppSettings(ctx context.Context) (AppSetting, error)
@@ -639,6 +645,7 @@ type Querier interface {
 	InsertUserRole(ctx context.Context, arg InsertUserRoleParams) error
 	InsertVehicleAlertEvent(ctx context.Context, arg InsertVehicleAlertEventParams) error
 	InvalidateActiveOTPs(ctx context.Context, arg InvalidateActiveOTPsParams) error
+	LastWidgetPushAt(ctx context.Context, organizationID int64) (pgtype.Timestamptz, error)
 	LeadSummary(ctx context.Context, arg LeadSummaryParams) (LeadSummaryRow, error)
 	LinkCariEntryFinanceTransaction(ctx context.Context, arg LinkCariEntryFinanceTransactionParams) (CariEntry, error)
 	LinkProductSaleCari(ctx context.Context, arg LinkProductSaleCariParams) (ProductSale, error)
@@ -745,6 +752,9 @@ type Querier interface {
 	ListLeadEvents(ctx context.Context, arg ListLeadEventsParams) ([]ListLeadEventsRow, error)
 	ListLeadQuotes(ctx context.Context, arg ListLeadQuotesParams) ([]ListLeadQuotesRow, error)
 	ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLeadsRow, error)
+	// Only members who still belong to an organization that is not suspended.
+	// device_id is the active push device behind an Android row (0 = gone).
+	ListLiveActivityTargetsForJob(ctx context.Context, arg ListLiveActivityTargetsForJobParams) ([]ListLiveActivityTargetsForJobRow, error)
 	ListLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
 	ListMCPOAuthClients(ctx context.Context, arg ListMCPOAuthClientsParams) ([]ListMCPOAuthClientsRow, error)
 	// The user's active organizations (consent organization picker).
@@ -898,6 +908,8 @@ type Querier interface {
 	ListWebAuthnCredentialsByUserID(ctx context.Context, userID int64) ([]WebauthnCredential, error)
 	ListWebAuthnCredentialsForUserIDs(ctx context.Context, userIds []int64) ([]WebauthnCredential, error)
 	ListWhatsAppCloudTemplates(ctx context.Context) ([]WhatsappCloudTemplate, error)
+	// Active devices showing this organization's widgets, owned by current members.
+	ListWidgetRefreshTargets(ctx context.Context, organizationID int64) ([]ListWidgetRefreshTargetsRow, error)
 	// Serializes owner-count checks of concurrent member changes.
 	LockOrganizationMembers(ctx context.Context, id int64) error
 	MarkAllNotificationsReadForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
@@ -915,6 +927,7 @@ type Querier interface {
 	MarkImportJobApplying(ctx context.Context, id int64) (ImportJob, error)
 	MarkImportJobFailed(ctx context.Context, arg MarkImportJobFailedParams) (ImportJob, error)
 	MarkImportJobRolledBack(ctx context.Context, id int64) (ImportJob, error)
+	MarkLiveActivityTokenSent(ctx context.Context, arg MarkLiveActivityTokenSentParams) error
 	MarkLogPurgeRuleRun(ctx context.Context, arg MarkLogPurgeRuleRunParams) (LogPurgeRule, error)
 	MarkNotificationFailed(ctx context.Context, arg MarkNotificationFailedParams) (Notification, error)
 	MarkNotificationProcessing(ctx context.Context, id int64) (Notification, error)
@@ -938,6 +951,7 @@ type Querier interface {
 	// OAuth sign-up stores a random hash; the user never chose a password.
 	MarkUserPasswordUnset(ctx context.Context, id int64) error
 	MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicleAlertEventsSentParams) error
+	MarkWidgetPushSent(ctx context.Context, organizationID int64) error
 	MoveCatalogBrandsDisplayBrand(ctx context.Context, arg MoveCatalogBrandsDisplayBrandParams) (int64, error)
 	MoveToGrace(ctx context.Context, arg MoveToGraceParams) (BillingSubscription, error)
 	MoveToReadOnly(ctx context.Context, id int64) (BillingSubscription, error)
@@ -1209,6 +1223,14 @@ type Querier interface {
 	UpsertBuiltinFeature(ctx context.Context, arg UpsertBuiltinFeatureParams) error
 	UpsertCatalogModelRule(ctx context.Context, arg UpsertCatalogModelRuleParams) (CatalogModelRule, error)
 	UpsertDailySummarySettings(ctx context.Context, arg UpsertDailySummarySettingsParams) (DailySummarySetting, error)
+	// The device follows the app's active organization and its current user.
+	UpsertLiveActivityDevice(ctx context.Context, arg UpsertLiveActivityDeviceParams) (LiveActivityDevice, error)
+	// Live Activity / Live Update push tokens and widget refresh devices
+	// (modules/livepush). Every query is scoped by organization_id except the
+	// global expiry sweep.
+	// Re-registering (token rotation, relaunch) refreshes the row; an activity id
+	// never moves between organizations (no row comes back → conflict).
+	UpsertLiveActivityToken(ctx context.Context, arg UpsertLiveActivityTokenParams) (LiveActivityToken, error)
 	// Consent creates the user's connected app or brings a revoked one back.
 	UpsertMCPOAuthGrant(ctx context.Context, arg UpsertMCPOAuthGrantParams) (McpOauthGrant, error)
 	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
