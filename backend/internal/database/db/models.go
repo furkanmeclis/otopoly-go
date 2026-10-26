@@ -1667,6 +1667,66 @@ type RefreshToken struct {
 	OrganizationID     pgtype.Int8        `json:"organization_id"`
 }
 
+type ReviewRequest struct {
+	ID                  int64              `json:"id"`
+	Uuid                uuid.UUID          `json:"uuid"`
+	OrganizationID      int64              `json:"organization_id"`
+	Kind                string             `json:"kind"`
+	JobID               pgtype.Int8        `json:"job_id"`
+	CustomerID          pgtype.Int8        `json:"customer_id"`
+	CustomerName        string             `json:"customer_name"`
+	RecipientPhone      string             `json:"recipient_phone"`
+	Plate               string             `json:"plate"`
+	Token               string             `json:"token"`
+	Status              string             `json:"status"`
+	SkipReason          string             `json:"skip_reason"`
+	Error               string             `json:"error"`
+	Channel             string             `json:"channel"`
+	Locale              string             `json:"locale"`
+	SendAt              pgtype.Timestamptz `json:"send_at"`
+	Deferred            bool               `json:"deferred"`
+	SentAt              pgtype.Timestamptz `json:"sent_at"`
+	OpenedAt            pgtype.Timestamptz `json:"opened_at"`
+	AnsweredAt          pgtype.Timestamptz `json:"answered_at"`
+	ExpiresAt           pgtype.Timestamptz `json:"expires_at"`
+	CancelledAt         pgtype.Timestamptz `json:"cancelled_at"`
+	OutboundMessageUuid pgtype.UUID        `json:"outbound_message_uuid"`
+	ViewCount           int32              `json:"view_count"`
+	Score               pgtype.Int2        `json:"score"`
+	Comment             string             `json:"comment"`
+	Consent             bool               `json:"consent"`
+	IsHigh              pgtype.Bool        `json:"is_high"`
+	AnswerIp            string             `json:"answer_ip"`
+	AnswerUserAgent     string             `json:"answer_user_agent"`
+	GoogleRedirects     int32              `json:"google_redirects"`
+	GoogleRedirectedAt  pgtype.Timestamptz `json:"google_redirected_at"`
+	FollowUpStatus      string             `json:"follow_up_status"`
+	FollowUpNote        string             `json:"follow_up_note"`
+	FollowedUpAt        pgtype.Timestamptz `json:"followed_up_at"`
+	FollowedUpBy        pgtype.Int8        `json:"followed_up_by"`
+	CreatedBy           pgtype.Int8        `json:"created_by"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
+type ReviewSetting struct {
+	OrganizationID      int64              `json:"organization_id"`
+	Enabled             bool               `json:"enabled"`
+	Channel             string             `json:"channel"`
+	DelayMinutes        int32              `json:"delay_minutes"`
+	QuietHoursEnabled   bool               `json:"quiet_hours_enabled"`
+	QuietStartHour      int16              `json:"quiet_start_hour"`
+	QuietEndHour        int16              `json:"quiet_end_hour"`
+	GoogleReviewUrl     string             `json:"google_review_url"`
+	HighScoreThreshold  int16              `json:"high_score_threshold"`
+	MinDaysBetween      int32              `json:"min_days_between"`
+	ConsentText         string             `json:"consent_text"`
+	DefaultLocale       string             `json:"default_locale"`
+	ExcludedCustomerIds []int64            `json:"excluded_customer_ids"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+}
+
 type Role struct {
 	ID          int64              `json:"id"`
 	Uuid        uuid.UUID          `json:"uuid"`

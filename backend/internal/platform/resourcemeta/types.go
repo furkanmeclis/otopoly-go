@@ -826,3 +826,34 @@ func TenantQuotes() ResourceMeta {
 		},
 	}
 }
+
+// TenantReviews is the review requests list (/v1/tenant/reviews).
+func TenantReviews() ResourceMeta {
+	return ResourceMeta{
+		Resource:      "tenant.reviews",
+		DefaultSort:   "-created_at",
+		DefaultFields: []string{"uuid", "created_at", "customer_name", "plate", "score", "comment", "channel", "status", "follow_up_status"},
+		Capabilities: Capabilities{
+			Create: false, Read: true, Update: true, Delete: false,
+			Search: true, Filter: true, Sort: true, Export: false,
+		},
+		SearchableFields: []string{"customer_name", "customer_phone", "plate", "comment"},
+		SortableFields:   []string{"created_at", "score", "answered_at"},
+		FilterableFields: []string{"status", "follow_up", "rating", "score", "channel", "customer_uuid", "days"},
+		Columns: []Column{
+			{Key: "created_at", LabelKey: "reviews.fields.date", Type: ColumnTypeDatetime, Sortable: true, DefaultVisible: true},
+			{Key: "customer_name", LabelKey: "reviews.fields.customer", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "plate", LabelKey: "reviews.fields.job", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "score", LabelKey: "reviews.fields.score", Type: ColumnTypeString, Sortable: true, DefaultVisible: true},
+			{Key: "comment", LabelKey: "reviews.fields.comment", Type: ColumnTypeString, DefaultVisible: true},
+			{Key: "channel", LabelKey: "reviews.fields.channel", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "status", LabelKey: "reviews.fields.status", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+			{Key: "follow_up_status", LabelKey: "reviews.fields.follow_up", Type: ColumnTypeEnum, Filterable: true, FilterVariant: FilterVariantFaceted, DefaultVisible: true},
+		},
+		Filters: []Filter{
+			{Key: "status", LabelKey: "reviews.fields.status", Variant: FilterVariantFaceted},
+			{Key: "follow_up", LabelKey: "reviews.fields.follow_up", Variant: FilterVariantFaceted},
+			{Key: "channel", LabelKey: "reviews.fields.channel", Variant: FilterVariantFaceted},
+		},
+	}
+}

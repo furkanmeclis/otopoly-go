@@ -408,5 +408,17 @@
   "confirm.warnings.payment_reversed": "Tahsilat geri alınacak: gelir kaydı iptal edilir ya da cari borç silinir.",
   "confirm.warnings.system_category": "Bu sistem kategorisine kayıtlar normalde otomatik düşer (iş emri, satış, cari tahsilat). İş emri tahsilatı için iş emri tahsilatını kullanın.",
   "confirm.warnings.phone_differs": "Plaka kayıtlı müşteride telefon farklı; telefon güncellenmeyecek.",
-  "confirm.warnings.name_differs": "Bulunan müşterinin adı yazılandan farklı; mevcut müşteri kullanılacak."
+  "confirm.warnings.name_differs": "Bulunan müşterinin adı yazılandan farklı; mevcut müşteri kullanılacak.",
+  "tools.list_reviews": "Değerlendirmeler",
+  "tools_running.list_reviews": "Değerlendirmeler getiriliyor…",
+  "tools.get_review_summary": "Memnuniyet özeti",
+  "tools_running.get_review_summary": "Memnuniyet özeti hazırlanıyor…",
+  "tools.mark_review_followed_up": "Değerlendirmeyi ele al",
+  "tools_running.mark_review_followed_up": "Takip hazırlanıyor…",
+  "tool_summary.reviews_found": "{{count}} değerlendirme",
+  "tool_summary.review_summary": "Ortalama {{average}} ({{count}} cevap)",
+  "tool_summary.review_followed_up": "Ele alındı: {{customer}}",
+  "confirm.fields.score": "Puan",
+  "confirm.fields.comment": "Yorum",
+  "confirm.fields.note": "Not"
 }

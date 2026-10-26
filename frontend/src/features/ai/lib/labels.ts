@@ -32,6 +32,9 @@ const TOOL_LABEL_KEYS: Record<string, string> = {
   quick_job: "ai.tools.quick_job",
   void_finance_entry: "ai.tools.void_finance_entry",
   update_finance_entry: "ai.tools.update_finance_entry",
+  list_reviews: "ai.tools.list_reviews",
+  get_review_summary: "ai.tools.get_review_summary",
+  mark_review_followed_up: "ai.tools.mark_review_followed_up",
 };
 
 const TOOL_RUNNING_KEYS: Record<string, string> = {
@@ -66,6 +69,9 @@ const TOOL_RUNNING_KEYS: Record<string, string> = {
   quick_job: "ai.tools_running.quick_job",
   void_finance_entry: "ai.tools_running.void_finance_entry",
   update_finance_entry: "ai.tools_running.update_finance_entry",
+  list_reviews: "ai.tools_running.list_reviews",
+  get_review_summary: "ai.tools_running.get_review_summary",
+  mark_review_followed_up: "ai.tools_running.mark_review_followed_up",
 };
 
 const UNAVAILABLE_KEYS: Record<string, string> = {
@@ -154,6 +160,9 @@ const CONFIRM_FIELD_KEYS: Record<string, string> = {
   stock_returned: "ai.confirm.fields.stock_returned",
   customer_action: "ai.confirm.fields.customer_action",
   vehicle_action: "ai.confirm.fields.vehicle_action",
+  score: "ai.confirm.fields.score",
+  comment: "ai.confirm.fields.comment",
+  note: "ai.confirm.fields.note",
 };
 
 const CONFIRM_WARNING_KEYS: Record<string, string> = {

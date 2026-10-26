@@ -9,6 +9,8 @@ export const routes = {
     privacyEn: "/en/privacy",
     health: "/health",
     quote: (token: string) => `/q/${token}`,
+    /** Customer review page (short link sent after delivery). */
+    review: (token: string) => `/r/${token}`,
     share: {
       slug: (slug: string) => `/share/${slug}`,
       signed: (token: string) => `/share/s/${token}`,
@@ -99,6 +101,11 @@ export const routes = {
     leads: {
       root: (slug: string) => `/t/${slug}/leads`,
       detail: (slug: string, uuid: string) => `/t/${slug}/leads/${uuid}`,
+    },
+    reviews: {
+      root: (slug: string) => `/t/${slug}/reviews`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/reviews/${uuid}`,
+      settings: (slug: string) => `/t/${slug}/reviews/settings`,
     },
     quotes: {
       root: (slug: string) => `/t/${slug}/quotes`,

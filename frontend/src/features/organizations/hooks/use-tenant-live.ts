@@ -42,6 +42,7 @@ export const TenantLiveResources = {
   contractInstances: "tenant.contracts.instances",
   staff: "tenant.staff",
   calendar: "tenant.calendar",
+  reviews: "tenant.reviews",
 } as const;
 
 export type TenantLiveResource =

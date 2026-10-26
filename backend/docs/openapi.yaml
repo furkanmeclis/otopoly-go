@@ -13434,6 +13434,324 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /v1/tenant/reviews/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviewsMeta
+      summary: Review list metadata
+      description: Requires `tenant.reviews.read` and the `reviews.enabled` plan toggle.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeResourceMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviewsSummary
+      summary: Review KPIs and trend
+      description: >-
+        Requires `tenant.reviews.read` (plan `reviews.enabled`). Requests created
+        in the last `days` (default 30, test sends excluded): sent / opened /
+        answered counts, response rate (answered / sent), average score, the
+        1-5 distribution, NPS-like score (promoters = 5, passives = 4,
+        detractors = 1-3), Google redirects, open follow-ups and a weekly
+        (monthly above 120 days) trend in Europe/Istanbul.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 730, default: 30 }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewSummary"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/settings:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviewSettings
+      summary: Review collection settings
+      description: >-
+        Requires `tenant.reviews.read` (plan `reviews.enabled`). Defaults when
+        never saved: disabled, channel `auto`, 120 min delay, quiet hours
+        21:00-09:00, threshold 4, 30 days between requests. Includes channel
+        availability, the effective review.request template with a preview
+        (edited in Ayarlar → Mesajlar) and the `reviews.monthly` usage
+        (`limit` -1 = unlimited).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewSettings"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantReviewSettings
+      summary: Save review collection settings (owner)
+      description: >-
+        Requires `tenant.reviews.write` and the owner role. Omitted (or null)
+        fields keep their value. `google_review_url` must be an https link
+        (or "" to clear).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReviewSettingsRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewSettings"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/settings/test:
+    post:
+      tags: [Tenant]
+      operationId: sendTenantReviewTest
+      summary: Send a test review request to your own phone (owner)
+      description: >-
+        Requires `tenant.reviews.write` and the owner role. Sends now (no quiet
+        hours, frequency cap or `reviews.monthly` count) to `phone` or the
+        member's notification phone. Test requests are hidden from the list
+        unless `include_tests=true`; their detail includes `public_url`.
+        `409 CHANNEL_UNAVAILABLE` when neither WhatsApp nor SMS can send,
+        `409 CONFLICT` when the message could not be sent.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewTestRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewTestResult"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/tenant/reviews:
+    get:
+      tags: [Tenant]
+      operationId: getTenantReviews
+      summary: List review requests
+      description: Requires `tenant.reviews.read` (plan `reviews.enabled`). Test sends are excluded by default.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { $ref: "#/components/schemas/ReviewStatus" }
+        - name: follow_up
+          in: query
+          schema: { $ref: "#/components/schemas/ReviewFollowUpStatus" }
+        - name: rating
+          in: query
+          description: high = score at or above the threshold, low = below it
+          schema: { type: string, enum: [high, low] }
+        - name: score
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 5 }
+        - name: channel
+          in: query
+          schema: { type: string, enum: [sms, whatsapp] }
+        - name: customer_uuid
+          in: query
+          schema: { type: string, format: uuid }
+        - name: days
+          in: query
+          description: Only requests created in the last N days
+          schema: { type: integer, minimum: 1, maximum: 3650 }
+        - name: include_tests
+          in: query
+          schema: { type: boolean }
+        - name: sort
+          in: query
+          schema: { type: string, enum: [-created_at, created_at, score, -score, answered_at, -answered_at] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewList"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/reviews/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/XOrganization"
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantReview
+      summary: Review request detail
+      description: Requires `tenant.reviews.read`. Another organization's request is 404.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewDetail"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/tenant/reviews/{uuid}/follow-up:
+    parameters:
+      - $ref: "#/components/parameters/XOrganization"
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [Tenant]
+      operationId: followUpTenantReview
+      summary: Mark an answered review handled ("ele alındı", owner)
+      description: >-
+        Requires `tenant.reviews.write` and the owner role. Sets
+        `follow_up_status` to `done` with an optional note. `409` when the
+        request is not answered.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewFollowUpRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /v1/public/reviews/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token from the review link /r/{token} (not the uuid)
+        schema: { type: string, minLength: 22, maxLength: 22 }
+    get:
+      tags: [Public]
+      operationId: getPublicReview
+      summary: Customer review page
+      description: >-
+        No auth. Rate-limited per IP (60/min). Requests that were never sent
+        are 404. The first open marks the request opened. `state` is `open`,
+        `answered` (with `result` and, for high scores, `google_review_url`)
+        or `expired` (links are valid for 30 days).
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicReview"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    post:
+      tags: [Public]
+      operationId: answerPublicReview
+      summary: Customer answers with 1-5 stars
+      description: >-
+        No auth. Rate-limited per IP (10 / 15 min). Answers once:
+        `409 ALREADY_ANSWERED` afterwards, `410 REVIEW_EXPIRED` after the link
+        expired. A score below the business's threshold needs a follow-up and
+        notifies the team (in-app + push).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicReviewAnswerRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePublicReview"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "410":
+          description: The review link has expired (REVIEW_EXPIRED)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/public/reviews/{token}/google:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token from the review link /r/{token}
+        schema: { type: string, minLength: 22, maxLength: 22 }
+    post:
+      tags: [Public]
+      operationId: redirectPublicReviewGoogle
+      summary: Count a redirect to the Google review page
+      description: >-
+        No auth. Rate-limited per IP. Only for answered high scores when the
+        business configured a Google review URL; returns the URL to open.
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeReviewGoogleRedirect"
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -17962,7 +18280,7 @@ components:
       type: object
       required: [kind, uuid]
       properties:
-        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event] }
+        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event, review] }
         uuid: { type: string, format: uuid }
 
     AIActionResult:
@@ -21936,4 +22254,275 @@ components:
             total: { type: integer }
             limit: { type: integer }
             offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    # ---------------------------------------------------------------------
+    # Reviews (değerlendirme toplama)
+    # ---------------------------------------------------------------------
+    ReviewStatus:
+      type: string
+      enum: [scheduled, sent, opened, answered, expired, cancelled, skipped, failed]
+    ReviewFollowUpStatus:
+      type: string
+      enum: [none, required, done]
+    ReviewChannelPreference:
+      type: string
+      enum: [auto, sms, whatsapp]
+    Review:
+      type: object
+      required: [uuid, kind, status, skip_reason, error, channel, locale, customer_uuid, customer_name, customer_phone, job_uuid, plate, score, comment, rating, google_redirects, follow_up_status, follow_up_note, followed_up_at, followed_up_by_name, send_at, deferred, sent_at, opened_at, answered_at, expires_at, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        kind: { type: string, enum: [job, test] }
+        status: { $ref: "#/components/schemas/ReviewStatus" }
+        skip_reason:
+          type: string
+          description: >-
+            Why a request was skipped / cancelled / failed: disabled,
+            job_cancelled, plan_disabled, excluded, no_phone, frequency_cap,
+            monthly_limit, channel_unavailable, template_inactive, channel_plan,
+            channel_quota, send_failed ("" otherwise)
+        error: { type: string }
+        channel: { type: string, enum: ["", sms, whatsapp] }
+        locale: { type: string, enum: [tr, en] }
+        customer_uuid: { type: [string, "null"], format: uuid }
+        customer_name: { type: string }
+        customer_phone: { type: string }
+        job_uuid: { type: [string, "null"], format: uuid }
+        plate: { type: string }
+        score: { type: [integer, "null"], minimum: 1, maximum: 5 }
+        comment: { type: string }
+        rating: { type: string, enum: ["", high, low] }
+        google_redirects: { type: integer }
+        follow_up_status: { $ref: "#/components/schemas/ReviewFollowUpStatus" }
+        follow_up_note: { type: string }
+        followed_up_at: { type: [string, "null"], format: date-time }
+        followed_up_by_name: { type: string }
+        send_at: { type: string, format: date-time, description: Planned (or actual) send time }
+        deferred: { type: boolean, description: The send was moved out of quiet hours }
+        sent_at: { type: [string, "null"], format: date-time }
+        opened_at: { type: [string, "null"], format: date-time }
+        answered_at: { type: [string, "null"], format: date-time }
+        expires_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ReviewDetail:
+      allOf:
+        - $ref: "#/components/schemas/Review"
+        - type: object
+          required: [consent, view_count, google_redirected_at, cancelled_at]
+          properties:
+            consent: { type: boolean }
+            view_count: { type: integer }
+            google_redirected_at: { type: [string, "null"], format: date-time }
+            cancelled_at: { type: [string, "null"], format: date-time }
+            public_url: { type: string, description: Customer link (test requests only) }
+    ReviewScoreCount:
+      type: object
+      required: [score, count]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+        count: { type: integer }
+    ReviewTrendPoint:
+      type: object
+      required: [period_start, sent, answered, average_score]
+      properties:
+        period_start: { type: string, format: date }
+        sent: { type: integer }
+        answered: { type: integer }
+        average_score: { type: number }
+    ReviewSummary:
+      type: object
+      required: [days, bucket, sent_count, opened_count, answered_count, scheduled_count, response_rate, average_score, distribution, promoters, passives, detractors, nps, google_redirects, follow_up_required, trend]
+      properties:
+        days: { type: integer }
+        bucket: { type: string, enum: [week, month] }
+        sent_count: { type: integer }
+        opened_count: { type: integer }
+        answered_count: { type: integer }
+        scheduled_count: { type: integer }
+        response_rate: { type: number, description: answered / sent (0..1) }
+        average_score: { type: number }
+        distribution:
+          type: array
+          description: Always five rows, scores 1..5
+          items: { $ref: "#/components/schemas/ReviewScoreCount" }
+        promoters: { type: integer }
+        passives: { type: integer }
+        detractors: { type: integer }
+        nps: { type: integer, description: promoters% - detractors% (-100..100) }
+        google_redirects: { type: integer }
+        follow_up_required: { type: integer }
+        trend:
+          type: array
+          items: { $ref: "#/components/schemas/ReviewTrendPoint" }
+    ReviewCustomerRef:
+      type: object
+      required: [uuid, name, phone]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string }
+    ReviewTemplateInfo:
+      type: object
+      required: [channel, locale, body, is_custom, active, preview]
+      properties:
+        channel: { type: string, enum: [sms, whatsapp] }
+        locale: { type: string, enum: [tr, en] }
+        body: { type: string, description: "Template with {{musteri_adi}}, {{isletme_adi}}, {{link}} (short {musteri_adi} also works)" }
+        is_custom: { type: boolean }
+        active: { type: boolean }
+        preview: { type: string }
+    ReviewSettings:
+      type: object
+      required: [enabled, channel, delay_minutes, quiet_hours_enabled, quiet_start_hour, quiet_end_hour, google_review_url, high_score_threshold, min_days_between, consent_text, default_locale, excluded_customers, whatsapp_available, sms_available, effective_channel, template, usage]
+      properties:
+        enabled: { type: boolean }
+        channel: { $ref: "#/components/schemas/ReviewChannelPreference" }
+        delay_minutes: { type: integer, minimum: 30, maximum: 2880 }
+        quiet_hours_enabled: { type: boolean }
+        quiet_start_hour: { type: integer, minimum: 0, maximum: 23 }
+        quiet_end_hour: { type: integer, minimum: 0, maximum: 23 }
+        google_review_url: { type: string }
+        high_score_threshold: { type: integer, minimum: 2, maximum: 5 }
+        min_days_between: { type: integer, minimum: 0, maximum: 365 }
+        consent_text: { type: string }
+        default_locale: { type: string, enum: [tr, en] }
+        excluded_customers:
+          type: array
+          items: { $ref: "#/components/schemas/ReviewCustomerRef" }
+        whatsapp_available: { type: boolean }
+        sms_available: { type: boolean }
+        effective_channel: { type: string, enum: ["", sms, whatsapp], description: Channel a request would use now }
+        template: { $ref: "#/components/schemas/ReviewTemplateInfo" }
+        usage:
+          type: object
+          required: [used, limit]
+          properties:
+            used: { type: integer }
+            limit: { type: integer, description: -1 = unlimited }
+    UpdateReviewSettingsRequest:
+      type: object
+      properties:
+        enabled: { type: [boolean, "null"] }
+        channel:
+          oneOf:
+            - $ref: "#/components/schemas/ReviewChannelPreference"
+            - type: "null"
+        delay_minutes: { type: [integer, "null"], minimum: 30, maximum: 2880 }
+        quiet_hours_enabled: { type: [boolean, "null"] }
+        quiet_start_hour: { type: [integer, "null"], minimum: 0, maximum: 23 }
+        quiet_end_hour: { type: [integer, "null"], minimum: 0, maximum: 23 }
+        google_review_url: { type: [string, "null"], maxLength: 500 }
+        high_score_threshold: { type: [integer, "null"], minimum: 2, maximum: 5 }
+        min_days_between: { type: [integer, "null"], minimum: 0, maximum: 365 }
+        consent_text: { type: [string, "null"], maxLength: 500 }
+        default_locale: { type: [string, "null"], enum: [tr, en, null] }
+        excluded_customer_uuids:
+          type: [array, "null"]
+          maxItems: 500
+          items: { type: string, format: uuid }
+    ReviewTestRequest:
+      type: object
+      properties:
+        phone: { type: string, maxLength: 32, description: Defaults to the member's notification phone }
+    ReviewTestResult:
+      type: object
+      required: [review, channel, phone, public_url]
+      properties:
+        review: { $ref: "#/components/schemas/ReviewDetail" }
+        channel: { type: string, enum: [sms, whatsapp] }
+        phone: { type: string }
+        public_url: { type: string }
+    ReviewFollowUpRequest:
+      type: object
+      properties:
+        note: { type: string, maxLength: 1000 }
+    PublicReview:
+      type: object
+      required: [state, organization_name, organization_logo_url, organization_phone, primary_color, customer_first_name, locale, consent_text, expires_at, score, comment, answered_at]
+      properties:
+        state: { type: string, enum: [open, answered, expired] }
+        organization_name: { type: string }
+        organization_logo_url: { type: [string, "null"], description: API-owned logo stream path }
+        organization_phone: { type: string }
+        primary_color: { type: string }
+        customer_first_name: { type: string }
+        locale: { type: string, enum: [tr, en], description: Business default language of the request }
+        consent_text: { type: string, description: Optional consent checkbox text ("" = none) }
+        expires_at: { type: [string, "null"], format: date-time }
+        score: { type: [integer, "null"] }
+        comment: { type: string }
+        answered_at: { type: [string, "null"], format: date-time }
+        result: { type: string, enum: [high, low] }
+        google_review_url: { type: string, description: Set for answered high scores when configured }
+    PublicReviewAnswerRequest:
+      type: object
+      required: [score]
+      properties:
+        score: { type: integer, minimum: 1, maximum: 5 }
+        comment: { type: string, maxLength: 1000 }
+        consent: { type: boolean }
+    ReviewGoogleRedirect:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string }
+    EnvelopeReviewList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/Review" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewDetail:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewDetail" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewTestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopePublicReview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PublicReview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+    EnvelopeReviewGoogleRedirect:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ReviewGoogleRedirect" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
