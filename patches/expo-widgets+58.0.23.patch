@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
-index 0cbd5fb..8342adc 100644
+index 3df9e4a..7068b79 100644
 --- a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
 +++ b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
 @@ -296,7 +296,15 @@ private fun ReadableMap.toPeekButton(converterContext: WidgetConverterContext, s
@@ -20,21 +20,18 @@ index 0cbd5fb..8342adc 100644
    val contentColor = props.contentColorProvider()
    val textContent = children.textContent(converterContext) ?: props.label
 diff --git a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
-index b747d91..92e1eed 100644
+index b0b6479..9bf9738 100644
 --- a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
 +++ b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
-@@ -2,8 +2,10 @@ package expo.modules.widgets
- 
- import android.content.Context
- import android.content.Intent
-+import android.net.Uri
+@@ -5,6 +5,7 @@ import android.content.Intent
+ import android.net.Uri
  import androidx.glance.action.Action
  import androidx.glance.appwidget.action.actionSendBroadcast
 +import androidx.glance.appwidget.action.actionStartActivity
+ import expo.modules.widgets.notifications.ExpoWidgetsNotificationReceiver
  
  internal const val WIDGET_INTERACTION_ACTION = "expo.modules.widgets.ACTION_WIDGET_INTERACTION"
- internal const val WIDGET_INTERACTION_SOURCE_EXTRA = "expo.modules.widgets.extra.SOURCE"
-@@ -22,6 +24,18 @@ internal fun WidgetInteraction.toGlanceAction(context: Context): Action {
+@@ -52,6 +53,18 @@ internal fun WidgetInteraction.toGlanceAction(context: Context): Action {
    return actionSendBroadcast(intent)
  }
  
