@@ -38,6 +38,8 @@ const (
 	EventDailySummary = "daily.summary"
 	// EventVehicleAlert is the staff vehicle movement alert (vehiclealerts module).
 	EventVehicleAlert = "vehicle.alert"
+	// EventSMSTest is the "send test SMS" of the channel settings.
+	EventSMSTest = "sms.test"
 
 	SimulateModeEvent        = "event"
 	SimulateModeJobLifecycle = "job_lifecycle"
@@ -207,6 +209,8 @@ type OutboundMessage struct {
 	DeliveryStatus   string     `json:"delivery_status,omitempty"`
 	DeliveryStatusAt *time.Time `json:"delivery_status_at,omitempty"`
 	ErrorCode        string     `json:"error_code,omitempty"`
+	// Segments is the billed SMS parts of a sent SMS.
+	Segments *int32 `json:"segments,omitempty"`
 }
 
 // QRCodeResponse is returned when connecting a WhatsApp session.

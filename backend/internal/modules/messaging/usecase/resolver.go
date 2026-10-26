@@ -26,6 +26,9 @@ const FeatureOwnNumber = "whatsapp.own_number"
 const (
 	FeatureWhatsAppEnabled = "whatsapp.enabled"
 	FeatureWhatsAppMonthly = "whatsapp.monthly"
+	// SMS plan gates (checked and counted in parts by the SMS channel).
+	FeatureSMSEnabled = "sms.enabled"
+	FeatureSMSMonthly = "sms.monthly"
 )
 
 // Platform provider values (platform_whatsapp_settings.provider).
@@ -156,6 +159,10 @@ type deliveryResult struct {
 	Ref          string
 	SenderKind   string
 	TemplateName string
+	// DeliveryStatus is the provider's initial status (SMS: accepted, queued…).
+	DeliveryStatus string
+	// Segments is the number of billed SMS parts.
+	Segments int
 }
 
 // deliverWhatsApp sends through the resolved sender. Every WhatsApp path

@@ -455,6 +455,23 @@ type BulkJob struct {
 	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
 }
 
+type CalendarEvent struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	OrganizationID int64              `json:"organization_id"`
+	Title          string             `json:"title"`
+	Description    string             `json:"description"`
+	Location       string             `json:"location"`
+	StartsAt       pgtype.Timestamptz `json:"starts_at"`
+	EndsAt         pgtype.Timestamptz `json:"ends_at"`
+	AllDay         bool               `json:"all_day"`
+	Color          string             `json:"color"`
+	CreatedBy      pgtype.Int8        `json:"created_by"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
 type CariAccount struct {
 	ID             int64              `json:"id"`
 	Uuid           uuid.UUID          `json:"uuid"`
@@ -774,6 +791,7 @@ type DailySummarySetting struct {
 	LastSentOn       pgtype.Date        `json:"last_sent_on"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	Channel          string             `json:"channel"`
 }
 
 type ExportJob struct {
@@ -963,6 +981,77 @@ type LogPurgeRule struct {
 	CreatedBy        pgtype.Int8        `json:"created_by"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+}
+
+type McpOauthAuthRequest struct {
+	ID            uuid.UUID          `json:"id"`
+	ClientID      string             `json:"client_id"`
+	RedirectUri   string             `json:"redirect_uri"`
+	CodeChallenge string             `json:"code_challenge"`
+	State         pgtype.Text        `json:"state"`
+	Scopes        []string           `json:"scopes"`
+	Resource      string             `json:"resource"`
+	ExpiresAt     pgtype.Timestamptz `json:"expires_at"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+type McpOauthClient struct {
+	ID           int64              `json:"id"`
+	Uuid         uuid.UUID          `json:"uuid"`
+	ClientID     string             `json:"client_id"`
+	ClientName   string             `json:"client_name"`
+	RedirectUris []string           `json:"redirect_uris"`
+	CreatedIp    pgtype.Text        `json:"created_ip"`
+	LastUsedAt   pgtype.Timestamptz `json:"last_used_at"`
+	RevokedAt    pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+}
+
+type McpOauthCode struct {
+	CodeHash       string             `json:"code_hash"`
+	GrantID        int64              `json:"grant_id"`
+	ClientID       string             `json:"client_id"`
+	UserID         int64              `json:"user_id"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	RedirectUri    string             `json:"redirect_uri"`
+	CodeChallenge  string             `json:"code_challenge"`
+	Resource       string             `json:"resource"`
+	Scopes         []string           `json:"scopes"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	UsedAt         pgtype.Timestamptz `json:"used_at"`
+	Family         pgtype.UUID        `json:"family"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+}
+
+type McpOauthGrant struct {
+	ID             int64              `json:"id"`
+	Uuid           uuid.UUID          `json:"uuid"`
+	UserID         int64              `json:"user_id"`
+	ClientID       string             `json:"client_id"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	Resource       string             `json:"resource"`
+	Scopes         []string           `json:"scopes"`
+	LastUsedAt     pgtype.Timestamptz `json:"last_used_at"`
+	RevokedAt      pgtype.Timestamptz `json:"revoked_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type McpOauthToken struct {
+	ID             int64              `json:"id"`
+	TokenHash      string             `json:"token_hash"`
+	Kind           string             `json:"kind"`
+	Family         uuid.UUID          `json:"family"`
+	GrantID        int64              `json:"grant_id"`
+	ClientID       string             `json:"client_id"`
+	UserID         int64              `json:"user_id"`
+	OrganizationID pgtype.Int8        `json:"organization_id"`
+	Resource       string             `json:"resource"`
+	Scopes         []string           `json:"scopes"`
+	ExpiresAt      pgtype.Timestamptz `json:"expires_at"`
+	RevokedAt      pgtype.Timestamptz `json:"revoked_at"`
+	LastUsedAt     pgtype.Timestamptz `json:"last_used_at"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
 }
 
 type MessageTemplate struct {
@@ -1198,6 +1287,7 @@ type OutboundMessage struct {
 	PricingCategory         pgtype.Text        `json:"pricing_category"`
 	Billable                pgtype.Bool        `json:"billable"`
 	ErrorCode               pgtype.Text        `json:"error_code"`
+	Segments                pgtype.Int4        `json:"segments"`
 }
 
 type OutboxEvent struct {
@@ -1683,6 +1773,24 @@ type ServiceProduct struct {
 	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
 }
 
+type SmsProviderAccount struct {
+	ID              int64              `json:"id"`
+	Uuid            uuid.UUID          `json:"uuid"`
+	OrganizationID  int64              `json:"organization_id"`
+	Provider        string             `json:"provider"`
+	Sender          string             `json:"sender"`
+	CredentialsEnc  string             `json:"credentials_enc"`
+	CredentialHints []byte             `json:"credential_hints"`
+	IsActive        bool               `json:"is_active"`
+	Status          string             `json:"status"`
+	LastCheckedAt   pgtype.Timestamptz `json:"last_checked_at"`
+	LastError       string             `json:"last_error"`
+	CreatedBy       pgtype.Int8        `json:"created_by"`
+	UpdatedBy       pgtype.Int8        `json:"updated_by"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
 type StepupSetting struct {
 	ID                        int16              `json:"id"`
 	TtlHours                  int32              `json:"ttl_hours"`
@@ -1844,6 +1952,7 @@ type VehicleAlertSetting struct {
 	LastFlushedAt    pgtype.Timestamptz `json:"last_flushed_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	Channel          string             `json:"channel"`
 }
 
 type VehicleBrand struct {

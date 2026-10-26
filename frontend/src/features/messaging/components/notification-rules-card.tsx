@@ -25,6 +25,7 @@ import {
   useSimulateMessaging,
   useToggleRule,
 } from "@/features/messaging/hooks/use-messaging";
+import { useSmsAvailable } from "@/features/messaging/hooks/use-sms-channel";
 import { useTemplateCatalog } from "@/features/messaging/hooks/use-message-templates";
 import { MessageTemplateEditor } from "@/features/messaging/components/message-template-editor";
 import { renderTemplate } from "@/features/messaging/lib/render";
@@ -41,6 +42,7 @@ export function NotificationRulesCard() {
   const { hasPermission } = usePermission();
   const canWrite = hasPermission(permissions.messaging.write);
   const toggleRule = useToggleRule();
+  const smsAvailable = useSmsAvailable();
   const simulateMutation = useSimulateMessaging();
 
   const [editorType, setEditorType] = useState<string | null>(null);
@@ -160,22 +162,50 @@ export function NotificationRulesCard() {
                         const isSms = rule.channel === "sms";
 
                         if (isSms) {
+                          // Turning SMS on needs an active SMS provider;
+                          // turning it off is always allowed.
+                          const locked = !smsAvailable && !rule.enabled;
+                          const control = (
+                            <div
+                              className={
+                                locked
+                                  ? "flex items-center gap-1.5 opacity-50"
+                                  : "flex items-center gap-1.5"
+                              }
+                            >
+                              <Switch
+                                checked={rule.enabled}
+                                onCheckedChange={() =>
+                                  handleToggle(
+                                    rl.event_type,
+                                    rule.channel,
+                                    rule.enabled,
+                                  )
+                                }
+                                disabled={locked || toggleRule.isPending}
+                                aria-label={`${rl.event_label} SMS`}
+                              />
+                              <Badge
+                                variant={rule.enabled ? "default" : "outline"}
+                                className="text-xs"
+                              >
+                                SMS
+                              </Badge>
+                            </div>
+                          );
+                          if (smsAvailable) {
+                            return (
+                              <div key={`${rl.event_type}-sms`}>{control}</div>
+                            );
+                          }
                           return (
                             <TooltipProvider key={`${rl.event_type}-sms`}>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1.5 opacity-50">
-                                    <Switch disabled checked={false} />
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs"
-                                    >
-                                      SMS
-                                    </Badge>
-                                  </div>
+                                  {control}
                                 </TooltipTrigger>
                                 <TooltipContent>
-                                  {t("messaging.rules.soon")}
+                                  {t("messaging.rules.sms_needs_provider")}
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>

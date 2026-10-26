@@ -120,6 +120,7 @@
   "groups.other": "Diğer",
   "labels.tenant.staff.read": "Personel görüntüle",
   "labels.tenant.staff.write": "Personel yönet",
+  "labels.platform.messaging.sms.read": "Platform SMS raporunu görüntüle",
   "labels.platform.ai.read": "AI asistan ayarlarını görüntüle",
   "labels.platform.ai.write": "AI asistan ayarlarını yönet",
   "labels.tenant.ai.use": "AI asistanı kullan",
@@ -135,5 +136,10 @@
   "labels.tenant.billing.write": "Aboneliği yönet",
   "labels.platform.billing.read": "Platform aboneliklerini görüntüle",
   "labels.platform.billing.write": "Platform aboneliklerini ve planları yönet",
-  "labels.platform.billing.settings": "Abonelik ayarlarını yönet"
+  "labels.platform.billing.settings": "Abonelik ayarlarını yönet",
+  "labels.tenant.calendar.read": "Takvimi görüntüle",
+  "labels.tenant.calendar.write": "Takvim etkinliklerini yönet",
+  "labels.tenant.mcp.connect": "AI uygulamalarını (MCP) işletmeye bağla",
+  "labels.platform.mcp.connect": "AI uygulamalarını (MCP) platforma bağla",
+  "labels.platform.mcp.manage": "MCP istemcilerini yönet"
 }

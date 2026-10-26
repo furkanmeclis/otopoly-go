@@ -4,6 +4,8 @@ import (
 	"context"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -63,6 +65,15 @@ func (s *Service) expireBatch(ctx context.Context, today pgtype.Date) (int, erro
 	}
 	if len(rows) > 0 {
 		s.log.Info("quotes_expired", "count", len(rows))
+	}
+	// One live event per organization (the worker has no request scope).
+	byOrg := map[int64][]string{}
+	for _, r := range rows {
+		byOrg[r.OrganizationID] = append(byOrg[r.OrganizationID], r.Uuid.String())
+	}
+	for orgID, ids := range byOrg {
+		octx := orgctx.WithScope(ctx, orgctx.Scope{InternalID: orgID})
+		s.live(octx, resourceevents.TenantQuotes, resourceevents.ActionBulk, ids...)
 	}
 	return len(rows), nil
 }

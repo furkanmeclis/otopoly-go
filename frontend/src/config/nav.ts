@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   Activity,
   ListTodo,
   Bell,
@@ -36,6 +37,8 @@ import {
   TicketPercent,
   Landmark,
   Scale,
+  PlugZap,
+  MessageSquareText,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -47,6 +50,7 @@ import { routes } from "@/config/routes";
 import { defineNav } from "@/features/nav-engine";
 import { usersNavItem } from "@/features/users/nav";
 import { TodosNavAdornment } from "@/features/todos/nav";
+import { CalendarNavAdornment } from "@/features/calendar/nav";
 import { LeadsNavAdornment } from "@/features/leads/nav";
 import { QuotesNavAdornment } from "@/features/quotes/nav";
 import { PaymentsNavAdornment } from "@/features/platform-billing/nav";
@@ -144,6 +148,23 @@ export const platformNav = defineNav({
           href: routes.platform.ai.root,
           icon: Sparkles,
           permission: permissions.ai.read,
+        },
+        {
+          id: "mcp",
+          titleKey: "layout.nav_mcp",
+          href: routes.platform.mcp.root,
+          icon: PlugZap,
+          anyPermission: [
+            permissions.mcp.platformConnect,
+            permissions.mcp.manage,
+          ],
+        },
+        {
+          id: "sms-report",
+          titleKey: "layout.nav_sms_report",
+          href: routes.platform.smsReport.root,
+          icon: MessageSquareText,
+          permission: permissions.platformSms.read,
         },
         {
           id: "legal-privacy",
@@ -330,6 +351,15 @@ export function tenantNav(slug: string) {
             titleKey: "layout.home",
             href: routes.tenant.home(slug),
             icon: LayoutDashboard,
+          },
+          {
+            id: "calendar",
+            titleKey: "layout.nav_calendar",
+            href: routes.tenant.calendar.root(slug),
+            icon: CalendarDays,
+            searchIcon: "calendar",
+            permission: permissions.calendar.read,
+            Adornment: CalendarNavAdornment,
           },
           {
             id: "operations",
@@ -561,6 +591,13 @@ export function tenantNav(slug: string) {
             href: routes.tenant.settings.billing(slug),
             icon: CreditCard,
             permission: permissions.billing.read,
+          },
+          {
+            id: "mcp",
+            titleKey: "layout.nav_mcp_tenant",
+            href: routes.tenant.settings.mcp(slug),
+            icon: PlugZap,
+            permission: permissions.mcp.connect,
           },
         ],
       },

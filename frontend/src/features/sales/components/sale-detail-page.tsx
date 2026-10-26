@@ -26,6 +26,10 @@ import type { SaleStatus } from "@/features/sales/services/sales.service";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function statusTone(status: SaleStatus) {
   switch (status) {
@@ -43,6 +47,7 @@ export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const { confirm } = useDialogs();
   const { canRead, canVoid } = useTenantSalesAccess(slug);
   const saleQuery = useSale(uuid);
+  useTenantLiveRefetch(TenantLiveResources.sales, saleQuery.refetch, { uuid });
   const mutations = useSalesMutations();
   const sale = saleQuery.data;
 
@@ -153,8 +158,41 @@ export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                     {
                       key: "finance",
                       label: t("sales.finance_account"),
-                      value: sale.finance_account_name || "—",
+                      value:
+                        sale.finance_account_uuid &&
+                        sale.finance_account_name ? (
+                          <Link
+                            href={routes.tenant.finance.accounts.detail(
+                              slug,
+                              sale.finance_account_uuid,
+                            )}
+                            className="text-primary hover:underline"
+                          >
+                            {sale.finance_account_name}
+                          </Link>
+                        ) : (
+                          sale.finance_account_name || "—"
+                        ),
                     },
+                    ...(sale.finance_transaction_uuid
+                      ? [
+                          {
+                            key: "transaction",
+                            label: t("sales.detail.finance_transaction"),
+                            value: (
+                              <Link
+                                href={routes.tenant.finance.transactions.detail(
+                                  slug,
+                                  sale.finance_transaction_uuid,
+                                )}
+                                className="text-primary hover:underline"
+                              >
+                                {t("sales.detail.view_transaction")}
+                              </Link>
+                            ),
+                          },
+                        ]
+                      : []),
                     {
                       key: "sold_at",
                       label: t("sales.sold_at"),
@@ -194,7 +232,15 @@ export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                     className="flex items-center justify-between gap-4 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium">{line.name}</p>
+                      <Link
+                        href={routes.tenant.catalog.products.detail(
+                          slug,
+                          line.product_uuid,
+                        )}
+                        className="font-medium hover:underline"
+                      >
+                        {line.name}
+                      </Link>
                       <p className="text-muted-foreground tabular-nums">
                         {formatFinanceAmount(
                           line.unit_price,

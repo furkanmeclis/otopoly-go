@@ -1,5 +1,9 @@
 import type { ServerListParams } from "@/components/entity";
+import type { components } from "@/generated/api";
 import { platformRequest } from "@/lib/api/platform-request";
+
+/** 360° summary of a supplier (`GET /v1/tenant/suppliers/{uuid}/summary`). */
+export type SupplierSummary = components["schemas"]["SupplierSummary"];
 import type { ResourceMeta } from "@/features/io/types";
 
 export type Supplier = {
@@ -50,6 +54,12 @@ export const suppliersService = {
   },
   get(uuid: string) {
     return platformRequest<Supplier>("GET", `/v1/tenant/suppliers/${uuid}`);
+  },
+  summary(uuid: string) {
+    return platformRequest<SupplierSummary>(
+      "GET",
+      `/v1/tenant/suppliers/${uuid}/summary`,
+    );
   },
   create(body: CreateSupplierInput) {
     return platformRequest<Supplier>("POST", "/v1/tenant/suppliers", { body });

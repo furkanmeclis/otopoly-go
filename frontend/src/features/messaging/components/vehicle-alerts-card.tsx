@@ -20,6 +20,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { routes } from "@/config/routes";
 import {
+  MessageChannelPicker,
+  type MessageChannel,
+} from "@/features/messaging/components/message-channel-picker";
+import {
   useSaveVehicleAlerts,
   useSendTestVehicleAlert,
   useVehicleAlertSettings,
@@ -75,6 +79,7 @@ export function VehicleAlertsCard() {
   const savedKey = [
     data.enabled,
     data.batch_minutes,
+    data.channel,
     [...data.events].sort().join(","),
     [...data.service_uuids].sort().join(","),
     [...data.recipient_user_uuids].sort().join(","),
@@ -99,9 +104,15 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
     data.recipient_user_uuids,
   );
   const [batch, setBatch] = useState<number>(data.batch_minutes);
+  const [channel, setChannel] = useState<MessageChannel>(
+    data.channel ?? "whatsapp",
+  );
+  const channelReady =
+    channel === "sms" ? data.sms_available : data.whatsapp_connected;
 
   const effectiveServices = allServices ? [] : services;
   const dirty =
+    data.channel !== channel ||
     data.enabled !== enabled ||
     data.batch_minutes !== batch ||
     !sameSet(data.events, events) ||
@@ -132,6 +143,7 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
         service_uuids: effectiveServices,
         recipient_user_uuids: recipients,
         batch_minutes: batch,
+        channel,
       });
       toast.success(t("messaging.vehicle_alerts.saved"));
     } catch (err) {
@@ -146,6 +158,7 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
         t("messaging.vehicle_alerts.test_sent", {
           in_app: res.in_app,
           whatsapp: res.whatsapp,
+          sms: res.sms ?? 0,
         }),
       );
       if (res.skipped.length > 0) {
@@ -176,12 +189,21 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {!data.whatsapp_connected ? (
+        {!channelReady ? (
           <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            {t("messaging.vehicle_alerts.not_connected")}
+            {channel === "sms"
+              ? t("messaging.channel_picker.sms_not_ready")
+              : t("messaging.vehicle_alerts.not_connected")}
           </div>
         ) : null}
+
+        <MessageChannelPicker
+          id="vehicle-alerts-channel"
+          value={channel}
+          onChange={setChannel}
+          smsAvailable={data.sms_available}
+        />
 
         <div className="flex items-center justify-between gap-3 rounded-lg border p-3">
           <Label htmlFor="vehicle-alerts-enabled">

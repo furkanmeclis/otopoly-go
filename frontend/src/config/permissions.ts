@@ -40,6 +40,7 @@ export const Permission = {
   PlatformIntegrationsAppleWrite: "platform.integrations.apple.write",
   PlatformIntegrationsWhatsAppRead: "platform.integrations.whatsapp.read",
   PlatformIntegrationsWhatsAppWrite: "platform.integrations.whatsapp.write",
+  PlatformMessagingSMSRead: "platform.messaging.sms.read",
   PlatformLegalRead: "platform.legal.read",
   PlatformLegalWrite: "platform.legal.write",
   PlatformAuthSettingsRead: "platform.auth.settings.read",
@@ -94,8 +95,13 @@ export const Permission = {
   TenantLeadsWrite: "tenant.leads.write",
   TenantQuotesRead: "tenant.quotes.read",
   TenantQuotesWrite: "tenant.quotes.write",
+  TenantMCPConnect: "tenant.mcp.connect",
+  PlatformMCPConnect: "platform.mcp.connect",
+  PlatformMCPManage: "platform.mcp.manage",
   TenantBillingRead: "tenant.billing.read",
   TenantBillingWrite: "tenant.billing.write",
+  TenantCalendarRead: "tenant.calendar.read",
+  TenantCalendarWrite: "tenant.calendar.write",
   PlatformBillingRead: "platform.billing.read",
   PlatformBillingWrite: "platform.billing.write",
   PlatformBillingSettings: "platform.billing.settings",
@@ -217,6 +223,9 @@ export const permissions = {
       write: Permission.PlatformIntegrationsWhatsAppWrite,
     },
   },
+  platformSms: {
+    read: Permission.PlatformMessagingSMSRead,
+  },
   authSettings: {
     read: Permission.PlatformAuthSettingsRead,
     write: Permission.PlatformAuthSettingsWrite,
@@ -328,11 +337,20 @@ export const permissions = {
     read: Permission.TenantTodosRead,
     write: Permission.TenantTodosWrite,
   },
+  calendar: {
+    read: Permission.TenantCalendarRead,
+    write: Permission.TenantCalendarWrite,
+  },
   messaging: {
     read: Permission.TenantMessagingRead,
     write: Permission.TenantMessagingWrite,
   },
   auth: {
     session: Permission.AuthSession,
+  },
+  mcp: {
+    connect: Permission.TenantMCPConnect,
+    platformConnect: Permission.PlatformMCPConnect,
+    manage: Permission.PlatformMCPManage,
   },
 } as const;

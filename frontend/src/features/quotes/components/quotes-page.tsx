@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusChip } from "@/components/common/status-chip";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,10 @@ import type { Quote, QuoteListParams } from "@/features/quotes/types";
 import { cn } from "@/lib/utils";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const TABS = [
   "open",
@@ -68,6 +73,11 @@ export function QuotesPage({ slug }: { slug: string }) {
   );
   const list = useQuotes(params, access.canRead);
   const summary = useQuoteSummary(access.canRead);
+  useTenantLiveRefetch(
+    TenantLiveResources.quotes,
+    () => Promise.all([list.refetch(), summary.refetch()]),
+    { enabled: access.canRead },
+  );
 
   if (!access.canRead) {
     return (
@@ -256,6 +266,13 @@ function QuoteRow({ quote, slug }: { quote: Quote; slug: string }) {
           <div className="min-w-0">
             <p className="truncate font-medium">{quote.customer_name}</p>
             <p className="text-muted-foreground flex items-center gap-2 truncate text-xs">
+              {quote.vehicle_brand_name ? (
+                <BrandMark
+                  name={quote.vehicle_brand_name}
+                  logoUrl={quote.vehicle_brand_logo_url}
+                  className="size-5"
+                />
+              ) : null}
               {quote.vehicle_plate ? (
                 <PlateBadge plate={quote.vehicle_plate} size="sm" />
               ) : null}

@@ -17,6 +17,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -36,14 +37,15 @@ type SearchIndexer interface {
 }
 
 type Service struct {
-	pool    *pgxpool.Pool
-	q       *db.Queries
-	act     *activity.Recorder
-	finance *financeusecase.Service
-	cari    *cariusecase.Service
-	search  SearchIndexer
-	bus     events.Bus
-	ent     *entitlements.Service
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	finance    *financeusecase.Service
+	cari       *cariusecase.Service
+	search     SearchIndexer
+	bus        events.Bus
+	ent        *entitlements.Service
 }
 
 func New(
@@ -458,6 +460,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 	s.recordActivity(ctx, "jobs.create", "jobs.job", &job.Uuid, map[string]any{
 		"plate": job.Plate, "total": financeusecase.NumericToString(job.TotalAmount),
 	})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionCreated, job.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionBulk)
 	s.publish(ctx, events.JobsCreated, map[string]any{"job_uuid": job.Uuid.String()})
 	s.indexJob(ctx, job.Uuid)
 
@@ -511,6 +515,7 @@ func (s *Service) Patch(ctx context.Context, id uuid.UUID, in PatchInput) (JobDe
 		}
 	}
 	s.recordActivity(ctx, "jobs.update", "jobs.job", &id, nil)
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, id.String())
 	s.indexJob(ctx, id)
 	return s.Get(ctx, id)
 }
@@ -530,6 +535,7 @@ func (s *Service) MarkDone(ctx context.Context, id uuid.UUID) (JobDetail, error)
 		return JobDetail{}, err
 	}
 	s.recordActivity(ctx, "jobs.update", "jobs.job", &row.Uuid, map[string]any{"status": "ready"})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, row.Uuid.String())
 	s.publish(ctx, events.JobsReady, map[string]any{"job_uuid": row.Uuid.String()})
 	s.indexJob(ctx, row.Uuid)
 	return s.Get(ctx, row.Uuid)
@@ -550,6 +556,7 @@ func (s *Service) MarkDelivered(ctx context.Context, id uuid.UUID) (JobDetail, e
 		return JobDetail{}, err
 	}
 	s.recordActivity(ctx, "jobs.update", "jobs.job", &row.Uuid, map[string]any{"status": "delivered"})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, row.Uuid.String())
 	s.publish(ctx, events.JobsDelivered, map[string]any{"job_uuid": row.Uuid.String()})
 	s.indexJob(ctx, row.Uuid)
 	return s.Get(ctx, row.Uuid)
@@ -584,6 +591,8 @@ func (s *Service) Cancel(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	}
 	s.giveBackJob(ctx, orgID, row.StartedAt.Time)
 	s.recordActivity(ctx, "jobs.cancel", "jobs.job", &row.Uuid, nil)
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionBulk)
 	s.publish(ctx, events.JobsCancelled, map[string]any{"job_uuid": row.Uuid.String()})
 	s.indexJob(ctx, row.Uuid)
 	return s.Get(ctx, row.Uuid)
@@ -743,6 +752,8 @@ func (s *Service) Close(ctx context.Context, id uuid.UUID, in CloseInput) (JobDe
 	s.recordActivity(ctx, "jobs.close", "jobs.job", &paid.Uuid, map[string]any{
 		"method": method, "amount": financeusecase.NumericToString(paid.TotalAmount),
 	})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, paid.Uuid.String())
+	s.liveMoney(ctx)
 	s.publish(ctx, events.JobsClosed, map[string]any{"job_uuid": paid.Uuid.String(), "method": method})
 	s.indexJob(ctx, paid.Uuid)
 
@@ -837,6 +848,9 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 		s.finance.NotifyIndexed(ctx, pair[0], pair[1])
 	}
 	s.recordActivity(ctx, "jobs.void", "jobs.job", &voidedJob.Uuid, nil)
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, voidedJob.Uuid.String())
+	s.liveMoney(ctx)
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionBulk)
 	s.publish(ctx, events.JobsVoided, map[string]any{"job_uuid": voidedJob.Uuid.String()})
 	s.indexJob(ctx, voidedJob.Uuid)
 	return s.Get(ctx, voidedJob.Uuid)

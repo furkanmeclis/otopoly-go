@@ -15,6 +15,9 @@ export type DailySummarySettings = {
   recipient_user_uuids: string[];
   last_sent_on?: string | null;
   whatsapp_connected: boolean;
+  /** Delivery channel (SMS goes through the active SMS provider). */
+  channel: "whatsapp" | "sms";
+  sms_available: boolean;
   members: DailySummaryMember[];
 };
 
@@ -22,6 +25,7 @@ export type DailySummaryInput = {
   enabled: boolean;
   send_time: string;
   recipient_user_uuids: string[];
+  channel?: "whatsapp" | "sms";
 };
 
 export const dailySummaryService = {

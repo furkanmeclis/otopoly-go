@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 
 import { FormFieldShell } from "@/components/forms/form-field";
@@ -11,7 +12,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Option = { label: string; value: string };
+type Option = {
+  label: string;
+  value: string;
+  /** Leading visual (e.g. vehicle brand logo), also shown in the trigger. */
+  icon?: ReactNode;
+};
 
 type AppSelectProps = {
   name: string;
@@ -66,7 +72,14 @@ export function AppSelect({
             <SelectContent>
               {options.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
-                  {option.label}
+                  {option.icon ? (
+                    <span className="flex min-w-0 items-center gap-2">
+                      {option.icon}
+                      <span className="truncate">{option.label}</span>
+                    </span>
+                  ) : (
+                    option.label
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>

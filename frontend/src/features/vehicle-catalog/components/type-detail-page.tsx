@@ -5,6 +5,7 @@ import { CarFront } from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { PermissionGuard } from "@/components/common/permission-guard";
@@ -190,9 +191,17 @@ export function CatalogTypeDetailPage({ uuid }: { uuid: string }) {
               />
             }
             leading={
-              <div className="bg-muted flex size-12 items-center justify-center rounded-lg">
-                <CarFront className="text-muted-foreground size-6" />
-              </div>
+              type.display_brand.logo_url ? (
+                <BrandMark
+                  name={type.display_brand.name}
+                  logoUrl={type.display_brand.logo_url}
+                  size="lg"
+                />
+              ) : (
+                <div className="bg-muted flex size-12 items-center justify-center rounded-lg">
+                  <CarFront className="text-muted-foreground size-6" />
+                </div>
+              )
             }
           />
 

@@ -28,6 +28,8 @@ func writeError(w http.ResponseWriter, r *http.Request, err error) {
 		response.BadRequest(w, r, response.CodeValidationError, err.Error())
 	case errors.Is(err, dsusecase.ErrWhatsAppNotConnected):
 		response.Conflict(w, r, "WHATSAPP_NOT_CONNECTED", "WhatsApp is not connected")
+	case errors.Is(err, dsusecase.ErrSMSNotConfigured):
+		response.Conflict(w, r, "SMS_NOT_CONFIGURED", "No active SMS provider")
 	case errors.Is(err, dsusecase.ErrNoRecipientsWithPhone):
 		response.Conflict(w, r, "NO_RECIPIENT_PHONE", "No selected recipient has a WhatsApp number")
 	default:

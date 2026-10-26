@@ -39,6 +39,10 @@ import { ResourceIOToolbar } from "@/features/io";
 import { useDialogs } from "@/providers/dialog-provider";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function ProductsPage({
   slug,
@@ -60,7 +64,10 @@ export function ProductsPage({
   const [adjustingProduct, setAdjustingProduct] =
     useState<CatalogProduct | null>(null);
 
+  const liveList = useTenantLiveList(TenantLiveResources.catalogProducts);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "name",
     initialPageSize: 20,
   });
@@ -193,6 +200,9 @@ export function ProductsPage({
       ) : null}
 
       <EntityTable
+        realtime={listState.realtimeFor(() =>
+          Promise.all([listQuery.refetch(), summaryQuery.refetch()]),
+        )}
         columns={columns}
         data={listQuery.data?.items ?? []}
         getRowId={(row) => row.uuid}

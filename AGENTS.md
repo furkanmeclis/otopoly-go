@@ -32,6 +32,7 @@ Canonical env is the **repo-root** `.env`. Compose files are `compose.local.yml`
 | [backend/DATABASE_RULES.md](./backend/DATABASE_RULES.md) | Migrations + sqlc |
 | [backend/docs/auth.md](./backend/docs/auth.md) | JWT, roles, permissions |
 | [docs/AI.md](./docs/AI.md) | AI assistant: providers, tools, confirmation flow, SSE, quotas, voice, KVKK |
+| [docs/MCP.md](./docs/MCP.md) | Remote MCP server + OAuth 2.1 (Claude/Cursor connectors), `/mcp/org` and `/mcp/platform` tools |
 
 ## Hard rules
 

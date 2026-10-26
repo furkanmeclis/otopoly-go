@@ -8,6 +8,9 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/brandlogo"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 )
 
 // ValidShareToken reports whether raw looks like a share token (43 url-safe
@@ -66,6 +69,7 @@ func (s *Service) publicView(ctx context.Context, row db.Quote) (PublicQuote, er
 		Number: row.Number, Status: row.Status, OrganizationName: org.Name,
 		OrganizationTel: org.Phone, OrganizationAddr: orgAddress(org), PrimaryColor: safeColor(org.PrimaryColor),
 		CustomerName: refs.CustomerName, VehiclePlate: row.VehiclePlate, VehicleLabel: row.VehicleLabel,
+		VehicleBrandName: refs.VehicleBrandName, VehicleBrandLogo: brandlogo.NullableURL(refs.VehicleBrandUuid, refs.VehicleBrandLogoObjectKey),
 		Currency: row.Currency, PricesIncludeVAT: row.PricesIncludeVat,
 		Subtotal: money(row.Subtotal), DiscountTotal: money(row.DiscountTotal),
 		VATTotal: money(row.VatTotal), GrandTotal: money(row.GrandTotal),
@@ -158,6 +162,9 @@ func (s *Service) PublicDecide(ctx context.Context, token string, accept bool, i
 	}
 	s.afterReminderChange(ctx, updated, cancelled, nil)
 	s.notify(ctx, "decided", updated)
+	// Public route: no organization on the request, scope the event here.
+	s.live(orgctx.WithScope(ctx, orgctx.Scope{InternalID: updated.OrganizationID}),
+		resourceevents.TenantQuotes, resourceevents.ActionUpdated, updated.Uuid.String())
 	if s.act != nil {
 		s.act.Record(ctx, nil, "tenant.quote.public_decision", "quote", &updated.Uuid, map[string]any{
 			"number": updated.Number, "status": to, "ip": client.IP, "at": time.Now().UTC().Format(time.RFC3339),

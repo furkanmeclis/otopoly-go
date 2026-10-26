@@ -50,6 +50,8 @@ tags:
     description: Centrifugo connection and subscription tokens
   - name: Notifications
     description: In-app notification center, preferences, and admin send
+  - name: MCP
+    description: Remote MCP server OAuth consent, connected apps and client management (docs/MCP.md)
 
 paths:
   /healthz:
@@ -2880,8 +2882,31 @@ paths:
       operationId: postRealtimeSubscriptionToken
       summary: Issue Centrifugo subscription JWT
       description: |
-        Body `{ channel }`. Allowlist `user:{own_uuid}`, member `workspace:{uuid}`,
-        and `conversation:{uuid}` (authenticated session; HTTP inbox ACL is the hard boundary).
+        Body `{ channel }`. Returns `{ token, channel, expires_at }` for Centrifugo
+        subscriptions (`allow_subscribe_for_client` is off, so every channel needs one).
+        Requires `auth.session`; disabled Centrifugo → `503 REALTIME_DISABLED`; a channel
+        the caller may not watch → `403`.
+
+        Allowed channels:
+        - `user:{own_uuid}` — the caller's own channel.
+        - `system.notifications` — platform super admins.
+        - `org:{org_uuid}:resource:{resource}` — **live lists** of an organization-owned
+          resource. The access token must be scoped to that organization (JWT `oid`, i.e.
+          signed in / switched with `organization_slug`), the caller must be an active
+          member with organization access, and must hold the resource's read permission
+          (e.g. `tenant.jobs` → `tenant.jobs.read`). Unknown resources are refused.
+          Resources: `tenant.customers`, `tenant.vehicles`, `tenant.jobs`, `tenant.sales`,
+          `tenant.quotes`, `tenant.leads`, `tenant.purchases`, `tenant.suppliers`,
+          `tenant.catalog.products`, `tenant.catalog.services`, `tenant.catalog.categories`,
+          `tenant.finance.accounts`, `tenant.finance.categories`, `tenant.finance.transactions`,
+          `tenant.cari`, `tenant.cari.entries`, `tenant.todos`, `tenant.contracts` (templates),
+          `tenant.contracts.instances`, `tenant.staff`.
+
+        Live list publications carry
+        `{ "type": "resource.changed", "resource": "tenant.jobs", "action": "created|updated|deleted|bulk",
+        "uuids": ["…"], "truncated": false, "at": "RFC3339" }`. `bulk` without uuids (or
+        `truncated: true`) means an unknown set of rows changed: refetch. Events are hints;
+        always refetch over HTTP. See docs/ARCHITECTURE.md → "Live lists".
       security:
         - bearerAuth: []
       requestBody:
@@ -7634,8 +7659,9 @@ paths:
       summary: End-of-day WhatsApp summary settings (owner)
       description: >-
         Enabled flag, local send time (Europe/Istanbul, HH:MM), selected
-        recipients, WhatsApp connection state and the members that can be
-        selected (with whether they have a notification phone).
+        recipients, `channel` (`whatsapp` | `sms`), `whatsapp_connected`,
+        `sms_available` (an active SMS provider exists) and the members that can
+        be selected (with whether they have a notification phone).
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Daily summary settings }
@@ -7660,6 +7686,10 @@ paths:
                   type: array
                   maxItems: 20
                   items: { type: string, format: uuid }
+                channel:
+                  type: string
+                  enum: [whatsapp, sms]
+                  description: Delivery channel; omitted keeps the saved one (default whatsapp).
       responses:
         "200": { description: Saved settings }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -7680,6 +7710,9 @@ paths:
       tags: [Tenant]
       operationId: sendTestTenantDailySummary
       summary: Send today's summary so far to the saved recipients now (owner)
+      description: >-
+        Uses the saved channel. 409 `WHATSAPP_NOT_CONNECTED` / `SMS_NOT_CONFIGURED`
+        when that channel cannot send, `NO_RECIPIENT_PHONE` when no recipient has a phone.
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: "{ sent, skipped[] }" }
@@ -7694,9 +7727,11 @@ paths:
       summary: Team vehicle alert settings (owner)
       description: >-
         Events (created/ready/delivered/cancelled), service filter (empty = all),
-        recipients, WhatsApp batch window (0 = instant, 30, 60 min), plus
-        selectable members (has_phone, has_push) and services. In-app/push is
-        instant; WhatsApp goes only to recipients web push cannot reach.
+        recipients, phone message batch window (0 = instant, 30, 60 min), `channel`
+        of the phone messages (`whatsapp` | `sms`), `whatsapp_connected`,
+        `sms_available`, plus selectable members (has_phone, has_push) and
+        services. In-app/push is instant; WhatsApp / SMS goes only to recipients
+        web push cannot reach.
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Vehicle alert settings }
@@ -7727,6 +7762,10 @@ paths:
                   maxItems: 20
                   items: { type: string, format: uuid }
                 batch_minutes: { type: integer, enum: [0, 30, 60] }
+                channel:
+                  type: string
+                  enum: [whatsapp, sms]
+                  description: Phone message channel; omitted keeps the saved one (default whatsapp).
       responses:
         "200": { description: Saved settings }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -7739,10 +7778,234 @@ paths:
       summary: Send a sample vehicle alert to the saved recipients (owner)
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: "{ in_app, whatsapp, skipped[] }" }
+        "200": { description: "{ in_app, whatsapp, sms, skipped[] }" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/messaging/sms:
+    get:
+      tags: [Tenant]
+      operationId: getTenantMessagingSms
+      summary: SMS channel providers and the organization's accounts
+      description: |
+        Lists the supported SMS providers (`netgsm`, `twilio`) with their credential fields and the
+        organization's connected account (masked hints only, never secrets). `active_provider` is the
+        provider that sends the organization's SMS ("" = SMS off). Requires `tenant.messaging.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Providers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsChannelOverview" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/messaging/sms/estimate:
+    post:
+      tags: [Tenant]
+      operationId: estimateTenantMessagingSms
+      summary: Character and part estimate of an SMS text
+      description: |
+        GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150; Netgsm messages are always sent
+        with dil="TR" so they are counted at this size) or UCS-2 (70 / 67). `provider`
+        defaults to the active provider (else netgsm). Requires `tenant.messaging.read`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SmsEstimateRequest" }
+      responses:
+        "200":
+          description: Estimate
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsEstimate" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/messaging/sms/{provider}:
+    parameters:
+      - $ref: "#/components/parameters/SmsProviderPath"
+    put:
+      tags: [Tenant]
+      operationId: saveTenantMessagingSmsProvider
+      summary: Connect or update an SMS provider account
+      description: |
+        Credentials are sealed per organization; empty or omitted credential values keep the stored
+        ones. Netgsm: `usercode`, `password`, sender = approved message header (msgheader).
+        Twilio: `account_sid`, `auth_token`, sender = From number (E.164), alphanumeric sender id or
+        Messaging Service SID (`MG…`). `activate` makes it the SMS channel (default: true when no SMS
+        provider is active yet); only one provider is active per organization. Changing credentials
+        resets `status` to `unchecked`. Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaveSmsProviderRequest" }
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsProviderAccount" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Tenant]
+      operationId: setTenantMessagingSmsProviderActive
+      summary: Enable or disable an SMS provider as the channel
+      description: Enabling one provider disables the other. Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties:
+                is_active: { type: boolean }
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsProviderAccount" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantMessagingSmsProvider
+      summary: Disconnect an SMS provider (deletes its credentials)
+      description: Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: "{ success: true }" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/messaging/sms/{provider}/test:
+    parameters:
+      - $ref: "#/components/parameters/SmsProviderPath"
+    post:
+      tags: [Tenant]
+      operationId: testTenantMessagingSmsProvider
+      summary: Test the SMS provider connection (sends nothing)
+      description: |
+        Netgsm: `POST /balance` (stip 2 TL credit, authoritative; stip 1 packages, best effort) →
+        `balance` ("1.234,56 TL") and `sms_credit` (sum of SMS packages). The message header is verified
+        by the test SMS (Netgsm answers 40 for an unknown header). Twilio: reads the account (and its
+        balance when visible). Stores `status` (`connected` | `error`) and
+        `last_error`. A failed check is still 200 with `ok: false`. Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsTestResult" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/messaging/sms/{provider}/test-sms:
+    parameters:
+      - $ref: "#/components/parameters/SmsProviderPath"
+    post:
+      tags: [Tenant]
+      operationId: sendTenantMessagingTestSms
+      summary: Send a test SMS through a connected provider
+      description: |
+        Works for a connected provider whether or not it is active. The number is normalized to E.164
+        (Turkish national numbers accepted); the message is logged in the outbound log
+        (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`. Test SMS are real
+        messages: they need plan feature `sms.enabled` and are counted on `sms.monthly` (parts); a plan
+        refusal is 200 with `status: failed` and `error_code` `feature_not_entitled` / `quota_exceeded`.
+        Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SmsTestSmsRequest" }
+      responses:
+        "200":
+          description: Send result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsTestSmsResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/messaging/sms/report:
+    get:
+      tags: [Platform]
+      operationId: getPlatformSmsReport
+      summary: Platform SMS report
+      description: |
+        Totals (sent / failed messages, billed parts of sent messages), the split by provider, a daily
+        series (Europe/Istanbul days) and the organizations that have an SMS provider account or SMS
+        traffic in the range (up to 1000), with provider, account status, counts, last send (all time) and
+        the current calendar month's `sms.monthly` usage (`quota_limit` -1 = unlimited).
+        Requires `platform.messaging.sms.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          description: First day (YYYY-MM-DD, inclusive). Default first day of the current month.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Last day (YYYY-MM-DD, inclusive). Default today. At most 366 days after `from`.
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/messaging/sms/organizations/{uuid}/messages:
+    get:
+      tags: [Platform]
+      operationId: listPlatformSmsOrganizationMessages
+      summary: An organization's recent SMS (numbers masked)
+      description: Newest first. Requires `platform.messaging.sms.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsReportMessagesPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/tenant/messaging/session:
     get:
       tags: [Tenant]
@@ -8112,7 +8375,7 @@ paths:
     post:
       tags: [Tenant]
       operationId: postTenantMessagingSimulate
-      summary: Send a test WhatsApp notification (single event or full job lifecycle)
+      summary: Send a test WhatsApp / SMS notification (single event or full job lifecycle)
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -8129,8 +8392,9 @@ paths:
                 event_type: { type: string }
                 channel:
                   type: string
-                  enum: [whatsapp]
+                  enum: [whatsapp, sms]
                   default: whatsapp
+                  description: "`sms` sends the organization's SMS template through its active SMS provider."
                 phone: { type: string }
                 vars:
                   type: object
@@ -9298,9 +9562,10 @@ paths:
     post:
       tags: [Tenant]
       operationId: sendTenantContractSignerOtp
-      summary: Send a WhatsApp OTP (contract heading + KVKK notice) to a customer signer
+      summary: Send a WhatsApp or SMS OTP (contract heading + KVKK notice) to a customer signer
       description: |
-        Sends a 6-digit code over the organization's connected WhatsApp session. The message carries the
+        Sends a 6-digit code over the organization's WhatsApp line (default) or, with `channel: sms`,
+        through the organization's active SMS provider (short SMS text). The message carries the
         contract title/number, plate and the KVKK (6698) disclosure. Codes expire after 5 minutes, allow
         5 attempts, can be resent after 60 seconds, and at most 5 codes per signer per hour.
       security: [{ bearerAuth: [] }]
@@ -9321,6 +9586,10 @@ paths:
               type: object
               properties:
                 phone: { type: string, description: Override recipient; defaults to the signer phone. }
+                channel:
+                  type: string
+                  enum: [whatsapp, sms]
+                  default: whatsapp
       responses:
         "200":
           description: OTP sent
@@ -10248,6 +10517,175 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/calendar/meta:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCalendarMeta
+      summary: Calendar layers the caller may see / move, event colours, time zone
+      description: >-
+        Requires `tenant.calendar.read`. A layer is listed only when the member
+        holds that module's read permission and the plan includes the module;
+        `movable` is true when items of the layer can be rescheduled with
+        `POST /v1/tenant/calendar/items/move`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Calendar metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarMeta"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/calendar/feed:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCalendarFeed
+      summary: Calendar feed (own events + live module layers)
+      description: >-
+        Requires `tenant.calendar.read`. Returns the organization's events and
+        dated records from other modules overlapping [from, to) (dates in
+        Europe/Istanbul, `to` exclusive, at most 62 days). Layers the member may
+        not read (module permission or plan) are left out silently; requesting
+        an unknown layer is a 400.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema: { type: string, format: date, example: "2026-10-01" }
+        - name: to
+          in: query
+          required: true
+          description: Exclusive end date.
+          schema: { type: string, format: date, example: "2026-11-01" }
+        - name: layers
+          in: query
+          description: Comma-separated layers; empty means every layer the caller may see.
+          schema: { type: string, example: "events,jobs,todos" }
+      responses:
+        "200":
+          description: Feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarFeed"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/calendar/items/move:
+    post:
+      tags: [Tenant]
+      operationId: moveTenantCalendarItem
+      summary: Reschedule a calendar item (drag and drop)
+      description: >-
+        Requires `tenant.calendar.read` plus the write permission of the item's
+        module: `tenant.calendar.write` (events), `tenant.todos.write` (todo due
+        date / time), `tenant.leads.write` (lead follow-up date). Other layers
+        answer 403. Timed placements send `starts_at` (+ `ends_at` for events);
+        all-day placements send `start_date` (+ `end_date` for events). A todo
+        moved to an all-day slot loses its time; leads keep only the date.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarMoveInput" }
+      responses:
+        "200":
+          description: The item at its new place
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarFeedItem"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/calendar/events:
+    post:
+      tags: [Tenant]
+      operationId: createTenantCalendarEvent
+      summary: Create a calendar event
+      description: Requires `tenant.calendar.write`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarEventInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarEvent"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/calendar/events/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [Tenant]
+      operationId: getTenantCalendarEvent
+      summary: Get a calendar event
+      description: Requires `tenant.calendar.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarEvent"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantCalendarEvent
+      summary: Replace a calendar event
+      description: Requires `tenant.calendar.write`. Full replace (send every field).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalendarEventInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarEvent"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantCalendarEvent
+      summary: Delete a calendar event (soft delete)
+      description: Requires `tenant.calendar.write`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCalendarDeleted"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/todos/meta:
     get:
@@ -12312,6 +12750,330 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
+  /v1/tenant/catalog/products/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogProductSummary
+      summary: Product 360 summary
+      description: |
+        Stock, pricing / margin and, per the caller's permissions, sales
+        (tenant.sales.read), purchases (tenant.purchases.read) and job usage
+        (tenant.jobs.read) aggregates of a product. Blocks the caller cannot
+        read are null. The monthly trend covers the last 12 months (UTC).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Product summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProductSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/catalog/products/{uuid}/movements:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCatalogProductMovements
+      summary: Product stock ledger
+      description: |
+        Purchases (+), sales (-) and job consumptions (-) of a product, newest
+        first. Each kind is included only with its read permission.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Movements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProductMovementList"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/catalog/services/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogServiceSummary
+      summary: Service 360 summary
+      description: |
+        Price vs recipe cost and, with tenant.jobs.read, usage on jobs (count,
+        revenue, average job duration, 12-month trend).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Service summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeServiceSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/catalog/services/{uuid}/jobs:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCatalogServiceJobs
+      summary: Jobs that used a service
+      description: Requires tenant.catalog.read and tenant.jobs.read. Newest first.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeServiceJobList"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/customers/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCustomerSummary
+      summary: Customer 360 summary
+      description: |
+        Vehicles, jobs (tenant.jobs.read), product sales (tenant.sales.read),
+        quotes (tenant.quotes.read) and leads (tenant.leads.read) of a
+        customer. Blocks the caller cannot read are null; total_spend sums the
+        readable blocks.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Customer summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/suppliers/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantSupplierSummary
+      summary: Supplier 360 summary
+      description: Purchase aggregates, top products and recent purchases (tenant.purchases.read; null otherwise).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Supplier summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplierSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+  /v1/mcp/info:
+    get:
+      tags: [MCP]
+      operationId: getMCPInfo
+      summary: MCP server URLs for the connect guides
+      description: |
+        Public URLs of the two MCP endpoints (docs/MCP.md) and whether the
+        caller may connect them (`tenant.mcp.connect` / `platform.mcp.connect`).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: MCP info
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPInfo" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/mcp/oauth/requests/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    get:
+      tags: [MCP]
+      operationId: getMCPOAuthRequest
+      summary: Consent screen data of a pending MCP authorization request
+      description: |
+        The client, its redirect host, the endpoint (`/mcp/org` or
+        `/mcp/platform`), the requested scopes and, for `/mcp/org`, the
+        organizations the user may bind the connection to (active membership,
+        `tenant.mcp.connect`, plan toggle `mcp.enabled`) with the tool count
+        there. `allowed` is false when the user cannot approve.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Consent data
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPConsent" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/mcp/oauth/requests/{uuid}/decide:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    post:
+      tags: [MCP]
+      operationId: decideMCPOAuthRequest
+      summary: Approve or deny a pending MCP authorization request
+      description: |
+        Approve binds the connection to `organization_uuid` (required for
+        `/mcp/org`) with the chosen `scopes` (a subset of the requested ones;
+        omitted = all). The request is consumed either way; the response is
+        where to send the browser (the client's redirect URI with `code` or
+        `error=access_denied`, plus `state` and `iss`).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MCPDecideRequest" }
+      responses:
+        "200":
+          description: Redirect target
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPDecision" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/mcp/grants:
+    get:
+      tags: [MCP]
+      operationId: listMCPGrants
+      summary: The current user's connected MCP apps
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: realm
+          in: query
+          schema: { type: string, enum: [org, platform] }
+        - name: organization_uuid
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Connected apps
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPGrantList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/mcp/grants/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    delete:
+      tags: [MCP]
+      operationId: revokeMCPGrant
+      summary: Disconnect one of the user's MCP apps
+      description: Revokes the grant and every token issued under it at once.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Disconnected }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/mcp/clients:
+    get:
+      tags: [MCP]
+      operationId: listPlatformMCPClients
+      summary: Registered MCP (OAuth) clients
+      description: Requires `platform.mcp.manage`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+        - $ref: "#/components/parameters/Q"
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, revoked] }
+      responses:
+        "200":
+          description: Clients
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeMCPClientList" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/mcp/clients/{uuid}:
+    parameters:
+      - $ref: "#/components/parameters/ResourceUUID"
+    delete:
+      tags: [MCP]
+      operationId: revokePlatformMCPClient
+      summary: Block an MCP client
+      description: |
+        Requires `platform.mcp.manage`. Revokes the client, every grant and
+        token issued to it, pending requests and unused codes. Blocking a
+        blocked client again succeeds.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Blocked }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -12320,6 +13082,12 @@ components:
       bearerFormat: JWT
 
   parameters:
+    SmsProviderPath:
+      name: provider
+      in: path
+      required: true
+      description: SMS provider code
+      schema: { type: string, enum: [netgsm, twilio] }
     LegalPageSlug:
       name: slug
       in: path
@@ -13198,7 +13966,9 @@ components:
       type: object
       required: [channel]
       properties:
-        channel: { type: string }
+        channel:
+          type: string
+          example: "org:2f6a4c1e-8d3b-4f7a-9c2e-1b5d7e9f0a12:resource:tenant.jobs"
 
     RealtimeSubscriptionToken:
       type: object
@@ -13792,6 +14562,269 @@ components:
           type: boolean
           description: The platform number can send right now.
 
+    SmsProviderField:
+      type: object
+      required: [key, secret, required]
+      properties:
+        key: { type: string, description: "netgsm: usercode, password; twilio: account_sid, auth_token" }
+        secret: { type: boolean }
+        required: { type: boolean }
+
+    SmsProviderAccount:
+      type: object
+      required: [uuid, provider, sender, is_active, status, credential_hints, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        provider: { type: string, enum: [netgsm, twilio] }
+        sender: { type: string, description: Netgsm message header or Twilio From number / Messaging Service SID. }
+        is_active: { type: boolean, description: This provider sends the organization's SMS. }
+        status: { type: string, enum: [unchecked, connected, error], description: Last connection test. }
+        last_checked_at: { type: string, format: date-time }
+        last_error: { type: string }
+        credential_hints:
+          type: object
+          additionalProperties: { type: string }
+          description: Masked values per credential key (e.g. "••••••ab"); secrets are never returned.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    SmsProviderEntry:
+      type: object
+      required: [provider, fields, sender_kind, account]
+      properties:
+        provider: { type: string, enum: [netgsm, twilio] }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/SmsProviderField" }
+        sender_kind: { type: string, enum: [msgheader, from] }
+        account:
+          description: null when not connected.
+          oneOf:
+            - $ref: "#/components/schemas/SmsProviderAccount"
+            - type: "null"
+
+    SmsChannelOverview:
+      type: object
+      required: [active_provider, providers]
+      properties:
+        active_provider: { type: string, enum: ["", netgsm, twilio] }
+        providers:
+          type: array
+          items: { $ref: "#/components/schemas/SmsProviderEntry" }
+
+    SaveSmsProviderRequest:
+      type: object
+      properties:
+        credentials:
+          type: object
+          additionalProperties: { type: string, maxLength: 256 }
+          description: Field values by key; empty values keep the stored ones.
+        sender: { type: string, maxLength: 64 }
+        activate: { type: boolean }
+
+    SmsSegments:
+      type: object
+      required: [encoding, characters, segments, per_segment, remaining]
+      properties:
+        encoding: { type: string, enum: [gsm7, turkish, ucs2] }
+        characters: { type: integer }
+        segments: { type: integer }
+        per_segment: { type: integer }
+        remaining: { type: integer, description: Characters left before the next part starts. }
+
+    SmsEstimateRequest:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string }
+        provider: { type: string, enum: [netgsm, twilio] }
+
+    SmsEstimate:
+      type: object
+      required: [provider, segments]
+      properties:
+        provider: { type: string, enum: [netgsm, twilio] }
+        segments: { $ref: "#/components/schemas/SmsSegments" }
+
+    SmsTestResult:
+      type: object
+      required: [ok, account]
+      properties:
+        ok: { type: boolean }
+        error_code: { type: string, description: "sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, …" }
+        message: { type: string }
+        detail: { type: string, description: Account name / matched header. }
+        balance: { type: string, description: "Account credit when the provider reports it (Netgsm TL credit \"1.234,56 TL\", Twilio \"12.50 USD\")." }
+        sms_credit: { type: integer, format: int64, description: Netgsm SMS package credit (sum of packages named SMS). }
+        senders:
+          type: array
+          items: { type: string }
+          description: Sender names / numbers of the account when the provider lists them.
+        account: { $ref: "#/components/schemas/SmsProviderAccount" }
+
+    SmsTestSmsRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { type: string, example: "0532 123 45 67" }
+        body: { type: string, maxLength: 1000, description: Defaults to a short Turkish test text. }
+
+    SmsTestSmsResult:
+      type: object
+      required: [status, provider, recipient, segments]
+      properties:
+        status: { type: string, enum: [sent, failed] }
+        provider: { type: string, enum: [netgsm, twilio] }
+        recipient: { type: string, description: Masked E.164 number. }
+        provider_message_id: { type: string }
+        provider_status: { type: string }
+        error_code: { type: string }
+        error_message: { type: string }
+        segments: { $ref: "#/components/schemas/SmsSegments" }
+
+    SmsReportCounts:
+      type: object
+      required: [sent, failed, segments]
+      properties:
+        sent: { type: integer, format: int64 }
+        failed: { type: integer, format: int64 }
+        segments: { type: integer, format: int64, description: Billed parts of sent messages. }
+
+    SmsReport:
+      type: object
+      required: [from, to, totals, by_provider, daily, organizations]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        totals: { $ref: "#/components/schemas/SmsReportCounts" }
+        by_provider:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/SmsReportCounts"
+              - type: object
+                required: [provider]
+                properties:
+                  provider: { type: string, enum: [netgsm, twilio, unknown] }
+        daily:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/SmsReportCounts"
+              - type: object
+                required: [date]
+                properties:
+                  date: { type: string, format: date }
+        organizations:
+          type: array
+          items: { $ref: "#/components/schemas/SmsReportOrganization" }
+
+    SmsReportOrganization:
+      allOf:
+        - $ref: "#/components/schemas/SmsReportCounts"
+        - type: object
+          required: [organization_uuid, organization_name, organization_slug, provider, is_active, account_status, last_sent_at, quota_used, quota_limit]
+          properties:
+            organization_uuid: { type: string, format: uuid }
+            organization_name: { type: string }
+            organization_slug: { type: string }
+            provider: { type: string, enum: ["", netgsm, twilio], description: Active (else latest) SMS account. }
+            is_active: { type: boolean }
+            account_status: { type: string, enum: ["", unchecked, connected, error] }
+            last_sent_at: { type: [string, "null"], format: date-time }
+            quota_used: { type: integer, format: int64, description: sms.monthly parts used this calendar month. }
+            quota_limit: { type: integer, format: int64, description: sms.monthly limit (-1 = unlimited). }
+
+    SmsReportMessage:
+      type: object
+      required: [uuid, event_type, recipient, status, provider, segments, sent_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        event_type: { type: string }
+        recipient: { type: string, description: Masked number. }
+        status: { type: string, enum: [queued, sending, sent, failed] }
+        provider: { type: string }
+        provider_reference: { type: string }
+        delivery_status: { type: string }
+        error_code: { type: string }
+        segments: { type: [integer, "null"] }
+        sent_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    SmsReportMessagesPage:
+      type: object
+      required: [organization, items, total, limit, offset]
+      properties:
+        organization:
+          type: object
+          required: [uuid, name, slug]
+          properties:
+            uuid: { type: string, format: uuid }
+            name: { type: string }
+            slug: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SmsReportMessage" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeSmsReport:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsReport" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsReportMessagesPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsReportMessagesPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsChannelOverview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsChannelOverview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsProviderAccount:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsProviderAccount" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsEstimate:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsEstimate" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsTestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsTestSmsResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsTestSmsResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
     EnvelopeWhatsAppSession:
       type: object
       required: [success, data, meta]
@@ -13821,16 +14854,23 @@ components:
         subject_uuid: { type: string, format: uuid }
         sent_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
-        sender_kind: { type: string, enum: [org_own, platform_whatsmeow, platform_cloud] }
+        sender_kind: { type: string, enum: [org_own, platform_whatsmeow, platform_cloud, sms_netgsm, sms_twilio] }
         template_name: { type: string }
-        delivery_status: { type: string, description: "Cloud delivery status from the webhook (sent, delivered, read, failed)." }
+        delivery_status:
+          type: string
+          description: >-
+            Cloud delivery status from the webhook (sent, delivered, read, failed), or the SMS
+            provider's status at send time (Netgsm `accepted`; Twilio `queued`, `accepted`, `sent`…).
         delivery_status_at: { type: string, format: date-time }
         error_code:
           type: string
           description: >-
             Classified failure, e.g. own_session_disconnected, platform_sender_not_configured,
             platform_sender_unavailable, template_not_approved, cloud_auth_failed,
-            marketing_limit, undeliverable, template_missing, graph_<code>.
+            marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured,
+            sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient,
+            feature_not_entitled (plan excludes sms.enabled), quota_exceeded (sms.monthly reached).
+        segments: { type: integer, description: Billed SMS parts of a sent SMS (counted on the sms.monthly plan quota). }
 
     OutboundMessagePage:
       type: object
@@ -16312,7 +17352,7 @@ components:
       type: object
       required: [kind, uuid]
       properties:
-        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo] }
+        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event] }
         uuid: { type: string, format: uuid }
 
     AIActionResult:
@@ -16601,6 +17641,177 @@ components:
         data: { $ref: "#/components/schemas/Todo" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
+    CalendarColor:
+      type: string
+      enum: [blue, emerald, amber, rose, violet, sky, orange, teal, pink, slate]
+
+    CalendarLayer:
+      type: string
+      enum: [events, jobs, deliveries, todos, quotes, leads, finance, sales, purchases, contracts]
+
+    CalendarLayerInfo:
+      type: object
+      required: [key, movable]
+      properties:
+        key: { $ref: "#/components/schemas/CalendarLayer" }
+        movable: { type: boolean, description: Items of this layer can be rescheduled by the caller }
+
+    CalendarMeta:
+      type: object
+      required: [layers, colors, timezone, max_range_days]
+      properties:
+        layers:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarLayerInfo" }
+        colors:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarColor" }
+        timezone: { type: string, example: Europe/Istanbul }
+        max_range_days: { type: integer, example: 62 }
+
+    CalendarEvent:
+      type: object
+      required: [uuid, title, description, location, starts_at, ends_at, all_day, color, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string }
+        location: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time, description: Exclusive }
+        all_day: { type: boolean }
+        start_date: { type: string, format: date, description: "All-day only: first day (inclusive)" }
+        end_date: { type: string, format: date, description: "All-day only: last day (inclusive)" }
+        color: { $ref: "#/components/schemas/CalendarColor" }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CalendarEventInput:
+      type: object
+      required: [title, all_day]
+      description: >-
+        Timed events send starts_at/ends_at (RFC 3339, at most 31 days long);
+        all-day events send start_date and optional end_date (inclusive).
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        description: { type: string }
+        location: { type: string, maxLength: 200 }
+        all_day: { type: boolean }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        color: { $ref: "#/components/schemas/CalendarColor" }
+
+    CalendarMoveInput:
+      type: object
+      required: [layer, ref_uuid, all_day]
+      properties:
+        layer:
+          type: string
+          enum: [events, todos, leads]
+        ref_uuid: { type: string, format: uuid }
+        all_day: { type: boolean }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time, description: Events only }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date, description: Events only (inclusive) }
+
+    CalendarFeedItem:
+      type: object
+      required: [id, layer, kind, title, starts_at, ends_at, all_day, movable]
+      properties:
+        id: { type: string, description: "Stable key, e.g. `jobs:<uuid>` or `finance:2026-10-08:income:TRY`" }
+        layer: { $ref: "#/components/schemas/CalendarLayer" }
+        kind:
+          type: string
+          enum: [event, job_opened, job_delivered, todo, quote_expiry, lead_follow_up, finance_income, finance_expense, sale, purchase, contract_executed]
+        title: { type: string }
+        subtitle: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        all_day: { type: boolean }
+        start_date: { type: string, format: date, description: All-day items only (inclusive) }
+        end_date: { type: string, format: date, description: All-day items only (inclusive) }
+        status:
+          type: string
+          description: >-
+            Layer specific: job status (jobs), payment status (deliveries),
+            todo status, quote status, lead temperature, payment method
+            (sales, purchases), contract status.
+        amount: { type: string, description: Decimal string }
+        currency: { type: string }
+        count: { type: integer, format: int64, description: "finance: number of transactions in the day" }
+        ref_kind:
+          type: string
+          enum: [event, job, todo, quote, lead, sale, purchase, contract]
+          description: Record type to open (absent for finance day totals)
+        ref_uuid: { type: string, format: uuid, description: Record to open }
+        movable: { type: boolean }
+        event: { $ref: "#/components/schemas/CalendarEvent" }
+
+    CalendarFeed:
+      type: object
+      required: [from, to, timezone, layers, items, counts]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date, description: Exclusive }
+        timezone: { type: string, example: Europe/Istanbul }
+        layers:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarLayerInfo" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CalendarFeedItem" }
+        counts:
+          type: object
+          description: Item count per loaded layer
+          additionalProperties: { type: integer, format: int64 }
+
+    EnvelopeCalendarMeta:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarMeta" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarFeed:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarFeed" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarFeedItem:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarFeedItem" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarEvent:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CalendarEvent" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCalendarDeleted:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [deleted]
+          properties:
+            deleted: { type: boolean }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
     EnvelopeTodoSummary:
       type: object
       required: [success, data, meta]
@@ -16837,6 +18048,8 @@ components:
         customer_phone: { type: string }
         vehicle_plate: { type: string }
         vehicle_text: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the linked customer vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         interest: { type: string }
         source: { $ref: "#/components/schemas/LeadSource" }
         temperature: { type: string, enum: [cold, warm, hot] }
@@ -17524,6 +18737,8 @@ components:
         customer_phone: { type: string }
         vehicle_plate: { type: string }
         vehicle_label: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the catalog model or customer vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         lead_uuid: { type: [string, "null"], format: uuid }
         job_uuid: { type: [string, "null"], format: uuid }
         line_count: { type: integer }
@@ -17823,6 +19038,8 @@ components:
         customer_name: { type: string }
         vehicle_plate: { type: string }
         vehicle_label: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the quote vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         currency: { type: string }
         prices_include_vat: { type: boolean }
         subtotal: { type: string }
@@ -18253,8 +19470,8 @@ components:
         total_amount: { type: string, description: Decimal string }
         assignee_uuid: { type: string, format: uuid }
         assignee_name: { type: string }
-        brand_name: { type: string, description: List rows only }
-        brand_logo_url: { type: string, description: "List rows only; public vehicle brand logo stream, omitted when none" }
+        brand_name: { type: string, description: "Vehicle brand (list rows, customer jobs, detail)" }
+        brand_logo_url: { type: string, description: "Public vehicle brand logo stream (list rows, customer jobs, detail); omitted when none" }
         services:
           type: array
           description: List rows only (card tags); omitted when empty.
@@ -18926,6 +20143,9 @@ components:
       properties:
         uuid: { type: string, format: uuid }
         name: { type: string, example: Fiat }
+        logo_url:
+          type: [string, "null"]
+          description: "API-owned display brand logo stream (append `variant=badge` for the emblem); null without a logo"
 
     VehicleCatalogFuel:
       type: string
@@ -19624,4 +20844,486 @@ components:
         brand_uuid: { type: string, format: uuid, description: TSB brand to detach }
         name: { type: string, description: Name of the new display brand }
 
+    InsightsMonthPoint:
+      type: object
+      required: [month, count, amount]
+      properties:
+        month: { type: string, example: "2026-10", description: YYYY-MM (UTC) }
+        count: { type: integer, format: int64, description: Jobs / purchases in the month (0 where not applicable) }
+        qty: { type: string, description: Quantity sold (product trend only) }
+        amount: { type: string, example: "1250.00", description: "Product: revenue · service: revenue · customer: job spend · supplier: spend" }
+        amount_secondary: { type: string, example: "300.00", description: "Customer trend only: product sale spend" }
 
+    ProductSummary:
+      type: object
+      required: [product_uuid, currency, stock, pricing, sales, purchases, jobs]
+      properties:
+        product_uuid: { type: string, format: uuid }
+        currency: { type: string, example: TRY }
+        stock:
+          type: object
+          required: [tracked, quantity, min_alert, status, cost_value, sale_value, coverage_qty]
+          properties:
+            tracked: { type: boolean }
+            quantity: { type: string, example: "12" }
+            min_alert: { type: string, example: "5" }
+            status: { type: string, enum: [in_stock, low_stock, out_of_stock, untracked] }
+            cost_value: { type: string, example: "720.00" }
+            sale_value: { type: string, example: "1200.00" }
+            coverage_qty: { type: string, description: quantity - min_alert, example: "7" }
+        pricing:
+          type: object
+          required: [cost_price, sale_price, unit_margin, margin_percent]
+          properties:
+            cost_price: { type: string }
+            sale_price: { type: string }
+            unit_margin: { type: string }
+            margin_percent: { type: number, description: "unit_margin / sale_price * 100, one decimal" }
+        sales:
+          oneOf:
+            - type: object
+              required: [sale_count, sold_qty, revenue, last_sold_at, last_sale_price, monthly]
+              properties:
+                sale_count: { type: integer, format: int64 }
+                sold_qty: { type: string }
+                revenue: { type: string }
+                last_sold_at: { type: [string, "null"], format: date-time }
+                last_sale_price: { type: [string, "null"] }
+                monthly:
+                  type: array
+                  items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+            - type: "null"
+        purchases:
+          oneOf:
+            - type: object
+              required: [purchase_count, purchased_qty, spend, avg_unit_cost, last_purchased_at, last_purchase_cost]
+              properties:
+                purchase_count: { type: integer, format: int64 }
+                purchased_qty: { type: string }
+                spend: { type: string }
+                avg_unit_cost: { type: string }
+                last_purchased_at: { type: [string, "null"], format: date-time }
+                last_purchase_cost: { type: [string, "null"] }
+            - type: "null"
+        jobs:
+          oneOf:
+            - type: object
+              required: [line_job_count, line_qty, line_revenue, consumption_job_count, consumed_qty, last_consumed_at]
+              properties:
+                line_job_count: { type: integer, format: int64 }
+                line_qty: { type: string }
+                line_revenue: { type: string }
+                consumption_job_count: { type: integer, format: int64 }
+                consumed_qty: { type: string }
+                last_consumed_at: { type: [string, "null"], format: date-time }
+            - type: "null"
+
+    ProductMovement:
+      type: object
+      required: [kind, ref_uuid, status, occurred_at, party_name, party_uuid, qty, unit_price, total, currency, effective]
+      properties:
+        kind: { type: string, enum: [purchase, sale, job], description: "ref_uuid is the purchase, sale or job uuid" }
+        ref_uuid: { type: string, format: uuid }
+        status: { type: string, description: "Document status (posted / voided) or the job status" }
+        occurred_at: { type: string, format: date-time }
+        party_name: { type: string, description: Supplier or customer name }
+        party_uuid: { type: [string, "null"], format: uuid, description: Supplier uuid (purchase) or customer uuid (sale / job) }
+        plate: { type: string, description: Job plate (kind=job) }
+        service_name: { type: string, description: Recipe service that consumed the product (kind=job) }
+        qty: { type: string, description: "Signed quantity (+ into stock, - out of stock)", example: "-2" }
+        unit_price: { type: string, description: Unit cost (purchase / job) or unit price (sale) }
+        total: { type: string }
+        currency: { type: string }
+        effective: { type: boolean, description: false for voided documents and reverted consumptions }
+
+    ServiceSummary:
+      type: object
+      required: [service_uuid, currency, pricing, usage]
+      properties:
+        service_uuid: { type: string, format: uuid }
+        currency: { type: string }
+        pricing:
+          type: object
+          required: [price, recipe_cost, recipe_item_count, unit_margin, margin_percent, duration_minutes]
+          properties:
+            price: { type: string }
+            recipe_cost: { type: string, description: Sum of recipe qty x product cost price }
+            recipe_item_count: { type: integer }
+            unit_margin: { type: string }
+            margin_percent: { type: number }
+            duration_minutes: { type: integer }
+        usage:
+          oneOf:
+            - type: object
+              required: [job_count, line_count, customer_count, qty, revenue, avg_unit_price, avg_job_minutes, first_used_at, last_used_at, monthly]
+              properties:
+                job_count: { type: integer, format: int64 }
+                line_count: { type: integer, format: int64 }
+                customer_count: { type: integer, format: int64 }
+                qty: { type: string }
+                revenue: { type: string }
+                avg_unit_price: { type: string }
+                avg_job_minutes: { type: number, description: Average started → completed time of finished jobs }
+                first_used_at: { type: [string, "null"], format: date-time }
+                last_used_at: { type: [string, "null"], format: date-time }
+                monthly:
+                  type: array
+                  items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+            - type: "null"
+
+    ServiceJob:
+      type: object
+      required: [uuid, status, payment_status, started_at, completed_at, plate, vehicle_label, customer_uuid, customer_name, brand_uuid, brand_name, brand_logo_url, qty, line_total, currency]
+      properties:
+        uuid: { type: string, format: uuid }
+        status: { type: string }
+        payment_status: { type: string }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        plate: { type: string }
+        vehicle_label: { type: string }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        brand_uuid: { type: string, format: uuid }
+        brand_name: { type: string }
+        brand_logo_url: { type: [string, "null"], description: "API-owned vehicle brand logo (`?variant=badge` for the emblem)" }
+        qty: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+
+    CustomerSummary:
+      type: object
+      required: [customer_uuid, vehicle_count, total_spend, last_visit_at, jobs, sales, quotes, leads, monthly, top_services, vehicles, recent_sales]
+      properties:
+        customer_uuid: { type: string, format: uuid }
+        vehicle_count: { type: integer }
+        total_spend: { type: string }
+        last_visit_at: { type: [string, "null"], format: date-time }
+        jobs:
+          oneOf:
+            - type: object
+              required: [job_count, open_job_count, unpaid_job_count, spend, unpaid_amount, first_visit_at, last_visit_at]
+              properties:
+                job_count: { type: integer, format: int64 }
+                open_job_count: { type: integer, format: int64 }
+                unpaid_job_count: { type: integer, format: int64 }
+                spend: { type: string }
+                unpaid_amount: { type: string }
+                first_visit_at: { type: [string, "null"], format: date-time }
+                last_visit_at: { type: [string, "null"], format: date-time }
+            - type: "null"
+        sales:
+          oneOf:
+            - type: object
+              required: [sale_count, spend, last_sold_at]
+              properties:
+                sale_count: { type: integer, format: int64 }
+                spend: { type: string }
+                last_sold_at: { type: [string, "null"], format: date-time }
+            - type: "null"
+        quotes:
+          oneOf:
+            - type: object
+              required: [quote_count, open_quote_count, accepted_quote_count]
+              properties:
+                quote_count: { type: integer, format: int64 }
+                open_quote_count: { type: integer, format: int64 }
+                accepted_quote_count: { type: integer, format: int64 }
+            - type: "null"
+        leads:
+          oneOf:
+            - type: object
+              required: [lead_count, open_lead_count]
+              properties:
+                lead_count: { type: integer, format: int64 }
+                open_lead_count: { type: integer, format: int64 }
+            - type: "null"
+        monthly:
+          type: array
+          description: amount = job spend, amount_secondary = product sale spend
+          items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+        top_services:
+          type: array
+          items:
+            type: object
+            required: [service_uuid, name, job_count, revenue, last_used_at]
+            properties:
+              service_uuid: { type: [string, "null"], format: uuid }
+              name: { type: string }
+              job_count: { type: integer, format: int64 }
+              revenue: { type: string }
+              last_used_at: { type: [string, "null"], format: date-time }
+        vehicles:
+          type: array
+          description: Per-vehicle job stats (empty without tenant.jobs.read)
+          items:
+            type: object
+            required: [vehicle_uuid, job_count, spend, last_visit_at]
+            properties:
+              vehicle_uuid: { type: string, format: uuid }
+              job_count: { type: integer, format: int64 }
+              spend: { type: string }
+              last_visit_at: { type: [string, "null"], format: date-time }
+        recent_sales:
+          type: array
+          items:
+            type: object
+            required: [uuid, status, method, total_amount, currency, sold_at, line_count]
+            properties:
+              uuid: { type: string, format: uuid }
+              status: { type: string }
+              method: { type: string }
+              total_amount: { type: string }
+              currency: { type: string }
+              sold_at: { type: string, format: date-time }
+              line_count: { type: integer, format: int64 }
+
+    SupplierSummary:
+      type: object
+      required: [supplier_uuid, purchases]
+      properties:
+        supplier_uuid: { type: string, format: uuid }
+        purchases:
+          oneOf:
+            - type: object
+              required: [purchase_count, spend, avg_purchase, product_count, first_purchased_at, last_purchased_at, monthly, top_products, recent]
+              properties:
+                purchase_count: { type: integer, format: int64 }
+                spend: { type: string }
+                avg_purchase: { type: string }
+                product_count: { type: integer, format: int64 }
+                first_purchased_at: { type: [string, "null"], format: date-time }
+                last_purchased_at: { type: [string, "null"], format: date-time }
+                monthly:
+                  type: array
+                  items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+                top_products:
+                  type: array
+                  items:
+                    type: object
+                    required: [product_uuid, name, unit, qty, spend, last_purchased_at]
+                    properties:
+                      product_uuid: { type: string, format: uuid }
+                      name: { type: string }
+                      unit: { type: string }
+                      qty: { type: string }
+                      spend: { type: string }
+                      last_purchased_at: { type: [string, "null"], format: date-time }
+                recent:
+                  type: array
+                  items:
+                    type: object
+                    required: [uuid, status, method, total_amount, currency, purchased_at, line_count]
+                    properties:
+                      uuid: { type: string, format: uuid }
+                      status: { type: string }
+                      method: { type: string }
+                      total_amount: { type: string }
+                      currency: { type: string }
+                      purchased_at: { type: string, format: date-time }
+                      line_count: { type: integer, format: int64 }
+            - type: "null"
+
+    EnvelopeProductSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ProductSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeProductMovementList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ProductMovement" }
+            total: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeServiceSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ServiceSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeServiceJobList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ServiceJob" }
+            total: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCustomerSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSupplierSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SupplierSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPInfo:
+      type: object
+      required: [org_url, platform_url, issuer, scopes, can_connect_org, can_connect_platform]
+      properties:
+        org_url: { type: string, example: "https://app.otopoly.com/mcp/org" }
+        platform_url: { type: string, example: "https://app.otopoly.com/mcp/platform" }
+        issuer: { type: string }
+        scopes: { type: array, items: { type: string, enum: ["mcp:read", "mcp:write"] } }
+        can_connect_org: { type: boolean }
+        can_connect_platform: { type: boolean }
+
+    EnvelopeMCPInfo:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/MCPInfo" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPConsentOrganization:
+      type: object
+      required: [uuid, slug, name, role, tool_count]
+      properties:
+        uuid: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        role: { type: string, description: "Member role: owner or staff" }
+        tool_count: { type: [integer, "null"], description: Tools the user gets there with the requested scopes }
+
+    MCPConsent:
+      type: object
+      required: [request_uuid, client_id, client_name, redirect_host, resource, resource_url, realm, scopes, organizations, platform_tool_count, allowed, expires_at]
+      properties:
+        request_uuid: { type: string, format: uuid }
+        client_id: { type: string }
+        client_name: { type: string }
+        redirect_host: { type: string }
+        resource: { type: string, enum: [/mcp/org, /mcp/platform] }
+        resource_url: { type: string }
+        realm: { type: string, enum: [org, platform] }
+        scopes: { type: array, items: { type: string, enum: ["mcp:read", "mcp:write"] } }
+        organizations:
+          type: array
+          items: { $ref: "#/components/schemas/MCPConsentOrganization" }
+        platform_tool_count: { type: [integer, "null"] }
+        allowed: { type: boolean }
+        expires_at: { type: string, format: date-time }
+
+    EnvelopeMCPConsent:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/MCPConsent" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPDecideRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, deny] }
+        organization_uuid: { type: [string, "null"], format: uuid }
+        scopes: { type: array, items: { type: string, enum: ["mcp:read", "mcp:write"] } }
+
+    EnvelopeMCPDecision:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [redirect_url]
+          properties:
+            redirect_url: { type: string }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPGrant:
+      type: object
+      required: [uuid, client_id, client_name, resource, realm, scopes, organization_uuid, organization_slug, organization_name, created_at, last_used_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        client_id: { type: string }
+        client_name: { type: string }
+        resource: { type: string, enum: [/mcp/org, /mcp/platform] }
+        realm: { type: string, enum: [org, platform] }
+        scopes: { type: array, items: { type: string } }
+        organization_uuid: { type: [string, "null"], format: uuid }
+        organization_slug: { type: [string, "null"] }
+        organization_name: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time }
+
+    EnvelopeMCPGrantList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/MCPGrant" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    MCPClient:
+      type: object
+      required: [uuid, client_id, client_name, redirect_uris, created_ip, status, active_grants, created_at, last_used_at, revoked_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        client_id: { type: string }
+        client_name: { type: string }
+        redirect_uris: { type: array, items: { type: string } }
+        created_ip: { type: [string, "null"] }
+        status: { type: string, enum: [active, revoked] }
+        active_grants: { type: integer }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: [string, "null"], format: date-time }
+        revoked_at: { type: [string, "null"], format: date-time }
+
+    EnvelopeMCPClientList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total, limit, offset]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/MCPClient" }
+            total: { type: integer }
+            limit: { type: integer }
+            offset: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }

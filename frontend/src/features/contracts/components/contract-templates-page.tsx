@@ -38,6 +38,10 @@ import {
 import { routes } from "@/config/routes";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function ContractTemplatesPage({ slug }: { slug: string }) {
   const { t, locale } = useLocale();
@@ -45,7 +49,9 @@ export function ContractTemplatesPage({ slug }: { slug: string }) {
   const { canRead, canManage } = useTenantContractsAccess(slug);
   const mutations = useContractMutations();
   const [cloneOpen, setCloneOpen] = useState(false);
+  const liveList = useTenantLiveList(TenantLiveResources.contractTemplates);
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "title",
     initialPageSize: 20,
   });
@@ -177,6 +183,7 @@ export function ContractTemplatesPage({ slug }: { slug: string }) {
         <FeatureLocked slug={slug} />
       ) : (
         <EntityTable
+          realtime={listState.realtimeFor(() => listQuery.refetch())}
           columns={columns}
           data={listQuery.data?.items ?? []}
           getRowId={(row) => row.uuid}

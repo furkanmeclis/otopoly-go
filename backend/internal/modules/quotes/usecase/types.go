@@ -36,25 +36,29 @@ type Ref struct {
 
 // Quote is the list shape.
 type Quote struct {
-	UUID          uuid.UUID  `json:"uuid"`
-	Number        string     `json:"number"`
-	Status        string     `json:"status"`
-	Currency      string     `json:"currency"`
-	GrandTotal    string     `json:"grand_total"`
-	ValidUntil    *string    `json:"valid_until"`
-	Expired       bool       `json:"is_past_valid_until"`
-	CustomerUUID  uuid.UUID  `json:"customer_uuid"`
-	CustomerName  string     `json:"customer_name"`
-	CustomerPhone string     `json:"customer_phone"`
-	VehiclePlate  string     `json:"vehicle_plate"`
-	VehicleLabel  string     `json:"vehicle_label"`
-	LeadUUID      *uuid.UUID `json:"lead_uuid"`
-	JobUUID       *uuid.UUID `json:"job_uuid"`
-	LineCount     int64      `json:"line_count"`
-	SentAt        *time.Time `json:"sent_at"`
-	ViewedAt      *time.Time `json:"viewed_at"`
-	CreatedAt     time.Time  `json:"created_at"`
-	UpdatedAt     time.Time  `json:"updated_at"`
+	UUID          uuid.UUID `json:"uuid"`
+	Number        string    `json:"number"`
+	Status        string    `json:"status"`
+	Currency      string    `json:"currency"`
+	GrandTotal    string    `json:"grand_total"`
+	ValidUntil    *string   `json:"valid_until"`
+	Expired       bool      `json:"is_past_valid_until"`
+	CustomerUUID  uuid.UUID `json:"customer_uuid"`
+	CustomerName  string    `json:"customer_name"`
+	CustomerPhone string    `json:"customer_phone"`
+	VehiclePlate  string    `json:"vehicle_plate"`
+	VehicleLabel  string    `json:"vehicle_label"`
+	// VehicleBrandName / VehicleBrandLogoURL: brand of the quote's catalog
+	// model or customer vehicle ("" / null for free-text vehicles).
+	VehicleBrandName    string     `json:"vehicle_brand_name"`
+	VehicleBrandLogoURL *string    `json:"vehicle_brand_logo_url"`
+	LeadUUID            *uuid.UUID `json:"lead_uuid"`
+	JobUUID             *uuid.UUID `json:"job_uuid"`
+	LineCount           int64      `json:"line_count"`
+	SentAt              *time.Time `json:"sent_at"`
+	ViewedAt            *time.Time `json:"viewed_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 // Event is one quote history row.
@@ -286,6 +290,8 @@ type PublicQuote struct {
 	CustomerName     string       `json:"customer_name"`
 	VehiclePlate     string       `json:"vehicle_plate"`
 	VehicleLabel     string       `json:"vehicle_label"`
+	VehicleBrandName string       `json:"vehicle_brand_name"`
+	VehicleBrandLogo *string      `json:"vehicle_brand_logo_url"`
 	Currency         string       `json:"currency"`
 	PricesIncludeVAT bool         `json:"prices_include_vat"`
 	Subtotal         string       `json:"subtotal"`

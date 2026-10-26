@@ -29,6 +29,9 @@ export type VehicleAlertSettings = {
   /** 0 = instant; otherwise one WhatsApp digest per window (minutes). */
   batch_minutes: number;
   whatsapp_connected: boolean;
+  /** Channel of the phone messages (SMS: active SMS provider). */
+  channel: "whatsapp" | "sms";
+  sms_available: boolean;
   members: VehicleAlertMember[];
   services: { uuid: string; name: string }[];
 };
@@ -39,6 +42,7 @@ export type VehicleAlertInput = {
   service_uuids: string[];
   recipient_user_uuids: string[];
   batch_minutes: number;
+  channel?: "whatsapp" | "sms";
 };
 
 export const vehicleAlertsService = {
@@ -59,6 +63,7 @@ export const vehicleAlertsService = {
     return platformRequest<{
       in_app: number;
       whatsapp: number;
+      sms: number;
       skipped: string[];
     }>("POST", "/v1/tenant/vehicle-alerts/test");
   },

@@ -16,7 +16,9 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/brandlogo"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -40,12 +42,13 @@ const (
 
 // Service is the leads use case.
 type Service struct {
-	pool  *pgxpool.Pool
-	q     *db.Queries
-	act   *activity.Recorder
-	todos TodoCreator
-	loc   *time.Location
-	now   func() time.Time
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	todos      TodoCreator
+	loc        *time.Location
+	now        func() time.Time
 }
 
 // New builds the service with the no-op TodoCreator.
@@ -84,6 +87,8 @@ func actor(ctx context.Context) pgtype.Int8 {
 }
 
 func (s *Service) record(ctx context.Context, action string, id uuid.UUID, payload map[string]any) {
+	// Every mutation records activity after it succeeds: open lists follow.
+	s.live(ctx, resourceevents.TenantLeads, liveAction(action), id.String())
 	if s.act == nil {
 		return
 	}
@@ -262,6 +267,7 @@ func (s *Service) List(ctx context.Context, limit, offset int32, f ListFilters) 
 		l := Lead{
 			UUID: r.Uuid, CustomerUUID: r.CustomerUuid, CustomerName: r.CustomerName, CustomerPhone: r.CustomerPhone,
 			VehiclePlate: r.VehiclePlate.String, VehicleText: r.VehicleText, Interest: r.Interest,
+			VehicleBrandName: r.VehicleBrandName, VehicleBrandLogoURL: brandlogo.NullableURL(r.VehicleBrandUuid, r.VehicleBrandLogoObjectKey),
 			Source: r.Source, Temperature: r.Temperature, Status: r.Status, LostReason: r.LostReason,
 			FollowUpDate: optDate(r.FollowUpDate), FollowUpState: s.followUpState(r.FollowUpDate, r.Status),
 			QuoteCount: r.QuoteCount, LastActivityAt: optTime(r.LastActivityAt),
@@ -340,6 +346,7 @@ func (s *Service) load(ctx context.Context, orgID int64, id uuid.UUID) (Detail, 
 		Lead: Lead{
 			UUID: r.Uuid, CustomerUUID: r.CustomerUuid, CustomerName: r.CustomerName, CustomerPhone: r.CustomerPhone,
 			VehiclePlate: r.VehiclePlate.String, VehicleText: r.VehicleText, Interest: r.Interest,
+			VehicleBrandName: r.VehicleBrandName, VehicleBrandLogoURL: brandlogo.NullableURL(r.VehicleBrandUuid, r.VehicleBrandLogoObjectKey),
 			Source: r.Source, Temperature: r.Temperature, Status: r.Status, LostReason: r.LostReason,
 			FollowUpDate: optDate(r.FollowUpDate), FollowUpState: s.followUpState(r.FollowUpDate, r.Status),
 			QuoteCount: int64(len(quotes)), CreatedAt: r.CreatedAt.Time, UpdatedAt: r.UpdatedAt.Time,

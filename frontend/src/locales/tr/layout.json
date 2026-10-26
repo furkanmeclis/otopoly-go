@@ -60,6 +60,7 @@
   "nav_item_info": "Detaylar",
   "nav_messaging": "Mesajlaşma",
   "nav_staff": "Personel",
+  "nav_sms_report": "SMS raporu",
   "nav_ai": "AI asistan",
   "nav_assistant": "Asistan",
   "nav_todos": "Görevler",
@@ -74,5 +75,8 @@
   "nav_billing_settings": "Ödeme ayarları",
   "nav_billing_invoices": "Faturalar",
   "nav_billing_dashboard": "Gösterge paneli",
-  "breadcrumb_label": "Sayfa yolu"
+  "breadcrumb_label": "Sayfa yolu",
+  "nav_calendar": "Takvim",
+  "nav_mcp": "MCP sunucusu",
+  "nav_mcp_tenant": "AI bağlantıları (MCP)"
 }

@@ -11,6 +11,10 @@ export const RealtimeChannels = {
     realtimeConfig.channels.workspace(workspaceUuid),
   conversation: (conversationUuid: string) =>
     realtimeConfig.channels.conversation(conversationUuid),
+  resource: (resource: string) => realtimeConfig.channels.resource(resource),
+  /** Live list channel of a tenant resource: `org:{org_uuid}:resource:{name}`. */
+  organizationResource: (organizationUuid: string, resource: string) =>
+    realtimeConfig.channels.organizationResource(organizationUuid, resource),
   /** @deprecated Prefer `tenant` — kept for transitional imports */
   dealer: (dealerId: number | string) =>
     realtimeConfig.channels.tenant(String(dealerId)),
@@ -25,5 +29,7 @@ export function isAuthorizedChannelShape(channel: string): boolean {
   if (/^user:\d+$/.test(channel)) return true;
   if (/^workspace:[0-9a-fA-F-]+$/.test(channel)) return true;
   if (/^conversation:[0-9a-fA-F-]+$/.test(channel)) return true;
+  if (/^resource:[a-z0-9._-]+$/.test(channel)) return true;
+  if (/^org:[0-9a-fA-F-]+:resource:[a-z0-9._-]+$/.test(channel)) return true;
   return false;
 }

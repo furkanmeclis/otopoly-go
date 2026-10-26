@@ -19,6 +19,11 @@ export const realtimeConfig = {
     workspace: (workspaceUuid: string) => `workspace:${workspaceUuid}`,
     conversation: (conversationUuid: string) =>
       `conversation:${conversationUuid}`,
+    /** Live list changes of one unscoped resource (`resource:{name}`). */
+    resource: (resource: string) => `resource:${resource}`,
+    /** Live list changes of one tenant resource inside an organization. */
+    organizationResource: (organizationUuid: string, resource: string) =>
+      `org:${organizationUuid}:resource:${resource}`,
   },
   presenceEnabled: true,
   /** When false, RealtimeProvider stays idle (no connect attempts). */

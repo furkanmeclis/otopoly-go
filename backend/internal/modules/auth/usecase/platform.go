@@ -467,6 +467,9 @@ func (u *AuthUseCase) CanSubscribeChannel(
 	isSuperAdmin bool,
 	channel string,
 ) (bool, error) {
+	if handled, allowed, err := realtime.RunChannelRules(ctx, u.channelRules, userUUID, isSuperAdmin, channel); handled {
+		return allowed, err
+	}
 	if channel == realtime.ChannelSystemNotifications {
 		return isSuperAdmin, nil
 	}

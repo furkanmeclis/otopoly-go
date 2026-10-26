@@ -35,11 +35,26 @@ const (
 
 var allowedBatch = []int32{0, 30, 60}
 
-// Sender delivers WhatsApp text through the organization's line (or the
-// platform number, which sends the catalog text built from vars).
+// Sender delivers the text on a channel: WhatsApp through the organization's
+// line (or the platform number, which sends the catalog text built from
+// vars), SMS through the organization's active SMS provider.
 type Sender interface {
-	WhatsAppConnected(ctx context.Context, orgID int64) (bool, error)
-	QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string, vars map[string]string) error
+	ChannelAvailable(ctx context.Context, orgID int64, channel string) (bool, error)
+	Queue(ctx context.Context, orgID int64, channel, phone, body, eventType, subjectType string, vars map[string]string) error
+}
+
+func normalizeChannel(ch, fallback string) (string, error) {
+	switch strings.TrimSpace(ch) {
+	case "":
+		if fallback == "" {
+			return messagingmodel.ChannelWhatsApp, nil
+		}
+		return fallback, nil
+	case messagingmodel.ChannelWhatsApp, messagingmodel.ChannelSMS:
+		return strings.TrimSpace(ch), nil
+	default:
+		return "", fmt.Errorf("%w: channel must be whatsapp or sms", ErrInvalidRequest)
+	}
 }
 
 // InApp creates an in-app notification (the notifications module also sends
@@ -77,14 +92,17 @@ type ServiceOption struct {
 }
 
 type Settings struct {
-	Enabled            bool            `json:"enabled"`
-	Events             []string        `json:"events"`
-	ServiceUUIDs       []uuid.UUID     `json:"service_uuids"`
-	RecipientUserUUIDs []uuid.UUID     `json:"recipient_user_uuids"`
-	BatchMinutes       int32           `json:"batch_minutes"`
-	WhatsAppConnected  bool            `json:"whatsapp_connected"`
-	Members            []Member        `json:"members"`
-	Services           []ServiceOption `json:"services"`
+	Enabled            bool        `json:"enabled"`
+	Events             []string    `json:"events"`
+	ServiceUUIDs       []uuid.UUID `json:"service_uuids"`
+	RecipientUserUUIDs []uuid.UUID `json:"recipient_user_uuids"`
+	BatchMinutes       int32       `json:"batch_minutes"`
+	WhatsAppConnected  bool        `json:"whatsapp_connected"`
+	// Channel of the phone messages: whatsapp | sms.
+	Channel      string          `json:"channel"`
+	SMSAvailable bool            `json:"sms_available"`
+	Members      []Member        `json:"members"`
+	Services     []ServiceOption `json:"services"`
 }
 
 type UpdateInput struct {
@@ -93,11 +111,14 @@ type UpdateInput struct {
 	ServiceUUIDs       []uuid.UUID `json:"service_uuids"`
 	RecipientUserUUIDs []uuid.UUID `json:"recipient_user_uuids"`
 	BatchMinutes       int32       `json:"batch_minutes"`
+	// Channel: whatsapp | sms; omitted keeps the saved channel.
+	Channel *string `json:"channel"`
 }
 
 type TestResult struct {
 	InApp    int      `json:"in_app"`
 	WhatsApp int      `json:"whatsapp"`
+	SMS      int      `json:"sms"`
 	Skipped  []string `json:"skipped"`
 }
 
@@ -120,6 +141,7 @@ func (s *Service) GetSettings(ctx context.Context, orgID int64) (Settings, error
 		ServiceUUIDs:       []uuid.UUID{},
 		RecipientUserUUIDs: []uuid.UUID{},
 		BatchMinutes:       row.BatchMinutes,
+		Channel:            row.Channel,
 		Members:            make([]Member, 0, len(members)),
 		Services:           make([]ServiceOption, 0, len(services)),
 	}
@@ -139,8 +161,11 @@ func (s *Service) GetSettings(ctx context.Context, orgID int64) (Settings, error
 		}
 	}
 	if s.sender != nil {
-		if ok, err := s.sender.WhatsAppConnected(ctx, orgID); err == nil {
+		if ok, err := s.sender.ChannelAvailable(ctx, orgID, messagingmodel.ChannelWhatsApp); err == nil {
 			out.WhatsAppConnected = ok
+		}
+		if ok, err := s.sender.ChannelAvailable(ctx, orgID, messagingmodel.ChannelSMS); err == nil {
+			out.SMSAvailable = ok
 		}
 	}
 	return out, nil
@@ -193,6 +218,18 @@ func (s *Service) UpdateSettings(ctx context.Context, orgID int64, in UpdateInpu
 	if in.Enabled && (len(recipientIDs) == 0 || len(events) == 0) {
 		return Settings{}, fmt.Errorf("%w: select at least one recipient and one event", ErrInvalidRequest)
 	}
+	current, err := s.loadSettings(ctx, orgID)
+	if err != nil {
+		return Settings{}, err
+	}
+	requested := ""
+	if in.Channel != nil {
+		requested = *in.Channel
+	}
+	channel, err := normalizeChannel(requested, current.Channel)
+	if err != nil {
+		return Settings{}, err
+	}
 	if _, err := s.q.UpsertVehicleAlertSettings(ctx, db.UpsertVehicleAlertSettingsParams{
 		OrganizationID:   orgID,
 		Enabled:          in.Enabled,
@@ -200,6 +237,7 @@ func (s *Service) UpdateSettings(ctx context.Context, orgID int64, in UpdateInpu
 		ServiceIds:       serviceIDs,
 		RecipientUserIds: recipientIDs,
 		BatchMinutes:     in.BatchMinutes,
+		Channel:          channel,
 	}); err != nil {
 		return Settings{}, err
 	}
@@ -290,7 +328,11 @@ func (s *Service) flushOrg(ctx context.Context, st db.VehicleAlertSetting) (int,
 	if s.sender == nil {
 		return 0, nil
 	}
-	if ok, err := s.sender.WhatsAppConnected(ctx, st.OrganizationID); err != nil || !ok {
+	channel, err := normalizeChannel(st.Channel, "")
+	if err != nil {
+		return 0, err
+	}
+	if ok, err := s.sender.ChannelAvailable(ctx, st.OrganizationID, channel); err != nil || !ok {
 		return 0, err // keep lines pending until the line is back (or they go stale)
 	}
 	claimed, err := s.q.ClaimVehicleAlertFlush(ctx, st.OrganizationID)
@@ -327,8 +369,8 @@ func (s *Service) flushOrg(ctx context.Context, st db.VehicleAlertSetting) (int,
 		}
 		body := Message(org.Name, lines, m.Role == "owner")
 		vars := MessageVars(org.Name, lines, m.Role == "owner")
-		if err := s.sender.QueueWhatsApp(ctx, st.OrganizationID, m.Phone, body, alertEventType, alertSubjectType, vars); err != nil {
-			s.log.Warn("vehicle_alert_whatsapp_failed", "org_id", st.OrganizationID, "user_id", m.UserID, "error", err)
+		if err := s.sender.Queue(ctx, st.OrganizationID, channel, m.Phone, body, alertEventType, alertSubjectType, vars); err != nil {
+			s.log.Warn("vehicle_alert_message_failed", "org_id", st.OrganizationID, "user_id", m.UserID, "channel", channel, "error", err)
 			continue
 		}
 		sent++
@@ -361,9 +403,13 @@ func (s *Service) SendTest(ctx context.Context, orgID int64) (TestResult, error)
 	title, detail := AlertText(EventCreated, sample)
 	title = "Test · " + title
 	line := PendingLine{Line: "🧪 " + WhatsAppLine(EventCreated, sample), Amount: sample.Amount, Event: EventCreated}
+	channel, err := normalizeChannel(row.Channel, "")
+	if err != nil {
+		return TestResult{}, err
+	}
 	connected := false
 	if s.sender != nil {
-		connected, _ = s.sender.WhatsAppConnected(ctx, orgID)
+		connected, _ = s.sender.ChannelAvailable(ctx, orgID, channel)
 	}
 	res := TestResult{Skipped: []string{}}
 	for _, m := range members {
@@ -385,11 +431,15 @@ func (s *Service) SendTest(ctx context.Context, orgID int64) (TestResult, error)
 		}
 		body := Message(org.Name, []PendingLine{line}, m.Role == "owner")
 		vars := MessageVars(org.Name, []PendingLine{line}, m.Role == "owner")
-		if err := s.sender.QueueWhatsApp(ctx, orgID, m.Phone, body, alertEventType, alertSubjectType, vars); err != nil {
+		if err := s.sender.Queue(ctx, orgID, channel, m.Phone, body, alertEventType, alertSubjectType, vars); err != nil {
 			res.Skipped = append(res.Skipped, name)
 			continue
 		}
-		res.WhatsApp++
+		if channel == messagingmodel.ChannelSMS {
+			res.SMS++
+		} else {
+			res.WhatsApp++
+		}
 	}
 	return res, nil
 }
@@ -402,6 +452,7 @@ func (s *Service) loadSettings(ctx context.Context, orgID int64) (db.VehicleAler
 			Events:           slices.Clone(DefaultEvents),
 			ServiceIds:       []int64{},
 			RecipientUserIds: []int64{},
+			Channel:          messagingmodel.ChannelWhatsApp,
 		}, nil
 	}
 	return row, err

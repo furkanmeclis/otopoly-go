@@ -16,6 +16,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -147,13 +148,14 @@ type PatchInput struct {
 
 // Service is the todos use case.
 type Service struct {
-	store     Store
-	act       *activity.Recorder
-	loc       *time.Location
-	now       func() time.Time
-	links     LinkResolver
-	reminders Reminders
-	log       *slog.Logger
+	liveEvents resourceevents.Publisher
+	store      Store
+	act        *activity.Recorder
+	loc        *time.Location
+	now        func() time.Time
+	links      LinkResolver
+	reminders  Reminders
+	log        *slog.Logger
 }
 
 // New creates the service.
@@ -203,6 +205,8 @@ func (s *Service) Today() time.Time {
 }
 
 func (s *Service) record(ctx context.Context, action string, id uuid.UUID, payload map[string]any) {
+	// Every mutation records activity after it succeeds: open lists follow.
+	s.live(ctx, resourceevents.TenantTodos, liveAction(action), id.String())
 	if s.act == nil {
 		return
 	}

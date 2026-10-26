@@ -403,6 +403,8 @@ func (q *Queries) GetActiveCatalogDisplayBrandForTenant(ctx context.Context, ref
 
 const getCatalogBrandByUUID = `-- name: GetCatalogBrandByUUID :one
 SELECT b.id, b.uuid, b.tsb_code, b.tsb_name, b.display_name, b.display_brand_id, b.category, b.is_active, b.created_at, b.updated_at, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models m WHERE m.brand_id = b.id)::bigint AS models_count,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active AND t.model_id IS NULL)::bigint AS unresolved_count
@@ -412,21 +414,24 @@ WHERE b.uuid = $1
 `
 
 type GetCatalogBrandByUUIDRow struct {
-	ID               int64              `json:"id"`
-	Uuid             uuid.UUID          `json:"uuid"`
-	TsbCode          string             `json:"tsb_code"`
-	TsbName          string             `json:"tsb_name"`
-	DisplayName      string             `json:"display_name"`
-	DisplayBrandID   int64              `json:"display_brand_id"`
-	Category         string             `json:"category"`
-	IsActive         bool               `json:"is_active"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-	DisplayBrandUuid uuid.UUID          `json:"display_brand_uuid"`
-	DisplayBrandName string             `json:"display_brand_name"`
-	TypesCount       int64              `json:"types_count"`
-	ModelsCount      int64              `json:"models_count"`
-	UnresolvedCount  int64              `json:"unresolved_count"`
+	ID                       int64              `json:"id"`
+	Uuid                     uuid.UUID          `json:"uuid"`
+	TsbCode                  string             `json:"tsb_code"`
+	TsbName                  string             `json:"tsb_name"`
+	DisplayName              string             `json:"display_name"`
+	DisplayBrandID           int64              `json:"display_brand_id"`
+	Category                 string             `json:"category"`
+	IsActive                 bool               `json:"is_active"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DisplayBrandUuid         uuid.UUID          `json:"display_brand_uuid"`
+	DisplayBrandName         string             `json:"display_brand_name"`
+	DisplayBrandLogoKey      pgtype.Text        `json:"display_brand_logo_key"`
+	DisplayBrandLogoVariants []string           `json:"display_brand_logo_variants"`
+	DisplayBrandUpdatedAt    pgtype.Timestamptz `json:"display_brand_updated_at"`
+	TypesCount               int64              `json:"types_count"`
+	ModelsCount              int64              `json:"models_count"`
+	UnresolvedCount          int64              `json:"unresolved_count"`
 }
 
 func (q *Queries) GetCatalogBrandByUUID(ctx context.Context, argUuid uuid.UUID) (GetCatalogBrandByUUIDRow, error) {
@@ -445,6 +450,9 @@ func (q *Queries) GetCatalogBrandByUUID(ctx context.Context, argUuid uuid.UUID) 
 		&i.UpdatedAt,
 		&i.DisplayBrandUuid,
 		&i.DisplayBrandName,
+		&i.DisplayBrandLogoKey,
+		&i.DisplayBrandLogoVariants,
+		&i.DisplayBrandUpdatedAt,
 		&i.TypesCount,
 		&i.ModelsCount,
 		&i.UnresolvedCount,
@@ -631,6 +639,8 @@ func (q *Queries) GetCatalogModelByBrandName(ctx context.Context, arg GetCatalog
 const getCatalogModelByUUID = `-- name: GetCatalogModelByUUID :one
 SELECT m.id, m.uuid, m.brand_id, m.name, m.source, m.group_key, m.created_at, m.updated_at, b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     b.tsb_name AS brand_tsb_name, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.model_id = m.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models g JOIN catalog_brands gb ON gb.id = g.brand_id
         WHERE g.group_key = m.group_key AND gb.display_brand_id = b.display_brand_id)::bigint AS group_size
@@ -641,22 +651,25 @@ WHERE m.uuid = $1
 `
 
 type GetCatalogModelByUUIDRow struct {
-	ID               int64              `json:"id"`
-	Uuid             uuid.UUID          `json:"uuid"`
-	BrandID          int64              `json:"brand_id"`
-	Name             string             `json:"name"`
-	Source           string             `json:"source"`
-	GroupKey         pgtype.Text        `json:"group_key"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-	BrandUuid        uuid.UUID          `json:"brand_uuid"`
-	BrandDisplayName string             `json:"brand_display_name"`
-	BrandTsbCode     string             `json:"brand_tsb_code"`
-	BrandTsbName     string             `json:"brand_tsb_name"`
-	DisplayBrandUuid uuid.UUID          `json:"display_brand_uuid"`
-	DisplayBrandName string             `json:"display_brand_name"`
-	TypesCount       int64              `json:"types_count"`
-	GroupSize        int64              `json:"group_size"`
+	ID                       int64              `json:"id"`
+	Uuid                     uuid.UUID          `json:"uuid"`
+	BrandID                  int64              `json:"brand_id"`
+	Name                     string             `json:"name"`
+	Source                   string             `json:"source"`
+	GroupKey                 pgtype.Text        `json:"group_key"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	BrandUuid                uuid.UUID          `json:"brand_uuid"`
+	BrandDisplayName         string             `json:"brand_display_name"`
+	BrandTsbCode             string             `json:"brand_tsb_code"`
+	BrandTsbName             string             `json:"brand_tsb_name"`
+	DisplayBrandUuid         uuid.UUID          `json:"display_brand_uuid"`
+	DisplayBrandName         string             `json:"display_brand_name"`
+	DisplayBrandLogoKey      pgtype.Text        `json:"display_brand_logo_key"`
+	DisplayBrandLogoVariants []string           `json:"display_brand_logo_variants"`
+	DisplayBrandUpdatedAt    pgtype.Timestamptz `json:"display_brand_updated_at"`
+	TypesCount               int64              `json:"types_count"`
+	GroupSize                int64              `json:"group_size"`
 }
 
 func (q *Queries) GetCatalogModelByUUID(ctx context.Context, argUuid uuid.UUID) (GetCatalogModelByUUIDRow, error) {
@@ -677,6 +690,9 @@ func (q *Queries) GetCatalogModelByUUID(ctx context.Context, argUuid uuid.UUID) 
 		&i.BrandTsbName,
 		&i.DisplayBrandUuid,
 		&i.DisplayBrandName,
+		&i.DisplayBrandLogoKey,
+		&i.DisplayBrandLogoVariants,
+		&i.DisplayBrandUpdatedAt,
 		&i.TypesCount,
 		&i.GroupSize,
 	)
@@ -726,6 +742,8 @@ SELECT t.id, t.uuid, t.brand_id, t.model_id, t.tsb_type_code, t.raw_name, t.year
     b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     b.tsb_name AS brand_tsb_name, b.display_brand_id,
     d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     m.uuid AS model_uuid, m.name AS model_name, m.source AS model_source
 FROM catalog_types t
 JOIN catalog_brands b ON b.id = t.brand_id
@@ -735,30 +753,33 @@ WHERE t.uuid = $1
 `
 
 type GetCatalogTypeByUUIDRow struct {
-	ID                    int64              `json:"id"`
-	Uuid                  uuid.UUID          `json:"uuid"`
-	BrandID               int64              `json:"brand_id"`
-	ModelID               pgtype.Int8        `json:"model_id"`
-	TsbTypeCode           string             `json:"tsb_type_code"`
-	RawName               string             `json:"raw_name"`
-	Years                 []int32            `json:"years"`
-	SuggestedTransmission pgtype.Text        `json:"suggested_transmission"`
-	SuggestedFuel         pgtype.Text        `json:"suggested_fuel"`
-	FirstSeenPeriod       string             `json:"first_seen_period"`
-	LastSeenPeriod        string             `json:"last_seen_period"`
-	IsActive              bool               `json:"is_active"`
-	CreatedAt             pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
-	BrandUuid             uuid.UUID          `json:"brand_uuid"`
-	BrandDisplayName      string             `json:"brand_display_name"`
-	BrandTsbCode          string             `json:"brand_tsb_code"`
-	BrandTsbName          string             `json:"brand_tsb_name"`
-	DisplayBrandID        int64              `json:"display_brand_id"`
-	DisplayBrandUuid      uuid.UUID          `json:"display_brand_uuid"`
-	DisplayBrandName      string             `json:"display_brand_name"`
-	ModelUuid             pgtype.UUID        `json:"model_uuid"`
-	ModelName             pgtype.Text        `json:"model_name"`
-	ModelSource           pgtype.Text        `json:"model_source"`
+	ID                       int64              `json:"id"`
+	Uuid                     uuid.UUID          `json:"uuid"`
+	BrandID                  int64              `json:"brand_id"`
+	ModelID                  pgtype.Int8        `json:"model_id"`
+	TsbTypeCode              string             `json:"tsb_type_code"`
+	RawName                  string             `json:"raw_name"`
+	Years                    []int32            `json:"years"`
+	SuggestedTransmission    pgtype.Text        `json:"suggested_transmission"`
+	SuggestedFuel            pgtype.Text        `json:"suggested_fuel"`
+	FirstSeenPeriod          string             `json:"first_seen_period"`
+	LastSeenPeriod           string             `json:"last_seen_period"`
+	IsActive                 bool               `json:"is_active"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	BrandUuid                uuid.UUID          `json:"brand_uuid"`
+	BrandDisplayName         string             `json:"brand_display_name"`
+	BrandTsbCode             string             `json:"brand_tsb_code"`
+	BrandTsbName             string             `json:"brand_tsb_name"`
+	DisplayBrandID           int64              `json:"display_brand_id"`
+	DisplayBrandUuid         uuid.UUID          `json:"display_brand_uuid"`
+	DisplayBrandName         string             `json:"display_brand_name"`
+	DisplayBrandLogoKey      pgtype.Text        `json:"display_brand_logo_key"`
+	DisplayBrandLogoVariants []string           `json:"display_brand_logo_variants"`
+	DisplayBrandUpdatedAt    pgtype.Timestamptz `json:"display_brand_updated_at"`
+	ModelUuid                pgtype.UUID        `json:"model_uuid"`
+	ModelName                pgtype.Text        `json:"model_name"`
+	ModelSource              pgtype.Text        `json:"model_source"`
 }
 
 func (q *Queries) GetCatalogTypeByUUID(ctx context.Context, argUuid uuid.UUID) (GetCatalogTypeByUUIDRow, error) {
@@ -786,6 +807,9 @@ func (q *Queries) GetCatalogTypeByUUID(ctx context.Context, argUuid uuid.UUID) (
 		&i.DisplayBrandID,
 		&i.DisplayBrandUuid,
 		&i.DisplayBrandName,
+		&i.DisplayBrandLogoKey,
+		&i.DisplayBrandLogoVariants,
+		&i.DisplayBrandUpdatedAt,
 		&i.ModelUuid,
 		&i.ModelName,
 		&i.ModelSource,
@@ -796,6 +820,8 @@ func (q *Queries) GetCatalogTypeByUUID(ctx context.Context, argUuid uuid.UUID) (
 const listCatalogBrands = `-- name: ListCatalogBrands :many
 
 SELECT b.id, b.uuid, b.tsb_code, b.tsb_name, b.display_name, b.display_brand_id, b.category, b.is_active, b.created_at, b.updated_at, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models m WHERE m.brand_id = b.id)::bigint AS models_count,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active AND t.model_id IS NULL)::bigint AS unresolved_count
@@ -839,21 +865,24 @@ type ListCatalogBrandsParams struct {
 }
 
 type ListCatalogBrandsRow struct {
-	ID               int64              `json:"id"`
-	Uuid             uuid.UUID          `json:"uuid"`
-	TsbCode          string             `json:"tsb_code"`
-	TsbName          string             `json:"tsb_name"`
-	DisplayName      string             `json:"display_name"`
-	DisplayBrandID   int64              `json:"display_brand_id"`
-	Category         string             `json:"category"`
-	IsActive         bool               `json:"is_active"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-	DisplayBrandUuid uuid.UUID          `json:"display_brand_uuid"`
-	DisplayBrandName string             `json:"display_brand_name"`
-	TypesCount       int64              `json:"types_count"`
-	ModelsCount      int64              `json:"models_count"`
-	UnresolvedCount  int64              `json:"unresolved_count"`
+	ID                       int64              `json:"id"`
+	Uuid                     uuid.UUID          `json:"uuid"`
+	TsbCode                  string             `json:"tsb_code"`
+	TsbName                  string             `json:"tsb_name"`
+	DisplayName              string             `json:"display_name"`
+	DisplayBrandID           int64              `json:"display_brand_id"`
+	Category                 string             `json:"category"`
+	IsActive                 bool               `json:"is_active"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	DisplayBrandUuid         uuid.UUID          `json:"display_brand_uuid"`
+	DisplayBrandName         string             `json:"display_brand_name"`
+	DisplayBrandLogoKey      pgtype.Text        `json:"display_brand_logo_key"`
+	DisplayBrandLogoVariants []string           `json:"display_brand_logo_variants"`
+	DisplayBrandUpdatedAt    pgtype.Timestamptz `json:"display_brand_updated_at"`
+	TypesCount               int64              `json:"types_count"`
+	ModelsCount              int64              `json:"models_count"`
+	UnresolvedCount          int64              `json:"unresolved_count"`
 }
 
 // Platform vehicle catalog (TSB kasko list).
@@ -888,6 +917,9 @@ func (q *Queries) ListCatalogBrands(ctx context.Context, arg ListCatalogBrandsPa
 			&i.UpdatedAt,
 			&i.DisplayBrandUuid,
 			&i.DisplayBrandName,
+			&i.DisplayBrandLogoKey,
+			&i.DisplayBrandLogoVariants,
+			&i.DisplayBrandUpdatedAt,
 			&i.TypesCount,
 			&i.ModelsCount,
 			&i.UnresolvedCount,
@@ -1294,6 +1326,8 @@ func (q *Queries) ListCatalogModelRulesByModel(ctx context.Context, modelID int6
 const listCatalogModels = `-- name: ListCatalogModels :many
 SELECT m.id, m.uuid, m.brand_id, m.name, m.source, m.group_key, m.created_at, m.updated_at, b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     b.tsb_name AS brand_tsb_name, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.model_id = m.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models g JOIN catalog_brands gb ON gb.id = g.brand_id
         WHERE g.group_key = m.group_key AND gb.display_brand_id = b.display_brand_id)::bigint AS group_size
@@ -1331,22 +1365,25 @@ type ListCatalogModelsParams struct {
 }
 
 type ListCatalogModelsRow struct {
-	ID               int64              `json:"id"`
-	Uuid             uuid.UUID          `json:"uuid"`
-	BrandID          int64              `json:"brand_id"`
-	Name             string             `json:"name"`
-	Source           string             `json:"source"`
-	GroupKey         pgtype.Text        `json:"group_key"`
-	CreatedAt        pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
-	BrandUuid        uuid.UUID          `json:"brand_uuid"`
-	BrandDisplayName string             `json:"brand_display_name"`
-	BrandTsbCode     string             `json:"brand_tsb_code"`
-	BrandTsbName     string             `json:"brand_tsb_name"`
-	DisplayBrandUuid uuid.UUID          `json:"display_brand_uuid"`
-	DisplayBrandName string             `json:"display_brand_name"`
-	TypesCount       int64              `json:"types_count"`
-	GroupSize        int64              `json:"group_size"`
+	ID                       int64              `json:"id"`
+	Uuid                     uuid.UUID          `json:"uuid"`
+	BrandID                  int64              `json:"brand_id"`
+	Name                     string             `json:"name"`
+	Source                   string             `json:"source"`
+	GroupKey                 pgtype.Text        `json:"group_key"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	BrandUuid                uuid.UUID          `json:"brand_uuid"`
+	BrandDisplayName         string             `json:"brand_display_name"`
+	BrandTsbCode             string             `json:"brand_tsb_code"`
+	BrandTsbName             string             `json:"brand_tsb_name"`
+	DisplayBrandUuid         uuid.UUID          `json:"display_brand_uuid"`
+	DisplayBrandName         string             `json:"display_brand_name"`
+	DisplayBrandLogoKey      pgtype.Text        `json:"display_brand_logo_key"`
+	DisplayBrandLogoVariants []string           `json:"display_brand_logo_variants"`
+	DisplayBrandUpdatedAt    pgtype.Timestamptz `json:"display_brand_updated_at"`
+	TypesCount               int64              `json:"types_count"`
+	GroupSize                int64              `json:"group_size"`
 }
 
 func (q *Queries) ListCatalogModels(ctx context.Context, arg ListCatalogModelsParams) ([]ListCatalogModelsRow, error) {
@@ -1382,6 +1419,9 @@ func (q *Queries) ListCatalogModels(ctx context.Context, arg ListCatalogModelsPa
 			&i.BrandTsbName,
 			&i.DisplayBrandUuid,
 			&i.DisplayBrandName,
+			&i.DisplayBrandLogoKey,
+			&i.DisplayBrandLogoVariants,
+			&i.DisplayBrandUpdatedAt,
 			&i.TypesCount,
 			&i.GroupSize,
 		); err != nil {
@@ -1498,6 +1538,8 @@ SELECT t.id, t.uuid, t.tsb_type_code, t.raw_name, t.years, t.suggested_transmiss
     t.suggested_fuel, t.first_seen_period, t.last_seen_period, t.is_active, t.created_at, t.updated_at,
     b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     m.uuid AS model_uuid, m.name AS model_name, m.source AS model_source
 FROM catalog_types t
 JOIN catalog_brands b ON b.id = t.brand_id
@@ -1552,26 +1594,29 @@ type ListCatalogTypesParams struct {
 }
 
 type ListCatalogTypesRow struct {
-	ID                    int64              `json:"id"`
-	Uuid                  uuid.UUID          `json:"uuid"`
-	TsbTypeCode           string             `json:"tsb_type_code"`
-	RawName               string             `json:"raw_name"`
-	Years                 []int32            `json:"years"`
-	SuggestedTransmission pgtype.Text        `json:"suggested_transmission"`
-	SuggestedFuel         pgtype.Text        `json:"suggested_fuel"`
-	FirstSeenPeriod       string             `json:"first_seen_period"`
-	LastSeenPeriod        string             `json:"last_seen_period"`
-	IsActive              bool               `json:"is_active"`
-	CreatedAt             pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
-	BrandUuid             uuid.UUID          `json:"brand_uuid"`
-	BrandDisplayName      string             `json:"brand_display_name"`
-	BrandTsbCode          string             `json:"brand_tsb_code"`
-	DisplayBrandUuid      uuid.UUID          `json:"display_brand_uuid"`
-	DisplayBrandName      string             `json:"display_brand_name"`
-	ModelUuid             pgtype.UUID        `json:"model_uuid"`
-	ModelName             pgtype.Text        `json:"model_name"`
-	ModelSource           pgtype.Text        `json:"model_source"`
+	ID                       int64              `json:"id"`
+	Uuid                     uuid.UUID          `json:"uuid"`
+	TsbTypeCode              string             `json:"tsb_type_code"`
+	RawName                  string             `json:"raw_name"`
+	Years                    []int32            `json:"years"`
+	SuggestedTransmission    pgtype.Text        `json:"suggested_transmission"`
+	SuggestedFuel            pgtype.Text        `json:"suggested_fuel"`
+	FirstSeenPeriod          string             `json:"first_seen_period"`
+	LastSeenPeriod           string             `json:"last_seen_period"`
+	IsActive                 bool               `json:"is_active"`
+	CreatedAt                pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                pgtype.Timestamptz `json:"updated_at"`
+	BrandUuid                uuid.UUID          `json:"brand_uuid"`
+	BrandDisplayName         string             `json:"brand_display_name"`
+	BrandTsbCode             string             `json:"brand_tsb_code"`
+	DisplayBrandUuid         uuid.UUID          `json:"display_brand_uuid"`
+	DisplayBrandName         string             `json:"display_brand_name"`
+	DisplayBrandLogoKey      pgtype.Text        `json:"display_brand_logo_key"`
+	DisplayBrandLogoVariants []string           `json:"display_brand_logo_variants"`
+	DisplayBrandUpdatedAt    pgtype.Timestamptz `json:"display_brand_updated_at"`
+	ModelUuid                pgtype.UUID        `json:"model_uuid"`
+	ModelName                pgtype.Text        `json:"model_name"`
+	ModelSource              pgtype.Text        `json:"model_source"`
 }
 
 func (q *Queries) ListCatalogTypes(ctx context.Context, arg ListCatalogTypesParams) ([]ListCatalogTypesRow, error) {
@@ -1616,6 +1661,9 @@ func (q *Queries) ListCatalogTypes(ctx context.Context, arg ListCatalogTypesPara
 			&i.BrandTsbCode,
 			&i.DisplayBrandUuid,
 			&i.DisplayBrandName,
+			&i.DisplayBrandLogoKey,
+			&i.DisplayBrandLogoVariants,
+			&i.DisplayBrandUpdatedAt,
 			&i.ModelUuid,
 			&i.ModelName,
 			&i.ModelSource,

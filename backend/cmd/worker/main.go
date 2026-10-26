@@ -21,6 +21,7 @@ import (
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
 	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/smschannel"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/model"
@@ -47,8 +48,11 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/outbox"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/netgsm"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/twilio"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/realtime"
@@ -195,6 +199,15 @@ func main() {
 	// Deliveries run inline here; mobile pushes go through the queue (retries).
 	notifSvc.WithPushQueue(queueClient)
 	messagingSvc := messagingusecase.New(queries, nil, nil).SetQueue(queueClient).SetStorage(store)
+	// SMS sends are queued to the API process; the worker only needs to know
+	// whether the organization has an active SMS provider (channel checks).
+	var smsBox smschannel.Sealer
+	if box, err := crypto.NewSecretBox(cfg.Encryption.Key); err == nil {
+		smsBox = box
+	}
+	workerSMS := smschannel.New(queries, smsBox, activityRec,
+		netgsm.New(netgsm.Config{}), twilio.New(twilio.Config{}))
+	messagingSvc.SetSMSChannel(workerSMS)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
 	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	vehicleAlertsSvc := vausecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
@@ -202,6 +215,7 @@ func main() {
 	billingSvc := billingusecase.New(pool, queries, activityRec, entitlementsSvc)
 	billingSvc.SetNotifier(&workerBillingNotifier{pool: pool, notifications: notifSvc, log: log})
 	messagingSvc.SetEntitlements(entitlementsSvc)
+	workerSMS.SetEntitlements(entitlementsSvc)
 	entitlementsRecomputer := entitlements.NewRecomputer(queries, entitlementsSvc)
 	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
 		SetStorage(store).
@@ -228,6 +242,16 @@ func main() {
 	} else {
 		log.Warn("brand_logo_sync_encryption_unavailable", "error", err)
 	}
+
+	// Live lists: imports, bulk jobs and quote expiry run here, so they
+	// publish resource.changed events too (organization-scoped channels).
+	liveEvents := resourceevents.New(publisher, log)
+	defer liveEvents.Wait()
+	liveEvents.AddResolver(resourceevents.OrgChannelResolver(resourceevents.QueriesLookup(queries)))
+	importSvc.SetResourceEvents(liveEvents)
+	bulkSvc.SetResourceEvents(liveEvents)
+	quotesSvc.SetResourceEvents(liveEvents)
+	contractsSvc.SetResourceEvents(liveEvents)
 
 	worker := queue.NewWorker(cfg, log, notifSvc.Deliver).
 		WithCatalogImport(vehicleCatalogSvc.ProcessImport).

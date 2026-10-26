@@ -19,12 +19,10 @@ export const contractKeys = {
   all: ["tenant", "contracts"] as const,
   templates: (params?: unknown) =>
     [...contractKeys.all, "templates", params] as const,
-  template: (uuid: string) =>
-    [...contractKeys.all, "template", uuid] as const,
+  template: (uuid: string) => [...contractKeys.all, "template", uuid] as const,
   instances: (params?: unknown) =>
     [...contractKeys.all, "instances", params] as const,
-  instance: (uuid: string) =>
-    [...contractKeys.all, "instance", uuid] as const,
+  instance: (uuid: string) => [...contractKeys.all, "instance", uuid] as const,
 };
 
 export function useContractTemplates(
@@ -162,13 +160,16 @@ export function useContractMutations() {
         instanceUuid,
         signerUuid,
         phone,
+        channel,
       }: {
         instanceUuid: string;
         signerUuid: string;
         phone?: string;
+        channel?: "whatsapp" | "sms";
       }) =>
         contractsService.sendSignerOtp(instanceUuid, signerUuid, {
           phone: phone?.trim() || undefined,
+          channel,
         }),
       onSuccess: (data) =>
         toast.success(

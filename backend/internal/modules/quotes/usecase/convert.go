@@ -10,6 +10,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	customersusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/customers/usecase"
 	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -382,6 +383,10 @@ func (s *Service) Convert(ctx context.Context, id uuid.UUID, in ConvertInput) (C
 	}
 	s.afterReminderChange(ctx, row, cancelled, nil)
 	s.record(ctx, "tenant.quote.convert", row.Uuid, map[string]any{"number": row.Number, "job_uuid": jobRow.Uuid.String()})
+	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionCreated, jobRow.Uuid.String())
+	if row.LeadID.Valid {
+		s.live(ctx, resourceevents.TenantLeads, resourceevents.ActionBulk)
+	}
 	detail, err := s.loadDetail(ctx, row)
 	if err != nil {
 		return ConvertResult{}, err

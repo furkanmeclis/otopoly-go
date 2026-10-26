@@ -22,6 +22,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
@@ -45,6 +46,7 @@ type QueueClient interface {
 
 // Service orchestrates contract presets, templates, instances, signing, and PDF execution.
 type Service struct {
+	liveEvents    resourceevents.Publisher
 	pool          *pgxpool.Pool
 	q             *db.Queries
 	act           *activity.Recorder
@@ -459,6 +461,7 @@ func (s *Service) CreateTemplate(ctx context.Context, in CreateTemplateInput) (T
 		return Template{}, err
 	}
 	s.recordActivity(ctx, "tenant.contract_template.create", "contract_template", &row.Uuid, map[string]any{"title": row.Title})
+	s.live(ctx, resourceevents.TenantContracts, resourceevents.ActionCreated, row.Uuid.String())
 	return mapTemplate(row), nil
 }
 
@@ -506,6 +509,7 @@ func (s *Service) CloneTemplate(ctx context.Context, in CloneTemplateInput) (Tem
 	s.recordActivity(ctx, "tenant.contract_template.clone", "contract_template", &row.Uuid, map[string]any{
 		"title": row.Title, "preset_uuid": in.PresetUUID.String(),
 	})
+	s.live(ctx, resourceevents.TenantContracts, resourceevents.ActionCreated, row.Uuid.String())
 	return mapTemplate(row), nil
 }
 
@@ -569,6 +573,7 @@ func (s *Service) PatchTemplate(ctx context.Context, id uuid.UUID, in PatchTempl
 		return Template{}, err
 	}
 	s.recordActivity(ctx, "tenant.contract_template.update", "contract_template", &row.Uuid, map[string]any{"title": row.Title})
+	s.live(ctx, resourceevents.TenantContracts, resourceevents.ActionUpdated, row.Uuid.String())
 	return mapTemplate(row), nil
 }
 
@@ -592,6 +597,7 @@ func (s *Service) DeleteTemplate(ctx context.Context, id uuid.UUID) error {
 		return err
 	}
 	s.recordActivity(ctx, "tenant.contract_template.delete", "contract_template", &id, map[string]any{"title": row.Title})
+	s.live(ctx, resourceevents.TenantContracts, resourceevents.ActionDeleted, id.String())
 	return nil
 }
 
@@ -805,6 +811,7 @@ func (s *Service) CreateInstance(ctx context.Context, in CreateInstanceInput) (I
 	s.recordActivity(ctx, "tenant.contract_instance.create", "contract_instance", &row.Uuid, map[string]any{
 		"title": row.Title, "subject_uuid": in.SubjectUUID.String(),
 	})
+	s.live(ctx, resourceevents.TenantContractInstances, resourceevents.ActionCreated, row.Uuid.String())
 
 	pending, err := s.q.CountPendingRequiredSigners(ctx, row.ID)
 	if err != nil {
@@ -854,6 +861,7 @@ func (s *Service) VoidInstance(ctx context.Context, id uuid.UUID) (Instance, err
 		return Instance{}, err
 	}
 	s.recordActivity(ctx, "tenant.contract_instance.void", "contract_instance", &id, map[string]any{"title": updated.Title})
+	s.live(ctx, resourceevents.TenantContractInstances, resourceevents.ActionUpdated, id.String())
 	return s.GetInstance(ctx, id)
 }
 
@@ -993,6 +1001,7 @@ func (s *Service) Sign(ctx context.Context, instanceUUID, signerUUID uuid.UUID, 
 	s.recordActivity(ctx, "tenant.contract_instance.sign", "contract_instance", &inst.Uuid, map[string]any{
 		"signer_uuid": signerUUID.String(), "display_name": displayName,
 	})
+	s.live(ctx, resourceevents.TenantContractInstances, resourceevents.ActionUpdated, inst.Uuid.String())
 
 	pending, err := s.q.CountPendingRequiredSigners(ctx, inst.ID)
 	if err != nil {
@@ -1082,6 +1091,7 @@ func (s *Service) UploadMedia(ctx context.Context, instanceUUID uuid.UUID, in Up
 	s.recordActivity(ctx, "tenant.contract_instance.media_upload", "contract_instance", &inst.Uuid, map[string]any{
 		"media_uuid": row.Uuid.String(),
 	})
+	s.live(ctx, resourceevents.TenantContractInstances, resourceevents.ActionUpdated, inst.Uuid.String())
 	return s.mapMedia(row), nil
 }
 
@@ -1122,6 +1132,7 @@ func (s *Service) DeleteMedia(ctx context.Context, instanceUUID, mediaUUID uuid.
 	s.recordActivity(ctx, "tenant.contract_instance.media_delete", "contract_instance", &inst.Uuid, map[string]any{
 		"media_uuid": mediaUUID.String(),
 	})
+	s.live(ctx, resourceevents.TenantContractInstances, resourceevents.ActionUpdated, inst.Uuid.String())
 	return nil
 }
 

@@ -30,10 +30,15 @@ SELECT
     v.plate AS vehicle_plate,
     au.uuid AS assignee_uuid,
     COALESCE(NULLIF(TRIM(au.name || ' ' || au.surname), ''), au.email, '')::text AS assignee_name,
-    COALESCE(NULLIF(TRIM(cu.name || ' ' || cu.surname), ''), cu.email, '')::text AS created_by_name
+    COALESCE(NULLIF(TRIM(cu.name || ' ' || cu.surname), ''), cu.email, '')::text AS created_by_name,
+    vb.uuid AS vehicle_brand_uuid,
+    COALESCE(vb.name, '')::text AS vehicle_brand_name,
+    vb.logo_object_key AS vehicle_brand_logo_object_key
 FROM leads l
 JOIN customers c ON c.id = l.customer_id
 LEFT JOIN customer_vehicles v ON v.id = l.vehicle_id AND v.deleted_at IS NULL
+LEFT JOIN vehicle_models vm ON vm.id = v.model_id
+LEFT JOIN vehicle_brands vb ON vb.id = vm.brand_id
 LEFT JOIN users au ON au.id = l.assignee_user_id
 LEFT JOIN users cu ON cu.id = l.created_by
 WHERE l.uuid = sqlc.arg(uuid) AND l.organization_id = sqlc.arg(organization_id) AND l.deleted_at IS NULL;
@@ -49,10 +54,15 @@ SELECT
     au.uuid AS assignee_uuid,
     COALESCE(NULLIF(TRIM(au.name || ' ' || au.surname), ''), au.email, '')::text AS assignee_name,
     (SELECT COUNT(*)::bigint FROM quotes q WHERE q.lead_id = l.id) AS quote_count,
-    (SELECT MAX(e.created_at) FROM lead_events e WHERE e.lead_id = l.id)::timestamptz AS last_activity_at
+    (SELECT MAX(e.created_at) FROM lead_events e WHERE e.lead_id = l.id)::timestamptz AS last_activity_at,
+    vb.uuid AS vehicle_brand_uuid,
+    COALESCE(vb.name, '')::text AS vehicle_brand_name,
+    vb.logo_object_key AS vehicle_brand_logo_object_key
 FROM leads l
 JOIN customers c ON c.id = l.customer_id
 LEFT JOIN customer_vehicles v ON v.id = l.vehicle_id AND v.deleted_at IS NULL
+LEFT JOIN vehicle_models vm ON vm.id = v.model_id
+LEFT JOIN vehicle_brands vb ON vb.id = vm.brand_id
 LEFT JOIN users au ON au.id = l.assignee_user_id
 WHERE l.organization_id = sqlc.arg(organization_id) AND l.deleted_at IS NULL
   AND (sqlc.narg(status)::text IS NULL OR l.status = sqlc.narg(status)

@@ -36,6 +36,8 @@ import (
 	bulkmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk"
 	bulkhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/handler"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
+	calendarmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/calendar"
+	calendarusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/calendar/usecase"
 	carimodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari"
 	cariusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/cari/usecase"
 	catalogmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/catalog"
@@ -54,6 +56,8 @@ import (
 	importmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports"
 	importhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/handler"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
+	insightsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/insights"
+	insightsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/insights/usecase"
 	githubmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github"
 	githubhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github/handler"
 	githubusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github/usecase"
@@ -78,6 +82,7 @@ import (
 	messagingcloud "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/cloud"
 	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	messagingproviders "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/smschannel"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
@@ -138,8 +143,11 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ratelimit"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/netgsm"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/twilio"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/stepup"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
@@ -176,17 +184,19 @@ type Server struct {
 	reminderSched *asynq.Scheduler
 	// reminderTick runs the notification sweep in-process when the queue is
 	// disabled (single-process local setups).
-	reminderTick  func(ctx context.Context) error
-	reminderStop  context.CancelFunc
-	events        events.Bus
-	outboxPub     *outbox.Publisher
-	outboxStop    func()
-	searchClient  *searchengine.Client
-	searchIndexer *searchengine.Indexer
-	githubSvc     *githubusecase.Service
-	oauthProvSvc  *oauthproviderusecase.Service
-	authSettings  *authsettingsusecase.Service
-	http          *http.Server
+	reminderTick func(ctx context.Context) error
+	reminderStop context.CancelFunc
+	// mcpCleanupStop stops the hourly MCP OAuth cleanup.
+	mcpCleanupStop context.CancelFunc
+	events         events.Bus
+	outboxPub      *outbox.Publisher
+	outboxStop     func()
+	searchClient   *searchengine.Client
+	searchIndexer  *searchengine.Indexer
+	githubSvc      *githubusecase.Service
+	oauthProvSvc   *oauthproviderusecase.Service
+	authSettings   *authsettingsusecase.Service
+	http           *http.Server
 }
 
 // New wires router and middleware for the API skeleton.
@@ -449,6 +459,14 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	messagingSvc.RestoreConnectedSessions(context.Background())
 	messagingSvc.RestorePlatformSession(context.Background())
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
+	// Organization SMS channel: own Netgsm / Twilio account (sealed credentials).
+	smsChannelSvc := smschannel.New(deps.Queries, secretBox, activityRec,
+		netgsm.New(netgsm.Config{}), twilio.New(twilio.Config{}))
+	smsChannelSvc.SetTestLogger(messagingSvc)
+	smsChannelSvc.SetEntitlements(entitlementsSvc)
+	messagingSvc.SetSMSChannel(smsChannelSvc)
+	messagingmodule.RegisterSMSRoutes(mux, smsChannelSvc, tokens, loader, deps.Queries)
+	messagingmodule.RegisterSMSReportRoutes(mux, smschannel.NewReport(deps.Queries, entitlementsSvc), tokens, loader)
 	orgSvc.SetOverviewSources(billingSvc, messagingSvc)
 	dailySummarySvc := dsusecase.New(deps.Queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	dailysummary.RegisterRoutes(mux, dailySummarySvc, tokens, loader, deps.Queries)
@@ -537,6 +555,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
 	customersSvc.SetEntitlements(entitlementsSvc)
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
+	insightsmodule.RegisterRoutes(mux, insightsusecase.New(deps.Queries), tokens, loader, deps.Queries)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, deps.Queries)
 	centerSvc := centerusecase.New(deps.Queries, notifSvc, centerMessenger, log).
 		SetStorage(deps.Storage).
@@ -576,6 +595,30 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	quotesSvc.SetNotifier(sales)
 	sales.SetQuotes(quotesSvc)
 	quotesmodule.RegisterRoutes(mux, quotesSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries, entitlementsSvc)
+
+	// Live lists: tenant mutations publish resource.changed events on
+	// org:{org_uuid}:resource:{name}; subscription tokens need the resource's
+	// read permission inside that organization (docs/ARCHITECTURE.md).
+	liveEvents := resourceevents.New(deps.Realtime, log)
+	liveResources := resourceevents.NewRegistry()
+	resourceevents.RegisterTenantResources(liveResources)
+	liveEvents.AddResolver(resourceevents.OrgChannelResolver(resourceevents.QueriesLookup(deps.Queries)))
+	uc.AddChannelRules(resourceevents.OrgChannelRule(liveResources,
+		middleware.OrganizationAccess(middleware.OrganizationResolverFromQueries(deps.Queries))))
+	for _, svc := range []interface {
+		SetResourceEvents(resourceevents.Publisher)
+	}{
+		customersSvc, jobsSvc, salesSvc, quotesSvc, leadsSvc, purchasesSvc, suppliersSvc,
+		catalogSvc, financeSvc, cariSvc, todosSvc, contractsSvc, staffSvc, importSvc, bulkSvc,
+	} {
+		svc.SetResourceEvents(liveEvents)
+	}
+
+	// Calendar: own events plus a live feed of the modules above; drag and
+	// drop of todos / lead follow-ups goes through their use cases.
+	calendarSvc := calendarusecase.New(deps.Queries, activityRec, entitlementsSvc)
+	calendarSvc.SetSchedulers(todosSvc, leadsSvc)
+	calendarmodule.RegisterRoutes(mux, calendarSvc, tokens, loader, deps.Queries)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:       customersSvc,
 		CustomersSearch: deps.Queries,
@@ -594,6 +637,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		CatalogLookup:   catalogSvc,
 		SalesWrite:      salesSvc,
 		Todos:           todosSvc,
+		Calendar:        calendarSvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
 	aiSvc.SetEntitlements(entitlementsSvc)
@@ -678,6 +722,11 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		tokens,
 		loader,
 	)
+	s.registerMCP(mux, mcpDeps{
+		auth: uc, orgs: orgSvc, billing: billingSvc, ai: aiSvc, aiTools: aiTools, logs: logsSvc,
+		leads: leadsSvc, quotes: quotesSvc, entitlements: entitlementsSvc, activity: activityRec,
+		limiter: ratelimit.New(deps.Redis, cfg.App.Env), tokens: tokens, loader: loader,
+	})
 
 	outboxStore := outbox.NewStore(deps.DB, deps.Queries)
 	outboxPub := outbox.NewPublisher(outboxStore, eventBus, log)
@@ -743,6 +792,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 	if s.reminderStop != nil {
 		s.reminderStop()
+	}
+	if s.mcpCleanupStop != nil {
+		s.mcpCleanupStop()
 	}
 	if s.msgWorker != nil {
 		s.msgWorker.Shutdown()

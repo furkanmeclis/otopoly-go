@@ -64,6 +64,8 @@ type TableViewProps<TData> = {
   onEditingCellChange?: (cell: EditingCell) => void;
   onCellEdit?: (payload: CellEditPayload<TData>) => void;
   onRowClick?: (row: TData) => void;
+  /** Row ids being removed by a live update (faded out before refetch). */
+  fadingRowIds?: ReadonlySet<string>;
 };
 
 export function TableView<TData>({
@@ -79,6 +81,7 @@ export function TableView<TData>({
   onEditingCellChange,
   onCellEdit,
   onRowClick,
+  fadingRowIds,
 }: TableViewProps<TData>) {
   const cellPad = densityCell[density];
   const leafColumns = table.getVisibleLeafColumns();
@@ -264,6 +267,7 @@ export function TableView<TData>({
                   onEditingCellChange={onEditingCellChange}
                   onCellEdit={onCellEdit}
                   onRowClick={onRowClick}
+                  fading={fadingRowIds?.has(row.id)}
                 />
               ),
             )
@@ -303,6 +307,7 @@ type RowProps<TData> = {
   onEditingCellChange?: (cell: EditingCell) => void;
   onCellEdit?: (payload: CellEditPayload<TData>) => void;
   onRowClick?: (row: TData) => void;
+  fading?: boolean;
 };
 
 function StaticTableRow<TData>({
@@ -314,13 +319,16 @@ function StaticTableRow<TData>({
   onEditingCellChange,
   onCellEdit,
   onRowClick,
+  fading,
 }: RowProps<TData>) {
   return (
     <tr
       className={cn(
-        "border-border hover:bg-muted/30 data-[state=selected]:bg-muted/50 border-b last:border-0",
+        "border-border hover:bg-muted/30 data-[state=selected]:bg-muted/50 border-b transition-opacity duration-300 last:border-0",
         onRowClick && "cursor-pointer",
+        fading && "pointer-events-none opacity-0",
       )}
+      aria-hidden={fading || undefined}
       data-state={row.getIsSelected() ? "selected" : undefined}
       onClick={
         onRowClick

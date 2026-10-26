@@ -22,6 +22,8 @@ const TOOL_LABEL_KEYS: Record<string, string> = {
   create_todo: "ai.tools.create_todo",
   list_todos: "ai.tools.list_todos",
   complete_todo: "ai.tools.complete_todo",
+  list_calendar: "ai.tools.list_calendar",
+  create_calendar_event: "ai.tools.create_calendar_event",
   update_plan: "ai.tools.update_plan",
 };
 
@@ -47,6 +49,8 @@ const TOOL_RUNNING_KEYS: Record<string, string> = {
   create_todo: "ai.tools_running.create_todo",
   list_todos: "ai.tools_running.list_todos",
   complete_todo: "ai.tools_running.complete_todo",
+  list_calendar: "ai.tools_running.list_calendar",
+  create_calendar_event: "ai.tools_running.create_calendar_event",
   update_plan: "ai.tools_running.update_plan",
 };
 
@@ -126,6 +130,10 @@ const CONFIRM_FIELD_KEYS: Record<string, string> = {
   due_date: "ai.confirm.fields.due_date",
   due_time: "ai.confirm.fields.due_time",
   amount: "ai.confirm.fields.amount",
+  when: "ai.confirm.fields.when",
+  location: "ai.confirm.fields.location",
+  start_time: "ai.confirm.fields.start_time",
+  end_time: "ai.confirm.fields.end_time",
 };
 
 const CONFIRM_WARNING_KEYS: Record<string, string> = {

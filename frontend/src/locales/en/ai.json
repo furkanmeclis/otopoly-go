@@ -363,5 +363,15 @@
   "usage.voice_stt": "STT (speech-to-text) {{duration}}",
   "usage.voice_tts": "TTS {{characters}} chars",
   "errors.rate_limited": "Too many messages in a short time. Wait a moment and try again.",
-  "errors.conversation_limit": "This conversation is too long (or you have too many). Start a new conversation or delete old ones."
+  "errors.conversation_limit": "This conversation is too long (or you have too many). Start a new conversation or delete old ones.",
+  "tools.list_calendar": "Calendar",
+  "tools_running.list_calendar": "Checking the calendar…",
+  "tools.create_calendar_event": "New calendar event",
+  "tools_running.create_calendar_event": "Preparing event…",
+  "tool_summary.calendar_found": "{{count}} calendar items",
+  "tool_summary.calendar_event_created": "Event added: {{title}}",
+  "confirm.fields.when": "When",
+  "confirm.fields.location": "Location",
+  "confirm.fields.start_time": "Start time",
+  "confirm.fields.end_time": "End time"
 }

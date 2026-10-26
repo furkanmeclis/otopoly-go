@@ -16,6 +16,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -35,13 +36,14 @@ type SearchIndexer interface {
 }
 
 type Service struct {
-	pool    *pgxpool.Pool
-	q       *db.Queries
-	act     *activity.Recorder
-	finance *financeusecase.Service
-	cari    *cariusecase.Service
-	search  SearchIndexer
-	bus     events.Bus
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	finance    *financeusecase.Service
+	cari       *cariusecase.Service
+	search     SearchIndexer
+	bus        events.Bus
 }
 
 func New(
@@ -519,6 +521,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (SaleDetail, error
 	s.recordActivity(ctx, "tenant.sales.create", "sale", &sale.Uuid, map[string]any{
 		"method": method, "total": financeusecase.NumericToString(totalNum),
 	})
+	s.live(ctx, resourceevents.TenantSales, resourceevents.ActionCreated, sale.Uuid.String())
+	s.liveMoney(ctx)
 	s.publish(ctx, events.SalesCreated, map[string]any{"uuid": sale.Uuid.String()})
 	s.indexSale(ctx, sale.Uuid)
 	return detail, nil
@@ -619,6 +623,8 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (SaleDetail, error) {
 		return SaleDetail{}, err
 	}
 	s.recordActivity(ctx, "tenant.sales.void", "sale", &id, nil)
+	s.live(ctx, resourceevents.TenantSales, resourceevents.ActionUpdated, id.String())
+	s.liveMoney(ctx)
 	s.publish(ctx, events.SalesVoided, map[string]any{"uuid": id.String()})
 	s.indexSale(ctx, id)
 	return detail, nil

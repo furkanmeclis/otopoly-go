@@ -21,6 +21,10 @@ import {
 import { useTenantFinanceAccess } from "@/features/finance/hooks/use-tenant-finance-access";
 import { ResourceIOToolbar } from "@/features/io";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveTable,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function FinanceCategoriesPage({ slug }: { slug: string }) {
   const { t } = useLocale();
@@ -29,6 +33,10 @@ export function FinanceCategoriesPage({ slug }: { slug: string }) {
   const [createOpen, setCreateOpen] = useState(false);
 
   const listQuery = useFinanceCategories();
+  const liveTable = useTenantLiveTable(
+    TenantLiveResources.financeCategories,
+    listQuery.refetch,
+  );
   const metaQuery = useFinanceCategoriesMeta();
   const columns = useFinanceCategoriesColumns();
 
@@ -58,6 +66,7 @@ export function FinanceCategoriesPage({ slug }: { slug: string }) {
       }
     >
       <EntityTable
+        realtime={liveTable}
         columns={columns}
         data={items}
         getRowId={(row) => row.uuid}

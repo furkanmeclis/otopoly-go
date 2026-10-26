@@ -35,6 +35,16 @@ type Querier interface {
 	// Trials started in the window (any current status) and how many of those
 	// organizations later moved to a non-trial plan.
 	BillingTrialConversion(ctx context.Context, sinceAt pgtype.Timestamptz) (BillingTrialConversionRow, error)
+	CalendarContracts(ctx context.Context, arg CalendarContractsParams) ([]CalendarContractsRow, error)
+	// Posted income / expense per day (one calendar row per day, type and currency).
+	CalendarFinanceDaily(ctx context.Context, arg CalendarFinanceDailyParams) ([]CalendarFinanceDailyRow, error)
+	CalendarJobsDelivered(ctx context.Context, arg CalendarJobsDeliveredParams) ([]CalendarJobsDeliveredRow, error)
+	CalendarJobsOpened(ctx context.Context, arg CalendarJobsOpenedParams) ([]CalendarJobsOpenedRow, error)
+	CalendarLeadFollowUps(ctx context.Context, arg CalendarLeadFollowUpsParams) ([]CalendarLeadFollowUpsRow, error)
+	CalendarPurchases(ctx context.Context, arg CalendarPurchasesParams) ([]CalendarPurchasesRow, error)
+	CalendarQuotesExpiring(ctx context.Context, arg CalendarQuotesExpiringParams) ([]CalendarQuotesExpiringRow, error)
+	CalendarSales(ctx context.Context, arg CalendarSalesParams) ([]CalendarSalesRow, error)
+	CalendarTodos(ctx context.Context, arg CalendarTodosParams) ([]CalendarTodosRow, error)
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
@@ -54,6 +64,14 @@ type Querier interface {
 	ClaimScheduledNotificationByID(ctx context.Context, id int64) (ScheduledNotification, error)
 	// Serialises flushes per org and enforces the batch window.
 	ClaimVehicleAlertFlush(ctx context.Context, organizationID int64) (int64, error)
+	CleanupMCPOAuthAuthRequests(ctx context.Context) (int64, error)
+	// Registrations that never connected (no grant, token or pending request)
+	// and are older than created_before.
+	CleanupMCPOAuthClients(ctx context.Context, createdBefore pgtype.Timestamptz) (int64, error)
+	// Used codes stay one day past expiry so a late replay still revokes.
+	CleanupMCPOAuthCodes(ctx context.Context) (int64, error)
+	// Rotated refresh tokens stay until they expire, for reuse detection.
+	CleanupMCPOAuthTokens(ctx context.Context) (int64, error)
 	ClearAppSettingsLogo(ctx context.Context) (AppSetting, error)
 	ClearCatalogDisplayBrandsSyncedLogos(ctx context.Context) (int64, error)
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
@@ -105,6 +123,7 @@ type Querier interface {
 	CountInvoicesForOrg(ctx context.Context, organizationID int64) (int64, error)
 	CountLeads(ctx context.Context, arg CountLeadsParams) (int64, error)
 	CountLiveSubscriptionsByPlan(ctx context.Context, planID int64) (int64, error)
+	CountMCPOAuthClients(ctx context.Context, arg CountMCPOAuthClientsParams) (int64, error)
 	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
 	CountOrders(ctx context.Context, arg CountOrdersParams) (int64, error)
 	CountOrdersForOrg(ctx context.Context, arg CountOrdersForOrgParams) (int64, error)
@@ -126,6 +145,7 @@ type Querier interface {
 	CountPurchases(ctx context.Context, arg CountPurchasesParams) (int64, error)
 	CountQuotes(ctx context.Context, arg CountQuotesParams) (int64, error)
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
+	CountSMSReportOrgMessages(ctx context.Context, organizationID int64) (int64, error)
 	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
 	CountServiceJobsByCustomer(ctx context.Context, arg CountServiceJobsByCustomerParams) (int64, error)
 	CountServiceProductsByService(ctx context.Context, organizationID int64) ([]CountServiceProductsByServiceRow, error)
@@ -140,6 +160,7 @@ type Querier interface {
 	CountUnresolvedCatalogTypesByCategory(ctx context.Context) ([]CountUnresolvedCatalogTypesByCategoryRow, error)
 	CountUserActiveSessions(ctx context.Context, userID int64) (int64, error)
 	CountUserActivity(ctx context.Context, arg CountUserActivityParams) (int64, error)
+	CountUserMCPOAuthGrants(ctx context.Context, arg CountUserMCPOAuthGrantsParams) (int64, error)
 	CountUserMemberships(ctx context.Context, userID int64) (int64, error)
 	CountUserPushDevices(ctx context.Context, userID int64) (int64, error)
 	CountUsers(ctx context.Context, arg CountUsersParams) (int64, error)
@@ -149,6 +170,7 @@ type Querier interface {
 	CreateBillingPlan(ctx context.Context, arg CreateBillingPlanParams) (BillingPlan, error)
 	CreateBrandLogoSyncRun(ctx context.Context, triggeredBy pgtype.Int8) (BrandLogoSyncRun, error)
 	CreateBulkJob(ctx context.Context, arg CreateBulkJobParams) (BulkJob, error)
+	CreateCalendarEvent(ctx context.Context, arg CreateCalendarEventParams) (CalendarEvent, error)
 	// Tenant cari (accounts receivable) accounts and ledger entries.
 	CreateCariAccount(ctx context.Context, arg CreateCariAccountParams) (CariAccount, error)
 	CreateCariEntry(ctx context.Context, arg CreateCariEntryParams) (CariEntry, error)
@@ -186,6 +208,11 @@ type Querier interface {
 	CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, error)
 	CreateLeadEvent(ctx context.Context, arg CreateLeadEventParams) (LeadEvent, error)
 	CreateLogPurgeRule(ctx context.Context, arg CreateLogPurgeRuleParams) (LogPurgeRule, error)
+	CreateMCPOAuthAuthRequest(ctx context.Context, arg CreateMCPOAuthAuthRequestParams) (McpOauthAuthRequest, error)
+	// MCP OAuth 2.1 authorization server (docs/MCP.md).
+	CreateMCPOAuthClient(ctx context.Context, arg CreateMCPOAuthClientParams) (McpOauthClient, error)
+	CreateMCPOAuthCode(ctx context.Context, arg CreateMCPOAuthCodeParams) error
+	CreateMCPOAuthToken(ctx context.Context, arg CreateMCPOAuthTokenParams) error
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreateOAuthAccount(ctx context.Context, arg CreateOAuthAccountParams) (OauthAccount, error)
 	CreateOTPCode(ctx context.Context, arg CreateOTPCodeParams) (OtpCode, error)
@@ -236,6 +263,8 @@ type Querier interface {
 	// Vehicles per service for the day ("12 × Yıkama, 1 × PPF").
 	DailySummaryServiceBreakdown(ctx context.Context, arg DailySummaryServiceBreakdownParams) ([]DailySummaryServiceBreakdownRow, error)
 	DeactivateDiscountCode(ctx context.Context, argUuid uuid.UUID) error
+	// Clears the active flag of every other account (one active per organization).
+	DeactivateSMSProviderAccounts(ctx context.Context, arg DeactivateSMSProviderAccountsParams) error
 	// Self-service account deletion: keep every row, mark the user disabled.
 	DeactivateUser(ctx context.Context, id int64) (User, error)
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
@@ -246,6 +275,8 @@ type Querier interface {
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
 	DeleteJobConsumption(ctx context.Context, arg DeleteJobConsumptionParams) error
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
+	// Deleting is the claim: a concurrent second decision finds nothing.
+	DeleteMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error
 	DeleteMessageTemplateByKey(ctx context.Context, arg DeleteMessageTemplateByKeyParams) (int64, error)
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
@@ -260,6 +291,7 @@ type Querier interface {
 	DeletePushTickets(ctx context.Context, ids []int64) error
 	DeleteQuoteLines(ctx context.Context, arg DeleteQuoteLinesParams) error
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
+	DeleteSMSProviderAccount(ctx context.Context, arg DeleteSMSProviderAccountParams) (int64, error)
 	DeleteServiceProducts(ctx context.Context, arg DeleteServiceProductsParams) error
 	DeleteStorageShare(ctx context.Context, argUuid uuid.UUID) error
 	DeleteStorageStar(ctx context.Context, arg DeleteStorageStarParams) error
@@ -315,7 +347,10 @@ type Querier interface {
 	// clients) a TSB brand uuid mapped to its display brand.
 	GetActiveCatalogDisplayBrandForTenant(ctx context.Context, ref uuid.UUID) (GetActiveCatalogDisplayBrandForTenantRow, error)
 	GetActiveJobConsumptionByProduct(ctx context.Context, arg GetActiveJobConsumptionByProductParams) (ServiceJobConsumption, error)
+	// A live token of a live grant and client, with the user's status.
+	GetActiveMCPOAuthToken(ctx context.Context, arg GetActiveMCPOAuthTokenParams) (GetActiveMCPOAuthTokenRow, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
+	GetActiveSMSProviderAccount(ctx context.Context, organizationID int64) (SmsProviderAccount, error)
 	GetAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (AppLog, error)
 	GetAppSettings(ctx context.Context) (AppSetting, error)
 	GetAuthSettings(ctx context.Context) (GetAuthSettingsRow, error)
@@ -330,6 +365,7 @@ type Querier interface {
 	GetBrandLogoSyncSettings(ctx context.Context) (BrandLogoSyncSetting, error)
 	GetBulkJobByID(ctx context.Context, id int64) (BulkJob, error)
 	GetBulkJobByUUID(ctx context.Context, argUuid uuid.UUID) (BulkJob, error)
+	GetCalendarEventByUUID(ctx context.Context, arg GetCalendarEventByUUIDParams) (CalendarEvent, error)
 	GetCariAccountByCustomerID(ctx context.Context, arg GetCariAccountByCustomerIDParams) (CariAccount, error)
 	GetCariAccountByID(ctx context.Context, arg GetCariAccountByIDParams) (CariAccount, error)
 	GetCariAccountByUUID(ctx context.Context, arg GetCariAccountByUUIDParams) (GetCariAccountByUUIDRow, error)
@@ -364,6 +400,12 @@ type Querier interface {
 	GetContractSignerByUUID(ctx context.Context, arg GetContractSignerByUUIDParams) (ContractSigner, error)
 	GetContractTemplateByUUID(ctx context.Context, arg GetContractTemplateByUUIDParams) (ContractTemplate, error)
 	GetCustomerByUUID(ctx context.Context, arg GetCustomerByUUIDParams) (Customer, error)
+	// ============================================================================
+	// Customer
+	// ============================================================================
+	GetCustomerJobStats(ctx context.Context, arg GetCustomerJobStatsParams) (GetCustomerJobStatsRow, error)
+	GetCustomerPipelineStats(ctx context.Context, arg GetCustomerPipelineStatsParams) (GetCustomerPipelineStatsRow, error)
+	GetCustomerSalesStats(ctx context.Context, arg GetCustomerSalesStatsParams) (GetCustomerSalesStatsRow, error)
 	GetCustomerVehicleByUUID(ctx context.Context, arg GetCustomerVehicleByUUIDParams) (CustomerVehicle, error)
 	GetCustomerVehicleDetailByUUID(ctx context.Context, arg GetCustomerVehicleDetailByUUIDParams) (GetCustomerVehicleDetailByUUIDRow, error)
 	GetDailySummarySettings(ctx context.Context, organizationID int64) (DailySummarySetting, error)
@@ -412,6 +454,11 @@ type Querier interface {
 	GetLiveSubscription(ctx context.Context, organizationID int64) (GetLiveSubscriptionRow, error)
 	GetLiveSubscriptionForUpdate(ctx context.Context, organizationID int64) (BillingSubscription, error)
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
+	// A pending request that has not expired, with its live client.
+	GetMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (GetMCPOAuthAuthRequestRow, error)
+	GetMCPOAuthClient(ctx context.Context, clientID string) (McpOauthClient, error)
+	GetMCPOAuthClientByUUID(ctx context.Context, argUuid uuid.UUID) (McpOauthClient, error)
+	GetMCPOAuthTokenAnyState(ctx context.Context, arg GetMCPOAuthTokenAnyStateParams) (McpOauthToken, error)
 	GetMessageTemplate(ctx context.Context, arg GetMessageTemplateParams) (MessageTemplate, error)
 	GetMessageTemplateByKey(ctx context.Context, arg GetMessageTemplateByKeyParams) (MessageTemplate, error)
 	GetMessageTemplateDefault(ctx context.Context, arg GetMessageTemplateDefaultParams) (MessageTemplateDefault, error)
@@ -460,8 +507,18 @@ type Querier interface {
 	GetProductBySKU(ctx context.Context, arg GetProductBySKUParams) (Product, error)
 	GetProductByUUID(ctx context.Context, arg GetProductByUUIDParams) (GetProductByUUIDRow, error)
 	GetProductForSearch(ctx context.Context, arg GetProductForSearchParams) (GetProductForSearchRow, error)
+	// Job usage: product lines billed on jobs plus consumptions (recipe / manual).
+	GetProductJobStats(ctx context.Context, arg GetProductJobStatsParams) (GetProductJobStatsRow, error)
+	GetProductPurchaseStats(ctx context.Context, arg GetProductPurchaseStatsParams) (GetProductPurchaseStatsRow, error)
 	GetProductSaleByUUID(ctx context.Context, arg GetProductSaleByUUIDParams) (GetProductSaleByUUIDRow, error)
 	GetProductSaleForSearch(ctx context.Context, arg GetProductSaleForSearchParams) (GetProductSaleForSearchRow, error)
+	// 360° detail page aggregates (product, service, customer, supplier).
+	// Every query is scoped by organization_id; the record id comes from a
+	// lookup that is itself organization scoped.
+	// ============================================================================
+	// Product
+	// ============================================================================
+	GetProductSalesStats(ctx context.Context, arg GetProductSalesStatsParams) (GetProductSalesStatsRow, error)
 	GetPurchaseByUUID(ctx context.Context, arg GetPurchaseByUUIDParams) (GetPurchaseByUUIDRow, error)
 	GetPurchaseForSearch(ctx context.Context, arg GetPurchaseForSearchParams) (GetPurchaseForSearchRow, error)
 	GetQuoteByShareToken(ctx context.Context, shareToken string) (Quote, error)
@@ -470,6 +527,7 @@ type Querier interface {
 	// Team members related to a quote (creator, lead assignee) for internal notifications.
 	GetQuoteNotifyPeople(ctx context.Context, arg GetQuoteNotifyPeopleParams) (GetQuoteNotifyPeopleRow, error)
 	// Joined display fields for one quote (detail, PDF, public view).
+	// Effective brand: the quote's catalog model, else the customer vehicle's.
 	GetQuoteRefs(ctx context.Context, id int64) (GetQuoteRefsRow, error)
 	GetQuoteReminderByID(ctx context.Context, arg GetQuoteReminderByIDParams) (QuoteReminder, error)
 	GetQuoteReminderByUUID(ctx context.Context, argUuid uuid.UUID) (QuoteReminder, error)
@@ -479,6 +537,7 @@ type Querier interface {
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
+	GetSMSProviderAccount(ctx context.Context, arg GetSMSProviderAccountParams) (SmsProviderAccount, error)
 	GetSaleOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetSaleOrgAndPhoneByUUIDRow, error)
 	GetScheduledNotificationByKey(ctx context.Context, arg GetScheduledNotificationByKeyParams) (ScheduledNotification, error)
 	GetSellerSettings(ctx context.Context) (GetSellerSettingsRow, error)
@@ -490,6 +549,10 @@ type Querier interface {
 	GetServiceJobByID(ctx context.Context, arg GetServiceJobByIDParams) (ServiceJob, error)
 	GetServiceJobByUUID(ctx context.Context, arg GetServiceJobByUUIDParams) (GetServiceJobByUUIDRow, error)
 	GetServiceJobForSearch(ctx context.Context, arg GetServiceJobForSearchParams) (GetServiceJobForSearchRow, error)
+	// ============================================================================
+	// Service
+	// ============================================================================
+	GetServiceUsageStats(ctx context.Context, arg GetServiceUsageStatsParams) (GetServiceUsageStatsRow, error)
 	GetStepupSettings(ctx context.Context) (StepupSetting, error)
 	GetStorageLinkBySlug(ctx context.Context, slug pgtype.Text) (StorageLink, error)
 	GetStorageLinkByTokenHash(ctx context.Context, tokenHash pgtype.Text) (StorageLink, error)
@@ -499,6 +562,10 @@ type Querier interface {
 	GetSubscriptionByUUID(ctx context.Context, argUuid uuid.UUID) (GetSubscriptionByUUIDRow, error)
 	GetSupplierByUUID(ctx context.Context, arg GetSupplierByUUIDParams) (Supplier, error)
 	GetSupplierForSearch(ctx context.Context, arg GetSupplierForSearchParams) (GetSupplierForSearchRow, error)
+	// ============================================================================
+	// Supplier
+	// ============================================================================
+	GetSupplierPurchaseStats(ctx context.Context, arg GetSupplierPurchaseStatsParams) (GetSupplierPurchaseStatsRow, error)
 	GetTemplateByCodeChannelLang(ctx context.Context, arg GetTemplateByCodeChannelLangParams) (NotificationTemplate, error)
 	GetTodoAssigneeByUUID(ctx context.Context, arg GetTodoAssigneeByUUIDParams) (GetTodoAssigneeByUUIDRow, error)
 	GetTodoByUUID(ctx context.Context, arg GetTodoByUUIDParams) (GetTodoByUUIDRow, error)
@@ -507,6 +574,7 @@ type Querier interface {
 	GetTodoReminderState(ctx context.Context, arg GetTodoReminderStateParams) (string, error)
 	GetTodoRowByID(ctx context.Context, arg GetTodoRowByIDParams) (Todo, error)
 	GetUsageCounter(ctx context.Context, arg GetUsageCounterParams) (int64, error)
+	GetUsedMCPOAuthCodeFamily(ctx context.Context, codeHash string) (pgtype.UUID, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
@@ -596,6 +664,8 @@ type Querier interface {
 	ListBrandLogoSyncRuns(ctx context.Context, arg ListBrandLogoSyncRunsParams) ([]ListBrandLogoSyncRunsRow, error)
 	ListBulkChangesForJob(ctx context.Context, jobID int64) ([]BulkChange, error)
 	ListBulkJobsForActor(ctx context.Context, arg ListBulkJobsForActorParams) ([]BulkJob, error)
+	// Events overlapping [range_from, range_to).
+	ListCalendarEventsInRange(ctx context.Context, arg ListCalendarEventsInRangeParams) ([]CalendarEvent, error)
 	ListCariAccounts(ctx context.Context, arg ListCariAccountsParams) ([]ListCariAccountsRow, error)
 	ListCariAccountsForExport(ctx context.Context, arg ListCariAccountsForExportParams) ([]ListCariAccountsForExportRow, error)
 	ListCariAccountsForSearch(ctx context.Context) ([]ListCariAccountsForSearchRow, error)
@@ -630,6 +700,10 @@ type Querier interface {
 	ListContractSignaturesByInstance(ctx context.Context, instanceID int64) ([]ContractSignature, error)
 	ListContractSignersByInstance(ctx context.Context, instanceID int64) ([]ContractSigner, error)
 	ListContractTemplates(ctx context.Context, arg ListContractTemplatesParams) ([]ContractTemplate, error)
+	ListCustomerMonthlySpend(ctx context.Context, arg ListCustomerMonthlySpendParams) ([]ListCustomerMonthlySpendRow, error)
+	ListCustomerSales(ctx context.Context, arg ListCustomerSalesParams) ([]ListCustomerSalesRow, error)
+	ListCustomerTopServices(ctx context.Context, arg ListCustomerTopServicesParams) ([]ListCustomerTopServicesRow, error)
+	ListCustomerVehicleStats(ctx context.Context, arg ListCustomerVehicleStatsParams) ([]ListCustomerVehicleStatsRow, error)
 	ListCustomerVehicles(ctx context.Context, arg ListCustomerVehiclesParams) ([]ListCustomerVehiclesRow, error)
 	ListCustomers(ctx context.Context, arg ListCustomersParams) ([]ListCustomersRow, error)
 	// Active organization members with their notification phone (may be empty).
@@ -662,6 +736,9 @@ type Querier interface {
 	ListLeadQuotes(ctx context.Context, arg ListLeadQuotesParams) ([]ListLeadQuotesRow, error)
 	ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLeadsRow, error)
 	ListLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
+	ListMCPOAuthClients(ctx context.Context, arg ListMCPOAuthClientsParams) ([]ListMCPOAuthClientsRow, error)
+	// The user's active organizations (consent organization picker).
+	ListMCPOAuthSelectableOrgs(ctx context.Context, userID int64) ([]ListMCPOAuthSelectableOrgsRow, error)
 	ListMessageTemplateDefaults(ctx context.Context) ([]MessageTemplateDefault, error)
 	ListMessageTemplatesByOrg(ctx context.Context, organizationID int64) ([]MessageTemplate, error)
 	ListNotificationRulesByOrg(ctx context.Context, organizationID int64) ([]NotificationRule, error)
@@ -693,7 +770,11 @@ type Querier interface {
 	ListPlanFeatures(ctx context.Context, planID int64) ([]ListPlanFeaturesRow, error)
 	ListPlatformNotifications(ctx context.Context, arg ListPlatformNotificationsParams) ([]Notification, error)
 	ListPlatformNotificationsForExport(ctx context.Context, arg ListPlatformNotificationsForExportParams) ([]Notification, error)
+	ListProductConsumptionMovements(ctx context.Context, arg ListProductConsumptionMovementsParams) ([]ListProductConsumptionMovementsRow, error)
+	ListProductMonthlySales(ctx context.Context, arg ListProductMonthlySalesParams) ([]ListProductMonthlySalesRow, error)
+	ListProductPurchaseMovements(ctx context.Context, arg ListProductPurchaseMovementsParams) ([]ListProductPurchaseMovementsRow, error)
 	ListProductSaleLines(ctx context.Context, arg ListProductSaleLinesParams) ([]ListProductSaleLinesRow, error)
+	ListProductSaleMovements(ctx context.Context, arg ListProductSaleMovementsParams) ([]ListProductSaleMovementsRow, error)
 	ListProductSales(ctx context.Context, arg ListProductSalesParams) ([]ListProductSalesRow, error)
 	ListProductSalesForExport(ctx context.Context, arg ListProductSalesForExportParams) ([]ProductSale, error)
 	ListProductSalesForSearch(ctx context.Context) ([]ListProductSalesForSearchRow, error)
@@ -725,15 +806,18 @@ type Querier interface {
 	ListRolesFiltered(ctx context.Context, arg ListRolesFilteredParams) ([]Role, error)
 	ListRolesForExport(ctx context.Context, q_ pgtype.Text) ([]Role, error)
 	ListRolesForUserIDs(ctx context.Context, userIds []int64) ([]ListRolesForUserIDsRow, error)
+	ListSMSProviderAccounts(ctx context.Context, organizationID int64) ([]SmsProviderAccount, error)
 	ListScheduledNotificationsBySubject(ctx context.Context, arg ListScheduledNotificationsBySubjectParams) ([]ScheduledNotification, error)
 	ListServiceJobLines(ctx context.Context, arg ListServiceJobLinesParams) ([]ListServiceJobLinesRow, error)
 	ListServiceJobPayments(ctx context.Context, arg ListServiceJobPaymentsParams) ([]ListServiceJobPaymentsRow, error)
 	// Service lines of the listed jobs, for the coloured tags on board cards.
 	ListServiceJobServiceTags(ctx context.Context, arg ListServiceJobServiceTagsParams) ([]ListServiceJobServiceTagsRow, error)
+	ListServiceJobUsage(ctx context.Context, arg ListServiceJobUsageParams) ([]ListServiceJobUsageRow, error)
 	ListServiceJobs(ctx context.Context, arg ListServiceJobsParams) ([]ListServiceJobsRow, error)
 	ListServiceJobsByCustomer(ctx context.Context, arg ListServiceJobsByCustomerParams) ([]ListServiceJobsByCustomerRow, error)
 	ListServiceJobsForExport(ctx context.Context, arg ListServiceJobsForExportParams) ([]ListServiceJobsForExportRow, error)
 	ListServiceJobsForSearch(ctx context.Context) ([]ListServiceJobsForSearchRow, error)
+	ListServiceMonthlyUsage(ctx context.Context, arg ListServiceMonthlyUsageParams) ([]ListServiceMonthlyUsageRow, error)
 	// Service recipes (products a service uses) and per-job product usage.
 	ListServiceProducts(ctx context.Context, arg ListServiceProductsParams) ([]ListServiceProductsRow, error)
 	ListServiceUUIDsForBulk(ctx context.Context, arg ListServiceUUIDsForBulkParams) ([]uuid.UUID, error)
@@ -757,6 +841,9 @@ type Querier interface {
 	// Billing lifecycle transitions, reminder idempotency and dashboard queries.
 	ListSubscriptionsToGrace(ctx context.Context, nowAt pgtype.Timestamptz) ([]ListSubscriptionsToGraceRow, error)
 	ListSubscriptionsToReadOnly(ctx context.Context, nowAt pgtype.Timestamptz) ([]ListSubscriptionsToReadOnlyRow, error)
+	ListSupplierMonthlySpend(ctx context.Context, arg ListSupplierMonthlySpendParams) ([]ListSupplierMonthlySpendRow, error)
+	ListSupplierPurchases(ctx context.Context, arg ListSupplierPurchasesParams) ([]ListSupplierPurchasesRow, error)
+	ListSupplierTopProducts(ctx context.Context, arg ListSupplierTopProductsParams) ([]ListSupplierTopProductsRow, error)
 	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
 	ListSuppliersForExport(ctx context.Context, arg ListSuppliersForExportParams) ([]Supplier, error)
 	ListSuppliersForSearch(ctx context.Context) ([]ListSuppliersForSearchRow, error)
@@ -772,6 +859,7 @@ type Querier interface {
 	// Refresh tokens rotate on every refresh, so created_at is the last use.
 	ListUserActiveSessionsPaged(ctx context.Context, arg ListUserActiveSessionsPagedParams) ([]ListUserActiveSessionsPagedRow, error)
 	ListUserActivityPaged(ctx context.Context, arg ListUserActivityPagedParams) ([]ListUserActivityPagedRow, error)
+	ListUserMCPOAuthGrants(ctx context.Context, arg ListUserMCPOAuthGrantsParams) ([]ListUserMCPOAuthGrantsRow, error)
 	ListUserMembershipsPaged(ctx context.Context, arg ListUserMembershipsPagedParams) ([]ListUserMembershipsPagedRow, error)
 	ListUserPushDevicesPaged(ctx context.Context, arg ListUserPushDevicesPagedParams) ([]ListUserPushDevicesPagedRow, error)
 	ListUserRoleSlugs(ctx context.Context, userID int64) ([]string, error)
@@ -898,12 +986,28 @@ type Querier interface {
 	RevertJobConsumptions(ctx context.Context, arg RevertJobConsumptionsParams) ([]RevertJobConsumptionsRow, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
 	RevokeAllUserSessions(ctx context.Context, userID int64) (int64, error)
+	// Blocks the client and everything issued to it: grants, tokens, pending
+	// requests and unused codes.
+	RevokeMCPOAuthClient(ctx context.Context, clientID string) error
+	RevokeMCPOAuthFamily(ctx context.Context, family uuid.UUID) error
+	// Every token family of a grant; unused codes of the grant go too.
+	RevokeMCPOAuthGrantTokens(ctx context.Context, grantID int64) error
+	// Revoking is the claim: of two concurrent refreshes only one wins.
+	RevokeMCPOAuthToken(ctx context.Context, id int64) (int64, error)
 	RevokeOtherRefreshTokensForUser(ctx context.Context, arg RevokeOtherRefreshTokensForUserParams) error
 	RevokeRefreshTokenByHash(ctx context.Context, tokenHash string) (int64, error)
 	RevokeRefreshTokenByUUIDForUser(ctx context.Context, arg RevokeRefreshTokenByUUIDForUserParams) (int64, error)
 	// Sessions bound to an organization the user was removed from.
 	RevokeRefreshTokensForUserOrganization(ctx context.Context, arg RevokeRefreshTokensForUserOrganizationParams) error
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
+	// Disconnects one of the user's apps; no row when missing, foreign or revoked.
+	RevokeUserMCPOAuthGrant(ctx context.Context, arg RevokeUserMCPOAuthGrantParams) (RevokeUserMCPOAuthGrantRow, error)
+	// Platform SMS report (cross-organization, platform.messaging.sms.read).
+	SMSReportByProvider(ctx context.Context, arg SMSReportByProviderParams) ([]SMSReportByProviderRow, error)
+	SMSReportDaily(ctx context.Context, arg SMSReportDailyParams) ([]SMSReportDailyRow, error)
+	SMSReportOrgMessages(ctx context.Context, arg SMSReportOrgMessagesParams) ([]SMSReportOrgMessagesRow, error)
+	// Organizations with an SMS provider account or SMS traffic in the period.
+	SMSReportOrganizations(ctx context.Context, arg SMSReportOrganizationsParams) ([]SMSReportOrganizationsRow, error)
 	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
@@ -927,6 +1031,8 @@ type Querier interface {
 	SetOrganizationAccessEndPlatform(ctx context.Context, arg SetOrganizationAccessEndPlatformParams) (Organization, error)
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
 	SetOrganizationStatusPlatform(ctx context.Context, arg SetOrganizationStatusPlatformParams) (Organization, error)
+	// Provider status and billed parts of an SMS right after the send.
+	SetOutboundMessageDeliveryStatus(ctx context.Context, arg SetOutboundMessageDeliveryStatusParams) error
 	SetOutboundMessageErrorCode(ctx context.Context, arg SetOutboundMessageErrorCodeParams) error
 	// Sender route of the latest attempt (error_code NULL on success).
 	SetOutboundMessageSender(ctx context.Context, arg SetOutboundMessageSenderParams) error
@@ -935,6 +1041,8 @@ type Querier interface {
 	// Guarded transition: only applies when the row is still in from_status.
 	SetQuoteStatus(ctx context.Context, arg SetQuoteStatusParams) (Quote, error)
 	SetRolePermissions(ctx context.Context, roleID int64) error
+	SetSMSProviderAccountActive(ctx context.Context, arg SetSMSProviderAccountActiveParams) (SmsProviderAccount, error)
+	SetSMSProviderAccountCheck(ctx context.Context, arg SetSMSProviderAccountCheckParams) (SmsProviderAccount, error)
 	SetSubscriptionCredit(ctx context.Context, arg SetSubscriptionCreditParams) error
 	SetTodoStatus(ctx context.Context, arg SetTodoStatusParams) (Todo, error)
 	SetUsageCounter(ctx context.Context, arg SetUsageCounterParams) error
@@ -945,6 +1053,7 @@ type Querier interface {
 	SlugExists(ctx context.Context, slug string) (bool, error)
 	SoftDeleteAIConversation(ctx context.Context, id int64) error
 	SoftDeleteBillingPlan(ctx context.Context, argUuid uuid.UUID) error
+	SoftDeleteCalendarEvent(ctx context.Context, arg SoftDeleteCalendarEventParams) (CalendarEvent, error)
 	SoftDeleteCariAccountByCustomer(ctx context.Context, arg SoftDeleteCariAccountByCustomerParams) (CariAccount, error)
 	SoftDeleteCatalogCategory(ctx context.Context, arg SoftDeleteCatalogCategoryParams) (CatalogCategory, error)
 	SoftDeleteContractPreset(ctx context.Context, argUuid uuid.UUID) error
@@ -988,6 +1097,9 @@ type Querier interface {
 	TenantListCatalogTypes(ctx context.Context, arg TenantListCatalogTypesParams) ([]TenantListCatalogTypesRow, error)
 	TodoSummary(ctx context.Context, arg TodoSummaryParams) (TodoSummaryRow, error)
 	TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error
+	TouchMCPOAuthClient(ctx context.Context, clientID string) error
+	// Last use of the token and its grant (connected apps list).
+	TouchMCPOAuthToken(ctx context.Context, id int64) error
 	UpdateAIConversationTitle(ctx context.Context, arg UpdateAIConversationTitleParams) (AiConversation, error)
 	UpdateAIMessageContentUI(ctx context.Context, arg UpdateAIMessageContentUIParams) error
 	UpdateAISettings(ctx context.Context, arg UpdateAISettingsParams) (AiSetting, error)
@@ -995,6 +1107,7 @@ type Querier interface {
 	UpdateAuthSettings(ctx context.Context, arg UpdateAuthSettingsParams) (AuthSetting, error)
 	UpdateBillingPlan(ctx context.Context, arg UpdateBillingPlanParams) (BillingPlan, error)
 	UpdateBrandLogoSyncSettings(ctx context.Context, arg UpdateBrandLogoSyncSettingsParams) (BrandLogoSyncSetting, error)
+	UpdateCalendarEvent(ctx context.Context, arg UpdateCalendarEventParams) (CalendarEvent, error)
 	UpdateCatalogBrand(ctx context.Context, arg UpdateCatalogBrandParams) (CatalogBrand, error)
 	UpdateCatalogCategory(ctx context.Context, arg UpdateCatalogCategoryParams) (CatalogCategory, error)
 	UpdateCatalogDisplayBrand(ctx context.Context, arg UpdateCatalogDisplayBrandParams) (CatalogDisplayBrand, error)
@@ -1068,6 +1181,8 @@ type Querier interface {
 	UpsertBuiltinFeature(ctx context.Context, arg UpsertBuiltinFeatureParams) error
 	UpsertCatalogModelRule(ctx context.Context, arg UpsertCatalogModelRuleParams) (CatalogModelRule, error)
 	UpsertDailySummarySettings(ctx context.Context, arg UpsertDailySummarySettingsParams) (DailySummarySetting, error)
+	// Consent creates the user's connected app or brings a revoked one back.
+	UpsertMCPOAuthGrant(ctx context.Context, arg UpsertMCPOAuthGrantParams) (McpOauthGrant, error)
 	UpsertMessageTemplate(ctx context.Context, arg UpsertMessageTemplateParams) (MessageTemplate, error)
 	UpsertNotificationMemberSettings(ctx context.Context, arg UpsertNotificationMemberSettingsParams) (NotificationMemberSetting, error)
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) (NotificationPreference, error)
@@ -1078,9 +1193,14 @@ type Querier interface {
 	// re-enabled on every registration.
 	UpsertPushDevice(ctx context.Context, arg UpsertPushDeviceParams) (PushDevice, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
+	// Connect or update credentials; a changed account is re-checked (status
+	// back to unchecked). is_active is set separately (SetSMSProviderAccountActive).
+	UpsertSMSProviderAccount(ctx context.Context, arg UpsertSMSProviderAccountParams) (SmsProviderAccount, error)
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error)
 	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)
+	// Marking the code used is the claim; an expired or used code returns no row.
+	UseMCPOAuthCode(ctx context.Context, arg UseMCPOAuthCodeParams) (McpOauthCode, error)
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)
 	VehicleModelYearExists(ctx context.Context, arg VehicleModelYearExistsParams) (bool, error)
 	VoidCariEntry(ctx context.Context, arg VoidCariEntryParams) (CariEntry, error)

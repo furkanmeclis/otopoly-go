@@ -1684,8 +1684,31 @@ export interface paths {
         put?: never;
         /**
          * Issue Centrifugo subscription JWT
-         * @description Body `{ channel }`. Allowlist `user:{own_uuid}`, member `workspace:{uuid}`,
-         *     and `conversation:{uuid}` (authenticated session; HTTP inbox ACL is the hard boundary).
+         * @description Body `{ channel }`. Returns `{ token, channel, expires_at }` for Centrifugo
+         *     subscriptions (`allow_subscribe_for_client` is off, so every channel needs one).
+         *     Requires `auth.session`; disabled Centrifugo → `503 REALTIME_DISABLED`; a channel
+         *     the caller may not watch → `403`.
+         *
+         *     Allowed channels:
+         *     - `user:{own_uuid}` — the caller's own channel.
+         *     - `system.notifications` — platform super admins.
+         *     - `org:{org_uuid}:resource:{resource}` — **live lists** of an organization-owned
+         *       resource. The access token must be scoped to that organization (JWT `oid`, i.e.
+         *       signed in / switched with `organization_slug`), the caller must be an active
+         *       member with organization access, and must hold the resource's read permission
+         *       (e.g. `tenant.jobs` → `tenant.jobs.read`). Unknown resources are refused.
+         *       Resources: `tenant.customers`, `tenant.vehicles`, `tenant.jobs`, `tenant.sales`,
+         *       `tenant.quotes`, `tenant.leads`, `tenant.purchases`, `tenant.suppliers`,
+         *       `tenant.catalog.products`, `tenant.catalog.services`, `tenant.catalog.categories`,
+         *       `tenant.finance.accounts`, `tenant.finance.categories`, `tenant.finance.transactions`,
+         *       `tenant.cari`, `tenant.cari.entries`, `tenant.todos`, `tenant.contracts` (templates),
+         *       `tenant.contracts.instances`, `tenant.staff`.
+         *
+         *     Live list publications carry
+         *     `{ "type": "resource.changed", "resource": "tenant.jobs", "action": "created|updated|deleted|bulk",
+         *     "uuids": ["…"], "truncated": false, "at": "RFC3339" }`. `bulk` without uuids (or
+         *     `truncated: true`) means an unknown set of rows changed: refetch. Events are hints;
+         *     always refetch over HTTP. See docs/ARCHITECTURE.md → "Live lists".
          */
         post: operations["postRealtimeSubscriptionToken"];
         delete?: never;
@@ -4343,7 +4366,7 @@ export interface paths {
         };
         /**
          * End-of-day WhatsApp summary settings (owner)
-         * @description Enabled flag, local send time (Europe/Istanbul, HH:MM), selected recipients, WhatsApp connection state and the members that can be selected (with whether they have a notification phone).
+         * @description Enabled flag, local send time (Europe/Istanbul, HH:MM), selected recipients, `channel` (`whatsapp` | `sms`), `whatsapp_connected`, `sms_available` (an active SMS provider exists) and the members that can be selected (with whether they have a notification phone).
          */
         get: operations["getTenantDailySummarySettings"];
         /** Save end-of-day WhatsApp summary settings (owner) */
@@ -4381,7 +4404,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send today's summary so far to the saved recipients now (owner) */
+        /**
+         * Send today's summary so far to the saved recipients now (owner)
+         * @description Uses the saved channel. 409 `WHATSAPP_NOT_CONNECTED` / `SMS_NOT_CONFIGURED` when that channel cannot send, `NO_RECIPIENT_PHONE` when no recipient has a phone.
+         */
         post: operations["sendTestTenantDailySummary"];
         delete?: never;
         options?: never;
@@ -4398,7 +4424,7 @@ export interface paths {
         };
         /**
          * Team vehicle alert settings (owner)
-         * @description Events (created/ready/delivered/cancelled), service filter (empty = all), recipients, WhatsApp batch window (0 = instant, 30, 60 min), plus selectable members (has_phone, has_push) and services. In-app/push is instant; WhatsApp goes only to recipients web push cannot reach.
+         * @description Events (created/ready/delivered/cancelled), service filter (empty = all), recipients, phone message batch window (0 = instant, 30, 60 min), `channel` of the phone messages (`whatsapp` | `sms`), `whatsapp_connected`, `sms_available`, plus selectable members (has_phone, has_push) and services. In-app/push is instant; WhatsApp / SMS goes only to recipients web push cannot reach.
          */
         get: operations["getTenantVehicleAlertSettings"];
         /** Save team vehicle alert settings (owner) */
@@ -4421,6 +4447,185 @@ export interface paths {
         put?: never;
         /** Send a sample vehicle alert to the saved recipients (owner) */
         post: operations["sendTestTenantVehicleAlert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SMS channel providers and the organization's accounts
+         * @description Lists the supported SMS providers (`netgsm`, `twilio`) with their credential fields and the
+         *     organization's connected account (masked hints only, never secrets). `active_provider` is the
+         *     provider that sends the organization's SMS ("" = SMS off). Requires `tenant.messaging.read`.
+         */
+        get: operations["getTenantMessagingSms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Character and part estimate of an SMS text
+         * @description GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150; Netgsm messages are always sent
+         *     with dil="TR" so they are counted at this size) or UCS-2 (70 / 67). `provider`
+         *     defaults to the active provider (else netgsm). Requires `tenant.messaging.read`.
+         */
+        post: operations["estimateTenantMessagingSms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Connect or update an SMS provider account
+         * @description Credentials are sealed per organization; empty or omitted credential values keep the stored
+         *     ones. Netgsm: `usercode`, `password`, sender = approved message header (msgheader).
+         *     Twilio: `account_sid`, `auth_token`, sender = From number (E.164), alphanumeric sender id or
+         *     Messaging Service SID (`MG…`). `activate` makes it the SMS channel (default: true when no SMS
+         *     provider is active yet); only one provider is active per organization. Changing credentials
+         *     resets `status` to `unchecked`. Requires `tenant.messaging.write` (owner).
+         */
+        put: operations["saveTenantMessagingSmsProvider"];
+        post?: never;
+        /**
+         * Disconnect an SMS provider (deletes its credentials)
+         * @description Requires `tenant.messaging.write` (owner).
+         */
+        delete: operations["deleteTenantMessagingSmsProvider"];
+        options?: never;
+        head?: never;
+        /**
+         * Enable or disable an SMS provider as the channel
+         * @description Enabling one provider disables the other. Requires `tenant.messaging.write` (owner).
+         */
+        patch: operations["setTenantMessagingSmsProviderActive"];
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the SMS provider connection (sends nothing)
+         * @description Netgsm: `POST /balance` (stip 2 TL credit, authoritative; stip 1 packages, best effort) →
+         *     `balance` ("1.234,56 TL") and `sms_credit` (sum of SMS packages). The message header is verified
+         *     by the test SMS (Netgsm answers 40 for an unknown header). Twilio: reads the account (and its
+         *     balance when visible). Stores `status` (`connected` | `error`) and
+         *     `last_error`. A failed check is still 200 with `ok: false`. Requires `tenant.messaging.write` (owner).
+         */
+        post: operations["testTenantMessagingSmsProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}/test-sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test SMS through a connected provider
+         * @description Works for a connected provider whether or not it is active. The number is normalized to E.164
+         *     (Turkish national numbers accepted); the message is logged in the outbound log
+         *     (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`. Test SMS are real
+         *     messages: they need plan feature `sms.enabled` and are counted on `sms.monthly` (parts); a plan
+         *     refusal is 200 with `status: failed` and `error_code` `feature_not_entitled` / `quota_exceeded`.
+         *     Requires `tenant.messaging.write` (owner).
+         */
+        post: operations["sendTenantMessagingTestSms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/messaging/sms/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform SMS report
+         * @description Totals (sent / failed messages, billed parts of sent messages), the split by provider, a daily
+         *     series (Europe/Istanbul days) and the organizations that have an SMS provider account or SMS
+         *     traffic in the range (up to 1000), with provider, account status, counts, last send (all time) and
+         *     the current calendar month's `sms.monthly` usage (`quota_limit` -1 = unlimited).
+         *     Requires `platform.messaging.sms.read`.
+         */
+        get: operations["getPlatformSmsReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/messaging/sms/organizations/{uuid}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An organization's recent SMS (numbers masked)
+         * @description Newest first. Requires `platform.messaging.sms.read`.
+         */
+        get: operations["listPlatformSmsOrganizationMessages"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -4666,7 +4871,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send a test WhatsApp notification (single event or full job lifecycle) */
+        /** Send a test WhatsApp / SMS notification (single event or full job lifecycle) */
         post: operations["postTenantMessagingSimulate"];
         delete?: never;
         options?: never;
@@ -5302,8 +5507,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Send a WhatsApp OTP (contract heading + KVKK notice) to a customer signer
-         * @description Sends a 6-digit code over the organization's connected WhatsApp session. The message carries the
+         * Send a WhatsApp or SMS OTP (contract heading + KVKK notice) to a customer signer
+         * @description Sends a 6-digit code over the organization's WhatsApp line (default) or, with `channel: sms`,
+         *     through the organization's active SMS provider (short SMS text). The message carries the
          *     contract title/number, plate and the KVKK (6698) disclosure. Codes expire after 5 minutes, allow
          *     5 attempts, can be resent after 60 seconds, and at most 5 codes per signer per hour.
          */
@@ -5808,6 +6014,117 @@ export interface paths {
         /** Cancel a pending assistant action (nothing is executed) */
         post: operations["cancelTenantAIAction"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar layers the caller may see / move, event colours, time zone
+         * @description Requires `tenant.calendar.read`. A layer is listed only when the member holds that module's read permission and the plan includes the module; `movable` is true when items of the layer can be rescheduled with `POST /v1/tenant/calendar/items/move`.
+         */
+        get: operations["getTenantCalendarMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/feed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar feed (own events + live module layers)
+         * @description Requires `tenant.calendar.read`. Returns the organization's events and dated records from other modules overlapping [from, to) (dates in Europe/Istanbul, `to` exclusive, at most 62 days). Layers the member may not read (module permission or plan) are left out silently; requesting an unknown layer is a 400.
+         */
+        get: operations["getTenantCalendarFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/items/move": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reschedule a calendar item (drag and drop)
+         * @description Requires `tenant.calendar.read` plus the write permission of the item's module: `tenant.calendar.write` (events), `tenant.todos.write` (todo due date / time), `tenant.leads.write` (lead follow-up date). Other layers answer 403. Timed placements send `starts_at` (+ `ends_at` for events); all-day placements send `start_date` (+ `end_date` for events). A todo moved to an all-day slot loses its time; leads keep only the date.
+         */
+        post: operations["moveTenantCalendarItem"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a calendar event
+         * @description Requires `tenant.calendar.write`.
+         */
+        post: operations["createTenantCalendarEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/calendar/events/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a calendar event
+         * @description Requires `tenant.calendar.read`.
+         */
+        get: operations["getTenantCalendarEvent"];
+        /**
+         * Replace a calendar event
+         * @description Requires `tenant.calendar.write`. Full replace (send every field).
+         */
+        put: operations["updateTenantCalendarEvent"];
+        post?: never;
+        /**
+         * Delete a calendar event (soft delete)
+         * @description Requires `tenant.calendar.write`.
+         */
+        delete: operations["deleteTenantCalendarEvent"];
         options?: never;
         head?: never;
         patch?: never;
@@ -7264,6 +7581,294 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/catalog/products/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Product 360 summary
+         * @description Stock, pricing / margin and, per the caller's permissions, sales
+         *     (tenant.sales.read), purchases (tenant.purchases.read) and job usage
+         *     (tenant.jobs.read) aggregates of a product. Blocks the caller cannot
+         *     read are null. The monthly trend covers the last 12 months (UTC).
+         */
+        get: operations["getTenantCatalogProductSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/products/{uuid}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Product stock ledger
+         * @description Purchases (+), sales (-) and job consumptions (-) of a product, newest
+         *     first. Each kind is included only with its read permission.
+         */
+        get: operations["listTenantCatalogProductMovements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Service 360 summary
+         * @description Price vs recipe cost and, with tenant.jobs.read, usage on jobs (count,
+         *     revenue, average job duration, 12-month trend).
+         */
+        get: operations["getTenantCatalogServiceSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jobs that used a service
+         * @description Requires tenant.catalog.read and tenant.jobs.read. Newest first.
+         */
+        get: operations["listTenantCatalogServiceJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/customers/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer 360 summary
+         * @description Vehicles, jobs (tenant.jobs.read), product sales (tenant.sales.read),
+         *     quotes (tenant.quotes.read) and leads (tenant.leads.read) of a
+         *     customer. Blocks the caller cannot read are null; total_spend sums the
+         *     readable blocks.
+         */
+        get: operations["getTenantCustomerSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/suppliers/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supplier 360 summary
+         * @description Purchase aggregates, top products and recent purchases (tenant.purchases.read; null otherwise).
+         */
+        get: operations["getTenantSupplierSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * MCP server URLs for the connect guides
+         * @description Public URLs of the two MCP endpoints (docs/MCP.md) and whether the
+         *     caller may connect them (`tenant.mcp.connect` / `platform.mcp.connect`).
+         */
+        get: operations["getMCPInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/oauth/requests/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Consent screen data of a pending MCP authorization request
+         * @description The client, its redirect host, the endpoint (`/mcp/org` or
+         *     `/mcp/platform`), the requested scopes and, for `/mcp/org`, the
+         *     organizations the user may bind the connection to (active membership,
+         *     `tenant.mcp.connect`, plan toggle `mcp.enabled`) with the tool count
+         *     there. `allowed` is false when the user cannot approve.
+         */
+        get: operations["getMCPOAuthRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/oauth/requests/{uuid}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or deny a pending MCP authorization request
+         * @description Approve binds the connection to `organization_uuid` (required for
+         *     `/mcp/org`) with the chosen `scopes` (a subset of the requested ones;
+         *     omitted = all). The request is consumed either way; the response is
+         *     where to send the browser (the client's redirect URI with `code` or
+         *     `error=access_denied`, plus `state` and `iss`).
+         */
+        post: operations["decideMCPOAuthRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current user's connected MCP apps */
+        get: operations["listMCPGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/grants/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect one of the user's MCP apps
+         * @description Revokes the grant and every token issued under it at once.
+         */
+        delete: operations["revokeMCPGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/mcp/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registered MCP (OAuth) clients
+         * @description Requires `platform.mcp.manage`.
+         */
+        get: operations["listPlatformMCPClients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/mcp/clients/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Block an MCP client
+         * @description Requires `platform.mcp.manage`. Revokes the client, every grant and
+         *     token issued to it, pending requests and unused codes. Blocking a
+         *     blocked client again succeeds.
+         */
+        delete: operations["revokePlatformMCPClient"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7715,6 +8320,7 @@ export interface components {
             ws_url: string;
         };
         RealtimeSubscriptionTokenRequest: {
+            /** @example org:2f6a4c1e-8d3b-4f7a-9c2e-1b5d7e9f0a12:resource:tenant.jobs */
             channel: string;
         };
         RealtimeSubscriptionToken: {
@@ -8152,6 +8758,242 @@ export interface components {
             /** @description The platform number can send right now. */
             platform_sender_available: boolean;
         };
+        SmsProviderField: {
+            /** @description netgsm: usercode, password; twilio: account_sid, auth_token */
+            key: string;
+            secret: boolean;
+            required: boolean;
+        };
+        SmsProviderAccount: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            /** @description Netgsm message header or Twilio From number / Messaging Service SID. */
+            sender: string;
+            /** @description This provider sends the organization's SMS. */
+            is_active: boolean;
+            /**
+             * @description Last connection test.
+             * @enum {string}
+             */
+            status: "unchecked" | "connected" | "error";
+            /** Format: date-time */
+            last_checked_at?: string;
+            last_error?: string;
+            /** @description Masked values per credential key (e.g. "••••••ab"); secrets are never returned. */
+            credential_hints: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        SmsProviderEntry: {
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            fields: components["schemas"]["SmsProviderField"][];
+            /** @enum {string} */
+            sender_kind: "msgheader" | "from";
+            /** @description null when not connected. */
+            account: components["schemas"]["SmsProviderAccount"] | null;
+        };
+        SmsChannelOverview: {
+            /** @enum {string} */
+            active_provider: "" | "netgsm" | "twilio";
+            providers: components["schemas"]["SmsProviderEntry"][];
+        };
+        SaveSmsProviderRequest: {
+            /** @description Field values by key; empty values keep the stored ones. */
+            credentials?: {
+                [key: string]: string;
+            };
+            sender?: string;
+            activate?: boolean;
+        };
+        SmsSegments: {
+            /** @enum {string} */
+            encoding: "gsm7" | "turkish" | "ucs2";
+            characters: number;
+            segments: number;
+            per_segment: number;
+            /** @description Characters left before the next part starts. */
+            remaining: number;
+        };
+        SmsEstimateRequest: {
+            body: string;
+            /** @enum {string} */
+            provider?: "netgsm" | "twilio";
+        };
+        SmsEstimate: {
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            segments: components["schemas"]["SmsSegments"];
+        };
+        SmsTestResult: {
+            ok: boolean;
+            /** @description sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, … */
+            error_code?: string;
+            message?: string;
+            /** @description Account name / matched header. */
+            detail?: string;
+            /** @description Account credit when the provider reports it (Netgsm TL credit "1.234,56 TL", Twilio "12.50 USD"). */
+            balance?: string;
+            /**
+             * Format: int64
+             * @description Netgsm SMS package credit (sum of packages named SMS).
+             */
+            sms_credit?: number;
+            /** @description Sender names / numbers of the account when the provider lists them. */
+            senders?: string[];
+            account: components["schemas"]["SmsProviderAccount"];
+        };
+        SmsTestSmsRequest: {
+            /** @example 0532 123 45 67 */
+            phone: string;
+            /** @description Defaults to a short Turkish test text. */
+            body?: string;
+        };
+        SmsTestSmsResult: {
+            /** @enum {string} */
+            status: "sent" | "failed";
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            /** @description Masked E.164 number. */
+            recipient: string;
+            provider_message_id?: string;
+            provider_status?: string;
+            error_code?: string;
+            error_message?: string;
+            segments: components["schemas"]["SmsSegments"];
+        };
+        SmsReportCounts: {
+            /** Format: int64 */
+            sent: number;
+            /** Format: int64 */
+            failed: number;
+            /**
+             * Format: int64
+             * @description Billed parts of sent messages.
+             */
+            segments: number;
+        };
+        SmsReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            totals: components["schemas"]["SmsReportCounts"];
+            by_provider: (components["schemas"]["SmsReportCounts"] & {
+                /** @enum {string} */
+                provider: "netgsm" | "twilio" | "unknown";
+            })[];
+            daily: (components["schemas"]["SmsReportCounts"] & {
+                /** Format: date */
+                date: string;
+            })[];
+            organizations: components["schemas"]["SmsReportOrganization"][];
+        };
+        SmsReportOrganization: components["schemas"]["SmsReportCounts"] & {
+            /** Format: uuid */
+            organization_uuid: string;
+            organization_name: string;
+            organization_slug: string;
+            /**
+             * @description Active (else latest) SMS account.
+             * @enum {string}
+             */
+            provider: "" | "netgsm" | "twilio";
+            is_active: boolean;
+            /** @enum {string} */
+            account_status: "" | "unchecked" | "connected" | "error";
+            /** Format: date-time */
+            last_sent_at: string | null;
+            /**
+             * Format: int64
+             * @description sms.monthly parts used this calendar month.
+             */
+            quota_used: number;
+            /**
+             * Format: int64
+             * @description sms.monthly limit (-1 = unlimited).
+             */
+            quota_limit: number;
+        };
+        SmsReportMessage: {
+            /** Format: uuid */
+            uuid: string;
+            event_type: string;
+            /** @description Masked number. */
+            recipient: string;
+            /** @enum {string} */
+            status: "queued" | "sending" | "sent" | "failed";
+            provider: string;
+            provider_reference?: string;
+            delivery_status?: string;
+            error_code?: string;
+            segments: number | null;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SmsReportMessagesPage: {
+            organization: {
+                /** Format: uuid */
+                uuid: string;
+                name: string;
+                slug: string;
+            };
+            items: components["schemas"]["SmsReportMessage"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeSmsReport: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsReport"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsReportMessagesPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsReportMessagesPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsChannelOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsChannelOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsProviderAccount: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsProviderAccount"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsEstimate: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsEstimate"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsTestSmsResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsTestSmsResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeWhatsAppSession: {
             /** @enum {boolean} */
             success: true;
@@ -8180,14 +9022,16 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            sender_kind?: "org_own" | "platform_whatsmeow" | "platform_cloud";
+            sender_kind?: "org_own" | "platform_whatsmeow" | "platform_cloud" | "sms_netgsm" | "sms_twilio";
             template_name?: string;
-            /** @description Cloud delivery status from the webhook (sent, delivered, read, failed). */
+            /** @description Cloud delivery status from the webhook (sent, delivered, read, failed), or the SMS provider's status at send time (Netgsm `accepted`; Twilio `queued`, `accepted`, `sent`…). */
             delivery_status?: string;
             /** Format: date-time */
             delivery_status_at?: string;
-            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>. */
+            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured, sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient, feature_not_entitled (plan excludes sms.enabled), quota_exceeded (sms.monthly reached). */
             error_code?: string;
+            /** @description Billed SMS parts of a sent SMS (counted on the sms.monthly plan quota). */
+            segments?: number;
         };
         OutboundMessagePage: {
             items: components["schemas"]["OutboundMessage"][];
@@ -10241,7 +11085,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
             /** Format: uuid */
             uuid: string;
         };
@@ -10460,6 +11304,185 @@ export interface components {
             data: components["schemas"]["Todo"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** @enum {string} */
+        CalendarColor: "blue" | "emerald" | "amber" | "rose" | "violet" | "sky" | "orange" | "teal" | "pink" | "slate";
+        /** @enum {string} */
+        CalendarLayer: "events" | "jobs" | "deliveries" | "todos" | "quotes" | "leads" | "finance" | "sales" | "purchases" | "contracts";
+        CalendarLayerInfo: {
+            key: components["schemas"]["CalendarLayer"];
+            /** @description Items of this layer can be rescheduled by the caller */
+            movable: boolean;
+        };
+        CalendarMeta: {
+            layers: components["schemas"]["CalendarLayerInfo"][];
+            colors: components["schemas"]["CalendarColor"][];
+            /** @example Europe/Istanbul */
+            timezone: string;
+            /** @example 62 */
+            max_range_days: number;
+        };
+        CalendarEvent: {
+            /** Format: uuid */
+            uuid: string;
+            title: string;
+            description: string;
+            location: string;
+            /** Format: date-time */
+            starts_at: string;
+            /**
+             * Format: date-time
+             * @description Exclusive
+             */
+            ends_at: string;
+            all_day: boolean;
+            /**
+             * Format: date
+             * @description All-day only: first day (inclusive)
+             */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description All-day only: last day (inclusive)
+             */
+            end_date?: string;
+            color: components["schemas"]["CalendarColor"];
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description Timed events send starts_at/ends_at (RFC 3339, at most 31 days long); all-day events send start_date and optional end_date (inclusive). */
+        CalendarEventInput: {
+            title: string;
+            description?: string;
+            location?: string;
+            all_day: boolean;
+            /** Format: date-time */
+            starts_at?: string;
+            /** Format: date-time */
+            ends_at?: string;
+            /** Format: date */
+            start_date?: string;
+            /** Format: date */
+            end_date?: string;
+            color?: components["schemas"]["CalendarColor"];
+        };
+        CalendarMoveInput: {
+            /** @enum {string} */
+            layer: "events" | "todos" | "leads";
+            /** Format: uuid */
+            ref_uuid: string;
+            all_day: boolean;
+            /** Format: date-time */
+            starts_at?: string;
+            /**
+             * Format: date-time
+             * @description Events only
+             */
+            ends_at?: string;
+            /** Format: date */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description Events only (inclusive)
+             */
+            end_date?: string;
+        };
+        CalendarFeedItem: {
+            /** @description Stable key, e.g. `jobs:<uuid>` or `finance:2026-10-08:income:TRY` */
+            id: string;
+            layer: components["schemas"]["CalendarLayer"];
+            /** @enum {string} */
+            kind: "event" | "job_opened" | "job_delivered" | "todo" | "quote_expiry" | "lead_follow_up" | "finance_income" | "finance_expense" | "sale" | "purchase" | "contract_executed";
+            title: string;
+            subtitle?: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            ends_at: string;
+            all_day: boolean;
+            /**
+             * Format: date
+             * @description All-day items only (inclusive)
+             */
+            start_date?: string;
+            /**
+             * Format: date
+             * @description All-day items only (inclusive)
+             */
+            end_date?: string;
+            /** @description Layer specific: job status (jobs), payment status (deliveries), todo status, quote status, lead temperature, payment method (sales, purchases), contract status. */
+            status?: string;
+            /** @description Decimal string */
+            amount?: string;
+            currency?: string;
+            /**
+             * Format: int64
+             * @description finance: number of transactions in the day
+             */
+            count?: number;
+            /**
+             * @description Record type to open (absent for finance day totals)
+             * @enum {string}
+             */
+            ref_kind?: "event" | "job" | "todo" | "quote" | "lead" | "sale" | "purchase" | "contract";
+            /**
+             * Format: uuid
+             * @description Record to open
+             */
+            ref_uuid?: string;
+            movable: boolean;
+            event?: components["schemas"]["CalendarEvent"];
+        };
+        CalendarFeed: {
+            /** Format: date */
+            from: string;
+            /**
+             * Format: date
+             * @description Exclusive
+             */
+            to: string;
+            /** @example Europe/Istanbul */
+            timezone: string;
+            layers: components["schemas"]["CalendarLayerInfo"][];
+            items: components["schemas"]["CalendarFeedItem"][];
+            /** @description Item count per loaded layer */
+            counts: {
+                [key: string]: number;
+            };
+        };
+        EnvelopeCalendarMeta: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarMeta"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarFeed: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarFeed"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarFeedItem: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarFeedItem"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarEvent: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CalendarEvent"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCalendarDeleted: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                deleted: boolean;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeTodoSummary: {
             /** @enum {boolean} */
             success: true;
@@ -10661,6 +11684,10 @@ export interface components {
             customer_phone: string;
             vehicle_plate: string;
             vehicle_text: string;
+            /** @description Brand of the linked customer vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             interest: string;
             source: components["schemas"]["LeadSource"];
             /** @enum {string} */
@@ -11295,6 +12322,10 @@ export interface components {
             customer_phone: string;
             vehicle_plate: string;
             vehicle_label: string;
+            /** @description Brand of the catalog model or customer vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             /** Format: uuid */
             lead_uuid: string | null;
             /** Format: uuid */
@@ -11584,6 +12615,10 @@ export interface components {
             customer_name: string;
             vehicle_plate: string;
             vehicle_label: string;
+            /** @description Brand of the quote vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             currency: string;
             prices_include_vat: boolean;
             subtotal: string;
@@ -11915,9 +12950,9 @@ export interface components {
             /** Format: uuid */
             assignee_uuid?: string;
             assignee_name?: string;
-            /** @description List rows only */
+            /** @description Vehicle brand (list rows, customer jobs, detail) */
             brand_name?: string;
-            /** @description List rows only; public vehicle brand logo stream, omitted when none */
+            /** @description Public vehicle brand logo stream (list rows, customer jobs, detail); omitted when none */
             brand_logo_url?: string;
             /** @description List rows only (card tags); omitted when empty. */
             services?: components["schemas"]["JobServiceTag"][];
@@ -12500,6 +13535,8 @@ export interface components {
             uuid: string;
             /** @example Fiat */
             name: string;
+            /** @description API-owned display brand logo stream (append `variant=badge` for the emblem); null without a logo */
+            logo_url?: string | null;
         };
         /** @enum {string} */
         VehicleCatalogFuel: "petrol" | "diesel" | "hybrid" | "electric" | "lpg";
@@ -13036,6 +14073,463 @@ export interface components {
             /** @description Name of the new display brand */
             name?: string;
         };
+        InsightsMonthPoint: {
+            /**
+             * @description YYYY-MM (UTC)
+             * @example 2026-10
+             */
+            month: string;
+            /**
+             * Format: int64
+             * @description Jobs / purchases in the month (0 where not applicable)
+             */
+            count: number;
+            /** @description Quantity sold (product trend only) */
+            qty?: string;
+            /**
+             * @description Product: revenue · service: revenue · customer: job spend · supplier: spend
+             * @example 1250.00
+             */
+            amount: string;
+            /**
+             * @description Customer trend only: product sale spend
+             * @example 300.00
+             */
+            amount_secondary?: string;
+        };
+        ProductSummary: {
+            /** Format: uuid */
+            product_uuid: string;
+            /** @example TRY */
+            currency: string;
+            stock: {
+                tracked: boolean;
+                /** @example 12 */
+                quantity: string;
+                /** @example 5 */
+                min_alert: string;
+                /** @enum {string} */
+                status: "in_stock" | "low_stock" | "out_of_stock" | "untracked";
+                /** @example 720.00 */
+                cost_value: string;
+                /** @example 1200.00 */
+                sale_value: string;
+                /**
+                 * @description quantity - min_alert
+                 * @example 7
+                 */
+                coverage_qty: string;
+            };
+            pricing: {
+                cost_price: string;
+                sale_price: string;
+                unit_margin: string;
+                /** @description unit_margin / sale_price * 100, one decimal */
+                margin_percent: number;
+            };
+            sales: {
+                /** Format: int64 */
+                sale_count: number;
+                sold_qty: string;
+                revenue: string;
+                /** Format: date-time */
+                last_sold_at: string | null;
+                last_sale_price: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+            } | null;
+            purchases: {
+                /** Format: int64 */
+                purchase_count: number;
+                purchased_qty: string;
+                spend: string;
+                avg_unit_cost: string;
+                /** Format: date-time */
+                last_purchased_at: string | null;
+                last_purchase_cost: string | null;
+            } | null;
+            jobs: {
+                /** Format: int64 */
+                line_job_count: number;
+                line_qty: string;
+                line_revenue: string;
+                /** Format: int64 */
+                consumption_job_count: number;
+                consumed_qty: string;
+                /** Format: date-time */
+                last_consumed_at: string | null;
+            } | null;
+        };
+        ProductMovement: {
+            /**
+             * @description ref_uuid is the purchase, sale or job uuid
+             * @enum {string}
+             */
+            kind: "purchase" | "sale" | "job";
+            /** Format: uuid */
+            ref_uuid: string;
+            /** @description Document status (posted / voided) or the job status */
+            status: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Supplier or customer name */
+            party_name: string;
+            /**
+             * Format: uuid
+             * @description Supplier uuid (purchase) or customer uuid (sale / job)
+             */
+            party_uuid: string | null;
+            /** @description Job plate (kind=job) */
+            plate?: string;
+            /** @description Recipe service that consumed the product (kind=job) */
+            service_name?: string;
+            /**
+             * @description Signed quantity (+ into stock, - out of stock)
+             * @example -2
+             */
+            qty: string;
+            /** @description Unit cost (purchase / job) or unit price (sale) */
+            unit_price: string;
+            total: string;
+            currency: string;
+            /** @description false for voided documents and reverted consumptions */
+            effective: boolean;
+        };
+        ServiceSummary: {
+            /** Format: uuid */
+            service_uuid: string;
+            currency: string;
+            pricing: {
+                price: string;
+                /** @description Sum of recipe qty x product cost price */
+                recipe_cost: string;
+                recipe_item_count: number;
+                unit_margin: string;
+                margin_percent: number;
+                duration_minutes: number;
+            };
+            usage: {
+                /** Format: int64 */
+                job_count: number;
+                /** Format: int64 */
+                line_count: number;
+                /** Format: int64 */
+                customer_count: number;
+                qty: string;
+                revenue: string;
+                avg_unit_price: string;
+                /** @description Average started → completed time of finished jobs */
+                avg_job_minutes: number;
+                /** Format: date-time */
+                first_used_at: string | null;
+                /** Format: date-time */
+                last_used_at: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+            } | null;
+        };
+        ServiceJob: {
+            /** Format: uuid */
+            uuid: string;
+            status: string;
+            payment_status: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+            plate: string;
+            vehicle_label: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            /** Format: uuid */
+            brand_uuid: string;
+            brand_name: string;
+            /** @description API-owned vehicle brand logo (`?variant=badge` for the emblem) */
+            brand_logo_url: string | null;
+            qty: string;
+            line_total: string;
+            currency: string;
+        };
+        CustomerSummary: {
+            /** Format: uuid */
+            customer_uuid: string;
+            vehicle_count: number;
+            total_spend: string;
+            /** Format: date-time */
+            last_visit_at: string | null;
+            jobs: {
+                /** Format: int64 */
+                job_count: number;
+                /** Format: int64 */
+                open_job_count: number;
+                /** Format: int64 */
+                unpaid_job_count: number;
+                spend: string;
+                unpaid_amount: string;
+                /** Format: date-time */
+                first_visit_at: string | null;
+                /** Format: date-time */
+                last_visit_at: string | null;
+            } | null;
+            sales: {
+                /** Format: int64 */
+                sale_count: number;
+                spend: string;
+                /** Format: date-time */
+                last_sold_at: string | null;
+            } | null;
+            quotes: {
+                /** Format: int64 */
+                quote_count: number;
+                /** Format: int64 */
+                open_quote_count: number;
+                /** Format: int64 */
+                accepted_quote_count: number;
+            } | null;
+            leads: {
+                /** Format: int64 */
+                lead_count: number;
+                /** Format: int64 */
+                open_lead_count: number;
+            } | null;
+            /** @description amount = job spend, amount_secondary = product sale spend */
+            monthly: components["schemas"]["InsightsMonthPoint"][];
+            top_services: {
+                /** Format: uuid */
+                service_uuid: string | null;
+                name: string;
+                /** Format: int64 */
+                job_count: number;
+                revenue: string;
+                /** Format: date-time */
+                last_used_at: string | null;
+            }[];
+            /** @description Per-vehicle job stats (empty without tenant.jobs.read) */
+            vehicles: {
+                /** Format: uuid */
+                vehicle_uuid: string;
+                /** Format: int64 */
+                job_count: number;
+                spend: string;
+                /** Format: date-time */
+                last_visit_at: string | null;
+            }[];
+            recent_sales: {
+                /** Format: uuid */
+                uuid: string;
+                status: string;
+                method: string;
+                total_amount: string;
+                currency: string;
+                /** Format: date-time */
+                sold_at: string;
+                /** Format: int64 */
+                line_count: number;
+            }[];
+        };
+        SupplierSummary: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            purchases: {
+                /** Format: int64 */
+                purchase_count: number;
+                spend: string;
+                avg_purchase: string;
+                /** Format: int64 */
+                product_count: number;
+                /** Format: date-time */
+                first_purchased_at: string | null;
+                /** Format: date-time */
+                last_purchased_at: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+                top_products: {
+                    /** Format: uuid */
+                    product_uuid: string;
+                    name: string;
+                    unit: string;
+                    qty: string;
+                    spend: string;
+                    /** Format: date-time */
+                    last_purchased_at: string | null;
+                }[];
+                recent: {
+                    /** Format: uuid */
+                    uuid: string;
+                    status: string;
+                    method: string;
+                    total_amount: string;
+                    currency: string;
+                    /** Format: date-time */
+                    purchased_at: string;
+                    /** Format: int64 */
+                    line_count: number;
+                }[];
+            } | null;
+        };
+        EnvelopeProductSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ProductSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeProductMovementList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["ProductMovement"][];
+                total: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeServiceSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ServiceSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeServiceJobList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["ServiceJob"][];
+                total: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSupplierSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SupplierSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPInfo: {
+            /** @example https://app.otopoly.com/mcp/org */
+            org_url: string;
+            /** @example https://app.otopoly.com/mcp/platform */
+            platform_url: string;
+            issuer: string;
+            scopes: ("mcp:read" | "mcp:write")[];
+            can_connect_org: boolean;
+            can_connect_platform: boolean;
+        };
+        EnvelopeMCPInfo: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MCPInfo"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPConsentOrganization: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+            /** @description Member role: owner or staff */
+            role: string;
+            /** @description Tools the user gets there with the requested scopes */
+            tool_count: number | null;
+        };
+        MCPConsent: {
+            /** Format: uuid */
+            request_uuid: string;
+            client_id: string;
+            client_name: string;
+            redirect_host: string;
+            /** @enum {string} */
+            resource: "/mcp/org" | "/mcp/platform";
+            resource_url: string;
+            /** @enum {string} */
+            realm: "org" | "platform";
+            scopes: ("mcp:read" | "mcp:write")[];
+            organizations: components["schemas"]["MCPConsentOrganization"][];
+            platform_tool_count: number | null;
+            allowed: boolean;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        EnvelopeMCPConsent: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MCPConsent"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPDecideRequest: {
+            /** @enum {string} */
+            decision: "approve" | "deny";
+            /** Format: uuid */
+            organization_uuid?: string | null;
+            scopes?: ("mcp:read" | "mcp:write")[];
+        };
+        EnvelopeMCPDecision: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                redirect_url: string;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPGrant: {
+            /** Format: uuid */
+            uuid: string;
+            client_id: string;
+            client_name: string;
+            /** @enum {string} */
+            resource: "/mcp/org" | "/mcp/platform";
+            /** @enum {string} */
+            realm: "org" | "platform";
+            scopes: string[];
+            /** Format: uuid */
+            organization_uuid: string | null;
+            organization_slug: string | null;
+            organization_name: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_used_at: string | null;
+        };
+        EnvelopeMCPGrantList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["MCPGrant"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPClient: {
+            /** Format: uuid */
+            uuid: string;
+            client_id: string;
+            client_name: string;
+            redirect_uris: string[];
+            created_ip: string | null;
+            /** @enum {string} */
+            status: "active" | "revoked";
+            active_grants: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_used_at: string | null;
+            /** Format: date-time */
+            revoked_at: string | null;
+        };
+        EnvelopeMCPClientList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["MCPClient"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
     };
     responses: {
         /** @description Validation or malformed request */
@@ -13178,6 +14672,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description SMS provider code */
+        SmsProviderPath: "netgsm" | "twilio";
         /** @description Legal page slug (e.g. `privacy`) */
         LegalPageSlug: string;
         /** @description QR sign-in session id (from the QR URL) */
@@ -20846,6 +22342,11 @@ export interface operations {
                     /** @example 20:00 */
                     send_time: string;
                     recipient_user_uuids: string[];
+                    /**
+                     * @description Delivery channel; omitted keeps the saved one (default whatsapp).
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -20940,6 +22441,11 @@ export interface operations {
                     recipient_user_uuids: string[];
                     /** @enum {integer} */
                     batch_minutes: 0 | 30 | 60;
+                    /**
+                     * @description Phone message channel; omitted keeps the saved one (default whatsapp).
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -20965,7 +22471,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description { in_app, whatsapp, skipped[] } */
+            /** @description { in_app, whatsapp, sms, skipped[] } */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20975,6 +22481,258 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantMessagingSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsChannelOverview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    estimateTenantMessagingSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsEstimateRequest"];
+            };
+        };
+        responses: {
+            /** @description Estimate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsEstimate"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    saveTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSmsProviderRequest"];
+            };
+        };
+        responses: {
+            /** @description Account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsProviderAccount"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description { success: true } */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTenantMessagingSmsProviderActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    is_active: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsProviderAccount"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    testTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsTestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sendTenantMessagingTestSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsTestSmsRequest"];
+            };
+        };
+        responses: {
+            /** @description Send result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsTestSmsResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPlatformSmsReport: {
+        parameters: {
+            query?: {
+                /** @description First day (YYYY-MM-DD, inclusive). Default first day of the current month. */
+                from?: string;
+                /** @description Last day (YYYY-MM-DD, inclusive). Default today. At most 366 days after `from`. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsReport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformSmsOrganizationMessages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsReportMessagesPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantMessagingSession: {
@@ -21470,10 +23228,11 @@ export interface operations {
                     mode?: "event" | "job_lifecycle";
                     event_type?: string;
                     /**
+                     * @description `sms` sends the organization's SMS template through its active SMS provider.
                      * @default whatsapp
                      * @enum {string}
                      */
-                    channel?: "whatsapp";
+                    channel?: "whatsapp" | "sms";
                     phone: string;
                     vars?: {
                         [key: string]: string;
@@ -22874,6 +24633,11 @@ export interface operations {
                 "application/json": {
                     /** @description Override recipient; defaults to the signer phone. */
                     phone?: string;
+                    /**
+                     * @default whatsapp
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -23915,6 +25679,195 @@ export interface operations {
             };
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantCalendarMeta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Calendar metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantCalendarFeed: {
+        parameters: {
+            query: {
+                from: string;
+                /** @description Exclusive end date. */
+                to: string;
+                /** @description Comma-separated layers; empty means every layer the caller may see. */
+                layers?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Feed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarFeed"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    moveTenantCalendarItem: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarMoveInput"];
+            };
+        };
+        responses: {
+            /** @description The item at its new place */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarFeedItem"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarEventInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarEventInput"];
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantCalendarEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCalendarDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantTodosMeta: {
@@ -26465,6 +28418,382 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getTenantCatalogProductSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Product summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProductSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listTenantCatalogProductMovements: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Movements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProductMovementList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantCatalogServiceSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeServiceSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listTenantCatalogServiceJobs: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jobs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeServiceJobList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantCustomerSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantSupplierSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Supplier summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplierSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getMCPInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MCP info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    getMCPOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consent data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPConsent"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    decideMCPOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPDecideRequest"];
+            };
+        };
+        responses: {
+            /** @description Redirect target */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPDecision"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMCPGrants: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                realm?: "org" | "platform";
+                organization_uuid?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connected apps */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPGrantList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    revokeMCPGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformMCPClients: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: "active" | "revoked";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clients */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPClientList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    revokePlatformMCPClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blocked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

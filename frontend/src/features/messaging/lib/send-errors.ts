@@ -25,6 +25,11 @@ const SEND_ERROR_KEYS: Record<string, string> = {
   invalid_recipient: "messaging.errors.invalid_recipient",
   media_upload_failed: "messaging.errors.media_upload_failed",
   send_failed: "messaging.errors.send_failed",
+  sms_not_configured: "messaging.errors.sms_not_configured",
+  sms_auth_failed: "messaging.errors.sms_auth_failed",
+  sms_rejected: "messaging.errors.sms_rejected",
+  sms_unavailable: "messaging.errors.sms_unavailable",
+  sms_outcome_unknown: "messaging.errors.sms_outcome_unknown",
 };
 
 /** True for classified send codes (incl. `graph_<n>`), case-insensitive. */
@@ -35,10 +40,23 @@ export function isSendErrorCode(code?: string | null): boolean {
   );
 }
 
+/** Plan refusals of SMS rows (the generic labels name WhatsApp). */
+const SMS_PLAN_KEYS: Record<string, string> = {
+  feature_not_entitled: "messaging.errors.sms_feature_not_entitled",
+  quota_exceeded: "messaging.errors.sms_quota_exceeded",
+};
+
 /** Human label for a classified send error code (case-insensitive). */
-export function sendErrorLabel(t: Translate, code?: string | null): string {
+export function sendErrorLabel(
+  t: Translate,
+  code?: string | null,
+  channel?: string | null,
+): string {
   const normalized = (code ?? "").trim().toLowerCase();
   if (!normalized) return "";
+  if (channel === "sms" && SMS_PLAN_KEYS[normalized]) {
+    return t(SMS_PLAN_KEYS[normalized]);
+  }
   const key = Object.hasOwn(SEND_ERROR_KEYS, normalized)
     ? SEND_ERROR_KEYS[normalized]
     : undefined;

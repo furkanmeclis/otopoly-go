@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusChip } from "@/components/common/status-chip";
@@ -59,6 +60,10 @@ import { cn } from "@/lib/utils";
 import { date, datetime, relativeDatetime } from "@/lib/utils/format";
 import { localToday, shiftDate } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const STEPS: LeadStatus[] = ["new", "contacted", "quoted", "won"];
 
@@ -67,6 +72,7 @@ export function LeadDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const router = useRouter();
   const access = useLeadsAccess();
   const query = useLead(uuid);
+  useTenantLiveRefetch(TenantLiveResources.leads, query.refetch, { uuid });
   const m = useLeadMutations();
   const [editOpen, setEditOpen] = useState(false);
   const [todoOpen, setTodoOpen] = useState(false);
@@ -232,7 +238,16 @@ export function LeadDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
             </InfoRow>
             <InfoRow label={t("leads.fields.vehicle")}>
               {lead.vehicle_plate ? (
-                <PlateBadge plate={lead.vehicle_plate} size="sm" />
+                <span className="inline-flex items-center gap-1.5">
+                  {lead.vehicle_brand_name ? (
+                    <BrandMark
+                      name={lead.vehicle_brand_name}
+                      logoUrl={lead.vehicle_brand_logo_url}
+                      className="size-5"
+                    />
+                  ) : null}
+                  <PlateBadge plate={lead.vehicle_plate} size="sm" />
+                </span>
               ) : (
                 lead.vehicle_text || "—"
               )}

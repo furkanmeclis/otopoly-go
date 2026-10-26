@@ -5,6 +5,7 @@ import { ListTree, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { ErrorState } from "@/components/common/error-state";
 import { StatusChip } from "@/components/common/status-chip";
 import {
@@ -193,7 +194,17 @@ function TsbBrandsTable({
           filterOptions: displayOptions,
           // Same text as the brand column: kept for the facet filter.
           defaultHidden: true,
-          cell: ({ row }) => row.original.display_brand.name,
+          cell: ({ row }) => (
+            <span className="flex items-center gap-2">
+              <BrandMark
+                name={row.original.display_brand.name}
+                logoUrl={row.original.display_brand.logo_url}
+              />
+              <span className="truncate">
+                {row.original.display_brand.name}
+              </span>
+            </span>
+          ),
         }),
         createColumn<CatalogBrand>({
           accessorKey: "category",

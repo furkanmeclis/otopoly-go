@@ -19,6 +19,22 @@ export { EntityRowActions, type EntityRowAction } from "./entity-row-actions";
 export { EntityTable } from "./entity-table";
 export { EntityActions } from "./entity-actions";
 export { EntityHeader } from "./entity-header";
+export { EntityAvatar } from "./entity-avatar";
+export {
+  EntityTrendChart,
+  type EntityTrendPoint,
+  type EntityTrendSeries,
+} from "./entity-trend-chart";
+export {
+  EntityTabsList,
+  useDetailTab,
+  type EntityTabItem,
+} from "./entity-detail-tabs";
+export {
+  EntityStatGrid,
+  EntityStatTile,
+  type EntityStatTone,
+} from "./entity-stat-tile";
 export { EntitySectionCard } from "./entity-section-card";
 export { EntityUnavailable } from "./entity-unavailable";
 export { EntityForm } from "./entity-form";

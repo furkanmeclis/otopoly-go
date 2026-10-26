@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback } from "react";
 import { Ban } from "lucide-react";
 
@@ -28,6 +29,10 @@ import type { PurchaseStatus } from "@/features/purchases/services/purchases.ser
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function statusTone(status: PurchaseStatus) {
   switch (status) {
@@ -51,6 +56,9 @@ export function PurchaseDetailPage({
   const { confirm } = useDialogs();
   const { canRead, canWrite } = useTenantPurchasesAccess(slug);
   const purchaseQuery = usePurchase(uuid);
+  useTenantLiveRefetch(TenantLiveResources.purchases, purchaseQuery.refetch, {
+    uuid,
+  });
   const mutations = usePurchasesMutations();
   const purchase = purchaseQuery.data;
 
@@ -143,7 +151,17 @@ export function PurchaseDetailPage({
                     {
                       key: "supplier",
                       label: t("purchases.supplier"),
-                      value: purchase.supplier_name,
+                      value: (
+                        <Link
+                          href={routes.tenant.suppliers.detail(
+                            slug,
+                            purchase.supplier_uuid,
+                          )}
+                          className="text-primary hover:underline"
+                        >
+                          {purchase.supplier_name}
+                        </Link>
+                      ),
                     },
                     {
                       key: "method",
@@ -153,7 +171,21 @@ export function PurchaseDetailPage({
                     {
                       key: "finance",
                       label: t("purchases.finance_account"),
-                      value: purchase.finance_account_name || "—",
+                      value:
+                        purchase.finance_account_uuid &&
+                        purchase.finance_account_name ? (
+                          <Link
+                            href={routes.tenant.finance.accounts.detail(
+                              slug,
+                              purchase.finance_account_uuid,
+                            )}
+                            className="text-primary hover:underline"
+                          >
+                            {purchase.finance_account_name}
+                          </Link>
+                        ) : (
+                          purchase.finance_account_name || "—"
+                        ),
                     },
                     {
                       key: "purchased_at",
@@ -202,7 +234,15 @@ export function PurchaseDetailPage({
                     className="flex items-center justify-between gap-4 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium">{line.name}</p>
+                      <Link
+                        href={routes.tenant.catalog.products.detail(
+                          slug,
+                          line.product_uuid,
+                        )}
+                        className="font-medium hover:underline"
+                      >
+                        {line.name}
+                      </Link>
                       <p className="text-muted-foreground tabular-nums">
                         {formatFinanceAmount(
                           line.unit_cost,

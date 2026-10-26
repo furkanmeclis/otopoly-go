@@ -7,7 +7,13 @@ import SignaturePad from "@/components/shadix-ui/components/signature-pad";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { permissions } from "@/config/permissions";
 import { useContractMutations } from "@/features/contracts/hooks/use-contracts";
+import {
+  MessageChannelPicker,
+  type MessageChannel,
+} from "@/features/messaging/components/message-channel-picker";
+import { useSmsChannel } from "@/features/messaging/hooks/use-sms-channel";
 import type {
   ContractInstance,
   ContractOtpChallenge,
@@ -16,6 +22,7 @@ import type {
 import { ApiError } from "@/lib/api/errors";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { usePermission } from "@/providers/permission-provider";
 
 type PadRef = {
   clear: () => void;
@@ -60,11 +67,14 @@ export function SignerSignForm({
   const [displayName, setDisplayName] = useState(signer.suggested_name ?? "");
   const [signature, setSignature] = useState<string | null>(null);
   const [phone, setPhone] = useState(signer.phone ?? "");
-  const [challenge, setChallenge] = useState<ContractOtpChallenge | null>(
-    null,
-  );
+  const [challenge, setChallenge] = useState<ContractOtpChallenge | null>(null);
   const [code, setCode] = useState("");
   const [verified, setVerified] = useState(signer.otp_verified);
+  const [channel, setChannel] = useState<MessageChannel>("whatsapp");
+  const { hasPermission } = usePermission();
+  // SMS is offered only when the organization has an active SMS provider.
+  const smsQuery = useSmsChannel(hasPermission(permissions.messaging.read));
+  const smsAvailable = Boolean(smsQuery.data?.active_provider);
   const resendIn = useSecondsUntil(challenge?.resend_at ?? null);
 
   const needsOtp = signer.otp_required && !verified;
@@ -77,6 +87,7 @@ export function SignerSignForm({
         instanceUuid: instance.uuid,
         signerUuid: signer.uuid,
         phone,
+        channel: smsAvailable ? channel : "whatsapp",
       });
       setChallenge(result);
       setCode("");
@@ -110,6 +121,16 @@ export function SignerSignForm({
             <li>{t("contracts.otp.summary_kvkk")}</li>
           </ul>
         </div>
+
+        {smsAvailable ? (
+          <MessageChannelPicker
+            id={`otp-channel-${signer.uuid}`}
+            value={channel}
+            onChange={setChannel}
+            smsAvailable
+            hint={t("contracts.otp.channel_hint")}
+          />
+        ) : null}
 
         <div className="space-y-2">
           <Label htmlFor={`otp-phone-${signer.uuid}`}>

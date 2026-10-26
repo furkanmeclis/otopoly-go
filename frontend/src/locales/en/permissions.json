@@ -120,6 +120,7 @@
   "groups.other": "Other",
   "labels.tenant.staff.read": "Read tenant staff",
   "labels.tenant.staff.write": "Manage tenant staff",
+  "labels.platform.messaging.sms.read": "Read the platform SMS report",
   "labels.platform.ai.read": "View AI assistant settings",
   "labels.platform.ai.write": "Manage AI assistant settings",
   "labels.tenant.ai.use": "Use AI assistant",
@@ -135,5 +136,10 @@
   "labels.tenant.billing.write": "Manage subscription",
   "labels.platform.billing.read": "View platform subscriptions",
   "labels.platform.billing.write": "Manage platform subscriptions and plans",
-  "labels.platform.billing.settings": "Manage billing settings"
+  "labels.platform.billing.settings": "Manage billing settings",
+  "labels.tenant.calendar.read": "View calendar",
+  "labels.tenant.calendar.write": "Manage calendar events",
+  "labels.tenant.mcp.connect": "Connect AI apps (MCP) to the business",
+  "labels.platform.mcp.connect": "Connect AI apps (MCP) to the platform",
+  "labels.platform.mcp.manage": "Manage MCP clients"
 }

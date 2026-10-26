@@ -13,7 +13,17 @@ export const customerKeys = {
   all: ["tenant", "customers"] as const,
   list: (params?: unknown) => [...customerKeys.all, "list", params] as const,
   detail: (uuid: string) => [...customerKeys.all, "detail", uuid] as const,
+  summary: (uuid: string) =>
+    [...customerKeys.all, "detail", uuid, "summary"] as const,
 };
+
+export function useCustomerSummary(uuid: string) {
+  return useQuery({
+    queryKey: customerKeys.summary(uuid),
+    queryFn: () => customersService.summary(uuid),
+    enabled: Boolean(uuid),
+  });
+}
 
 export function useCustomers(
   params?: ServerListParams & { kind?: string; is_active?: string },

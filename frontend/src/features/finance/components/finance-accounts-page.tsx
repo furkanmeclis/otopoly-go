@@ -23,6 +23,10 @@ import type { FinanceAccount } from "@/features/finance/services/finance.service
 import { ResourceIOToolbar } from "@/features/io";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function FinanceAccountsPage({ slug }: { slug: string }) {
   const { t } = useLocale();
@@ -32,7 +36,10 @@ export function FinanceAccountsPage({ slug }: { slug: string }) {
   const { deleteAccount } = useFinanceMutations();
   const [createOpen, setCreateOpen] = useState(false);
 
+  const liveList = useTenantLiveList(TenantLiveResources.financeAccounts);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "name",
     initialPageSize: 20,
   });
@@ -102,6 +109,7 @@ export function FinanceAccountsPage({ slug }: { slug: string }) {
       }
     >
       <EntityTable
+        realtime={listState.realtimeFor(() => listQuery.refetch())}
         columns={columns}
         data={listQuery.data?.items ?? []}
         getRowId={(row) => row.uuid}

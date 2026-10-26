@@ -81,13 +81,19 @@ SELECT
     m.uuid AS vehicle_model_uuid,
     COALESCE(b.name || ' ' || m.name, '')::text AS vehicle_model_label,
     j.uuid AS job_uuid,
-    COALESCE(NULLIF(TRIM(u.name || ' ' || u.surname), ''), u.email, '')::text AS created_by_name
+    COALESCE(NULLIF(TRIM(u.name || ' ' || u.surname), ''), u.email, '')::text AS created_by_name,
+    eb.uuid AS vehicle_brand_uuid,
+    COALESCE(eb.name, '')::text AS vehicle_brand_name,
+    eb.logo_object_key AS vehicle_brand_logo_object_key
 FROM quotes q
 JOIN customers c ON c.id = q.customer_id
 LEFT JOIN leads l ON l.id = q.lead_id
 LEFT JOIN customer_vehicles v ON v.id = q.vehicle_id
 LEFT JOIN vehicle_models m ON m.id = q.vehicle_model_id
 LEFT JOIN vehicle_brands b ON b.id = m.brand_id
+LEFT JOIN vehicle_models vm ON vm.id = v.model_id
+-- Effective brand: the quote's catalog model, else the customer vehicle's.
+LEFT JOIN vehicle_brands eb ON eb.id = COALESCE(m.brand_id, vm.brand_id)
 LEFT JOIN service_jobs j ON j.id = q.job_id
 LEFT JOIN users u ON u.id = q.created_by
 WHERE q.id = sqlc.arg(id);
@@ -101,11 +107,17 @@ SELECT
     c.phone AS customer_phone,
     l.uuid AS lead_uuid,
     j.uuid AS job_uuid,
-    (SELECT COUNT(*)::bigint FROM quote_lines ql WHERE ql.quote_id = q.id) AS line_count
+    (SELECT COUNT(*)::bigint FROM quote_lines ql WHERE ql.quote_id = q.id) AS line_count,
+    eb.uuid AS vehicle_brand_uuid,
+    COALESCE(eb.name, '')::text AS vehicle_brand_name,
+    eb.logo_object_key AS vehicle_brand_logo_object_key
 FROM quotes q
 JOIN customers c ON c.id = q.customer_id
 LEFT JOIN leads l ON l.id = q.lead_id
 LEFT JOIN service_jobs j ON j.id = q.job_id
+LEFT JOIN customer_vehicles cv ON cv.id = q.vehicle_id
+LEFT JOIN vehicle_models qm ON qm.id = COALESCE(q.vehicle_model_id, cv.model_id)
+LEFT JOIN vehicle_brands eb ON eb.id = qm.brand_id
 WHERE q.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR q.status = sqlc.narg(status)
        OR (sqlc.narg(status)::text = 'open' AND (q.status IN ('draft', 'sent', 'viewed') OR (q.status = 'accepted' AND q.job_id IS NULL))))

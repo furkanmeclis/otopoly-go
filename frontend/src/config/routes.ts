@@ -14,6 +14,10 @@ export const routes = {
       signed: (token: string) => `/share/s/${token}`,
     },
   },
+  /** OAuth consent of MCP clients (outside the shells, needs a session). */
+  oauth: {
+    consent: "/oauth/consent",
+  },
   onboarding: {
     /** Signed-in user without a business creates one (account step skipped). */
     business: "/onboarding/business",
@@ -83,6 +87,15 @@ export const routes = {
     todos: {
       root: (slug: string) => `/t/${slug}/todos`,
     },
+    calendar: {
+      root: (slug: string) => `/t/${slug}/calendar`,
+      /** Opens the calendar on a day (YYYY-MM-DD), optionally in a view. */
+      day: (slug: string, date: string, view?: "day" | "week" | "agenda") =>
+        `/t/${slug}/calendar?date=${encodeURIComponent(date)}${view ? `&view=${view}` : ""}`,
+      /** Opens the calendar on an event's day with its dialog open. */
+      event: (slug: string, uuid: string) =>
+        `/t/${slug}/calendar?event=${encodeURIComponent(uuid)}`,
+    },
     leads: {
       root: (slug: string) => `/t/${slug}/leads`,
       detail: (slug: string, uuid: string) => `/t/${slug}/leads/${uuid}`,
@@ -136,6 +149,8 @@ export const routes = {
       root: (slug: string) => `/t/${slug}/settings`,
       messaging: (slug: string) => `/t/${slug}/settings/messaging`,
       billing: (slug: string) => `/t/${slug}/settings/billing`,
+      /** AI connections (MCP): connect guide + this business's connections. */
+      mcp: (slug: string) => `/t/${slug}/settings/mcp`,
     },
   },
   guest: {
@@ -213,6 +228,10 @@ export const routes = {
       apple: "/platform/integrations/apple",
       whatsapp: "/platform/integrations/whatsapp",
     },
+    smsReport: {
+      root: "/platform/sms-report",
+      organization: (uuid: string) => `/platform/sms-report/${uuid}`,
+    },
     organizations: {
       root: "/platform/organizations",
       create: "/platform/organizations/create",
@@ -246,6 +265,10 @@ export const routes = {
     },
     ai: {
       root: "/platform/ai",
+    },
+    /** MCP: connect guide, own connections, registered clients. */
+    mcp: {
+      root: "/platform/mcp",
     },
     logs: {
       root: "/platform/logs",
