@@ -33,7 +33,7 @@ type AuthContextValue = {
   can: (gate: Permission | Gate | undefined) => boolean;
   login: (email: string, password: string, totpCode?: string) => Promise<void>;
   /** Finishes any sign-in (password, e-mail code, Apple / Google, account linking) with its token pair. */
-  completeSignIn: (tokens: Tokens) => Promise<void>;
+  completeSignIn: (tokens: Tokens, options?: SignInOptions) => Promise<void>;
   selectOrganization: (slug: string) => Promise<void>;
   /**
    * Enters an organization the user just got (created in the app): reloads `/v1/auth/me` first, since
@@ -49,6 +49,14 @@ type AuthContextValue = {
   logout: (options?: { serverRevoked?: boolean }) => Promise<void>;
   refreshMe: () => Promise<void>;
   orgBlock: (org: OrganizationMembership) => OrgBlock;
+};
+
+export type SignInOptions = {
+  /**
+   * Runs with the new session's tokens before the profile is loaded and the user is routed (e.g. the
+   * sign-up screen saves the name a code sign-up could not send). Failures are logged, never block sign-in.
+   */
+  prepare?: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -163,8 +171,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const completeSignIn = useCallback(
-    async (tokens: Tokens) => {
+    async (tokens: Tokens, options?: SignInOptions) => {
       await session.setTokens(tokens, null);
+      if (options?.prepare) {
+        try {
+          await options.prepare();
+        } catch (error) {
+          log.warn('Sign-in preparation failed', isApiError(error) ? error.code : error);
+        }
+      }
       try {
         const profile = await authService.getMe();
         syncLocale(profile);

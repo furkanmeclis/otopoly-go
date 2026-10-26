@@ -73,5 +73,17 @@
   "account.legal.login_notice": "Giriş yaparak Kullanım Koşulları'nı ve Gizlilik Politikası'nı kabul etmiş olursunuz.",
   "account.legal.delete_hint": "Hangi kayıtların hangi yasal gerekçeyle ve ne kadar süre saklandığı Gizlilik Politikası'nda açıklanır.",
   "account.legal.ai_hint": "Asistanın veri işleme koşullarının tamamı Gizlilik Politikası'nda yer alır.",
-  "account.password.current_incorrect": "Mevcut şifre hatalı"
+  "account.password.current_incorrect": "Mevcut şifre hatalı",
+  "ai.list.messages_one": "{{count}} mesaj",
+  "ai.list.messages_other": "{{count}} mesaj",
+  "ai.list.load_failed": "Sohbetler yüklenemedi.",
+  "ai.list.no_results": "Sonuç yok",
+  "ai.list.no_results_body": "“{{q}}” ile eşleşen bir sohbet bulunamadı.",
+  "ai.list.row_hint": "Açmak için dokunun, yeniden adlandırmak ya da silmek için basılı tutun",
+  "ai.list.open": "Aç",
+  "ai.list.manage": "Yeniden adlandır ya da sil",
+  "ai.list.manage_named": "{{title}}: yeniden adlandır ya da sil",
+  "ai.list.empty_title": "Asistana ilk sorunuzu sorun",
+  "ai.list.empty_body": "İşleriniz, kasanız ve müşterileriniz hakkında sade bir dille soru sorun. Sohbetleriniz burada listelenir.",
+  "ai.list.suggestion_hint": "Yeni bir sohbet açar ve bu soruyu gönderir"
 }

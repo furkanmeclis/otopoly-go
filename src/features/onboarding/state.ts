@@ -142,6 +142,19 @@ export function setWelcomePending(slug: string | null) {
 
 export const isWelcomePending = (slug: string | null | undefined) => Boolean(slug && welcomeSlug === slug);
 
+let createForwarded = false;
+
+/**
+ * A signed-in user without any business (new e-mail, Apple or Google account) goes straight from the
+ * organization picker to "create your business" once per launch; going back shows the picker (logout,
+ * "invited?" hint) and does not bounce forward again.
+ */
+export function takeCreateBusinessForward() {
+  if (createForwarded || qaTour) return false;
+  createForwarded = true;
+  return true;
+}
+
 // ─── Diagnostics ───────────────────────────────────────────────────────────
 
 /** Diagnostics "Reset onboarding flags": the intro and every first-run sheet show again. */
@@ -151,6 +164,7 @@ export async function resetOnboardingFlags() {
   settled = false;
   linkReplayed = false;
   welcomeSlug = null;
+  createForwarded = false;
   introResetListeners.forEach((l) => l());
   log.info('Onboarding flags reset');
 }

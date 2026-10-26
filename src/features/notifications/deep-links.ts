@@ -72,7 +72,8 @@ const TENANT_RULES: [RegExp, (m: RegExpExecArray, q: Query) => string][] = [
   [/^\/quotes\/new$/, () => '/quotes/form'],
   [new RegExp(`^/quotes/${SEG}/edit$`), (m) => `/quotes/form?id=${m[1]}`],
   [new RegExp(`^/quotes/${SEG}$`), (m) => `/quotes/${m[1]}`],
-  [/^\/assistant$/, () => '/assistant'],
+  // Web keeps the open conversation in `?c=<uuid>`; the app has a screen per conversation.
+  [/^\/assistant$/, (_m, q) => (q.get('c') ? `/assistant/${encodeURIComponent(q.get('c')!)}` : '/assistant')],
   [/^\/contracts$/, () => '/contracts'],
   [/^\/contracts\/templates$/, () => '/contracts/templates'],
   [new RegExp(`^/contracts/templates/${SEG}$`), (m) => `/contracts/templates/${m[1]}`],

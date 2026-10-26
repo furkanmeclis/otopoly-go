@@ -58,7 +58,7 @@ route(
       github_auth_enabled: false,
       registration_enabled: register,
       auth_methods: {
-        password: method(true, false),
+        password: method(true, true),
         passkey: { login: false },
         github: method(false, false),
         google: method(true, true),

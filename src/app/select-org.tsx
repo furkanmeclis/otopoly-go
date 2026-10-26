@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Building2, Clock, LogOut, Plus } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { BrandMark } from '@/components/brand';
@@ -12,6 +12,7 @@ import type { OrganizationMembership } from '@/features/account/services/auth.se
 import { TenantAccessState } from '@/features/auth/components/tenant-access-state';
 import { orgBlock, useAuth } from '@/features/auth/auth-provider';
 import { onboardingService, registrationOpen } from '@/features/onboarding/services/onboarding.service';
+import { takeCreateBusinessForward } from '@/features/onboarding/state';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 import { useMarkInteractive } from '@/lib/monitoring/observe';
@@ -32,6 +33,12 @@ export default function SelectOrganizationScreen() {
   const config = useQuery({ queryKey: ['app', 'config'], queryFn: () => onboardingService.appConfig(), enabled: none, staleTime: 5 * 60 * 1000 });
   const canCreate = registrationOpen(config.data);
   const email = me?.user.email ?? '';
+
+  // New accounts (sign-up, first Apple / Google sign-in) have no business yet: open the setup wizard.
+  const forwardReady = none && config.isSuccess && canCreate;
+  useEffect(() => {
+    if (forwardReady && takeCreateBusinessForward()) router.push('/create-business');
+  }, [forwardReady]);
 
   const choose = async (slug: string, name: string) => {
     setBusy(slug);
