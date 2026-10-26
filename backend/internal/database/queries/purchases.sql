@@ -74,6 +74,13 @@ WHERE p.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(date_from)::timestamptz IS NULL OR p.purchased_at >= sqlc.narg(date_from))
   AND (sqlc.narg(date_to)::timestamptz IS NULL OR p.purchased_at < sqlc.narg(date_to))
   AND (
+    sqlc.narg(supplier_uuid)::uuid IS NULL
+    OR p.supplier_id = (
+        SELECT fs.id FROM suppliers fs
+        WHERE fs.uuid = sqlc.narg(supplier_uuid) AND fs.organization_id = sqlc.arg(organization_id)
+    )
+  )
+  AND (
     sqlc.narg(q)::text IS NULL
     OR p.supplier_name ILIKE '%' || sqlc.narg(q) || '%'
     OR p.notes ILIKE '%' || sqlc.narg(q) || '%'
@@ -93,6 +100,13 @@ WHERE p.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR p.status = sqlc.narg(status))
   AND (sqlc.narg(date_from)::timestamptz IS NULL OR p.purchased_at >= sqlc.narg(date_from))
   AND (sqlc.narg(date_to)::timestamptz IS NULL OR p.purchased_at < sqlc.narg(date_to))
+  AND (
+    sqlc.narg(supplier_uuid)::uuid IS NULL
+    OR p.supplier_id = (
+        SELECT fs.id FROM suppliers fs
+        WHERE fs.uuid = sqlc.narg(supplier_uuid) AND fs.organization_id = sqlc.arg(organization_id)
+    )
+  )
   AND (
     sqlc.narg(q)::text IS NULL
     OR p.supplier_name ILIKE '%' || sqlc.narg(q) || '%'

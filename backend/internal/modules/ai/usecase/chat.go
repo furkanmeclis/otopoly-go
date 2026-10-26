@@ -219,7 +219,9 @@ func (s *Service) RunTurn(ctx context.Context, t *Turn, emit Emitter) error {
 		return err
 	}
 	_ = s.ent.Consume(persistCtx, t.scope.InternalID, "ai.monthly", 1)
-	if err := s.store.TouchAIConversation(persistCtx, db.TouchAIConversationParams{ID: convID, Added: 1}); err != nil {
+	if err := s.store.TouchAIConversation(persistCtx, db.TouchAIConversationParams{
+		ID: convID, Added: 1, Preview: messagePreview(t.text),
+	}); err != nil {
 		s.log.Warn("ai_conversation_touch_failed", "error", err)
 	}
 	emit(EventMessageStart, map[string]any{
@@ -398,7 +400,9 @@ loop:
 			s.log.Warn("ai_actions_attach_failed", "error", err)
 		}
 	}
-	if err := s.store.TouchAIConversation(persistCtx, db.TouchAIConversationParams{ID: convID, Added: 1}); err != nil {
+	if err := s.store.TouchAIConversation(persistCtx, db.TouchAIConversationParams{
+		ID: convID, Added: 1, Preview: lastUIText(ts.ui),
+	}); err != nil {
 		s.log.Warn("ai_conversation_touch_failed", "error", err)
 	}
 	emit(EventMessageDone, map[string]any{

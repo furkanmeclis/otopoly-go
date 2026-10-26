@@ -15,7 +15,7 @@ import (
 
 func mapConversation(c db.AiConversation) Conversation {
 	out := Conversation{
-		UUID: c.Uuid, Title: c.Title, MessageCount: c.MessageCount,
+		UUID: c.Uuid, Title: c.Title, MessageCount: c.MessageCount, LastMessagePreview: c.LastMessagePreview,
 		CreatedAt: c.CreatedAt.Time, UpdatedAt: c.UpdatedAt.Time,
 	}
 	if c.LastMessageAt.Valid {

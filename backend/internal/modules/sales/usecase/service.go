@@ -164,6 +164,13 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 	if st := strings.TrimSpace(filters.Status); st != "" {
 		params.Status = pgtype.Text{String: st, Valid: true}
 	}
+	if raw := strings.TrimSpace(filters.CustomerUUID); raw != "" {
+		cu, err := uuid.Parse(raw)
+		if err != nil {
+			return nil, 0, fmt.Errorf("%w: invalid customer_uuid", ErrInvalidRequest)
+		}
+		params.CustomerUuid = pgtype.UUID{Bytes: cu, Valid: true}
+	}
 	if from := strings.TrimSpace(filters.DateFrom); from != "" {
 		t, err := parseDay(from, filters.Location)
 		if err != nil {
@@ -188,6 +195,7 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		Status:         params.Status,
 		DateFrom:       params.DateFrom,
 		DateTo:         params.DateTo,
+		CustomerUuid:   params.CustomerUuid,
 	}
 	total, err := s.q.CountProductSales(ctx, countParams)
 	if err != nil {

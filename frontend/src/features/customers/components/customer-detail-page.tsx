@@ -64,6 +64,7 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { routes } from "@/config/routes";
 import { useCariEntries } from "@/features/cari/hooks/use-cari";
 import { useTenantCariAccess } from "@/features/cari/hooks/use-tenant-cari-access";
+import { CustomerActivityTab } from "@/features/customers/components/customer-activity-tab";
 import {
   CustomerJobsTable,
   CustomerLeadsTable,
@@ -108,6 +109,7 @@ const CUSTOMER_TABS = [
   "quotes",
   "leads",
   "cari",
+  "activity",
 ] as const;
 
 type VehicleRow = CustomerVehicle & {
@@ -549,6 +551,10 @@ export function CustomerDetailPage({
                   label: t("customers.insights.tabs.cari"),
                   hidden: !(cariAccountUuid && canReadCari),
                 },
+                {
+                  value: "activity",
+                  label: t("customers.insights.tabs.activity"),
+                },
               ]}
             />
 
@@ -838,6 +844,17 @@ export function CustomerDetailPage({
                 </EntitySectionCard>
               </TabsContent>
             ) : null}
+
+            <TabsContent value="activity" className="mt-4">
+              <EntitySectionCard title={t("customers.activity.title")}>
+                <CustomerActivityTab
+                  slug={slug}
+                  customerUuid={uuid}
+                  cariAccountUuid={canReadCari ? cariAccountUuid : null}
+                  active={tab === "activity"}
+                />
+              </EntitySectionCard>
+            </TabsContent>
           </Tabs>
         </div>
       ) : null}

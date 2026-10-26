@@ -1,9 +1,9 @@
 -- name: CreateOrganization :one
 INSERT INTO organizations (
     slug, name, city, district, phone, address, status, plan_code,
-    access_starts_at, access_ends_at
+    access_starts_at, access_ends_at, sector
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, sqlc.narg(sector)
 )
 RETURNING *;
 
@@ -78,7 +78,8 @@ SET name = COALESCE(sqlc.narg(name), name),
     tagline = COALESCE(sqlc.narg(tagline), tagline),
     footer_text = COALESCE(sqlc.narg(footer_text), footer_text),
     paper_size = COALESCE(sqlc.narg(paper_size), paper_size),
-    primary_color = COALESCE(sqlc.narg(primary_color), primary_color)
+    primary_color = COALESCE(sqlc.narg(primary_color), primary_color),
+    sector = CASE WHEN sqlc.arg(set_sector)::bool THEN sqlc.narg(sector) ELSE sector END
 WHERE id = sqlc.arg(id) AND deleted_at IS NULL
 RETURNING *;
 
@@ -129,7 +130,7 @@ LEFT JOIN LATERAL (
 WHERE om.user_id = $1 AND o.uuid = $2;
 
 -- name: ListOrganizationMembersByUserID :many
-SELECT om.role, o.uuid, o.slug, o.name, o.logo_object_key, o.status, o.access_ends_at
+SELECT om.role, o.uuid, o.slug, o.name, o.logo_object_key, o.status, o.access_ends_at, o.sector
 FROM organization_members om
 JOIN organizations o ON o.id = om.organization_id AND o.deleted_at IS NULL
 WHERE om.user_id = $1

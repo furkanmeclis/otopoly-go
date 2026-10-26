@@ -618,6 +618,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	// drop of todos / lead follow-ups goes through their use cases.
 	calendarSvc := calendarusecase.New(deps.Queries, activityRec, entitlementsSvc)
 	calendarSvc.SetSchedulers(todosSvc, leadsSvc)
+	calendarSvc.SetResourceEvents(liveEvents)
 	calendarmodule.RegisterRoutes(mux, calendarSvc, tokens, loader, deps.Queries)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:       customersSvc,

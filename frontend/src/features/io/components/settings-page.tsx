@@ -111,6 +111,7 @@ export function SettingsPage({ scope = "platform", slug }: SettingsPageProps) {
           isLogoUploading={uploadLogo.isPending}
           isLogoRemoving={removeLogo.isPending}
           showLocation={tenant}
+          showSector={tenant}
           onSubmit={async (payload) => {
             await save.mutateAsync(payload);
           }}

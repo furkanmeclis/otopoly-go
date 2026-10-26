@@ -10,6 +10,7 @@ import (
 
 	leadsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads/usecase"
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
 )
 
@@ -123,6 +124,12 @@ func (s *Service) Move(ctx context.Context, actorID int64, in MoveInput, req *ht
 	}
 	item.RefKind = access[in.Layer].refKind
 	item.Movable = true
+	// Own events were announced by saveEvent; todo / lead moves are announced
+	// by their modules and again here so open calendars refetch even when
+	// the member cannot read that module's list.
+	if in.Layer != LayerEvents {
+		s.live(ctx, resourceevents.ActionUpdated, in.RefUUID)
+	}
 	return item, nil
 }
 

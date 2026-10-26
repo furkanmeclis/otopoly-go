@@ -294,6 +294,14 @@ func (h *Handler) ListInstances(w http.ResponseWriter, r *http.Request) {
 		}
 		filters.SubjectUUID = &id
 	}
+	if raw := strings.TrimSpace(r.URL.Query().Get("customer_uuid")); raw != "" {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			response.BadRequest(w, r, response.CodeValidationError, "customer_uuid is invalid")
+			return
+		}
+		filters.CustomerUUID = &id
+	}
 	items, total, err := h.svc.ListInstances(r.Context(), q.Limit, q.Offset, filters)
 	if err != nil {
 		writeError(w, r, err)

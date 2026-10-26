@@ -34,5 +34,14 @@
   "toast.saved": "Ayarlar kaydedildi.",
   "toast.logo_saved": "Logo güncellendi.",
   "toast.logo_removed": "Logo kaldırıldı.",
-  "toast.save_failed": "Ayarlar kaydedilemedi."
+  "toast.save_failed": "Ayarlar kaydedilemedi.",
+  "sector": "Sektör",
+  "sector_hint": "İşletmenizin faaliyet alanı; uygulama önerileri ve raporlar buna göre uyarlanır.",
+  "sectors.none": "Belirtilmedi",
+  "sectors.car_wash": "Oto yıkama",
+  "sectors.detailing": "Detaylı temizlik (detailing)",
+  "sectors.ppf_tint": "PPF / cam filmi",
+  "sectors.auto_service": "Oto servis",
+  "sectors.tyres": "Lastik",
+  "sectors.other": "Diğer"
 }

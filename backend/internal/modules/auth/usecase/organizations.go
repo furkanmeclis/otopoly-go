@@ -79,6 +79,7 @@ func mapOrganizationSummaries(items []orgusecase.MembershipSummary) []model.Orga
 		out = append(out, model.OrganizationSummary{
 			UUID: item.UUID, Slug: item.Slug, Name: item.Name, Role: item.Role,
 			LogoURL: item.LogoURL, Status: item.Status, AccessEndsAt: item.AccessEndsAt,
+			Sector: item.Sector,
 		})
 	}
 	return out

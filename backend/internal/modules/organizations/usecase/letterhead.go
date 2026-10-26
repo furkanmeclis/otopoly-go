@@ -31,6 +31,8 @@ type TenantSettings struct {
 	FooterText   string  `json:"footer_text"`
 	PaperSize    string  `json:"paper_size"`
 	LogoURL      *string `json:"logo_url,omitempty"`
+	// Sector is the business type (null = not set); see Sectors.
+	Sector *string `json:"sector"`
 }
 
 // LetterheadPatch is a partial update of organization export branding.
@@ -46,6 +48,8 @@ type LetterheadPatch struct {
 	Website      *string `json:"website"`
 	FooterText   *string `json:"footer_text"`
 	PaperSize    *string `json:"paper_size"`
+	// Sector sets the business type; "" clears it, null/absent keeps it.
+	Sector *string `json:"sector"`
 }
 
 func mapTenantSettings(row db.Organization) TenantSettings {
@@ -70,6 +74,7 @@ func mapTenantSettings(row db.Organization) TenantSettings {
 		FooterText:   row.FooterText,
 		PaperSize:    paper,
 		LogoURL:      logoURL(row.Uuid, row.LogoObjectKey),
+		Sector:       sectorPtr(row.Sector),
 	}
 }
 
@@ -108,6 +113,14 @@ func (s *Service) PatchTenantSettings(ctx context.Context, orgID int64, in Lette
 		}
 		in.CompanyName = &name
 	}
+	var sector pgtype.Text
+	if in.Sector != nil {
+		v, err := sectorArg(*in.Sector)
+		if err != nil {
+			return TenantSettings{}, err
+		}
+		sector = v
+	}
 	row, err := s.q.UpdateOrganizationLetterhead(ctx, db.UpdateOrganizationLetterheadParams{
 		ID:           orgID,
 		Name:         textNarg(in.CompanyName),
@@ -121,6 +134,8 @@ func (s *Service) PatchTenantSettings(ctx context.Context, orgID int64, in Lette
 		FooterText:   textNarg(in.FooterText),
 		PaperSize:    textNarg(in.PaperSize),
 		PrimaryColor: textNarg(in.PrimaryColor),
+		SetSector:    in.Sector != nil,
+		Sector:       sector,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
