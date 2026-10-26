@@ -6,11 +6,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/dbtest"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // update_finance_entry corrects a manual entry in place and moves its balance
@@ -25,7 +26,7 @@ func TestUpdateTransactionMovesBalances(t *testing.T) {
 		t.Skip("TEST_DATABASE_URL not set")
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := database.NewPoolFromDSN(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

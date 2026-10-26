@@ -73,6 +73,9 @@ type Service struct {
 	log    *slog.Logger
 }
 
+// SetClock replaces the clock (tests).
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
+
 func New(q *db.Queries, sender Sender, log *slog.Logger) *Service {
 	loc, err := time.LoadLocation(businessTimeZone)
 	if err != nil {

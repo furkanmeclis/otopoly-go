@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/salesflow"
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // TestLinks_DB checks the real queries: org scoping, soft-deleted leads and
@@ -22,7 +23,7 @@ func TestLinks_DB(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	bg := context.Background()
-	pool, err := pgxpool.New(bg, dsn)
+	pool, err := database.NewPoolFromDSN(bg, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

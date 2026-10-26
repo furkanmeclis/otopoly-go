@@ -103,8 +103,8 @@ type ListFilters struct {
 	// IncludeOpen also returns in_progress/ready jobs started before DateFrom
 	// (multi-day work that is still going on).
 	IncludeOpen bool
-	// Location sets the day boundaries of DateFrom/DateTo (nil = server local
-	// time, the HTTP API default).
+	// Location sets the day boundaries of DateFrom/DateTo (nil = the business
+	// time zone, Europe/Istanbul, the HTTP API default).
 	Location *time.Location
 }
 

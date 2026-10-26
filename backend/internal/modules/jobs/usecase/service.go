@@ -14,6 +14,7 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
@@ -47,6 +48,7 @@ type Service struct {
 	bus        events.Bus
 	ent        *entitlements.Service
 	loyalty    LoyaltyHook
+	now        func() time.Time
 }
 
 func New(
@@ -56,8 +58,11 @@ func New(
 	finance *financeusecase.Service,
 	cari *cariusecase.Service,
 ) *Service {
-	return &Service{pool: pool, q: q, act: act, finance: finance, cari: cari}
+	return &Service{pool: pool, q: q, act: act, finance: finance, cari: cari, now: time.Now}
 }
+
+// SetClock replaces the clock (tests).
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
 func (s *Service) SetSearchIndexer(idx SearchIndexer) { s.search = idx }
 func (s *Service) SetEventBus(bus events.Bus)         { s.bus = bus }
@@ -119,15 +124,14 @@ func (s *Service) Summary(ctx context.Context, dateStr string) (Summary, error) 
 	return s.SummaryIn(ctx, dateStr, nil)
 }
 
-// SummaryIn is Summary with the day boundaries taken in loc (nil = server
-// local time). The AI assistant passes Europe/Istanbul so "today" is right
-// on servers running in UTC.
+// SummaryIn is Summary with the day boundaries taken in loc (nil = the
+// business time zone, Europe/Istanbul).
 func (s *Service) SummaryIn(ctx context.Context, dateStr string, loc *time.Location) (Summary, error) {
 	orgID, err := s.requireOrgID(ctx)
 	if err != nil {
 		return Summary{}, err
 	}
-	day, err := parseDay(dateStr, loc)
+	day, err := parseDay(dateStr, loc, s.now())
 	if err != nil {
 		return Summary{}, fmt.Errorf("%w: invalid date", ErrInvalidRequest)
 	}
@@ -171,11 +175,11 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		params.Q = pgtype.Text{String: q, Valid: true}
 		countParams.Q = params.Q
 	}
-	if from, err := parseDay(filters.DateFrom, filters.Location); err == nil && filters.DateFrom != "" {
+	if from, err := parseDay(filters.DateFrom, filters.Location, s.now()); err == nil && filters.DateFrom != "" {
 		params.DateFrom = pgtype.Timestamptz{Time: from, Valid: true}
 		countParams.DateFrom = params.DateFrom
 	}
-	if to, err := parseDay(filters.DateTo, filters.Location); err == nil && filters.DateTo != "" {
+	if to, err := parseDay(filters.DateTo, filters.Location, s.now()); err == nil && filters.DateTo != "" {
 		params.DateTo = pgtype.Timestamptz{Time: nextDay(to), Valid: true}
 		countParams.DateTo = params.DateTo
 	}
@@ -375,11 +379,12 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (JobDetail, error)
 		return JobDetail{}, fmt.Errorf("%w: total amount", ErrInvalidRequest)
 	}
 
-	startedAt := time.Now()
+	startedAt := s.now()
 	if in.StartedAt != nil && strings.TrimSpace(*in.StartedAt) != "" {
 		t, err := time.Parse(time.RFC3339, strings.TrimSpace(*in.StartedAt))
 		if err != nil {
-			t2, err2 := time.Parse("2006-01-02T15:04", strings.TrimSpace(*in.StartedAt))
+			// A zone-less local time is Türkiye time (what the user typed).
+			t2, err2 := time.ParseInLocation("2006-01-02T15:04", strings.TrimSpace(*in.StartedAt), bizclock.Location())
 			if err2 != nil {
 				return JobDetail{}, fmt.Errorf("%w: invalid started_at", ErrInvalidRequest)
 			}
@@ -702,7 +707,9 @@ func (s *Service) Close(ctx context.Context, id uuid.UUID, in CloseInput) (JobDe
 		return JobDetail{}, err
 	}
 
-	entryDate := pgtype.Date{Time: time.Now(), Valid: true}
+	// The business day of the close (Europe/Istanbul): a job closed at 01:38
+	// Türkiye time belongs to that day, not to the previous UTC day.
+	entryDate := bizclock.DateOf(s.now())
 	desc := fmt.Sprintf("İş emri — %s (%s)", paid.Plate, paid.CustomerName)
 	meta, _ := json.Marshal(map[string]any{"module": "jobs", "job_uuid": paid.Uuid.String()})
 
@@ -881,11 +888,7 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 
 // giveBackJob returns a cancelled or voided job's slot to today's / this month's counter.
 func (s *Service) giveBackJob(ctx context.Context, orgID int64, startedAt time.Time) {
-	loc, err := time.LoadLocation("Europe/Istanbul")
-	if err != nil {
-		loc = time.FixedZone("TRT", 3*60*60)
-	}
-	now, st := time.Now().In(loc), startedAt.In(loc)
+	now, st := bizclock.In(s.now()), bizclock.In(startedAt)
 	if now.Year() == st.Year() && now.YearDay() == st.YearDay() {
 		_ = s.ent.Consume(ctx, orgID, "jobs.daily", -1)
 	}

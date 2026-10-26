@@ -13,6 +13,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	billinginvoice "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/billing/invoice"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/google/uuid"
@@ -60,9 +61,9 @@ func (s *Service) IssueInvoice(ctx context.Context, orderID int64) (*Invoice, er
 	if err != nil {
 		return nil, err
 	}
-	year := order.ReviewedAt.Time.Year()
-	if year == 0 {
-		year = time.Now().Year()
+	year := bizclock.In(order.ReviewedAt.Time).Year()
+	if !order.ReviewedAt.Valid || order.ReviewedAt.Time.IsZero() {
+		year = bizclock.Now().Year()
 	}
 	series := invoiceSeries(settings.InvoiceSeries)
 	seq, err := s.q.NextInvoiceNumber(ctx, db.NextInvoiceNumberParams{Series: series, Year: int32(year)})
@@ -86,7 +87,7 @@ func (s *Service) IssueInvoice(ctx context.Context, orderID int64) (*Invoice, er
 	linesJSON, _ := json.Marshal(art.lines)
 	row, createErr := s.q.CreateInvoice(ctx, db.CreateInvoiceParams{
 		Uuid: invUUID, OrganizationID: order.OrganizationID, OrderID: order.ID, Number: number,
-		IssueDate: pgDate(time.Now()), Profile: "EARSIVFATURA", Type: "SATIS",
+		IssueDate: bizclock.Today(), Profile: "EARSIVFATURA", Type: "SATIS",
 		Buyer: buyerJSON, Seller: sellerJSON, Lines: linesJSON,
 		Subtotal: mustNumeric(art.totals.Subtotal), DiscountTotal: mustNumeric(art.totals.DiscountTotal),
 		VatTotal: mustNumeric(art.totals.VATTotal), GrandTotal: mustNumeric(art.totals.GrandTotal),
@@ -135,7 +136,7 @@ func (s *Service) buildInvoiceArtifacts(ctx context.Context, order db.GetOrderFo
 	if s.store == nil {
 		return art, fmt.Errorf("%w: storage is not configured", ErrInvalidRequest)
 	}
-	year := time.Now().Year()
+	year := bizclock.Now().Year()
 	xmlKey := fmt.Sprintf("billing/invoices/%d/%s.xml", year, number)
 	if err := s.store.Upload(ctx, storage.File{
 		Body: bytes.NewReader(xmlBytes), Size: int64(len(xmlBytes)), ContentType: "application/xml", Filename: number + ".xml",
@@ -234,7 +235,7 @@ func (s *Service) RegenerateInvoice(ctx context.Context, id uuid.UUID) (Invoice,
 	if err != nil {
 		return Invoice{}, err
 	}
-	key := fmt.Sprintf("billing/invoices/%d/%s.pdf", time.Now().Year(), row.Number)
+	key := fmt.Sprintf("billing/invoices/%d/%s.pdf", bizclock.Now().Year(), row.Number)
 	if err := s.store.Upload(ctx, storage.File{Body: bytes.NewReader(pdf), Size: int64(len(pdf)), ContentType: "application/pdf", Filename: row.Number + ".pdf"}, key); err != nil {
 		return Invoice{}, err
 	}
@@ -499,10 +500,6 @@ func invoiceKey(xmlKey, pdfKey, kind string) string {
 		return xmlKey
 	}
 	return pdfKey
-}
-
-func pgDate(t time.Time) pgtype.Date {
-	return pgtype.Date{Time: t, Valid: true}
 }
 
 type invoiceJoined struct {

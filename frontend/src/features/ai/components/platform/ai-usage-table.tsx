@@ -24,6 +24,7 @@ import { aiPlatformService } from "@/features/ai/services/ai.service";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import Link from "next/link";
+import { businessToday } from "@/lib/utils/business-date";
 
 /** Formats transcribed audio as m:ss (or s below a minute). */
 function formatAudio(seconds: number, nf: Intl.NumberFormat): string {
@@ -35,11 +36,14 @@ function formatAudio(seconds: number, nf: Intl.NumberFormat): string {
 }
 
 function lastMonths(count: number): string[] {
-  const now = new Date();
+  // Business months (Europe/Istanbul), like the API's usage periods.
+  const [y, m] = businessToday().split("-").map(Number);
   const out: string[] = [];
   for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    const d = new Date(Date.UTC(y, m - 1 - i, 1));
+    out.push(
+      `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
+    );
   }
   return out;
 }

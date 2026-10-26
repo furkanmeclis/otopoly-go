@@ -1,3 +1,4 @@
+import { businessDayOf } from "@/lib/utils/business-date";
 import type { IoResource } from "@/features/io/types";
 
 const RESOURCE_LABEL_KEYS: Record<IoResource, string> = {
@@ -97,6 +98,6 @@ export function exportDownloadFilename(
         : format.toLowerCase() === "json"
           ? "json"
           : "csv";
-  const date = (at ?? new Date()).toISOString().slice(0, 10).replace(/-/g, "");
+  const date = businessDayOf(at ?? new Date()).replace(/-/g, "");
   return `${slug}_${date}.${ext}`;
 }

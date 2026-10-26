@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { dateFnsLocale } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
+import { businessToday, shiftDay } from "@/lib/utils/business-date";
 
 /** Forward-looking layers (jobs / sales are records of what happened). */
 const UPCOMING_LAYERS: CalendarLayer[] = ["events", "todos", "quotes", "leads"];
@@ -34,8 +35,8 @@ export function CalendarUpcomingWidget({ slug }: { slug: string }) {
   const { hasPermission } = usePermission();
   const canRead = hasPermission(permissions.calendar.read);
   const today = useMemo(() => new Date(), []);
-  const from = format(today, "yyyy-MM-dd");
-  const to = format(addDays(today, DAYS), "yyyy-MM-dd");
+  const from = businessToday(today);
+  const to = shiftDay(from, DAYS);
   const feed = useCalendarFeed(from, to, UPCOMING_LAYERS, canRead);
 
   const nowDate = useNow();

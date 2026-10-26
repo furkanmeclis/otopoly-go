@@ -8,7 +8,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"time"
 
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
@@ -381,16 +380,9 @@ func (h *Handler) CreateTransfer(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	dateFrom := q.Get("date_from")
-	dateTo := q.Get("date_to")
-	if dateFrom == "" {
-		now := time.Now().UTC()
-		dateFrom = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).Format("2006-01-02")
-	}
-	if dateTo == "" {
-		dateTo = time.Now().UTC().Format("2006-01-02")
-	}
-	item, err := h.svc.Summary(r.Context(), dateFrom, dateTo, q.Get("currency"))
+	// Empty dates default to this month up to today (Europe/Istanbul) in the
+	// service.
+	item, err := h.svc.Summary(r.Context(), q.Get("date_from"), q.Get("date_to"), q.Get("currency"))
 	if err != nil {
 		response.InternalErr(w, r, err, "failed to load summary")
 		return

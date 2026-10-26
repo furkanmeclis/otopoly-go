@@ -8,6 +8,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -22,16 +23,17 @@ func normalizeSort(sort string) string {
 	}
 }
 
-// parseDay returns local midnight of a YYYY-MM-DD day in loc (server-local
-// time when loc is nil); an empty string means today.
-func parseDay(raw string, loc *time.Location) (time.Time, error) {
+// parseDay returns local midnight of a YYYY-MM-DD day in loc (the business
+// time zone, Europe/Istanbul, when loc is nil); an empty string means the
+// day of now.
+func parseDay(raw string, loc *time.Location, now time.Time) (time.Time, error) {
 	if loc == nil {
-		loc = time.Local
+		loc = bizclock.Location()
 	}
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		now := time.Now().In(loc)
-		return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc), nil
+		n := now.In(loc)
+		return time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, loc), nil
 	}
 	return time.ParseInLocation("2006-01-02", raw, loc)
 }

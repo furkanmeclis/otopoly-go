@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
+	"time"
 
 	loyaltyusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/loyalty/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/google/uuid"
@@ -126,7 +128,9 @@ func (t GetCustomerLoyalty) Run(ctx context.Context, _ Env, raw json.RawMessage)
 		}
 		row := map[string]any{"package": DataText(p.Name, maxTextChars), "customer_package_uuid": p.UUID.String(), "credits": credits}
 		if p.ExpiresAt != nil {
-			row["expires"] = p.ExpiresAt.Format("2006-01-02")
+			// expires_at is the exclusive end (midnight Europe/Istanbul);
+			// report the last valid business day.
+			row["expires"] = bizclock.FormatDay(p.ExpiresAt.Add(-time.Nanosecond))
 		}
 		packages = append(packages, row)
 	}

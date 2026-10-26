@@ -36,6 +36,7 @@ import {
   usePlatformSubscriptionMutations,
 } from "@/features/platform-billing/hooks/use-platform-billing";
 import { useLocale } from "@/providers/locale-provider";
+import { businessToday } from "@/lib/utils/business-date";
 
 export const loadOrganizations = async (
   query: string,
@@ -52,7 +53,7 @@ export const loadOrganizations = async (
   }));
 };
 
-const today = () => format(new Date(), "yyyy-MM-dd");
+const today = () => businessToday();
 const periodEnd = (start: string, period: SubscriptionPeriod) => {
   const d = parseISO(start);
   return format(

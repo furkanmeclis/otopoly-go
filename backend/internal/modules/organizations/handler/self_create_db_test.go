@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	authusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
@@ -47,7 +49,7 @@ func newSelfCreateEnv(t *testing.T) *selfCreateEnv {
 		t.Skip("DATABASE_URL not set")
 	}
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := database.NewPoolFromDSN(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

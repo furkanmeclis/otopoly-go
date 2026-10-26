@@ -18,11 +18,21 @@ func TestExportTitle(t *testing.T) {
 
 func TestFormatDatetimeLocale(t *testing.T) {
 	ts := time.Date(2026, 8, 23, 14, 53, 0, 0, time.UTC)
-	if got := formatDatetime(ts, i18n.LocaleTR); got != "23.08.2026 14:53 UTC" {
+	if got := formatDatetime(ts, i18n.LocaleTR); got != "23.08.2026 17:53" {
 		t.Fatalf("tr datetime = %q", got)
 	}
-	if got := formatDatetime(ts, i18n.LocaleEN); got != "2026-08-23 14:53 UTC" {
+	if got := formatDatetime(ts, i18n.LocaleEN); got != "2026-08-23 17:53" {
 		t.Fatalf("en datetime = %q", got)
+	}
+}
+
+func TestFormatDatetimeLateNightIsNextTurkishDay(t *testing.T) {
+	ts := time.Date(2026, 10, 26, 22, 38, 0, 0, time.UTC)
+	if got := formatDatetime(ts, i18n.LocaleTR); got != "27.10.2026 01:38" {
+		t.Fatalf("tr datetime = %q", got)
+	}
+	if got := ExportDownloadFilename("tenant.finance_transactions", ExportFormat("csv"), ts); got != "finance_transactions_20261027.csv" {
+		t.Fatalf("filename = %q", got)
 	}
 }
 
@@ -33,7 +43,7 @@ func TestFormatCellEnumAndDatetime(t *testing.T) {
 	}
 	dtCol := Column{Key: "created_at", LabelKey: "users.created_at", Type: ColumnTypeDatetime}
 	ts := time.Date(2026, 8, 23, 17, 47, 18, 0, time.UTC)
-	if got := formatCell(ts, dtCol, i18n.LocaleTR); got != "23.08.2026 17:47 UTC" {
+	if got := formatCell(ts, dtCol, i18n.LocaleTR); got != "23.08.2026 20:47" {
 		t.Fatalf("datetime cell = %q", got)
 	}
 }

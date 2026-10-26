@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/dbtest"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/model"
@@ -19,7 +21,6 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/tsbcatalog"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // 1x1 PNG and WebP files so the MIME sniffer accepts the downloads.
@@ -115,7 +116,7 @@ func TestBrandLogoSyncAgainstPostgres(t *testing.T) {
 	}
 	dsn = dbtest.FreshDatabase(t, dsn)
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, dsn)
+	pool, err := database.NewPoolFromDSN(ctx, dsn)
 	if err != nil {
 		t.Fatal(err)
 	}

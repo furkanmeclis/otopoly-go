@@ -42,3 +42,4 @@ Canonical env is the **repo-root** `.env`. Compose files are `compose.local.yml`
 - New `/v1` routes update `backend/docs/openapi.yaml` in the same change.
 - Permission slugs are added only via migration + `internal/platform/rbac` + `frontend/src/config/permissions.ts`.
 - After OpenAPI changes: `cd frontend && pnpm api:generate`.
+- Business dates are Europe/Istanbul days: Go `internal/platform/bizclock`, web `lib/utils/business-date.ts`; the DB session runs in Europe/Istanbul. Never `time.Now()` / `toISOString().slice(0, 10)` for a day. See [docs/business-timezone.md](./docs/business-timezone.md).

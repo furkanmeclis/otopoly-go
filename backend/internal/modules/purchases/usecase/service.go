@@ -13,6 +13,7 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
@@ -42,6 +43,7 @@ type Service struct {
 	finance    *financeusecase.Service
 	search     SearchIndexer
 	bus        events.Bus
+	now        func() time.Time
 }
 
 func New(
@@ -50,7 +52,7 @@ func New(
 	act *activity.Recorder,
 	finance *financeusecase.Service,
 ) *Service {
-	return &Service{pool: pool, q: q, act: act, finance: finance}
+	return &Service{pool: pool, q: q, act: act, finance: finance, now: time.Now}
 }
 
 func (s *Service) SetSearchIndexer(idx SearchIndexer) { s.search = idx }
@@ -134,18 +136,18 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		params.SupplierUuid = pgtype.UUID{Bytes: su, Valid: true}
 	}
 	if from := strings.TrimSpace(filters.DateFrom); from != "" {
-		t, err := time.ParseInLocation("2006-01-02", from, time.Local)
+		start, _, err := bizclock.ParseDay(from)
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w: invalid date_from", ErrInvalidRequest)
 		}
-		params.DateFrom = pgtype.Timestamptz{Time: t, Valid: true}
+		params.DateFrom = pgtype.Timestamptz{Time: start, Valid: true}
 	}
 	if to := strings.TrimSpace(filters.DateTo); to != "" {
-		t, err := time.ParseInLocation("2006-01-02", to, time.Local)
+		_, end, err := bizclock.ParseDay(to)
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w: invalid date_to", ErrInvalidRequest)
 		}
-		params.DateTo = pgtype.Timestamptz{Time: t.Add(24 * time.Hour), Valid: true}
+		params.DateTo = pgtype.Timestamptz{Time: end, Valid: true}
 	}
 	rows, err := s.q.ListPurchases(ctx, params)
 	if err != nil {
@@ -241,7 +243,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (PurchaseDetail, e
 	if err != nil {
 		return PurchaseDetail{}, err
 	}
-	purchasedAt, err := parsePurchasedAt(in.PurchasedAt)
+	purchasedAt, err := s.parsePurchasedAt(in.PurchasedAt)
 	if err != nil {
 		return PurchaseDetail{}, err
 	}
@@ -305,9 +307,12 @@ func normalizeMethod(raw string) (string, error) {
 	return method, nil
 }
 
-func parsePurchasedAt(raw *string) (time.Time, error) {
+// SetClock replaces the clock (tests).
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
+
+func (s *Service) parsePurchasedAt(raw *string) (time.Time, error) {
 	if raw == nil || strings.TrimSpace(*raw) == "" {
-		return time.Now(), nil
+		return s.now(), nil
 	}
 	t, err := time.Parse(time.RFC3339, strings.TrimSpace(*raw))
 	if err != nil {
@@ -492,7 +497,8 @@ func (s *Service) postTx(
 		}
 	}
 
-	entryDate := pgtype.Date{Time: purchasedAt, Valid: true}
+	// Business day (Europe/Istanbul) of the purchase instant.
+	entryDate := bizclock.DateOf(purchasedAt)
 	desc := "Stok alımı"
 	if prep.supplier.Name != "" {
 		desc = fmt.Sprintf("Stok alımı — %s", prep.supplier.Name)

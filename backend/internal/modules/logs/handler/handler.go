@@ -11,6 +11,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/model"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
@@ -209,7 +210,10 @@ func parseListFilter(r *http.Request) (model.ListFilter, error) {
 	}
 	filter.CreatedFrom = from
 	if to != nil {
-		end := to.Add(24 * time.Hour)
+		end := bizclock.NextDay(*to)
+		if !isDay(values.Get("created_to")) {
+			end = to.Add(24 * time.Hour)
+		}
 		filter.CreatedTo = &end
 	}
 	if raw := strings.TrimSpace(values.Get("older_than_hours")); raw != "" {
@@ -225,14 +229,19 @@ func parseListFilter(r *http.Request) (model.ListFilter, error) {
 	return filter, nil
 }
 
+func isDay(raw string) bool {
+	_, err := time.Parse(bizclock.DayLayout, strings.TrimSpace(raw))
+	return err == nil
+}
+
 func parseDate(raw string) (*time.Time, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return nil, nil
 	}
-	if t, err := time.Parse("2006-01-02", raw); err == nil {
-		utc := t.UTC()
-		return &utc, nil
+	// A bare day is a business day (Europe/Istanbul midnight).
+	if start, _, err := bizclock.ParseDay(raw); err == nil {
+		return &start, nil
 	}
 	t, err := time.Parse(time.RFC3339, raw)
 	if err != nil {

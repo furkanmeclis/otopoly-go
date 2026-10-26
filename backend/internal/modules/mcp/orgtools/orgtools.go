@@ -15,6 +15,7 @@ import (
 	aitools "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/ai/tools"
 	leadsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/leads/usecase"
 	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/google/uuid"
 )
@@ -170,7 +171,7 @@ func (t ListLeads) Run(ctx context.Context, _ aitools.Env, raw json.RawMessage) 
 			Plate: aitools.DataText(r.VehiclePlate, 32), Vehicle: aitools.DataText(r.VehicleText, maxText),
 			Interest: aitools.DataText(r.Interest, maxText), Source: r.Source, Temperature: r.Temperature, Status: r.Status,
 			FollowUp: r.FollowUpDate, FollowUpDue: r.FollowUpState, Quotes: r.QuoteCount,
-			CreatedAt: r.CreatedAt.UTC().Format(time.RFC3339),
+			CreatedAt: bizclock.In(r.CreatedAt).Format(time.RFC3339),
 		}
 		if r.Assignee != nil {
 			it.Assignee = aitools.DataText(r.Assignee.Label, maxText)
@@ -260,7 +261,7 @@ func (t ListQuotes) Run(ctx context.Context, _ aitools.Env, raw json.RawMessage)
 			Customer: aitools.DataText(r.CustomerName, maxText), Plate: aitools.DataText(r.VehiclePlate, 32),
 			Vehicle: aitools.DataText(r.VehicleLabel, maxText), Total: aitools.FormatMoney(r.GrandTotal, r.Currency),
 			TotalNumber: aitools.Number(r.GrandTotal), ValidUntil: r.ValidUntil, PastValid: r.Expired,
-			Lines: r.LineCount, CreatedAt: r.CreatedAt.UTC().Format(time.RFC3339),
+			Lines: r.LineCount, CreatedAt: bizclock.In(r.CreatedAt).Format(time.RFC3339),
 		})
 	}
 	return aitools.JSONResult(map[string]any{"items": items, "total": total, "limit": l, "offset": o}, "", nil), nil

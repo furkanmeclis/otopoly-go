@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
 )
 
@@ -353,7 +354,7 @@ h1{
 	b.WriteString(`<span class="label">`)
 	b.WriteString(html.EscapeString(t("contracts.pdf.date")))
 	b.WriteString(`</span><span class="value">`)
-	b.WriteString(html.EscapeString(opts.CreatedAt.Format("02.01.2006")))
+	b.WriteString(html.EscapeString(bizclock.In(opts.CreatedAt).Format("02.01.2006")))
 	b.WriteString(`</span></div></div>`)
 
 	b.WriteString(`<div class="hero"><div class="eyebrow">`)

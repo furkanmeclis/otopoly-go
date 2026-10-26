@@ -18,6 +18,7 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
@@ -1485,7 +1486,7 @@ func resolveContractVariables(
 		"org_district":     org.District,
 		"org_full_address": formatOrgFullAddress(org),
 		"org_website":      org.Website,
-		"today":            time.Now().Format("02.01.2006"),
+		"today":            bizclock.Now().Format("02.01.2006"),
 	}
 }
 

@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "i18n:check": "node ../scripts/check-i18n.mjs",
+    "test:dates": "node scripts/test-business-date.mjs",
     "api:generate": "openapi-typescript ../backend/docs/openapi.yaml -o src/generated/api.d.ts"
   },
   "dependencies": {

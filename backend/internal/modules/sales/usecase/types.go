@@ -60,8 +60,8 @@ type ListFilters struct {
 	// CustomerUUID limits the list to one customer's sales (uuid string;
 	// empty = all).
 	CustomerUUID string
-	// Location sets the day boundaries of DateFrom/DateTo (nil = server local
-	// time, the HTTP API default).
+	// Location sets the day boundaries of DateFrom/DateTo (nil = the business
+	// time zone, Europe/Istanbul, the HTTP API default).
 	Location *time.Location
 }
 

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/model"
@@ -86,7 +88,7 @@ func setup(t *testing.T) fixture {
 		t.Skip("DATABASE_URL not set")
 	}
 	bg := context.Background()
-	pool, err := pgxpool.New(bg, dsn)
+	pool, err := database.NewPoolFromDSN(bg, dsn)
 	if err != nil {
 		t.Fatalf("pool: %v", err)
 	}

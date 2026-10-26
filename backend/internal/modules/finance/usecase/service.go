@@ -11,6 +11,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
@@ -32,6 +33,7 @@ type Service struct {
 	q             *db.Queries
 	act           *activity.Recorder
 	searchIndexer SearchIndexer
+	now           func() time.Time
 }
 
 // TODO(finance): Module backlog (inline TODOs in handler/, usecase/, queries/, resourcemeta):
@@ -42,8 +44,11 @@ type Service struct {
 //   - Multi-currency org summary rules when accounts mix currencies
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
-	return &Service{pool: pool, q: q, act: act}
+	return &Service{pool: pool, q: q, act: act, now: time.Now}
 }
+
+// SetClock replaces the clock (tests).
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
 type Account struct {
 	UUID            uuid.UUID `json:"uuid"`
@@ -862,13 +867,21 @@ func (s *Service) VoidTransaction(ctx context.Context, actorID int64, id uuid.UU
 
 func (s *Service) Summary(ctx context.Context, dateFrom, dateTo, currency string) (Summary, error) {
 	orgID := orgctx.MustScope(ctx).InternalID
+	// Defaults are business days (Europe/Istanbul): this month up to today.
+	now := s.now()
 	from, err := parseDate(dateFrom)
 	if err != nil {
-		from = pgtype.Date{Time: time.Now().UTC(), Valid: true}
+		from = bizclock.DateOf(now)
+		if strings.TrimSpace(dateFrom) == "" {
+			from = bizclock.DateOf(bizclock.MonthStart(now))
+		}
 	}
 	to, err := parseDate(dateTo)
 	if err != nil {
-		to = from
+		to = bizclock.DateOf(now)
+		if strings.TrimSpace(dateTo) != "" {
+			to = from
+		}
 	}
 	var currencyArg pgtype.Text
 	if currency != "" {

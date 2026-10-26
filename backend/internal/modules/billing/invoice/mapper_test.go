@@ -115,3 +115,19 @@ func TestXSDValid(t *testing.T) {
 		t.Fatalf("Build: %v", err)
 	}
 }
+
+// An invoice issued at 01:38 Türkiye time (22:38 UTC the day before) carries
+// the Türkiye date and time.
+func TestIssueDateIsIstanbulDay(t *testing.T) {
+	in := testInput()
+	in.IssueAt = time.Date(2026, 10, 26, 22, 38, 0, 0, time.UTC)
+	xml, _, err := Build(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(xml)
+	if !strings.Contains(s, ">2026-10-27</IssueDate>") || !strings.Contains(s, ">01:38:00</IssueTime>") {
+		i := strings.Index(s, "IssueDate")
+		t.Fatalf("issue date/time not Istanbul: %s", s[i:min(len(s), i+300)])
+	}
+}

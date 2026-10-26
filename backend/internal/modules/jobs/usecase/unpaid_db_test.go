@@ -7,12 +7,13 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
+
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/dbtest"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func testDSN(t *testing.T) string {
@@ -31,7 +32,7 @@ func testDSN(t *testing.T) string {
 // organization and match plates without spaces.
 func TestUnpaidJobsMatchCustomerSummary(t *testing.T) {
 	ctx := context.Background()
-	pool, err := pgxpool.New(ctx, testDSN(t))
+	pool, err := database.NewPoolFromDSN(ctx, testDSN(t))
 	if err != nil {
 		t.Fatal(err)
 	}
