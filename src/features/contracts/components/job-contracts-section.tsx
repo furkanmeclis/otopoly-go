@@ -7,11 +7,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Camera, Download, FilePlus2, ImagePlus, Users, X } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, View } from 'react-native';
 
 import type { UploadFile } from '@/api/files';
 import { useToast } from '@/components/feedback/toast';
-import { Badge, Button, Card, Group, IconButton, Row, Section, SelectField, Sheet, Txt } from '@/components/ui';
+import { Badge, Button, Card, Group, IconButton, KeyboardScroll, Row, Section, SelectField, Sheet, Txt } from '@/components/ui';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
@@ -199,7 +199,7 @@ function CreateStep({ jobUuid, onClose, onCreated }: { jobUuid: string; onClose:
   const busy = create.isPending;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }} keyboardShouldPersistTaps="handled">
+    <KeyboardScroll contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }}>
       <Txt variant="caption" tone="secondary">
         {tr('contracts.job.sheet_create_description')}
       </Txt>
@@ -254,7 +254,7 @@ function CreateStep({ jobUuid, onClose, onCreated }: { jobUuid: string; onClose:
       </View>
       <Button label={busy ? tr('common.saving') : tr('contracts.job.sheet_continue')} loading={busy} disabled={!templateUuid} onPress={() => create.mutate(undefined)} />
       <Button variant="outline" label={tr('common.cancel')} disabled={busy} onPress={onClose} />
-    </ScrollView>
+    </KeyboardScroll>
   );
 }
 

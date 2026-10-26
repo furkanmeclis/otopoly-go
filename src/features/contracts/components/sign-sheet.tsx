@@ -5,11 +5,11 @@
  */
 import { MessageCircle, ShieldCheck } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { ScrollView as GestureScrollView } from 'react-native-gesture-handler';
 
 import { isApiError } from '@/api/errors';
-import { Button, Card, Row, Sheet, TextField, Txt } from '@/components/ui';
+import { Button, Card, KeyboardScroll, Row, Sheet, TextField, Txt } from '@/components/ui';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
@@ -120,7 +120,7 @@ export function SignerForm({
 
   if (needsOtp) {
     return (
-      <ScrollView contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }} keyboardShouldPersistTaps="handled">
+      <KeyboardScroll contentContainerStyle={{ padding: t.spacing.lg, gap: t.spacing.lg, paddingBottom: t.spacing.xxxl }}>
         {header}
         <Card style={{ gap: t.spacing.xs, backgroundColor: t.colors.surfaceAlt }}>
           <Row gap={t.spacing.sm}>
@@ -196,7 +196,7 @@ export function SignerForm({
         ) : null}
 
         <Button variant="outline" label={cancelLabel ?? tr('common.cancel')} onPress={onDone} />
-      </ScrollView>
+      </KeyboardScroll>
     );
   }
 
