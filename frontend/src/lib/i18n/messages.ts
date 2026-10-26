@@ -5,6 +5,7 @@ import enAi from "@/locales/en/ai.json";
 import enTodos from "@/locales/en/todos.json";
 import enCalendar from "@/locales/en/calendar.json";
 import enStockReorder from "@/locales/en/stock_reorder.json";
+import enLoyalty from "@/locales/en/loyalty.json";
 import enMessaging from "@/locales/en/messaging.json";
 import enLeads from "@/locales/en/leads.json";
 import enMcp from "@/locales/en/mcp.json";
@@ -58,6 +59,7 @@ import trAi from "@/locales/tr/ai.json";
 import trTodos from "@/locales/tr/todos.json";
 import trCalendar from "@/locales/tr/calendar.json";
 import trStockReorder from "@/locales/tr/stock_reorder.json";
+import trLoyalty from "@/locales/tr/loyalty.json";
 import trMessaging from "@/locales/tr/messaging.json";
 import trLeads from "@/locales/tr/leads.json";
 import trMcp from "@/locales/tr/mcp.json";
@@ -157,6 +159,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     todos: trTodos,
     calendar: trCalendar,
     stock_reorder: trStockReorder,
+    loyalty: trLoyalty,
     messaging: trMessaging,
     leads: trLeads,
     mcp: trMcp,
@@ -212,6 +215,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     todos: enTodos,
     calendar: enCalendar,
     stock_reorder: enStockReorder,
+    loyalty: enLoyalty,
     messaging: enMessaging,
     leads: enLeads,
     mcp: enMcp,

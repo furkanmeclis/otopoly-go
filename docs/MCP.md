@@ -135,6 +135,8 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `list_reviews` | read | `tenant.reviews.read` (plan `reviews.enabled`) |
 | `get_review_summary` | read | `tenant.reviews.read` (plan `reviews.enabled`) |
 | `list_reorder_suggestions` | read | `tenant.purchases.read`, `tenant.catalog.read` (plan `stock_reorder.enabled`) |
+| `get_customer_loyalty` | read | `tenant.loyalty.read`, `tenant.customers.read` (plan `loyalty.enabled`) |
+| `list_loyalty_programs` | read | `tenant.loyalty.read` (plan `loyalty.enabled`) |
 | `create_customer` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `add_customer_vehicle` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `create_job` | write | `tenant.jobs.write`, `tenant.customers.read`, `tenant.catalog.read` |
@@ -153,6 +155,8 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `complete_todo` | write | `tenant.todos.write` |
 | `mark_review_followed_up` | write | `tenant.reviews.write`, `tenant.reviews.read` (owner; plan `reviews.enabled`) |
 | `create_purchase_drafts` | write | `tenant.purchases.write`, `tenant.purchases.read`, `tenant.catalog.read` (owner; plan `stock_reorder.enabled`) |
+| `sell_package` | write | `tenant.loyalty.apply`, `tenant.loyalty.read`, `tenant.customers.read`, `tenant.finance.read` (plan `loyalty.enabled`) |
+| `redeem_reward` | write | `tenant.loyalty.apply`, `tenant.loyalty.read`, `tenant.jobs.write`, `tenant.jobs.read` (plan `loyalty.enabled`) |
 <!-- mcp-org-tools:end -->
 
 ### Platform endpoint (`/mcp/platform`)

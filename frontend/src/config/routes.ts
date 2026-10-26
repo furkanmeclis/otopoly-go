@@ -101,6 +101,14 @@ export const routes = {
       event: (slug: string, uuid: string) =>
         `/t/${slug}/calendar?event=${encodeURIComponent(uuid)}`,
     },
+    loyalty: {
+      root: (slug: string) => `/t/${slug}/loyalty`,
+      tab: (slug: string, tab: string) => `/t/${slug}/loyalty?tab=${tab}`,
+      customerPackage: (slug: string, uuid: string) =>
+        `/t/${slug}/loyalty/customer-packages/${uuid}`,
+      subscription: (slug: string, uuid: string) =>
+        `/t/${slug}/loyalty/subscriptions/${uuid}`,
+    },
     leads: {
       root: (slug: string) => `/t/${slug}/leads`,
       detail: (slug: string, uuid: string) => `/t/${slug}/leads/${uuid}`,

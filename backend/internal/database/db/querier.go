@@ -24,6 +24,9 @@ type Querier interface {
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
 	AdjustProductStock(ctx context.Context, arg AdjustProductStockParams) (Product, error)
 	AdjustProductStockByID(ctx context.Context, arg AdjustProductStockByIDParams) error
+	// Moves paid_through forward after a period payment (only from the
+	// expected value, so concurrent payments cannot pay the same period).
+	AdvanceLoyaltySubscription(ctx context.Context, arg AdvanceLoyaltySubscriptionParams) (LoyaltySubscription, error)
 	AnswerReviewRequest(ctx context.Context, arg AnswerReviewRequestParams) (ReviewRequest, error)
 	// Webhook status of a wamid. sent < delivered < read never regress (a late
 	// "delivered" after "read" keeps "read"); "failed" always applies (with its
@@ -51,6 +54,8 @@ type Querier interface {
 	CalendarSales(ctx context.Context, arg CalendarSalesParams) ([]CalendarSalesRow, error)
 	CalendarTodos(ctx context.Context, arg CalendarTodosParams) ([]CalendarTodosRow, error)
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
+	CancelLoyaltyCustomerPackage(ctx context.Context, arg CancelLoyaltyCustomerPackageParams) (LoyaltyCustomerPackage, error)
+	CancelLoyaltySubscription(ctx context.Context, arg CancelLoyaltySubscriptionParams) (LoyaltySubscription, error)
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
 	CancelScheduledReviewRequestsForJob(ctx context.Context, arg CancelScheduledReviewRequestsForJobParams) ([]uuid.UUID, error)
@@ -138,6 +143,13 @@ type Querier interface {
 	CountInvoicesForOrg(ctx context.Context, organizationID int64) (int64, error)
 	CountLeads(ctx context.Context, arg CountLeadsParams) (int64, error)
 	CountLiveSubscriptionsByPlan(ctx context.Context, planID int64) (int64, error)
+	CountLoyaltyCampaigns(ctx context.Context, arg CountLoyaltyCampaignsParams) (int64, error)
+	CountLoyaltyCustomerPackageUses(ctx context.Context, arg CountLoyaltyCustomerPackageUsesParams) (int64, error)
+	CountLoyaltyCustomerPackages(ctx context.Context, arg CountLoyaltyCustomerPackagesParams) (int64, error)
+	CountLoyaltyPackages(ctx context.Context, arg CountLoyaltyPackagesParams) (int64, error)
+	CountLoyaltySubscriptionPlans(ctx context.Context, arg CountLoyaltySubscriptionPlansParams) (int64, error)
+	CountLoyaltySubscriptionUses(ctx context.Context, arg CountLoyaltySubscriptionUsesParams) (int64, error)
+	CountLoyaltySubscriptions(ctx context.Context, arg CountLoyaltySubscriptionsParams) (int64, error)
 	CountMCPOAuthClients(ctx context.Context, arg CountMCPOAuthClientsParams) (int64, error)
 	CountNotificationsForUser(ctx context.Context, arg CountNotificationsForUserParams) (int64, error)
 	CountOrders(ctx context.Context, arg CountOrdersParams) (int64, error)
@@ -226,6 +238,20 @@ type Querier interface {
 	CreateLead(ctx context.Context, arg CreateLeadParams) (Lead, error)
 	CreateLeadEvent(ctx context.Context, arg CreateLeadEventParams) (LeadEvent, error)
 	CreateLogPurgeRule(ctx context.Context, arg CreateLogPurgeRuleParams) (LogPurgeRule, error)
+	CreateLoyaltyApplication(ctx context.Context, arg CreateLoyaltyApplicationParams) (LoyaltyApplication, error)
+	// ------------------------------------------------------------ campaigns
+	CreateLoyaltyCampaign(ctx context.Context, arg CreateLoyaltyCampaignParams) (LoyaltyCampaign, error)
+	// ------------------------------------------------------------ customer packages
+	CreateLoyaltyCustomerPackage(ctx context.Context, arg CreateLoyaltyCustomerPackageParams) (LoyaltyCustomerPackage, error)
+	CreateLoyaltyCustomerPackageCredit(ctx context.Context, arg CreateLoyaltyCustomerPackageCreditParams) error
+	// ------------------------------------------------------------ packages
+	CreateLoyaltyPackage(ctx context.Context, arg CreateLoyaltyPackageParams) (LoyaltyPackage, error)
+	CreateLoyaltyPackageItem(ctx context.Context, arg CreateLoyaltyPackageItemParams) error
+	// ------------------------------------------------------------ subscriptions
+	CreateLoyaltySubscription(ctx context.Context, arg CreateLoyaltySubscriptionParams) (LoyaltySubscription, error)
+	CreateLoyaltySubscriptionPayment(ctx context.Context, arg CreateLoyaltySubscriptionPaymentParams) (LoyaltySubscriptionPayment, error)
+	// ------------------------------------------------------------ subscription plans
+	CreateLoyaltySubscriptionPlan(ctx context.Context, arg CreateLoyaltySubscriptionPlanParams) (LoyaltySubscriptionPlan, error)
 	CreateMCPOAuthAuthRequest(ctx context.Context, arg CreateMCPOAuthAuthRequestParams) (McpOauthAuthRequest, error)
 	// MCP OAuth 2.1 authorization server (docs/MCP.md).
 	CreateMCPOAuthClient(ctx context.Context, arg CreateMCPOAuthClientParams) (McpOauthClient, error)
@@ -302,6 +328,7 @@ type Querier interface {
 	DeleteLiveActivityToken(ctx context.Context, arg DeleteLiveActivityTokenParams) error
 	DeleteLiveActivityTokensForUser(ctx context.Context, arg DeleteLiveActivityTokensForUserParams) (int64, error)
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
+	DeleteLoyaltyPackageItems(ctx context.Context, arg DeleteLoyaltyPackageItemsParams) error
 	// Deleting is the claim: a concurrent second decision finds nothing.
 	DeleteMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error
@@ -491,6 +518,15 @@ type Querier interface {
 	GetLiveSubscription(ctx context.Context, organizationID int64) (GetLiveSubscriptionRow, error)
 	GetLiveSubscriptionForUpdate(ctx context.Context, organizationID int64) (BillingSubscription, error)
 	GetLogPurgeRuleByUUID(ctx context.Context, argUuid uuid.UUID) (LogPurgeRule, error)
+	GetLoyaltyApplication(ctx context.Context, arg GetLoyaltyApplicationParams) (LoyaltyApplication, error)
+	GetLoyaltyCampaign(ctx context.Context, arg GetLoyaltyCampaignParams) (LoyaltyCampaign, error)
+	GetLoyaltyCampaignByID(ctx context.Context, arg GetLoyaltyCampaignByIDParams) (LoyaltyCampaign, error)
+	GetLoyaltyCustomerPackage(ctx context.Context, arg GetLoyaltyCustomerPackageParams) (GetLoyaltyCustomerPackageRow, error)
+	GetLoyaltyPackage(ctx context.Context, arg GetLoyaltyPackageParams) (LoyaltyPackage, error)
+	GetLoyaltySubscription(ctx context.Context, arg GetLoyaltySubscriptionParams) (GetLoyaltySubscriptionRow, error)
+	GetLoyaltySubscriptionByID(ctx context.Context, arg GetLoyaltySubscriptionByIDParams) (LoyaltySubscription, error)
+	GetLoyaltySubscriptionPlan(ctx context.Context, arg GetLoyaltySubscriptionPlanParams) (LoyaltySubscriptionPlan, error)
+	GetLoyaltySubscriptionPlanByID(ctx context.Context, arg GetLoyaltySubscriptionPlanByIDParams) (LoyaltySubscriptionPlan, error)
 	// A pending request that has not expired, with its live client.
 	GetMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (GetMCPOAuthAuthRequestRow, error)
 	GetMCPOAuthClient(ctx context.Context, clientID string) (McpOauthClient, error)
@@ -667,6 +703,9 @@ type Querier interface {
 	InsertBulkChange(ctx context.Context, arg InsertBulkChangeParams) (BulkChange, error)
 	InsertDiscountUse(ctx context.Context, arg InsertDiscountUseParams) error
 	InsertImportChange(ctx context.Context, arg InsertImportChangeParams) (ImportChange, error)
+	// ------------------------------------------------------------ stamps
+	// Earn / reverse_earn are once per (campaign, job): a repeat returns no row.
+	InsertLoyaltyStampEvent(ctx context.Context, arg InsertLoyaltyStampEventParams) (LoyaltyStampEvent, error)
 	InsertNotificationHistory(ctx context.Context, arg InsertNotificationHistoryParams) (NotificationHistory, error)
 	InsertOutboundMessage(ctx context.Context, arg InsertOutboundMessageParams) (OutboundMessage, error)
 	InsertOutboxEvent(ctx context.Context, arg InsertOutboxEventParams) (OutboxEvent, error)
@@ -691,6 +730,8 @@ type Querier interface {
 	LastWidgetPushAt(ctx context.Context, organizationID int64) (pgtype.Timestamptz, error)
 	LeadSummary(ctx context.Context, arg LeadSummaryParams) (LeadSummaryRow, error)
 	LinkCariEntryFinanceTransaction(ctx context.Context, arg LinkCariEntryFinanceTransactionParams) (CariEntry, error)
+	LinkLoyaltyCustomerPackagePayment(ctx context.Context, arg LinkLoyaltyCustomerPackagePaymentParams) error
+	LinkLoyaltySubscriptionPayment(ctx context.Context, arg LinkLoyaltySubscriptionPaymentParams) error
 	LinkProductSaleCari(ctx context.Context, arg LinkProductSaleCariParams) (ProductSale, error)
 	LinkProductSaleFinance(ctx context.Context, arg LinkProductSaleFinanceParams) (ProductSale, error)
 	LinkPurchaseFinance(ctx context.Context, arg LinkPurchaseFinanceParams) (Purchase, error)
@@ -701,6 +742,8 @@ type Querier interface {
 	ListAIMessages(ctx context.Context, conversationID int64) ([]AiMessage, error)
 	ListAIOrganizationSettingsByOrgIDs(ctx context.Context, organizationUuids []uuid.UUID) ([]ListAIOrganizationSettingsByOrgIDsRow, error)
 	ListAIUsageByOrganization(ctx context.Context, arg ListAIUsageByOrganizationParams) ([]ListAIUsageByOrganizationRow, error)
+	// Campaigns that can earn / redeem on a day (active, inside the window).
+	ListActiveLoyaltyCampaigns(ctx context.Context, arg ListActiveLoyaltyCampaignsParams) ([]LoyaltyCampaign, error)
 	ListActivePublicKeys(ctx context.Context, keys []string) ([]string, error)
 	ListActivePublicLinks(ctx context.Context) ([]StorageLink, error)
 	ListActivePushDevicesByUser(ctx context.Context, userID int64) ([]PushDevice, error)
@@ -799,6 +842,21 @@ type Querier interface {
 	// device_id is the active push device behind an Android row (0 = gone).
 	ListLiveActivityTargetsForJob(ctx context.Context, arg ListLiveActivityTargetsForJobParams) ([]ListLiveActivityTargetsForJobRow, error)
 	ListLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
+	ListLoyaltyApplicationsByJob(ctx context.Context, arg ListLoyaltyApplicationsByJobParams) ([]ListLoyaltyApplicationsByJobRow, error)
+	// Usage history of a customer package or subscription.
+	ListLoyaltyApplicationsBySource(ctx context.Context, arg ListLoyaltyApplicationsBySourceParams) ([]ListLoyaltyApplicationsBySourceRow, error)
+	ListLoyaltyCampaigns(ctx context.Context, arg ListLoyaltyCampaignsParams) ([]LoyaltyCampaign, error)
+	// state: active (usable) | expired | used_up | cancelled; NULL = all.
+	ListLoyaltyCustomerPackages(ctx context.Context, arg ListLoyaltyCustomerPackagesParams) ([]ListLoyaltyCustomerPackagesRow, error)
+	ListLoyaltyPackageCredits(ctx context.Context, arg ListLoyaltyPackageCreditsParams) ([]ListLoyaltyPackageCreditsRow, error)
+	ListLoyaltyPackageItems(ctx context.Context, arg ListLoyaltyPackageItemsParams) ([]ListLoyaltyPackageItemsRow, error)
+	ListLoyaltyPackages(ctx context.Context, arg ListLoyaltyPackagesParams) ([]ListLoyaltyPackagesRow, error)
+	ListLoyaltyStampEventsByJob(ctx context.Context, arg ListLoyaltyStampEventsByJobParams) ([]LoyaltyStampEvent, error)
+	ListLoyaltySubscriptionPayments(ctx context.Context, arg ListLoyaltySubscriptionPaymentsParams) ([]ListLoyaltySubscriptionPaymentsRow, error)
+	ListLoyaltySubscriptionPlans(ctx context.Context, arg ListLoyaltySubscriptionPlansParams) ([]ListLoyaltySubscriptionPlansRow, error)
+	// state: active | past_due | cancelled; due_before: active subscriptions whose
+	// renewal (paid_through) is before that day (renewals list).
+	ListLoyaltySubscriptions(ctx context.Context, arg ListLoyaltySubscriptionsParams) ([]ListLoyaltySubscriptionsRow, error)
 	ListMCPOAuthClients(ctx context.Context, arg ListMCPOAuthClientsParams) ([]ListMCPOAuthClientsRow, error)
 	// The user's active organizations (consent organization picker).
 	ListMCPOAuthSelectableOrgs(ctx context.Context, userID int64) ([]ListMCPOAuthSelectableOrgsRow, error)
@@ -936,6 +994,11 @@ type Querier interface {
 	// the customer summary's unpaid_amount (payment_status unpaid, not cancelled
 	// or voided). They are not in the cari ledger until the job is closed on cari.
 	ListUnpaidServiceJobsByCustomer(ctx context.Context, arg ListUnpaidServiceJobsByCustomerParams) ([]ListUnpaidServiceJobsByCustomerRow, error)
+	// Credits a customer can use now (active, not expired, remaining > 0),
+	// oldest expiry first.
+	ListUsableLoyaltyCredits(ctx context.Context, arg ListUsableLoyaltyCreditsParams) ([]ListUsableLoyaltyCreditsRow, error)
+	// Active, paid subscriptions of a customer (the current day is covered).
+	ListUsableLoyaltySubscriptions(ctx context.Context, arg ListUsableLoyaltySubscriptionsParams) ([]LoyaltySubscription, error)
 	ListUsageCounters(ctx context.Context, arg ListUsageCountersParams) ([]ListUsageCountersRow, error)
 	ListUsageMetersForOrgAdmin(ctx context.Context, organizationID int64) ([]ListUsageMetersForOrgAdminRow, error)
 	// Per membership: the user's own conversations and quota tokens since the
@@ -973,6 +1036,30 @@ type Querier interface {
 	ListWidgetRefreshTargets(ctx context.Context, organizationID int64) ([]ListWidgetRefreshTargetsRow, error)
 	// Serializes owner-count checks of concurrent member changes.
 	LockOrganizationMembers(ctx context.Context, id int64) error
+	LoyaltyCategoriesByIDs(ctx context.Context, arg LoyaltyCategoriesByIDsParams) ([]LoyaltyCategoriesByIDsRow, error)
+	LoyaltyGetCustomer(ctx context.Context, arg LoyaltyGetCustomerParams) (LoyaltyGetCustomerRow, error)
+	LoyaltyGetCustomerByID(ctx context.Context, arg LoyaltyGetCustomerByIDParams) (LoyaltyGetCustomerByIDRow, error)
+	// ------------------------------------------------------------ job applications
+	LoyaltyGetJob(ctx context.Context, arg LoyaltyGetJobParams) (LoyaltyGetJobRow, error)
+	LoyaltyGetJobByID(ctx context.Context, arg LoyaltyGetJobByIDParams) (LoyaltyGetJobByIDRow, error)
+	LoyaltyGetVehicle(ctx context.Context, arg LoyaltyGetVehicleParams) (LoyaltyGetVehicleRow, error)
+	LoyaltyGetVehicleByID(ctx context.Context, arg LoyaltyGetVehicleByIDParams) (LoyaltyGetVehicleByIDRow, error)
+	LoyaltyJobLines(ctx context.Context, arg LoyaltyJobLinesParams) ([]LoyaltyJobLinesRow, error)
+	// Serializes stamp / credit changes of one customer inside a transaction.
+	LoyaltyLockCustomer(ctx context.Context, arg LoyaltyLockCustomerParams) error
+	LoyaltyRecalcJobTotal(ctx context.Context, arg LoyaltyRecalcJobTotalParams) (pgtype.Numeric, error)
+	LoyaltyRenewalCounts(ctx context.Context, arg LoyaltyRenewalCountsParams) (LoyaltyRenewalCountsRow, error)
+	LoyaltyResolveCategories(ctx context.Context, arg LoyaltyResolveCategoriesParams) ([]LoyaltyResolveCategoriesRow, error)
+	// Loyalty and packages (stamp campaigns, prepaid packages, subscriptions).
+	// Every query filters organization_id.
+	// ------------------------------------------------------------ references
+	LoyaltyResolveServices(ctx context.Context, arg LoyaltyResolveServicesParams) ([]LoyaltyResolveServicesRow, error)
+	LoyaltyServicesByIDs(ctx context.Context, arg LoyaltyServicesByIDsParams) ([]LoyaltyServicesByIDsRow, error)
+	// Sets what loyalty covers on a line; line_total = unit_price * qty - discount.
+	LoyaltySetLineDiscount(ctx context.Context, arg LoyaltySetLineDiscountParams) error
+	// Per campaign: stamp balance and the number of rewards redeemed (net of
+	// reverted redemptions) of one customer.
+	LoyaltyStampBalances(ctx context.Context, arg LoyaltyStampBalancesParams) ([]LoyaltyStampBalancesRow, error)
 	MarkAllNotificationsReadForUser(ctx context.Context, userID pgtype.Int8) (int64, error)
 	MarkBulkJobCompleted(ctx context.Context, arg MarkBulkJobCompletedParams) (BulkJob, error)
 	MarkBulkJobFailed(ctx context.Context, arg MarkBulkJobFailedParams) (BulkJob, error)
@@ -1084,8 +1171,10 @@ type Querier interface {
 	RestoreProduct(ctx context.Context, arg RestoreProductParams) error
 	RestoreService(ctx context.Context, arg RestoreServiceParams) error
 	RestoreUser(ctx context.Context, id int64) (User, error)
+	ReturnLoyaltyCredit(ctx context.Context, arg ReturnLoyaltyCreditParams) error
 	// Marks the job's usage as given back; returns the rows whose stock must be restored.
 	RevertJobConsumptions(ctx context.Context, arg RevertJobConsumptionsParams) ([]RevertJobConsumptionsRow, error)
+	RevertLoyaltyApplication(ctx context.Context, arg RevertLoyaltyApplicationParams) (LoyaltyApplication, error)
 	ReviewScoreDistribution(ctx context.Context, arg ReviewScoreDistributionParams) ([]ReviewScoreDistributionRow, error)
 	ReviewSummaryTotals(ctx context.Context, arg ReviewSummaryTotalsParams) (ReviewSummaryTotalsRow, error)
 	// Weekly (or monthly) buckets in Europe/Istanbul.
@@ -1176,6 +1265,9 @@ type Querier interface {
 	SoftDeleteFinanceAccount(ctx context.Context, arg SoftDeleteFinanceAccountParams) (FinanceAccount, error)
 	SoftDeleteFinanceCategory(ctx context.Context, arg SoftDeleteFinanceCategoryParams) (FinanceCategory, error)
 	SoftDeleteLead(ctx context.Context, arg SoftDeleteLeadParams) (SoftDeleteLeadRow, error)
+	SoftDeleteLoyaltyCampaign(ctx context.Context, arg SoftDeleteLoyaltyCampaignParams) (LoyaltyCampaign, error)
+	SoftDeleteLoyaltyPackage(ctx context.Context, arg SoftDeleteLoyaltyPackageParams) (LoyaltyPackage, error)
+	SoftDeleteLoyaltySubscriptionPlan(ctx context.Context, arg SoftDeleteLoyaltySubscriptionPlanParams) (LoyaltySubscriptionPlan, error)
 	SoftDeleteProduct(ctx context.Context, arg SoftDeleteProductParams) (Product, error)
 	SoftDeleteService(ctx context.Context, arg SoftDeleteServiceParams) (Service, error)
 	SoftDeleteSupplier(ctx context.Context, arg SoftDeleteSupplierParams) (Supplier, error)
@@ -1248,6 +1340,9 @@ type Querier interface {
 	UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, error)
 	UpdateLegalPage(ctx context.Context, arg UpdateLegalPageParams) (int64, error)
 	UpdateLogPurgeRule(ctx context.Context, arg UpdateLogPurgeRuleParams) (LogPurgeRule, error)
+	UpdateLoyaltyCampaign(ctx context.Context, arg UpdateLoyaltyCampaignParams) (LoyaltyCampaign, error)
+	UpdateLoyaltyPackage(ctx context.Context, arg UpdateLoyaltyPackageParams) (LoyaltyPackage, error)
+	UpdateLoyaltySubscriptionPlan(ctx context.Context, arg UpdateLoyaltySubscriptionPlanParams) (LoyaltySubscriptionPlan, error)
 	// Corrects a posted manual income/expense row in place (account, category,
 	// amount, date, description). Rows owned by a source document (jobs, sales,
 	// purchases, cari collections) are never edited here; the caller adjusts the
@@ -1331,6 +1426,7 @@ type Querier interface {
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error)
 	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)
+	UseLoyaltyCredit(ctx context.Context, arg UseLoyaltyCreditParams) (LoyaltyCustomerPackageCredit, error)
 	// Marking the code used is the claim; an expired or used code returns no row.
 	UseMCPOAuthCode(ctx context.Context, arg UseMCPOAuthCodeParams) (McpOauthCode, error)
 	UserHasRoleSlug(ctx context.Context, arg UserHasRoleSlugParams) (bool, error)

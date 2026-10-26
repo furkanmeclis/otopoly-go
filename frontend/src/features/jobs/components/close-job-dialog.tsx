@@ -54,6 +54,9 @@ export function CloseJobDialog({
     is_active: "true",
   });
   const accounts = accountsQuery.data?.items ?? [];
+  // Loyalty (package, subscription, reward) covered the whole job: it
+  // closes without a payment.
+  const covered = Boolean(job && Number(job.total_amount) === 0);
   const defaultAccountUuid =
     accounts.find((account) => account.is_default)?.uuid ??
     accounts[0]?.uuid ??
@@ -88,6 +91,29 @@ export function CloseJobDialog({
           <DialogTitle>{t("jobs.actions.close")}</DialogTitle>
           <DialogDescription>{t("jobs.close.description")}</DialogDescription>
         </DialogHeader>
+        {job && covered ? (
+          <>
+            <p className="text-sm text-emerald-700 dark:text-emerald-400">
+              {t("jobs.close.covered")}
+            </p>
+            <DialogFooter className="mt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="button"
+                disabled={pending}
+                onClick={() => void onSubmit({})}
+              >
+                {pending ? t("common.saving") : t("jobs.actions.close")}
+              </Button>
+            </DialogFooter>
+          </>
+        ) : null}
         {job ? (
           <div className="bg-muted/50 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5">
             <div className="flex min-w-0 items-center gap-2">
@@ -101,29 +127,31 @@ export function CloseJobDialog({
             </span>
           </div>
         ) : null}
-        <AppForm
-          key={open ? `close-${defaultAccountUuid}` : "close-closed"}
-          schema={schema}
-          defaultValues={{
-            method: "cash",
-            finance_account_uuid: defaultAccountUuid,
-          }}
-          onSubmit={async (values) => {
-            await onSubmit({
-              method: values.method,
-              finance_account_uuid:
-                values.method === "cari"
-                  ? undefined
-                  : values.finance_account_uuid || undefined,
-            });
-          }}
-        >
-          <CloseJobFields
-            accounts={accounts}
-            pending={pending}
-            onCancel={() => onOpenChange(false)}
-          />
-        </AppForm>
+        {covered ? null : (
+          <AppForm
+            key={open ? `close-${defaultAccountUuid}` : "close-closed"}
+            schema={schema}
+            defaultValues={{
+              method: "cash",
+              finance_account_uuid: defaultAccountUuid,
+            }}
+            onSubmit={async (values) => {
+              await onSubmit({
+                method: values.method,
+                finance_account_uuid:
+                  values.method === "cari"
+                    ? undefined
+                    : values.finance_account_uuid || undefined,
+              });
+            }}
+          >
+            <CloseJobFields
+              accounts={accounts}
+              pending={pending}
+              onCancel={() => onOpenChange(false)}
+            />
+          </AppForm>
+        )}
       </DialogContent>
     </Dialog>
   );

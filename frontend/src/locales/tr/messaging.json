@@ -366,5 +366,8 @@
   "platform_report.org_description": "İşletmenin son SMS'leri. Numaralar maskelenir.",
   "platform_report.org_empty": "SMS yok",
   "platform_report.org_empty_hint": "Bu işletme henüz SMS göndermedi.",
-  "platform_report.back": "SMS raporu"
+  "platform_report.back": "SMS raporu",
+  "group.loyalty": "Sadakat ve paketler",
+  "types.loyalty_renewal_reminder": "Abonelik yenileme hatırlatması",
+  "types.loyalty_team_renewal_due": "Abonelik yenilemesi yaklaşıyor (ekip)"
 }

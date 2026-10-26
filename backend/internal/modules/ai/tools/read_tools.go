@@ -88,6 +88,9 @@ type Deps struct {
 	Reviews ReviewsService
 	// Reorder adds list_reorder_suggestions and create_purchase_drafts.
 	Reorder ReorderService
+	// Loyalty adds get_customer_loyalty / list_loyalty_programs, and with
+	// Finance / JobsWrite the sell_package / redeem_reward write tools.
+	Loyalty LoyaltyService
 }
 
 // DefaultRegistry builds the tool set (read tools, charts, plan checklist and
@@ -131,6 +134,7 @@ func DefaultRegistry(d Deps) *Registry {
 	if d.Reorder != nil {
 		r.Register(ListReorderSuggestions{reorder: d.Reorder})
 	}
+	registerLoyaltyTools(r, d)
 	registerWriteTools(r, d)
 	return r
 }

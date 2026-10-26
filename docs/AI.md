@@ -149,6 +149,8 @@ confirmed.
 | `list_reviews` | read | chat | `tenant.reviews.read` (plan `reviews.enabled`) |
 | `get_review_summary` | read | chat | `tenant.reviews.read` (plan `reviews.enabled`) |
 | `list_reorder_suggestions` | read | chat | `tenant.purchases.read`, `tenant.catalog.read` (plan `stock_reorder.enabled`) |
+| `get_customer_loyalty` | read | chat | `tenant.loyalty.read`, `tenant.customers.read` (plan `loyalty.enabled`) |
+| `list_loyalty_programs` | read | chat | `tenant.loyalty.read` (plan `loyalty.enabled`) |
 | `render_chart` | ui | charts | — |
 | `update_plan` | ui | chat | — |
 | `record_cari_payment` | write | actions | `tenant.cari.write`, `tenant.cari.read`, `tenant.finance.read` (owner) |
@@ -170,6 +172,8 @@ confirmed.
 | `create_calendar_event` | write | actions | `tenant.calendar.write` |
 | `mark_review_followed_up` | write | actions | `tenant.reviews.write`, `tenant.reviews.read` (owner; plan `reviews.enabled`) |
 | `create_purchase_drafts` | write | actions | `tenant.purchases.write`, `tenant.purchases.read`, `tenant.catalog.read` (owner; plan `stock_reorder.enabled`; drafts change no stock / cash until posted) |
+| `sell_package` | write | actions | `tenant.loyalty.apply`, `tenant.loyalty.read`, `tenant.customers.read`, `tenant.finance.read` (plan `loyalty.enabled`) |
+| `redeem_reward` | write | actions | `tenant.loyalty.apply`, `tenant.loyalty.read`, `tenant.jobs.write`, `tenant.jobs.read` (plan `loyalty.enabled`) |
 
 `search_customers` accepts an empty or omitted `query`; in that mode it lists
 the organization's most recent customers and returns `total`, the organization's

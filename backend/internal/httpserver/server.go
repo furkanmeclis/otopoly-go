@@ -83,6 +83,8 @@ import (
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
+	loyaltymodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/loyalty"
+	loyaltyusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/loyalty/usecase"
 	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
 	messagingcatalog "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/catalog"
 	messagingcloud "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/cloud"
@@ -668,6 +670,15 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	calendarSvc.SetSchedulers(todosSvc, leadsSvc)
 	calendarSvc.SetResourceEvents(liveEvents)
 	calendarmodule.RegisterRoutes(mux, calendarSvc, tokens, loader, deps.Queries)
+	// Loyalty and packages: stamp campaigns, prepaid packages, subscriptions;
+	// jobs earn stamps / release credits through the hook, renewals are
+	// reminded through the notification center.
+	loyaltySvc := loyaltyusecase.New(deps.DB, deps.Queries, activityRec, financeSvc, cariSvc, entitlementsSvc)
+	loyaltySvc.SetLogger(log)
+	loyaltySvc.SetResourceEvents(livePub)
+	loyaltySvc.SetReminders(loyaltymodule.NewReminders(centerSvc, deps.Queries, loyaltySvc, log))
+	jobsSvc.SetLoyalty(loyaltySvc)
+	loyaltymodule.RegisterRoutes(mux, loyaltySvc, tokens, loader, deps.Queries, entitlementsSvc)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:       customersSvc,
 		CustomersSearch: deps.Queries,
@@ -690,6 +701,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		Calendar:        calendarSvc,
 		Reviews:         reviewsSvc,
 		Reorder:         stockReorderSvc,
+		Loyalty:         loyaltySvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
 	aiSvc.SetEntitlements(entitlementsSvc)

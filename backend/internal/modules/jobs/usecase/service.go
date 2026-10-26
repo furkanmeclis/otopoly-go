@@ -46,6 +46,7 @@ type Service struct {
 	search     SearchIndexer
 	bus        events.Bus
 	ent        *entitlements.Service
+	loyalty    LoyaltyHook
 }
 
 func New(
@@ -555,6 +556,9 @@ func (s *Service) MarkDelivered(ctx context.Context, id uuid.UUID) (JobDetail, e
 		}
 		return JobDetail{}, err
 	}
+	if row.PaymentStatus == "paid" {
+		s.loyaltySettled(ctx, orgID, row.ID)
+	}
 	s.recordActivity(ctx, "jobs.update", "jobs.job", &row.Uuid, map[string]any{"status": "delivered"})
 	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, row.Uuid.String())
 	s.publish(ctx, events.JobsDelivered, map[string]any{"job_uuid": row.Uuid.String()})
@@ -586,9 +590,14 @@ func (s *Service) Cancel(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	if err := s.revertConsumptions(ctx, qtx, orgID, row.ID); err != nil {
 		return JobDetail{}, err
 	}
+	// Package credits, subscription uses and redeemed stamps go back.
+	if err := s.loyaltyReverseTx(ctx, qtx, orgID, row.ID); err != nil {
+		return JobDetail{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return JobDetail{}, err
 	}
+	s.loyaltyReversed(ctx, orgID, row.ID)
 	s.giveBackJob(ctx, orgID, row.StartedAt.Time)
 	s.recordActivity(ctx, "jobs.cancel", "jobs.job", &row.Uuid, nil)
 	s.live(ctx, resourceevents.TenantJobs, resourceevents.ActionUpdated, row.Uuid.String())
@@ -608,9 +617,6 @@ func (s *Service) Close(ctx context.Context, id uuid.UUID, in CloseInput) (JobDe
 		return JobDetail{}, err
 	}
 	method := strings.TrimSpace(in.Method)
-	if method != "cash" && method != "card" && method != "cari" {
-		return JobDetail{}, fmt.Errorf("%w: method must be cash, card, or cari", ErrInvalidRequest)
-	}
 
 	job, err := s.q.GetServiceJobByUUID(ctx, db.GetServiceJobByUUIDParams{
 		Uuid: id, OrganizationID: orgID,
@@ -628,7 +634,17 @@ func (s *Service) Close(ctx context.Context, id uuid.UUID, in CloseInput) (JobDe
 		return JobDetail{}, fmt.Errorf("%w: job cannot be closed", ErrConflict)
 	}
 	if !job.TotalAmount.Valid || job.TotalAmount.Int == nil || job.TotalAmount.Int.Sign() <= 0 {
+		// Loyalty (package credits, a subscription or a reward) covered the
+		// whole job: it closes as paid without a payment.
+		if covered, err := s.coveredByLoyalty(ctx, orgID, job.ID); err != nil {
+			return JobDetail{}, err
+		} else if covered {
+			return s.closeCovered(ctx, orgID, id)
+		}
 		return JobDetail{}, fmt.Errorf("%w: job total must be positive", ErrInvalidRequest)
+	}
+	if method != "cash" && method != "card" && method != "cari" {
+		return JobDetail{}, fmt.Errorf("%w: method must be cash, card, or cari", ErrInvalidRequest)
 	}
 
 	tx, err := s.pool.Begin(ctx)
@@ -749,6 +765,9 @@ func (s *Service) Close(ctx context.Context, id uuid.UUID, in CloseInput) (JobDe
 	if financeTxUUID != uuid.Nil {
 		s.finance.NotifyIndexed(ctx, financeTxUUID, financeAccountUUID)
 	}
+	if paid.Status == "delivered" {
+		s.loyaltySettled(ctx, orgID, paid.ID)
+	}
 	s.recordActivity(ctx, "jobs.close", "jobs.job", &paid.Uuid, map[string]any{
 		"method": method, "amount": financeusecase.NumericToString(paid.TotalAmount),
 	})
@@ -808,6 +827,9 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	if err := s.revertConsumptions(ctx, qtx, orgID, voidedJob.ID); err != nil {
 		return JobDetail{}, err
 	}
+	if err := s.loyaltyReverseTx(ctx, qtx, orgID, voidedJob.ID); err != nil {
+		return JobDetail{}, err
+	}
 
 	var financeNotify [][2]uuid.UUID
 	for _, p := range payments {
@@ -843,6 +865,7 @@ func (s *Service) Void(ctx context.Context, id uuid.UUID) (JobDetail, error) {
 	if err := tx.Commit(ctx); err != nil {
 		return JobDetail{}, err
 	}
+	s.loyaltyReversed(ctx, orgID, voidedJob.ID)
 	s.giveBackJob(ctx, orgID, voidedJob.StartedAt.Time)
 	for _, pair := range financeNotify {
 		s.finance.NotifyIndexed(ctx, pair[0], pair[1])

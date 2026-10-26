@@ -80,5 +80,6 @@
   "nav_calendar": "Takvim",
   "nav_mcp": "MCP sunucusu",
   "nav_mcp_tenant": "AI bağlantıları (MCP)",
-  "nav_stock_reorder": "Sipariş önerileri"
+  "nav_stock_reorder": "Sipariş önerileri",
+  "nav_loyalty": "Sadakat ve Paketler"
 }

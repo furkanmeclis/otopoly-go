@@ -39,6 +39,7 @@ import {
   formatQuantity,
 } from "@/features/finance/lib/format";
 import { JobContractsSection } from "@/features/contracts";
+import { JobLoyaltySection } from "@/features/loyalty";
 import { CloseJobDialog } from "@/features/jobs/components/close-job-dialog";
 import { JobConsumptionsCard } from "@/features/jobs/components/job-consumptions-card";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
@@ -396,18 +397,36 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                         × {formatQuantity(line.qty, locale)}
                       </p>
                     </div>
-                    <span className="shrink-0 font-medium tabular-nums">
-                      {formatFinanceAmount(
-                        line.line_total,
-                        line.currency,
-                        locale,
-                      )}
+                    <span className="flex shrink-0 flex-col items-end">
+                      <span className="font-medium tabular-nums">
+                        {formatFinanceAmount(
+                          line.line_total,
+                          line.currency,
+                          locale,
+                        )}
+                      </span>
+                      {line.discount_source ? (
+                        <span className="text-xs text-emerald-700 tabular-nums dark:text-emerald-400">
+                          {t(`loyalty.kind_badge.${line.discount_source}`)} −
+                          {formatFinanceAmount(
+                            line.discount_amount,
+                            line.currency,
+                            locale,
+                          )}
+                        </span>
+                      ) : null}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
           </EntitySectionCard>
+
+          <JobLoyaltySection
+            jobUuid={job.uuid}
+            currency={job.currency}
+            canWriteJob={canWrite}
+          />
 
           <JobConsumptionsCard job={job} canWrite={canWrite} />
 

@@ -80,5 +80,6 @@
   "nav_calendar": "Calendar",
   "nav_mcp": "MCP server",
   "nav_mcp_tenant": "AI connections (MCP)",
-  "nav_stock_reorder": "Reorder suggestions"
+  "nav_stock_reorder": "Reorder suggestions",
+  "nav_loyalty": "Loyalty & Packages"
 }

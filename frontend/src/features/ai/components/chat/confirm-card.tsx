@@ -71,6 +71,8 @@ function linkHref(slug: string, link: AIActionLink): string {
       return routes.tenant.reviews.detail(slug, link.uuid);
     case "purchase":
       return routes.tenant.purchases.detail(slug, link.uuid);
+    case "customer_package":
+      return routes.tenant.loyalty.customerPackage(slug, link.uuid);
     default:
       return routes.tenant.todos.root(slug);
   }

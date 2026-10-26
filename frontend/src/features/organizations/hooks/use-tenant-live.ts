@@ -44,6 +44,10 @@ export const TenantLiveResources = {
   calendar: "tenant.calendar",
   reviews: "tenant.reviews",
   stockReorder: "tenant.stock_reorder",
+  loyaltyPrograms: "tenant.loyalty.programs",
+  loyaltyPackages: "tenant.loyalty.packages",
+  loyaltySubscriptions: "tenant.loyalty.subscriptions",
+  loyaltyCustomers: "tenant.loyalty.customers",
 } as const;
 
 export type TenantLiveResource =

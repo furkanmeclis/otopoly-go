@@ -41,6 +41,7 @@ import {
   PlugZap,
   MessageSquareText,
   Star,
+  Gift,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -504,6 +505,13 @@ export function tenantNav(slug: string) {
             searchIcon: "star",
             permission: permissions.reviews.read,
             Adornment: ReviewsNavAdornment,
+          },
+          {
+            id: "loyalty",
+            titleKey: "layout.nav_loyalty",
+            href: routes.tenant.loyalty.root(slug),
+            icon: Gift,
+            permission: permissions.loyalty.read,
           },
           {
             id: "suppliers",
