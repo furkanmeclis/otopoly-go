@@ -12,6 +12,10 @@ import (
 )
 
 type Querier interface {
+	// Exact duplicate / identity lookup for the assistant: same phone (last 10
+	// digits, so "0532 123 45 67" == "+90 532 1234567") or same plate ignoring
+	// spaces, dashes and case. Empty arguments match nothing.
+	AIFindCustomersByPhoneOrPlate(ctx context.Context, arg AIFindCustomersByPhoneOrPlateParams) ([]AIFindCustomersByPhoneOrPlateRow, error)
 	// Turkish-folded search for the assistant: name (diacritics-insensitive),
 	// phone digits, or normalized plate.
 	AISearchCustomers(ctx context.Context, arg AISearchCustomersParams) ([]AISearchCustomersRow, error)
@@ -596,6 +600,7 @@ type Querier interface {
 	GetVehicleModelByBrandAndName(ctx context.Context, arg GetVehicleModelByBrandAndNameParams) (VehicleModel, error)
 	GetVehicleModelByUUID(ctx context.Context, argUuid uuid.UUID) (VehicleModel, error)
 	GetVehicleModelRef(ctx context.Context, argUuid uuid.UUID) (GetVehicleModelRefRow, error)
+	GetVehicleModelSummary(ctx context.Context, modelUuid uuid.UUID) (GetVehicleModelSummaryRow, error)
 	GetVehicleModelYearForSearch(ctx context.Context, arg GetVehicleModelYearForSearchParams) (GetVehicleModelYearForSearchRow, error)
 	GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID string) (WebauthnCredential, error)
 	GetWebAuthnCredentialByUUID(ctx context.Context, arg GetWebAuthnCredentialByUUIDParams) (WebauthnCredential, error)
@@ -856,6 +861,10 @@ type Querier interface {
 	// scope: overdue | today | upcoming | no_date | open_due (overdue + today); today is the local date.
 	ListTodos(ctx context.Context, arg ListTodosParams) ([]ListTodosRow, error)
 	ListUnmatchedCatalogDisplayBrands(ctx context.Context, arg ListUnmatchedCatalogDisplayBrandsParams) ([]ListUnmatchedCatalogDisplayBrandsRow, error)
+	// Unpaid jobs of a customer that still count as money owed: the same rule as
+	// the customer summary's unpaid_amount (payment_status unpaid, not cancelled
+	// or voided). They are not in the cari ledger until the job is closed on cari.
+	ListUnpaidServiceJobsByCustomer(ctx context.Context, arg ListUnpaidServiceJobsByCustomerParams) ([]ListUnpaidServiceJobsByCustomerRow, error)
 	ListUsageCounters(ctx context.Context, arg ListUsageCountersParams) ([]ListUsageCountersRow, error)
 	ListUsageMetersForOrgAdmin(ctx context.Context, organizationID int64) ([]ListUsageMetersForOrgAdminRow, error)
 	// Per membership: the user's own conversations and quota tokens since the
@@ -877,6 +886,10 @@ type Querier interface {
 	ListVehicleAlertMembers(ctx context.Context, organizationID int64) ([]ListVehicleAlertMembersRow, error)
 	ListVehicleAlertServices(ctx context.Context, organizationID int64) ([]ListVehicleAlertServicesRow, error)
 	ListVehicleBrands(ctx context.Context, arg ListVehicleBrandsParams) ([]ListVehicleBrandsRow, error)
+	// TSB catalog types (trim / engine / package names) behind one projected
+	// vehicle model, with the model years each one exists in. Platform catalog
+	// data, not organization-owned.
+	ListVehicleModelVariants(ctx context.Context, arg ListVehicleModelVariantsParams) ([]ListVehicleModelVariantsRow, error)
 	ListVehicleModelYearIDsByBrand(ctx context.Context, argUuid uuid.UUID) ([]ListVehicleModelYearIDsByBrandRow, error)
 	ListVehicleModelYearIDsByModel(ctx context.Context, argUuid uuid.UUID) ([]ListVehicleModelYearIDsByModelRow, error)
 	ListVehicleModelYears(ctx context.Context, modelID int64) ([]int16, error)
@@ -1015,6 +1028,9 @@ type Querier interface {
 	SMSReportOrganizations(ctx context.Context, arg SMSReportOrganizationsParams) ([]SMSReportOrganizationsRow, error)
 	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
+	// One row per active model whose "brand model" text contains every word,
+	// with its model years (optionally only models that have year).
+	SearchVehicleModelsGrouped(ctx context.Context, arg SearchVehicleModelsGroupedParams) ([]SearchVehicleModelsGroupedRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
 	SetBrandLogoSourceObjects(ctx context.Context, arg SetBrandLogoSourceObjectsParams) error
 	SetBrandLogoSyncState(ctx context.Context, arg SetBrandLogoSyncStateParams) error
@@ -1087,6 +1103,8 @@ type Querier interface {
 	// Cars are counted on the day they were opened; money on the day it was
 	// taken, so closing a multi-day job lands in that day's till.
 	SumServiceJobsDaily(ctx context.Context, arg SumServiceJobsDailyParams) (SumServiceJobsDailyRow, error)
+	SumUnpaidServiceJobsByCustomer(ctx context.Context, arg SumUnpaidServiceJobsByCustomerParams) (SumUnpaidServiceJobsByCustomerRow, error)
+	SumUnpaidServiceJobsByCustomers(ctx context.Context, arg SumUnpaidServiceJobsByCustomersParams) ([]SumUnpaidServiceJobsByCustomersRow, error)
 	// Outbound totals since a point in time for the platform organization overview.
 	SummarizeOutboundMessagesByOrg(ctx context.Context, arg SummarizeOutboundMessagesByOrgParams) (SummarizeOutboundMessagesByOrgRow, error)
 	SyncCatalogBrandsDisplayName(ctx context.Context, displayBrandID int64) (int64, error)
@@ -1138,6 +1156,11 @@ type Querier interface {
 	UpdateLead(ctx context.Context, arg UpdateLeadParams) (Lead, error)
 	UpdateLegalPage(ctx context.Context, arg UpdateLegalPageParams) (int64, error)
 	UpdateLogPurgeRule(ctx context.Context, arg UpdateLogPurgeRuleParams) (LogPurgeRule, error)
+	// Corrects a posted manual income/expense row in place (account, category,
+	// amount, date, description). Rows owned by a source document (jobs, sales,
+	// purchases, cari collections) are never edited here; the caller adjusts the
+	// account balances in the same transaction.
+	UpdateManualFinanceTransaction(ctx context.Context, arg UpdateManualFinanceTransactionParams) (FinanceTransaction, error)
 	UpdateOAuthAccountRefreshToken(ctx context.Context, arg UpdateOAuthAccountRefreshTokenParams) error
 	UpdateOAuthProviderSettings(ctx context.Context, arg UpdateOAuthProviderSettingsParams) (OauthProviderSetting, error)
 	UpdateOrganizationLetterhead(ctx context.Context, arg UpdateOrganizationLetterheadParams) (Organization, error)

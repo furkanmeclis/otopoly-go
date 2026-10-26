@@ -12,6 +12,97 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const aIFindCustomersByPhoneOrPlate = `-- name: AIFindCustomersByPhoneOrPlate :many
+SELECT
+    c.uuid,
+    c.name,
+    c.phone,
+    c.is_active,
+    ($1::text <> ''
+        AND right(regexp_replace(c.phone, '\D', '', 'g'), 10) = $1::text)::boolean AS phone_match,
+    -- uuid.Nil / '' when the plate did not match.
+    COALESCE(pv.uuid, '00000000-0000-0000-0000-000000000000'::uuid)::uuid AS plate_vehicle_uuid,
+    COALESCE(pv.plate, '')::text AS plate_vehicle_plate,
+    COALESCE((
+        SELECT string_agg(v.plate, ', ' ORDER BY v.plate)
+        FROM customer_vehicles v
+        WHERE v.customer_id = c.id AND v.organization_id = c.organization_id AND v.deleted_at IS NULL
+    ), '')::text AS plates
+FROM customers c
+LEFT JOIN LATERAL (
+    SELECT v.uuid, v.plate
+    FROM customer_vehicles v
+    WHERE v.customer_id = c.id AND v.organization_id = c.organization_id AND v.deleted_at IS NULL
+      AND $2::text <> ''
+      AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g') = $2::text
+    LIMIT 1
+) pv ON TRUE
+WHERE c.organization_id = $3
+  AND c.deleted_at IS NULL
+  AND (
+    ($1::text <> ''
+        AND right(regexp_replace(c.phone, '\D', '', 'g'), 10) = $1::text)
+    OR pv.uuid IS NOT NULL
+  )
+ORDER BY (pv.uuid IS NOT NULL) DESC, c.is_active DESC, c.name ASC
+LIMIT $4
+`
+
+type AIFindCustomersByPhoneOrPlateParams struct {
+	PhoneDigits    string `json:"phone_digits"`
+	Plate          string `json:"plate"`
+	OrganizationID int64  `json:"organization_id"`
+	LimitCount     int32  `json:"limit_count"`
+}
+
+type AIFindCustomersByPhoneOrPlateRow struct {
+	Uuid              uuid.UUID `json:"uuid"`
+	Name              string    `json:"name"`
+	Phone             string    `json:"phone"`
+	IsActive          bool      `json:"is_active"`
+	PhoneMatch        bool      `json:"phone_match"`
+	PlateVehicleUuid  uuid.UUID `json:"plate_vehicle_uuid"`
+	PlateVehiclePlate string    `json:"plate_vehicle_plate"`
+	Plates            string    `json:"plates"`
+}
+
+// Exact duplicate / identity lookup for the assistant: same phone (last 10
+// digits, so "0532 123 45 67" == "+90 532 1234567") or same plate ignoring
+// spaces, dashes and case. Empty arguments match nothing.
+func (q *Queries) AIFindCustomersByPhoneOrPlate(ctx context.Context, arg AIFindCustomersByPhoneOrPlateParams) ([]AIFindCustomersByPhoneOrPlateRow, error) {
+	rows, err := q.db.Query(ctx, aIFindCustomersByPhoneOrPlate,
+		arg.PhoneDigits,
+		arg.Plate,
+		arg.OrganizationID,
+		arg.LimitCount,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AIFindCustomersByPhoneOrPlateRow{}
+	for rows.Next() {
+		var i AIFindCustomersByPhoneOrPlateRow
+		if err := rows.Scan(
+			&i.Uuid,
+			&i.Name,
+			&i.Phone,
+			&i.IsActive,
+			&i.PhoneMatch,
+			&i.PlateVehicleUuid,
+			&i.PlateVehiclePlate,
+			&i.Plates,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const aISearchCustomers = `-- name: AISearchCustomers :many
 SELECT
     c.uuid,

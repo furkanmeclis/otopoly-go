@@ -112,6 +112,12 @@ WHERE j.organization_id = sqlc.arg(organization_id)
     OR j.plate ILIKE '%' || sqlc.narg(q) || '%'
     OR j.customer_name ILIKE '%' || sqlc.narg(q) || '%'
     OR j.vehicle_label ILIKE '%' || sqlc.narg(q) || '%'
+    -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+    OR (
+      regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') <> ''
+      AND regexp_replace(upper(j.plate), '[^A-Z0-9]', '', 'g')
+          LIKE '%' || regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') || '%'
+    )
   )
 ORDER BY
     CASE WHEN sqlc.arg(sort)::text = 'started_at' THEN j.started_at END ASC,
@@ -153,6 +159,12 @@ WHERE j.organization_id = sqlc.arg(organization_id)
     OR j.plate ILIKE '%' || sqlc.narg(q) || '%'
     OR j.customer_name ILIKE '%' || sqlc.narg(q) || '%'
     OR j.vehicle_label ILIKE '%' || sqlc.narg(q) || '%'
+    -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+    OR (
+      regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') <> ''
+      AND regexp_replace(upper(j.plate), '[^A-Z0-9]', '', 'g')
+          LIKE '%' || regexp_replace(upper(sqlc.narg(q)), '[^A-Z0-9]', '', 'g') || '%'
+    )
   );
 
 -- name: ListServiceJobsByCustomer :many
@@ -170,6 +182,41 @@ JOIN vehicle_brands vb ON vb.id = vm.brand_id
 WHERE j.organization_id = $1 AND j.customer_id = $2
 ORDER BY j.started_at DESC
 LIMIT $3 OFFSET $4;
+
+-- name: ListUnpaidServiceJobsByCustomer :many
+-- Unpaid jobs of a customer that still count as money owed: the same rule as
+-- the customer summary's unpaid_amount (payment_status unpaid, not cancelled
+-- or voided). They are not in the cari ledger until the job is closed on cari.
+SELECT j.uuid, j.plate, j.vehicle_label, j.status, j.total_amount, j.currency,
+       j.started_at, j.delivered_at
+FROM service_jobs j
+WHERE j.organization_id = sqlc.arg(organization_id)
+  AND j.customer_id = sqlc.arg(customer_id)
+  AND j.payment_status = 'unpaid'
+  AND j.status NOT IN ('cancelled', 'voided')
+ORDER BY j.started_at DESC
+LIMIT sqlc.arg(limit_count);
+
+-- name: SumUnpaidServiceJobsByCustomer :one
+SELECT COUNT(*)::bigint AS job_count,
+       COALESCE(SUM(j.total_amount), 0)::numeric(18, 2) AS total_amount
+FROM service_jobs j
+WHERE j.organization_id = sqlc.arg(organization_id)
+  AND j.customer_id = sqlc.arg(customer_id)
+  AND j.payment_status = 'unpaid'
+  AND j.status NOT IN ('cancelled', 'voided');
+
+-- name: SumUnpaidServiceJobsByCustomers :many
+SELECT c.uuid AS customer_uuid,
+       COUNT(*)::bigint AS job_count,
+       COALESCE(SUM(j.total_amount), 0)::numeric(18, 2) AS total_amount
+FROM service_jobs j
+JOIN customers c ON c.id = j.customer_id AND c.organization_id = j.organization_id
+WHERE j.organization_id = sqlc.arg(organization_id)
+  AND c.uuid = ANY (sqlc.arg(customer_uuids)::uuid[])
+  AND j.payment_status = 'unpaid'
+  AND j.status NOT IN ('cancelled', 'voided')
+GROUP BY c.uuid;
 
 -- name: CountServiceJobsByCustomer :one
 SELECT COUNT(*)::bigint

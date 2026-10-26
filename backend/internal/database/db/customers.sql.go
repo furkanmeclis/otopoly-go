@@ -26,7 +26,15 @@ WHERE c.organization_id = $1 AND c.deleted_at IS NULL
     OR EXISTS (
         SELECT 1 FROM customer_vehicles v
         WHERE v.customer_id = c.id AND v.deleted_at IS NULL
-          AND v.plate ILIKE '%' || $4 || '%'
+          AND (
+            v.plate ILIKE '%' || $4 || '%'
+            -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+            OR (
+              regexp_replace(upper($4), '[^A-Z0-9]', '', 'g') <> ''
+              AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g')
+                  LIKE '%' || regexp_replace(upper($4), '[^A-Z0-9]', '', 'g') || '%'
+            )
+          )
     )
   )
 `
@@ -300,7 +308,15 @@ WHERE c.organization_id = $1 AND c.deleted_at IS NULL
     OR EXISTS (
         SELECT 1 FROM customer_vehicles v
         WHERE v.customer_id = c.id AND v.deleted_at IS NULL
-          AND v.plate ILIKE '%' || $4 || '%'
+          AND (
+            v.plate ILIKE '%' || $4 || '%'
+            -- Plates match without spaces/dashes ("01 ASJ 729" finds "01ASJ729").
+            OR (
+              regexp_replace(upper($4), '[^A-Z0-9]', '', 'g') <> ''
+              AND regexp_replace(upper(v.plate), '[^A-Z0-9]', '', 'g')
+                  LIKE '%' || regexp_replace(upper($4), '[^A-Z0-9]', '', 'g') || '%'
+            )
+          )
     )
   )
 ORDER BY

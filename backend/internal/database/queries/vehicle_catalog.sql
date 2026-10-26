@@ -196,3 +196,52 @@ FROM vehicle_model_years y
 JOIN vehicle_models m ON m.id = y.model_id AND m.deleted_at IS NULL
 JOIN vehicle_brands b ON b.id = m.brand_id AND b.deleted_at IS NULL
 WHERE m.uuid = $1 AND y.year = $2;
+
+-- name: ListVehicleModelVariants :many
+-- TSB catalog types (trim / engine / package names) behind one projected
+-- vehicle model, with the model years each one exists in. Platform catalog
+-- data, not organization-owned.
+SELECT t.uuid, t.raw_name, t.years, t.suggested_fuel, t.suggested_transmission
+FROM vehicle_models vm
+JOIN vehicle_brands b ON b.id = vm.brand_id AND b.deleted_at IS NULL
+JOIN catalog_brands cb ON cb.display_brand_id = b.catalog_display_brand_id
+JOIN catalog_models m ON m.brand_id = cb.id AND m.group_key = vm.catalog_group_key
+JOIN catalog_types t ON t.model_id = m.id AND t.is_active
+WHERE vm.uuid = sqlc.arg(model_uuid)
+  AND vm.deleted_at IS NULL
+  AND (sqlc.narg(year)::int IS NULL OR sqlc.narg(year)::int = ANY (t.years))
+ORDER BY t.raw_name ASC
+LIMIT sqlc.arg(limit_count);
+
+-- name: SearchVehicleModelsGrouped :many
+-- One row per active model whose "brand model" text contains every word,
+-- with its model years (optionally only models that have year).
+SELECT
+    b.uuid AS brand_uuid,
+    b.name AS brand_name,
+    m.uuid AS model_uuid,
+    m.name AS model_name,
+    array_agg(y.year ORDER BY y.year)::int[] AS years
+FROM vehicle_models m
+JOIN vehicle_brands b ON b.id = m.brand_id AND b.deleted_at IS NULL AND b.is_active = true
+JOIN vehicle_model_years y ON y.model_id = m.id
+WHERE m.deleted_at IS NULL AND m.is_active = true
+  AND NOT EXISTS (
+      SELECT 1 FROM unnest(sqlc.arg(words)::text[]) AS w(word)
+      WHERE (b.name || ' ' || m.name) NOT ILIKE '%' || w.word || '%'
+  )
+GROUP BY b.uuid, b.name, m.uuid, m.name
+HAVING sqlc.narg(year)::int IS NULL OR sqlc.narg(year)::int = ANY (array_agg(y.year)::int[])
+ORDER BY b.name ASC, m.name ASC
+LIMIT sqlc.arg(limit_count);
+
+-- name: GetVehicleModelSummary :one
+SELECT
+    b.uuid AS brand_uuid,
+    b.name AS brand_name,
+    m.uuid AS model_uuid,
+    m.name AS model_name,
+    COALESCE((SELECT array_agg(y.year ORDER BY y.year) FROM vehicle_model_years y WHERE y.model_id = m.id), '{}')::int[] AS years
+FROM vehicle_models m
+JOIN vehicle_brands b ON b.id = m.brand_id AND b.deleted_at IS NULL
+WHERE m.uuid = sqlc.arg(model_uuid) AND m.deleted_at IS NULL;
