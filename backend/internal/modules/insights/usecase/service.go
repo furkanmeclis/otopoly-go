@@ -17,6 +17,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/brandlogo"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
@@ -142,7 +143,7 @@ func (s *Service) ProductSummary(ctx context.Context, id uuid.UUID) (ProductSumm
 	out.Pricing.MarginPercent = percent(margin, price)
 
 	scope := db.GetProductSalesStatsParams{OrganizationID: org, ProductID: p.ID}
-	since := monthStart(s.now().UTC()).AddDate(0, -(trendMonths - 1), 0)
+	since := monthStart(s.now()).AddDate(0, -(trendMonths - 1), 0)
 
 	if can(ctx, rbac.PermTenantSalesRead) {
 		st, err := s.q.GetProductSalesStats(ctx, scope)
@@ -338,7 +339,7 @@ func (s *Service) ServiceSummary(ctx context.Context, id uuid.UUID) (ServiceSumm
 			Qty: qtyString(ratOf(st.Qty)), Revenue: money(ratOf(st.Revenue)), AvgUnitPrice: money(ratOf(st.AvgUnitPrice)),
 			AvgJobMinutes: avgMin, FirstUsedAt: timePtr(st.FirstUsedAt), LastUsedAt: timePtr(st.LastUsedAt),
 		}
-		since := monthStart(s.now().UTC()).AddDate(0, -(trendMonths - 1), 0)
+		since := monthStart(s.now()).AddDate(0, -(trendMonths - 1), 0)
 		months, err := s.q.ListServiceMonthlyUsage(ctx, db.ListServiceMonthlyUsageParams{
 			OrganizationID: org, ServiceID: sv.ID, Since: pgtype.Timestamptz{Time: since, Valid: true},
 		})
@@ -406,7 +407,7 @@ func (s *Service) CustomerSummary(ctx context.Context, id uuid.UUID) (CustomerSu
 		RecentSales:  []CustomerSale{},
 	}
 	total := new(big.Rat)
-	since := monthStart(s.now().UTC()).AddDate(0, -(trendMonths - 1), 0)
+	since := monthStart(s.now()).AddDate(0, -(trendMonths - 1), 0)
 	canJobs, canSales := can(ctx, rbac.PermTenantJobsRead), can(ctx, rbac.PermTenantSalesRead)
 
 	vehicles, err := s.q.ListCustomerVehicleStats(ctx, db.ListCustomerVehicleStatsParams(scope))
@@ -543,7 +544,7 @@ func (s *Service) SupplierSummary(ctx context.Context, id uuid.UUID) (SupplierSu
 		FirstPurchasedAt: timePtr(st.FirstPurchasedAt), LastPurchasedAt: timePtr(st.LastPurchasedAt),
 		TopProducts: []SupplierTopProduct{}, Recent: []SupplierPurchase{},
 	}
-	since := monthStart(s.now().UTC()).AddDate(0, -(trendMonths - 1), 0)
+	since := monthStart(s.now()).AddDate(0, -(trendMonths - 1), 0)
 	months, err := s.q.ListSupplierMonthlySpend(ctx, db.ListSupplierMonthlySpendParams{
 		OrganizationID: org, SupplierID: sp.ID, Since: pgtype.Timestamptz{Time: since, Valid: true},
 	})
@@ -672,12 +673,15 @@ func uuidPtr(u pgtype.UUID) *uuid.UUID {
 	return &v
 }
 
-func monthStart(t time.Time) time.Time {
-	return time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
-}
+// monthStart is midnight (Europe/Istanbul) of the business month of t. The
+// SQL buckets with date_trunc('month', ...) in the session time zone, which
+// is the same zone (database.SessionTimeZone).
+func monthStart(t time.Time) time.Time { return bizclock.MonthStart(t) }
 
+// monthKey is the business month (YYYY-MM, Europe/Istanbul) of instant t.
 func monthKey(t time.Time) string {
-	return fmt.Sprintf("%04d-%02d", t.UTC().Year(), int(t.UTC().Month()))
+	l := bizclock.In(t)
+	return fmt.Sprintf("%04d-%02d", l.Year(), int(l.Month()))
 }
 
 // fillMonths returns n consecutive months from `from`, using points where

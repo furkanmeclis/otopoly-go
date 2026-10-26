@@ -14,6 +14,7 @@ import (
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/events"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
@@ -44,6 +45,7 @@ type Service struct {
 	cari       *cariusecase.Service
 	search     SearchIndexer
 	bus        events.Bus
+	now        func() time.Time
 }
 
 func New(
@@ -53,8 +55,11 @@ func New(
 	finance *financeusecase.Service,
 	cari *cariusecase.Service,
 ) *Service {
-	return &Service{pool: pool, q: q, act: act, finance: finance, cari: cari}
+	return &Service{pool: pool, q: q, act: act, finance: finance, cari: cari, now: time.Now}
 }
+
+// SetClock replaces the clock (tests).
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
 func (s *Service) SetSearchIndexer(idx SearchIndexer) { s.search = idx }
 func (s *Service) SetEventBus(bus events.Bus)         { s.bus = bus }
@@ -113,15 +118,14 @@ func (s *Service) Summary(ctx context.Context, dateStr string) (Summary, error) 
 	return s.SummaryIn(ctx, dateStr, nil)
 }
 
-// SummaryIn is Summary with the day boundaries taken in loc (nil = server
-// local time). The AI assistant passes Europe/Istanbul so "today" is right
-// on servers running in UTC.
+// SummaryIn is Summary with the day boundaries taken in loc (nil = the
+// business time zone, Europe/Istanbul).
 func (s *Service) SummaryIn(ctx context.Context, dateStr string, loc *time.Location) (Summary, error) {
 	orgID, err := s.requireOrgID(ctx)
 	if err != nil {
 		return Summary{}, err
 	}
-	day, err := parseDay(dateStr, loc)
+	day, err := parseDay(dateStr, loc, s.now())
 	if err != nil {
 		return Summary{}, fmt.Errorf("%w: invalid date", ErrInvalidRequest)
 	}
@@ -172,14 +176,14 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		params.CustomerUuid = pgtype.UUID{Bytes: cu, Valid: true}
 	}
 	if from := strings.TrimSpace(filters.DateFrom); from != "" {
-		t, err := parseDay(from, filters.Location)
+		t, err := parseDay(from, filters.Location, s.now())
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w: invalid date_from", ErrInvalidRequest)
 		}
 		params.DateFrom = pgtype.Timestamptz{Time: t, Valid: true}
 	}
 	if to := strings.TrimSpace(filters.DateTo); to != "" {
-		t, err := parseDay(to, filters.Location)
+		t, err := parseDay(to, filters.Location, s.now())
 		if err != nil {
 			return nil, 0, fmt.Errorf("%w: invalid date_to", ErrInvalidRequest)
 		}
@@ -362,7 +366,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (SaleDetail, error
 		return SaleDetail{}, fmt.Errorf("%w: total: %v", ErrInvalidRequest, err)
 	}
 
-	soldAt := time.Now()
+	soldAt := s.now()
 	if in.SoldAt != nil && strings.TrimSpace(*in.SoldAt) != "" {
 		t, err := time.Parse(time.RFC3339, strings.TrimSpace(*in.SoldAt))
 		if err != nil {
@@ -454,7 +458,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (SaleDetail, error
 		}
 	}
 
-	entryDate := pgtype.Date{Time: soldAt, Valid: true}
+	// The business day (Europe/Istanbul) of the sale instant; sold_at may be
+	// UTC (server clock or a Z timestamp from the client).
+	entryDate := bizclock.DateOf(soldAt)
 	desc := "Ürün satışı"
 	if customerName != "" {
 		desc = fmt.Sprintf("Ürün satışı — %s", customerName)

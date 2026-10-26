@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
 )
 
@@ -26,14 +27,17 @@ func ExportTitle(locale string, resource string) string {
 func ExportedAtLabel(locale string) string {
 	loc := i18n.Normalize(locale)
 	prefix := i18n.Translate(loc, "export.generated_at")
-	return prefix + ": " + formatDatetime(time.Now().UTC(), loc)
+	return prefix + ": " + formatDatetime(time.Now(), loc)
 }
 
+// formatDatetime renders an instant in Türkiye time (Europe/Istanbul, the
+// business time zone), the clock the users read.
 func formatDatetime(t time.Time, loc i18n.Locale) string {
+	t = bizclock.In(t)
 	if loc == i18n.LocaleEN {
-		return t.Format("2006-01-02 15:04 UTC")
+		return t.Format("2006-01-02 15:04")
 	}
-	return t.Format("02.01.2006 15:04 UTC")
+	return t.Format("02.01.2006 15:04")
 }
 
 func formatCell(v any, col Column, loc i18n.Locale) string {

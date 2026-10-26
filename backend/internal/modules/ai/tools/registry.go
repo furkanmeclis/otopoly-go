@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 )
 
@@ -90,7 +91,7 @@ func (e Env) loc() *time.Location {
 	if e.Location != nil {
 		return e.Location
 	}
-	return time.UTC
+	return bizclock.Location()
 }
 
 // Chart is a chart block rendered by the UI (AppChart).

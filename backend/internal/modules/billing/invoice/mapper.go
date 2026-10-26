@@ -13,6 +13,7 @@ import (
 	ubltr "github.com/furkanmeclis/go-ubltr"
 	"github.com/furkanmeclis/go-ubltr/builder"
 	"github.com/furkanmeclis/go-ubltr/codelist"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 )
 
 type Party struct {
@@ -86,6 +87,8 @@ func Build(in Input) ([]byte, Totals, error) {
 	if issueAt.IsZero() {
 		issueAt = time.Now()
 	}
+	// e-Arşiv issue date/time are Türkiye local (Europe/Istanbul).
+	issueAt = bizclock.In(issueAt)
 	issueDate := issueAt.Format("2006-01-02")
 
 	qty, err := builder.QuantityIn(codelist.UnitC62, "1")

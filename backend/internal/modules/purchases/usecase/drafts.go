@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
@@ -75,7 +74,7 @@ func (s *Service) CreateDraft(ctx context.Context, in DraftInput) (PurchaseDetai
 		// Placeholder until posting chooses the payment method.
 		Method:      "cash",
 		Notes:       strings.TrimSpace(in.Notes),
-		PurchasedAt: pgtype.Timestamptz{Time: time.Now(), Valid: true},
+		PurchasedAt: pgtype.Timestamptz{Time: s.now(), Valid: true},
 		CreatedBy:   actorID,
 	})
 	if err != nil {
@@ -168,7 +167,7 @@ func (s *Service) PostDraft(ctx context.Context, id uuid.UUID, in PostDraftInput
 	if in.FinanceAccountUUID == uuid.Nil {
 		return PurchaseDetail{}, fmt.Errorf("%w: finance_account_uuid is required", ErrInvalidRequest)
 	}
-	purchasedAt, err := parsePurchasedAt(in.PurchasedAt)
+	purchasedAt, err := s.parsePurchasedAt(in.PurchasedAt)
 	if err != nil {
 		return PurchaseDetail{}, err
 	}

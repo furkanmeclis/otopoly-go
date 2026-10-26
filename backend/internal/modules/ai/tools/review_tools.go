@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	reviewsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reviews/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/google/uuid"
@@ -103,7 +104,7 @@ func (t ListReviews) Run(ctx context.Context, _ Env, raw json.RawMessage) (Resul
 	items := make([]item, 0, len(rows))
 	for _, r := range rows {
 		it := item{
-			UUID: r.UUID.String(), Date: r.CreatedAt.Format("2006-01-02"), Customer: DataText(r.CustomerName, maxNameChars),
+			UUID: r.UUID.String(), Date: bizclock.FormatDay(r.CreatedAt), Customer: DataText(r.CustomerName, maxNameChars),
 			Plate: r.Plate, Score: r.Score, Comment: DataText(r.Comment, maxTextChars), Status: r.Status, Channel: r.Channel,
 			Note: DataText(r.FollowUpNote, maxTextChars),
 		}

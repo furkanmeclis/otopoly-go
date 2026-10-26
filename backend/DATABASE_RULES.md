@@ -19,6 +19,15 @@ UseCase → Repository Interface → Repository Impl (sqlc / pgx) → PostgreSQL
 - ORM-managed schema (GORM, etc.)
 - Manual production schema changes outside migrations
 
+## Time zone
+
+Every app connection runs with the session `timezone = Europe/Istanbul`
+(`database.ParsePoolConfig`; tests use `database.NewPoolFromDSN`), so
+`timestamptz::date`, `date_trunc`, `CURRENT_DATE` and `date → timestamptz` follow
+the business day. Build DATE parameters in Go with `bizclock.DateOf` /
+`bizclock.Today()`, never `pgtype.Date{Time: time.Now()}`. Details:
+[docs/business-timezone.md](../docs/business-timezone.md).
+
 ## Migrations (mandatory)
 
 - Tool: **golang-migrate**

@@ -25,6 +25,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/apns"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
@@ -109,11 +110,7 @@ func New(q Store, apnsClient APNs, expo ExpoSender, enq queue.LiveEnqueuer, log 
 	if log == nil {
 		log = slog.Default()
 	}
-	loc, err := time.LoadLocation("Europe/Istanbul")
-	if err != nil {
-		loc = time.UTC
-	}
-	return &Service{q: q, apns: apnsClient, expo: expo, queue: enq, log: log, now: time.Now, loc: loc}
+	return &Service{q: q, apns: apnsClient, expo: expo, queue: enq, log: log, now: time.Now, loc: bizclock.Location()}
 }
 
 // SetClock overrides time (tests).

@@ -10,6 +10,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
@@ -20,12 +21,16 @@ import (
 var ErrInvalidRequest = errors.New("invalid request")
 
 type Service struct {
-	q *db.Queries
+	q   *db.Queries
+	now func() time.Time
 }
 
 func New(q *db.Queries) *Service {
-	return &Service{q: q}
+	return &Service{q: q, now: time.Now}
 }
+
+// SetClock replaces the clock (tests).
+func (s *Service) SetClock(now func() time.Time) { s.now = now }
 
 func (s *Service) ResourceMeta() resourcemeta.ResourceMeta {
 	return resourcemeta.TenantReports()
@@ -46,7 +51,7 @@ func (s *Service) Overview(ctx context.Context, in Query) (Overview, error) {
 	if err != nil {
 		return Overview{}, err
 	}
-	from, to, err := parseRange(in.DateFrom, in.DateTo)
+	from, to, err := parseRange(in.DateFrom, in.DateTo, s.now())
 	if err != nil {
 		return Overview{}, err
 	}
@@ -81,8 +86,10 @@ func (s *Service) Overview(ctx context.Context, in Query) (Overview, error) {
 		accountUUIDStr = &s
 	}
 
-	tsFrom := pgtype.Timestamptz{Time: from.Time, Valid: true}
-	tsTo := pgtype.Timestamptz{Time: to.Time.Add(24 * time.Hour), Valid: true}
+	// Timestamp filters cover the same business days as the DATE filters:
+	// [from 00:00, to+1 00:00) in Europe/Istanbul.
+	tsFrom := pgtype.Timestamptz{Time: dayStart(from), Valid: true}
+	tsTo := pgtype.Timestamptz{Time: bizclock.NextDay(dayStart(to)), Valid: true}
 
 	finParams := db.ReportFinanceTotalsParams{
 		OrganizationID: orgID,
@@ -287,10 +294,16 @@ func requireOrgID(ctx context.Context) (int64, error) {
 	return scope.InternalID, nil
 }
 
-func parseRange(fromRaw, toRaw string) (pgtype.Date, pgtype.Date, error) {
-	now := time.Now().UTC()
-	from := pgtype.Date{Time: time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC), Valid: true}
-	to := pgtype.Date{Time: time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC), Valid: true}
+// dayStart is midnight (Europe/Istanbul) of a DATE value.
+func dayStart(d pgtype.Date) time.Time {
+	return time.Date(d.Time.Year(), d.Time.Month(), d.Time.Day(), 0, 0, 0, 0, bizclock.Location())
+}
+
+// parseRange resolves the report days; the default is this month up to
+// today, both business days (Europe/Istanbul).
+func parseRange(fromRaw, toRaw string, now time.Time) (pgtype.Date, pgtype.Date, error) {
+	from := bizclock.DateOf(bizclock.MonthStart(now))
+	to := bizclock.DateOf(now)
 	if strings.TrimSpace(fromRaw) != "" {
 		t, err := time.Parse("2006-01-02", strings.TrimSpace(fromRaw))
 		if err != nil {
