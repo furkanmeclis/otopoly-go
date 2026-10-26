@@ -126,6 +126,13 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 	if st := strings.TrimSpace(filters.Status); st != "" {
 		params.Status = pgtype.Text{String: st, Valid: true}
 	}
+	if raw := strings.TrimSpace(filters.SupplierUUID); raw != "" {
+		su, err := uuid.Parse(raw)
+		if err != nil {
+			return nil, 0, fmt.Errorf("%w: invalid supplier_uuid", ErrInvalidRequest)
+		}
+		params.SupplierUuid = pgtype.UUID{Bytes: su, Valid: true}
+	}
 	if from := strings.TrimSpace(filters.DateFrom); from != "" {
 		t, err := time.ParseInLocation("2006-01-02", from, time.Local)
 		if err != nil {
@@ -150,6 +157,7 @@ func (s *Service) List(ctx context.Context, limit, offset int32, filters ListFil
 		Status:         params.Status,
 		DateFrom:       params.DateFrom,
 		DateTo:         params.DateTo,
+		SupplierUuid:   params.SupplierUuid,
 	})
 	if err != nil {
 		return nil, 0, err

@@ -159,3 +159,24 @@ func (h *Handler) DeleteVehicle(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, r, http.StatusOK, map[string]any{"deleted": true})
 }
+
+// Activity is GET /v1/tenant/customers/{uuid}/activity: audit events of the
+// customer and its records, newest first (limit / offset paging).
+func (h *Handler) Activity(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "customer uuid is invalid")
+		return
+	}
+	if banned := apiquery.ForbiddenParams(r.URL.Query()); len(banned) > 0 {
+		response.BadRequest(w, r, response.CodeValidationError, "forbidden query parameter")
+		return
+	}
+	q := apiquery.Parse(r.URL.Query())
+	items, total, err := h.svc.ListActivity(r.Context(), id, q.Limit, q.Offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, apiquery.NewPage(items, total, q.Limit, q.Offset))
+}

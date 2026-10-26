@@ -251,10 +251,14 @@ type UsageSummary struct {
 
 // Conversation is a chat thread.
 type Conversation struct {
-	UUID          uuid.UUID  `json:"uuid"`
-	Title         string     `json:"title"`
-	MessageCount  int32      `json:"message_count"`
-	LastMessageAt *time.Time `json:"last_message_at,omitempty"`
+	UUID         uuid.UUID `json:"uuid"`
+	Title        string    `json:"title"`
+	MessageCount int32     `json:"message_count"`
+	// LastMessagePreview is a short plain-text excerpt (≤120 chars + "…")
+	// of the last user/assistant text; "" for a conversation without text.
+	LastMessagePreview string `json:"last_message_preview"`
+	// LastMessageAt is null until the first message.
+	LastMessageAt *time.Time `json:"last_message_at"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 }

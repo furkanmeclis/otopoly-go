@@ -111,6 +111,8 @@ type OrganizationSummary struct {
 	LogoURL      *string    `json:"logo_url,omitempty"`
 	Status       string     `json:"status"`
 	AccessEndsAt *time.Time `json:"access_ends_at,omitempty"`
+	// Sector is the business type (null = not set).
+	Sector *string `json:"sector"`
 }
 
 // PublicUser is the safe user projection.

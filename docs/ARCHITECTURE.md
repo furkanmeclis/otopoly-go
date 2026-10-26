@@ -230,6 +230,8 @@ Organization calendar under `/v1/tenant/calendar/*` (module `internal/modules/ca
 
 **Drag and drop:** `POST …/items/move` reschedules events (`tenant.calendar.write`), todo due date/time (`tenant.todos.write`, through the todos use case so reminders follow) and lead follow-ups (`tenant.leads.write`, through the leads use case so the timeline records it). Feed items carry `movable`.
 
+**Live:** event create / update / delete / move publish `resource.changed` on `tenant.calendar` (read permission `tenant.calendar.read`); feed items of other modules are announced on their own resources (see Live lists).
+
 **AI:** `list_calendar` (read) and `create_calendar_event` (confirmable write).
 
 ## Tenant cari (`/t/{slug}/cari`)
@@ -276,7 +278,7 @@ handler → usecase → repository interface → sqlc/pgx → PostgreSQL
 
 Cross-module signals go through `internal/platform/events` (in-process, fail-soft). Handlers never call SMTP or SMS; they enqueue via the notification service (`app:notification:deliver` on the `notifications` queue).
 
-Audit: `activity.Recorder.Record` (fail-soft). Application logs: `internal/modules/logs`.
+Audit: `activity.Recorder.Record` (fail-soft). Tenant events carry `organization_id` (from `orgctx`); `GET /v1/tenant/customers/{uuid}/activity` reads the events of a customer and its records (vehicles, jobs, job contracts, sales, quotes, leads, cari entries) by `resource_uuid`, leaving out kinds the caller cannot read. Application logs: `internal/modules/logs`.
 
 ## Platform engines
 
@@ -339,6 +341,7 @@ Open lists and detail pages follow data changes over Centrifugo. Events are **hi
 | `tenant.todos` | `tenant.todos.read` | create / update / complete / reopen / delete |
 | `tenant.contracts` (templates) · `tenant.contracts.instances` | `tenant.contracts.read` | template CRUD / clone; instance create / sign / OTP verify / media / void |
 | `tenant.staff` | `tenant.staff.read` | staff create / status change |
+| `tenant.calendar` | `tenant.calendar.read` | own calendar event create / update / delete / move; todo and lead moves from the calendar (`updated`, todo / lead uuid) |
 
 **Payload** (`resourceevents.Event`, the Centrifugo publication `data`):
 
@@ -363,7 +366,7 @@ Open lists and detail pages follow data changes over Centrifugo. Events are **hi
 
 **Publishing.** Use cases call `live(ctx, resource, action, uuids...)` after commit (`SetResourceEvents` in `server.go` / `cmd/worker`). The `resourceevents.Broadcaster` resolves the channel from `orgctx` (looking the uuid up when only the internal id is known, e.g. in the worker), publishes in a goroutine with a 5 s timeout and only logs failures, so a request is never slowed or failed. A `tenant.*` event without an organization is dropped, never sent to a shared channel. Subscriptions are checked by `resourceevents.OrgChannelRule` inside `CanSubscribeChannel`.
 
-**Web.** `useServerListState({ realtime: useTenantLiveList(resource) })` + `realtime={listState.realtimeFor(refetch)}` on the DataTable (`useTenantLiveTable` for client-side tables): silent refetch when visible rows change or on page 1 at the top, fade-out of deleted rows, a "N yeni kayıt – Yenile" banner otherwise, one refetch after reconnect. Boards, card lists and detail pages use `useTenantLiveRefetch(resource, refetch, { uuid })` (`features/organizations/hooks/use-tenant-live.ts`).
+**Web.** `useServerListState({ realtime: useTenantLiveList(resource) })` + `realtime={listState.realtimeFor(refetch)}` on the DataTable (`useTenantLiveTable` for client-side tables): silent refetch when visible rows change or on page 1 at the top, fade-out of deleted rows, a "N yeni kayıt – Yenile" banner otherwise, one refetch after reconnect. Boards, card lists and detail pages use `useTenantLiveRefetch(resource, refetch, { uuid })` (`features/organizations/hooks/use-tenant-live.ts`). The calendar page refetches its feed on `tenant.calendar`, `tenant.jobs`, `tenant.todos`, `tenant.leads` and `tenant.quotes` (the other feed layers follow on the next navigation / reconnect).
 
 ## RBAC
 

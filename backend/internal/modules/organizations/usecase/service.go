@@ -73,6 +73,7 @@ type Organization struct {
 	AccessStartsAt time.Time  `json:"access_starts_at"`
 	AccessEndsAt   *time.Time `json:"access_ends_at,omitempty"`
 	LogoURL        *string    `json:"logo_url,omitempty"`
+	Sector         *string    `json:"sector"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 }
@@ -96,6 +97,7 @@ type MembershipSummary struct {
 	LogoURL      *string    `json:"logo_url,omitempty"`
 	Status       string     `json:"status"`
 	AccessEndsAt *time.Time `json:"access_ends_at,omitempty"`
+	Sector       *string    `json:"sector"`
 }
 
 // RegisterInput is public business self-registration.
@@ -109,6 +111,8 @@ type RegisterInput struct {
 	District         string
 	Phone            string
 	Address          string
+	// Sector is the optional business type ("" = not set); see Sectors.
+	Sector string
 }
 
 // RegisterResult is created org + owner user id after signup.
@@ -156,6 +160,7 @@ func mapOrganization(row db.Organization) Organization {
 		AccessStartsAt: row.AccessStartsAt.Time,
 		AccessEndsAt:   accessEnds,
 		LogoURL:        logoURL(row.Uuid, row.LogoObjectKey),
+		Sector:         sectorPtr(row.Sector),
 		CreatedAt:      row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time,
 	}
 }
@@ -339,6 +344,10 @@ func (s *Service) userOwnsOrganization(ctx context.Context, q *db.Queries, userI
 // trial access window starting now, owner membership + roles, finance
 // defaults and the billing trial subscription.
 func (s *Service) createOrganizationTx(ctx context.Context, qtx *db.Queries, in RegisterInput, orgSlug string, ownerUserID int64) (db.Organization, error) {
+	sector, err := sectorArg(in.Sector)
+	if err != nil {
+		return db.Organization{}, err
+	}
 	now := time.Now().UTC()
 	trialEnd := now.Add(trialDays * 24 * time.Hour)
 	org, err := qtx.CreateOrganization(ctx, db.CreateOrganizationParams{
@@ -348,6 +357,7 @@ func (s *Service) createOrganizationTx(ctx context.Context, qtx *db.Queries, in 
 		Status: "active", PlanCode: pgtype.Text{String: "trial", Valid: true},
 		AccessStartsAt: pgtype.Timestamptz{Time: now, Valid: true},
 		AccessEndsAt:   pgtype.Timestamptz{Time: trialEnd, Valid: true},
+		Sector:         sector,
 	})
 	if err != nil {
 		return db.Organization{}, err
@@ -605,7 +615,7 @@ func (s *Service) ListMembershipsForUser(ctx context.Context, userID int64) ([]M
 		out = append(out, MembershipSummary{
 			UUID: row.Uuid, Slug: row.Slug, Name: row.Name, Role: row.Role,
 			LogoURL: logoURL(row.Uuid, row.LogoObjectKey), Status: row.Status,
-			AccessEndsAt: accessEnds,
+			AccessEndsAt: accessEnds, Sector: sectorPtr(row.Sector),
 		})
 	}
 	return out, nil

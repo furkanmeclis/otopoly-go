@@ -45,6 +45,9 @@ type ListFilters struct {
 	DateFrom string
 	DateTo   string
 	Sort     string
+	// SupplierUUID limits the list to one supplier's purchases (uuid
+	// string; empty = all).
+	SupplierUUID string
 }
 
 type CreateLineInput struct {

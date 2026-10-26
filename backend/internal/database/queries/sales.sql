@@ -74,6 +74,13 @@ WHERE s.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(date_from)::timestamptz IS NULL OR s.sold_at >= sqlc.narg(date_from))
   AND (sqlc.narg(date_to)::timestamptz IS NULL OR s.sold_at < sqlc.narg(date_to))
   AND (
+    sqlc.narg(customer_uuid)::uuid IS NULL
+    OR s.customer_id = (
+        SELECT fc.id FROM customers fc
+        WHERE fc.uuid = sqlc.narg(customer_uuid) AND fc.organization_id = sqlc.arg(organization_id)
+    )
+  )
+  AND (
     sqlc.narg(q)::text IS NULL
     OR s.customer_name ILIKE '%' || sqlc.narg(q) || '%'
     OR s.customer_phone ILIKE '%' || sqlc.narg(q) || '%'
@@ -94,6 +101,13 @@ WHERE s.organization_id = sqlc.arg(organization_id)
   AND (sqlc.narg(status)::text IS NULL OR s.status = sqlc.narg(status))
   AND (sqlc.narg(date_from)::timestamptz IS NULL OR s.sold_at >= sqlc.narg(date_from))
   AND (sqlc.narg(date_to)::timestamptz IS NULL OR s.sold_at < sqlc.narg(date_to))
+  AND (
+    sqlc.narg(customer_uuid)::uuid IS NULL
+    OR s.customer_id = (
+        SELECT fc.id FROM customers fc
+        WHERE fc.uuid = sqlc.narg(customer_uuid) AND fc.organization_id = sqlc.arg(organization_id)
+    )
+  )
   AND (
     sqlc.narg(q)::text IS NULL
     OR s.customer_name ILIKE '%' || sqlc.narg(q) || '%'

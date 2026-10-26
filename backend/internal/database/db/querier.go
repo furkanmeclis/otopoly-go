@@ -108,6 +108,7 @@ type Querier interface {
 	CountContractPresets(ctx context.Context, arg CountContractPresetsParams) (int64, error)
 	CountContractSignerOTPsSince(ctx context.Context, arg CountContractSignerOTPsSinceParams) (int64, error)
 	CountContractTemplates(ctx context.Context, arg CountContractTemplatesParams) (int64, error)
+	CountCustomerActivityEvents(ctx context.Context, arg CountCustomerActivityEventsParams) (int64, error)
 	CountCustomerVehiclesByModel(ctx context.Context, modelID int64) (int64, error)
 	CountCustomers(ctx context.Context, arg CountCustomersParams) (int64, error)
 	CountDiscountCodes(ctx context.Context, q_ string) (int64, error)
@@ -700,6 +701,10 @@ type Querier interface {
 	ListContractSignaturesByInstance(ctx context.Context, instanceID int64) ([]ContractSignature, error)
 	ListContractSignersByInstance(ctx context.Context, instanceID int64) ([]ContractSigner, error)
 	ListContractTemplates(ctx context.Context, arg ListContractTemplatesParams) ([]ContractTemplate, error)
+	// Activity of one customer and its records (vehicles, jobs, sales, quotes,
+	// leads, cari entries, job contracts) inside one organization, newest first.
+	// The include_* flags drop record kinds the caller may not read.
+	ListCustomerActivityEvents(ctx context.Context, arg ListCustomerActivityEventsParams) ([]ListCustomerActivityEventsRow, error)
 	ListCustomerMonthlySpend(ctx context.Context, arg ListCustomerMonthlySpendParams) ([]ListCustomerMonthlySpendRow, error)
 	ListCustomerSales(ctx context.Context, arg ListCustomerSalesParams) ([]ListCustomerSalesRow, error)
 	ListCustomerTopServices(ctx context.Context, arg ListCustomerTopServicesParams) ([]ListCustomerTopServicesRow, error)

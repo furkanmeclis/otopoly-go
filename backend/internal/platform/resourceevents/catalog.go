@@ -31,6 +31,10 @@ const (
 	TenantContracts           = "tenant.contracts"
 	TenantContractInstances   = "tenant.contracts.instances"
 	TenantStaff               = "tenant.staff"
+	// TenantCalendar covers the organization's own calendar events (create,
+	// update, delete, drag-and-drop moves). Feed items of other modules are
+	// announced on their own resources (jobs, todos, leads, quotes, …).
+	TenantCalendar = "tenant.calendar"
 )
 
 // TenantResources maps every live tenant resource to its read permission.
@@ -55,6 +59,7 @@ var TenantResources = map[string]string{
 	TenantContracts:           rbac.PermTenantContractsRead,
 	TenantContractInstances:   rbac.PermTenantContractsRead,
 	TenantStaff:               rbac.PermTenantStaffRead,
+	TenantCalendar:            rbac.PermTenantCalendarRead,
 }
 
 // RegisterTenantResources declares every live tenant resource in reg.

@@ -221,7 +221,7 @@ func (q *Queries) CountAIConversations(ctx context.Context, arg CountAIConversat
 const createAIConversation = `-- name: CreateAIConversation :one
 INSERT INTO ai_conversations (organization_id, user_id, title)
 VALUES ($1, $2, $3)
-RETURNING id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at, last_message_preview
 `
 
 type CreateAIConversationParams struct {
@@ -244,6 +244,7 @@ func (q *Queries) CreateAIConversation(ctx context.Context, arg CreateAIConversa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.LastMessagePreview,
 	)
 	return i, err
 }
@@ -410,7 +411,7 @@ func (q *Queries) FinishAIPendingAction(ctx context.Context, arg FinishAIPending
 }
 
 const getAIConversation = `-- name: GetAIConversation :one
-SELECT id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at FROM ai_conversations
+SELECT id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at, last_message_preview FROM ai_conversations
 WHERE uuid = $1
   AND organization_id = $2
   AND user_id = $3
@@ -437,6 +438,7 @@ func (q *Queries) GetAIConversation(ctx context.Context, arg GetAIConversationPa
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.LastMessagePreview,
 	)
 	return i, err
 }
@@ -785,7 +787,7 @@ func (q *Queries) InsertAIUsage(ctx context.Context, arg InsertAIUsageParams) er
 }
 
 const listAIConversations = `-- name: ListAIConversations :many
-SELECT id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at FROM ai_conversations
+SELECT id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at, last_message_preview FROM ai_conversations
 WHERE organization_id = $1
   AND user_id = $2
   AND deleted_at IS NULL
@@ -828,6 +830,7 @@ func (q *Queries) ListAIConversations(ctx context.Context, arg ListAIConversatio
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.LastMessagePreview,
 		); err != nil {
 			return nil, err
 		}
@@ -1031,17 +1034,22 @@ func (q *Queries) SumAIOrganizationTokensSince(ctx context.Context, arg SumAIOrg
 const touchAIConversation = `-- name: TouchAIConversation :exec
 UPDATE ai_conversations
 SET message_count = message_count + $1::int,
-    last_message_at = now()
-WHERE id = $2
+    last_message_at = now(),
+    last_message_preview = CASE
+        WHEN $2::text <> '' THEN $2::text
+        ELSE last_message_preview
+    END
+WHERE id = $3
 `
 
 type TouchAIConversationParams struct {
-	Added int32 `json:"added"`
-	ID    int64 `json:"id"`
+	Added   int32  `json:"added"`
+	Preview string `json:"preview"`
+	ID      int64  `json:"id"`
 }
 
 func (q *Queries) TouchAIConversation(ctx context.Context, arg TouchAIConversationParams) error {
-	_, err := q.db.Exec(ctx, touchAIConversation, arg.Added, arg.ID)
+	_, err := q.db.Exec(ctx, touchAIConversation, arg.Added, arg.Preview, arg.ID)
 	return err
 }
 
@@ -1049,7 +1057,7 @@ const updateAIConversationTitle = `-- name: UpdateAIConversationTitle :one
 UPDATE ai_conversations
 SET title = $1
 WHERE id = $2 AND deleted_at IS NULL
-RETURNING id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at
+RETURNING id, uuid, organization_id, user_id, title, message_count, last_message_at, created_at, updated_at, deleted_at, last_message_preview
 `
 
 type UpdateAIConversationTitleParams struct {
@@ -1071,6 +1079,7 @@ func (q *Queries) UpdateAIConversationTitle(ctx context.Context, arg UpdateAICon
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.LastMessagePreview,
 	)
 	return i, err
 }

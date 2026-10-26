@@ -14,6 +14,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -56,6 +57,8 @@ type Service struct {
 	leads LeadScheduler
 	loc   *time.Location
 	now   func() time.Time
+
+	liveEvents resourceevents.Publisher
 }
 
 // New creates the service. ent may be nil (every module counts as enabled).
@@ -235,6 +238,7 @@ func (s *Service) CreateEvent(ctx context.Context, actorID int64, in EventInput,
 		return Event{}, err
 	}
 	s.record(ctx, actorID, "calendar.event.create", row.Uuid, row.Title, req)
+	s.live(ctx, resourceevents.ActionCreated, row.Uuid)
 	return s.mapEvent(row), nil
 }
 
@@ -277,6 +281,7 @@ func (s *Service) saveEvent(ctx context.Context, org, actorID int64, id uuid.UUI
 		return Event{}, err
 	}
 	s.record(ctx, actorID, "calendar.event.update", row.Uuid, row.Title, req)
+	s.live(ctx, resourceevents.ActionUpdated, row.Uuid)
 	return s.mapEvent(row), nil
 }
 
@@ -293,6 +298,7 @@ func (s *Service) DeleteEvent(ctx context.Context, actorID int64, id uuid.UUID, 
 		return err
 	}
 	s.record(ctx, actorID, "calendar.event.delete", row.Uuid, row.Title, req)
+	s.live(ctx, resourceevents.ActionDeleted, row.Uuid)
 	return nil
 }
 

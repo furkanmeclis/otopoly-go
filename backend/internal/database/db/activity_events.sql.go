@@ -68,6 +68,74 @@ func (q *Queries) CountActivityEventsForOrganization(ctx context.Context, arg Co
 	return column_1, err
 }
 
+const countCustomerActivityEvents = `-- name: CountCustomerActivityEvents :one
+WITH refs AS (
+    SELECT c.uuid FROM customers c
+    WHERE c.organization_id = $1 AND c.id = $2
+    UNION ALL
+    SELECT v.uuid FROM customer_vehicles v
+    WHERE v.organization_id = $1 AND v.customer_id = $2
+    UNION ALL
+    SELECT j.uuid FROM service_jobs j
+    WHERE $3::bool
+      AND j.organization_id = $1 AND j.customer_id = $2
+    UNION ALL
+    SELECT ci.uuid FROM contract_instances ci
+    JOIN service_jobs cj ON cj.uuid = ci.subject_uuid AND cj.organization_id = ci.organization_id
+    WHERE $4::bool
+      AND ci.organization_id = $1 AND ci.subject_type = 'service_job'
+      AND cj.customer_id = $2
+    UNION ALL
+    SELECT ps.uuid FROM product_sales ps
+    WHERE $5::bool
+      AND ps.organization_id = $1 AND ps.customer_id = $2
+    UNION ALL
+    SELECT qt.uuid FROM quotes qt
+    WHERE $6::bool
+      AND qt.organization_id = $1 AND qt.customer_id = $2
+    UNION ALL
+    SELECT ld.uuid FROM leads ld
+    WHERE $7::bool
+      AND ld.organization_id = $1 AND ld.customer_id = $2
+    UNION ALL
+    SELECT ce.uuid FROM cari_entries ce
+    JOIN cari_accounts ca ON ca.id = ce.account_id AND ca.organization_id = ce.organization_id
+    WHERE $8::bool
+      AND ce.organization_id = $1 AND ca.customer_id = $2
+)
+SELECT COUNT(*)::bigint
+FROM activity_events a
+WHERE a.organization_id = $1::bigint
+  AND a.resource_uuid IN (SELECT r.uuid FROM refs r)
+`
+
+type CountCustomerActivityEventsParams struct {
+	OrganizationID   int64 `json:"organization_id"`
+	CustomerID       int64 `json:"customer_id"`
+	IncludeJobs      bool  `json:"include_jobs"`
+	IncludeContracts bool  `json:"include_contracts"`
+	IncludeSales     bool  `json:"include_sales"`
+	IncludeQuotes    bool  `json:"include_quotes"`
+	IncludeLeads     bool  `json:"include_leads"`
+	IncludeCari      bool  `json:"include_cari"`
+}
+
+func (q *Queries) CountCustomerActivityEvents(ctx context.Context, arg CountCustomerActivityEventsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countCustomerActivityEvents,
+		arg.OrganizationID,
+		arg.CustomerID,
+		arg.IncludeJobs,
+		arg.IncludeContracts,
+		arg.IncludeSales,
+		arg.IncludeQuotes,
+		arg.IncludeLeads,
+		arg.IncludeCari,
+	)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const insertActivityEvent = `-- name: InsertActivityEvent :one
 INSERT INTO activity_events (actor_user_id, action, resource, resource_uuid, payload, ip_address, user_agent, organization_id)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -227,6 +295,122 @@ func (q *Queries) ListActivityEventsForOrganization(ctx context.Context, arg Lis
 	items := []ListActivityEventsForOrganizationRow{}
 	for rows.Next() {
 		var i ListActivityEventsForOrganizationRow
+		if err := rows.Scan(
+			&i.Uuid,
+			&i.Action,
+			&i.Resource,
+			&i.ResourceUuid,
+			&i.Payload,
+			&i.CreatedAt,
+			&i.ActorUuid,
+			&i.ActorEmail,
+			&i.ActorName,
+			&i.ActorSurname,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCustomerActivityEvents = `-- name: ListCustomerActivityEvents :many
+WITH refs AS (
+    SELECT c.uuid FROM customers c
+    WHERE c.organization_id = $1 AND c.id = $4
+    UNION ALL
+    SELECT v.uuid FROM customer_vehicles v
+    WHERE v.organization_id = $1 AND v.customer_id = $4
+    UNION ALL
+    SELECT j.uuid FROM service_jobs j
+    WHERE $5::bool
+      AND j.organization_id = $1 AND j.customer_id = $4
+    UNION ALL
+    SELECT ci.uuid FROM contract_instances ci
+    JOIN service_jobs cj ON cj.uuid = ci.subject_uuid AND cj.organization_id = ci.organization_id
+    WHERE $6::bool
+      AND ci.organization_id = $1 AND ci.subject_type = 'service_job'
+      AND cj.customer_id = $4
+    UNION ALL
+    SELECT ps.uuid FROM product_sales ps
+    WHERE $7::bool
+      AND ps.organization_id = $1 AND ps.customer_id = $4
+    UNION ALL
+    SELECT qt.uuid FROM quotes qt
+    WHERE $8::bool
+      AND qt.organization_id = $1 AND qt.customer_id = $4
+    UNION ALL
+    SELECT ld.uuid FROM leads ld
+    WHERE $9::bool
+      AND ld.organization_id = $1 AND ld.customer_id = $4
+    UNION ALL
+    SELECT ce.uuid FROM cari_entries ce
+    JOIN cari_accounts ca ON ca.id = ce.account_id AND ca.organization_id = ce.organization_id
+    WHERE $10::bool
+      AND ce.organization_id = $1 AND ca.customer_id = $4
+)
+SELECT a.uuid, a.action, a.resource, a.resource_uuid, a.payload, a.created_at,
+       u.uuid AS actor_uuid, u.email AS actor_email, u.name AS actor_name, u.surname AS actor_surname
+FROM activity_events a
+LEFT JOIN users u ON u.id = a.actor_user_id
+WHERE a.organization_id = $1::bigint
+  AND a.resource_uuid IN (SELECT r.uuid FROM refs r)
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT $3 OFFSET $2
+`
+
+type ListCustomerActivityEventsParams struct {
+	OrganizationID   int64 `json:"organization_id"`
+	OffsetCount      int32 `json:"offset_count"`
+	LimitCount       int32 `json:"limit_count"`
+	CustomerID       int64 `json:"customer_id"`
+	IncludeJobs      bool  `json:"include_jobs"`
+	IncludeContracts bool  `json:"include_contracts"`
+	IncludeSales     bool  `json:"include_sales"`
+	IncludeQuotes    bool  `json:"include_quotes"`
+	IncludeLeads     bool  `json:"include_leads"`
+	IncludeCari      bool  `json:"include_cari"`
+}
+
+type ListCustomerActivityEventsRow struct {
+	Uuid         uuid.UUID          `json:"uuid"`
+	Action       string             `json:"action"`
+	Resource     string             `json:"resource"`
+	ResourceUuid pgtype.UUID        `json:"resource_uuid"`
+	Payload      []byte             `json:"payload"`
+	CreatedAt    pgtype.Timestamptz `json:"created_at"`
+	ActorUuid    pgtype.UUID        `json:"actor_uuid"`
+	ActorEmail   pgtype.Text        `json:"actor_email"`
+	ActorName    pgtype.Text        `json:"actor_name"`
+	ActorSurname pgtype.Text        `json:"actor_surname"`
+}
+
+// Activity of one customer and its records (vehicles, jobs, sales, quotes,
+// leads, cari entries, job contracts) inside one organization, newest first.
+// The include_* flags drop record kinds the caller may not read.
+func (q *Queries) ListCustomerActivityEvents(ctx context.Context, arg ListCustomerActivityEventsParams) ([]ListCustomerActivityEventsRow, error) {
+	rows, err := q.db.Query(ctx, listCustomerActivityEvents,
+		arg.OrganizationID,
+		arg.OffsetCount,
+		arg.LimitCount,
+		arg.CustomerID,
+		arg.IncludeJobs,
+		arg.IncludeContracts,
+		arg.IncludeSales,
+		arg.IncludeQuotes,
+		arg.IncludeLeads,
+		arg.IncludeCari,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCustomerActivityEventsRow{}
+	for rows.Next() {
+		var i ListCustomerActivityEventsRow
 		if err := rows.Scan(
 			&i.Uuid,
 			&i.Action,

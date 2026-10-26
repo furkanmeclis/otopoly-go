@@ -147,45 +147,71 @@ WHERE uuid = $1 AND organization_id = $2 AND deleted_at IS NULL;
 -- name: ListContractInstances :many
 SELECT *
 FROM contract_instances
-WHERE organization_id = $1
+WHERE contract_instances.organization_id = $1
   AND (
     sqlc.narg('status')::text IS NULL
-    OR status = sqlc.narg('status')::text
+    OR contract_instances.status = sqlc.narg('status')::text
   )
   AND (
     sqlc.narg('subject_type')::text IS NULL
-    OR subject_type = sqlc.narg('subject_type')::text
+    OR contract_instances.subject_type = sqlc.narg('subject_type')::text
   )
   AND (
     sqlc.narg('subject_uuid')::uuid IS NULL
-    OR subject_uuid = sqlc.narg('subject_uuid')::uuid
+    OR contract_instances.subject_uuid = sqlc.narg('subject_uuid')::uuid
+  )
+  AND (
+    sqlc.narg('customer_uuid')::uuid IS NULL
+    OR (
+        contract_instances.subject_type = 'service_job'
+        AND contract_instances.subject_uuid IN (
+            SELECT fj.uuid FROM service_jobs fj
+            JOIN customers fc ON fc.id = fj.customer_id
+            WHERE fj.organization_id = $1
+              AND fc.organization_id = $1
+              AND fc.uuid = sqlc.narg('customer_uuid')::uuid
+        )
+    )
   )
   AND (
     sqlc.narg('q')::text IS NULL
-    OR title ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR contract_instances.title ILIKE '%' || sqlc.narg('q')::text || '%'
   )
-ORDER BY created_at DESC
+ORDER BY contract_instances.created_at DESC
 LIMIT sqlc.arg('limit_count') OFFSET sqlc.arg('offset_count');
 
 -- name: CountContractInstances :one
 SELECT count(*)::bigint
 FROM contract_instances
-WHERE organization_id = $1
+WHERE contract_instances.organization_id = $1
   AND (
     sqlc.narg('status')::text IS NULL
-    OR status = sqlc.narg('status')::text
+    OR contract_instances.status = sqlc.narg('status')::text
   )
   AND (
     sqlc.narg('subject_type')::text IS NULL
-    OR subject_type = sqlc.narg('subject_type')::text
+    OR contract_instances.subject_type = sqlc.narg('subject_type')::text
   )
   AND (
     sqlc.narg('subject_uuid')::uuid IS NULL
-    OR subject_uuid = sqlc.narg('subject_uuid')::uuid
+    OR contract_instances.subject_uuid = sqlc.narg('subject_uuid')::uuid
+  )
+  AND (
+    sqlc.narg('customer_uuid')::uuid IS NULL
+    OR (
+        contract_instances.subject_type = 'service_job'
+        AND contract_instances.subject_uuid IN (
+            SELECT fj.uuid FROM service_jobs fj
+            JOIN customers fc ON fc.id = fj.customer_id
+            WHERE fj.organization_id = $1
+              AND fc.organization_id = $1
+              AND fc.uuid = sqlc.narg('customer_uuid')::uuid
+        )
+    )
   )
   AND (
     sqlc.narg('q')::text IS NULL
-    OR title ILIKE '%' || sqlc.narg('q')::text || '%'
+    OR contract_instances.title ILIKE '%' || sqlc.narg('q')::text || '%'
   );
 
 -- name: GetContractInstanceByUUID :one
