@@ -37,6 +37,10 @@ const (
 	TenantCalendar = "tenant.calendar"
 	// TenantReviews are review requests (scheduled, sent, answered, followed up).
 	TenantReviews = "tenant.reviews"
+	// TenantStockReorder covers reorder settings, product overrides and
+	// drafts created from suggestions. Stock and draft changes are also
+	// announced on tenant.catalog.products / tenant.purchases.
+	TenantStockReorder = "tenant.stock_reorder"
 )
 
 // TenantResources maps every live tenant resource to its read permission.
@@ -63,6 +67,7 @@ var TenantResources = map[string]string{
 	TenantStaff:               rbac.PermTenantStaffRead,
 	TenantCalendar:            rbac.PermTenantCalendarRead,
 	TenantReviews:             rbac.PermTenantReviewsRead,
+	TenantStockReorder:        rbac.PermTenantPurchasesRead,
 }
 
 // RegisterTenantResources declares every live tenant resource in reg.

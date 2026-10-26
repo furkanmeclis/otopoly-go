@@ -2,7 +2,7 @@ import type { ServerListParams } from "@/components/entity";
 import { platformRequest } from "@/lib/api/platform-request";
 import type { ResourceMeta } from "@/features/io/types";
 
-export type PurchaseStatus = "posted" | "voided";
+export type PurchaseStatus = "draft" | "posted" | "voided";
 export type PurchaseMethod = "cash" | "card";
 
 export type PurchaseLine = {

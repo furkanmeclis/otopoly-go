@@ -420,5 +420,12 @@
   "tool_summary.review_followed_up": "Handled: {{customer}}",
   "confirm.fields.score": "Score",
   "confirm.fields.comment": "Comment",
-  "confirm.fields.note": "Note"
+  "confirm.fields.note": "Note",
+  "tools.list_reorder_suggestions": "Reorder suggestions",
+  "tools_running.list_reorder_suggestions": "Checking reorder suggestions…",
+  "tools.create_purchase_drafts": "Purchase drafts",
+  "tools_running.create_purchase_drafts": "Preparing purchase drafts…",
+  "tool_summary.reorder_found": "{{count}} reorder suggestions ({{urgent}} urgent)",
+  "tool_summary.purchase_drafts_created": "{{count}} purchase drafts created",
+  "confirm.fields.supplier": "Supplier"
 }

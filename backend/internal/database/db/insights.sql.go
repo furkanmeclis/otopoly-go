@@ -763,6 +763,7 @@ JOIN purchases p ON p.id = l.purchase_id AND p.organization_id = l.organization_
 JOIN suppliers sp ON sp.id = p.supplier_id AND sp.organization_id = p.organization_id
 WHERE l.organization_id = $1::bigint
   AND l.product_id = $2::bigint
+  AND p.status <> 'draft'
 ORDER BY p.purchased_at DESC, l.id DESC
 LIMIT $3
 `
@@ -1073,6 +1074,7 @@ SELECT p.uuid, p.status, p.method, p.total_amount, p.currency, p.purchased_at,
 FROM purchases p
 WHERE p.organization_id = $1::bigint
   AND p.supplier_id = $2::bigint
+  AND p.status <> 'draft'
 ORDER BY p.purchased_at DESC
 LIMIT $3
 `

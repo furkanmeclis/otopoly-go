@@ -15,6 +15,7 @@ import {
   Shield,
   ShoppingBag,
   ShoppingCart,
+  PackageSearch,
   Upload,
   UserRound,
   Wallet,
@@ -52,6 +53,7 @@ import { defineNav } from "@/features/nav-engine";
 import { usersNavItem } from "@/features/users/nav";
 import { TodosNavAdornment } from "@/features/todos/nav";
 import { CalendarNavAdornment } from "@/features/calendar/nav";
+import { StockReorderNavAdornment } from "@/features/stock-reorder/nav";
 import { LeadsNavAdornment } from "@/features/leads/nav";
 import { QuotesNavAdornment } from "@/features/quotes/nav";
 import { ReviewsNavAdornment } from "@/features/reviews/nav";
@@ -545,6 +547,14 @@ export function tenantNav(slug: string) {
             href: routes.tenant.purchases.root(slug),
             icon: ShoppingCart,
             permission: permissions.purchases.read,
+          },
+          {
+            id: "stock-reorder",
+            titleKey: "layout.nav_stock_reorder",
+            href: routes.tenant.purchases.reorder(slug),
+            icon: PackageSearch,
+            permission: [permissions.purchases.read, permissions.catalog.read],
+            Adornment: StockReorderNavAdornment,
           },
         ],
       },

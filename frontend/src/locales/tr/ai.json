@@ -420,5 +420,12 @@
   "tool_summary.review_followed_up": "Ele alındı: {{customer}}",
   "confirm.fields.score": "Puan",
   "confirm.fields.comment": "Yorum",
-  "confirm.fields.note": "Not"
+  "confirm.fields.note": "Not",
+  "tools.list_reorder_suggestions": "Sipariş önerileri",
+  "tools_running.list_reorder_suggestions": "Sipariş önerilerine bakılıyor…",
+  "tools.create_purchase_drafts": "Alış taslakları",
+  "tools_running.create_purchase_drafts": "Alış taslakları hazırlanıyor…",
+  "tool_summary.reorder_found": "{{count}} sipariş önerisi ({{urgent}} acil)",
+  "tool_summary.purchase_drafts_created": "{{count}} alış taslağı oluşturuldu",
+  "confirm.fields.supplier": "Tedarikçi"
 }

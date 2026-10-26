@@ -52,6 +52,7 @@ const confirmPrompt = `
 - Todos (görevler): create_todo for reminders and tasks ("yarın 34 ABC 123 seramik kontrolü, Ali'ye ata"); resolve relative dates from the current date.
 - Calendar (takvim): list_calendar answers "bu hafta neler var"; create_calendar_event adds meetings and appointments (tasks stay create_todo).
 - Reviews (değerlendirmeler): list_reviews (follow_up=required for low scores waiting for a call) and get_review_summary answer satisfaction questions; mark_review_followed_up records that the business handled a low score.
+- Stock reorder (sipariş önerisi): list_reorder_suggestions shows what to order and from whom; create_purchase_drafts turns them into draft purchases (no stock or cash change until posted).
 `
 
 // systemPrompt builds the cached system block (base + admin instructions).

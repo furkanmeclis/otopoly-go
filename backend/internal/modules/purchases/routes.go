@@ -37,4 +37,9 @@ func RegisterRoutes(
 	mux.Handle("POST /v1/tenant/purchases", write(h.Create))
 	mux.Handle("GET /v1/tenant/purchases/{uuid}", read(h.Get))
 	mux.Handle("POST /v1/tenant/purchases/{uuid}/void", write(h.Void))
+	// Drafts (reorder suggestions): no stock / finance effect until posted.
+	mux.Handle("POST /v1/tenant/purchases/drafts", write(h.CreateDraft))
+	mux.Handle("PUT /v1/tenant/purchases/{uuid}/draft", write(h.UpdateDraft))
+	mux.Handle("POST /v1/tenant/purchases/{uuid}/post", write(h.PostDraft))
+	mux.Handle("DELETE /v1/tenant/purchases/{uuid}", write(h.DeleteDraft))
 }

@@ -35,6 +35,8 @@ import (
 	reviewsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reviews"
 	reviewsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reviews/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/salesflow"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/stockreorder"
+	stockreorderusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/stockreorder/usecase"
 	todosusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/todos/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts"
 	vausecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclealerts/usecase"
@@ -219,6 +221,8 @@ func main() {
 	vehicleAlertsSvc := vausecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
 	entitlementsSvc := entitlements.New(entitlements.NewDBStore(queries))
 	billingSvc := billingusecase.New(pool, queries, activityRec, entitlementsSvc)
+	stockReorderSvc := stockreorderusecase.New(queries, nil, entitlementsSvc, activityRec, log)
+	stockReorderSvc.SetNotifier(stockreorder.NewInAppNotifier(notifSvc))
 	billingSvc.SetNotifier(&workerBillingNotifier{pool: pool, notifications: notifSvc, log: log})
 	messagingSvc.SetEntitlements(entitlementsSvc)
 	workerSMS.SetEntitlements(entitlementsSvc)
@@ -290,6 +294,7 @@ func main() {
 		WithDailySummary(dailySummarySvc.SendDue).
 		WithVehicleAlerts(vehicleAlertsSvc.Flush).
 		WithReviews(reviewsSvc.ProcessDue).
+		WithStockReorder(stockReorderSvc.SendDue).
 		WithBillingRecompute(entitlementsRecomputer.RecomputeAll).
 		WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
 		WithBillingLifecycle(func(ctx context.Context, now time.Time) (queue.BillingLifecycleResult, error) {
@@ -335,6 +340,10 @@ func main() {
 	}
 	if err := queue.RegisterReviewsSchedule(scheduler); err != nil {
 		log.Error("reviews_scheduler_failed", "error", err)
+		exit(1)
+	}
+	if err := queue.RegisterStockReorderSchedule(scheduler); err != nil {
+		log.Error("stock_reorder_scheduler_failed", "error", err)
 		exit(1)
 	}
 	if err := queue.RegisterBillingRecomputeSchedule(scheduler); err != nil {

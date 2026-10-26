@@ -134,6 +134,7 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `list_quotes` | read | `tenant.quotes.read` (plan `module.quotes`) |
 | `list_reviews` | read | `tenant.reviews.read` (plan `reviews.enabled`) |
 | `get_review_summary` | read | `tenant.reviews.read` (plan `reviews.enabled`) |
+| `list_reorder_suggestions` | read | `tenant.purchases.read`, `tenant.catalog.read` (plan `stock_reorder.enabled`) |
 | `create_customer` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `add_customer_vehicle` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `create_job` | write | `tenant.jobs.write`, `tenant.customers.read`, `tenant.catalog.read` |
@@ -151,6 +152,7 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `create_todo` | write | `tenant.todos.write` |
 | `complete_todo` | write | `tenant.todos.write` |
 | `mark_review_followed_up` | write | `tenant.reviews.write`, `tenant.reviews.read` (owner; plan `reviews.enabled`) |
+| `create_purchase_drafts` | write | `tenant.purchases.write`, `tenant.purchases.read`, `tenant.catalog.read` (owner; plan `stock_reorder.enabled`) |
 <!-- mcp-org-tools:end -->
 
 ### Platform endpoint (`/mcp/platform`)

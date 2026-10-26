@@ -86,6 +86,8 @@ type Deps struct {
 	// Reviews adds list_reviews / get_review_summary and the confirmable
 	// mark_review_followed_up.
 	Reviews ReviewsService
+	// Reorder adds list_reorder_suggestions and create_purchase_drafts.
+	Reorder ReorderService
 }
 
 // DefaultRegistry builds the tool set (read tools, charts, plan checklist and
@@ -125,6 +127,9 @@ func DefaultRegistry(d Deps) *Registry {
 	if d.Reviews != nil {
 		r.Register(ListReviews{reviews: d.Reviews})
 		r.Register(ReviewSummary{reviews: d.Reviews})
+	}
+	if d.Reorder != nil {
+		r.Register(ListReorderSuggestions{reorder: d.Reorder})
 	}
 	registerWriteTools(r, d)
 	return r
@@ -181,6 +186,9 @@ func registerWriteTools(r *Registry, d Deps) {
 	}
 	if d.Reviews != nil {
 		r.Register(MarkReviewFollowedUp{reviews: d.Reviews})
+	}
+	if d.Reorder != nil {
+		r.Register(CreatePurchaseDrafts{reorder: d.Reorder})
 	}
 }
 

@@ -43,6 +43,7 @@ export const TenantLiveResources = {
   staff: "tenant.staff",
   calendar: "tenant.calendar",
   reviews: "tenant.reviews",
+  stockReorder: "tenant.stock_reorder",
 } as const;
 
 export type TenantLiveResource =

@@ -217,6 +217,25 @@ Leads (fırsat) and quotes (teklif) under `/v1/tenant/leads/*` and `/v1/tenant/q
 
 **Quick convert:** service lines → job lines via `jobsusecase.Service.Create` (unit price = paid amount after discounts, VAT incl.); product / free-text lines are listed in the job notes, not transferred. A missing vehicle is created on the customer from the quote's plate + catalog model (only missing fields are asked). The quote stores `job_id`; a linked lead becomes `won`.
 
+## Stock reorder suggestions (`/t/{slug}/purchases/reorder`)
+
+Module `internal/modules/stockreorder`, routes `/v1/tenant/stock-reorder/*` (read: `tenant.purchases.read` + `tenant.catalog.read`; settings, product overrides and drafts: `tenant.purchases.write` and the owner role, like purchases). Plan toggle `stock_reorder.enabled` (undefined = on) → `403 FEATURE_DISABLED`.
+
+For every active stock-tracked product (one SQL query, `ListStockReorderCandidates`):
+
+- **velocity** = (job consumptions not reverted + posted sales of the last `velocity_days`, default 30) / `velocity_days`
+- **on_order** = quantity on `draft` purchases
+- **lead_days**: product override → supplier lead time → organization (default 3); **target_days**: product override → organization (default 14)
+- **suggested** = `max(0, ceil(velocity × (lead + target) + min_stock − stock − on_order))`, rounded up to whole packs when the product has a pack size
+- **urgency**: `out_of_stock` (stock ≤ 0 with usage or a minimum; negative stock always), `below_min` (stock ≤ min), `low_cover` (stock lasts less than lead + target), else `none`
+- **supplier**: product override, else the latest posted purchase's supplier; unit cost = last purchase cost, else the product cost price
+
+Every suggestion returns its `inputs` (usage, sources of lead / target, demand, raw need, formula text). `POST …/drafts` groups the selection by supplier and creates **draft purchases** (`purchases.status = 'draft'`, migration 000094): no stock or finance effect, hidden from the purchase list unless `status=draft`, counted as on order. `POST /v1/tenant/purchases/{uuid}/post` posts a draft through the normal purchase flow (stock in, expense on the chosen finance account); `DELETE /v1/tenant/purchases/{uuid}` discards a draft.
+
+**Daily notification:** the `app:stock_reorder:sweep` task (every 5 minutes, unique) sends once per day after 09:00 Europe/Istanbul, per organization with `notify_enabled` (default on) and at least one out-of-stock / below-minimum product, an in-app notification (`kind = stock.reorder_due`, action URL `/t/{slug}/purchases/reorder`; web and Expo push follow) to active members holding `tenant.purchases.write`.
+
+**AI / MCP:** `list_reorder_suggestions` (read) and `create_purchase_drafts` (confirmable write, owner).
+
 ## Tenant calendar (`/t/{slug}/calendar`)
 
 Organization calendar under `/v1/tenant/calendar/*` (module `internal/modules/calendar`). The organization's own events live in `calendar_events`; everything else is read live from the owning modules, never copied.
@@ -344,7 +363,7 @@ Open lists and detail pages follow data changes over Centrifugo. Events are **hi
 | `tenant.sales` | `tenant.sales.read` | sale create / void |
 | `tenant.quotes` | `tenant.quotes.read` | create / update / status / send / convert / public decision, worker expiry (`bulk`) |
 | `tenant.leads` | `tenant.leads.read` | create / update / status / note / todo / delete |
-| `tenant.purchases` | `tenant.purchases.read` | purchase create / void |
+| `tenant.purchases` | `tenant.purchases.read` | purchase create / void; draft create / update / post / delete |
 | `tenant.suppliers` | `tenant.suppliers.read` | create / update / delete |
 | `tenant.catalog.products` · `.services` · `.categories` | `tenant.catalog.read` | catalog CRUD, stock moves (`bulk`), bulk actions, imports |
 | `tenant.finance.accounts` · `.categories` · `.transactions` | `tenant.finance.read` | finance CRUD, transfers, voids; payments from jobs / sales / purchases / cari (`bulk`) |
@@ -353,6 +372,7 @@ Open lists and detail pages follow data changes over Centrifugo. Events are **hi
 | `tenant.contracts` (templates) · `tenant.contracts.instances` | `tenant.contracts.read` | template CRUD / clone; instance create / sign / OTP verify / media / void |
 | `tenant.staff` | `tenant.staff.read` | staff create / status change |
 | `tenant.calendar` | `tenant.calendar.read` | own calendar event create / update / delete / move; todo and lead moves from the calendar (`updated`, todo / lead uuid) |
+| `tenant.stock_reorder` | `tenant.purchases.read` | reorder settings, product overrides, drafts created from suggestions (`bulk`); stock and draft changes also arrive on `tenant.catalog.products` / `tenant.purchases` |
 
 **Payload** (`resourceevents.Event`, the Centrifugo publication `data`):
 

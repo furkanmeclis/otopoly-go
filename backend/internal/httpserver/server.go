@@ -119,6 +119,8 @@ import (
 	settingsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/settings/usecase"
 	staffmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff"
 	staffusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff/usecase"
+	stockreordermodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/stockreorder"
+	stockreorderusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/stockreorder/usecase"
 	storagemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage"
 	storagehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/handler"
 	storageusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/usecase"
@@ -653,6 +655,13 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		svc.SetResourceEvents(livePub)
 	}
 
+	// Stock reorder suggestions: drafts go through the purchases use case;
+	// the daily notification runs in the worker (and the in-process sweep).
+	stockReorderSvc := stockreorderusecase.New(deps.Queries, purchasesSvc, entitlementsSvc, activityRec, log)
+	stockReorderSvc.SetResourceEvents(livePub)
+	stockReorderSvc.SetNotifier(stockreordermodule.NewInAppNotifier(notifSvc))
+	stockreordermodule.RegisterRoutes(mux, stockReorderSvc, tokens, loader, deps.Queries)
+
 	// Calendar: own events plus a live feed of the modules above; drag and
 	// drop of todos / lead follow-ups goes through their use cases.
 	calendarSvc := calendarusecase.New(deps.Queries, activityRec, entitlementsSvc)
@@ -680,6 +689,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		Todos:           todosSvc,
 		Calendar:        calendarSvc,
 		Reviews:         reviewsSvc,
+		Reorder:         stockReorderSvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
 	aiSvc.SetEntitlements(entitlementsSvc)
@@ -710,6 +720,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithDailySummary(dailySummarySvc.SendDue).
 			WithVehicleAlerts(vehicleAlertsSvc.Flush).
 			WithReviews(reviewsSvc.ProcessDue).
+			WithStockReorder(stockReorderSvc.SendDue).
 			WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
 			WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts).
 			WithLivePush(livePushSvc.ProcessJob, livePushSvc.ProcessWidgets, livePushSvc.PurgeExpired)
@@ -727,6 +738,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			}
 			if err := queue.RegisterReviewsSchedule(sched); err != nil {
 				log.Error("reviews_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterStockReorderSchedule(sched); err != nil {
+				log.Error("stock_reorder_scheduler_failed", "error", err)
 			}
 			if err := queue.RegisterBillingOrdersExpireSchedule(sched); err != nil {
 				log.Error("billing_orders_expire_scheduler_failed", "error", err)

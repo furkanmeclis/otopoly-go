@@ -100,3 +100,68 @@ func (h *Handler) Void(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, r, http.StatusOK, item)
 }
+
+func (h *Handler) CreateDraft(w http.ResponseWriter, r *http.Request) {
+	var in purchasesusecase.DraftInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	item, err := h.svc.CreateDraft(r.Context(), in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusCreated, item)
+}
+
+func (h *Handler) UpdateDraft(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "purchase uuid is invalid")
+		return
+	}
+	var in purchasesusecase.DraftInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	item, err := h.svc.UpdateDraft(r.Context(), id, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
+func (h *Handler) PostDraft(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "purchase uuid is invalid")
+		return
+	}
+	var in purchasesusecase.PostDraftInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid JSON body")
+		return
+	}
+	item, err := h.svc.PostDraft(r.Context(), id, in)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
+func (h *Handler) DeleteDraft(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "purchase uuid is invalid")
+		return
+	}
+	if err := h.svc.DeleteDraft(r.Context(), id); err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, map[string]bool{"deleted": true})
+}
