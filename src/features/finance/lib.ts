@@ -1,15 +1,15 @@
 /**
  * Finance helpers shared by the finance screens (port of web `features/finance/lib/*`).
- * Dates are local calendar days (`YYYY-MM-DD`) like the web `financeToday()` / `financeMonthStart()`.
+ * Dates are business days (`YYYY-MM-DD`, Europe/Istanbul) like the web `financeToday()` / `financeMonthStart()`.
  */
 import type { FinanceSourceDetail, FinanceTransaction } from '@/features/finance/services/finance.service';
 import { localToday } from '@/features/jobs/lib/job-ui';
+import { businessMonthStart } from '@/lib/business-date';
 
 export { localToday as financeToday };
 
 export function financeMonthStart() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  return businessMonthStart();
 }
 
 export const TX_TYPES = ['income', 'expense', 'transfer'] as const;

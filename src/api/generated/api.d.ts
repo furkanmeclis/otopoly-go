@@ -8434,7 +8434,7 @@ export interface paths {
          * @description Stock, pricing / margin and, per the caller's permissions, sales
          *     (tenant.sales.read), purchases (tenant.purchases.read) and job usage
          *     (tenant.jobs.read) aggregates of a product. Blocks the caller cannot
-         *     read are null. The monthly trend covers the last 12 months (UTC).
+         *     read are null. The monthly trend covers the last 12 months (Europe/Istanbul).
          */
         get: operations["getTenantCatalogProductSummary"];
         put?: never;
@@ -16058,7 +16058,7 @@ export interface components {
         };
         InsightsMonthPoint: {
             /**
-             * @description YYYY-MM (UTC)
+             * @description YYYY-MM (Europe/Istanbul)
              * @example 2026-10
              */
             month: string;
@@ -20971,7 +20971,9 @@ export interface operations {
     getTenantFinanceSummary: {
         parameters: {
             query?: {
+                /** @description Business day (Europe/Istanbul). Defaults to the first day of the current month. */
                 date_from?: string;
+                /** @description Business day (Europe/Istanbul), inclusive. Defaults to today. */
                 date_to?: string;
                 currency?: string;
             };
@@ -24267,6 +24269,7 @@ export interface operations {
     getTenantJobsSummary: {
         parameters: {
             query?: {
+                /** @description Business day (Europe/Istanbul). Defaults to today. */
                 date?: string;
             };
             header?: never;
@@ -25946,6 +25949,7 @@ export interface operations {
     getTenantSalesSummary: {
         parameters: {
             query?: {
+                /** @description Business day (Europe/Istanbul). Defaults to today. */
                 date?: string;
             };
             header?: never;
@@ -26934,7 +26938,9 @@ export interface operations {
     getTenantReportsOverview: {
         parameters: {
             query?: {
+                /** @description Business day (Europe/Istanbul). Defaults to the first day of the current month. */
                 date_from?: string;
+                /** @description Business day (Europe/Istanbul), inclusive. Defaults to today. */
                 date_to?: string;
                 currency?: string;
                 payment_method?: "cash" | "card" | "cari" | "all";

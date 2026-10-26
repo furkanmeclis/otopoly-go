@@ -1,5 +1,5 @@
 # OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND.
-# Source: otopoly-go backend/docs/openapi.yaml @ 89ed4ed (scripts/contract/refresh-spec.sh).
+# Source: otopoly-go backend/docs/openapi.yaml @ 327ee10 (scripts/contract/refresh-spec.sh).
 openapi: 3.1.0
 info:
   title: App API
@@ -4308,9 +4308,11 @@ paths:
       parameters:
         - name: date_from
           in: query
+          description: Business day (Europe/Istanbul). Defaults to the first day of the current month.
           schema: { type: string, format: date }
         - name: date_to
           in: query
+          description: Business day (Europe/Istanbul), inclusive. Defaults to today.
           schema: { type: string, format: date }
         - name: currency
           in: query
@@ -7479,6 +7481,7 @@ paths:
       parameters:
         - name: date
           in: query
+          description: Business day (Europe/Istanbul). Defaults to today.
           schema: { type: string, format: date }
       responses:
         "200":
@@ -8881,6 +8884,7 @@ paths:
       parameters:
         - name: date
           in: query
+          description: Business day (Europe/Istanbul). Defaults to today.
           schema: { type: string, format: date }
       responses:
         "200":
@@ -9778,9 +9782,11 @@ paths:
       parameters:
         - name: date_from
           in: query
+          description: Business day (Europe/Istanbul). Defaults to the first day of the current month.
           schema: { type: string, format: date }
         - name: date_to
           in: query
+          description: Business day (Europe/Istanbul), inclusive. Defaults to today.
           schema: { type: string, format: date }
         - name: currency
           in: query
@@ -14156,7 +14162,7 @@ paths:
         Stock, pricing / margin and, per the caller's permissions, sales
         (tenant.sales.read), purchases (tenant.purchases.read) and job usage
         (tenant.jobs.read) aggregates of a product. Blocks the caller cannot
-        read are null. The monthly trend covers the last 12 months (UTC).
+        read are null. The monthly trend covers the last 12 months (Europe/Istanbul).
       security:
         - bearerAuth: []
       parameters:
@@ -23507,7 +23513,7 @@ components:
       type: object
       required: [month, count, amount]
       properties:
-        month: { type: string, example: "2026-10", description: YYYY-MM (UTC) }
+        month: { type: string, example: "2026-10", description: YYYY-MM (Europe/Istanbul) }
         count: { type: integer, format: int64, description: Jobs / purchases in the month (0 where not applicable) }
         qty: { type: string, description: Quantity sold (product trend only) }
         amount: { type: string, example: "1250.00", description: "Product: revenue · service: revenue · customer: job spend · supplier: spend" }

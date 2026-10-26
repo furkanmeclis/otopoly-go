@@ -12,6 +12,7 @@
  */
 import type { AIChart, AIConfirmCard, AIConversation, AIConversationDetail, AIMessage, AIPlan, AIStatus, AIUIBlock } from '@/features/ai/types';
 
+import { businessDayStartISO } from '@/lib/business-date';
 import { fail, istanbulDay, MockSse, now, num, requirePerm, route, search, sse, str, uuid, validation, type MockCtx } from '../core';
 import { getDb } from '../db';
 import { planFeatureEnabled } from './billing';
@@ -298,12 +299,19 @@ function appendExchange(ctx: MockCtx, conv: Conv, content: string, loc: Locale, 
   return { user, assistant };
 }
 
+/** First day of the month after a yyyy-MM-01 day. */
+function nextMonthDay(day: string) {
+  const [y, m] = day.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+}
+
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
 route('GET', '/v1/tenant/ai/status', (ctx): AIStatus => {
   requirePerm(ctx, 'tenant.ai.use');
   const remaining = Math.max(0, QUOTA - tokensUsed);
-  const month = new Date();
+  // Business month (Europe/Istanbul), like the API's usage period.
+  const monthDay = `${istanbulDay().slice(0, 7)}-01`;
   const planEnabled = planFeatureEnabled('ai.enabled');
   return {
     available: planEnabled && remaining > 0,
@@ -315,8 +323,8 @@ route('GET', '/v1/tenant/ai/status', (ctx): AIStatus => {
       used: tokensUsed,
       remaining,
       unlimited: false,
-      period_start: new Date(month.getFullYear(), month.getMonth(), 1).toISOString(),
-      period_end: new Date(month.getFullYear(), month.getMonth() + 1, 1).toISOString(),
+      period_start: businessDayStartISO(monthDay),
+      period_end: businessDayStartISO(nextMonthDay(monthDay)),
     },
     // What the live API reports for the default setup; the consent screen names this provider.
     provider: 'anthropic',

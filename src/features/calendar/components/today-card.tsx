@@ -11,7 +11,7 @@ import { useNow } from '@/features/jobs/components/job-parts';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 
-import { addDays, dayKey, itemStart, localDay, startOfDay } from '../lib/feed';
+import { addDays, businessNow, dayKey, itemStart, localDay, startOfDay } from '../lib/feed';
 import { openItem } from '../lib/use-calendar-ui';
 import { useCalendarFeed } from '../queries';
 import type { CalendarFeedItem, CalendarLayer } from '../types';
@@ -28,7 +28,7 @@ export function CalendarTodayCard() {
   const { can } = useAuth();
   const canRead = can(P.calendarRead);
   const now = useNow(60_000);
-  const today = useMemo(() => startOfDay(new Date(now)), [now]);
+  const today = useMemo(() => startOfDay(businessNow(now)), [now]);
   const from = dayKey(today);
   const feed = useCalendarFeed(from, dayKey(addDays(today, DAYS)), UPCOMING_LAYERS, canRead);
 

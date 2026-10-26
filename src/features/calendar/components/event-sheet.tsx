@@ -1,5 +1,6 @@
 /** Create / edit an own calendar event (web `features/calendar/components/event-dialog.tsx`). */
 import { Check, Trash2 } from 'lucide-react-native';
+import { businessWallClock, wallClockToISO } from '@/lib/business-date';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -9,7 +10,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 
 import { calendarSwatch } from '../lib/colors';
-import { addDays, dayKey, hhmm, localDay } from '../lib/feed';
+import { addDays, businessNow, dayKey, hhmm, localDay } from '../lib/feed';
 import { COLOR_LABEL_KEYS } from '../lib/layers';
 import { useCalendarMutations } from '../queries';
 import { CALENDAR_COLORS, type CalendarColor, type CalendarEvent, type CalendarEventInput } from '../types';
@@ -38,8 +39,8 @@ export function EventSheet(props: Props) {
 
 function initial(event?: CalendarEvent | null, draft?: EventDraft | null) {
   if (event) {
-    const start = new Date(event.starts_at);
-    const end = new Date(event.ends_at);
+    const start = businessWallClock(event.starts_at);
+    const end = businessWallClock(event.ends_at);
     return {
       title: event.title,
       allDay: event.all_day,
@@ -52,8 +53,9 @@ function initial(event?: CalendarEvent | null, draft?: EventDraft | null) {
       color: event.color,
     };
   }
-  const day = draft?.day ?? dayKey(new Date());
-  const hour = draft?.hour ?? Math.min(22, new Date().getHours() + 1);
+  const now = businessNow();
+  const day = draft?.day ?? dayKey(now);
+  const hour = draft?.hour ?? Math.min(22, now.getHours() + 1);
   const start = localDay(day);
   start.setHours(hour, 0, 0, 0);
   const end = new Date(start.getTime() + 60 * 60000);
@@ -117,7 +119,7 @@ function EventForm({ onClose, event, draft }: Props) {
       description: v.description.trim(),
       ...(v.allDay
         ? { start_date: v.startDate, end_date: v.endDate }
-        : { starts_at: at(v.startDate, v.startTime).toISOString(), ends_at: at(v.endDate, v.endTime).toISOString() }),
+        : { starts_at: wallClockToISO(at(v.startDate, v.startTime)), ends_at: wallClockToISO(at(v.endDate, v.endTime)) }),
     };
     if (event) update.mutate({ uuid: event.uuid, body }, { onSuccess: onClose });
     else create.mutate(body, { onSuccess: onClose });

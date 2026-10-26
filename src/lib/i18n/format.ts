@@ -1,3 +1,5 @@
+import { businessWallClock, isDayString } from '@/lib/business-date';
+
 import type { AppLocale } from './translate';
 
 const INTL_LOCALE: Record<AppLocale, string> = { tr: 'tr-TR', en: 'en-US' };
@@ -10,6 +12,21 @@ export function toNumber(value: string | number | null | undefined): number {
 }
 
 export type Formatters = ReturnType<typeof createFormatters>;
+
+/**
+ * Display value of a date. API strings are shown on the Türkiye wall clock (Europe/Istanbul) — a
+ * timestamp at its Istanbul time, a bare day (yyyy-MM-dd) as that day — whatever zone the phone
+ * uses. Date objects are local display values already (calendar grids, pickers) and are kept.
+ */
+function displayDate(value: string | Date): Date {
+  if (typeof value !== 'string') return value;
+  if (isDayString(value)) {
+    const [y, m, d] = value.split('-').map(Number);
+    return new Date(y, m - 1, d, 12);
+  }
+  const t = new Date(value);
+  return Number.isNaN(t.getTime()) ? t : businessWallClock(t);
+}
 
 export function createFormatters(locale: AppLocale) {
   const tag = INTL_LOCALE[locale];
@@ -47,7 +64,7 @@ export function createFormatters(locale: AppLocale) {
     },
     date(value: string | Date | null | undefined, style: 'short' | 'medium' | 'long' = 'medium') {
       if (!value) return '—';
-      const d = typeof value === 'string' ? new Date(value) : value;
+      const d = displayDate(value);
       if (Number.isNaN(d.getTime())) return '—';
       const opts: Intl.DateTimeFormatOptions =
         style === 'short'
@@ -59,13 +76,13 @@ export function createFormatters(locale: AppLocale) {
     },
     time(value: string | Date | null | undefined) {
       if (!value) return '—';
-      const d = typeof value === 'string' ? new Date(value) : value;
+      const d = displayDate(value);
       if (Number.isNaN(d.getTime())) return '—';
       return new Intl.DateTimeFormat(tag, { hour: '2-digit', minute: '2-digit' }).format(d);
     },
     dateTime(value: string | Date | null | undefined) {
       if (!value) return '—';
-      const d = typeof value === 'string' ? new Date(value) : value;
+      const d = displayDate(value);
       if (Number.isNaN(d.getTime())) return '—';
       return new Intl.DateTimeFormat(tag, {
         day: 'numeric',

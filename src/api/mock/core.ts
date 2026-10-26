@@ -4,6 +4,7 @@
  * EXPO_PUBLIC_API_MODE=live needs no screen changes.
  */
 import type { Query } from '@/api/client';
+import { businessDayOf } from '@/lib/business-date';
 
 export type MockUser = {
   uuid: string;
@@ -295,8 +296,7 @@ export const bool = (v: unknown, fallback = false) => (typeof v === 'boolean' ? 
 
 /** Istanbul calendar day (yyyy-MM-dd) — the backend buckets days in Europe/Istanbul. */
 export function istanbulDay(d: Date | string = new Date()) {
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return new Date(date.getTime() + 3 * 3600 * 1000).toISOString().slice(0, 10);
+  return businessDayOf(d);
 }
 
 export function inDayRange(iso: string | null | undefined, from?: string, to?: string) {

@@ -52,6 +52,8 @@ const props = {
   labels: { status: 'Teslime hazır', elapsed: 'Geçen süre', hint: 'Araç teslime hazır', channel: 'Canlı iş takibi' },
 };
 const liveJob = { kind: 'live.job', org: ORG, job: JOB, end: '', props, sent_at: 10 };
+/** 26.10.2026 15:00 in Türkiye: the stale car started the same business day (fixed so the run does not depend on the clock). */
+const WIDGET_NOW = Date.parse('2026-10-26T12:00:00Z');
 const snapshot: WidgetSnapshot = {
   v: 1,
   date: '2026-10-26',
@@ -59,8 +61,8 @@ const snapshot: WidgetSnapshot = {
   counts: { in_progress: 3, ready: 1, delivered: 4 },
   paid_total: '1250.50',
   queue: [
-    { id: 'a', plate: '34 R 1', name: 'Ready Car', vehicle: 'Fiat Egea', status: 'ready', started_at: new Date(Date.now() - 30 * 60_000).toISOString() },
-    { id: 'b', plate: '34 W 2', name: 'Old Car', vehicle: 'Ford Focus', status: 'in_progress', started_at: new Date(Date.now() - 5 * 3600_000).toISOString() },
+    { id: 'a', plate: '34 R 1', name: 'Ready Car', vehicle: 'Fiat Egea', status: 'ready', started_at: new Date(WIDGET_NOW - 30 * 60_000).toISOString() },
+    { id: 'b', plate: '34 W 2', name: 'Old Car', vehicle: 'Ford Focus', status: 'in_progress', started_at: new Date(WIDGET_NOW - 5 * 3600_000).toISOString() },
   ],
   more: 0,
 };
@@ -91,7 +93,7 @@ const snapshot: WidgetSnapshot = {
 
   console.log('widget props from snapshot');
   const fmt = createFormatters('tr');
-  const w = buildTodayPropsFromSnapshot({ org: 'Oto Kuaför', logo: '', snapshot, tr: (k, p) => translate('tr', k, p), fmt });
+  const w = buildTodayPropsFromSnapshot({ org: 'Oto Kuaför', logo: '', snapshot, tr: (k, p) => translate('tr', k, p), fmt, now: WIDGET_NOW });
   ok(w.v === 1 && w.state === 'ok' && w.org === 'Oto Kuaför' && w.showMoney, 'signed-in card with money');
   ok(w.stats.inProgress === 3 && w.stats.ready === 1 && w.stats.delivered === 4, 'counts copied');
   ok(w.stats.collected === fmt.money('1250.50') && w.stats.stale === 1, 'money formatted, stale in-progress car flagged');

@@ -1,5 +1,6 @@
 /** Quote dialogs as bottom sheets: send, convert to job, decision, reminders (web send-/convert-quote-dialog, quote-detail-page). */
 import * as Clipboard from 'expo-clipboard';
+import { businessDayOf } from '@/lib/business-date';
 import { router } from 'expo-router';
 import { AlertTriangle, ArrowRight, Check, CircleSlash, Copy, Download, MessageCircle, Send } from 'lucide-react-native';
 import { useState } from 'react';
@@ -368,7 +369,7 @@ function RemindersBody({ quote, onClose }: { quote: QuoteDetail; onClose: () => 
   const { setReminders } = useQuoteMutations();
   const openReminders = quote.reminders.filter((r) => r.status === 'pending' || r.status === 'scheduled');
   const [kinds, setKinds] = useState<ReminderKind[]>(() => openReminders.map((r) => r.kind));
-  const [customDate, setCustomDate] = useState(() => openReminders.find((r) => r.kind === 'custom')?.fire_at.slice(0, 10) ?? localToday());
+  const [customDate, setCustomDate] = useState(() => (() => { const f = openReminders.find((r) => r.kind === 'custom')?.fire_at; return f ? businessDayOf(f) : localToday(); })());
   return (
     <>
       <QuoteReminderPicker quote={quote} kinds={kinds} onKinds={setKinds} customDate={customDate} onCustomDate={setCustomDate} />

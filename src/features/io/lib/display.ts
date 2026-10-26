@@ -1,3 +1,4 @@
+import { businessDayOf } from '@/lib/business-date';
 /** Display helpers ported from web `features/io/lib/display.ts`. */
 import type { Tone } from '@/components/ui';
 
@@ -67,7 +68,7 @@ export function exportDownloadFilename(resource: string, format: string, at?: Da
   const slug = resource.includes('.') ? resource.split('.').pop()! : resource;
   const f = format.toLowerCase();
   const ext = f === 'pdf' ? 'pdf' : f === 'xlsx' ? 'xlsx' : f === 'json' ? 'json' : 'csv';
-  const date = (at ?? new Date()).toISOString().slice(0, 10).replace(/-/g, '');
+  const date = businessDayOf(at ?? new Date()).replace(/-/g, '');
   return `${slug}_${date}.${ext}`;
 }
 

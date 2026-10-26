@@ -7,7 +7,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 
 import { calendarSwatch } from '../lib/colors';
-import { dayKey, describe, isMuted, layoutDay, localDay } from '../lib/feed';
+import { businessNow, dayKey, describe, isMuted, layoutDay, localDay } from '../lib/feed';
 import { itemColor, LAYER_DEFS } from '../lib/layers';
 import type { CalendarFeedItem } from '../types';
 
@@ -41,13 +41,14 @@ export function TimeGrid({
   const { t: tr, fmt } = useLocale();
   const insets = useSafeAreaInsets();
   const scroll = useRef<ScrollViewInstance>(null);
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState(() => businessNow());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60_000);
+    const id = setInterval(() => setNow(businessNow()), 60_000);
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
-    const hour = days.includes(dayKey(new Date())) ? Math.max(0, new Date().getHours() - 2) : FIRST_VISIBLE_HOUR;
+    const wall = businessNow();
+    const hour = days.includes(dayKey(wall)) ? Math.max(0, wall.getHours() - 2) : FIRST_VISIBLE_HOUR;
     const id = setTimeout(() => scroll.current?.scrollTo({ y: hour * HOUR, animated: false }), 0);
     return () => clearTimeout(id);
   }, [days]);

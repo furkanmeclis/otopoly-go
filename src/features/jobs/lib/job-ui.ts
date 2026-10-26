@@ -1,6 +1,7 @@
 /** Ported from web `features/jobs/lib/job-ui.ts` — same rules for board columns, staleness and carry-over. */
 import type { Job, JobStatus, PaymentStatus } from '@/features/jobs/services/jobs.service';
 import type { Tone } from '@/components/ui';
+import { businessDayOf, businessToday, daysBetween, shiftDay } from '@/lib/business-date';
 
 export const BOARD_STATUSES = ['in_progress', 'ready', 'delivered'] as const;
 export type BoardStatus = (typeof BOARD_STATUSES)[number];
@@ -8,25 +9,14 @@ export type BoardStatus = (typeof BOARD_STATUSES)[number];
 /** An in-progress job older than this is flagged as waiting too long. */
 export const STALE_AFTER_MINUTES = 120;
 
-const pad = (n: number) => String(n).padStart(2, '0');
-export const localToday = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
-export const localDateOf = (iso: string) => {
-  const d = new Date(iso);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
+/** Today's business day (yyyy-MM-dd, Europe/Istanbul) — what the API calls "today". */
+export const localToday = () => businessToday();
+/** Business day (Europe/Istanbul) of an ISO timestamp. */
+export const localDateOf = (iso: string) => businessDayOf(iso);
 export function shiftDate(day: string, delta: number) {
-  const [y, m, d] = day.split('-').map(Number);
-  const date = new Date(y, m - 1, d + delta, 12);
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return shiftDay(day, delta);
 }
-function calendarDaysBetween(a: string, b: string) {
-  const [ay, am, ad] = a.split('-').map(Number);
-  const [by, bm, bd] = b.split('-').map(Number);
-  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
-}
+const calendarDaysBetween = daysBetween;
 
 export function statusTone(status: JobStatus): Tone {
   switch (status) {
@@ -56,7 +46,7 @@ export function carryOverDay(job: Job, today = localToday()): number | null {
 }
 
 export function isStale(job: Job, now: number) {
-  return job.status === 'in_progress' && carryOverDay(job) === null && minutesSince(job.started_at, now) >= STALE_AFTER_MINUTES;
+  return job.status === 'in_progress' && carryOverDay(job, businessToday(now)) === null && minutesSince(job.started_at, now) >= STALE_AFTER_MINUTES;
 }
 
 export function sumAmounts(jobs: Job[]) {
