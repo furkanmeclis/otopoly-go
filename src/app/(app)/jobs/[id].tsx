@@ -65,9 +65,8 @@ function JobDetailContent() {
   // Opened from widgets, Live Activities / Updates and notifications: interactive once the job has loaded.
   useMarkInteractive(!job.isLoading);
   const d = job.data;
-  // Customer record: brand logo of the job's vehicle (the job detail has none) and the cari account link.
+  // Customer record: the cari account link of a cari payment.
   const customer = useCustomer(can(P.customersRead) ? d?.customer_uuid : null);
-  const vehicle = customer.data?.vehicles.find((v) => v.uuid === d?.vehicle_uuid);
   const pull = usePullRefresh(job, can(P.customersRead) && customer);
   const canWrite = can(P.jobsWrite);
   const canVoid = isOwner && canWrite;
@@ -136,7 +135,7 @@ function JobDetailContent() {
       <Card style={{ gap: t.spacing.md }}>
         <Row gap={t.spacing.sm} style={{ justifyContent: 'space-between' }}>
           <Row gap={t.spacing.sm} style={{ flexShrink: 1 }}>
-            <BrandLogo name={vehicle?.brand_name ?? d.vehicle_label} logoUrl={vehicle?.logo_url} size="md" />
+            <BrandLogo name={d.brand_name || d.vehicle_label} logoUrl={d.brand_logo_url} size="md" />
             <PlateBadge plate={d.plate} size="lg" />
           </Row>
           <Txt variant="title" style={{ fontVariant: ['tabular-nums'] }}>
@@ -192,7 +191,7 @@ function JobDetailContent() {
             <LinkValue label={d.customer_phone || '—'} onPress={d.customer_phone ? () => contact.call(d.customer_phone) : undefined} />
           </InfoRow>
           <InfoRow label={tr('jobs.vehicle')}>
-            <LinkValue label={d.vehicle_label} leading={<BrandLogo name={vehicle?.brand_name ?? d.vehicle_label} logoUrl={vehicle?.logo_url} size="xs" />} />
+            <LinkValue label={d.vehicle_label} leading={<BrandLogo name={d.brand_name || d.vehicle_label} logoUrl={d.brand_logo_url} size="xs" />} />
           </InfoRow>
           <InfoRow label={tr('jobs.assignee')} value={d.assignee_name || tr('jobs.assignee_none')} />
           <InfoRow label={tr('jobs.started_at')} value={fmt.dateTime(d.started_at)} />

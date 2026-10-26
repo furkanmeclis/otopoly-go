@@ -56,6 +56,12 @@ export function leadEvent(ctx: MockCtx, lead: LeadDetail, e: Partial<LeadEvent> 
   lead.updated_at = at;
 }
 
+/** `vehicle_brand_name` / `vehicle_brand_logo_url` of the linked customer vehicle ("" / null for free text). */
+function vehicleBrand(vehicleUuid: string | null | undefined) {
+  const v = vehicleUuid ? getDb().vehicles.find((x) => x.uuid === vehicleUuid) : undefined;
+  return { vehicle_brand_name: v?.brand_name ?? '', vehicle_brand_logo_url: v?.logo_url ?? null };
+}
+
 export function refreshLead(lead: LeadDetail) {
   lead.follow_up_state = lead.status === 'won' || lead.status === 'lost' ? 'none' : followState(lead.follow_up_date);
   const db = getDb();
@@ -63,6 +69,7 @@ export function refreshLead(lead: LeadDetail) {
     .filter((q) => q.lead_uuid === lead.uuid)
     .map((q) => ({ uuid: q.uuid, number: q.number, status: q.status, grand_total: q.grand_total, currency: q.currency, valid_until: q.valid_until, created_at: q.created_at }));
   lead.quote_count = lead.quotes.length;
+  Object.assign(lead, vehicleBrand(lead.vehicle_uuid));
   return lead;
 }
 
@@ -554,6 +561,7 @@ const TRANSITIONS: Record<string, QuoteStatus[]> = {
 };
 
 function refreshQuote(q: QuoteDetail) {
+  Object.assign(q, vehicleBrand(q.vehicle_uuid));
   q.is_past_valid_until = !!q.valid_until && q.valid_until < istanbulDay();
   if (q.is_past_valid_until && ['draft', 'sent', 'viewed'].includes(q.status)) {
     q.status = 'expired';
@@ -582,6 +590,8 @@ function quoteListItem(q: QuoteDetail) {
     customer_phone: r.customer_phone,
     vehicle_plate: r.vehicle_plate,
     vehicle_label: r.vehicle_label,
+    vehicle_brand_name: r.vehicle_brand_name,
+    vehicle_brand_logo_url: r.vehicle_brand_logo_url,
     lead_uuid: r.lead_uuid,
     job_uuid: r.job_uuid,
     line_count: r.line_count,

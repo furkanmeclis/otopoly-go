@@ -154,7 +154,7 @@ route('POST', '/v1/tenant/jobs', (ctx) => {
     assignee_uuid: (b.assignee_uuid as string) || null,
     assignee_name: staffName(db, b.assignee_uuid as string),
     brand_name: vehicle!.brand_name,
-    brand_logo_url: null,
+    brand_logo_url: vehicle!.logo_url ?? null,
     services,
     started_at: startedAt,
     completed_at: null,

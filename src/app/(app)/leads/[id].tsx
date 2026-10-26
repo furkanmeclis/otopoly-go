@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { Badge, BrandLogo, Button, Card, DateField, EmptyState, Group, Header, IconButton, InfoRow, ListRow, ListSkeleton, PlateBadge, Row, Screen, Section, TextField, Txt, useConfirm, usePullRefresh } from '@/components/ui';
-import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
@@ -16,7 +15,7 @@ import { TemperatureToggle } from '@/features/leads/components/temperature-toggl
 import { LEAD_STEPS, leadStatusTone, nextLeadStatus } from '@/features/leads/lib/lead-ui';
 import { useLeadMutations, useLeadsAccess } from '@/features/leads/queries';
 import type { LeadDetail, LeadEvent, PatchLeadInput } from '@/features/leads/types';
-import { useCustomer, useLead } from '@/features/queries';
+import { useLead } from '@/features/queries';
 import { contact } from '@/lib/contact';
 import { quoteStatusTone } from '@/features/quotes/lib/quote-ui';
 import { LinkedTodos } from '@/features/todos/components/linked-todos';
@@ -47,10 +46,7 @@ function LeadDetailContent() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [todoOpen, setTodoOpen] = useState(false);
   const [lostOpen, setLostOpen] = useState(false);
-  const { can } = useAuth();
-  // Customer record: brand logo of the lead's vehicle.
-  const customer = useCustomer(can(P.customersRead) ? query.data?.customer_uuid : null);
-  const pull = usePullRefresh(query, can(P.customersRead) && customer);
+  const pull = usePullRefresh(query);
 
   if (query.isLoading) {
     return (
@@ -72,7 +68,6 @@ function LeadDetailContent() {
   const patch = (body: PatchLeadInput) => m.patch.mutate({ uuid: lead.uuid, body });
   const newQuote = () => router.push({ pathname: '/quotes/form', params: { lead: lead.uuid, customer: lead.customer_uuid } });
   const call = () => contact.call(lead.customer_phone);
-  const vehicle = lead.vehicle_uuid ? customer.data?.vehicles.find((v) => v.uuid === lead.vehicle_uuid) : undefined;
   const stepIdx = LEAD_STEPS.indexOf(lead.status);
   const followColor = lead.follow_up_state === 'overdue' ? 'danger' : lead.follow_up_state === 'today' ? 'warning' : 'default';
 
@@ -138,7 +133,7 @@ function LeadDetailContent() {
         <InfoRow label={tr('leads.fields.vehicle')}>
           {lead.vehicle_plate ? (
             <Row gap={t.spacing.sm}>
-              {vehicle ? <BrandLogo name={vehicle.brand_name} logoUrl={vehicle.logo_url} size="sm" /> : null}
+              {lead.vehicle_brand_name || lead.vehicle_brand_logo_url ? <BrandLogo name={lead.vehicle_brand_name ?? ''} logoUrl={lead.vehicle_brand_logo_url} size="sm" /> : null}
               <PlateBadge plate={lead.vehicle_plate} size="sm" />
             </Row>
           ) : (

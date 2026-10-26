@@ -11,7 +11,7 @@ import { QuotesModuleGate } from '@/features/billing/components/module-gate';
 import { P } from '@/features/auth/permissions';
 import { localToday } from '@/features/jobs/lib/job-ui';
 import { ActionMenu, Notice, Stepper, type MenuAction } from '@/features/leads/components/crm-ui';
-import { useCustomer, useQuote } from '@/features/queries';
+import { useQuote } from '@/features/queries';
 import { contact } from '@/lib/contact';
 import { ConvertQuoteSheet, DecisionSheet, RemindersSheet, SendQuoteSheet, useCopyShareLink, useQuotePdf, type Decision } from '@/features/quotes/components/quote-sheets';
 import { QUOTE_STEPS, daysUntil, deliveryErrorText, isOpenQuote, quoteStatusTone } from '@/features/quotes/lib/quote-ui';
@@ -51,9 +51,7 @@ function QuoteDetailContent() {
   const [remindersOpen, setRemindersOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { can } = useAuth();
-  // Customer record: brand logo of the quoted vehicle (the quote carries only plate + label).
-  const customer = useCustomer(can(P.customersRead) ? query.data?.customer_uuid : null);
-  const pull = usePullRefresh(query, can(P.customersRead) && customer);
+  const pull = usePullRefresh(query);
 
   if (query.isLoading) {
     return (
@@ -70,7 +68,6 @@ function QuoteDetailContent() {
     );
   }
   const q = query.data;
-  const vehicle = q.vehicle_uuid ? customer.data?.vehicles.find((v) => v.uuid === q.vehicle_uuid) : undefined;
   const phone = q.customer_phone?.trim();
   const money = (v: string | number) => fmt.money(v, q.currency);
   const shared = q.status !== 'draft';
@@ -147,7 +144,7 @@ function QuoteDetailContent() {
             </Txt>
           </Pressable>
           <Row gap={t.spacing.sm} wrap>
-            {vehicle ? <BrandLogo name={vehicle.brand_name} logoUrl={vehicle.logo_url} size="sm" /> : null}
+            {q.vehicle_brand_name || q.vehicle_brand_logo_url ? <BrandLogo name={q.vehicle_brand_name ?? ''} logoUrl={q.vehicle_brand_logo_url} size="sm" /> : null}
             {q.vehicle_plate ? <PlateBadge plate={q.vehicle_plate} size="sm" /> : null}
             {q.vehicle_label ? (
               <Txt variant="caption" tone="secondary">
