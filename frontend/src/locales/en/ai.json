@@ -408,5 +408,17 @@
   "confirm.warnings.payment_reversed": "The payment is reversed: the income is voided or the cari charge removed.",
   "confirm.warnings.system_category": "This system category is normally filled automatically (jobs, sales, cari collections). To collect a job use the job payment.",
   "confirm.warnings.phone_differs": "The customer of this plate has a different phone; the phone is not changed.",
-  "confirm.warnings.name_differs": "The customer found has a different name than typed; the existing customer is used."
+  "confirm.warnings.name_differs": "The customer found has a different name than typed; the existing customer is used.",
+  "tools.list_reviews": "Reviews",
+  "tools_running.list_reviews": "Loading reviews…",
+  "tools.get_review_summary": "Satisfaction summary",
+  "tools_running.get_review_summary": "Preparing the satisfaction summary…",
+  "tools.mark_review_followed_up": "Handle review",
+  "tools_running.mark_review_followed_up": "Preparing the follow-up…",
+  "tool_summary.reviews_found": "{{count}} reviews",
+  "tool_summary.review_summary": "Average {{average}} ({{count}} answers)",
+  "tool_summary.review_followed_up": "Handled: {{customer}}",
+  "confirm.fields.score": "Score",
+  "confirm.fields.comment": "Comment",
+  "confirm.fields.note": "Note"
 }

@@ -90,6 +90,7 @@ import {
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
 import { useLeadsAccess } from "@/features/leads/hooks/use-leads";
+import { CustomerReviewsTable, useReviewsAccess } from "@/features/reviews";
 import { useQuotesAccess } from "@/features/quotes/hooks/use-quotes";
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
 import { cn } from "@/lib/utils";
@@ -108,6 +109,7 @@ const CUSTOMER_TABS = [
   "sales",
   "quotes",
   "leads",
+  "reviews",
   "cari",
   "activity",
 ] as const;
@@ -134,6 +136,7 @@ export function CustomerDetailPage({
   const { canRead: canReadSales } = useTenantSalesAccess(slug);
   const { canRead: canReadQuotes } = useQuotesAccess();
   const { canRead: canReadLeads } = useLeadsAccess();
+  const { canRead: canReadReviews } = useReviewsAccess(slug);
   const query = useCustomer(uuid);
   const summaryQuery = useCustomerSummary(uuid);
   const refetchSummary = summaryQuery.refetch;
@@ -547,6 +550,11 @@ export function CustomerDetailPage({
                   hidden: !canReadLeads,
                 },
                 {
+                  value: "reviews",
+                  label: t("customers.insights.tabs.reviews"),
+                  hidden: !canReadReviews,
+                },
+                {
                   value: "cari",
                   label: t("customers.insights.tabs.cari"),
                   hidden: !(cariAccountUuid && canReadCari),
@@ -790,6 +798,16 @@ export function CustomerDetailPage({
                 >
                   {tab === "leads" ? (
                     <CustomerLeadsTable slug={slug} customerUuid={uuid} />
+                  ) : null}
+                </EntitySectionCard>
+              </TabsContent>
+            ) : null}
+
+            {canReadReviews ? (
+              <TabsContent value="reviews" className="mt-4">
+                <EntitySectionCard title={t("customers.insights.tabs.reviews")}>
+                  {tab === "reviews" ? (
+                    <CustomerReviewsTable slug={slug} customerUuid={uuid} />
                   ) : null}
                 </EntitySectionCard>
               </TabsContent>

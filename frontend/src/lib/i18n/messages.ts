@@ -8,6 +8,7 @@ import enMessaging from "@/locales/en/messaging.json";
 import enLeads from "@/locales/en/leads.json";
 import enMcp from "@/locales/en/mcp.json";
 import enQuotes from "@/locales/en/quotes.json";
+import enReviews from "@/locales/en/reviews.json";
 import enBilling from "@/locales/en/billing.json";
 import enActivity from "@/locales/en/activity.json";
 import enAuth from "@/locales/en/auth.json";
@@ -59,6 +60,7 @@ import trMessaging from "@/locales/tr/messaging.json";
 import trLeads from "@/locales/tr/leads.json";
 import trMcp from "@/locales/tr/mcp.json";
 import trQuotes from "@/locales/tr/quotes.json";
+import trReviews from "@/locales/tr/reviews.json";
 import trBilling from "@/locales/tr/billing.json";
 import trActivity from "@/locales/tr/activity.json";
 import trAuth from "@/locales/tr/auth.json";
@@ -156,6 +158,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     leads: trLeads,
     mcp: trMcp,
     quotes: trQuotes,
+    reviews: trReviews,
     billing: trBilling,
     legal: trLegal,
   },
@@ -209,6 +212,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     leads: enLeads,
     mcp: enMcp,
     quotes: enQuotes,
+    reviews: enReviews,
     billing: enBilling,
     legal: enLegal,
   },

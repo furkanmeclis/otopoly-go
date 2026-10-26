@@ -39,6 +39,7 @@ import {
   Scale,
   PlugZap,
   MessageSquareText,
+  Star,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -53,6 +54,7 @@ import { TodosNavAdornment } from "@/features/todos/nav";
 import { CalendarNavAdornment } from "@/features/calendar/nav";
 import { LeadsNavAdornment } from "@/features/leads/nav";
 import { QuotesNavAdornment } from "@/features/quotes/nav";
+import { ReviewsNavAdornment } from "@/features/reviews/nav";
 import { PaymentsNavAdornment } from "@/features/platform-billing/nav";
 
 export const platformNav = defineNav({
@@ -491,6 +493,15 @@ export function tenantNav(slug: string) {
             icon: FileSignature,
             permission: permissions.quotes.read,
             Adornment: QuotesNavAdornment,
+          },
+          {
+            id: "reviews",
+            titleKey: "layout.nav_reviews",
+            href: routes.tenant.reviews.root(slug),
+            icon: Star,
+            searchIcon: "star",
+            permission: permissions.reviews.read,
+            Adornment: ReviewsNavAdornment,
           },
           {
             id: "suppliers",
