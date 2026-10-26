@@ -1,105 +1,49 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 
-import { isApiError } from '@/api/errors';
 import { setLinkIntent } from '@/features/account/link-intent';
-import type { Tokens } from '@/api/session';
-import { useAuth, type SignInOptions } from '@/features/auth/auth-provider';
-import { authErrorMessage, isMfaRequired, linkChoiceFrom, type LinkChoice } from '@/features/auth/lib/auth-errors';
+import { useAuth } from '@/features/auth/auth-provider';
+import { signInFailureMessage } from '@/features/auth/lib/auth-errors';
+import { createSignInFlow, type SignInAttempt, type SignInFlowDeps } from '@/features/auth/lib/sign-in-flow';
+import { clearSignInNotice, getSignInNotice, subscribeSignInNotice } from '@/features/auth/lib/sign-in-guard';
+import type { SignInOptions } from '@/features/auth/lib/complete-sign-in';
 import type { OAuthProvider } from '@/features/auth/services/passwordless.service';
 import { useLocale } from '@/lib/i18n/provider';
-import { createLogger } from '@/lib/logger';
 
-const log = createLogger('auth.flow');
-
-/** One sign-in call; called again with `totp` after `MFA_REQUIRED`. */
-export type SignInAttempt = (totp?: string) => Promise<Tokens>;
-
-type PendingMfa = { attempt: SignInAttempt; provider?: OAuthProvider; options?: SignInOptions };
+export type { SignInAttempt } from '@/features/auth/lib/sign-in-flow';
 
 /**
- * Runs any sign-in call (password, e-mail code, Apple / Google, relay linking) and handles the
- * shared outcomes in one place:
- *   tokens                      → `completeSignIn` (org routing)
- *   MFA_REQUIRED                → `mfa` is set; `submitTotp` repeats the same call with the code
- *   OAUTH_LINK_CHOICE_REQUIRED  → `linkChoice` is set ("Hesabım var mı?")
- *   OAUTH_ACCOUNT_NOT_LINKED    → `notLinked` is set
- * Anything else comes back as a message for the caller to show where the user is looking.
+ * React binding of the shared sign-in flow (`lib/sign-in-flow.ts`): password, e-mail code, Apple /
+ * Google and relay linking all run through it, so MFA, "Hesabım var mı?" and not-linked are handled
+ * the same way on every screen.
  */
 export function useSignInFlow() {
   const { t: tr } = useLocale();
   const { completeSignIn } = useAuth();
-  const [busy, setBusy] = useState(false);
-  const [mfa, setMfa] = useState<PendingMfa | null>(null);
-  const [linkChoice, setLinkChoice] = useState<LinkChoice | null>(null);
-  const [notLinked, setNotLinked] = useState<OAuthProvider | null>(null);
-
-  const execute = useCallback(
-    async (attempt: SignInAttempt, provider: OAuthProvider | undefined, totp?: string, options?: SignInOptions): Promise<string | null> => {
-      setBusy(true);
-      try {
-        const tokens = await attempt(totp);
-        await completeSignIn(tokens, options);
-        return null;
-      } catch (error) {
-        const code = isApiError(error) ? error.code : 'UNKNOWN';
-        log.warn('Sign-in step failed', { code, provider, mfa: Boolean(totp) });
-        if (isMfaRequired(error)) {
-          setLinkChoice(null);
-          setMfa({ attempt, provider, options });
-          return null;
-        }
-        const choice = linkChoiceFrom(error);
-        if (choice) {
-          setMfa(null);
-          setLinkChoice(choice);
-          return null;
-        }
-        if (code === 'OAUTH_ACCOUNT_NOT_LINKED') {
-          setMfa(null);
-          setNotLinked(provider ?? 'apple');
-          // After the usual sign-in, open Profile → Linked accounts for this provider.
-          setLinkIntent(provider ?? 'apple');
-          return null;
-        }
-        // A wrong authenticator code keeps the TOTP step open; anything else ends it.
-        if (totp && code !== 'INVALID_MFA_CODE') setMfa(null);
-        return authErrorMessage(tr, error, provider);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [completeSignIn, tr],
-  );
-
+  const deps: SignInFlowDeps = { completeSignIn, message: (error, provider, kind) => signInFailureMessage(tr, error, provider, kind), setLinkIntent };
+  const [flow] = useState(() => createSignInFlow(deps));
+  useLayoutEffect(() => flow.setDeps(deps));
+  const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
+  const signInNotice = useSyncExternalStore(subscribeSignInNotice, getSignInNotice, getSignInNotice);
   const run = useCallback(
     (attempt: SignInAttempt, provider?: OAuthProvider, options?: SignInOptions) => {
-      setNotLinked(null);
-      return execute(attempt, provider, undefined, options);
+      clearSignInNotice();
+      return flow.run(attempt, provider, options);
     },
-    [execute],
-  );
-
-  const submitTotp = useCallback(
-    (totp: string) => (mfa ? execute(mfa.attempt, mfa.provider, totp, mfa.options) : Promise.resolve(null)),
-    [execute, mfa],
+    [flow],
   );
 
   return {
-    busy,
+    ...state,
+    /** The flow's own notice, else why the last session ended right after signing in. */
+    notice: state.notice ?? (signInNotice === 'session_lost' ? tr('mobile.auth.error.session_lost') : null),
     run,
-    mfa,
-    submitTotp,
-    cancelMfa: useCallback(() => setMfa(null), []),
-    linkChoice,
-    closeLinkChoice: useCallback(() => setLinkChoice(null), []),
-    notLinked,
-    /** Dismissing the notice also drops the "open linked accounts after sign-in" hint. */
-    clearNotLinked: useCallback(() => {
-      setNotLinked(null);
-      setLinkIntent(null);
-    }, []),
-    /** Hides the notice but keeps the hint (the user goes on to sign in the usual way). */
-    hideNotLinked: useCallback(() => setNotLinked(null), []),
+    submitTotp: flow.submitTotp,
+    cancelMfa: flow.cancelMfa,
+    closeLinkChoice: flow.closeLinkChoice,
+    sheetDismissed: flow.sheetDismissed,
+    clearNotice: flow.clearNotice,
+    clearNotLinked: flow.clearNotLinked,
+    hideNotLinked: flow.hideNotLinked,
   };
 }
 

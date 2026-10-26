@@ -78,3 +78,14 @@ export function authErrorMessage(tr: Translate, error: unknown, provider?: OAuth
       return tr('common.error_generic');
   }
 }
+
+/**
+ * Copy for a failed step of the shared sign-in flow: `attempt` — the sign-in call itself; `session` —
+ * tokens were issued but the account could not be opened (profile / organization); `repeated` — the
+ * same failure keeps coming back (see `lib/sign-in-flow.ts`).
+ */
+export function signInFailureMessage(tr: Translate, error: unknown, provider: OAuthProvider | undefined, kind: 'attempt' | 'session' | 'repeated'): string {
+  if (kind === 'repeated') return tr('mobile.auth.error.repeated');
+  if (kind === 'session') return isApiError(error) && error.isNetwork ? tr('mobile.error.network') : tr('mobile.auth.error.session_failed');
+  return authErrorMessage(tr, error, provider);
+}

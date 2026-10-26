@@ -308,6 +308,7 @@ export function Sheet({
   children,
   footer,
   scroll = true,
+  onDismissed,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -315,13 +316,15 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
   scroll?: boolean;
+  /** The sheet is fully off screen after closing (iOS only; wait with a timeout elsewhere). */
+  onDismissed?: () => void;
 }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { t: tr } = useLocale();
   const [footerHeight, setFooterHeight] = useState(0);
   return (
-    <Modal visible={visible} onRequestClose={onClose} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}>
+    <Modal visible={visible} onRequestClose={onClose} onDismiss={onDismissed} animationType="slide" presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : 'fullScreen'}>
       {/* A Modal is a separate native root: gestures inside it (signature pad, chart scrub) need their own root view. */}
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: t.colors.background }}>
         <View

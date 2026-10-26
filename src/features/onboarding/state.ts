@@ -146,13 +146,18 @@ let createForwarded = false;
 
 /**
  * A signed-in user without any business (new e-mail, Apple or Google account) goes straight from the
- * organization picker to "create your business" once per launch; going back shows the picker (logout,
- * "invited?" hint) and does not bounce forward again.
+ * organization picker to "create your business" once per sign-in (and once per launch for a restored
+ * session); going back shows the picker (logout, "invited?" hint) and does not bounce forward again.
  */
 export function takeCreateBusinessForward() {
   if (createForwarded || qaTour) return false;
   createForwarded = true;
   return true;
+}
+
+/** A new sign-in: the next organization picker without a business forwards to the wizard again. */
+export function resetCreateBusinessForward() {
+  createForwarded = false;
 }
 
 // ─── Diagnostics ───────────────────────────────────────────────────────────
