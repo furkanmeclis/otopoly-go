@@ -34,6 +34,7 @@ import {
   usePullRefresh,
   type StatItem,
 } from '@/components/ui';
+import { useDonateOnMount } from '@/features/intents/use-donate';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
@@ -69,6 +70,8 @@ function CustomerDetail() {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const { id } = useLocalSearchParams<{ id: string }>();
+  // Siri can then suggest "open this customer" (only for customers already in the Siri catalog).
+  useDonateOnMount('openCustomer', id);
   const { can } = useAuth();
   const confirm = useConfirm();
   const customer = useCustomer(id);

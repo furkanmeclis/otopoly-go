@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Button, EmptyState, ErrorState, Header, ListSkeleton, MoneyField, Screen, Section, SelectField, TextField, Txt } from '@/components/ui';
+import { useDonate } from '@/features/intents/use-donate';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { serviceSwatch } from '@/features/catalog/lib/service-colors';
@@ -32,6 +33,7 @@ function NewJobForm() {
   const { t: tr, fmt } = useLocale();
   // Opened from a customer / vehicle (customer 360): start with them picked.
   const params = useLocalSearchParams<{ customer?: string; vehicle?: string }>();
+  const donate = useDonate();
   const prefill = useCustomer(params.customer ?? null);
   const [picked, setPicked] = useState<{ customer: Customer | null; vehicle: string | null } | null>(null);
   const prefillVehicle = prefill.data ? (params.vehicle ?? (prefill.data.vehicles.length === 1 ? prefill.data.vehicles[0].uuid : null)) : null;
@@ -63,7 +65,10 @@ function NewJobForm() {
       }),
     invalidate: [qk.jobs, qk.catalog, qk.reports],
     success: tr('jobs.toast.created'),
-    onSuccess: (job) => router.replace(`/jobs/${job.uuid}`),
+    onSuccess: (job) => {
+      donate('newJob');
+      router.replace(`/jobs/${job.uuid}`);
+    },
   });
   const apiErrors = fieldErrors(create.error);
 

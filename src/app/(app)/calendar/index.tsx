@@ -11,6 +11,7 @@ import { RefreshControl, ScrollView, SectionList, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Card, EmptyState, ErrorState, Group, Header, IconButton, ListSkeleton, Section, Segmented, Txt } from '@/components/ui';
+import { useDonateOnMount } from '@/features/intents/use-donate';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
@@ -51,6 +52,7 @@ function CalendarView() {
   const { t: tr, fmt } = useLocale();
   const { can } = useAuth();
   const canWrite = can(P.calendarWrite);
+  useDonateOnMount('calendarToday');
   const params = useLocalSearchParams<{ date?: string; item?: string }>();
   const today = dayKey(new Date());
   const initialDay = params.date && DAY_RE.test(params.date) ? params.date : today;

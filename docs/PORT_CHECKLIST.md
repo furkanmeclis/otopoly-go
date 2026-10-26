@@ -233,6 +233,17 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Stringified widget code verified: parses, self-contained, renders 80 family/scheme/state combinations
 - [ ] Device QA on TestFlight: add each widget size, Lock Screen widgets, Live Activity start → ready → deliver
 
+## Siri & Shortcuts (App Intents)
+
+- [x] `expo-app-intents` (alpha) + inline modules: app-owned Swift in `app-intents/` (synchronized group in the app target via prebuild), built from source (`expo.autolinking.ios.buildFromSource`)
+- [x] 8 App Shortcuts, Turkish + English phrases (`app-intents/AppShortcuts.xcstrings`, titles in `Localizable.xcstrings`; `plugins/with-app-intents-locales.js` adds `tr` to the project regions): günün özeti (answers without opening the app), yeni iş emri (optional plate), plaka ara, müşteriyi aç (customer entity), hazır araçlar, asistana sor, QR ile giriş, bugünkü takvim
+- [x] Invocations routed in JS (`src/features/intents/routing.ts`): permission gates as the target screens, newest fresh invocation only (10 min TTL), plate lookups, kept until sign-in
+- [x] Catalogs for Siri: today's figures (same rules as the dashboard), ≤ 40 recent customers (name + plates only, opt-out switch); wiped on sign-out and org switch; shortcuts refreshed on org / role change
+- [x] Donations after in-app actions (throttled, permission-checked, never free text); deleted on sign-out, org switch and from settings
+- [x] Profil → Tercihler → "Siri ve Kısayollar" card (phrases for this member, sharing switch, open Shortcuts, clear suggestions)
+- [x] No-op on Android / web / Expo Go (`isAvailable()`); pure parts in `scripts/smoke/intents.smoke.ts`
+- [ ] Device QA on TestFlight: Xcode build + `ExtractAppIntentsMetadata`, each phrase in Turkish and English Siri, cold vs. warm invocation, Shortcuts app tiles, customer resolution, sign-out wipe
+
 ## Plan limits (no in-app purchases)
 
 - [x] Mobile shows no prices, purchase / upgrade / subscribe CTAs or links to buy; dead billing code (orders, invoices, invoice profile, plans) removed

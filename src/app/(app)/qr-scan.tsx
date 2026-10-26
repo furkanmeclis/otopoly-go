@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useToast } from '@/components/feedback/toast';
 import { Button, EmptyState, Header, Screen, Txt } from '@/components/ui';
 import { env, isMock } from '@/config/env';
+import { useDonate } from '@/features/intents/use-donate';
 import { parseQRLoginCode } from '@/features/qr-login/lib';
 import { qrLoginService } from '@/features/qr-login/qr-login.service';
 import { useLocale } from '@/lib/i18n/provider';
@@ -30,6 +31,7 @@ export default function QRScanScreen() {
   const [active, setActive] = useState(true);
   const handled = useRef(false);
   const lastRejected = useRef<string | null>(null);
+  const donate = useDonate();
 
   // Only one camera preview may run at a time: stop it while another screen is on top.
   useFocusEffect(
@@ -43,6 +45,7 @@ export default function QRScanScreen() {
   const open = (sessionId: string) => {
     handled.current = true;
     setActive(false);
+    donate('qrLogin');
     router.push(`/login/qr/${sessionId}`);
   };
 

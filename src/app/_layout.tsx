@@ -15,6 +15,7 @@ import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
 import { ToastProvider } from '@/components/feedback/toast';
 import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
 import { hasInitialNativeIntent } from '@/features/intro/initial-link';
+import { IntentsSessionWatcher } from '@/features/intents/intents-host';
 import { LaunchIntro } from '@/features/intro/launch-intro';
 import { NotificationResponseObserver } from '@/features/notifications/components/notification-response-observer';
 import { LocaleProvider } from '@/lib/i18n/provider';
@@ -117,6 +118,7 @@ function RootNavigator() {
         <NavigationLogger />
         {sentryEnabled ? <SentryNavigationRegistrar /> : null}
         <NotificationResponseObserver />
+        <IntentsSessionWatcher />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
           <Stack.Protected guard={status === 'signedOut'}>
             <Stack.Screen name="(auth)" />
