@@ -1987,7 +1987,11 @@ export interface paths {
          *       including the `MFA_REQUIRED` / `totp_code` round-trip).
          *     - Not linked, an account with the same email exists →
          *       `409 OAUTH_ACCOUNT_NOT_LINKED` (same policy as the web: sign in with
-         *       the existing method and link from the profile).
+         *       the existing method and link from the profile). Exception: an Apple
+         *       private-relay address only that Apple ID can present, so its
+         *       account is signed in and the identity re-linked (account status,
+         *       `MFA_REQUIRED` and `409 CONFLICT` when another Apple ID is linked
+         *       still apply).
          *     - Not linked, Apple private-relay email (`@privaterelay.appleid.com`),
          *       no account → `409 OAUTH_LINK_CHOICE_REQUIRED`; `error.details`
          *       carries `link_ticket`, `provider`, `expires_in` (seconds, 900) and
@@ -2070,8 +2074,10 @@ export interface paths {
          *     OAuth sign-up (registration policy, default role, welcome email) with
          *     the ticket's relay email, links the identity and returns tokens.
          *     Retrying with the same ticket signs into the account created by the
-         *     first call. Errors: `400 INVALID_LINK_TICKET`, `403 FORBIDDEN`
-         *     (registration disabled), `409 CONFLICT` (email registered meanwhile).
+         *     first call, also when that account exists by its relay email without
+         *     the identity (it is re-linked). Errors: `400 INVALID_LINK_TICKET`,
+         *     `403 FORBIDDEN` (registration disabled), `403 ACCOUNT_DEACTIVATED`,
+         *     `409 CONFLICT` (another Apple ID is linked to that account).
          */
         post: operations["postAuthOAuthLinkCreate"];
         delete?: never;
