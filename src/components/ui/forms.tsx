@@ -355,7 +355,7 @@ export function Sheet({
           <View style={{ flex: 1 }}>{children}</View>
         )}
         {footer ? (
-          <KeyboardFooter onHeight={setFooterHeight} style={{ padding: t.spacing.lg, paddingBottom: Math.max(insets.bottom, t.spacing.lg) }}>
+          <KeyboardFooter onHeight={setFooterHeight} style={{ paddingHorizontal: t.spacing.lg, paddingTop: t.spacing.lg, paddingBottom: Math.max(insets.bottom, t.spacing.lg) }}>
             {footer}
           </KeyboardFooter>
         ) : null}
