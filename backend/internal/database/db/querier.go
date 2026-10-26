@@ -364,6 +364,12 @@ type Querier interface {
 	GetContractSignerByUUID(ctx context.Context, arg GetContractSignerByUUIDParams) (ContractSigner, error)
 	GetContractTemplateByUUID(ctx context.Context, arg GetContractTemplateByUUIDParams) (ContractTemplate, error)
 	GetCustomerByUUID(ctx context.Context, arg GetCustomerByUUIDParams) (Customer, error)
+	// ============================================================================
+	// Customer
+	// ============================================================================
+	GetCustomerJobStats(ctx context.Context, arg GetCustomerJobStatsParams) (GetCustomerJobStatsRow, error)
+	GetCustomerPipelineStats(ctx context.Context, arg GetCustomerPipelineStatsParams) (GetCustomerPipelineStatsRow, error)
+	GetCustomerSalesStats(ctx context.Context, arg GetCustomerSalesStatsParams) (GetCustomerSalesStatsRow, error)
 	GetCustomerVehicleByUUID(ctx context.Context, arg GetCustomerVehicleByUUIDParams) (CustomerVehicle, error)
 	GetCustomerVehicleDetailByUUID(ctx context.Context, arg GetCustomerVehicleDetailByUUIDParams) (GetCustomerVehicleDetailByUUIDRow, error)
 	GetDailySummarySettings(ctx context.Context, organizationID int64) (DailySummarySetting, error)
@@ -460,8 +466,18 @@ type Querier interface {
 	GetProductBySKU(ctx context.Context, arg GetProductBySKUParams) (Product, error)
 	GetProductByUUID(ctx context.Context, arg GetProductByUUIDParams) (GetProductByUUIDRow, error)
 	GetProductForSearch(ctx context.Context, arg GetProductForSearchParams) (GetProductForSearchRow, error)
+	// Job usage: product lines billed on jobs plus consumptions (recipe / manual).
+	GetProductJobStats(ctx context.Context, arg GetProductJobStatsParams) (GetProductJobStatsRow, error)
+	GetProductPurchaseStats(ctx context.Context, arg GetProductPurchaseStatsParams) (GetProductPurchaseStatsRow, error)
 	GetProductSaleByUUID(ctx context.Context, arg GetProductSaleByUUIDParams) (GetProductSaleByUUIDRow, error)
 	GetProductSaleForSearch(ctx context.Context, arg GetProductSaleForSearchParams) (GetProductSaleForSearchRow, error)
+	// 360° detail page aggregates (product, service, customer, supplier).
+	// Every query is scoped by organization_id; the record id comes from a
+	// lookup that is itself organization scoped.
+	// ============================================================================
+	// Product
+	// ============================================================================
+	GetProductSalesStats(ctx context.Context, arg GetProductSalesStatsParams) (GetProductSalesStatsRow, error)
 	GetPurchaseByUUID(ctx context.Context, arg GetPurchaseByUUIDParams) (GetPurchaseByUUIDRow, error)
 	GetPurchaseForSearch(ctx context.Context, arg GetPurchaseForSearchParams) (GetPurchaseForSearchRow, error)
 	GetQuoteByShareToken(ctx context.Context, shareToken string) (Quote, error)
@@ -490,6 +506,10 @@ type Querier interface {
 	GetServiceJobByID(ctx context.Context, arg GetServiceJobByIDParams) (ServiceJob, error)
 	GetServiceJobByUUID(ctx context.Context, arg GetServiceJobByUUIDParams) (GetServiceJobByUUIDRow, error)
 	GetServiceJobForSearch(ctx context.Context, arg GetServiceJobForSearchParams) (GetServiceJobForSearchRow, error)
+	// ============================================================================
+	// Service
+	// ============================================================================
+	GetServiceUsageStats(ctx context.Context, arg GetServiceUsageStatsParams) (GetServiceUsageStatsRow, error)
 	GetStepupSettings(ctx context.Context) (StepupSetting, error)
 	GetStorageLinkBySlug(ctx context.Context, slug pgtype.Text) (StorageLink, error)
 	GetStorageLinkByTokenHash(ctx context.Context, tokenHash pgtype.Text) (StorageLink, error)
@@ -499,6 +519,10 @@ type Querier interface {
 	GetSubscriptionByUUID(ctx context.Context, argUuid uuid.UUID) (GetSubscriptionByUUIDRow, error)
 	GetSupplierByUUID(ctx context.Context, arg GetSupplierByUUIDParams) (Supplier, error)
 	GetSupplierForSearch(ctx context.Context, arg GetSupplierForSearchParams) (GetSupplierForSearchRow, error)
+	// ============================================================================
+	// Supplier
+	// ============================================================================
+	GetSupplierPurchaseStats(ctx context.Context, arg GetSupplierPurchaseStatsParams) (GetSupplierPurchaseStatsRow, error)
 	GetTemplateByCodeChannelLang(ctx context.Context, arg GetTemplateByCodeChannelLangParams) (NotificationTemplate, error)
 	GetTodoAssigneeByUUID(ctx context.Context, arg GetTodoAssigneeByUUIDParams) (GetTodoAssigneeByUUIDRow, error)
 	GetTodoByUUID(ctx context.Context, arg GetTodoByUUIDParams) (GetTodoByUUIDRow, error)
@@ -630,6 +654,10 @@ type Querier interface {
 	ListContractSignaturesByInstance(ctx context.Context, instanceID int64) ([]ContractSignature, error)
 	ListContractSignersByInstance(ctx context.Context, instanceID int64) ([]ContractSigner, error)
 	ListContractTemplates(ctx context.Context, arg ListContractTemplatesParams) ([]ContractTemplate, error)
+	ListCustomerMonthlySpend(ctx context.Context, arg ListCustomerMonthlySpendParams) ([]ListCustomerMonthlySpendRow, error)
+	ListCustomerSales(ctx context.Context, arg ListCustomerSalesParams) ([]ListCustomerSalesRow, error)
+	ListCustomerTopServices(ctx context.Context, arg ListCustomerTopServicesParams) ([]ListCustomerTopServicesRow, error)
+	ListCustomerVehicleStats(ctx context.Context, arg ListCustomerVehicleStatsParams) ([]ListCustomerVehicleStatsRow, error)
 	ListCustomerVehicles(ctx context.Context, arg ListCustomerVehiclesParams) ([]ListCustomerVehiclesRow, error)
 	ListCustomers(ctx context.Context, arg ListCustomersParams) ([]ListCustomersRow, error)
 	// Active organization members with their notification phone (may be empty).
@@ -693,7 +721,11 @@ type Querier interface {
 	ListPlanFeatures(ctx context.Context, planID int64) ([]ListPlanFeaturesRow, error)
 	ListPlatformNotifications(ctx context.Context, arg ListPlatformNotificationsParams) ([]Notification, error)
 	ListPlatformNotificationsForExport(ctx context.Context, arg ListPlatformNotificationsForExportParams) ([]Notification, error)
+	ListProductConsumptionMovements(ctx context.Context, arg ListProductConsumptionMovementsParams) ([]ListProductConsumptionMovementsRow, error)
+	ListProductMonthlySales(ctx context.Context, arg ListProductMonthlySalesParams) ([]ListProductMonthlySalesRow, error)
+	ListProductPurchaseMovements(ctx context.Context, arg ListProductPurchaseMovementsParams) ([]ListProductPurchaseMovementsRow, error)
 	ListProductSaleLines(ctx context.Context, arg ListProductSaleLinesParams) ([]ListProductSaleLinesRow, error)
+	ListProductSaleMovements(ctx context.Context, arg ListProductSaleMovementsParams) ([]ListProductSaleMovementsRow, error)
 	ListProductSales(ctx context.Context, arg ListProductSalesParams) ([]ListProductSalesRow, error)
 	ListProductSalesForExport(ctx context.Context, arg ListProductSalesForExportParams) ([]ProductSale, error)
 	ListProductSalesForSearch(ctx context.Context) ([]ListProductSalesForSearchRow, error)
@@ -730,10 +762,12 @@ type Querier interface {
 	ListServiceJobPayments(ctx context.Context, arg ListServiceJobPaymentsParams) ([]ListServiceJobPaymentsRow, error)
 	// Service lines of the listed jobs, for the coloured tags on board cards.
 	ListServiceJobServiceTags(ctx context.Context, arg ListServiceJobServiceTagsParams) ([]ListServiceJobServiceTagsRow, error)
+	ListServiceJobUsage(ctx context.Context, arg ListServiceJobUsageParams) ([]ListServiceJobUsageRow, error)
 	ListServiceJobs(ctx context.Context, arg ListServiceJobsParams) ([]ListServiceJobsRow, error)
 	ListServiceJobsByCustomer(ctx context.Context, arg ListServiceJobsByCustomerParams) ([]ListServiceJobsByCustomerRow, error)
 	ListServiceJobsForExport(ctx context.Context, arg ListServiceJobsForExportParams) ([]ListServiceJobsForExportRow, error)
 	ListServiceJobsForSearch(ctx context.Context) ([]ListServiceJobsForSearchRow, error)
+	ListServiceMonthlyUsage(ctx context.Context, arg ListServiceMonthlyUsageParams) ([]ListServiceMonthlyUsageRow, error)
 	// Service recipes (products a service uses) and per-job product usage.
 	ListServiceProducts(ctx context.Context, arg ListServiceProductsParams) ([]ListServiceProductsRow, error)
 	ListServiceUUIDsForBulk(ctx context.Context, arg ListServiceUUIDsForBulkParams) ([]uuid.UUID, error)
@@ -757,6 +791,9 @@ type Querier interface {
 	// Billing lifecycle transitions, reminder idempotency and dashboard queries.
 	ListSubscriptionsToGrace(ctx context.Context, nowAt pgtype.Timestamptz) ([]ListSubscriptionsToGraceRow, error)
 	ListSubscriptionsToReadOnly(ctx context.Context, nowAt pgtype.Timestamptz) ([]ListSubscriptionsToReadOnlyRow, error)
+	ListSupplierMonthlySpend(ctx context.Context, arg ListSupplierMonthlySpendParams) ([]ListSupplierMonthlySpendRow, error)
+	ListSupplierPurchases(ctx context.Context, arg ListSupplierPurchasesParams) ([]ListSupplierPurchasesRow, error)
+	ListSupplierTopProducts(ctx context.Context, arg ListSupplierTopProductsParams) ([]ListSupplierTopProductsRow, error)
 	ListSuppliers(ctx context.Context, arg ListSuppliersParams) ([]Supplier, error)
 	ListSuppliersForExport(ctx context.Context, arg ListSuppliersForExportParams) ([]Supplier, error)
 	ListSuppliersForSearch(ctx context.Context) ([]ListSuppliersForSearchRow, error)
