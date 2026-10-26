@@ -145,6 +145,7 @@
       "expo-secure-store",
       "expo-localization",
       "expo-sharing",
+      "expo-image",
       [
         "expo-notifications",
         {

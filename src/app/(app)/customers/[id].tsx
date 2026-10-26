@@ -15,6 +15,7 @@ import {
   InfoRow,
   ListRow,
   ListSkeleton,
+  BrandLogo,
   PlateBadge,
   Row,
   Screen,
@@ -148,7 +149,12 @@ function CustomerDetail() {
                 key={v.uuid}
                 title={`${v.brand_name} ${v.model_name}`}
                 subtitle={String(v.year)}
-                left={<PlateBadge plate={v.plate} size="sm" />}
+                left={
+                  <Row gap={t.spacing.sm}>
+                    <BrandLogo name={v.brand_name} logoUrl={v.logo_url} size="md" />
+                    <PlateBadge plate={v.plate} size="sm" />
+                  </Row>
+                }
                 right={
                   canWrite ? (
                     <IconButton

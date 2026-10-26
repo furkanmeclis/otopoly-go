@@ -3,7 +3,7 @@ import { Car, CheckCircle2, KeyRound, Wallet } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, View } from 'react-native';
 
-import { Avatar, Badge, Card, PlateBadge, Row, Txt } from '@/components/ui';
+import { Avatar, Badge, BrandLogo, Card, PlateBadge, Row, Txt } from '@/components/ui';
 import { resolveServiceColor, serviceSwatch } from '@/features/catalog/lib/service-colors';
 import type { Job, JobServiceTag } from '@/features/jobs/services/jobs.service';
 import { useLocale } from '@/lib/i18n/provider';
@@ -183,8 +183,8 @@ export function JobCard({
           {job.customer_name}
         </Txt>
         {job.vehicle_label ? (
-          <Row gap={4}>
-            <Car size={12} color={t.colors.textMuted} />
+          <Row gap={6}>
+            {job.brand_name || job.brand_logo_url ? <BrandLogo name={job.brand_name} logoUrl={job.brand_logo_url} size="xs" /> : <Car size={12} color={t.colors.textMuted} />}
             <Txt variant="caption" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>
               {job.vehicle_label}
             </Txt>
