@@ -63,7 +63,7 @@ function greetingKey(hour: number) {
 }
 
 export default function DashboardScreen() {
-  useLiveResource(['tenant.jobs', 'tenant.sales', 'tenant.finance.transactions', 'tenant.todos']);
+  useLiveResource(['tenant.jobs', 'tenant.sales', 'tenant.finance.transactions', 'tenant.todos', 'tenant.calendar']);
   useMarkInteractive();
   const t = useTheme();
   const { t: tr, fmt } = useLocale();

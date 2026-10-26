@@ -36,7 +36,7 @@ const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export default function CalendarScreen() {
   // Module records shown on the calendar refresh it live (`related` targets in lib/realtime/live-targets.ts).
-  useLiveResource(['tenant.jobs', 'tenant.todos', 'tenant.quotes', 'tenant.leads', 'tenant.sales', 'tenant.purchases', 'tenant.finance.transactions', 'tenant.contracts.instances']);
+  useLiveResource(['tenant.jobs', 'tenant.todos', 'tenant.quotes', 'tenant.leads', 'tenant.sales', 'tenant.purchases', 'tenant.finance.transactions', 'tenant.contracts.instances', 'tenant.calendar']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.calendarRead} title={tr('calendar.title')}>

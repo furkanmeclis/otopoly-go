@@ -16,15 +16,17 @@ type Target = { perm: string; own: QueryKey[]; related?: QueryKey[] };
 
 const CALENDAR: QueryKey = ['calendar'];
 const REPORTS: QueryKey = ['reports'];
+/** Customer 360 activity feed: every record kind it lists. */
+const ACTIVITY: QueryKey = ['customers', 'activity'];
 
 export const LIVE_TARGETS: Record<LiveResource, Target> = {
   'tenant.customers': { perm: 'tenant.customers.read', own: [['customers']] },
   // Vehicle uuids are not customer uuids: refresh every open customer screen.
   'tenant.vehicles': { perm: 'tenant.customers.read', own: [], related: [['customers']] },
-  'tenant.jobs': { perm: 'tenant.jobs.read', own: [['jobs']], related: [REPORTS, CALENDAR] },
-  'tenant.sales': { perm: 'tenant.sales.read', own: [['sales']], related: [REPORTS, CALENDAR] },
-  'tenant.quotes': { perm: 'tenant.quotes.read', own: [['quotes']], related: [CALENDAR] },
-  'tenant.leads': { perm: 'tenant.leads.read', own: [['leads']], related: [CALENDAR] },
+  'tenant.jobs': { perm: 'tenant.jobs.read', own: [['jobs']], related: [REPORTS, CALENDAR, ACTIVITY] },
+  'tenant.sales': { perm: 'tenant.sales.read', own: [['sales']], related: [REPORTS, CALENDAR, ACTIVITY] },
+  'tenant.quotes': { perm: 'tenant.quotes.read', own: [['quotes']], related: [CALENDAR, ACTIVITY] },
+  'tenant.leads': { perm: 'tenant.leads.read', own: [['leads']], related: [CALENDAR, ACTIVITY] },
   'tenant.purchases': { perm: 'tenant.purchases.read', own: [['purchases']], related: [CALENDAR] },
   'tenant.suppliers': { perm: 'tenant.suppliers.read', own: [['suppliers']] },
   'tenant.catalog.products': {
@@ -49,15 +51,17 @@ export const LIVE_TARGETS: Record<LiveResource, Target> = {
     related: [['finance', 'summary'], ['finance', 'accounts'], ['finance', 'account'], ['finance', 'category'], REPORTS, CALENDAR],
   },
   'tenant.cari': { perm: 'tenant.cari.read', own: [['cari']] },
-  'tenant.cari.entries': { perm: 'tenant.cari.read', own: [], related: [['cari']] },
+  'tenant.cari.entries': { perm: 'tenant.cari.read', own: [], related: [['cari'], ACTIVITY] },
   'tenant.todos': { perm: 'tenant.todos.read', own: [['todos']], related: [CALENDAR] },
   'tenant.contracts': { perm: 'tenant.contracts.read', own: [['contracts', 'templates']] },
-  'tenant.contracts.instances': { perm: 'tenant.contracts.read', own: [['contracts', 'instances']], related: [CALENDAR] },
+  'tenant.contracts.instances': { perm: 'tenant.contracts.read', own: [['contracts', 'instances']], related: [CALENDAR, ACTIVITY] },
   'tenant.staff': { perm: 'tenant.staff.read', own: [['staff']] },
+  // Own calendar events and moves (todo / lead dates, event times): the feeds and the event sheet.
+  'tenant.calendar': { perm: 'tenant.calendar.read', own: [['calendar', 'feed'], ['calendar', 'event']] },
 };
 
 /** Key segments followed by a record uuid. */
-const DETAIL_MARKERS: ReadonlySet<string> = new Set(['detail', 'service', 'product', 'category', 'account', 'transaction']);
+const DETAIL_MARKERS: ReadonlySet<string> = new Set(['detail', 'service', 'product', 'category', 'account', 'transaction', 'event']);
 
 const startsWith = (key: QueryKey, prefix: QueryKey) => prefix.length <= key.length && prefix.every((p, i) => key[i] === p);
 
