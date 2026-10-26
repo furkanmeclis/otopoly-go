@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Building2, Car, Plus, UserRound, Users } from 'lucide-react-native';
 import { useDeferredValue, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
@@ -30,8 +30,21 @@ function CustomersList() {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const { can } = useAuth();
-  const [q, setQ] = useState('');
+  // `?q=` opens the list searched (Siri "Plaka ara" with several matches). The tab stays mounted, so a
+  // new `q` / `n` (request nonce) is applied while rendering, like the assistant screen's nonce.
+  const params = useLocalSearchParams<{ q?: string; n?: string }>();
+  const routeQ = typeof params.q === 'string' ? params.q : '';
+  const routeKey = `${routeQ}|${params.n ?? ''}`;
+  const [appliedKey, setAppliedKey] = useState(routeKey);
+  const [q, setQ] = useState(routeQ);
   const [filter, setFilter] = useState<KindFilter>('all');
+  if (appliedKey !== routeKey) {
+    setAppliedKey(routeKey);
+    if (routeQ) {
+      setQ(routeQ);
+      setFilter('all');
+    }
+  }
   const query = useDeferredValue(q);
   const list = useCustomersInfinite({
     q: query || undefined,

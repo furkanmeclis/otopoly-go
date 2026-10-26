@@ -15,6 +15,7 @@ import { useToast } from '@/components/feedback/toast';
 import { useProviderName } from '@/features/ai/components/consent';
 import { useAIConsent } from '@/features/ai/consent';
 import { useAuth } from '@/features/auth/auth-provider';
+import { SiriShortcutsSection } from '@/features/intents/components/siri-section';
 import { P } from '@/features/auth/permissions';
 import { enablePush, isExpoGo, pushAvailable } from '@/features/notifications/push';
 import { useLocale } from '@/lib/i18n/provider';
@@ -62,6 +63,8 @@ export default function PreferencesScreen() {
       </Section>
 
       <AIConsentCard />
+
+      <SiriShortcutsSection />
     </Screen>
   );
 }

@@ -32,6 +32,7 @@ import {
   Skeleton,
   Txt,
 } from '@/components/ui';
+import { useDonateOnMount } from '@/features/intents/use-donate';
 import { useAuth } from '@/features/auth/auth-provider';
 import { CalendarTodayCard } from '@/features/calendar/components/today-card';
 import { P } from '@/features/auth/permissions';
@@ -131,6 +132,7 @@ function useRefreshAll() {
 
 function TodaySection() {
   const t = useTheme();
+  useDonateOnMount('todaySummary');
   const { t: tr, fmt } = useLocale();
   const today = localToday();
   const now = useNow();

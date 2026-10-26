@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { router, useIsFocused } from 'expo-router';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { ChevronLeft, ChevronRight, ClipboardList, Plus, ShoppingBag, SlidersHorizontal } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, ScrollView, View } from 'react-native';
@@ -24,6 +24,7 @@ import {
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { donateIntent } from '@/features/intents/bridge';
 import { CloseJobSheet } from '@/features/jobs/components/close-job-sheet';
 import { JobCard, useNow, type JobQuickAction } from '@/features/jobs/components/job-parts';
 import { localToday, shiftDate } from '@/features/jobs/lib/job-ui';
@@ -76,6 +77,19 @@ function OperationsBoard() {
   const now = useNow();
   const [date, setDate] = useState(localToday);
   const [filter, setFilter] = useState<ListFilter>('all');
+  // `?filter=ready` (Siri "Hazır araçları göster") opens today's board on that column. The tab stays
+  // mounted, so a new `filter` / `n` (request nonce) is applied while rendering.
+  const routeParams = useLocalSearchParams<{ filter?: string; n?: string }>();
+  const routeKey = `${routeParams.filter ?? ''}|${routeParams.n ?? ''}`;
+  const [appliedKey, setAppliedKey] = useState('');
+  if (appliedKey !== routeKey) {
+    setAppliedKey(routeKey);
+    const wanted = routeParams.filter;
+    if (wanted === 'in_progress' || wanted === 'ready' || wanted === 'delivered') {
+      if (date !== localToday()) setDate(localToday());
+      setFilter(wanted);
+    }
+  }
   const [search, setSearch] = useState('');
   const [assignee, setAssignee] = useState(ALL);
   const [unpaidOnly, setUnpaidOnly] = useState(false);
@@ -182,7 +196,10 @@ function OperationsBoard() {
       </Row>
       <FilterChips<ListFilter>
         value={filter}
-        onChange={setFilter}
+        onChange={(next) => {
+          setFilter(next);
+          if (next === 'ready') void donateIntent({ name: 'readyJobs' }, can);
+        }}
         options={[
           { value: 'all', label: tr('jobs.filter.all'), count: count('all') },
           { value: 'in_progress', label: tr('jobs.status.in_progress'), count: count('in_progress') },

@@ -1,0 +1,259 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Today's Summary": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Günün Özeti"
+          }
+        }
+      }
+    },
+    "Cars in progress, ready and delivered today, and today's collected payments.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugün işlemdeki, hazır ve teslim edilen araçlar ile günün tahsilatı."
+          }
+        }
+      }
+    },
+    "New Job": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni İş Emri"
+          }
+        }
+      }
+    },
+    "Opens a new job. With a plate, the customer and vehicle are picked for you.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni iş emri açar. Plaka verirseniz müşteri ve araç sizin için seçilir."
+          }
+        }
+      }
+    },
+    "Plate": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plaka"
+          }
+        }
+      }
+    },
+    "Ready Cars": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hazır Araçlar"
+          }
+        }
+      }
+    },
+    "Shows today's cars that are ready for delivery.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugün teslime hazır araçları gösterir."
+          }
+        }
+      }
+    },
+    "Search Plate": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plaka Ara"
+          }
+        }
+      }
+    },
+    "Finds the customer and vehicle with a plate.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plakaya göre müşteriyi ve aracı bulur."
+          }
+        }
+      }
+    },
+    "Which plate?": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hangi plaka?"
+          }
+        }
+      }
+    },
+    "Open Customer": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Müşteriyi Aç"
+          }
+        }
+      }
+    },
+    "Opens a customer's page.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Müşterinin sayfasını açar."
+          }
+        }
+      }
+    },
+    "Customer": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Müşteri"
+          }
+        }
+      }
+    },
+    "Which customer?": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hangi müşteri?"
+          }
+        }
+      }
+    },
+    "Name": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ad"
+          }
+        }
+      }
+    },
+    "Ask the Assistant": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asistana Sor"
+          }
+        }
+      }
+    },
+    "Opens the Otopoly assistant and asks your question.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otopoly asistanını açar ve sorunuzu sorar."
+          }
+        }
+      }
+    },
+    "Question": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soru"
+          }
+        }
+      }
+    },
+    "What would you like to ask?": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne sormak istersiniz?"
+          }
+        }
+      }
+    },
+    "Sign In with QR": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QR ile Giriş"
+          }
+        }
+      }
+    },
+    "Opens the scanner to approve a web panel sign-in.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Web paneli girişini onaylamak için QR okuyucuyu açar."
+          }
+        }
+      }
+    },
+    "Today's Calendar": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugünkü Takvim"
+          }
+        }
+      }
+    },
+    "Opens today's calendar.": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bugünün takvimini açar."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}
