@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown, Loader2, X } from "lucide-react";
-import { useEffect, useId, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useId, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +26,8 @@ export type ComboboxOption = {
   label: string;
   description?: string;
   disabled?: boolean;
+  /** Leading visual (brand logo, avatar) shown in the list and the trigger. */
+  icon?: ReactNode;
 };
 
 const EMPTY_OPTIONS: ComboboxOption[] = [];
@@ -181,8 +183,15 @@ export function AsyncCombobox({
             className,
           )}
         >
-          <span className="truncate">
-            {selected?.label ?? placeholder ?? t("form.combobox_placeholder")}
+          <span className="flex min-w-0 items-center gap-2">
+            {selected?.icon ? (
+              <span className="flex shrink-0 items-center">
+                {selected.icon}
+              </span>
+            ) : null}
+            <span className="truncate">
+              {selected?.label ?? placeholder ?? t("form.combobox_placeholder")}
+            </span>
           </span>
           <span className="ms-2 flex shrink-0 items-center gap-1">
             {clearable && value && !disabled ? (
@@ -254,6 +263,11 @@ export function AsyncCombobox({
                           )}
                           aria-hidden={!isSelected}
                         />
+                        {opt.icon ? (
+                          <span className="flex shrink-0 items-center">
+                            {opt.icon}
+                          </span>
+                        ) : null}
                         <span className="flex min-w-0 flex-1 flex-col">
                           <span className="truncate">{opt.label}</span>
                           {opt.description ? (

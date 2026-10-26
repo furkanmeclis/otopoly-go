@@ -12504,6 +12504,180 @@ paths:
         "409": { $ref: "#/components/responses/Conflict" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
 
+  /v1/tenant/catalog/products/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogProductSummary
+      summary: Product 360 summary
+      description: |
+        Stock, pricing / margin and, per the caller's permissions, sales
+        (tenant.sales.read), purchases (tenant.purchases.read) and job usage
+        (tenant.jobs.read) aggregates of a product. Blocks the caller cannot
+        read are null. The monthly trend covers the last 12 months (UTC).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Product summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProductSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/catalog/products/{uuid}/movements:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCatalogProductMovements
+      summary: Product stock ledger
+      description: |
+        Purchases (+), sales (-) and job consumptions (-) of a product, newest
+        first. Each kind is included only with its read permission.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Movements
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeProductMovementList"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/catalog/services/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCatalogServiceSummary
+      summary: Service 360 summary
+      description: |
+        Price vs recipe cost and, with tenant.jobs.read, usage on jobs (count,
+        revenue, average job duration, 12-month trend).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Service summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeServiceSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/catalog/services/{uuid}/jobs:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCatalogServiceJobs
+      summary: Jobs that used a service
+      description: Requires tenant.catalog.read and tenant.jobs.read. Newest first.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Jobs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeServiceJobList"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/customers/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantCustomerSummary
+      summary: Customer 360 summary
+      description: |
+        Vehicles, jobs (tenant.jobs.read), product sales (tenant.sales.read),
+        quotes (tenant.quotes.read) and leads (tenant.leads.read) of a
+        customer. Blocks the caller cannot read are null; total_spend sums the
+        readable blocks.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Customer summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
+  /v1/tenant/suppliers/{uuid}/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantSupplierSummary
+      summary: Supplier 360 summary
+      description: Purchase aggregates, top products and recent purchases (tenant.purchases.read; null otherwise).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Supplier summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeSupplierSummary"
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -17202,6 +17376,8 @@ components:
         customer_phone: { type: string }
         vehicle_plate: { type: string }
         vehicle_text: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the linked customer vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         interest: { type: string }
         source: { $ref: "#/components/schemas/LeadSource" }
         temperature: { type: string, enum: [cold, warm, hot] }
@@ -17889,6 +18065,8 @@ components:
         customer_phone: { type: string }
         vehicle_plate: { type: string }
         vehicle_label: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the catalog model or customer vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         lead_uuid: { type: [string, "null"], format: uuid }
         job_uuid: { type: [string, "null"], format: uuid }
         line_count: { type: integer }
@@ -18188,6 +18366,8 @@ components:
         customer_name: { type: string }
         vehicle_plate: { type: string }
         vehicle_label: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the quote vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         currency: { type: string }
         prices_include_vat: { type: boolean }
         subtotal: { type: string }
@@ -18618,8 +18798,8 @@ components:
         total_amount: { type: string, description: Decimal string }
         assignee_uuid: { type: string, format: uuid }
         assignee_name: { type: string }
-        brand_name: { type: string, description: List rows only }
-        brand_logo_url: { type: string, description: "List rows only; public vehicle brand logo stream, omitted when none" }
+        brand_name: { type: string, description: "Vehicle brand (list rows, customer jobs, detail)" }
+        brand_logo_url: { type: string, description: "Public vehicle brand logo stream (list rows, customer jobs, detail); omitted when none" }
         services:
           type: array
           description: List rows only (card tags); omitted when empty.
@@ -19291,6 +19471,9 @@ components:
       properties:
         uuid: { type: string, format: uuid }
         name: { type: string, example: Fiat }
+        logo_url:
+          type: [string, "null"]
+          description: "API-owned display brand logo stream (append `variant=badge` for the emblem); null without a logo"
 
     VehicleCatalogFuel:
       type: string
@@ -19989,4 +20172,344 @@ components:
         brand_uuid: { type: string, format: uuid, description: TSB brand to detach }
         name: { type: string, description: Name of the new display brand }
 
+    InsightsMonthPoint:
+      type: object
+      required: [month, count, amount]
+      properties:
+        month: { type: string, example: "2026-10", description: YYYY-MM (UTC) }
+        count: { type: integer, format: int64, description: Jobs / purchases in the month (0 where not applicable) }
+        qty: { type: string, description: Quantity sold (product trend only) }
+        amount: { type: string, example: "1250.00", description: "Product: revenue · service: revenue · customer: job spend · supplier: spend" }
+        amount_secondary: { type: string, example: "300.00", description: "Customer trend only: product sale spend" }
 
+    ProductSummary:
+      type: object
+      required: [product_uuid, currency, stock, pricing, sales, purchases, jobs]
+      properties:
+        product_uuid: { type: string, format: uuid }
+        currency: { type: string, example: TRY }
+        stock:
+          type: object
+          required: [tracked, quantity, min_alert, status, cost_value, sale_value, coverage_qty]
+          properties:
+            tracked: { type: boolean }
+            quantity: { type: string, example: "12" }
+            min_alert: { type: string, example: "5" }
+            status: { type: string, enum: [in_stock, low_stock, out_of_stock, untracked] }
+            cost_value: { type: string, example: "720.00" }
+            sale_value: { type: string, example: "1200.00" }
+            coverage_qty: { type: string, description: quantity - min_alert, example: "7" }
+        pricing:
+          type: object
+          required: [cost_price, sale_price, unit_margin, margin_percent]
+          properties:
+            cost_price: { type: string }
+            sale_price: { type: string }
+            unit_margin: { type: string }
+            margin_percent: { type: number, description: "unit_margin / sale_price * 100, one decimal" }
+        sales:
+          oneOf:
+            - type: object
+              required: [sale_count, sold_qty, revenue, last_sold_at, last_sale_price, monthly]
+              properties:
+                sale_count: { type: integer, format: int64 }
+                sold_qty: { type: string }
+                revenue: { type: string }
+                last_sold_at: { type: [string, "null"], format: date-time }
+                last_sale_price: { type: [string, "null"] }
+                monthly:
+                  type: array
+                  items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+            - type: "null"
+        purchases:
+          oneOf:
+            - type: object
+              required: [purchase_count, purchased_qty, spend, avg_unit_cost, last_purchased_at, last_purchase_cost]
+              properties:
+                purchase_count: { type: integer, format: int64 }
+                purchased_qty: { type: string }
+                spend: { type: string }
+                avg_unit_cost: { type: string }
+                last_purchased_at: { type: [string, "null"], format: date-time }
+                last_purchase_cost: { type: [string, "null"] }
+            - type: "null"
+        jobs:
+          oneOf:
+            - type: object
+              required: [line_job_count, line_qty, line_revenue, consumption_job_count, consumed_qty, last_consumed_at]
+              properties:
+                line_job_count: { type: integer, format: int64 }
+                line_qty: { type: string }
+                line_revenue: { type: string }
+                consumption_job_count: { type: integer, format: int64 }
+                consumed_qty: { type: string }
+                last_consumed_at: { type: [string, "null"], format: date-time }
+            - type: "null"
+
+    ProductMovement:
+      type: object
+      required: [kind, ref_uuid, status, occurred_at, party_name, party_uuid, qty, unit_price, total, currency, effective]
+      properties:
+        kind: { type: string, enum: [purchase, sale, job], description: "ref_uuid is the purchase, sale or job uuid" }
+        ref_uuid: { type: string, format: uuid }
+        status: { type: string, description: "Document status (posted / voided) or the job status" }
+        occurred_at: { type: string, format: date-time }
+        party_name: { type: string, description: Supplier or customer name }
+        party_uuid: { type: [string, "null"], format: uuid, description: Supplier uuid (purchase) or customer uuid (sale / job) }
+        plate: { type: string, description: Job plate (kind=job) }
+        service_name: { type: string, description: Recipe service that consumed the product (kind=job) }
+        qty: { type: string, description: "Signed quantity (+ into stock, - out of stock)", example: "-2" }
+        unit_price: { type: string, description: Unit cost (purchase / job) or unit price (sale) }
+        total: { type: string }
+        currency: { type: string }
+        effective: { type: boolean, description: false for voided documents and reverted consumptions }
+
+    ServiceSummary:
+      type: object
+      required: [service_uuid, currency, pricing, usage]
+      properties:
+        service_uuid: { type: string, format: uuid }
+        currency: { type: string }
+        pricing:
+          type: object
+          required: [price, recipe_cost, recipe_item_count, unit_margin, margin_percent, duration_minutes]
+          properties:
+            price: { type: string }
+            recipe_cost: { type: string, description: Sum of recipe qty x product cost price }
+            recipe_item_count: { type: integer }
+            unit_margin: { type: string }
+            margin_percent: { type: number }
+            duration_minutes: { type: integer }
+        usage:
+          oneOf:
+            - type: object
+              required: [job_count, line_count, customer_count, qty, revenue, avg_unit_price, avg_job_minutes, first_used_at, last_used_at, monthly]
+              properties:
+                job_count: { type: integer, format: int64 }
+                line_count: { type: integer, format: int64 }
+                customer_count: { type: integer, format: int64 }
+                qty: { type: string }
+                revenue: { type: string }
+                avg_unit_price: { type: string }
+                avg_job_minutes: { type: number, description: Average started → completed time of finished jobs }
+                first_used_at: { type: [string, "null"], format: date-time }
+                last_used_at: { type: [string, "null"], format: date-time }
+                monthly:
+                  type: array
+                  items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+            - type: "null"
+
+    ServiceJob:
+      type: object
+      required: [uuid, status, payment_status, started_at, completed_at, plate, vehicle_label, customer_uuid, customer_name, brand_uuid, brand_name, brand_logo_url, qty, line_total, currency]
+      properties:
+        uuid: { type: string, format: uuid }
+        status: { type: string }
+        payment_status: { type: string }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        plate: { type: string }
+        vehicle_label: { type: string }
+        customer_uuid: { type: string, format: uuid }
+        customer_name: { type: string }
+        brand_uuid: { type: string, format: uuid }
+        brand_name: { type: string }
+        brand_logo_url: { type: [string, "null"], description: "API-owned vehicle brand logo (`?variant=badge` for the emblem)" }
+        qty: { type: string }
+        line_total: { type: string }
+        currency: { type: string }
+
+    CustomerSummary:
+      type: object
+      required: [customer_uuid, vehicle_count, total_spend, last_visit_at, jobs, sales, quotes, leads, monthly, top_services, vehicles, recent_sales]
+      properties:
+        customer_uuid: { type: string, format: uuid }
+        vehicle_count: { type: integer }
+        total_spend: { type: string }
+        last_visit_at: { type: [string, "null"], format: date-time }
+        jobs:
+          oneOf:
+            - type: object
+              required: [job_count, open_job_count, unpaid_job_count, spend, unpaid_amount, first_visit_at, last_visit_at]
+              properties:
+                job_count: { type: integer, format: int64 }
+                open_job_count: { type: integer, format: int64 }
+                unpaid_job_count: { type: integer, format: int64 }
+                spend: { type: string }
+                unpaid_amount: { type: string }
+                first_visit_at: { type: [string, "null"], format: date-time }
+                last_visit_at: { type: [string, "null"], format: date-time }
+            - type: "null"
+        sales:
+          oneOf:
+            - type: object
+              required: [sale_count, spend, last_sold_at]
+              properties:
+                sale_count: { type: integer, format: int64 }
+                spend: { type: string }
+                last_sold_at: { type: [string, "null"], format: date-time }
+            - type: "null"
+        quotes:
+          oneOf:
+            - type: object
+              required: [quote_count, open_quote_count, accepted_quote_count]
+              properties:
+                quote_count: { type: integer, format: int64 }
+                open_quote_count: { type: integer, format: int64 }
+                accepted_quote_count: { type: integer, format: int64 }
+            - type: "null"
+        leads:
+          oneOf:
+            - type: object
+              required: [lead_count, open_lead_count]
+              properties:
+                lead_count: { type: integer, format: int64 }
+                open_lead_count: { type: integer, format: int64 }
+            - type: "null"
+        monthly:
+          type: array
+          description: amount = job spend, amount_secondary = product sale spend
+          items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+        top_services:
+          type: array
+          items:
+            type: object
+            required: [service_uuid, name, job_count, revenue, last_used_at]
+            properties:
+              service_uuid: { type: [string, "null"], format: uuid }
+              name: { type: string }
+              job_count: { type: integer, format: int64 }
+              revenue: { type: string }
+              last_used_at: { type: [string, "null"], format: date-time }
+        vehicles:
+          type: array
+          description: Per-vehicle job stats (empty without tenant.jobs.read)
+          items:
+            type: object
+            required: [vehicle_uuid, job_count, spend, last_visit_at]
+            properties:
+              vehicle_uuid: { type: string, format: uuid }
+              job_count: { type: integer, format: int64 }
+              spend: { type: string }
+              last_visit_at: { type: [string, "null"], format: date-time }
+        recent_sales:
+          type: array
+          items:
+            type: object
+            required: [uuid, status, method, total_amount, currency, sold_at, line_count]
+            properties:
+              uuid: { type: string, format: uuid }
+              status: { type: string }
+              method: { type: string }
+              total_amount: { type: string }
+              currency: { type: string }
+              sold_at: { type: string, format: date-time }
+              line_count: { type: integer, format: int64 }
+
+    SupplierSummary:
+      type: object
+      required: [supplier_uuid, purchases]
+      properties:
+        supplier_uuid: { type: string, format: uuid }
+        purchases:
+          oneOf:
+            - type: object
+              required: [purchase_count, spend, avg_purchase, product_count, first_purchased_at, last_purchased_at, monthly, top_products, recent]
+              properties:
+                purchase_count: { type: integer, format: int64 }
+                spend: { type: string }
+                avg_purchase: { type: string }
+                product_count: { type: integer, format: int64 }
+                first_purchased_at: { type: [string, "null"], format: date-time }
+                last_purchased_at: { type: [string, "null"], format: date-time }
+                monthly:
+                  type: array
+                  items: { $ref: "#/components/schemas/InsightsMonthPoint" }
+                top_products:
+                  type: array
+                  items:
+                    type: object
+                    required: [product_uuid, name, unit, qty, spend, last_purchased_at]
+                    properties:
+                      product_uuid: { type: string, format: uuid }
+                      name: { type: string }
+                      unit: { type: string }
+                      qty: { type: string }
+                      spend: { type: string }
+                      last_purchased_at: { type: [string, "null"], format: date-time }
+                recent:
+                  type: array
+                  items:
+                    type: object
+                    required: [uuid, status, method, total_amount, currency, purchased_at, line_count]
+                    properties:
+                      uuid: { type: string, format: uuid }
+                      status: { type: string }
+                      method: { type: string }
+                      total_amount: { type: string }
+                      currency: { type: string }
+                      purchased_at: { type: string, format: date-time }
+                      line_count: { type: integer, format: int64 }
+            - type: "null"
+
+    EnvelopeProductSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ProductSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeProductMovementList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ProductMovement" }
+            total: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeServiceSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/ServiceSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeServiceJobList:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [items, total]
+          properties:
+            items:
+              type: array
+              items: { $ref: "#/components/schemas/ServiceJob" }
+            total: { type: integer }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeCustomerSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSupplierSummary:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SupplierSummary" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }

@@ -34,6 +34,7 @@ import {
   useCustomerMutations,
 } from "@/features/customers/hooks/use-customers";
 import {
+  brandIcon,
   catalogPickerOptions,
   customersService,
 } from "@/features/customers/services/customers.service";
@@ -247,6 +248,7 @@ function CreateJobFields({
     plate: string;
     brand_name: string;
     model_name: string;
+    logo_url?: string | null;
   }[];
   customerLoading: boolean;
   services: { uuid: string; name: string; price: string; currency: string }[];
@@ -463,6 +465,7 @@ function CreateJobFields({
             options={vehicles.map((vehicle) => ({
               value: vehicle.uuid,
               label: `${vehicle.plate} · ${vehicle.brand_name} ${vehicle.model_name}`,
+              icon: brandIcon(vehicle.brand_name, vehicle.logo_url),
             }))}
           />
           {quickVehicleOpen && watchedCustomer ? (

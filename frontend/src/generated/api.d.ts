@@ -1684,8 +1684,31 @@ export interface paths {
         put?: never;
         /**
          * Issue Centrifugo subscription JWT
-         * @description Body `{ channel }`. Allowlist `user:{own_uuid}`, member `workspace:{uuid}`,
-         *     and `conversation:{uuid}` (authenticated session; HTTP inbox ACL is the hard boundary).
+         * @description Body `{ channel }`. Returns `{ token, channel, expires_at }` for Centrifugo
+         *     subscriptions (`allow_subscribe_for_client` is off, so every channel needs one).
+         *     Requires `auth.session`; disabled Centrifugo → `503 REALTIME_DISABLED`; a channel
+         *     the caller may not watch → `403`.
+         *
+         *     Allowed channels:
+         *     - `user:{own_uuid}` — the caller's own channel.
+         *     - `system.notifications` — platform super admins.
+         *     - `org:{org_uuid}:resource:{resource}` — **live lists** of an organization-owned
+         *       resource. The access token must be scoped to that organization (JWT `oid`, i.e.
+         *       signed in / switched with `organization_slug`), the caller must be an active
+         *       member with organization access, and must hold the resource's read permission
+         *       (e.g. `tenant.jobs` → `tenant.jobs.read`). Unknown resources are refused.
+         *       Resources: `tenant.customers`, `tenant.vehicles`, `tenant.jobs`, `tenant.sales`,
+         *       `tenant.quotes`, `tenant.leads`, `tenant.purchases`, `tenant.suppliers`,
+         *       `tenant.catalog.products`, `tenant.catalog.services`, `tenant.catalog.categories`,
+         *       `tenant.finance.accounts`, `tenant.finance.categories`, `tenant.finance.transactions`,
+         *       `tenant.cari`, `tenant.cari.entries`, `tenant.todos`, `tenant.contracts` (templates),
+         *       `tenant.contracts.instances`, `tenant.staff`.
+         *
+         *     Live list publications carry
+         *     `{ "type": "resource.changed", "resource": "tenant.jobs", "action": "created|updated|deleted|bulk",
+         *     "uuids": ["…"], "truncated": false, "at": "RFC3339" }`. `bulk` without uuids (or
+         *     `truncated: true`) means an unknown set of rows changed: refetch. Events are hints;
+         *     always refetch over HTTP. See docs/ARCHITECTURE.md → "Live lists".
          */
         post: operations["postRealtimeSubscriptionToken"];
         delete?: never;
@@ -7375,6 +7398,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/catalog/products/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Product 360 summary
+         * @description Stock, pricing / margin and, per the caller's permissions, sales
+         *     (tenant.sales.read), purchases (tenant.purchases.read) and job usage
+         *     (tenant.jobs.read) aggregates of a product. Blocks the caller cannot
+         *     read are null. The monthly trend covers the last 12 months (UTC).
+         */
+        get: operations["getTenantCatalogProductSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/products/{uuid}/movements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Product stock ledger
+         * @description Purchases (+), sales (-) and job consumptions (-) of a product, newest
+         *     first. Each kind is included only with its read permission.
+         */
+        get: operations["listTenantCatalogProductMovements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Service 360 summary
+         * @description Price vs recipe cost and, with tenant.jobs.read, usage on jobs (count,
+         *     revenue, average job duration, 12-month trend).
+         */
+        get: operations["getTenantCatalogServiceSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/catalog/services/{uuid}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jobs that used a service
+         * @description Requires tenant.catalog.read and tenant.jobs.read. Newest first.
+         */
+        get: operations["listTenantCatalogServiceJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/customers/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer 360 summary
+         * @description Vehicles, jobs (tenant.jobs.read), product sales (tenant.sales.read),
+         *     quotes (tenant.quotes.read) and leads (tenant.leads.read) of a
+         *     customer. Blocks the caller cannot read are null; total_spend sums the
+         *     readable blocks.
+         */
+        get: operations["getTenantCustomerSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/suppliers/{uuid}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Supplier 360 summary
+         * @description Purchase aggregates, top products and recent purchases (tenant.purchases.read; null otherwise).
+         */
+        get: operations["getTenantSupplierSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -7826,6 +7977,7 @@ export interface components {
             ws_url: string;
         };
         RealtimeSubscriptionTokenRequest: {
+            /** @example org:2f6a4c1e-8d3b-4f7a-9c2e-1b5d7e9f0a12:resource:tenant.jobs */
             channel: string;
         };
         RealtimeSubscriptionToken: {
@@ -10951,6 +11103,10 @@ export interface components {
             customer_phone: string;
             vehicle_plate: string;
             vehicle_text: string;
+            /** @description Brand of the linked customer vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             interest: string;
             source: components["schemas"]["LeadSource"];
             /** @enum {string} */
@@ -11585,6 +11741,10 @@ export interface components {
             customer_phone: string;
             vehicle_plate: string;
             vehicle_label: string;
+            /** @description Brand of the catalog model or customer vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             /** Format: uuid */
             lead_uuid: string | null;
             /** Format: uuid */
@@ -11874,6 +12034,10 @@ export interface components {
             customer_name: string;
             vehicle_plate: string;
             vehicle_label: string;
+            /** @description Brand of the quote vehicle ("" for free text) */
+            vehicle_brand_name?: string;
+            /** @description Public vehicle brand logo stream */
+            vehicle_brand_logo_url?: string | null;
             currency: string;
             prices_include_vat: boolean;
             subtotal: string;
@@ -12205,9 +12369,9 @@ export interface components {
             /** Format: uuid */
             assignee_uuid?: string;
             assignee_name?: string;
-            /** @description List rows only */
+            /** @description Vehicle brand (list rows, customer jobs, detail) */
             brand_name?: string;
-            /** @description List rows only; public vehicle brand logo stream, omitted when none */
+            /** @description Public vehicle brand logo stream (list rows, customer jobs, detail); omitted when none */
             brand_logo_url?: string;
             /** @description List rows only (card tags); omitted when empty. */
             services?: components["schemas"]["JobServiceTag"][];
@@ -12790,6 +12954,8 @@ export interface components {
             uuid: string;
             /** @example Fiat */
             name: string;
+            /** @description API-owned display brand logo stream (append `variant=badge` for the emblem); null without a logo */
+            logo_url?: string | null;
         };
         /** @enum {string} */
         VehicleCatalogFuel: "petrol" | "diesel" | "hybrid" | "electric" | "lpg";
@@ -13325,6 +13491,340 @@ export interface components {
             brand_uuid: string;
             /** @description Name of the new display brand */
             name?: string;
+        };
+        InsightsMonthPoint: {
+            /**
+             * @description YYYY-MM (UTC)
+             * @example 2026-10
+             */
+            month: string;
+            /**
+             * Format: int64
+             * @description Jobs / purchases in the month (0 where not applicable)
+             */
+            count: number;
+            /** @description Quantity sold (product trend only) */
+            qty?: string;
+            /**
+             * @description Product: revenue · service: revenue · customer: job spend · supplier: spend
+             * @example 1250.00
+             */
+            amount: string;
+            /**
+             * @description Customer trend only: product sale spend
+             * @example 300.00
+             */
+            amount_secondary?: string;
+        };
+        ProductSummary: {
+            /** Format: uuid */
+            product_uuid: string;
+            /** @example TRY */
+            currency: string;
+            stock: {
+                tracked: boolean;
+                /** @example 12 */
+                quantity: string;
+                /** @example 5 */
+                min_alert: string;
+                /** @enum {string} */
+                status: "in_stock" | "low_stock" | "out_of_stock" | "untracked";
+                /** @example 720.00 */
+                cost_value: string;
+                /** @example 1200.00 */
+                sale_value: string;
+                /**
+                 * @description quantity - min_alert
+                 * @example 7
+                 */
+                coverage_qty: string;
+            };
+            pricing: {
+                cost_price: string;
+                sale_price: string;
+                unit_margin: string;
+                /** @description unit_margin / sale_price * 100, one decimal */
+                margin_percent: number;
+            };
+            sales: {
+                /** Format: int64 */
+                sale_count: number;
+                sold_qty: string;
+                revenue: string;
+                /** Format: date-time */
+                last_sold_at: string | null;
+                last_sale_price: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+            } | null;
+            purchases: {
+                /** Format: int64 */
+                purchase_count: number;
+                purchased_qty: string;
+                spend: string;
+                avg_unit_cost: string;
+                /** Format: date-time */
+                last_purchased_at: string | null;
+                last_purchase_cost: string | null;
+            } | null;
+            jobs: {
+                /** Format: int64 */
+                line_job_count: number;
+                line_qty: string;
+                line_revenue: string;
+                /** Format: int64 */
+                consumption_job_count: number;
+                consumed_qty: string;
+                /** Format: date-time */
+                last_consumed_at: string | null;
+            } | null;
+        };
+        ProductMovement: {
+            /**
+             * @description ref_uuid is the purchase, sale or job uuid
+             * @enum {string}
+             */
+            kind: "purchase" | "sale" | "job";
+            /** Format: uuid */
+            ref_uuid: string;
+            /** @description Document status (posted / voided) or the job status */
+            status: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Supplier or customer name */
+            party_name: string;
+            /**
+             * Format: uuid
+             * @description Supplier uuid (purchase) or customer uuid (sale / job)
+             */
+            party_uuid: string | null;
+            /** @description Job plate (kind=job) */
+            plate?: string;
+            /** @description Recipe service that consumed the product (kind=job) */
+            service_name?: string;
+            /**
+             * @description Signed quantity (+ into stock, - out of stock)
+             * @example -2
+             */
+            qty: string;
+            /** @description Unit cost (purchase / job) or unit price (sale) */
+            unit_price: string;
+            total: string;
+            currency: string;
+            /** @description false for voided documents and reverted consumptions */
+            effective: boolean;
+        };
+        ServiceSummary: {
+            /** Format: uuid */
+            service_uuid: string;
+            currency: string;
+            pricing: {
+                price: string;
+                /** @description Sum of recipe qty x product cost price */
+                recipe_cost: string;
+                recipe_item_count: number;
+                unit_margin: string;
+                margin_percent: number;
+                duration_minutes: number;
+            };
+            usage: {
+                /** Format: int64 */
+                job_count: number;
+                /** Format: int64 */
+                line_count: number;
+                /** Format: int64 */
+                customer_count: number;
+                qty: string;
+                revenue: string;
+                avg_unit_price: string;
+                /** @description Average started → completed time of finished jobs */
+                avg_job_minutes: number;
+                /** Format: date-time */
+                first_used_at: string | null;
+                /** Format: date-time */
+                last_used_at: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+            } | null;
+        };
+        ServiceJob: {
+            /** Format: uuid */
+            uuid: string;
+            status: string;
+            payment_status: string;
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            completed_at: string | null;
+            plate: string;
+            vehicle_label: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            /** Format: uuid */
+            brand_uuid: string;
+            brand_name: string;
+            /** @description API-owned vehicle brand logo (`?variant=badge` for the emblem) */
+            brand_logo_url: string | null;
+            qty: string;
+            line_total: string;
+            currency: string;
+        };
+        CustomerSummary: {
+            /** Format: uuid */
+            customer_uuid: string;
+            vehicle_count: number;
+            total_spend: string;
+            /** Format: date-time */
+            last_visit_at: string | null;
+            jobs: {
+                /** Format: int64 */
+                job_count: number;
+                /** Format: int64 */
+                open_job_count: number;
+                /** Format: int64 */
+                unpaid_job_count: number;
+                spend: string;
+                unpaid_amount: string;
+                /** Format: date-time */
+                first_visit_at: string | null;
+                /** Format: date-time */
+                last_visit_at: string | null;
+            } | null;
+            sales: {
+                /** Format: int64 */
+                sale_count: number;
+                spend: string;
+                /** Format: date-time */
+                last_sold_at: string | null;
+            } | null;
+            quotes: {
+                /** Format: int64 */
+                quote_count: number;
+                /** Format: int64 */
+                open_quote_count: number;
+                /** Format: int64 */
+                accepted_quote_count: number;
+            } | null;
+            leads: {
+                /** Format: int64 */
+                lead_count: number;
+                /** Format: int64 */
+                open_lead_count: number;
+            } | null;
+            /** @description amount = job spend, amount_secondary = product sale spend */
+            monthly: components["schemas"]["InsightsMonthPoint"][];
+            top_services: {
+                /** Format: uuid */
+                service_uuid: string | null;
+                name: string;
+                /** Format: int64 */
+                job_count: number;
+                revenue: string;
+                /** Format: date-time */
+                last_used_at: string | null;
+            }[];
+            /** @description Per-vehicle job stats (empty without tenant.jobs.read) */
+            vehicles: {
+                /** Format: uuid */
+                vehicle_uuid: string;
+                /** Format: int64 */
+                job_count: number;
+                spend: string;
+                /** Format: date-time */
+                last_visit_at: string | null;
+            }[];
+            recent_sales: {
+                /** Format: uuid */
+                uuid: string;
+                status: string;
+                method: string;
+                total_amount: string;
+                currency: string;
+                /** Format: date-time */
+                sold_at: string;
+                /** Format: int64 */
+                line_count: number;
+            }[];
+        };
+        SupplierSummary: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            purchases: {
+                /** Format: int64 */
+                purchase_count: number;
+                spend: string;
+                avg_purchase: string;
+                /** Format: int64 */
+                product_count: number;
+                /** Format: date-time */
+                first_purchased_at: string | null;
+                /** Format: date-time */
+                last_purchased_at: string | null;
+                monthly: components["schemas"]["InsightsMonthPoint"][];
+                top_products: {
+                    /** Format: uuid */
+                    product_uuid: string;
+                    name: string;
+                    unit: string;
+                    qty: string;
+                    spend: string;
+                    /** Format: date-time */
+                    last_purchased_at: string | null;
+                }[];
+                recent: {
+                    /** Format: uuid */
+                    uuid: string;
+                    status: string;
+                    method: string;
+                    total_amount: string;
+                    currency: string;
+                    /** Format: date-time */
+                    purchased_at: string;
+                    /** Format: int64 */
+                    line_count: number;
+                }[];
+            } | null;
+        };
+        EnvelopeProductSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ProductSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeProductMovementList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["ProductMovement"][];
+                total: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeServiceSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ServiceSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeServiceJobList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["ServiceJob"][];
+                total: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSupplierSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SupplierSummary"];
+            meta: components["schemas"]["ResponseMeta"];
         };
     };
     responses: {
@@ -26944,6 +27444,202 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getTenantCatalogProductSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Product summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProductSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listTenantCatalogProductMovements: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Movements */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeProductMovementList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantCatalogServiceSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Service summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeServiceSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listTenantCatalogServiceJobs: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Jobs */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeServiceJobList"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantCustomerSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Customer summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getTenantSupplierSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Supplier summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSupplierSummary"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            500: components["responses"]["InternalError"];
         };
     };
 }

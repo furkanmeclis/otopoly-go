@@ -16,7 +16,17 @@ export const supplierKeys = {
   meta: () => [...supplierKeys.all, "meta"] as const,
   list: (params?: unknown) => [...supplierKeys.all, "list", params] as const,
   detail: (uuid: string) => [...supplierKeys.all, "detail", uuid] as const,
+  summary: (uuid: string) =>
+    [...supplierKeys.all, "detail", uuid, "summary"] as const,
 };
+
+export function useSupplierSummary(uuid: string) {
+  return useQuery({
+    queryKey: supplierKeys.summary(uuid),
+    queryFn: () => suppliersService.summary(uuid),
+    enabled: Boolean(uuid),
+  });
+}
 
 export function useSuppliersMeta() {
   return useQuery({

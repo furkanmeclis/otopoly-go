@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
 import { StatusChip } from "@/components/common/status-chip";
@@ -40,6 +41,7 @@ import {
 import { JobContractsSection } from "@/features/contracts";
 import { CloseJobDialog } from "@/features/jobs/components/close-job-dialog";
 import { JobConsumptionsCard } from "@/features/jobs/components/job-consumptions-card";
+import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { useJob, useJobsMutations } from "@/features/jobs/hooks/use-jobs";
 import { useTenantJobsAccess } from "@/features/jobs/hooks/use-tenant-jobs-access";
 import type {
@@ -231,8 +233,32 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
       {job ? (
         <div className="space-y-6">
           <EntityHeader
-            title={job.plate}
-            subtitle={job.vehicle_label || undefined}
+            leading={
+              <BrandMark
+                name={job.brand_name || job.vehicle_label}
+                logoUrl={job.brand_logo_url}
+                size="lg"
+                className="size-14 rounded-xl"
+              />
+            }
+            title={<PlateBadge plate={job.plate} />}
+            subtitle={
+              job.vehicle_label ? (
+                <span className="inline-flex flex-wrap items-center gap-1.5">
+                  {job.vehicle_label}
+                  <span aria-hidden>·</span>
+                  <Link
+                    href={routes.tenant.customers.detail(
+                      slug,
+                      job.customer_uuid,
+                    )}
+                    className="text-primary hover:underline"
+                  >
+                    {job.customer_name}
+                  </Link>
+                </span>
+              ) : undefined
+            }
             badges={
               <div className="flex flex-wrap gap-2">
                 <StatusChip
@@ -280,7 +306,18 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                     {
                       key: "vehicle",
                       label: t("jobs.vehicle"),
-                      value: `${job.plate}${job.vehicle_label ? ` · ${job.vehicle_label}` : ""}`,
+                      value: (
+                        <span className="inline-flex items-center gap-2">
+                          <BrandMark
+                            name={job.brand_name || job.vehicle_label}
+                            logoUrl={job.brand_logo_url}
+                          />
+                          <span>
+                            {job.plate}
+                            {job.vehicle_label ? ` · ${job.vehicle_label}` : ""}
+                          </span>
+                        </span>
+                      ),
                     },
                     {
                       key: "assignee",
@@ -337,7 +374,19 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                     className="flex items-center justify-between gap-4 py-2"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium">{line.name}</p>
+                      {line.service_uuid ? (
+                        <Link
+                          href={routes.tenant.catalog.services.detail(
+                            slug,
+                            line.service_uuid,
+                          )}
+                          className="font-medium hover:underline"
+                        >
+                          {line.name}
+                        </Link>
+                      ) : (
+                        <p className="font-medium">{line.name}</p>
+                      )}
                       <p className="text-muted-foreground tabular-nums">
                         {formatFinanceAmount(
                           line.unit_price,
@@ -384,12 +433,25 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
                         {t(`jobs.payment_method.${payment.method}`)}
                       </p>
                       <p className="text-muted-foreground">
-                        {payment.finance_account_name ||
+                        {payment.finance_account_uuid &&
+                        payment.finance_account_name ? (
+                          <Link
+                            href={routes.tenant.finance.accounts.detail(
+                              slug,
+                              payment.finance_account_uuid,
+                            )}
+                            className="hover:underline"
+                          >
+                            {payment.finance_account_name}
+                          </Link>
+                        ) : (
+                          payment.finance_account_name ||
                           datetime(
                             payment.created_at,
                             "dd.MM.yyyy HH:mm",
                             locale,
-                          )}
+                          )
+                        )}
                       </p>
                     </div>
                     <span className="shrink-0 font-medium tabular-nums">

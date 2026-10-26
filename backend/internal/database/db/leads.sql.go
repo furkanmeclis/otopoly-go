@@ -203,10 +203,15 @@ SELECT
     v.plate AS vehicle_plate,
     au.uuid AS assignee_uuid,
     COALESCE(NULLIF(TRIM(au.name || ' ' || au.surname), ''), au.email, '')::text AS assignee_name,
-    COALESCE(NULLIF(TRIM(cu.name || ' ' || cu.surname), ''), cu.email, '')::text AS created_by_name
+    COALESCE(NULLIF(TRIM(cu.name || ' ' || cu.surname), ''), cu.email, '')::text AS created_by_name,
+    vb.uuid AS vehicle_brand_uuid,
+    COALESCE(vb.name, '')::text AS vehicle_brand_name,
+    vb.logo_object_key AS vehicle_brand_logo_object_key
 FROM leads l
 JOIN customers c ON c.id = l.customer_id
 LEFT JOIN customer_vehicles v ON v.id = l.vehicle_id AND v.deleted_at IS NULL
+LEFT JOIN vehicle_models vm ON vm.id = v.model_id
+LEFT JOIN vehicle_brands vb ON vb.id = vm.brand_id
 LEFT JOIN users au ON au.id = l.assignee_user_id
 LEFT JOIN users cu ON cu.id = l.created_by
 WHERE l.uuid = $1 AND l.organization_id = $2 AND l.deleted_at IS NULL
@@ -218,34 +223,37 @@ type GetLeadDetailParams struct {
 }
 
 type GetLeadDetailRow struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	OrganizationID int64              `json:"organization_id"`
-	CustomerID     int64              `json:"customer_id"`
-	VehicleID      pgtype.Int8        `json:"vehicle_id"`
-	VehicleText    string             `json:"vehicle_text"`
-	Interest       string             `json:"interest"`
-	Source         string             `json:"source"`
-	Temperature    string             `json:"temperature"`
-	Status         string             `json:"status"`
-	LostReason     string             `json:"lost_reason"`
-	Notes          string             `json:"notes"`
-	FollowUpDate   pgtype.Date        `json:"follow_up_date"`
-	AssigneeUserID pgtype.Int8        `json:"assignee_user_id"`
-	CreatedBy      pgtype.Int8        `json:"created_by"`
-	ContactedAt    pgtype.Timestamptz `json:"contacted_at"`
-	ClosedAt       pgtype.Timestamptz `json:"closed_at"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
-	CustomerUuid   uuid.UUID          `json:"customer_uuid"`
-	CustomerName   string             `json:"customer_name"`
-	CustomerPhone  string             `json:"customer_phone"`
-	VehicleUuid    pgtype.UUID        `json:"vehicle_uuid"`
-	VehiclePlate   pgtype.Text        `json:"vehicle_plate"`
-	AssigneeUuid   pgtype.UUID        `json:"assignee_uuid"`
-	AssigneeName   string             `json:"assignee_name"`
-	CreatedByName  string             `json:"created_by_name"`
+	ID                        int64              `json:"id"`
+	Uuid                      uuid.UUID          `json:"uuid"`
+	OrganizationID            int64              `json:"organization_id"`
+	CustomerID                int64              `json:"customer_id"`
+	VehicleID                 pgtype.Int8        `json:"vehicle_id"`
+	VehicleText               string             `json:"vehicle_text"`
+	Interest                  string             `json:"interest"`
+	Source                    string             `json:"source"`
+	Temperature               string             `json:"temperature"`
+	Status                    string             `json:"status"`
+	LostReason                string             `json:"lost_reason"`
+	Notes                     string             `json:"notes"`
+	FollowUpDate              pgtype.Date        `json:"follow_up_date"`
+	AssigneeUserID            pgtype.Int8        `json:"assignee_user_id"`
+	CreatedBy                 pgtype.Int8        `json:"created_by"`
+	ContactedAt               pgtype.Timestamptz `json:"contacted_at"`
+	ClosedAt                  pgtype.Timestamptz `json:"closed_at"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt                 pgtype.Timestamptz `json:"deleted_at"`
+	CustomerUuid              uuid.UUID          `json:"customer_uuid"`
+	CustomerName              string             `json:"customer_name"`
+	CustomerPhone             string             `json:"customer_phone"`
+	VehicleUuid               pgtype.UUID        `json:"vehicle_uuid"`
+	VehiclePlate              pgtype.Text        `json:"vehicle_plate"`
+	AssigneeUuid              pgtype.UUID        `json:"assignee_uuid"`
+	AssigneeName              string             `json:"assignee_name"`
+	CreatedByName             string             `json:"created_by_name"`
+	VehicleBrandUuid          pgtype.UUID        `json:"vehicle_brand_uuid"`
+	VehicleBrandName          string             `json:"vehicle_brand_name"`
+	VehicleBrandLogoObjectKey pgtype.Text        `json:"vehicle_brand_logo_object_key"`
 }
 
 func (q *Queries) GetLeadDetail(ctx context.Context, arg GetLeadDetailParams) (GetLeadDetailRow, error) {
@@ -280,6 +288,9 @@ func (q *Queries) GetLeadDetail(ctx context.Context, arg GetLeadDetailParams) (G
 		&i.AssigneeUuid,
 		&i.AssigneeName,
 		&i.CreatedByName,
+		&i.VehicleBrandUuid,
+		&i.VehicleBrandName,
+		&i.VehicleBrandLogoObjectKey,
 	)
 	return i, err
 }
@@ -630,10 +641,15 @@ SELECT
     au.uuid AS assignee_uuid,
     COALESCE(NULLIF(TRIM(au.name || ' ' || au.surname), ''), au.email, '')::text AS assignee_name,
     (SELECT COUNT(*)::bigint FROM quotes q WHERE q.lead_id = l.id) AS quote_count,
-    (SELECT MAX(e.created_at) FROM lead_events e WHERE e.lead_id = l.id)::timestamptz AS last_activity_at
+    (SELECT MAX(e.created_at) FROM lead_events e WHERE e.lead_id = l.id)::timestamptz AS last_activity_at,
+    vb.uuid AS vehicle_brand_uuid,
+    COALESCE(vb.name, '')::text AS vehicle_brand_name,
+    vb.logo_object_key AS vehicle_brand_logo_object_key
 FROM leads l
 JOIN customers c ON c.id = l.customer_id
 LEFT JOIN customer_vehicles v ON v.id = l.vehicle_id AND v.deleted_at IS NULL
+LEFT JOIN vehicle_models vm ON vm.id = v.model_id
+LEFT JOIN vehicle_brands vb ON vb.id = vm.brand_id
 LEFT JOIN users au ON au.id = l.assignee_user_id
 WHERE l.organization_id = $1 AND l.deleted_at IS NULL
   AND ($2::text IS NULL OR l.status = $2
@@ -680,25 +696,28 @@ type ListLeadsParams struct {
 }
 
 type ListLeadsRow struct {
-	ID             int64              `json:"id"`
-	Uuid           uuid.UUID          `json:"uuid"`
-	Source         string             `json:"source"`
-	Temperature    string             `json:"temperature"`
-	Status         string             `json:"status"`
-	Interest       string             `json:"interest"`
-	VehicleText    string             `json:"vehicle_text"`
-	LostReason     string             `json:"lost_reason"`
-	FollowUpDate   pgtype.Date        `json:"follow_up_date"`
-	CreatedAt      pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
-	CustomerUuid   uuid.UUID          `json:"customer_uuid"`
-	CustomerName   string             `json:"customer_name"`
-	CustomerPhone  string             `json:"customer_phone"`
-	VehiclePlate   pgtype.Text        `json:"vehicle_plate"`
-	AssigneeUuid   pgtype.UUID        `json:"assignee_uuid"`
-	AssigneeName   string             `json:"assignee_name"`
-	QuoteCount     int64              `json:"quote_count"`
-	LastActivityAt pgtype.Timestamptz `json:"last_activity_at"`
+	ID                        int64              `json:"id"`
+	Uuid                      uuid.UUID          `json:"uuid"`
+	Source                    string             `json:"source"`
+	Temperature               string             `json:"temperature"`
+	Status                    string             `json:"status"`
+	Interest                  string             `json:"interest"`
+	VehicleText               string             `json:"vehicle_text"`
+	LostReason                string             `json:"lost_reason"`
+	FollowUpDate              pgtype.Date        `json:"follow_up_date"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	CustomerUuid              uuid.UUID          `json:"customer_uuid"`
+	CustomerName              string             `json:"customer_name"`
+	CustomerPhone             string             `json:"customer_phone"`
+	VehiclePlate              pgtype.Text        `json:"vehicle_plate"`
+	AssigneeUuid              pgtype.UUID        `json:"assignee_uuid"`
+	AssigneeName              string             `json:"assignee_name"`
+	QuoteCount                int64              `json:"quote_count"`
+	LastActivityAt            pgtype.Timestamptz `json:"last_activity_at"`
+	VehicleBrandUuid          pgtype.UUID        `json:"vehicle_brand_uuid"`
+	VehicleBrandName          string             `json:"vehicle_brand_name"`
+	VehicleBrandLogoObjectKey pgtype.Text        `json:"vehicle_brand_logo_object_key"`
 }
 
 func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLeadsRow, error) {
@@ -743,6 +762,9 @@ func (q *Queries) ListLeads(ctx context.Context, arg ListLeadsParams) ([]ListLea
 			&i.AssigneeName,
 			&i.QuoteCount,
 			&i.LastActivityAt,
+			&i.VehicleBrandUuid,
+			&i.VehicleBrandName,
+			&i.VehicleBrandLogoObjectKey,
 		); err != nil {
 			return nil, err
 		}

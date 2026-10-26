@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { AppDialog } from "@/components/dialogs/app-dialog";
 import { ConfirmDialog } from "@/components/dialogs/confirm-dialog";
 import {
@@ -106,6 +107,12 @@ export function ModelCreateDialog({
         value: b.uuid,
         label: b.display_name,
         description: b.tsb_name,
+        icon: (
+          <BrandMark
+            name={b.display_brand.name}
+            logoUrl={b.display_brand.logo_url}
+          />
+        ),
       })),
     [brands.data],
   );

@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { EmptyState } from "@/components/common/empty-state";
 import {
   AsyncCombobox,
@@ -598,7 +599,12 @@ function QuoteEditor({
                   <SelectContent>
                     {vehicles.map((v) => (
                       <SelectItem key={v.uuid} value={v.uuid}>
-                        {v.plate} · {v.brand_name} {v.model_name} {v.year}
+                        <span className="flex min-w-0 items-center gap-2">
+                          <BrandMark name={v.brand_name} logoUrl={v.logo_url} />
+                          <span className="truncate">
+                            {v.plate} · {v.brand_name} {v.model_name} {v.year}
+                          </span>
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

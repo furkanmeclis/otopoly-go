@@ -57,5 +57,7 @@
   "toast.created": "Satış oluşturuldu",
   "toast.voided": "Satış void edildi",
   "toast.failed": "Satış işlemi başarısız",
-  "empty_hint": "Kasada ürün satarken Hızlı satış ile kaydedin; stok ve kasa otomatik güncellenir."
+  "empty_hint": "Kasada ürün satarken Hızlı satış ile kaydedin; stok ve kasa otomatik güncellenir.",
+  "detail.finance_transaction": "Finans hareketi",
+  "detail.view_transaction": "Hareketi aç"
 }

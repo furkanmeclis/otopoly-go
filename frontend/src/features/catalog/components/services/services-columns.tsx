@@ -1,11 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useMemo } from "react";
 import { Clock, Edit, Eye, Trash2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { EntityRowActions, type EntityRowAction } from "@/components/entity";
 import { createColumn } from "@/components/tables";
+import { routes } from "@/config/routes";
 import { Badge } from "@/components/ui/badge";
 import type { CatalogService } from "@/features/catalog/services/catalog.service";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
@@ -79,6 +82,7 @@ export function useServicesColumns(
   filterOptions?: ServiceColumnFilterOptions,
 ) {
   const { t, locale } = useLocale();
+  const slug = String(useParams<{ slug: string }>()?.slug ?? "");
 
   return useMemo<ColumnDef<CatalogService>[]>(
     () => [
@@ -117,11 +121,22 @@ export function useServicesColumns(
         labelKey: "catalog.services.category",
         filterVariant: filterOptions?.lockCategory ? undefined : "select",
         filterOptions: filterOptions?.categories ?? [],
-        cell: ({ row }) => (
-          <span className="text-muted-foreground text-sm">
-            {row.original.category_name || "—"}
-          </span>
-        ),
+        cell: ({ row }) =>
+          row.original.category_uuid && row.original.category_name && slug ? (
+            <Link
+              href={routes.tenant.catalog.categories.detail(
+                slug,
+                row.original.category_uuid,
+              )}
+              className="text-muted-foreground text-sm hover:underline"
+            >
+              {row.original.category_name}
+            </Link>
+          ) : (
+            <span className="text-muted-foreground text-sm">
+              {row.original.category_name || "—"}
+            </span>
+          ),
       }),
       createColumn<CatalogService>({
         accessorKey: "duration_minutes",
@@ -189,6 +204,7 @@ export function useServicesColumns(
       }),
     ],
     [
+      slug,
       filterOptions?.categories,
       filterOptions?.lockCategory,
       handlers,

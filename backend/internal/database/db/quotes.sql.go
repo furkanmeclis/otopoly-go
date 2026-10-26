@@ -989,34 +989,43 @@ SELECT
     m.uuid AS vehicle_model_uuid,
     COALESCE(b.name || ' ' || m.name, '')::text AS vehicle_model_label,
     j.uuid AS job_uuid,
-    COALESCE(NULLIF(TRIM(u.name || ' ' || u.surname), ''), u.email, '')::text AS created_by_name
+    COALESCE(NULLIF(TRIM(u.name || ' ' || u.surname), ''), u.email, '')::text AS created_by_name,
+    eb.uuid AS vehicle_brand_uuid,
+    COALESCE(eb.name, '')::text AS vehicle_brand_name,
+    eb.logo_object_key AS vehicle_brand_logo_object_key
 FROM quotes q
 JOIN customers c ON c.id = q.customer_id
 LEFT JOIN leads l ON l.id = q.lead_id
 LEFT JOIN customer_vehicles v ON v.id = q.vehicle_id
 LEFT JOIN vehicle_models m ON m.id = q.vehicle_model_id
 LEFT JOIN vehicle_brands b ON b.id = m.brand_id
+LEFT JOIN vehicle_models vm ON vm.id = v.model_id
+LEFT JOIN vehicle_brands eb ON eb.id = COALESCE(m.brand_id, vm.brand_id)
 LEFT JOIN service_jobs j ON j.id = q.job_id
 LEFT JOIN users u ON u.id = q.created_by
 WHERE q.id = $1
 `
 
 type GetQuoteRefsRow struct {
-	CustomerUuid      uuid.UUID   `json:"customer_uuid"`
-	CustomerName      string      `json:"customer_name"`
-	CustomerPhone     string      `json:"customer_phone"`
-	CustomerEmail     string      `json:"customer_email"`
-	CustomerTaxID     string      `json:"customer_tax_id"`
-	CustomerTaxOffice string      `json:"customer_tax_office"`
-	LeadUuid          pgtype.UUID `json:"lead_uuid"`
-	VehicleUuid       pgtype.UUID `json:"vehicle_uuid"`
-	VehicleModelUuid  pgtype.UUID `json:"vehicle_model_uuid"`
-	VehicleModelLabel string      `json:"vehicle_model_label"`
-	JobUuid           pgtype.UUID `json:"job_uuid"`
-	CreatedByName     string      `json:"created_by_name"`
+	CustomerUuid              uuid.UUID   `json:"customer_uuid"`
+	CustomerName              string      `json:"customer_name"`
+	CustomerPhone             string      `json:"customer_phone"`
+	CustomerEmail             string      `json:"customer_email"`
+	CustomerTaxID             string      `json:"customer_tax_id"`
+	CustomerTaxOffice         string      `json:"customer_tax_office"`
+	LeadUuid                  pgtype.UUID `json:"lead_uuid"`
+	VehicleUuid               pgtype.UUID `json:"vehicle_uuid"`
+	VehicleModelUuid          pgtype.UUID `json:"vehicle_model_uuid"`
+	VehicleModelLabel         string      `json:"vehicle_model_label"`
+	JobUuid                   pgtype.UUID `json:"job_uuid"`
+	CreatedByName             string      `json:"created_by_name"`
+	VehicleBrandUuid          pgtype.UUID `json:"vehicle_brand_uuid"`
+	VehicleBrandName          string      `json:"vehicle_brand_name"`
+	VehicleBrandLogoObjectKey pgtype.Text `json:"vehicle_brand_logo_object_key"`
 }
 
 // Joined display fields for one quote (detail, PDF, public view).
+// Effective brand: the quote's catalog model, else the customer vehicle's.
 func (q *Queries) GetQuoteRefs(ctx context.Context, id int64) (GetQuoteRefsRow, error) {
 	row := q.db.QueryRow(ctx, getQuoteRefs, id)
 	var i GetQuoteRefsRow
@@ -1033,6 +1042,9 @@ func (q *Queries) GetQuoteRefs(ctx context.Context, id int64) (GetQuoteRefsRow, 
 		&i.VehicleModelLabel,
 		&i.JobUuid,
 		&i.CreatedByName,
+		&i.VehicleBrandUuid,
+		&i.VehicleBrandName,
+		&i.VehicleBrandLogoObjectKey,
 	)
 	return i, err
 }
@@ -1638,11 +1650,17 @@ SELECT
     c.phone AS customer_phone,
     l.uuid AS lead_uuid,
     j.uuid AS job_uuid,
-    (SELECT COUNT(*)::bigint FROM quote_lines ql WHERE ql.quote_id = q.id) AS line_count
+    (SELECT COUNT(*)::bigint FROM quote_lines ql WHERE ql.quote_id = q.id) AS line_count,
+    eb.uuid AS vehicle_brand_uuid,
+    COALESCE(eb.name, '')::text AS vehicle_brand_name,
+    eb.logo_object_key AS vehicle_brand_logo_object_key
 FROM quotes q
 JOIN customers c ON c.id = q.customer_id
 LEFT JOIN leads l ON l.id = q.lead_id
 LEFT JOIN service_jobs j ON j.id = q.job_id
+LEFT JOIN customer_vehicles cv ON cv.id = q.vehicle_id
+LEFT JOIN vehicle_models qm ON qm.id = COALESCE(q.vehicle_model_id, cv.model_id)
+LEFT JOIN vehicle_brands eb ON eb.id = qm.brand_id
 WHERE q.organization_id = $1
   AND ($2::text IS NULL OR q.status = $2
        OR ($2::text = 'open' AND (q.status IN ('draft', 'sent', 'viewed') OR (q.status = 'accepted' AND q.job_id IS NULL))))
@@ -1676,25 +1694,28 @@ type ListQuotesParams struct {
 }
 
 type ListQuotesRow struct {
-	ID            int64              `json:"id"`
-	Uuid          uuid.UUID          `json:"uuid"`
-	Number        string             `json:"number"`
-	Status        string             `json:"status"`
-	Currency      string             `json:"currency"`
-	GrandTotal    pgtype.Numeric     `json:"grand_total"`
-	ValidUntil    pgtype.Date        `json:"valid_until"`
-	VehiclePlate  string             `json:"vehicle_plate"`
-	VehicleLabel  string             `json:"vehicle_label"`
-	SentAt        pgtype.Timestamptz `json:"sent_at"`
-	ViewedAt      pgtype.Timestamptz `json:"viewed_at"`
-	CreatedAt     pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
-	CustomerUuid  uuid.UUID          `json:"customer_uuid"`
-	CustomerName  string             `json:"customer_name"`
-	CustomerPhone string             `json:"customer_phone"`
-	LeadUuid      pgtype.UUID        `json:"lead_uuid"`
-	JobUuid       pgtype.UUID        `json:"job_uuid"`
-	LineCount     int64              `json:"line_count"`
+	ID                        int64              `json:"id"`
+	Uuid                      uuid.UUID          `json:"uuid"`
+	Number                    string             `json:"number"`
+	Status                    string             `json:"status"`
+	Currency                  string             `json:"currency"`
+	GrandTotal                pgtype.Numeric     `json:"grand_total"`
+	ValidUntil                pgtype.Date        `json:"valid_until"`
+	VehiclePlate              string             `json:"vehicle_plate"`
+	VehicleLabel              string             `json:"vehicle_label"`
+	SentAt                    pgtype.Timestamptz `json:"sent_at"`
+	ViewedAt                  pgtype.Timestamptz `json:"viewed_at"`
+	CreatedAt                 pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
+	CustomerUuid              uuid.UUID          `json:"customer_uuid"`
+	CustomerName              string             `json:"customer_name"`
+	CustomerPhone             string             `json:"customer_phone"`
+	LeadUuid                  pgtype.UUID        `json:"lead_uuid"`
+	JobUuid                   pgtype.UUID        `json:"job_uuid"`
+	LineCount                 int64              `json:"line_count"`
+	VehicleBrandUuid          pgtype.UUID        `json:"vehicle_brand_uuid"`
+	VehicleBrandName          string             `json:"vehicle_brand_name"`
+	VehicleBrandLogoObjectKey pgtype.Text        `json:"vehicle_brand_logo_object_key"`
 }
 
 func (q *Queries) ListQuotes(ctx context.Context, arg ListQuotesParams) ([]ListQuotesRow, error) {
@@ -1735,6 +1756,9 @@ func (q *Queries) ListQuotes(ctx context.Context, arg ListQuotesParams) ([]ListQ
 			&i.LeadUuid,
 			&i.JobUuid,
 			&i.LineCount,
+			&i.VehicleBrandUuid,
+			&i.VehicleBrandName,
+			&i.VehicleBrandLogoObjectKey,
 		); err != nil {
 			return nil, err
 		}

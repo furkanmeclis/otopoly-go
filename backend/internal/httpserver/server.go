@@ -56,6 +56,8 @@ import (
 	importmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports"
 	importhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/handler"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
+	insightsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/insights"
+	insightsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/insights/usecase"
 	githubmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github"
 	githubhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github/handler"
 	githubusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github/usecase"
@@ -540,6 +542,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	customersSvc := customersusecase.New(deps.DB, deps.Queries, activityRec)
 	customersSvc.SetEntitlements(entitlementsSvc)
 	customersmodule.RegisterRoutes(mux, customersSvc, tokens, loader, deps.Queries)
+	insightsmodule.RegisterRoutes(mux, insightsusecase.New(deps.Queries), tokens, loader, deps.Queries)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, deps.Queries)
 	centerSvc := centerusecase.New(deps.Queries, notifSvc, centerMessenger, log).
 		SetStorage(deps.Storage).

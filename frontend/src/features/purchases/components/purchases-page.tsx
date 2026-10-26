@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { z } from "zod";
@@ -115,7 +116,7 @@ export function PurchasesPage({ slug }: { slug: string }) {
     listQuery.refetch,
   );
   const metaQuery = usePurchasesMeta();
-  const columns = usePurchaseColumns();
+  const columns = usePurchaseColumns(slug);
 
   const applySearch = useCallback(() => {
     setQ(searchInput.trim());
@@ -272,7 +273,7 @@ export function PurchasesPage({ slug }: { slug: string }) {
   );
 }
 
-function usePurchaseColumns(): ColumnDef<PurchaseListItem>[] {
+function usePurchaseColumns(slug: string): ColumnDef<PurchaseListItem>[] {
   const { t, locale } = useLocale();
   return useMemo<ColumnDef<PurchaseListItem>[]>(
     () => [
@@ -291,7 +292,15 @@ function usePurchaseColumns(): ColumnDef<PurchaseListItem>[] {
         header: t("purchases.supplier"),
         meta: { label: t("purchases.supplier"), gridPrimary: true },
         cell: ({ row }) => (
-          <span className="font-medium">{row.original.supplier_name}</span>
+          <Link
+            href={routes.tenant.suppliers.detail(
+              slug,
+              row.original.supplier_uuid,
+            )}
+            className="font-medium hover:underline"
+          >
+            {row.original.supplier_name}
+          </Link>
         ),
       },
       {
@@ -378,7 +387,7 @@ function usePurchaseColumns(): ColumnDef<PurchaseListItem>[] {
         ),
       },
     ],
-    [t, locale],
+    [locale, slug, t],
   );
 }
 

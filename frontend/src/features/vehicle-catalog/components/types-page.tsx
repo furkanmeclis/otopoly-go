@@ -6,6 +6,7 @@ import { Eye, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { ErrorState } from "@/components/common/error-state";
 import { StatusChip } from "@/components/common/status-chip";
 import {
@@ -166,7 +167,17 @@ export function CatalogTypesPage({
           filterVariant: "faceted",
           filterOptions: brandOptions,
           gridSecondary: true,
-          cell: ({ row }) => row.original.brand.display_name,
+          cell: ({ row }) => (
+            <span className="flex items-center gap-2">
+              <BrandMark
+                name={row.original.display_brand.name}
+                logoUrl={row.original.display_brand.logo_url}
+              />
+              <span className="truncate">
+                {row.original.brand.display_name}
+              </span>
+            </span>
+          ),
         }),
         createColumn<CatalogType>({
           id: "model",

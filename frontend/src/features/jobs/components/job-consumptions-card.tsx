@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Loader2, PackageMinus, Plus, Trash2 } from "lucide-react";
 
@@ -7,6 +9,7 @@ import { EntitySectionCard } from "@/components/entity";
 import { AsyncCombobox } from "@/components/ui/async-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { routes } from "@/config/routes";
 import { loadProductOptions } from "@/features/catalog/lib/product-options";
 import { catalogUnitLabel } from "@/features/catalog/lib/units";
 import {
@@ -196,6 +199,7 @@ function ConsumptionRow({
   onQty: (value: string) => void;
   onDelete: () => void;
 }) {
+  const slug = String(useParams<{ slug: string }>()?.slug ?? "");
   const { t, locale } = useLocale();
   const [draft, setDraft] = useState(c.qty);
   const unit = catalogUnitLabel(t, c.unit);
@@ -217,7 +221,16 @@ function ConsumptionRow({
     >
       <div className="min-w-0">
         <p className={cn("truncate font-medium", c.reverted && "line-through")}>
-          {c.name}
+          {slug ? (
+            <Link
+              href={routes.tenant.catalog.products.detail(slug, c.product_uuid)}
+              className="hover:underline"
+            >
+              {c.name}
+            </Link>
+          ) : (
+            c.name
+          )}
         </p>
         <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
           <span>
