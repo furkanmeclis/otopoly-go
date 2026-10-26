@@ -234,6 +234,17 @@ Organization calendar under `/v1/tenant/calendar/*` (module `internal/modules/ca
 
 **AI:** `list_calendar` (read) and `create_calendar_event` (confirmable write).
 
+## Tenant reviews (`/t/{slug}/reviews`, public `/r/{token}`)
+
+Review collection (`internal/modules/reviews`, migrations 000095–000096).
+
+- **Flow:** `jobs.delivered` schedules one `review_requests` row per job (unique per job, so repeated events are no-ops) at `delivered_at + delay` (30 min–48 h, default 2 h), moved out of the quiet window (default 21:00–09:00 Europe/Istanbul) to the next morning. `jobs.cancelled` / `jobs.voided` cancel an unsent request. The minute sweep (`app:reviews:sweep`, API + worker) claims due rows (`scheduled → sending`, `FOR UPDATE SKIP LOCKED`), re-checks settings, job status, quiet hours, `reviews.enabled`, the exclude list, the phone, the frequency cap (`min_days_between`, default 30) and `reviews.monthly`, resolves the channel (`auto` = WhatsApp when it can send now, else the organization's SMS provider) and queues the message through `messaging` (`QueueSend`, event `review.request`, subject `review_request` → logged in `outbound_messages`, WhatsApp/SMS plan gates apply). Async send failures come back through the messaging outbound observer. Links expire after 30 days.
+- **Template:** message type `review.request` in Ayarlar → Mesajlar (`{{musteri_adi}}`, `{{isletme_adi}}`, `{{link}}`; the short `{musteri_adi}` form also works). The platform WhatsApp number sends the catalog entry `otopoly_review_request`.
+- **Public page:** Next.js `/r/{token}` (22-char random token) → `GET/POST /v1/public/reviews/{token}` and `POST …/google` (rate-limited, no auth). Answer once; score ≥ `high_score_threshold` (default 4) shows the Google review button (redirects counted), lower scores set `follow_up_status = required` and notify members with `tenant.reviews.read` through the notification center (`review.low_score`, in-app + web/mobile push, e-mail per preference).
+- **Panel:** list + KPI tiles + trend, detail with "ele alındı" (follow-up note), settings with test send, customer 360 section. Live resource `tenant.reviews`; activity `tenant.review.*`.
+- **RBAC / plan:** `tenant.reviews.read` (owner + staff), `tenant.reviews.write` (owner, and the HTTP layer requires the owner role); plan features `reviews.enabled` (toggle) and `reviews.monthly` (limit; undefined = on / unlimited).
+- **AI / MCP:** `list_reviews`, `get_review_summary`, confirmable `mark_review_followed_up`.
+
 ## Tenant cari (`/t/{slug}/cari`)
 
 Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.

@@ -12,7 +12,7 @@ import (
 
 // SafeVars are the only template variables a push text may contain. They are
 // copied into the in-app notification payload under "push_vars".
-var SafeVars = []string{"quote_number", "due_in", "feature_label", "days_left"}
+var SafeVars = []string{"quote_number", "due_in", "feature_label", "days_left", "score"}
 
 // Text is one localized push.
 type Text struct {
@@ -42,6 +42,10 @@ var catalog = map[string]pair{
 	"todo.reminder": {
 		tr: Text{"Görev hatırlatması", "Bir görevinizin zamanı yaklaşıyor ({{due_in}})."},
 		en: Text{"Task reminder", "One of your tasks is due {{due_in}}."},
+	},
+	"review.low_score": {
+		tr: Text{"Düşük puanlı değerlendirme", "Bir müşteri {{score}} puan verdi, takip gerekli."},
+		en: Text{"Low score review", "A customer gave {{score}} stars, follow-up needed."},
 	},
 	"billing.usage_warning": {
 		tr: Text{"Kullanım uyarısı", "{{feature_label}} kullanımı plan limitine yaklaştı."},

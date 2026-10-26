@@ -106,6 +106,8 @@ import (
 	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
 	reportsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports"
 	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
+	reviewsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reviews"
+	reviewsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reviews/usecase"
 	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
 	salesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/salesflow"
@@ -573,10 +575,23 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	// Leads & quotes ↔ notification center / todos integration.
 	sales := salesflow.New(centerSvc, centerMessenger, deps.Queries, log)
 	sales.Register(centerSvc)
+	// Review collection: requests after delivery, public answer page, low
+	// score notices through the notification center (modules/reviews).
+	reviewsSvc := reviewsusecase.New(deps.Queries, reviewsmodule.NewMessagingAdapter(messagingSvc), cfg.Auth.FrontendURL, log)
+	reviewsSvc.SetEntitlements(entitlementsSvc)
+	reviewsSvc.SetRecorder(activityRec)
+	reviewsSvc.SetTeamNotifier(reviewsmodule.NewCenterNotifier(centerSvc))
+	reviewsmodule.RegisterRoutes(mux, reviewsSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries, entitlementsSvc)
+	reviewsmodule.RegisterEventHandlers(eventBus, reviewsSvc, log)
 	messagingSvc.SetOutboundObserver(func(ctx context.Context, o messagingusecase.OutboundOutcome) {
-		if !o.Sent {
-			sales.OutboundFailed(ctx, o.OrgID, o.EventType, o.SubjectUUID, o.Error)
+		if o.Sent {
+			return
 		}
+		if o.SubjectType == reviewsusecase.SubjectType && o.SubjectUUID != nil {
+			reviewsSvc.OutboundFailed(ctx, o.OrgID, *o.SubjectUUID, o.Error)
+			return
+		}
+		sales.OutboundFailed(ctx, o.OrgID, o.EventType, o.SubjectUUID, o.Error)
 	})
 	todosSvc := todosusecase.New(deps.Queries, activityRec)
 	todosSvc.SetLogger(log)
@@ -633,6 +648,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	}{
 		customersSvc, jobsSvc, salesSvc, quotesSvc, leadsSvc, purchasesSvc, suppliersSvc,
 		catalogSvc, financeSvc, cariSvc, todosSvc, contractsSvc, staffSvc, importSvc, bulkSvc,
+		reviewsSvc,
 	} {
 		svc.SetResourceEvents(livePub)
 	}
@@ -663,6 +679,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		SalesWrite:      salesSvc,
 		Todos:           todosSvc,
 		Calendar:        calendarSvc,
+		Reviews:         reviewsSvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
 	aiSvc.SetEntitlements(entitlementsSvc)
@@ -692,6 +709,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithQuoteExpire(quotesSvc.ExpireDue).
 			WithDailySummary(dailySummarySvc.SendDue).
 			WithVehicleAlerts(vehicleAlertsSvc.Flush).
+			WithReviews(reviewsSvc.ProcessDue).
 			WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
 			WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts).
 			WithLivePush(livePushSvc.ProcessJob, livePushSvc.ProcessWidgets, livePushSvc.PurgeExpired)
@@ -706,6 +724,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			}
 			if err := queue.RegisterVehicleAlertsSchedule(sched); err != nil {
 				log.Error("vehicle_alerts_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterReviewsSchedule(sched); err != nil {
+				log.Error("reviews_scheduler_failed", "error", err)
 			}
 			if err := queue.RegisterBillingOrdersExpireSchedule(sched); err != nil {
 				log.Error("billing_orders_expire_scheduler_failed", "error", err)

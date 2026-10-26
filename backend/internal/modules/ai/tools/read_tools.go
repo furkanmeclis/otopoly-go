@@ -83,6 +83,9 @@ type Deps struct {
 	SalesWrite     SalesWriter
 	Todos          TodosService
 	Calendar       CalendarService
+	// Reviews adds list_reviews / get_review_summary and the confirmable
+	// mark_review_followed_up.
+	Reviews ReviewsService
 }
 
 // DefaultRegistry builds the tool set (read tools, charts, plan checklist and
@@ -118,6 +121,10 @@ func DefaultRegistry(d Deps) *Registry {
 	}
 	if d.Calendar != nil {
 		r.Register(ListCalendar{calendar: d.Calendar})
+	}
+	if d.Reviews != nil {
+		r.Register(ListReviews{reviews: d.Reviews})
+		r.Register(ReviewSummary{reviews: d.Reviews})
 	}
 	registerWriteTools(r, d)
 	return r
@@ -171,6 +178,9 @@ func registerWriteTools(r *Registry, d Deps) {
 	}
 	if d.Calendar != nil {
 		r.Register(CreateCalendarEvent{calendar: d.Calendar})
+	}
+	if d.Reviews != nil {
+		r.Register(MarkReviewFollowedUp{reviews: d.Reviews})
 	}
 }
 

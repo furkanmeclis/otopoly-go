@@ -279,6 +279,16 @@ var entries = []Entry{
 			Examples: []string{"Tech Auto", "1", "34 ABC 123 — Vehicle checked in · John Smith · Ceramic coating"},
 		}},
 	},
+	{
+		Key: "review.request", MetaName: "otopoly_review_request", Category: CategoryUtility,
+		Body:     "Sayın {{1}}, {{2}} tarafından aracınıza verilen hizmet için değerlendirme bağlantınız {{3}} adresindedir ve 30 gün geçerlidir.",
+		Params:   []string{"customer_name", "business_name", "review_link"},
+		Examples: []string{"Ahmet Yılmaz", "Tech Oto", "https://otopoly.app/r/AbCdEfGhIjKlMnOpQrStUv"},
+		Translations: map[string]Translation{"en": {
+			Body:     "Dear {{1}}, your feedback link for the service {{2}} provided for your vehicle is {{3}} and is valid for 30 days.",
+			Examples: []string{"John Smith", "Tech Auto", "https://otopoly.app/r/AbCdEfGhIjKlMnOpQrStUv"},
+		}},
+	},
 }
 
 // kvkkNotice is the KVKK (Law No. 6698) notice of contract OTP messages,

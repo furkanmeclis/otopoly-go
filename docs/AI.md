@@ -146,6 +146,8 @@ confirmed.
 | `search_vehicle_models` | read | actions | `tenant.customers.read` |
 | `list_todos` | read | todos | `tenant.todos.read` |
 | `list_calendar` | read | chat | `tenant.calendar.read` (+ each layer's module read permission) |
+| `list_reviews` | read | chat | `tenant.reviews.read` (plan `reviews.enabled`) |
+| `get_review_summary` | read | chat | `tenant.reviews.read` (plan `reviews.enabled`) |
 | `render_chart` | ui | charts | — |
 | `update_plan` | ui | chat | — |
 | `record_cari_payment` | write | actions | `tenant.cari.write`, `tenant.cari.read`, `tenant.finance.read` (owner) |
@@ -165,6 +167,7 @@ confirmed.
 | `create_todo` | write | todos | `tenant.todos.write` |
 | `complete_todo` | write | todos | `tenant.todos.write` |
 | `create_calendar_event` | write | actions | `tenant.calendar.write` |
+| `mark_review_followed_up` | write | actions | `tenant.reviews.write`, `tenant.reviews.read` (owner; plan `reviews.enabled`) |
 
 `search_customers` accepts an empty or omitted `query`; in that mode it lists
 the organization's most recent customers and returns `total`, the organization's

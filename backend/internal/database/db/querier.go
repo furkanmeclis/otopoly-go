@@ -24,6 +24,7 @@ type Querier interface {
 	AdjustFinanceAccountBalance(ctx context.Context, arg AdjustFinanceAccountBalanceParams) (FinanceAccount, error)
 	AdjustProductStock(ctx context.Context, arg AdjustProductStockParams) (Product, error)
 	AdjustProductStockByID(ctx context.Context, arg AdjustProductStockByIDParams) error
+	AnswerReviewRequest(ctx context.Context, arg AnswerReviewRequestParams) (ReviewRequest, error)
 	// Webhook status of a wamid. sent < delivered < read never regress (a late
 	// "delivered" after "read" keeps "read"); "failed" always applies (with its
 	// error code) and later non-failed statuses do not override it. Pricing is
@@ -52,6 +53,7 @@ type Querier interface {
 	CancelAIPendingAction(ctx context.Context, id int64) (AiPendingAction, error)
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
+	CancelScheduledReviewRequestsForJob(ctx context.Context, arg CancelScheduledReviewRequestsForJobParams) ([]uuid.UUID, error)
 	CatalogDisplayBrandSlugTaken(ctx context.Context, arg CatalogDisplayBrandSlugTakenParams) (bool, error)
 	// The pending → executing transition is the idempotency lock for confirm.
 	ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error)
@@ -60,6 +62,9 @@ type Querier interface {
 	ClaimCatalogImport(ctx context.Context, arg ClaimCatalogImportParams) (CatalogImport, error)
 	// Marks today's summary as sent; 0 rows when another sweep already claimed it.
 	ClaimDailySummary(ctx context.Context, arg ClaimDailySummaryParams) (int64, error)
+	// Moves due scheduled requests to "sending" so concurrent sweeps (API and
+	// worker) never send one twice.
+	ClaimDueReviewRequests(ctx context.Context, arg ClaimDueReviewRequestsParams) ([]ReviewRequest, error)
 	// Atomic batch claim; concurrent sweepers skip each other's rows.
 	ClaimDueScheduledNotifications(ctx context.Context, arg ClaimDueScheduledNotificationsParams) ([]ScheduledNotification, error)
 	// queued → sending; a second delivery of the same task finds no row.
@@ -150,6 +155,9 @@ type Querier interface {
 	CountProducts(ctx context.Context, arg CountProductsParams) (int64, error)
 	CountPurchases(ctx context.Context, arg CountPurchasesParams) (int64, error)
 	CountQuotes(ctx context.Context, arg CountQuotesParams) (int64, error)
+	// Frequency cap: requests already sent to the same customer (or phone) since.
+	CountRecentReviewRequests(ctx context.Context, arg CountRecentReviewRequestsParams) (int64, error)
+	CountReviewRequests(ctx context.Context, arg CountReviewRequestsParams) (int64, error)
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
 	CountSMSReportOrgMessages(ctx context.Context, organizationID int64) (int64, error)
 	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
@@ -241,6 +249,9 @@ type Querier interface {
 	CreateQuoteLine(ctx context.Context, arg CreateQuoteLineParams) (QuoteLine, error)
 	CreateQuoteReminder(ctx context.Context, arg CreateQuoteReminderParams) (QuoteReminder, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
+	// Idempotent per job: a second delivery event of the same job inserts nothing
+	// (no row → pgx.ErrNoRows).
+	CreateReviewRequest(ctx context.Context, arg CreateReviewRequestParams) (ReviewRequest, error)
 	CreateRole(ctx context.Context, arg CreateRoleParams) (Role, error)
 	// ============================================================================
 	// Services
@@ -333,11 +344,14 @@ type Querier interface {
 	// Marks open quotes whose valid_until day has passed as expired. Idempotent:
 	// a second run finds nothing; accepted / rejected / cancelled rows are never touched.
 	ExpireDueQuotes(ctx context.Context, arg ExpireDueQuotesParams) ([]ExpireDueQuotesRow, error)
+	ExpireReviewRequests(ctx context.Context, now pgtype.Timestamptz) ([]ExpireReviewRequestsRow, error)
 	ExtensionExists(ctx context.Context, extname string) (bool, error)
 	// Async WhatsApp failure reported after the delivery was handed off.
 	FailQuoteDeliveryByRef(ctx context.Context, arg FailQuoteDeliveryByRefParams) (QuoteDelivery, error)
 	// Async WhatsApp failure of a reminder that was already handed off.
 	FailQuoteReminderByRef(ctx context.Context, arg FailQuoteReminderByRefParams) (QuoteReminder, error)
+	// The queued message failed for good after it was handed off.
+	FailReviewRequestByOutbound(ctx context.Context, arg FailReviewRequestByOutboundParams) (ReviewRequest, error)
 	// Resolves actions stuck in 'executing' (the server stopped mid-execution) as
 	// failed: for one conversation, or for all conversations when it is NULL.
 	FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error)
@@ -346,6 +360,8 @@ type Querier interface {
 	FinishOutboundMessage(ctx context.Context, arg FinishOutboundMessageParams) (OutboundMessage, error)
 	FinishQuoteDelivery(ctx context.Context, arg FinishQuoteDeliveryParams) (QuoteDelivery, error)
 	FinishQuoteReminder(ctx context.Context, arg FinishQuoteReminderParams) (QuoteReminder, error)
+	// Ends a claimed request without sending: skipped | cancelled | failed.
+	FinishReviewRequest(ctx context.Context, arg FinishReviewRequestParams) (ReviewRequest, error)
 	GetAIConversation(ctx context.Context, arg GetAIConversationParams) (AiConversation, error)
 	GetAIMessageByID(ctx context.Context, id int64) (AiMessage, error)
 	GetAIOrganizationByUUID(ctx context.Context, argUuid uuid.UUID) (GetAIOrganizationByUUIDRow, error)
@@ -548,6 +564,18 @@ type Querier interface {
 	GetQuoteRowByID(ctx context.Context, id int64) (Quote, error)
 	GetQuoteRowByUUID(ctx context.Context, arg GetQuoteRowByUUIDParams) (Quote, error)
 	GetQuoteRowByUUIDForUpdate(ctx context.Context, arg GetQuoteRowByUUIDForUpdateParams) (Quote, error)
+	GetReviewCustomerID(ctx context.Context, arg GetReviewCustomerIDParams) (int64, error)
+	// The delivered job behind a review request (the job event carries its uuid).
+	GetReviewJob(ctx context.Context, argUuid uuid.UUID) (GetReviewJobRow, error)
+	GetReviewJobStatus(ctx context.Context, arg GetReviewJobStatusParams) (string, error)
+	// The member's notification phone in the organization (test sends).
+	GetReviewMemberPhone(ctx context.Context, arg GetReviewMemberPhoneParams) (string, error)
+	GetReviewOrganization(ctx context.Context, id int64) (GetReviewOrganizationRow, error)
+	GetReviewRequestByToken(ctx context.Context, token string) (ReviewRequest, error)
+	GetReviewRequestByTokenForUpdate(ctx context.Context, token string) (ReviewRequest, error)
+	GetReviewRequestByUUID(ctx context.Context, arg GetReviewRequestByUUIDParams) (GetReviewRequestByUUIDRow, error)
+	// Review collection (internal/modules/reviews).
+	GetReviewSettings(ctx context.Context, organizationID int64) (ReviewSetting, error)
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
@@ -824,6 +852,11 @@ type Querier interface {
 	ListQuotes(ctx context.Context, arg ListQuotesParams) ([]ListQuotesRow, error)
 	ListRecentFinanceTransactionsByAccount(ctx context.Context, arg ListRecentFinanceTransactionsByAccountParams) ([]ListRecentFinanceTransactionsByAccountRow, error)
 	ListRecipesForServices(ctx context.Context, arg ListRecipesForServicesParams) ([]ListRecipesForServicesRow, error)
+	ListReviewCustomersByIDs(ctx context.Context, arg ListReviewCustomersByIDsParams) ([]ListReviewCustomersByIDsRow, error)
+	ListReviewCustomersByUUIDs(ctx context.Context, arg ListReviewCustomersByUUIDsParams) ([]ListReviewCustomersByUUIDsRow, error)
+	// Members of the organization whose roles grant tenant.reviews.read.
+	ListReviewNotifyRecipients(ctx context.Context, organizationID int64) ([]int64, error)
+	ListReviewRequests(ctx context.Context, arg ListReviewRequestsParams) ([]ListReviewRequestsRow, error)
 	ListRolePermissionSlugsByRoleUUID(ctx context.Context, argUuid uuid.UUID) ([]string, error)
 	ListRoleUUIDsForBulk(ctx context.Context, q_ pgtype.Text) ([]uuid.UUID, error)
 	ListRolesFiltered(ctx context.Context, arg ListRolesFilteredParams) ([]Role, error)
@@ -942,6 +975,9 @@ type Querier interface {
 	MarkOutboxFailed(ctx context.Context, arg MarkOutboxFailedParams) error
 	MarkOutboxPublished(ctx context.Context, id int64) error
 	MarkOutboxRetry(ctx context.Context, arg MarkOutboxRetryParams) error
+	MarkReviewFollowedUp(ctx context.Context, arg MarkReviewFollowedUpParams) (MarkReviewFollowedUpRow, error)
+	MarkReviewRequestSent(ctx context.Context, arg MarkReviewRequestSentParams) (ReviewRequest, error)
+	MarkReviewRequestViewed(ctx context.Context, id int64) (ReviewRequest, error)
 	MarkScheduledNotificationCancelled(ctx context.Context, arg MarkScheduledNotificationCancelledParams) (ScheduledNotification, error)
 	// Back to pending with backoff, or failed once max_attempts is reached.
 	MarkScheduledNotificationRetry(ctx context.Context, arg MarkScheduledNotificationRetryParams) (ScheduledNotification, error)
@@ -988,6 +1024,7 @@ type Querier interface {
 	ReassignCatalogModelRules(ctx context.Context, arg ReassignCatalogModelRulesParams) (int64, error)
 	ReassignCatalogTypesModel(ctx context.Context, arg ReassignCatalogTypesModelParams) (int64, error)
 	RecordPlatformAPNsTest(ctx context.Context, arg RecordPlatformAPNsTestParams) (PlatformApnsSetting, error)
+	RecordReviewGoogleRedirect(ctx context.Context, id int64) (ReviewRequest, error)
 	ReferenceCodeExists(ctx context.Context, referenceCode string) (bool, error)
 	// Denormalizes the synced variants and brand color of linked display brands.
 	RefreshCatalogDisplayBrandsSyncedLogos(ctx context.Context) (int64, error)
@@ -1012,6 +1049,7 @@ type Querier interface {
 	ReportPurchaseStats(ctx context.Context, arg ReportPurchaseStatsParams) (ReportPurchaseStatsRow, error)
 	ReportServicesDistribution(ctx context.Context, arg ReportServicesDistributionParams) ([]ReportServicesDistributionRow, error)
 	ReportTopCustomers(ctx context.Context, arg ReportTopCustomersParams) ([]ReportTopCustomersRow, error)
+	RescheduleReviewRequest(ctx context.Context, arg RescheduleReviewRequestParams) error
 	// Todo ↔ lead / quote links (todos LinkResolver). Every query is org-scoped.
 	ResolveTodoLeadLink(ctx context.Context, arg ResolveTodoLeadLinkParams) (int64, error)
 	ResolveTodoQuoteLink(ctx context.Context, arg ResolveTodoQuoteLinkParams) (int64, error)
@@ -1020,6 +1058,10 @@ type Querier interface {
 	RestoreUser(ctx context.Context, id int64) (User, error)
 	// Marks the job's usage as given back; returns the rows whose stock must be restored.
 	RevertJobConsumptions(ctx context.Context, arg RevertJobConsumptionsParams) ([]RevertJobConsumptionsRow, error)
+	ReviewScoreDistribution(ctx context.Context, arg ReviewScoreDistributionParams) ([]ReviewScoreDistributionRow, error)
+	ReviewSummaryTotals(ctx context.Context, arg ReviewSummaryTotalsParams) (ReviewSummaryTotalsRow, error)
+	// Weekly (or monthly) buckets in Europe/Istanbul.
+	ReviewTrend(ctx context.Context, arg ReviewTrendParams) ([]ReviewTrendRow, error)
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
 	RevokeAllUserSessions(ctx context.Context, userID int64) (int64, error)
 	// Blocks the client and everything issued to it: grants, tokens, pending
@@ -1250,6 +1292,7 @@ type Querier interface {
 	// re-enabled on every registration.
 	UpsertPushDevice(ctx context.Context, arg UpsertPushDeviceParams) (PushDevice, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
+	UpsertReviewSettings(ctx context.Context, arg UpsertReviewSettingsParams) (ReviewSetting, error)
 	// Connect or update credentials; a changed account is re-checked (status
 	// back to unchecked). is_active is set separately (SetSMSProviderAccountActive).
 	UpsertSMSProviderAccount(ctx context.Context, arg UpsertSMSProviderAccountParams) (SmsProviderAccount, error)
