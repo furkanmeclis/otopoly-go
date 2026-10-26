@@ -132,6 +132,7 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `list_todos` | read | `tenant.todos.read` |
 | `list_leads` | read | `tenant.leads.read` (plan `module.quotes`) |
 | `list_quotes` | read | `tenant.quotes.read` (plan `module.quotes`) |
+| `list_reorder_suggestions` | read | `tenant.purchases.read`, `tenant.catalog.read` (plan `stock_reorder.enabled`) |
 | `create_customer` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `add_customer_vehicle` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `create_job` | write | `tenant.jobs.write`, `tenant.customers.read`, `tenant.catalog.read` |
@@ -148,6 +149,7 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `void_finance_entry` | write | `tenant.finance.write`, `tenant.finance.read` (owner; cari entries also `tenant.cari.write`) |
 | `create_todo` | write | `tenant.todos.write` |
 | `complete_todo` | write | `tenant.todos.write` |
+| `create_purchase_drafts` | write | `tenant.purchases.write`, `tenant.purchases.read`, `tenant.catalog.read` (owner; plan `stock_reorder.enabled`) |
 <!-- mcp-org-tools:end -->
 
 ### Platform endpoint (`/mcp/platform`)

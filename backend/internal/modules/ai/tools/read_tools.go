@@ -83,6 +83,8 @@ type Deps struct {
 	SalesWrite     SalesWriter
 	Todos          TodosService
 	Calendar       CalendarService
+	// Reorder adds list_reorder_suggestions and create_purchase_drafts.
+	Reorder ReorderService
 }
 
 // DefaultRegistry builds the tool set (read tools, charts, plan checklist and
@@ -118,6 +120,9 @@ func DefaultRegistry(d Deps) *Registry {
 	}
 	if d.Calendar != nil {
 		r.Register(ListCalendar{calendar: d.Calendar})
+	}
+	if d.Reorder != nil {
+		r.Register(ListReorderSuggestions{reorder: d.Reorder})
 	}
 	registerWriteTools(r, d)
 	return r
@@ -171,6 +176,9 @@ func registerWriteTools(r *Registry, d Deps) {
 	}
 	if d.Calendar != nil {
 		r.Register(CreateCalendarEvent{calendar: d.Calendar})
+	}
+	if d.Reorder != nil {
+		r.Register(CreatePurchaseDrafts{reorder: d.Reorder})
 	}
 }
 

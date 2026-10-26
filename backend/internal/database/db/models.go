@@ -1855,6 +1855,36 @@ type StepupSetting struct {
 	UpdatedAt                 pgtype.Timestamptz `json:"updated_at"`
 }
 
+type StockReorderProductSetting struct {
+	ProductID      int64              `json:"product_id"`
+	OrganizationID int64              `json:"organization_id"`
+	SupplierID     pgtype.Int8        `json:"supplier_id"`
+	LeadDays       pgtype.Int4        `json:"lead_days"`
+	TargetDays     pgtype.Int4        `json:"target_days"`
+	PackSize       pgtype.Numeric     `json:"pack_size"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type StockReorderSetting struct {
+	OrganizationID int64              `json:"organization_id"`
+	VelocityDays   int32              `json:"velocity_days"`
+	LeadDays       int32              `json:"lead_days"`
+	TargetDays     int32              `json:"target_days"`
+	NotifyEnabled  bool               `json:"notify_enabled"`
+	LastNotifiedOn pgtype.Date        `json:"last_notified_on"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
+type StockReorderSupplierSetting struct {
+	SupplierID     int64              `json:"supplier_id"`
+	OrganizationID int64              `json:"organization_id"`
+	LeadDays       int32              `json:"lead_days"`
+	CreatedAt      pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `json:"updated_at"`
+}
+
 type StorageActivity struct {
 	ID          int64              `json:"id"`
 	Uuid        uuid.UUID          `json:"uuid"`

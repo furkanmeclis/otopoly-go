@@ -66,6 +66,9 @@ type Querier interface {
 	ClaimOutboundMessage(ctx context.Context, id int64) (OutboundMessage, error)
 	ClaimOutboxEvents(ctx context.Context, arg ClaimOutboxEventsParams) ([]OutboxEvent, error)
 	ClaimScheduledNotificationByID(ctx context.Context, id int64) (ScheduledNotification, error)
+	// Marks today's notification as sent (creates the settings row with defaults
+	// when missing); 0 rows when another sweep already claimed the day.
+	ClaimStockReorderNotification(ctx context.Context, arg ClaimStockReorderNotificationParams) (int64, error)
 	// Serialises flushes per org and enforces the batch window.
 	ClaimVehicleAlertFlush(ctx context.Context, organizationID int64) (int64, error)
 	CleanupMCPOAuthAuthRequests(ctx context.Context) (int64, error)
@@ -119,6 +122,7 @@ type Querier interface {
 	CountDiscountCodes(ctx context.Context, q_ string) (int64, error)
 	CountDiscountUses(ctx context.Context, discountCodeID int64) (int64, error)
 	CountDiscountUsesByOrg(ctx context.Context, arg CountDiscountUsesByOrgParams) (int64, error)
+	CountDraftPurchases(ctx context.Context, organizationID int64) (int64, error)
 	CountExportJobsForActor(ctx context.Context, actorID int64) (int64, error)
 	CountExportJobsForOrganization(ctx context.Context, organizationID pgtype.Int8) (int64, error)
 	CountFinanceAccounts(ctx context.Context, arg CountFinanceAccountsParams) (int64, error)
@@ -279,6 +283,7 @@ type Querier interface {
 	DeleteCatalogDisplayBrand(ctx context.Context, id int64) (int64, error)
 	DeleteCatalogModel(ctx context.Context, id int64) (int64, error)
 	DeleteContractMedia(ctx context.Context, arg DeleteContractMediaParams) error
+	DeleteDraftPurchase(ctx context.Context, arg DeleteDraftPurchaseParams) (int64, error)
 	// Maintenance sweep across organizations (rows past their activity lifetime).
 	DeleteExpiredLiveActivityTokens(ctx context.Context) (int64, error)
 	DeleteJobConsumption(ctx context.Context, arg DeleteJobConsumptionParams) error
@@ -295,6 +300,7 @@ type Querier interface {
 	DeleteOAuthAccountsByUserID(ctx context.Context, userID int64) error
 	DeleteOrganizationMember(ctx context.Context, arg DeleteOrganizationMemberParams) (int64, error)
 	DeletePlanFeatures(ctx context.Context, planID int64) error
+	DeletePurchaseLines(ctx context.Context, arg DeletePurchaseLinesParams) error
 	DeletePushDeviceForUser(ctx context.Context, arg DeletePushDeviceForUserParams) (int64, error)
 	DeletePushDevicesByUser(ctx context.Context, userID int64) error
 	DeletePushSubscription(ctx context.Context, arg DeletePushSubscriptionParams) error
@@ -304,6 +310,8 @@ type Querier interface {
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
 	DeleteSMSProviderAccount(ctx context.Context, arg DeleteSMSProviderAccountParams) (int64, error)
 	DeleteServiceProducts(ctx context.Context, arg DeleteServiceProductsParams) error
+	DeleteStockReorderProductSetting(ctx context.Context, arg DeleteStockReorderProductSettingParams) error
+	DeleteStockReorderSupplierSetting(ctx context.Context, arg DeleteStockReorderSupplierSettingParams) error
 	DeleteStorageShare(ctx context.Context, argUuid uuid.UUID) error
 	DeleteStorageStar(ctx context.Context, arg DeleteStorageStarParams) error
 	DeleteStorageTrashByUUID(ctx context.Context, argUuid uuid.UUID) error
@@ -423,6 +431,7 @@ type Querier interface {
 	GetDailySummarySettings(ctx context.Context, organizationID int64) (DailySummarySetting, error)
 	GetDiscountCodeByCode(ctx context.Context, code string) (BillingDiscountCode, error)
 	GetDiscountCodeByUUID(ctx context.Context, argUuid uuid.UUID) (BillingDiscountCode, error)
+	GetDraftPurchaseForUpdate(ctx context.Context, arg GetDraftPurchaseForUpdateParams) (Purchase, error)
 	// Effective feature values and usage counters for platform/entitlements.
 	// Plan values of the organization's live subscription plus the custom
 	// override JSON (enterprise, F5). Missing rows mean "unlimited / enabled".
@@ -568,6 +577,9 @@ type Querier interface {
 	// ============================================================================
 	GetServiceUsageStats(ctx context.Context, arg GetServiceUsageStatsParams) (GetServiceUsageStatsRow, error)
 	GetStepupSettings(ctx context.Context) (StepupSetting, error)
+	GetStockReorderProductSetting(ctx context.Context, arg GetStockReorderProductSettingParams) (GetStockReorderProductSettingRow, error)
+	// Stock reorder suggestions. Every query is scoped by organization_id.
+	GetStockReorderSettings(ctx context.Context, organizationID int64) (StockReorderSetting, error)
 	GetStorageLinkBySlug(ctx context.Context, slug pgtype.Text) (StorageLink, error)
 	GetStorageLinkByTokenHash(ctx context.Context, tokenHash pgtype.Text) (StorageLink, error)
 	GetStorageLinkByUUID(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
@@ -850,6 +862,19 @@ type Querier interface {
 	ListSharedKeys(ctx context.Context, keys []string) ([]string, error)
 	// Organizations where the user is the only owner left (ignoring deleted users).
 	ListSoleOwnedOrganizationsByUserID(ctx context.Context, userID int64) ([]ListSoleOwnedOrganizationsByUserIDRow, error)
+	// One row per active stock-tracked product with every input of the reorder
+	// formula: stock, min, consumption (job consumptions not reverted) and sales
+	// (posted) since `since`, quantity on open draft purchases, the product
+	// overrides, the preferred supplier (override, else the latest posted
+	// purchase's supplier) with its lead time and the last unit cost.
+	ListStockReorderCandidates(ctx context.Context, arg ListStockReorderCandidatesParams) ([]ListStockReorderCandidatesRow, error)
+	// Organizations whose daily reorder notification is on: an explicit row
+	// with notify_enabled, or no row at all (default on) for organizations that
+	// track stock on at least one active product.
+	ListStockReorderNotifyOrganizations(ctx context.Context, day pgtype.Date) ([]ListStockReorderNotifyOrganizationsRow, error)
+	// Active members who may place purchases (tenant.purchases.write).
+	ListStockReorderNotifyRecipients(ctx context.Context, organizationID int64) ([]int64, error)
+	ListStockReorderSupplierSettings(ctx context.Context, organizationID int64) ([]ListStockReorderSupplierSettingsRow, error)
 	ListStorageActivity(ctx context.Context, arg ListStorageActivityParams) ([]ListStorageActivityRow, error)
 	ListStorageLinksByKey(ctx context.Context, objectKey string) ([]StorageLink, error)
 	ListStorageSharesByKey(ctx context.Context, objectKey string) ([]ListStorageSharesByKeyRow, error)
@@ -967,6 +992,9 @@ type Querier interface {
 	NextQuoteNumber(ctx context.Context, arg NextQuoteNumberParams) (int32, error)
 	OrderStatusSummary(ctx context.Context) (OrderStatusSummaryRow, error)
 	PingDB(ctx context.Context) (int32, error)
+	// Turns a draft into a posted purchase; stock and finance are applied by the
+	// caller in the same transaction.
+	PostDraftPurchase(ctx context.Context, arg PostDraftPurchaseParams) (Purchase, error)
 	// Legacy vehicle_brands.logo_object_key mirrors the effective display brand
 	// logo (admin upload, else synced badge, else full, else wordmark) so the
 	// legacy picker / job board / customer vehicle rows see it without joins.
@@ -1164,6 +1192,7 @@ type Querier interface {
 	UpdateContractTemplate(ctx context.Context, arg UpdateContractTemplateParams) (ContractTemplate, error)
 	UpdateCustomer(ctx context.Context, arg UpdateCustomerParams) (Customer, error)
 	UpdateDiscountCode(ctx context.Context, arg UpdateDiscountCodeParams) (BillingDiscountCode, error)
+	UpdateDraftPurchase(ctx context.Context, arg UpdateDraftPurchaseParams) (Purchase, error)
 	UpdateFeatureActive(ctx context.Context, arg UpdateFeatureActiveParams) error
 	UpdateFinanceAccount(ctx context.Context, arg UpdateFinanceAccountParams) (FinanceAccount, error)
 	UpdateFinanceCategory(ctx context.Context, arg UpdateFinanceCategoryParams) (FinanceCategory, error)
@@ -1253,6 +1282,9 @@ type Querier interface {
 	// Connect or update credentials; a changed account is re-checked (status
 	// back to unchecked). is_active is set separately (SetSMSProviderAccountActive).
 	UpsertSMSProviderAccount(ctx context.Context, arg UpsertSMSProviderAccountParams) (SmsProviderAccount, error)
+	UpsertStockReorderProductSetting(ctx context.Context, arg UpsertStockReorderProductSettingParams) error
+	UpsertStockReorderSettings(ctx context.Context, arg UpsertStockReorderSettingsParams) (StockReorderSetting, error)
+	UpsertStockReorderSupplierSetting(ctx context.Context, arg UpsertStockReorderSupplierSettingParams) error
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error)
 	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)

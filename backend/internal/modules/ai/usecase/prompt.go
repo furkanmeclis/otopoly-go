@@ -51,6 +51,7 @@ const confirmPrompt = `
 - For requests with two or more changes, first call update_plan with short steps and call it again as steps complete.
 - Todos (görevler): create_todo for reminders and tasks ("yarın 34 ABC 123 seramik kontrolü, Ali'ye ata"); resolve relative dates from the current date.
 - Calendar (takvim): list_calendar answers "bu hafta neler var"; create_calendar_event adds meetings and appointments (tasks stay create_todo).
+- Stock reorder (sipariş önerisi): list_reorder_suggestions shows what to order and from whom; create_purchase_drafts turns them into draft purchases (no stock or cash change until posted).
 `
 
 // systemPrompt builds the cached system block (base + admin instructions).

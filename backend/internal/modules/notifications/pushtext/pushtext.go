@@ -12,7 +12,7 @@ import (
 
 // SafeVars are the only template variables a push text may contain. They are
 // copied into the in-app notification payload under "push_vars".
-var SafeVars = []string{"quote_number", "due_in", "feature_label", "days_left"}
+var SafeVars = []string{"quote_number", "due_in", "feature_label", "days_left", "item_count"}
 
 // Text is one localized push.
 type Text struct {
@@ -54,6 +54,10 @@ var catalog = map[string]pair{
 	"billing.limit_reached": {
 		tr: Text{"Plan limiti doldu", "{{feature_label}} limiti nedeniyle bir işlem yapılamadı."},
 		en: Text{"Plan limit reached", "An action was blocked by the {{feature_label}} limit."},
+	},
+	"stock.reorder_due": {
+		tr: Text{"Stok siparişi önerisi", "{{item_count}} ürün stokta yok ya da minimum stokun altında."},
+		en: Text{"Stock reorder suggestion", "{{item_count}} products are out of stock or below the minimum."},
 	},
 	"billing.subscription_ending": {
 		tr: Text{"Abonelik süresi doluyor", "Aboneliğinizin süresi {{days_left}} gün içinde doluyor."},

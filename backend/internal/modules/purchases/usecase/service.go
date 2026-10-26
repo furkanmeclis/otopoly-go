@@ -230,60 +230,153 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (PurchaseDetail, e
 	if err != nil {
 		return PurchaseDetail{}, err
 	}
-	method := strings.TrimSpace(in.Method)
-	if method != "cash" && method != "card" {
-		return PurchaseDetail{}, fmt.Errorf("%w: method must be cash or card", ErrInvalidRequest)
-	}
-	if in.SupplierUUID == uuid.Nil {
-		return PurchaseDetail{}, fmt.Errorf("%w: supplier_uuid is required", ErrInvalidRequest)
+	method, err := normalizeMethod(in.Method)
+	if err != nil {
+		return PurchaseDetail{}, err
 	}
 	if in.FinanceAccountUUID == uuid.Nil {
 		return PurchaseDetail{}, fmt.Errorf("%w: finance_account_uuid is required", ErrInvalidRequest)
 	}
-	if len(in.Lines) == 0 {
-		return PurchaseDetail{}, fmt.Errorf("%w: at least one product line is required", ErrInvalidRequest)
+	prep, err := s.prepare(ctx, s.q, orgID, in.SupplierUUID, in.Currency, in.Lines, false)
+	if err != nil {
+		return PurchaseDetail{}, err
+	}
+	purchasedAt, err := parsePurchasedAt(in.PurchasedAt)
+	if err != nil {
+		return PurchaseDetail{}, err
 	}
 
-	currency := strings.ToUpper(strings.TrimSpace(in.Currency))
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return PurchaseDetail{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	qtx := s.q.WithTx(tx)
+
+	fa, err := s.financeAccount(ctx, qtx, orgID, in.FinanceAccountUUID, prep.currency)
+	if err != nil {
+		return PurchaseDetail{}, err
+	}
+	purchase, err := qtx.CreatePurchase(ctx, db.CreatePurchaseParams{
+		OrganizationID:       orgID,
+		SupplierID:           prep.supplier.ID,
+		SupplierName:         prep.supplier.Name,
+		Status:               "posted",
+		Currency:             prep.currency,
+		TotalAmount:          prep.totalNum,
+		Method:               method,
+		FinanceAccountID:     pgtype.Int8{Int64: fa.ID, Valid: true},
+		FinanceTransactionID: pgtype.Int8{},
+		Notes:                strings.TrimSpace(in.Notes),
+		PurchasedAt:          pgtype.Timestamptz{Time: purchasedAt, Valid: true},
+		CreatedBy:            actorID,
+	})
+	if err != nil {
+		return PurchaseDetail{}, err
+	}
+	ft, err := s.postTx(ctx, qtx, orgID, actorID, purchase.ID, purchase.Uuid, prep, method, fa.ID, purchasedAt)
+	if err != nil {
+		return PurchaseDetail{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return PurchaseDetail{}, err
+	}
+	s.finance.NotifyIndexed(ctx, ft.Uuid, fa.Uuid)
+
+	detail, err := s.Get(ctx, purchase.Uuid)
+	if err != nil {
+		return PurchaseDetail{}, err
+	}
+	s.recordActivity(ctx, "tenant.purchases.create", "purchase", &purchase.Uuid, map[string]any{
+		"method": method, "total": financeusecase.NumericToString(prep.totalNum),
+	})
+	s.live(ctx, resourceevents.TenantPurchases, resourceevents.ActionCreated, purchase.Uuid.String())
+	s.liveMoney(ctx)
+	s.publish(ctx, events.PurchasesCreated, map[string]any{"uuid": purchase.Uuid.String()})
+	s.indexPurchase(ctx, purchase.Uuid)
+	return detail, nil
+}
+
+func normalizeMethod(raw string) (string, error) {
+	method := strings.TrimSpace(raw)
+	if method != "cash" && method != "card" {
+		return "", fmt.Errorf("%w: method must be cash or card", ErrInvalidRequest)
+	}
+	return method, nil
+}
+
+func parsePurchasedAt(raw *string) (time.Time, error) {
+	if raw == nil || strings.TrimSpace(*raw) == "" {
+		return time.Now(), nil
+	}
+	t, err := time.Parse(time.RFC3339, strings.TrimSpace(*raw))
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%w: invalid purchased_at", ErrInvalidRequest)
+	}
+	return t, nil
+}
+
+// preparedLine is a validated purchase line (product of the organization).
+type preparedLine struct {
+	productID  int64
+	name       string
+	unitCost   pgtype.Numeric
+	qty        pgtype.Numeric
+	lineTotal  pgtype.Numeric
+	trackStock bool
+}
+
+// prepared is a validated purchase body: supplier, currency, lines, total.
+type prepared struct {
+	supplier db.Supplier
+	currency string
+	lines    []preparedLine
+	totalNum pgtype.Numeric
+}
+
+// prepare validates the supplier and lines of a purchase. allowZero lets a
+// draft keep a zero total (unknown cost); posting always needs a positive one.
+func (s *Service) prepare(ctx context.Context, q *db.Queries, orgID int64, supplierUUID uuid.UUID, rawCurrency string, lines []CreateLineInput, allowZero bool) (prepared, error) {
+	if supplierUUID == uuid.Nil {
+		return prepared{}, fmt.Errorf("%w: supplier_uuid is required", ErrInvalidRequest)
+	}
+	if len(lines) == 0 {
+		return prepared{}, fmt.Errorf("%w: at least one product line is required", ErrInvalidRequest)
+	}
+	if len(lines) > maxLines {
+		return prepared{}, fmt.Errorf("%w: at most %d lines", ErrInvalidRequest, maxLines)
+	}
+	currency := strings.ToUpper(strings.TrimSpace(rawCurrency))
 	if currency == "" {
 		currency = "TRY"
 	}
-
-	supplier, err := s.q.GetSupplierByUUID(ctx, db.GetSupplierByUUIDParams{
-		Uuid: in.SupplierUUID, OrganizationID: orgID,
+	supplier, err := q.GetSupplierByUUID(ctx, db.GetSupplierByUUIDParams{
+		Uuid: supplierUUID, OrganizationID: orgID,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return PurchaseDetail{}, fmt.Errorf("%w: supplier not found", ErrNotFound)
+			return prepared{}, fmt.Errorf("%w: supplier not found", ErrNotFound)
 		}
-		return PurchaseDetail{}, err
+		return prepared{}, err
 	}
 	if !supplier.IsActive {
-		return PurchaseDetail{}, fmt.Errorf("%w: supplier is inactive", ErrInvalidRequest)
+		return prepared{}, fmt.Errorf("%w: supplier is inactive", ErrInvalidRequest)
 	}
 
-	type preparedLine struct {
-		productID  int64
-		name       string
-		unitCost   pgtype.Numeric
-		qty        pgtype.Numeric
-		lineTotal  pgtype.Numeric
-		trackStock bool
-	}
-	prepared := make([]preparedLine, 0, len(in.Lines))
+	out := prepared{supplier: supplier, currency: currency, lines: make([]preparedLine, 0, len(lines))}
 	total := big.NewRat(0, 1)
-	for i, line := range in.Lines {
-		prod, err := s.q.GetProductByUUID(ctx, db.GetProductByUUIDParams{
+	for i, line := range lines {
+		prod, err := q.GetProductByUUID(ctx, db.GetProductByUUIDParams{
 			Uuid: line.ProductUUID, OrganizationID: orgID,
 		})
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				return PurchaseDetail{}, fmt.Errorf("%w: product not found", ErrNotFound)
+				return prepared{}, fmt.Errorf("%w: product not found", ErrNotFound)
 			}
-			return PurchaseDetail{}, err
+			return prepared{}, err
 		}
 		if !prod.IsActive {
-			return PurchaseDetail{}, fmt.Errorf("%w: product %q is inactive", ErrInvalidRequest, prod.Name)
+			return prepared{}, fmt.Errorf("%w: product %q is inactive", ErrInvalidRequest, prod.Name)
 		}
 		costStr := financeusecase.NumericToString(prod.CostPrice)
 		if line.UnitCost != nil && strings.TrimSpace(*line.UnitCost) != "" {
@@ -295,26 +388,26 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (PurchaseDetail, e
 		}
 		lineTotalStr, err := mulDecimalStrings(costStr, qtyStr)
 		if err != nil {
-			return PurchaseDetail{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
+			return prepared{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
 		}
 		unitCost, err := numericNonNeg(costStr)
 		if err != nil {
-			return PurchaseDetail{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
+			return prepared{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
 		}
 		qty, err := numericPositive(qtyStr)
 		if err != nil {
-			return PurchaseDetail{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
+			return prepared{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
 		}
 		lineTotal, err := numericNonNeg(lineTotalStr)
 		if err != nil {
-			return PurchaseDetail{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
+			return prepared{}, fmt.Errorf("%w: line %d: %v", ErrInvalidRequest, i+1, err)
 		}
 		rat, ok := new(big.Rat).SetString(lineTotalStr)
 		if !ok {
-			return PurchaseDetail{}, fmt.Errorf("%w: line %d: invalid total", ErrInvalidRequest, i+1)
+			return prepared{}, fmt.Errorf("%w: line %d: invalid total", ErrInvalidRequest, i+1)
 		}
 		total.Add(total, rat)
-		prepared = append(prepared, preparedLine{
+		out.lines = append(out.lines, preparedLine{
 			productID:  prod.ID,
 			name:       prod.Name,
 			unitCost:   unitCost,
@@ -323,147 +416,117 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (PurchaseDetail, e
 			trackStock: prod.TrackStock,
 		})
 	}
-	if total.Sign() <= 0 {
-		return PurchaseDetail{}, fmt.Errorf("%w: total must be positive", ErrInvalidRequest)
+	if total.Sign() < 0 || (!allowZero && total.Sign() == 0) {
+		return prepared{}, fmt.Errorf("%w: total must be positive", ErrInvalidRequest)
 	}
-	totalNum, err := numericPositive(total.FloatString(2))
+	totalNum, err := numericNonNeg(total.FloatString(2))
 	if err != nil {
-		return PurchaseDetail{}, fmt.Errorf("%w: total: %v", ErrInvalidRequest, err)
+		return prepared{}, fmt.Errorf("%w: total: %v", ErrInvalidRequest, err)
 	}
+	out.totalNum = totalNum
+	return out, nil
+}
 
-	purchasedAt := time.Now()
-	if in.PurchasedAt != nil && strings.TrimSpace(*in.PurchasedAt) != "" {
-		t, err := time.Parse(time.RFC3339, strings.TrimSpace(*in.PurchasedAt))
-		if err != nil {
-			return PurchaseDetail{}, fmt.Errorf("%w: invalid purchased_at", ErrInvalidRequest)
-		}
-		purchasedAt = t
-	}
-
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return PurchaseDetail{}, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	qtx := s.q.WithTx(tx)
-
+// financeAccount loads the paying account (currency must match).
+func (s *Service) financeAccount(ctx context.Context, qtx *db.Queries, orgID int64, id uuid.UUID, currency string) (db.FinanceAccount, error) {
 	fa, err := qtx.GetFinanceAccountByUUID(ctx, db.GetFinanceAccountByUUIDParams{
-		Uuid: in.FinanceAccountUUID, OrganizationID: orgID,
+		Uuid: id, OrganizationID: orgID,
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return PurchaseDetail{}, fmt.Errorf("%w: finance account not found", ErrNotFound)
+			return fa, fmt.Errorf("%w: finance account not found", ErrNotFound)
 		}
-		return PurchaseDetail{}, err
+		return fa, err
 	}
 	if !strings.EqualFold(fa.Currency, currency) {
-		return PurchaseDetail{}, fmt.Errorf("%w: finance account currency must match purchase currency", ErrInvalidRequest)
+		return fa, fmt.Errorf("%w: finance account currency must match purchase currency", ErrInvalidRequest)
 	}
-	financeAccountID := pgtype.Int8{Int64: fa.ID, Valid: true}
-	financeAccountUUID := fa.Uuid
+	return fa, nil
+}
 
-	purchase, err := qtx.CreatePurchase(ctx, db.CreatePurchaseParams{
-		OrganizationID:       orgID,
-		SupplierID:           supplier.ID,
-		SupplierName:         supplier.Name,
-		Status:               "posted",
-		Currency:             currency,
-		TotalAmount:          totalNum,
-		Method:               method,
-		FinanceAccountID:     financeAccountID,
-		FinanceTransactionID: pgtype.Int8{},
-		Notes:                strings.TrimSpace(in.Notes),
-		PurchasedAt:          pgtype.Timestamptz{Time: purchasedAt, Valid: true},
-		CreatedBy:            actorID,
-	})
-	if err != nil {
-		return PurchaseDetail{}, err
-	}
-
-	for i, pl := range prepared {
+// insertLines writes the purchase lines (no stock change).
+func insertLines(ctx context.Context, qtx *db.Queries, orgID, purchaseID int64, prep prepared) error {
+	for i, pl := range prep.lines {
 		if _, err := qtx.CreatePurchaseLine(ctx, db.CreatePurchaseLineParams{
 			OrganizationID: orgID,
-			PurchaseID:     purchase.ID,
+			PurchaseID:     purchaseID,
 			ProductID:      pl.productID,
 			Name:           pl.name,
 			UnitCost:       pl.unitCost,
 			Qty:            pl.qty,
 			LineTotal:      pl.lineTotal,
-			Currency:       currency,
+			Currency:       prep.currency,
 			SortOrder:      int32(i),
 		}); err != nil {
-			return PurchaseDetail{}, err
+			return err
 		}
-		if pl.trackStock {
-			prod, err := qtx.GetProductByID(ctx, db.GetProductByIDParams{
-				ID: pl.productID, OrganizationID: orgID,
-			})
-			if err != nil {
-				return PurchaseDetail{}, err
-			}
-			if _, err := qtx.AdjustProductStock(ctx, db.AdjustProductStockParams{
-				Uuid:           prod.Uuid,
-				OrganizationID: orgID,
-				Delta:          pl.qty,
-			}); err != nil {
-				return PurchaseDetail{}, err
-			}
+	}
+	return nil
+}
+
+// postTx is the posting step shared by Create and PostDraft: lines, stock
+// for tracked products and the expense on the finance account.
+func (s *Service) postTx(
+	ctx context.Context, qtx *db.Queries, orgID, actorID, purchaseID int64, purchaseUUID uuid.UUID,
+	prep prepared, method string, financeAccountID int64, purchasedAt time.Time,
+) (db.FinanceTransaction, error) {
+	if err := insertLines(ctx, qtx, orgID, purchaseID, prep); err != nil {
+		return db.FinanceTransaction{}, err
+	}
+	for _, pl := range prep.lines {
+		if !pl.trackStock {
+			continue
+		}
+		prod, err := qtx.GetProductByID(ctx, db.GetProductByIDParams{
+			ID: pl.productID, OrganizationID: orgID,
+		})
+		if err != nil {
+			return db.FinanceTransaction{}, err
+		}
+		if _, err := qtx.AdjustProductStock(ctx, db.AdjustProductStockParams{
+			Uuid:           prod.Uuid,
+			OrganizationID: orgID,
+			Delta:          pl.qty,
+		}); err != nil {
+			return db.FinanceTransaction{}, err
 		}
 	}
 
 	entryDate := pgtype.Date{Time: purchasedAt, Valid: true}
 	desc := "Stok alımı"
-	if supplier.Name != "" {
-		desc = fmt.Sprintf("Stok alımı — %s", supplier.Name)
+	if prep.supplier.Name != "" {
+		desc = fmt.Sprintf("Stok alımı — %s", prep.supplier.Name)
 	}
-	meta, _ := json.Marshal(map[string]any{"module": "purchases", "purchase_uuid": purchase.Uuid.String()})
+	meta, _ := json.Marshal(map[string]any{"module": "purchases", "purchase_uuid": purchaseUUID.String()})
 
 	categoryID, err := s.finance.ResolveCategoryIDByName(ctx, qtx, financeusecase.CategoryStockPurchase, "expense")
 	if err != nil {
-		return PurchaseDetail{}, err
+		return db.FinanceTransaction{}, err
 	}
 	ft, err := s.finance.PostExpenseFromSourceTx(ctx, qtx, actorID, financeusecase.PostFromSourceInput{
-		AccountID:       financeAccountID.Int64,
+		AccountID:       financeAccountID,
 		CategoryID:      categoryID,
-		Amount:          totalNum,
-		Currency:        currency,
+		Amount:          prep.totalNum,
+		Currency:        prep.currency,
 		TransactionDate: entryDate,
 		Description:     desc,
 		PaymentMethod:   method,
 		SourceType:      financeusecase.SourcePurchase,
-		SourceUUID:      purchase.Uuid,
+		SourceUUID:      purchaseUUID,
 		Metadata:        meta,
 	})
 	if err != nil {
-		return PurchaseDetail{}, err
+		return db.FinanceTransaction{}, err
 	}
 	if _, err := qtx.LinkPurchaseFinance(ctx, db.LinkPurchaseFinanceParams{
-		ID:                   purchase.ID,
+		ID:                   purchaseID,
 		OrganizationID:       orgID,
 		FinanceTransactionID: pgtype.Int8{Int64: ft.ID, Valid: true},
-		FinanceAccountID:     financeAccountID,
+		FinanceAccountID:     pgtype.Int8{Int64: financeAccountID, Valid: true},
 	}); err != nil {
-		return PurchaseDetail{}, err
+		return db.FinanceTransaction{}, err
 	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return PurchaseDetail{}, err
-	}
-
-	s.finance.NotifyIndexed(ctx, ft.Uuid, financeAccountUUID)
-
-	detail, err := s.Get(ctx, purchase.Uuid)
-	if err != nil {
-		return PurchaseDetail{}, err
-	}
-	s.recordActivity(ctx, "tenant.purchases.create", "purchase", &purchase.Uuid, map[string]any{
-		"method": method, "total": financeusecase.NumericToString(totalNum),
-	})
-	s.live(ctx, resourceevents.TenantPurchases, resourceevents.ActionCreated, purchase.Uuid.String())
-	s.liveMoney(ctx)
-	s.publish(ctx, events.PurchasesCreated, map[string]any{"uuid": purchase.Uuid.String()})
-	s.indexPurchase(ctx, purchase.Uuid)
-	return detail, nil
+	return ft, nil
 }
 
 func (s *Service) Void(ctx context.Context, id uuid.UUID) (PurchaseDetail, error) {

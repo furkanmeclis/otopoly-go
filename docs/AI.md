@@ -146,6 +146,7 @@ confirmed.
 | `search_vehicle_models` | read | actions | `tenant.customers.read` |
 | `list_todos` | read | todos | `tenant.todos.read` |
 | `list_calendar` | read | chat | `tenant.calendar.read` (+ each layer's module read permission) |
+| `list_reorder_suggestions` | read | chat | `tenant.purchases.read`, `tenant.catalog.read` (plan `stock_reorder.enabled`) |
 | `render_chart` | ui | charts | — |
 | `update_plan` | ui | chat | — |
 | `record_cari_payment` | write | actions | `tenant.cari.write`, `tenant.cari.read`, `tenant.finance.read` (owner) |
@@ -165,6 +166,7 @@ confirmed.
 | `create_todo` | write | todos | `tenant.todos.write` |
 | `complete_todo` | write | todos | `tenant.todos.write` |
 | `create_calendar_event` | write | actions | `tenant.calendar.write` |
+| `create_purchase_drafts` | write | actions | `tenant.purchases.write`, `tenant.purchases.read`, `tenant.catalog.read` (owner; plan `stock_reorder.enabled`; drafts change no stock / cash until posted) |
 
 `search_customers` accepts an empty or omitted `query`; in that mode it lists
 the organization's most recent customers and returns `total`, the organization's
