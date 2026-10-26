@@ -21,6 +21,7 @@ import (
 	jobsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/jobs/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/brandlogo"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
@@ -337,6 +338,7 @@ func (s *Service) List(ctx context.Context, limit, offset int32, f ListFilters) 
 			Expired:      r.ValidUntil.Valid && r.ValidUntil.Time.Before(today),
 			CustomerUUID: r.CustomerUuid, CustomerName: r.CustomerName, CustomerPhone: r.CustomerPhone,
 			VehiclePlate: r.VehiclePlate, VehicleLabel: r.VehicleLabel,
+			VehicleBrandName: r.VehicleBrandName, VehicleBrandLogoURL: brandlogo.NullableURL(r.VehicleBrandUuid, r.VehicleBrandLogoObjectKey),
 			LeadUUID: optUUID(r.LeadUuid), JobUUID: optUUID(r.JobUuid), LineCount: r.LineCount,
 			SentAt: optTime(r.SentAt), ViewedAt: optTime(r.ViewedAt),
 			CreatedAt: r.CreatedAt.Time, UpdatedAt: r.UpdatedAt.Time,
@@ -420,6 +422,7 @@ func (s *Service) loadDetail(ctx context.Context, row db.Quote) (Detail, error) 
 			Expired:      row.ValidUntil.Valid && row.ValidUntil.Time.Before(today),
 			CustomerUUID: refs.CustomerUuid, CustomerName: refs.CustomerName, CustomerPhone: refs.CustomerPhone,
 			VehiclePlate: row.VehiclePlate, VehicleLabel: row.VehicleLabel,
+			VehicleBrandName: refs.VehicleBrandName, VehicleBrandLogoURL: brandlogo.NullableURL(refs.VehicleBrandUuid, refs.VehicleBrandLogoObjectKey),
 			LeadUUID: optUUID(refs.LeadUuid), JobUUID: optUUID(refs.JobUuid), LineCount: int64(len(lines)),
 			SentAt: optTime(row.SentAt), ViewedAt: optTime(row.ViewedAt),
 			CreatedAt: row.CreatedAt.Time, UpdatedAt: row.UpdatedAt.Time,

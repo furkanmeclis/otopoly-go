@@ -21,24 +21,28 @@ type Ref struct {
 
 // Lead is the list shape.
 type Lead struct {
-	UUID           uuid.UUID  `json:"uuid"`
-	CustomerUUID   uuid.UUID  `json:"customer_uuid"`
-	CustomerName   string     `json:"customer_name"`
-	CustomerPhone  string     `json:"customer_phone"`
-	VehiclePlate   string     `json:"vehicle_plate"`
-	VehicleText    string     `json:"vehicle_text"`
-	Interest       string     `json:"interest"`
-	Source         string     `json:"source"`
-	Temperature    string     `json:"temperature"`
-	Status         string     `json:"status"`
-	LostReason     string     `json:"lost_reason"`
-	FollowUpDate   *string    `json:"follow_up_date"`
-	FollowUpState  string     `json:"follow_up_state"` // none | overdue | today | upcoming
-	Assignee       *Ref       `json:"assignee"`
-	QuoteCount     int64      `json:"quote_count"`
-	LastActivityAt *time.Time `json:"last_activity_at"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	UUID          uuid.UUID `json:"uuid"`
+	CustomerUUID  uuid.UUID `json:"customer_uuid"`
+	CustomerName  string    `json:"customer_name"`
+	CustomerPhone string    `json:"customer_phone"`
+	VehiclePlate  string    `json:"vehicle_plate"`
+	VehicleText   string    `json:"vehicle_text"`
+	// VehicleBrandName / VehicleBrandLogoURL: brand of the linked customer
+	// vehicle ("" / null for free-text vehicles).
+	VehicleBrandName    string     `json:"vehicle_brand_name"`
+	VehicleBrandLogoURL *string    `json:"vehicle_brand_logo_url"`
+	Interest            string     `json:"interest"`
+	Source              string     `json:"source"`
+	Temperature         string     `json:"temperature"`
+	Status              string     `json:"status"`
+	LostReason          string     `json:"lost_reason"`
+	FollowUpDate        *string    `json:"follow_up_date"`
+	FollowUpState       string     `json:"follow_up_state"` // none | overdue | today | upcoming
+	Assignee            *Ref       `json:"assignee"`
+	QuoteCount          int64      `json:"quote_count"`
+	LastActivityAt      *time.Time `json:"last_activity_at"`
+	CreatedAt           time.Time  `json:"created_at"`
+	UpdatedAt           time.Time  `json:"updated_at"`
 }
 
 // Event is a timeline entry.

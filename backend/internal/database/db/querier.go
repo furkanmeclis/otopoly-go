@@ -486,6 +486,7 @@ type Querier interface {
 	// Team members related to a quote (creator, lead assignee) for internal notifications.
 	GetQuoteNotifyPeople(ctx context.Context, arg GetQuoteNotifyPeopleParams) (GetQuoteNotifyPeopleRow, error)
 	// Joined display fields for one quote (detail, PDF, public view).
+	// Effective brand: the quote's catalog model, else the customer vehicle's.
 	GetQuoteRefs(ctx context.Context, id int64) (GetQuoteRefsRow, error)
 	GetQuoteReminderByID(ctx context.Context, arg GetQuoteReminderByIDParams) (QuoteReminder, error)
 	GetQuoteReminderByUUID(ctx context.Context, argUuid uuid.UUID) (QuoteReminder, error)

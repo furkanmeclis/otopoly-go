@@ -48,7 +48,7 @@ type Job struct {
 	TotalAmount   string     `json:"total_amount"`
 	AssigneeUUID  *uuid.UUID `json:"assignee_uuid,omitempty"`
 	AssigneeName  string     `json:"assignee_name,omitempty"`
-	// BrandName / BrandLogoURL are set on list rows for the board cards.
+	// BrandName / BrandLogoURL: the vehicle brand (list rows, customer jobs, detail).
 	BrandName    string  `json:"brand_name,omitempty"`
 	BrandLogoURL *string `json:"brand_logo_url,omitempty"`
 	// Services are the job's service lines (list rows only), for the

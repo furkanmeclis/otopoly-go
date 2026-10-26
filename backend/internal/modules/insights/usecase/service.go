@@ -17,6 +17,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/brandlogo"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/google/uuid"
@@ -587,11 +588,7 @@ func (s *Service) SupplierSummary(ctx context.Context, id uuid.UUID) (SupplierSu
 // BrandLogoURL is the API-owned public logo stream of a vehicle brand, or nil
 // when the brand has no logo (the UI then shows the initial monogram).
 func BrandLogoURL(brandUUID uuid.UUID, key pgtype.Text) *string {
-	if !key.Valid || strings.TrimSpace(key.String) == "" {
-		return nil
-	}
-	u := "/v1/public/vehicle-brands/logo/" + brandUUID.String()
-	return &u
+	return brandlogo.URL(brandUUID, key)
 }
 
 func ratOf(n pgtype.Numeric) *big.Rat {

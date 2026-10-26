@@ -17011,6 +17011,8 @@ components:
         customer_phone: { type: string }
         vehicle_plate: { type: string }
         vehicle_text: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the linked customer vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         interest: { type: string }
         source: { $ref: "#/components/schemas/LeadSource" }
         temperature: { type: string, enum: [cold, warm, hot] }
@@ -17698,6 +17700,8 @@ components:
         customer_phone: { type: string }
         vehicle_plate: { type: string }
         vehicle_label: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the catalog model or customer vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         lead_uuid: { type: [string, "null"], format: uuid }
         job_uuid: { type: [string, "null"], format: uuid }
         line_count: { type: integer }
@@ -17997,6 +18001,8 @@ components:
         customer_name: { type: string }
         vehicle_plate: { type: string }
         vehicle_label: { type: string }
+        vehicle_brand_name: { type: string, description: Brand of the quote vehicle ("" for free text) }
+        vehicle_brand_logo_url: { type: [string, "null"], description: Public vehicle brand logo stream }
         currency: { type: string }
         prices_include_vat: { type: boolean }
         subtotal: { type: string }
@@ -18427,8 +18433,8 @@ components:
         total_amount: { type: string, description: Decimal string }
         assignee_uuid: { type: string, format: uuid }
         assignee_name: { type: string }
-        brand_name: { type: string, description: List rows only }
-        brand_logo_url: { type: string, description: "List rows only; public vehicle brand logo stream, omitted when none" }
+        brand_name: { type: string, description: "Vehicle brand (list rows, customer jobs, detail)" }
+        brand_logo_url: { type: string, description: "Public vehicle brand logo stream (list rows, customer jobs, detail); omitted when none" }
         services:
           type: array
           description: List rows only (card tags); omitted when empty.

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/brandlogo"
 )
 
 // ValidShareToken reports whether raw looks like a share token (43 url-safe
@@ -66,6 +67,7 @@ func (s *Service) publicView(ctx context.Context, row db.Quote) (PublicQuote, er
 		Number: row.Number, Status: row.Status, OrganizationName: org.Name,
 		OrganizationTel: org.Phone, OrganizationAddr: orgAddress(org), PrimaryColor: safeColor(org.PrimaryColor),
 		CustomerName: refs.CustomerName, VehiclePlate: row.VehiclePlate, VehicleLabel: row.VehicleLabel,
+		VehicleBrandName: refs.VehicleBrandName, VehicleBrandLogo: brandlogo.NullableURL(refs.VehicleBrandUuid, refs.VehicleBrandLogoObjectKey),
 		Currency: row.Currency, PricesIncludeVAT: row.PricesIncludeVat,
 		Subtotal: money(row.Subtotal), DiscountTotal: money(row.DiscountTotal),
 		VATTotal: money(row.VatTotal), GrandTotal: money(row.GrandTotal),
