@@ -134,5 +134,9 @@
   "labels.tenant.billing.write": "Manage subscription",
   "labels.platform.billing.read": "View platform subscriptions",
   "labels.platform.billing.write": "Manage platform subscriptions and plans",
-  "labels.platform.billing.settings": "Manage billing settings"
+  "labels.platform.billing.settings": "Manage billing settings",
+  "labels.platform.mcp.manage": "Manage MCP clients",
+  "labels.tenant.loyalty.read": "View loyalty programs, packages and subscriptions",
+  "labels.tenant.loyalty.apply": "Use loyalty (apply rewards / credits on jobs, sell packages, start and collect subscriptions)",
+  "labels.tenant.loyalty.write": "Manage loyalty programs, cancel packages / subscriptions"
 }

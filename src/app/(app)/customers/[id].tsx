@@ -45,6 +45,7 @@ import { AddVehicleSheet } from '@/features/customers/components/pickers';
 import { customersService } from '@/features/customers/services/customers.service';
 import { JobStatusBadge, PaymentBadge } from '@/features/jobs/components/job-parts';
 import { leadStatusTone } from '@/features/leads/lib/lead-ui';
+import { CustomerLoyaltySection } from '@/features/loyalty/components/customer-loyalty-section';
 import { qk, useCariEntriesInfinite, useCustomer, useCustomerJobs, useCustomerSales, useLeads, useQuotes, useTodos } from '@/features/queries';
 import { DocStatusBadge } from '@/features/sales/components/commerce-parts';
 import { quoteStatusTone } from '@/features/quotes/lib/quote-ui';
@@ -57,7 +58,7 @@ import { useTheme } from '@/theme/provider';
 import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function CustomerDetailScreen() {
-  useLiveResource(['tenant.customers', 'tenant.vehicles', 'tenant.jobs', 'tenant.cari', 'tenant.cari.entries', 'tenant.sales', 'tenant.quotes', 'tenant.leads', 'tenant.contracts.instances']);
+  useLiveResource(['tenant.customers', 'tenant.vehicles', 'tenant.jobs', 'tenant.cari', 'tenant.cari.entries', 'tenant.sales', 'tenant.quotes', 'tenant.leads', 'tenant.contracts.instances', 'tenant.loyalty.customers', 'tenant.loyalty.packages', 'tenant.loyalty.subscriptions']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.customersRead} title={tr('customers.detail.info')}>
@@ -287,6 +288,8 @@ function CustomerDetail() {
           )}
         />
       ) : null}
+
+      <CustomerLoyaltySection customer={c} />
 
       {showSales ? (
         <RelatedSection

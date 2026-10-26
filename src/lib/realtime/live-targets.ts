@@ -58,6 +58,24 @@ export const LIVE_TARGETS: Record<LiveResource, Target> = {
   'tenant.staff': { perm: 'tenant.staff.read', own: [['staff']] },
   // Own calendar events and moves (todo / lead dates, event times): the feeds and the event sheet.
   'tenant.calendar': { perm: 'tenant.calendar.read', own: [['calendar', 'feed'], ['calendar', 'event']] },
+  // Loyalty (backend resourceevents/catalog_loyalty.go): definitions, packages sold, subscriptions and a
+  // customer's loyalty state (uuids are customer uuids; the job sections show the same stamps / credits).
+  'tenant.loyalty.programs': {
+    perm: 'tenant.loyalty.read',
+    own: [['loyalty', 'campaigns'], ['loyalty', 'packages'], ['loyalty', 'plans']],
+    related: [['loyalty', 'overview']],
+  },
+  'tenant.loyalty.packages': {
+    perm: 'tenant.loyalty.read',
+    own: [['loyalty', 'customer-packages']],
+    related: [['loyalty', 'overview'], ['loyalty', 'packages'], ['loyalty', 'customers'], ['loyalty', 'job']],
+  },
+  'tenant.loyalty.subscriptions': {
+    perm: 'tenant.loyalty.read',
+    own: [['loyalty', 'subscriptions']],
+    related: [['loyalty', 'overview'], ['loyalty', 'plans'], ['loyalty', 'customers'], ['loyalty', 'job']],
+  },
+  'tenant.loyalty.customers': { perm: 'tenant.loyalty.read', own: [['loyalty', 'customers']], related: [['loyalty', 'job']] },
 };
 
 /** Key segments followed by a record uuid. */

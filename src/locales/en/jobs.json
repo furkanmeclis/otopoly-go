@@ -179,5 +179,6 @@
   "consumptions.added_by_hand": "Added by hand",
   "consumptions.untracked": "not stock-tracked",
   "consumptions.reverted": "returned to stock",
-  "board.delivered_span": "{{n}}-day job"
+  "board.delivered_span": "{{n}}-day job",
+  "close.covered": "Loyalty (a package, subscription or campaign) covered the whole job; it closes without a payment."
 }

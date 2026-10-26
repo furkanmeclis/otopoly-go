@@ -29,6 +29,7 @@ import { TENANT_IMPORTS } from '@/features/io/lib/import-resources';
 import { IMPORT_PATHS } from '@/features/io/types';
 import { jobsService } from '@/features/jobs/services/jobs.service';
 import { leadsService } from '@/features/leads/services/leads.service';
+import { loyaltyService } from '@/features/loyalty/services/loyalty.service';
 import { dailySummaryService } from '@/features/messaging/services/daily-summary.service';
 import { messagingService } from '@/features/messaging/services/messaging.service';
 import { templatesService } from '@/features/messaging/services/templates.service';
@@ -583,6 +584,33 @@ async function billingArea() {
   setPlanScenario('normal');
 }
 
+async function loyaltyArea() {
+  console.log('loyalty');
+  await ok('loyalty overview', () => loyaltyService.overview(7));
+  await ok('loyalty campaigns', () => loyaltyService.listCampaigns({ limit: 20, offset: 0, is_active: 'true' }));
+  const packages = await ok('loyalty packages', () => loyaltyService.listPackages({ limit: 100, offset: 0, is_active: 'true' }));
+  await ok('loyalty plans', () => loyaltyService.listPlans({ limit: 20, offset: 0, q: 'yıkama' }));
+  const sold = await ok('loyalty sold', () => loyaltyService.listCustomerPackages({ limit: 20, offset: 0, state: 'active' }));
+  if (sold.items[0]) await ok('loyalty sold detail', () => loyaltyService.getCustomerPackage(sold.items[0].uuid));
+  const subs = await ok('loyalty renewals', () => loyaltyService.listSubscriptions({ limit: 20, offset: 0, due_within_days: 7 }));
+  if (subs.items[0]) await ok('loyalty subscription detail', () => loyaltyService.getSubscription(subs.items[0].uuid));
+  const customers = await ok('customers', () => customersService.list({ limit: 5, offset: 0 }));
+  const cust = customers.items[0];
+  await ok('customer loyalty', () => loyaltyService.customerLoyalty(cust.uuid));
+  await err('sell without package', 'VALIDATION_ERROR', () => loyaltyService.sellPackage({ package_uuid: '', customer_uuid: cust.uuid, method: 'cari' }));
+  await ok('sell package', () => loyaltyService.sellPackage({ package_uuid: packages.items[0].uuid, customer_uuid: cust.uuid, method: 'cari', notes: 'contract' }));
+  const jobs = await ok('jobs', () => jobsService.list({ limit: 5, offset: 0, status: 'in_progress' }));
+  if (jobs.items[0]) {
+    await ok('job loyalty', () => loyaltyService.jobLoyalty(jobs.items[0].uuid));
+    const job = await ok('job', () => jobsService.get(jobs.items[0].uuid));
+    const line = job.lines.find((l) => !l.discount_source);
+    if (line) await err('apply unknown', 'NOT_APPLICABLE', () => loyaltyService.applyToJob(job.uuid, { kind: 'reward', source_uuid: '00000000-0000-4000-8000-000000000000', line_uuid: line.uuid }));
+  }
+  setPlanScenario('feature_disabled');
+  await err('loyalty plan off', 'FEATURE_DISABLED', () => loyaltyService.overview(7));
+  setPlanScenario('normal');
+}
+
 async function qrArea() {
   console.log('qr');
   const created = await ok('qr create', () => qrLoginService.createDemo());
@@ -618,6 +646,7 @@ async function staffView() {
   await aiArea();
   await notificationsArea();
   await billingArea();
+  await loyaltyArea();
   await qrArea();
   await staffView();
   await deactivation();

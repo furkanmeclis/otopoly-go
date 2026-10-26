@@ -40,11 +40,13 @@ const FEATURES: FeatureDef[] = [
   { key: 'module.contracts', kind: 'toggle', period: 'none', unit: '', label_tr: 'Sözleşme modülü', label_en: 'Contracts module', value: true },
   { key: 'module.quotes', kind: 'toggle', period: 'none', unit: '', label_tr: 'Teklif ve fırsat modülü', label_en: 'Quotes & leads module', value: true },
   { key: 'module.reports', kind: 'toggle', period: 'none', unit: '', label_tr: 'Raporlar ve dışa aktarım', label_en: 'Reports & exports', value: true },
+  // Migration 000093.
+  { key: 'loyalty.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Sadakat ve paketler', label_en: 'Loyalty & packages', value: true },
 ];
 
 /** Modules each scenario turns off (each has the shared lock state in the app). */
 const DISABLED_IN_SCENARIO: Partial<Record<PlanScenario, Set<string>>> = {
-  feature_disabled: new Set(['module.contracts', 'module.reports', 'ai.enabled']),
+  feature_disabled: new Set(['module.contracts', 'module.reports', 'ai.enabled', 'loyalty.enabled']),
   quotes_disabled: new Set(['module.quotes']),
 };
 
@@ -162,6 +164,8 @@ const GATED_PREFIXES: { prefix: string; feature: string }[] = [
   // Quotes and leads share `module.quotes` (backend quotes/leads routes.go).
   { prefix: '/v1/tenant/quotes', feature: 'module.quotes' },
   { prefix: '/v1/tenant/leads', feature: 'module.quotes' },
+  // Loyalty; the customer / job loyalty sections check the feature in their handlers.
+  { prefix: '/v1/tenant/loyalty/', feature: 'loyalty.enabled' },
 ];
 
 /** Writes still allowed in read-only mode (backend `readOnlyAllowed`). */

@@ -18,6 +18,9 @@ export type JobLine = {
   line_total: string;
   currency: string;
   sort_order: number;
+  /** What loyalty (reward / package / subscription) covered on the line; `line_total` is net of it. */
+  discount_amount?: string;
+  discount_source?: "reward" | "package" | "subscription";
 };
 
 export type JobPayment = {
@@ -123,7 +126,8 @@ export type CreateJobInput = {
 };
 
 export type CloseJobInput = {
-  method: "cash" | "card" | "cari";
+  /** Omitted when loyalty covered the whole job (total 0): it closes paid without a payment. */
+  method?: "cash" | "card" | "cari";
   finance_account_uuid?: string;
 };
 

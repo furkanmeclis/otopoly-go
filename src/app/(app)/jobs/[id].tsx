@@ -32,6 +32,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
 import { JobContractsSection } from '@/features/contracts/components/job-contracts-section';
+import { JobLoyaltySection } from '@/features/loyalty/components/job-loyalty-section';
 import { CloseJobSheet } from '@/features/jobs/components/close-job-sheet';
 import { JobStatusBadge, PaymentBadge, ServiceTags } from '@/features/jobs/components/job-parts';
 import { jobsService, type JobDetail } from '@/features/jobs/services/jobs.service';
@@ -46,7 +47,7 @@ import { useMarkInteractive } from '@/lib/monitoring/observe';
 import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function JobDetailScreen() {
-  useLiveResource(['tenant.jobs', 'tenant.contracts.instances', 'tenant.todos']);
+  useLiveResource(['tenant.jobs', 'tenant.contracts.instances', 'tenant.todos', 'tenant.loyalty.customers']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.jobsRead} title={tr('jobs.detail.title')}>
@@ -232,7 +233,14 @@ function JobDetailContent() {
                       {fmt.number(l.qty)} × {fmt.money(l.unit_price, l.currency)} · KDV %{fmt.number(l.vat_rate)}
                     </Txt>
                   </View>
-                  <Txt variant="mono">{fmt.money(l.line_total, l.currency)}</Txt>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Txt variant="mono">{fmt.money(l.line_total, l.currency)}</Txt>
+                    {l.discount_source ? (
+                      <Txt variant="caption" tone="success" style={{ fontVariant: ['tabular-nums'] }}>
+                        {tr(`loyalty.kind_badge.${l.discount_source}`)} −{fmt.money(l.discount_amount, l.currency)}
+                      </Txt>
+                    ) : null}
+                  </View>
                   {open ? <ChevronRight size={16} color={t.colors.textMuted} /> : null}
                 </Pressable>
               );
@@ -240,6 +248,8 @@ function JobDetailContent() {
           )}
         </Group>
       </Section>
+
+      <JobLoyaltySection jobUuid={d.uuid} currency={d.currency} canWriteJob={canWrite} />
 
       <ConsumptionsSection job={d} canWrite={canWrite} />
 

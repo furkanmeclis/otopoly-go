@@ -723,6 +723,69 @@ export interface paths {
         patch: operations["patchPlatformAppleIntegrationSettings"];
         trace?: never;
     };
+    "/v1/platform/integrations/apple/apns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the APNs key status (Live Activity pushes)
+         * @description Status of the APNs token key used for iOS Live Activity pushes. The key
+         *     uploaded here (database) wins over the APNS_* env vars (fallback). The
+         *     .p8 itself is never returned; key_fingerprint is a short SHA-256 of
+         *     its public key. Requires platform.integrations.apple.read (super admin).
+         */
+        get: operations["getPlatformAPNsKey"];
+        /**
+         * Upload / edit the APNs key
+         * @description Stores the APNs .p8 (sealed with the integration vault) and its fields.
+         *     private_key may be omitted when a key is already stored (only the
+         *     fields change). The key must be an Apple .p8 (PEM, PKCS#8, EC P-256 /
+         *     ES256). A Sign in with Apple key cannot send pushes; create a key with
+         *     "Apple Push Notifications service (APNs)" enabled. Pushes in the API and
+         *     the worker pick the change up within a minute. Requires
+         *     platform.integrations.apple.write.
+         */
+        put: operations["putPlatformAPNsKey"];
+        post?: never;
+        /**
+         * Remove the uploaded APNs key
+         * @description Removes the stored key and fields; the APNS_* env key, if set, takes over. Requires platform.integrations.apple.write.
+         */
+        delete: operations["deletePlatformAPNsKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/apple/apns/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the active APNs key against Apple
+         * @description Signs a provider token with the active key (database, else env) and
+         *     sends one Live Activity push to a device token that cannot exist, on
+         *     the configured environment host. Nothing is delivered. 400
+         *     BadDeviceToken means key, team and topic were accepted (ok: true); 403
+         *     InvalidProviderToken / ExpiredProviderToken means the key or team id
+         *     was rejected. The outcome is stored as last_test. Requires
+         *     platform.integrations.apple.write.
+         */
+        post: operations["testPlatformAPNsKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/identities": {
         parameters: {
             query?: never;
@@ -6294,6 +6357,447 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/loyalty/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Loyalty counters and upcoming renewals
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). Renewals: active subscriptions renewing within `days` (default 7, max 60), overdue first, at most 10.
+         */
+        get: operations["getTenantLoyaltyOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List stamp campaigns
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyCampaigns"];
+        put?: never;
+        /**
+         * Create a stamp campaign
+         * @description Requires `tenant.loyalty.write`. Eligible services / categories must belong to the organization.
+         */
+        post: operations["createTenantLoyaltyCampaign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/campaigns/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a stamp campaign
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyCampaign"];
+        /**
+         * Replace a stamp campaign
+         * @description Requires `tenant.loyalty.write`. Full replace.
+         */
+        put: operations["updateTenantLoyaltyCampaign"];
+        post?: never;
+        /**
+         * Archive a stamp campaign
+         * @description Requires `tenant.loyalty.write`. Soft delete; history is kept.
+         */
+        delete: operations["deleteTenantLoyaltyCampaign"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List package definitions
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyPackages"];
+        put?: never;
+        /**
+         * Create a package definition
+         * @description Requires `tenant.loyalty.write`.
+         */
+        post: operations["createTenantLoyaltyPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/packages/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a package definition
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyPackage"];
+        /**
+         * Replace a package definition
+         * @description Requires `tenant.loyalty.write`. Full replace.
+         */
+        put: operations["updateTenantLoyaltyPackage"];
+        post?: never;
+        /**
+         * Archive a package definition
+         * @description Requires `tenant.loyalty.write`. Soft delete; history is kept.
+         */
+        delete: operations["deleteTenantLoyaltyPackage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List subscription plans
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyPlans"];
+        put?: never;
+        /**
+         * Create a subscription plan
+         * @description Requires `tenant.loyalty.write`.
+         */
+        post: operations["createTenantLoyaltyPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/plans/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a subscription plan
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyPlan"];
+        /**
+         * Replace a subscription plan
+         * @description Requires `tenant.loyalty.write`. Full replace.
+         */
+        put: operations["updateTenantLoyaltyPlan"];
+        post?: never;
+        /**
+         * Archive a subscription plan
+         * @description Requires `tenant.loyalty.write`. Soft delete; history is kept.
+         */
+        delete: operations["deleteTenantLoyaltyPlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/customer-packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List packages sold
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyCustomerPackages"];
+        put?: never;
+        /**
+         * Sell a package to a customer
+         * @description Requires `tenant.loyalty.apply`. Creates the credits and takes the price: cash / card into `finance_account_uuid` (income category "Paket Satışı") or a charge on the customer's cari account.
+         */
+        post: operations["sellTenantLoyaltyPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/customer-packages/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a package sold (with usage)
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyCustomerPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/customer-packages/{uuid}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a package sold
+         * @description Requires `tenant.loyalty.write`. With no credit used the payment is voided (`refunded: true`); otherwise the remaining credits lapse. 409 while a credit is applied on an open job.
+         */
+        post: operations["cancelTenantLoyaltyCustomerPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List subscriptions
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). `due_within_days` lists active subscriptions renewing within n days (overdue included), soonest first.
+         */
+        get: operations["listTenantLoyaltySubscriptions"];
+        put?: never;
+        /**
+         * Start a subscription
+         * @description Requires `tenant.loyalty.apply`. With `payment` the first period is collected at once; otherwise the subscription is `past_due` until paid.
+         */
+        post: operations["startTenantLoyaltySubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a subscription (payments, usage, next period)
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltySubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions/{uuid}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Collect the next period
+         * @description Requires `tenant.loyalty.apply`. Pays `next_period` (cash / card into a finance account, income category "Abonelik Geliri", or cari) and moves the renewal date.
+         */
+        post: operations["payTenantLoyaltySubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions/{uuid}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a subscription
+         * @description Requires `tenant.loyalty.write`. Paid periods are not refunded; pending renewal reminders are cancelled.
+         */
+        post: operations["cancelTenantLoyaltySubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/customers/{uuid}/loyalty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Customer loyalty (stamps, packages, subscriptions)
+         * @description Requires `tenant.customers.read` and `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["getTenantCustomerLoyalty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/loyalty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Job loyalty section
+         * @description Requires `tenant.jobs.read` and `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). What is applied, what can be applied now (`options`, biggest saving first; only while the job is open and unpaid) and the customer's stamp cards.
+         */
+        get: operations["getTenantJobLoyalty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/loyalty/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a reward / package credit / subscription use to a job line
+         * @description Requires `tenant.jobs.write` and `tenant.loyalty.apply`. Send one of the `options` of the job loyalty section. The line keeps its price; the covered amount becomes its `discount_amount` and the job total drops. 409 `NOT_APPLICABLE` when the option no longer applies, `CONFLICT` when the job is paid / closed or the line is already covered.
+         */
+        post: operations["applyTenantJobLoyalty"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/loyalty/{applicationUuid}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                applicationUuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revert loyalty on a job line
+         * @description Requires `tenant.jobs.write` and `tenant.loyalty.apply`. The line is charged again and the credits / use / stamps go back. Cancelling or voiding the job does this for every application.
+         */
+        post: operations["revertTenantJobLoyalty"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/todos/meta": {
         parameters: {
             query?: never;
@@ -9406,6 +9910,121 @@ export interface components {
             data: components["schemas"]["OAuthProviderSettings"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** @description Credentials pushes use right now (never the key itself). */
+        PlatformAPNsActiveKey: {
+            /** @example GS6Q2FZ3PT */
+            key_id: string;
+            /** @example ABCDE12345 */
+            team_id: string;
+            /** @example com.otopoly.app */
+            bundle_id: string;
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            /** @example https://api.push.apple.com */
+            host: string;
+            /**
+             * @description Short SHA-256 hex of the public key
+             * @example 3f9a0c1d2e4b5a69
+             */
+            key_fingerprint: string;
+        };
+        PlatformAPNsTestResult: {
+            /** @description true when APNs accepted key, team and topic (400 BadDeviceToken) */
+            ok: boolean;
+            /** @enum {string} */
+            verdict: "accepted" | "key_rejected" | "topic_rejected" | "rate_limited" | "rejected" | "unreachable" | "not_configured";
+            /**
+             * @description APNs HTTP status (absent when APNs was not reached)
+             * @example 400
+             */
+            status?: number;
+            /**
+             * @description APNs reason
+             * @example BadDeviceToken
+             */
+            reason: string;
+            /** @enum {string} */
+            source: "database" | "env" | "none";
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            host?: string;
+            /** @description Transport error when unreachable */
+            error?: string;
+            /** Format: date-time */
+            tested_at: string;
+        };
+        PlatformAPNsStatus: {
+            /**
+             * @description Where pushes take the key from (database first, env fallback).
+             * @enum {string}
+             */
+            source: "database" | "env" | "none";
+            /** @description A key was uploaded from the panel */
+            stored: boolean;
+            /** @description Stored key id ("" when none) */
+            key_id: string;
+            /** @description Stored team id ("" = fallback) */
+            team_id: string;
+            /** @enum {string} */
+            team_id_source: "database" | "apple_integration" | "env" | "none";
+            effective_team_id: string;
+            /** @example com.otopoly.app */
+            bundle_id: string;
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            /** @description Stored key's public-key fingerprint ("" when none) */
+            key_fingerprint: string;
+            /** Format: date-time */
+            uploaded_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+            /** @description APNS_* env key present */
+            env_configured: boolean;
+            active: components["schemas"]["PlatformAPNsActiveKey"] | null;
+            last_test: components["schemas"]["PlatformAPNsTestResult"] | null;
+        };
+        SavePlatformAPNsKeyRequest: {
+            /**
+             * @description 10-character key id
+             * @example GS6Q2FZ3PT
+             */
+            key_id: string;
+            /** @description Optional; empty = Apple integration team id, then APNS_TEAM_ID */
+            team_id?: string;
+            /** @description Default com.otopoly.app */
+            bundle_id?: string;
+            /**
+             * @description Default production
+             * @enum {string}
+             */
+            environment?: "production" | "sandbox";
+            /** @description .p8 PEM text; optional when a key is already stored */
+            private_key?: string;
+        };
+        SavePlatformAPNsKeyMultipart: {
+            key_id: string;
+            team_id?: string;
+            bundle_id?: string;
+            /** @enum {string} */
+            environment?: "production" | "sandbox";
+            /**
+             * Format: binary
+             * @description The AuthKey_XXXXXXXXXX.p8 file (max 16 KB)
+             */
+            private_key?: string;
+        };
+        EnvelopePlatformAPNsStatus: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformAPNsStatus"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePlatformAPNsTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformAPNsTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         LinkedIdentity: {
             /** @example github */
             provider: string;
@@ -11381,7 +12000,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event" | "customer_package";
             /** Format: uuid */
             uuid: string;
         };
@@ -11776,6 +12395,551 @@ export interface components {
             success: true;
             data: {
                 deleted: boolean;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        LoyaltyRef: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+        };
+        /**
+         * @description free_service (reward_service for free), percent (reward_value % off an eligible line), fixed (reward_value off)
+         * @enum {string}
+         */
+        LoyaltyRewardType: "free_service" | "percent" | "fixed";
+        LoyaltyCampaign: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            description: string;
+            /** @description Eligible services */
+            services: components["schemas"]["LoyaltyRef"][];
+            /** @description Eligible service categories */
+            categories: components["schemas"]["LoyaltyRef"][];
+            stamps_required: number;
+            reward_type: components["schemas"]["LoyaltyRewardType"];
+            reward_service?: components["schemas"]["LoyaltyRef"];
+            /** @description Percent or amount (0.00 for free_service) */
+            reward_value: string;
+            /** Format: date */
+            valid_from?: string;
+            /** Format: date */
+            valid_until?: string;
+            is_active: boolean;
+            /** @description Max rewards per customer (omitted = unlimited) */
+            per_customer_limit?: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description At least one of service_uuids / category_uuids. */
+        LoyaltyCampaignInput: {
+            name: string;
+            description?: string;
+            service_uuids?: string[];
+            category_uuids?: string[];
+            stamps_required: number;
+            reward_type: components["schemas"]["LoyaltyRewardType"];
+            /**
+             * Format: uuid
+             * @description Required for free_service
+             */
+            reward_service_uuid?: string | null;
+            /** @description Required for percent (1-100) and fixed (> 0) */
+            reward_value?: string;
+            /** Format: date */
+            valid_from?: string | null;
+            /** Format: date */
+            valid_until?: string | null;
+            /** @description Default true */
+            is_active?: boolean | null;
+            per_customer_limit?: number | null;
+        };
+        LoyaltyPackageItem: {
+            /** Format: uuid */
+            service_uuid: string;
+            service_name: string;
+            quantity: number;
+            /** @description The service's current list price */
+            unit_price: string;
+        };
+        LoyaltyPackage: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            description: string;
+            price: string;
+            currency: string;
+            /** @description Omitted = never expires */
+            validity_days?: number;
+            is_active: boolean;
+            items: components["schemas"]["LoyaltyPackageItem"][];
+            /** @description Items at the services' current prices */
+            list_value: string;
+            /** Format: int64 */
+            sold_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        LoyaltyPackageInput: {
+            name: string;
+            description?: string;
+            /** @description > 0 */
+            price: string;
+            /** @description Default TRY */
+            currency?: string;
+            validity_days?: number | null;
+            is_active?: boolean | null;
+            items: {
+                /** Format: uuid */
+                service_uuid: string;
+                quantity: number;
+            }[];
+        };
+        LoyaltyPlan: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            description: string;
+            /** @description Price per period */
+            price: string;
+            currency: string;
+            period_months: number;
+            /** @description Omitted = unlimited */
+            uses_per_period?: number;
+            services: components["schemas"]["LoyaltyRef"][];
+            categories: components["schemas"]["LoyaltyRef"][];
+            is_active: boolean;
+            /**
+             * Format: int64
+             * @description Active subscriptions
+             */
+            active_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description At least one of service_uuids / category_uuids. */
+        LoyaltyPlanInput: {
+            name: string;
+            description?: string;
+            price: string;
+            currency?: string;
+            /** @description Default 1 */
+            period_months?: number;
+            /** @description null = unlimited */
+            uses_per_period?: number | null;
+            service_uuids?: string[];
+            category_uuids?: string[];
+            is_active?: boolean | null;
+        };
+        LoyaltyCredit: {
+            /** Format: uuid */
+            service_uuid: string;
+            service_name: string;
+            total: number;
+            used: number;
+            remaining: number;
+        };
+        /** @enum {string} */
+        LoyaltyPaymentMethod: "cash" | "card" | "cari";
+        LoyaltyCustomerPackage: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            package_uuid?: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            name: string;
+            price: string;
+            currency: string;
+            /** @enum {string} */
+            state: "active" | "expired" | "used_up" | "cancelled";
+            /** Format: date-time */
+            purchased_at: string;
+            /** Format: date-time */
+            expires_at?: string;
+            payment_method: components["schemas"]["LoyaltyPaymentMethod"];
+            /** Format: int64 */
+            credits_total: number;
+            /** Format: int64 */
+            credits_used: number;
+            credits: components["schemas"]["LoyaltyCredit"][];
+            notes: string;
+            /** Format: date-time */
+            cancelled_at?: string;
+        };
+        LoyaltyUsage: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            job_uuid: string;
+            plate: string;
+            line_name: string;
+            units: number;
+            discount_amount: string;
+            /** @enum {string} */
+            status: "applied" | "reverted";
+            /** Format: date */
+            period_start?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltyCustomerPackageDetail: components["schemas"]["LoyaltyCustomerPackage"] & {
+            usage: components["schemas"]["LoyaltyUsage"][];
+        };
+        LoyaltyCancelResult: components["schemas"]["LoyaltyCustomerPackageDetail"] & {
+            /** @description The sale was voided (no credit had been used) */
+            refunded: boolean;
+        };
+        LoyaltySellPackageInput: {
+            /** Format: uuid */
+            package_uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            method: components["schemas"]["LoyaltyPaymentMethod"];
+            /**
+             * Format: uuid
+             * @description Required for cash / card
+             */
+            finance_account_uuid?: string | null;
+            notes?: string;
+        };
+        LoyaltyPaymentInput: {
+            method: components["schemas"]["LoyaltyPaymentMethod"];
+            /**
+             * Format: uuid
+             * @description Required for cash / card
+             */
+            finance_account_uuid?: string | null;
+        };
+        LoyaltyPeriod: {
+            /** Format: date */
+            start: string;
+            /**
+             * Format: date
+             * @description Exclusive
+             */
+            end: string;
+            /** Format: int64 */
+            used: number;
+            /** @description Omitted = unlimited */
+            limit?: number;
+            /** Format: int64 */
+            remaining?: number;
+        };
+        LoyaltySubscription: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            plan_uuid?: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            /**
+             * Format: uuid
+             * @description Set when the subscription is for one vehicle
+             */
+            vehicle_uuid?: string;
+            plate?: string;
+            name: string;
+            price: string;
+            currency: string;
+            period_months: number;
+            /** @description Omitted = unlimited */
+            uses_per_period?: number;
+            /** Format: date */
+            start_date: string;
+            /**
+             * Format: date
+             * @description Start of the next period to pay (paid through)
+             */
+            renewal_date: string;
+            /** @description Negative when overdue */
+            days_until_renewal: number;
+            /** @enum {string} */
+            state: "active" | "past_due" | "cancelled";
+            current_period?: components["schemas"]["LoyaltyPeriod"];
+            notes: string;
+            /** Format: date-time */
+            cancelled_at?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltySubscriptionPayment: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: date */
+            period_start: string;
+            /** Format: date */
+            period_end: string;
+            amount: string;
+            currency: string;
+            method: components["schemas"]["LoyaltyPaymentMethod"];
+            finance_account_name?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltySubscriptionDetail: components["schemas"]["LoyaltySubscription"] & {
+            next_period: components["schemas"]["LoyaltyPeriod"];
+            payments: components["schemas"]["LoyaltySubscriptionPayment"][];
+            usage: components["schemas"]["LoyaltyUsage"][];
+        };
+        LoyaltyStartSubscriptionInput: {
+            /** Format: uuid */
+            plan_uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            /** Format: uuid */
+            vehicle_uuid?: string | null;
+            /**
+             * Format: date
+             * @description Default today (within ±62 days)
+             */
+            start_date?: string | null;
+            notes?: string;
+            payment?: components["schemas"]["LoyaltyPaymentInput"] | null;
+        };
+        LoyaltyStampCard: {
+            /** Format: uuid */
+            campaign_uuid: string;
+            campaign_name: string;
+            stamps_required: number;
+            /**
+             * Format: int64
+             * @description Progress towards the next reward (0..required-1)
+             */
+            stamps: number;
+            /**
+             * Format: int64
+             * @description Every unredeemed stamp
+             */
+            balance: number;
+            /** Format: int64 */
+            rewards_available: number;
+            /** Format: int64 */
+            rewards_redeemed: number;
+            reward_type: components["schemas"]["LoyaltyRewardType"];
+            reward_value: string;
+            reward_service?: components["schemas"]["LoyaltyRef"];
+            /** @description The campaign runs today */
+            active: boolean;
+            limit_reached: boolean;
+        };
+        CustomerLoyalty: {
+            /** Format: uuid */
+            customer_uuid: string;
+            stamps: components["schemas"]["LoyaltyStampCard"][];
+            /** @description Usable packages */
+            packages: components["schemas"]["LoyaltyCustomerPackage"][];
+            /** @description Active and past due */
+            subscriptions: components["schemas"]["LoyaltySubscription"][];
+            /** Format: int64 */
+            rewards_available: number;
+        };
+        /** @enum {string} */
+        LoyaltyKind: "reward" | "package" | "subscription";
+        LoyaltyApplication: {
+            /** Format: uuid */
+            uuid: string;
+            kind: components["schemas"]["LoyaltyKind"];
+            /**
+             * Format: uuid
+             * @description Campaign / customer package / subscription
+             */
+            source_uuid?: string;
+            source_name: string;
+            /** Format: uuid */
+            line_uuid: string;
+            line_name: string;
+            /** @description Credits / uses consumed (stamps for a reward) */
+            units: number;
+            discount_amount: string;
+            /** @enum {string} */
+            status: "applied" | "reverted";
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltyOption: {
+            kind: components["schemas"]["LoyaltyKind"];
+            /** Format: uuid */
+            source_uuid: string;
+            source_name: string;
+            /** Format: uuid */
+            line_uuid: string;
+            line_name: string;
+            units: number;
+            discount_amount: string;
+            /**
+             * Format: int64
+             * @description Left after this use (omitted for rewards and unlimited subscriptions)
+             */
+            remaining?: number;
+        };
+        JobLoyalty: {
+            /** Format: uuid */
+            job_uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            /** @description Open and unpaid (apply / revert allowed) */
+            editable: boolean;
+            applied: components["schemas"]["LoyaltyApplication"][];
+            options: components["schemas"]["LoyaltyOption"][];
+            stamps: components["schemas"]["LoyaltyStampCard"][];
+            /** @description Campaigns this job earned a stamp in */
+            stamps_earned: components["schemas"]["LoyaltyRef"][];
+        };
+        LoyaltyApplyInput: {
+            kind: components["schemas"]["LoyaltyKind"];
+            /** Format: uuid */
+            source_uuid: string;
+            /** Format: uuid */
+            line_uuid: string;
+        };
+        LoyaltyOverview: {
+            /** Format: int64 */
+            active_campaigns: number;
+            /** Format: int64 */
+            active_packages: number;
+            /** Format: int64 */
+            active_plans: number;
+            /** Format: int64 */
+            customer_packages_active: number;
+            /** Format: int64 */
+            subscriptions_active: number;
+            /** Format: int64 */
+            subscriptions_past_due: number;
+            /** Format: int64 */
+            renewals_upcoming: number;
+            horizon_days: number;
+            renewals: components["schemas"]["LoyaltySubscription"][];
+        };
+        EnvelopeLoyaltyCampaign: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyCampaign"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPackage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyPackage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPlan: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyPlan"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCustomerPackageDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyCustomerPackageDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCancelResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyCancelResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltySubscriptionDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltySubscriptionDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerLoyalty: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerLoyalty"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeJobLoyalty: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["JobLoyalty"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyDeleted: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                deleted: boolean;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCampaignPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyCampaign"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPackagePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyPackage"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPlanPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyPlan"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCustomerPackagePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyCustomerPackage"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltySubscriptionPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltySubscription"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
             };
             meta: components["schemas"]["ResponseMeta"];
         };
@@ -13276,9 +14440,17 @@ export interface components {
             unit_price: string;
             qty: string;
             vat_rate: string;
+            /** @description Net of discount_amount */
             line_total: string;
             currency: string;
             sort_order: number;
+            /** @description What loyalty (reward / package / subscription) covered on the line */
+            discount_amount?: string;
+            /**
+             * @description Omitted when nothing covers the line
+             * @enum {string}
+             */
+            discount_source?: "reward" | "package" | "subscription";
         };
         JobPayment: {
             /** Format: uuid */
@@ -16123,6 +17295,104 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description APNs key status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    putPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePlatformAPNsKeyRequest"];
+                "multipart/form-data": components["schemas"]["SavePlatformAPNsKeyMultipart"];
+            };
+        };
+        responses: {
+            /** @description Saved APNs key status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deletePlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description APNs key status after removal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    testPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test outcome (also for a rejected key; see verdict) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsTestResult"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalError"];
@@ -22514,7 +23784,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    method: "cash" | "card" | "cari";
+                    method?: "cash" | "card" | "cari";
                     /** Format: uuid */
                     finance_account_uuid?: string;
                 };
@@ -26364,6 +27634,809 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantLoyaltyOverview: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyOverview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listTenantLoyaltyCampaigns: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaignPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyCampaignInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaign"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaign"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyCampaignInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaign"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTenantLoyaltyPackages: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackagePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPackageInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPackageInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTenantLoyaltyPlans: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlanPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPlanInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlan"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPlanInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTenantLoyaltyCustomerPackages: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                customer_uuid?: string;
+                state?: "active" | "expired" | "used_up" | "cancelled";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCustomerPackagePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sellTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltySellPackageInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCustomerPackageDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantLoyaltyCustomerPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCustomerPackageDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cancelTenantLoyaltyCustomerPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCancelResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listTenantLoyaltySubscriptions: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                customer_uuid?: string;
+                state?: "active" | "past_due" | "cancelled";
+                due_within_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    startTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyStartSubscriptionInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    payTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPaymentInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantCustomerLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerLoyalty"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantJobLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobLoyalty"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    applyTenantJobLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyApplyInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobLoyalty"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    revertTenantJobLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                applicationUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobLoyalty"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getTenantTodosMeta: {

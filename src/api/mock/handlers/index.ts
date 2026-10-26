@@ -22,3 +22,4 @@ import './live-activities';
 import './qr-login';
 import './realtime';
 import './calendar';
+import './loyalty';
