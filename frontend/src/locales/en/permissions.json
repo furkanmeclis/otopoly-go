@@ -141,5 +141,8 @@
   "labels.tenant.calendar.write": "Manage calendar events",
   "labels.tenant.mcp.connect": "Connect AI apps (MCP) to the business",
   "labels.platform.mcp.connect": "Connect AI apps (MCP) to the platform",
-  "labels.platform.mcp.manage": "Manage MCP clients"
+  "labels.platform.mcp.manage": "Manage MCP clients",
+  "labels.tenant.loyalty.read": "View loyalty programs, packages and subscriptions",
+  "labels.tenant.loyalty.apply": "Use loyalty (apply rewards / credits on jobs, sell packages, start and collect subscriptions)",
+  "labels.tenant.loyalty.write": "Manage loyalty programs, cancel packages / subscriptions"
 }

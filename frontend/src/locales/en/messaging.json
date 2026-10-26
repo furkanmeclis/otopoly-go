@@ -363,5 +363,8 @@
   "platform_report.org_description": "The business's latest SMS. Numbers are masked.",
   "platform_report.org_empty": "No SMS",
   "platform_report.org_empty_hint": "This business has not sent any SMS yet.",
-  "platform_report.back": "SMS report"
+  "platform_report.back": "SMS report",
+  "group.loyalty": "Loyalty & packages",
+  "types.loyalty_renewal_reminder": "Subscription renewal reminder",
+  "types.loyalty_team_renewal_due": "Subscription renewal coming up (team)"
 }

@@ -61,6 +61,8 @@ import {
 } from "@/components/ui/dialog";
 import { FieldGroup } from "@/components/ui/field";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { CustomerLoyaltySection } from "@/features/loyalty";
+import { useLoyaltyAccess } from "@/features/loyalty/hooks/use-loyalty";
 import { routes } from "@/config/routes";
 import { useCariEntries } from "@/features/cari/hooks/use-cari";
 import { useTenantCariAccess } from "@/features/cari/hooks/use-tenant-cari-access";
@@ -109,6 +111,7 @@ const CUSTOMER_TABS = [
   "quotes",
   "leads",
   "cari",
+  "loyalty",
   "activity",
 ] as const;
 
@@ -134,6 +137,7 @@ export function CustomerDetailPage({
   const { canRead: canReadSales } = useTenantSalesAccess(slug);
   const { canRead: canReadQuotes } = useQuotesAccess();
   const { canRead: canReadLeads } = useLeadsAccess();
+  const { canRead: canReadLoyalty } = useLoyaltyAccess();
   const query = useCustomer(uuid);
   const summaryQuery = useCustomerSummary(uuid);
   const refetchSummary = summaryQuery.refetch;
@@ -552,6 +556,11 @@ export function CustomerDetailPage({
                   hidden: !(cariAccountUuid && canReadCari),
                 },
                 {
+                  value: "loyalty",
+                  label: t("loyalty.customer.tab"),
+                  hidden: !canReadLoyalty,
+                },
+                {
                   value: "activity",
                   label: t("customers.insights.tabs.activity"),
                 },
@@ -623,6 +632,12 @@ export function CustomerDetailPage({
                   ) : null}
                 </div>
                 <div className="space-y-6 lg:col-span-2">
+                  <CustomerLoyaltySection
+                    slug={slug}
+                    customerUuid={customer.uuid}
+                    customerName={customer.name}
+                    compact
+                  />
                   <EntitySectionCard title={t("customers.detail.info")}>
                     <EntityDetail
                       sections={[
@@ -842,6 +857,16 @@ export function CustomerDetailPage({
                     </ul>
                   )}
                 </EntitySectionCard>
+              </TabsContent>
+            ) : null}
+
+            {canReadLoyalty ? (
+              <TabsContent value="loyalty" className="mt-4">
+                <CustomerLoyaltySection
+                  slug={slug}
+                  customerUuid={customer.uuid}
+                  customerName={customer.name}
+                />
               </TabsContent>
             ) : null}
 

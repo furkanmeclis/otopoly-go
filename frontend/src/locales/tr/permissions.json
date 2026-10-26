@@ -141,5 +141,8 @@
   "labels.tenant.calendar.write": "Takvim etkinliklerini yönet",
   "labels.tenant.mcp.connect": "AI uygulamalarını (MCP) işletmeye bağla",
   "labels.platform.mcp.connect": "AI uygulamalarını (MCP) platforma bağla",
-  "labels.platform.mcp.manage": "MCP istemcilerini yönet"
+  "labels.platform.mcp.manage": "MCP istemcilerini yönet",
+  "labels.tenant.loyalty.read": "Sadakat programlarını, paketleri ve abonelikleri görüntüle",
+  "labels.tenant.loyalty.apply": "Sadakati kullan (işe ödül / hak uygula, paket sat, abonelik başlat ve tahsil et)",
+  "labels.tenant.loyalty.write": "Sadakat programlarını yönet, paket / abonelik iptal et"
 }

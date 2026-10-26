@@ -179,5 +179,6 @@
   "consumptions.added_by_hand": "Elle eklendi",
   "consumptions.untracked": "stok takibi yok",
   "consumptions.reverted": "stoğa iade edildi",
-  "board.delivered_span": "{{n}} günlük iş"
+  "board.delivered_span": "{{n}} günlük iş",
+  "close.covered": "Sadakat (paket, abonelik veya kampanya) işin tamamını karşıladı; iş ödeme alınmadan kapanır."
 }

@@ -78,5 +78,6 @@
   "breadcrumb_label": "Breadcrumb",
   "nav_calendar": "Calendar",
   "nav_mcp": "MCP server",
-  "nav_mcp_tenant": "AI connections (MCP)"
+  "nav_mcp_tenant": "AI connections (MCP)",
+  "nav_loyalty": "Loyalty & Packages"
 }
