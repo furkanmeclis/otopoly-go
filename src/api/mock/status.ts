@@ -30,6 +30,8 @@ export const SUCCESS_STATUS: Record<string, number> = {
   'POST /v1/tenant/sales': 201,
   'POST /v1/tenant/suppliers': 201,
   'POST /v1/tenant/purchases': 201,
+  'POST /v1/tenant/purchases/drafts': 201,
+  'POST /v1/tenant/stock-reorder/drafts': 201,
   'POST /v1/tenant/contracts/templates': 201,
   'POST /v1/tenant/contracts/templates/clone': 201,
   'POST /v1/tenant/contracts/instances': 201,

@@ -2,7 +2,7 @@ import type { ServerListParams } from "@/api/types";
 import { platformRequest } from "@/api/client";
 import type { ResourceMeta } from "@/features/io/types";
 
-export type PurchaseStatus = "posted" | "voided";
+export type PurchaseStatus = "draft" | "posted" | "voided";
 export type PurchaseMethod = "cash" | "card";
 
 export type PurchaseLine = {

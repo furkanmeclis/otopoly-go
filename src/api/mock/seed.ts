@@ -749,6 +749,38 @@ export function seedDb(): MockDb {
       txn.source_uuid = entry.uuid;
     }
   }
+  // Reorder suggestions: Kimtaş delivers in 2 days, shampoo comes in 20 L cans, one open draft.
+  db.reorder = {
+    settings: { velocity_days: 30, lead_days: 3, target_days: 14, notify_enabled: true },
+    supplierLeads: { [supChem.uuid]: 2 },
+    overrides: { [pShampoo.uuid]: { supplier_uuid: null, lead_days: null, target_days: null, pack_size: '20' } },
+  };
+  {
+    const when = at(1, 10).toISOString();
+    const lines = [[pMicro, 10] as const].map(([p, qty], i) => ({
+      uuid: sid('9l1'),
+      product_uuid: p.uuid,
+      name: p.name,
+      unit_cost: p.cost_price,
+      qty: String(qty),
+      line_total: money(Number(p.cost_price) * qty),
+      currency: 'TRY',
+      sort_order: i,
+    }));
+    db.purchases.push({
+      uuid: sid('9c0'),
+      supplier_uuid: supAcc.uuid,
+      supplier_name: supAcc.name,
+      status: 'draft',
+      currency: 'TRY',
+      total_amount: money(lines.reduce((s, l) => s + Number(l.line_total), 0)),
+      method: 'cash',
+      notes: '',
+      purchased_at: when,
+      created_at: when,
+      lines,
+    });
+  }
   // Recompute stock so it reflects the seeded consumptions loosely (keep seeded levels, consumptions not applied).
   moveStock(db, pShampoo.uuid, 0);
 

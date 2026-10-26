@@ -24,6 +24,7 @@ export const LIVE_RESOURCES = [
   'tenant.staff',
   'tenant.calendar',
   'tenant.reviews',
+  'tenant.stock_reorder',
 ] as const;
 
 export type LiveResource = (typeof LIVE_RESOURCES)[number];

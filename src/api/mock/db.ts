@@ -59,6 +59,15 @@ export type MockRefreshSession = {
   expires_at: string;
 };
 
+/** Per-product reorder override (backend `stock_reorder_product_settings`). */
+export type MockReorderOverride = { supplier_uuid: string | null; lead_days: number | null; target_days: number | null; pack_size: string | null };
+/** Reorder settings, supplier lead times and product overrides (backend migration 000094). */
+export type MockReorderState = {
+  settings: { velocity_days: number; lead_days: number; target_days: number; notify_enabled: boolean };
+  supplierLeads: Record<string, number>;
+  overrides: Record<string, MockReorderOverride>;
+};
+
 export type MockDb = {
   version: number;
   seededAt: string;
@@ -90,6 +99,8 @@ export type MockDb = {
   leads: LeadDetail[];
   quotes: QuoteDetail[];
   todos: Todo[];
+  /** Optional so a DB persisted by an older build loads (created on first use). */
+  reorder?: MockReorderState;
 };
 
 let db: MockDb | null = null;

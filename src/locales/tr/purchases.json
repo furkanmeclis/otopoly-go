@@ -52,5 +52,8 @@
   "empty_hint": "Tedarikçiden aldığınız ürünleri kaydedin; stok artar, gider kasaya işlenir.",
   "summary.count": "Alış",
   "summary.total": "Toplam alış",
-  "status_label": "Durum"
+  "status_label": "Durum",
+  "filter.draft": "Taslak",
+  "status.draft": "Taslak",
+  "actions.reorder": "Sipariş önerileri"
 }

@@ -62,6 +62,7 @@ const TENANT_RULES: [RegExp, (m: RegExpExecArray, q: Query) => string][] = [
   [new RegExp(`^/suppliers/${SEG}$`), (m) => `/suppliers/${m[1]}`],
   [/^\/purchases$/, () => '/purchases'],
   [/^\/purchases\/new$/, () => '/purchases/new'],
+  [/^\/purchases\/reorder$/, (_m, q) => (q.get('tab') === 'drafts' ? '/purchases/reorder/drafts' : '/purchases/reorder')],
   [new RegExp(`^/purchases/${SEG}$`), (m) => `/purchases/${m[1]}`],
   [/^\/reports$/, () => '/reports'],
   [/^\/todos$/, (_m, q) => (q.get('todo') ? `/todos?todo=${encodeURIComponent(q.get('todo')!)}` : '/todos')],

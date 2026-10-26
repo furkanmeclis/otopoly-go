@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Plus, ShoppingCart } from 'lucide-react-native';
+import { PackageSearch, Plus, ShoppingCart } from 'lucide-react-native';
 import { useDeferredValue, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 
@@ -17,7 +17,7 @@ import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 import { useLiveResource } from '@/features/live/use-live-resource';
 
-const STATUS_TABS = ['all', 'posted', 'voided'] as const;
+const STATUS_TABS = ['all', 'posted', 'voided', 'draft'] as const;
 type StatusTab = (typeof STATUS_TABS)[number];
 
 export default function PurchasesScreen() {
@@ -40,7 +40,9 @@ function PurchasesList() {
   const [status, setStatus] = useState<StatusTab>('all');
   const [q, setQ] = useState('');
   const query = useDeferredValue(q.trim());
-  const list = usePurchasesInfinite({ sort: '-purchased_at', q: query || undefined, status: status === 'all' ? undefined : status, date_from: date, date_to: date });
+  // Drafts (reorder suggestions) are listed regardless of the day.
+  const dayFilter = status === 'draft' ? {} : { date_from: date, date_to: date };
+  const list = usePurchasesInfinite({ sort: '-purchased_at', q: query || undefined, status: status === 'all' ? undefined : status, ...dayFilter });
   const day = usePurchasesDay(date);
 
   // No summary endpoint: the web totals the day's posted rows client-side.
@@ -56,7 +58,12 @@ function PurchasesList() {
         <Header
           title={tr('purchases.title')}
           subtitle={tr('purchases.description')}
-          right={canWrite ? <IconButton variant="primary" label={tr('purchases.actions.create')} icon={<Plus size={20} color={t.colors.onPrimary} />} onPress={openCreate} /> : undefined}
+          right={
+            <Row gap={t.spacing.xs}>
+              {can(P.catalogRead) ? <IconButton label={tr('purchases.actions.reorder')} icon={<PackageSearch size={20} color={t.colors.text} />} onPress={() => router.push('/purchases/reorder')} /> : null}
+              {canWrite ? <IconButton variant="primary" label={tr('purchases.actions.create')} icon={<Plus size={20} color={t.colors.onPrimary} />} onPress={openCreate} /> : null}
+            </Row>
+          }
         />
       }
     >

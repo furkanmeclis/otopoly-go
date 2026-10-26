@@ -18,21 +18,23 @@ const CALENDAR: QueryKey = ['calendar'];
 const REPORTS: QueryKey = ['reports'];
 /** Customer 360 activity feed: every record kind it lists. */
 const ACTIVITY: QueryKey = ['customers', 'activity'];
+/** Reorder suggestions follow stock, sales, job usage and drafts. */
+const REORDER: QueryKey = ['stock-reorder'];
 
 export const LIVE_TARGETS: Record<LiveResource, Target> = {
   'tenant.customers': { perm: 'tenant.customers.read', own: [['customers']] },
   // Vehicle uuids are not customer uuids: refresh every open customer screen.
   'tenant.vehicles': { perm: 'tenant.customers.read', own: [], related: [['customers']] },
-  'tenant.jobs': { perm: 'tenant.jobs.read', own: [['jobs']], related: [REPORTS, CALENDAR, ACTIVITY] },
-  'tenant.sales': { perm: 'tenant.sales.read', own: [['sales']], related: [REPORTS, CALENDAR, ACTIVITY] },
+  'tenant.jobs': { perm: 'tenant.jobs.read', own: [['jobs']], related: [REPORTS, CALENDAR, ACTIVITY, REORDER] },
+  'tenant.sales': { perm: 'tenant.sales.read', own: [['sales']], related: [REPORTS, CALENDAR, ACTIVITY, REORDER] },
   'tenant.quotes': { perm: 'tenant.quotes.read', own: [['quotes']], related: [CALENDAR, ACTIVITY] },
   'tenant.leads': { perm: 'tenant.leads.read', own: [['leads']], related: [CALENDAR, ACTIVITY] },
-  'tenant.purchases': { perm: 'tenant.purchases.read', own: [['purchases']], related: [CALENDAR] },
+  'tenant.purchases': { perm: 'tenant.purchases.read', own: [['purchases']], related: [CALENDAR, REORDER] },
   'tenant.suppliers': { perm: 'tenant.suppliers.read', own: [['suppliers']] },
   'tenant.catalog.products': {
     perm: 'tenant.catalog.read',
     own: [['catalog', 'products'], ['catalog', 'product']],
-    related: [['catalog', 'summary'], ['catalog', 'service-products']],
+    related: [['catalog', 'summary'], ['catalog', 'service-products'], REORDER],
   },
   'tenant.catalog.services': {
     perm: 'tenant.catalog.read',
@@ -60,6 +62,8 @@ export const LIVE_TARGETS: Record<LiveResource, Target> = {
   'tenant.calendar': { perm: 'tenant.calendar.read', own: [['calendar', 'feed'], ['calendar', 'event']] },
   // Review requests (scheduled, sent, answered, handled): list, summary, settings usage, details.
   'tenant.reviews': { perm: 'tenant.reviews.read', own: [['reviews']] },
+  // Reorder settings, product overrides and drafts created from suggestions.
+  'tenant.stock_reorder': { perm: 'tenant.purchases.read', own: [REORDER] },
 };
 
 /** Key segments followed by a record uuid. */

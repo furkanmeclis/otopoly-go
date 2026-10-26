@@ -1987,11 +1987,7 @@ export interface paths {
          *       including the `MFA_REQUIRED` / `totp_code` round-trip).
          *     - Not linked, an account with the same email exists →
          *       `409 OAUTH_ACCOUNT_NOT_LINKED` (same policy as the web: sign in with
-         *       the existing method and link from the profile). Exception: an Apple
-         *       private-relay address only that Apple ID can present, so its
-         *       account is signed in and the identity re-linked (account status,
-         *       `MFA_REQUIRED` and `409 CONFLICT` when another Apple ID is linked
-         *       still apply).
+         *       the existing method and link from the profile).
          *     - Not linked, Apple private-relay email (`@privaterelay.appleid.com`),
          *       no account → `409 OAUTH_LINK_CHOICE_REQUIRED`; `error.details`
          *       carries `link_ticket`, `provider`, `expires_in` (seconds, 900) and
@@ -2074,10 +2070,8 @@ export interface paths {
          *     OAuth sign-up (registration policy, default role, welcome email) with
          *     the ticket's relay email, links the identity and returns tokens.
          *     Retrying with the same ticket signs into the account created by the
-         *     first call, also when that account exists by its relay email without
-         *     the identity (it is re-linked). Errors: `400 INVALID_LINK_TICKET`,
-         *     `403 FORBIDDEN` (registration disabled), `403 ACCOUNT_DEACTIVATED`,
-         *     `409 CONFLICT` (another Apple ID is linked to that account).
+         *     first call. Errors: `400 INVALID_LINK_TICKET`, `403 FORBIDDEN`
+         *     (registration disabled), `409 CONFLICT` (email registered meanwhile).
          */
         post: operations["postAuthOAuthLinkCreate"];
         delete?: never;
@@ -5394,7 +5388,8 @@ export interface paths {
         get: operations["getTenantPurchase"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Discard a draft purchase (posted purchases are voided instead) */
+        delete: operations["deleteTenantPurchaseDraft"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5411,6 +5406,172 @@ export interface paths {
         put?: never;
         /** Void a purchase and reverse stock/finance */
         post: operations["voidTenantPurchase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a draft purchase (no stock or finance effect until posted) */
+        post: operations["createTenantPurchaseDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/{uuid}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the supplier, notes and lines of a draft purchase */
+        put: operations["updateTenantPurchaseDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/{uuid}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a draft purchase (stock in, expense on the finance account)
+         * @description Runs the regular purchase flow on the draft: tracked products' stock
+         *     goes up and the expense is booked on `finance_account_uuid`. `lines`
+         *     (optional) replace the draft lines; `notes` (optional) replace the
+         *     notes. A purchase that is not a draft answers `409`.
+         */
+        post: operations["postTenantPurchaseDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stock reorder suggestions
+         * @description One row per active stock-tracked product that needs attention (or
+         *     every product with `all=true`), most urgent first. Formula:
+         *     `max(0, ceil(velocity × (lead_days + target_days) + min_stock − stock − on_order))`,
+         *     rounded up to whole packs; velocity = (job consumptions not reverted +
+         *     posted sales) of the last `velocity_days` / `velocity_days`; on_order
+         *     = quantity on draft purchases. `inputs` explains every value.
+         *     `403 FEATURE_DISABLED` when the plan excludes `stock_reorder.enabled`.
+         */
+        get: operations["getTenantStockReorderSuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reorder counts (nav badge, dashboard) */
+        get: operations["getTenantStockReorderSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reorder settings (defaults when never saved) */
+        get: operations["getTenantStockReorderSettings"];
+        /**
+         * Save reorder settings (owner)
+         * @description `supplier_lead_days`, when sent, replaces every supplier lead time.
+         */
+        put: operations["updateTenantStockReorderSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/products/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /** A product's reorder override (null when none) */
+        get: operations["getTenantStockReorderProduct"];
+        /** Set a product's reorder override (owner); all fields null removes it */
+        put: operations["updateTenantStockReorderProduct"];
+        post?: never;
+        /** Remove a product's reorder override (owner) */
+        delete: operations["deleteTenantStockReorderProduct"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create draft purchases from selected suggestions (owner)
+         * @description Groups the items by supplier (item `supplier_uuid`, else the
+         *     suggestion's preferred supplier) and creates one draft purchase per
+         *     supplier. Unit cost defaults to the last purchase cost, else the
+         *     product cost price. Drafts change neither stock nor finance until
+         *     posted (`POST /v1/tenant/purchases/{uuid}/post`).
+         */
+        post: operations["createTenantStockReorderDrafts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8097,216 +8258,6 @@ export interface paths {
          *     blocked client again succeeds.
          */
         delete: operations["revokePlatformMCPClient"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenant/reviews/meta": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Review list metadata
-         * @description Requires `tenant.reviews.read` and the `reviews.enabled` plan toggle.
-         */
-        get: operations["getTenantReviewsMeta"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenant/reviews/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Review KPIs and trend
-         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Requests created in the last `days` (default 30, test sends excluded): sent / opened / answered counts, response rate (answered / sent), average score, the 1-5 distribution, NPS-like score (promoters = 5, passives = 4, detractors = 1-3), Google redirects, open follow-ups and a weekly (monthly above 120 days) trend in Europe/Istanbul.
-         */
-        get: operations["getTenantReviewsSummary"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenant/reviews/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Review collection settings
-         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Defaults when never saved: disabled, channel `auto`, 120 min delay, quiet hours 21:00-09:00, threshold 4, 30 days between requests. Includes channel availability, the effective review.request template with a preview (edited in Ayarlar → Mesajlar) and the `reviews.monthly` usage (`limit` -1 = unlimited).
-         */
-        get: operations["getTenantReviewSettings"];
-        /**
-         * Save review collection settings (owner)
-         * @description Requires `tenant.reviews.write` and the owner role. Omitted (or null) fields keep their value. `google_review_url` must be an https link (or "" to clear).
-         */
-        put: operations["updateTenantReviewSettings"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenant/reviews/settings/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a test review request to your own phone (owner)
-         * @description Requires `tenant.reviews.write` and the owner role. Sends now (no quiet hours, frequency cap or `reviews.monthly` count) to `phone` or the member's notification phone. Test requests are hidden from the list unless `include_tests=true`; their detail includes `public_url`. `409 CHANNEL_UNAVAILABLE` when neither WhatsApp nor SMS can send, `409 CONFLICT` when the message could not be sent.
-         */
-        post: operations["sendTenantReviewTest"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenant/reviews": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List review requests
-         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Test sends are excluded by default.
-         */
-        get: operations["getTenantReviews"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenant/reviews/{uuid}": {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Review request detail
-         * @description Requires `tenant.reviews.read`. Another organization's request is 404.
-         */
-        get: operations["getTenantReview"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tenant/reviews/{uuid}/follow-up": {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Mark an answered review handled ("ele alındı", owner)
-         * @description Requires `tenant.reviews.write` and the owner role. Sets `follow_up_status` to `done` with an optional note. `409` when the request is not answered.
-         */
-        post: operations["followUpTenantReview"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/reviews/{token}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Token from the review link /r/{token} (not the uuid) */
-                token: string;
-            };
-            cookie?: never;
-        };
-        /**
-         * Customer review page
-         * @description No auth. Rate-limited per IP (60/min). Requests that were never sent are 404. The first open marks the request opened. `state` is `open`, `answered` (with `result` and, for high scores, `google_review_url`) or `expired` (links are valid for 30 days).
-         */
-        get: operations["getPublicReview"];
-        put?: never;
-        /**
-         * Customer answers with 1-5 stars
-         * @description No auth. Rate-limited per IP (10 / 15 min). Answers once: `409 ALREADY_ANSWERED` afterwards, `410 REVIEW_EXPIRED` after the link expired. A score below the business's threshold needs a follow-up and notifies the team (in-app + push).
-         */
-        post: operations["answerPublicReview"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/public/reviews/{token}/google": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Token from the review link /r/{token} */
-                token: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Count a redirect to the Google review page
-         * @description No auth. Rate-limited per IP. Only for answered high scores when the business configured a Google review URL; returns the URL to open.
-         */
-        post: operations["redirectPublicReviewGoogle"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -11775,7 +11726,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event" | "review";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event" | "purchase";
             /** Format: uuid */
             uuid: string;
         };
@@ -13940,11 +13891,17 @@ export interface components {
             /** Format: uuid */
             supplier_uuid: string;
             supplier_name: string;
-            /** @enum {string} */
-            status: "posted" | "voided";
+            /**
+             * @description draft: no stock / finance effect until posted
+             * @enum {string}
+             */
+            status: "draft" | "posted" | "voided";
             currency: string;
             total_amount: string;
-            /** @enum {string} */
+            /**
+             * @description Drafts carry cash until posting chooses the method.
+             * @enum {string}
+             */
             method: "cash" | "card";
             /** Format: uuid */
             finance_account_uuid?: string;
@@ -13979,6 +13936,132 @@ export interface components {
             success: true;
             data: components["schemas"]["PurchaseDetail"];
             meta: components["schemas"]["ResponseMeta"];
+        };
+        PurchaseLineInput: {
+            /** Format: uuid */
+            product_uuid: string;
+            unit_cost?: string;
+            qty?: string;
+        };
+        PurchaseDraftInput: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            notes?: string;
+            currency?: string;
+            lines: components["schemas"]["PurchaseLineInput"][];
+        };
+        StockReorderSupplierLead: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            supplier_name?: string;
+            lead_days: number;
+        };
+        StockReorderSettings: {
+            /** @description Usage window in days (default 30). */
+            velocity_days: number;
+            /** @description Default lead time (default 3). */
+            lead_days: number;
+            /** @description Target cover after delivery (default 14). */
+            target_days: number;
+            /** @description Daily notification at notify_time Europe/Istanbul. */
+            notify_enabled: boolean;
+            /** @example 09:00 */
+            notify_time: string;
+            supplier_lead_days: components["schemas"]["StockReorderSupplierLead"][];
+            velocity_day_options: number[];
+        };
+        EnvelopeStockReorderSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["StockReorderSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StockReorderProductOverride: {
+            /** Format: uuid */
+            supplier_uuid: string | null;
+            supplier_name?: string | null;
+            lead_days: number | null;
+            target_days: number | null;
+            pack_size: string | null;
+        };
+        EnvelopeStockReorderProductOverride: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                /** Format: uuid */
+                product_uuid: string;
+                override: components["schemas"]["StockReorderProductOverride"] | null;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StockReorderSummary: {
+            out_of_stock: number;
+            below_min: number;
+            low_cover: number;
+            /** @description out_of_stock + below_min */
+            urgent: number;
+            /** @description Products with a quantity to order. */
+            suggested: number;
+            /** @description Open draft purchases. */
+            drafts: number;
+        };
+        StockReorderInputs: {
+            velocity_days: number;
+            consumed_qty: string;
+            sold_qty: string;
+            lead_days: number;
+            /** @enum {string} */
+            lead_days_source: "product" | "supplier" | "organization";
+            target_days: number;
+            /** @enum {string} */
+            target_days_source: "product" | "organization";
+            /** @description velocity × (lead + target) */
+            demand_qty: string;
+            /** @description demand + min − stock − on_order before rounding */
+            raw_need: string;
+            formula: string;
+        };
+        StockReorderSuggestion: {
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            sku: string;
+            unit: string;
+            currency: string;
+            /** @enum {string} */
+            urgency: "out_of_stock" | "below_min" | "low_cover" | "none";
+            stock: string;
+            min_stock: string;
+            on_order: string;
+            velocity_per_day: string;
+            /** @description null = no usage */
+            days_of_cover: string | null;
+            suggested_qty: string;
+            pack_size: string | null;
+            packs: number | null;
+            supplier: {
+                /** Format: uuid */
+                uuid: string;
+                name: string;
+                /** @enum {string} */
+                source: "product" | "last_purchase";
+            } | null;
+            unit_cost: string;
+            /** @enum {string} */
+            unit_cost_source: "last_purchase" | "cost_price";
+            estimated_total: string;
+            /** Format: date-time */
+            last_purchased_at: string | null;
+            inputs: components["schemas"]["StockReorderInputs"];
+            override: components["schemas"]["StockReorderProductOverride"] | null;
+        };
+        StockReorderList: {
+            items: components["schemas"]["StockReorderSuggestion"][];
+            total: number;
+            summary: components["schemas"]["StockReorderSummary"];
+            settings: components["schemas"]["StockReorderSettings"];
+            /** Format: date-time */
+            generated_at: string;
         };
         StaffMember: {
             /** Format: uuid */
@@ -15218,261 +15301,6 @@ export interface components {
                 limit: number;
                 offset: number;
             };
-            meta: components["schemas"]["ResponseMeta"];
-        };
-        /** @enum {string} */
-        ReviewStatus: "scheduled" | "sent" | "opened" | "answered" | "expired" | "cancelled" | "skipped" | "failed";
-        /** @enum {string} */
-        ReviewFollowUpStatus: "none" | "required" | "done";
-        /** @enum {string} */
-        ReviewChannelPreference: "auto" | "sms" | "whatsapp";
-        Review: {
-            /** Format: uuid */
-            uuid: string;
-            /** @enum {string} */
-            kind: "job" | "test";
-            status: components["schemas"]["ReviewStatus"];
-            /** @description Why a request was skipped / cancelled / failed: disabled, job_cancelled, plan_disabled, excluded, no_phone, frequency_cap, monthly_limit, channel_unavailable, template_inactive, channel_plan, channel_quota, send_failed ("" otherwise) */
-            skip_reason: string;
-            error: string;
-            /** @enum {string} */
-            channel: "" | "sms" | "whatsapp";
-            /** @enum {string} */
-            locale: "tr" | "en";
-            /** Format: uuid */
-            customer_uuid: string | null;
-            customer_name: string;
-            customer_phone: string;
-            /** Format: uuid */
-            job_uuid: string | null;
-            plate: string;
-            score: number | null;
-            comment: string;
-            /** @enum {string} */
-            rating: "" | "high" | "low";
-            google_redirects: number;
-            follow_up_status: components["schemas"]["ReviewFollowUpStatus"];
-            follow_up_note: string;
-            /** Format: date-time */
-            followed_up_at: string | null;
-            followed_up_by_name: string;
-            /**
-             * Format: date-time
-             * @description Planned (or actual) send time
-             */
-            send_at: string;
-            /** @description The send was moved out of quiet hours */
-            deferred: boolean;
-            /** Format: date-time */
-            sent_at: string | null;
-            /** Format: date-time */
-            opened_at: string | null;
-            /** Format: date-time */
-            answered_at: string | null;
-            /** Format: date-time */
-            expires_at: string | null;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
-        ReviewDetail: components["schemas"]["Review"] & {
-            consent: boolean;
-            view_count: number;
-            /** Format: date-time */
-            google_redirected_at: string | null;
-            /** Format: date-time */
-            cancelled_at: string | null;
-            /** @description Customer link (test requests only) */
-            public_url?: string;
-        };
-        ReviewScoreCount: {
-            score: number;
-            count: number;
-        };
-        ReviewTrendPoint: {
-            /** Format: date */
-            period_start: string;
-            sent: number;
-            answered: number;
-            average_score: number;
-        };
-        ReviewSummary: {
-            days: number;
-            /** @enum {string} */
-            bucket: "week" | "month";
-            sent_count: number;
-            opened_count: number;
-            answered_count: number;
-            scheduled_count: number;
-            /** @description answered / sent (0..1) */
-            response_rate: number;
-            average_score: number;
-            /** @description Always five rows, scores 1..5 */
-            distribution: components["schemas"]["ReviewScoreCount"][];
-            promoters: number;
-            passives: number;
-            detractors: number;
-            /** @description promoters% - detractors% (-100..100) */
-            nps: number;
-            google_redirects: number;
-            follow_up_required: number;
-            trend: components["schemas"]["ReviewTrendPoint"][];
-        };
-        ReviewCustomerRef: {
-            /** Format: uuid */
-            uuid: string;
-            name: string;
-            phone: string;
-        };
-        ReviewTemplateInfo: {
-            /** @enum {string} */
-            channel: "sms" | "whatsapp";
-            /** @enum {string} */
-            locale: "tr" | "en";
-            /** @description Template with {{musteri_adi}}, {{isletme_adi}}, {{link}} (short {musteri_adi} also works) */
-            body: string;
-            is_custom: boolean;
-            active: boolean;
-            preview: string;
-        };
-        ReviewSettings: {
-            enabled: boolean;
-            channel: components["schemas"]["ReviewChannelPreference"];
-            delay_minutes: number;
-            quiet_hours_enabled: boolean;
-            quiet_start_hour: number;
-            quiet_end_hour: number;
-            google_review_url: string;
-            high_score_threshold: number;
-            min_days_between: number;
-            consent_text: string;
-            /** @enum {string} */
-            default_locale: "tr" | "en";
-            excluded_customers: components["schemas"]["ReviewCustomerRef"][];
-            whatsapp_available: boolean;
-            sms_available: boolean;
-            /**
-             * @description Channel a request would use now
-             * @enum {string}
-             */
-            effective_channel: "" | "sms" | "whatsapp";
-            template: components["schemas"]["ReviewTemplateInfo"];
-            usage: {
-                used: number;
-                /** @description -1 = unlimited */
-                limit: number;
-            };
-        };
-        UpdateReviewSettingsRequest: {
-            enabled?: boolean | null;
-            channel?: components["schemas"]["ReviewChannelPreference"] | null;
-            delay_minutes?: number | null;
-            quiet_hours_enabled?: boolean | null;
-            quiet_start_hour?: number | null;
-            quiet_end_hour?: number | null;
-            google_review_url?: string | null;
-            high_score_threshold?: number | null;
-            min_days_between?: number | null;
-            consent_text?: string | null;
-            /** @enum {string|null} */
-            default_locale?: "tr" | "en" | null;
-            excluded_customer_uuids?: string[] | null;
-        };
-        ReviewTestRequest: {
-            /** @description Defaults to the member's notification phone */
-            phone?: string;
-        };
-        ReviewTestResult: {
-            review: components["schemas"]["ReviewDetail"];
-            /** @enum {string} */
-            channel: "sms" | "whatsapp";
-            phone: string;
-            public_url: string;
-        };
-        ReviewFollowUpRequest: {
-            note?: string;
-        };
-        PublicReview: {
-            /** @enum {string} */
-            state: "open" | "answered" | "expired";
-            organization_name: string;
-            /** @description API-owned logo stream path */
-            organization_logo_url: string | null;
-            organization_phone: string;
-            primary_color: string;
-            customer_first_name: string;
-            /**
-             * @description Business default language of the request
-             * @enum {string}
-             */
-            locale: "tr" | "en";
-            /** @description Optional consent checkbox text ("" = none) */
-            consent_text: string;
-            /** Format: date-time */
-            expires_at: string | null;
-            score: number | null;
-            comment: string;
-            /** Format: date-time */
-            answered_at: string | null;
-            /** @enum {string} */
-            result?: "high" | "low";
-            /** @description Set for answered high scores when configured */
-            google_review_url?: string;
-        };
-        PublicReviewAnswerRequest: {
-            score: number;
-            comment?: string;
-            consent?: boolean;
-        };
-        ReviewGoogleRedirect: {
-            url: string;
-        };
-        EnvelopeReviewList: {
-            /** @enum {boolean} */
-            success: true;
-            data: {
-                items: components["schemas"]["Review"][];
-                total: number;
-                limit: number;
-                offset: number;
-            };
-            meta: components["schemas"]["ResponseMeta"];
-        };
-        EnvelopeReviewDetail: {
-            /** @enum {boolean} */
-            success: true;
-            data: components["schemas"]["ReviewDetail"];
-            meta: components["schemas"]["ResponseMeta"];
-        };
-        EnvelopeReviewSummary: {
-            /** @enum {boolean} */
-            success: true;
-            data: components["schemas"]["ReviewSummary"];
-            meta: components["schemas"]["ResponseMeta"];
-        };
-        EnvelopeReviewSettings: {
-            /** @enum {boolean} */
-            success: true;
-            data: components["schemas"]["ReviewSettings"];
-            meta: components["schemas"]["ResponseMeta"];
-        };
-        EnvelopeReviewTestResult: {
-            /** @enum {boolean} */
-            success: true;
-            data: components["schemas"]["ReviewTestResult"];
-            meta: components["schemas"]["ResponseMeta"];
-        };
-        EnvelopePublicReview: {
-            /** @enum {boolean} */
-            success: true;
-            data: components["schemas"]["PublicReview"];
-            meta: components["schemas"]["ResponseMeta"];
-        };
-        EnvelopeReviewGoogleRedirect: {
-            /** @enum {boolean} */
-            success: true;
-            data: components["schemas"]["ReviewGoogleRedirect"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -25073,7 +24901,8 @@ export interface operations {
                  *     is `400`.
                  */
                 supplier_uuid?: string;
-                status?: "posted" | "voided";
+                /** @description Omitted lists posted and voided purchases; `draft` lists drafts. */
+                status?: "draft" | "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
             };
@@ -25194,6 +25023,40 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    deleteTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Draft deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            deleted: boolean;
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     voidTenantPurchase: {
         parameters: {
             query?: never;
@@ -25219,6 +25082,368 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    createTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft created (`status` = `draft`) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    postTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    method: "cash" | "card";
+                    /** Format: uuid */
+                    finance_account_uuid: string;
+                    /** Format: date-time */
+                    purchased_at?: string;
+                    notes?: string;
+                    /** Format: uuid */
+                    supplier_uuid?: string;
+                    lines?: components["schemas"]["PurchaseLineInput"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Purchase posted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantStockReorderSuggestions: {
+        parameters: {
+            query?: {
+                urgency?: "out_of_stock" | "below_min" | "low_cover";
+                /** @description Preferred supplier filter; `none` = products without a supplier. */
+                supplier_uuid?: string;
+                q?: components["parameters"]["Q"];
+                /** @description Include products that need nothing. */
+                all?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suggestions with summary and settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: components["schemas"]["StockReorderList"];
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStockReorderSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: components["schemas"]["StockReorderSummary"];
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStockReorderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateTenantStockReorderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {integer} */
+                    velocity_days: 7 | 14 | 30 | 60 | 90;
+                    lead_days: number;
+                    target_days: number;
+                    notify_enabled: boolean;
+                    supplier_lead_days?: {
+                        /** Format: uuid */
+                        supplier_uuid: string;
+                        lead_days: number;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Override */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderProductOverride"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    supplier_uuid?: string | null;
+                    lead_days?: number | null;
+                    target_days?: number | null;
+                    pack_size?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved override */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderProductOverride"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Override removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            deleted: boolean;
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTenantStockReorderDrafts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    notes?: string;
+                    items: {
+                        /** Format: uuid */
+                        product_uuid: string;
+                        qty: string;
+                        /** Format: uuid */
+                        supplier_uuid?: string | null;
+                        unit_cost?: string | null;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Drafts created (one per supplier) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            drafts: components["schemas"]["PurchaseDetail"][];
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantReportsMeta: {
@@ -30037,362 +30262,6 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
-        };
-    };
-    getTenantReviewsMeta: {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    getTenantReviewsSummary: {
-        parameters: {
-            query?: {
-                days?: number;
-            };
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewSummary"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    getTenantReviewSettings: {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewSettings"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    updateTenantReviewSettings: {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateReviewSettingsRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewSettings"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    sendTenantReviewTest: {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["ReviewTestRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewTestResult"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            409: components["responses"]["Conflict"];
-        };
-    };
-    getTenantReviews: {
-        parameters: {
-            query?: {
-                limit?: components["parameters"]["Limit"];
-                offset?: components["parameters"]["Offset"];
-                q?: components["parameters"]["Q"];
-                status?: components["schemas"]["ReviewStatus"];
-                follow_up?: components["schemas"]["ReviewFollowUpStatus"];
-                /** @description high = score at or above the threshold, low = below it */
-                rating?: "high" | "low";
-                score?: number;
-                channel?: "sms" | "whatsapp";
-                customer_uuid?: string;
-                /** @description Only requests created in the last N days */
-                days?: number;
-                include_tests?: boolean;
-                sort?: "-created_at" | "created_at" | "score" | "-score" | "answered_at" | "-answered_at";
-            };
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewList"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-        };
-    };
-    getTenantReview: {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewDetail"];
-                };
-            };
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    followUpTenantReview: {
-        parameters: {
-            query?: never;
-            header: {
-                /**
-                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
-                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
-                 */
-                "X-Organization": components["parameters"]["XOrganization"];
-            };
-            path: {
-                uuid: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["ReviewFollowUpRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewDetail"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthenticated"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-        };
-    };
-    getPublicReview: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Token from the review link /r/{token} (not the uuid) */
-                token: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopePublicReview"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            429: components["responses"]["TooManyRequests"];
-        };
-    };
-    answerPublicReview: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Token from the review link /r/{token} (not the uuid) */
-                token: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PublicReviewAnswerRequest"];
-            };
-        };
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopePublicReview"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            404: components["responses"]["NotFound"];
-            409: components["responses"]["Conflict"];
-            /** @description The review link has expired (REVIEW_EXPIRED) */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            429: components["responses"]["TooManyRequests"];
-        };
-    };
-    redirectPublicReviewGoogle: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Token from the review link /r/{token} */
-                token: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EnvelopeReviewGoogleRedirect"];
-                };
-            };
-            404: components["responses"]["NotFound"];
-            429: components["responses"]["TooManyRequests"];
         };
     };
 }

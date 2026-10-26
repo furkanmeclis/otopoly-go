@@ -8,6 +8,7 @@ import './catalog';
 import './staff';
 import './finance';
 import './commerce';
+import './stock-reorder';
 import './reports';
 import './crm';
 import './sms';
