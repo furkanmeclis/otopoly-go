@@ -15,6 +15,7 @@ import {
   Shield,
   ShoppingBag,
   ShoppingCart,
+  PackageSearch,
   Upload,
   UserRound,
   Wallet,
@@ -39,6 +40,8 @@ import {
   Scale,
   PlugZap,
   MessageSquareText,
+  Star,
+  Gift,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -51,8 +54,10 @@ import { defineNav } from "@/features/nav-engine";
 import { usersNavItem } from "@/features/users/nav";
 import { TodosNavAdornment } from "@/features/todos/nav";
 import { CalendarNavAdornment } from "@/features/calendar/nav";
+import { StockReorderNavAdornment } from "@/features/stock-reorder/nav";
 import { LeadsNavAdornment } from "@/features/leads/nav";
 import { QuotesNavAdornment } from "@/features/quotes/nav";
+import { ReviewsNavAdornment } from "@/features/reviews/nav";
 import { PaymentsNavAdornment } from "@/features/platform-billing/nav";
 
 export const platformNav = defineNav({
@@ -493,6 +498,22 @@ export function tenantNav(slug: string) {
             Adornment: QuotesNavAdornment,
           },
           {
+            id: "reviews",
+            titleKey: "layout.nav_reviews",
+            href: routes.tenant.reviews.root(slug),
+            icon: Star,
+            searchIcon: "star",
+            permission: permissions.reviews.read,
+            Adornment: ReviewsNavAdornment,
+          },
+          {
+            id: "loyalty",
+            titleKey: "layout.nav_loyalty",
+            href: routes.tenant.loyalty.root(slug),
+            icon: Gift,
+            permission: permissions.loyalty.read,
+          },
+          {
             id: "suppliers",
             titleKey: "layout.nav_suppliers",
             href: routes.tenant.suppliers.root(slug),
@@ -534,6 +555,14 @@ export function tenantNav(slug: string) {
             href: routes.tenant.purchases.root(slug),
             icon: ShoppingCart,
             permission: permissions.purchases.read,
+          },
+          {
+            id: "stock-reorder",
+            titleKey: "layout.nav_stock_reorder",
+            href: routes.tenant.purchases.reorder(slug),
+            icon: PackageSearch,
+            permission: [permissions.purchases.read, permissions.catalog.read],
+            Adornment: StockReorderNavAdornment,
           },
         ],
       },

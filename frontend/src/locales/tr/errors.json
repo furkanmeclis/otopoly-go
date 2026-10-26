@@ -80,5 +80,8 @@
   "sign_in": "Giriş yap",
   "back_to_login": "Girişe dön",
   "continue": "Devam et",
-  "area_requires": "Bu alan yalnızca {{area}} erişimi gerektirir."
+  "area_requires": "Bu alan yalnızca {{area}} erişimi gerektirir.",
+  "codes.CHANNEL_UNAVAILABLE": "WhatsApp veya SMS kanalı bağlı değil.",
+  "codes.ALREADY_ANSWERED": "Bu değerlendirme zaten cevaplanmış.",
+  "codes.REVIEW_EXPIRED": "Değerlendirme bağlantısının süresi dolmuş."
 }

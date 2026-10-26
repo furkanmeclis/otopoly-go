@@ -16,6 +16,7 @@
   "group.sales": "Satışlar",
   "group.quotes": "Teklifler",
   "group.todos": "Görevler",
+  "group.reviews": "Değerlendirmeler",
   "audience.customer": "Müşteriye",
   "audience.staff": "Ekibe",
   "channel.inapp": "Uygulama içi",
@@ -42,6 +43,8 @@
   "types.quote_team_accepted": "Müşteri teklifi onayladı",
   "types.quote_team_rejected": "Müşteri teklifi reddetti",
   "types.todo_reminder": "Görev hatırlatması",
+  "types.review_request": "Değerlendirme isteği",
+  "types.review_low_score": "Düşük puanlı değerlendirme (ekip)",
   "editor.title": "{{type}} şablonu",
   "editor.description": "Değişkenlere tıklayarak metne ekleyin. Önizleme örnek verilerle anlık güncellenir.",
   "editor.channel": "Kanal",
@@ -363,5 +366,8 @@
   "platform_report.org_description": "İşletmenin son SMS'leri. Numaralar maskelenir.",
   "platform_report.org_empty": "SMS yok",
   "platform_report.org_empty_hint": "Bu işletme henüz SMS göndermedi.",
-  "platform_report.back": "SMS raporu"
+  "platform_report.back": "SMS raporu",
+  "group.loyalty": "Sadakat ve paketler",
+  "types.loyalty_renewal_reminder": "Abonelik yenileme hatırlatması",
+  "types.loyalty_team_renewal_due": "Abonelik yenilemesi yaklaşıyor (ekip)"
 }

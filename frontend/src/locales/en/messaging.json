@@ -16,6 +16,7 @@
   "group.sales": "Sales",
   "group.quotes": "Quotes",
   "group.todos": "Tasks",
+  "group.reviews": "Reviews",
   "audience.customer": "To customer",
   "audience.staff": "To team",
   "channel.inapp": "In-app",
@@ -42,6 +43,8 @@
   "types.quote_team_accepted": "Customer accepted a quote",
   "types.quote_team_rejected": "Customer rejected a quote",
   "types.todo_reminder": "Task reminder",
+  "types.review_request": "Review request",
+  "types.review_low_score": "Low score review (team)",
   "editor.title": "{{type}} template",
   "editor.description": "Click a placeholder to insert it. The preview updates live with sample data.",
   "editor.channel": "Channel",
@@ -363,5 +366,8 @@
   "platform_report.org_description": "The business's latest SMS. Numbers are masked.",
   "platform_report.org_empty": "No SMS",
   "platform_report.org_empty_hint": "This business has not sent any SMS yet.",
-  "platform_report.back": "SMS report"
+  "platform_report.back": "SMS report",
+  "group.loyalty": "Loyalty & packages",
+  "types.loyalty_renewal_reminder": "Subscription renewal reminder",
+  "types.loyalty_team_renewal_due": "Subscription renewal coming up (team)"
 }

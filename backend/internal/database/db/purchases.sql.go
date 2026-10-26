@@ -12,11 +12,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countDraftPurchases = `-- name: CountDraftPurchases :one
+SELECT COUNT(*)::bigint FROM purchases
+WHERE organization_id = $1 AND status = 'draft'
+`
+
+func (q *Queries) CountDraftPurchases(ctx context.Context, organizationID int64) (int64, error) {
+	row := q.db.QueryRow(ctx, countDraftPurchases, organizationID)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countPurchases = `-- name: CountPurchases :one
 SELECT COUNT(*)::bigint
 FROM purchases p
 WHERE p.organization_id = $1
-  AND ($2::text IS NULL OR p.status = $2)
+  AND (
+    ($2::text IS NULL AND p.status <> 'draft')
+    OR p.status = $2
+  )
   AND ($3::timestamptz IS NULL OR p.purchased_at >= $3)
   AND ($4::timestamptz IS NULL OR p.purchased_at < $4)
   AND (
@@ -171,6 +186,76 @@ func (q *Queries) CreatePurchaseLine(ctx context.Context, arg CreatePurchaseLine
 		&i.LineTotal,
 		&i.Currency,
 		&i.SortOrder,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const deleteDraftPurchase = `-- name: DeleteDraftPurchase :execrows
+DELETE FROM purchases
+WHERE uuid = $1 AND organization_id = $2 AND status = 'draft'
+`
+
+type DeleteDraftPurchaseParams struct {
+	Uuid           uuid.UUID `json:"uuid"`
+	OrganizationID int64     `json:"organization_id"`
+}
+
+func (q *Queries) DeleteDraftPurchase(ctx context.Context, arg DeleteDraftPurchaseParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteDraftPurchase, arg.Uuid, arg.OrganizationID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deletePurchaseLines = `-- name: DeletePurchaseLines :exec
+DELETE FROM purchase_lines
+WHERE purchase_id = $1 AND organization_id = $2
+`
+
+type DeletePurchaseLinesParams struct {
+	PurchaseID     int64 `json:"purchase_id"`
+	OrganizationID int64 `json:"organization_id"`
+}
+
+func (q *Queries) DeletePurchaseLines(ctx context.Context, arg DeletePurchaseLinesParams) error {
+	_, err := q.db.Exec(ctx, deletePurchaseLines, arg.PurchaseID, arg.OrganizationID)
+	return err
+}
+
+const getDraftPurchaseForUpdate = `-- name: GetDraftPurchaseForUpdate :one
+SELECT id, uuid, organization_id, supplier_id, supplier_name, status, currency, total_amount, method, finance_account_id, finance_transaction_id, notes, purchased_at, created_by, voided_at, voided_by, created_at, updated_at FROM purchases
+WHERE uuid = $1 AND organization_id = $2 AND status = 'draft'
+FOR UPDATE
+`
+
+type GetDraftPurchaseForUpdateParams struct {
+	Uuid           uuid.UUID `json:"uuid"`
+	OrganizationID int64     `json:"organization_id"`
+}
+
+func (q *Queries) GetDraftPurchaseForUpdate(ctx context.Context, arg GetDraftPurchaseForUpdateParams) (Purchase, error) {
+	row := q.db.QueryRow(ctx, getDraftPurchaseForUpdate, arg.Uuid, arg.OrganizationID)
+	var i Purchase
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.SupplierID,
+		&i.SupplierName,
+		&i.Status,
+		&i.Currency,
+		&i.TotalAmount,
+		&i.Method,
+		&i.FinanceAccountID,
+		&i.FinanceTransactionID,
+		&i.Notes,
+		&i.PurchasedAt,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -474,7 +559,10 @@ SELECT p.id, p.uuid, p.organization_id, p.supplier_id, p.supplier_name, p.status
 FROM purchases p
 JOIN suppliers s ON s.id = p.supplier_id
 WHERE p.organization_id = $1
-  AND ($2::text IS NULL OR p.status = $2)
+  AND (
+    ($2::text IS NULL AND p.status <> 'draft')
+    OR p.status = $2
+  )
   AND ($3::timestamptz IS NULL OR p.purchased_at >= $3)
   AND ($4::timestamptz IS NULL OR p.purchased_at < $4)
   AND (
@@ -586,7 +674,10 @@ const listPurchasesForExport = `-- name: ListPurchasesForExport :many
 SELECT p.id, p.uuid, p.organization_id, p.supplier_id, p.supplier_name, p.status, p.currency, p.total_amount, p.method, p.finance_account_id, p.finance_transaction_id, p.notes, p.purchased_at, p.created_by, p.voided_at, p.voided_by, p.created_at, p.updated_at
 FROM purchases p
 WHERE p.organization_id = $1
-  AND ($2::text IS NULL OR p.status = $2)
+  AND (
+    ($2::text IS NULL AND p.status <> 'draft')
+    OR p.status = $2
+  )
   AND (
     $3::text IS NULL
     OR p.supplier_name ILIKE '%' || $3 || '%'
@@ -687,6 +778,130 @@ func (q *Queries) ListPurchasesForSearch(ctx context.Context) ([]ListPurchasesFo
 		return nil, err
 	}
 	return items, nil
+}
+
+const postDraftPurchase = `-- name: PostDraftPurchase :one
+UPDATE purchases
+SET status = 'posted',
+    supplier_id = $1,
+    supplier_name = $2,
+    currency = $3,
+    total_amount = $4,
+    method = $5,
+    finance_account_id = $6,
+    notes = $7,
+    purchased_at = $8,
+    updated_at = NOW()
+WHERE id = $9 AND organization_id = $10 AND status = 'draft'
+RETURNING id, uuid, organization_id, supplier_id, supplier_name, status, currency, total_amount, method, finance_account_id, finance_transaction_id, notes, purchased_at, created_by, voided_at, voided_by, created_at, updated_at
+`
+
+type PostDraftPurchaseParams struct {
+	SupplierID       int64              `json:"supplier_id"`
+	SupplierName     string             `json:"supplier_name"`
+	Currency         string             `json:"currency"`
+	TotalAmount      pgtype.Numeric     `json:"total_amount"`
+	Method           string             `json:"method"`
+	FinanceAccountID pgtype.Int8        `json:"finance_account_id"`
+	Notes            string             `json:"notes"`
+	PurchasedAt      pgtype.Timestamptz `json:"purchased_at"`
+	ID               int64              `json:"id"`
+	OrganizationID   int64              `json:"organization_id"`
+}
+
+// Turns a draft into a posted purchase; stock and finance are applied by the
+// caller in the same transaction.
+func (q *Queries) PostDraftPurchase(ctx context.Context, arg PostDraftPurchaseParams) (Purchase, error) {
+	row := q.db.QueryRow(ctx, postDraftPurchase,
+		arg.SupplierID,
+		arg.SupplierName,
+		arg.Currency,
+		arg.TotalAmount,
+		arg.Method,
+		arg.FinanceAccountID,
+		arg.Notes,
+		arg.PurchasedAt,
+		arg.ID,
+		arg.OrganizationID,
+	)
+	var i Purchase
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.SupplierID,
+		&i.SupplierName,
+		&i.Status,
+		&i.Currency,
+		&i.TotalAmount,
+		&i.Method,
+		&i.FinanceAccountID,
+		&i.FinanceTransactionID,
+		&i.Notes,
+		&i.PurchasedAt,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateDraftPurchase = `-- name: UpdateDraftPurchase :one
+UPDATE purchases
+SET supplier_id = $1,
+    supplier_name = $2,
+    currency = $3,
+    total_amount = $4,
+    notes = $5,
+    updated_at = NOW()
+WHERE id = $6 AND organization_id = $7 AND status = 'draft'
+RETURNING id, uuid, organization_id, supplier_id, supplier_name, status, currency, total_amount, method, finance_account_id, finance_transaction_id, notes, purchased_at, created_by, voided_at, voided_by, created_at, updated_at
+`
+
+type UpdateDraftPurchaseParams struct {
+	SupplierID     int64          `json:"supplier_id"`
+	SupplierName   string         `json:"supplier_name"`
+	Currency       string         `json:"currency"`
+	TotalAmount    pgtype.Numeric `json:"total_amount"`
+	Notes          string         `json:"notes"`
+	ID             int64          `json:"id"`
+	OrganizationID int64          `json:"organization_id"`
+}
+
+func (q *Queries) UpdateDraftPurchase(ctx context.Context, arg UpdateDraftPurchaseParams) (Purchase, error) {
+	row := q.db.QueryRow(ctx, updateDraftPurchase,
+		arg.SupplierID,
+		arg.SupplierName,
+		arg.Currency,
+		arg.TotalAmount,
+		arg.Notes,
+		arg.ID,
+		arg.OrganizationID,
+	)
+	var i Purchase
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.OrganizationID,
+		&i.SupplierID,
+		&i.SupplierName,
+		&i.Status,
+		&i.Currency,
+		&i.TotalAmount,
+		&i.Method,
+		&i.FinanceAccountID,
+		&i.FinanceTransactionID,
+		&i.Notes,
+		&i.PurchasedAt,
+		&i.CreatedBy,
+		&i.VoidedAt,
+		&i.VoidedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const voidPurchase = `-- name: VoidPurchase :one

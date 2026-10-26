@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback } from "react";
-import { Ban } from "lucide-react";
+import { useCallback, useState } from "react";
+import { Ban, CheckCircle2, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { ErrorState } from "@/components/common/error-state";
 import { Loading } from "@/components/common/loading";
@@ -26,6 +27,8 @@ import {
 } from "@/features/purchases/hooks/use-purchases";
 import { useTenantPurchasesAccess } from "@/features/purchases/hooks/use-tenant-purchases-access";
 import type { PurchaseStatus } from "@/features/purchases/services/purchases.service";
+import { PostDraftDialog } from "@/features/stock-reorder";
+import { useStockReorderMutations } from "@/features/stock-reorder/hooks/use-stock-reorder";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -40,6 +43,8 @@ function statusTone(status: PurchaseStatus) {
       return "success" as const;
     case "voided":
       return "danger" as const;
+    case "draft":
+      return "warning" as const;
     default:
       return "default" as const;
   }
@@ -60,7 +65,22 @@ export function PurchaseDetailPage({
     uuid,
   });
   const mutations = usePurchasesMutations();
+  const draftMutations = useStockReorderMutations();
+  const router = useRouter();
+  const [posting, setPosting] = useState(false);
   const purchase = purchaseQuery.data;
+
+  const handleDeleteDraft = useCallback(async () => {
+    const confirmed = await confirm({
+      title: t("stock_reorder.delete_draft.title"),
+      description: t("stock_reorder.delete_draft.description"),
+      confirmLabel: t("common.delete"),
+      variant: "destructive",
+    });
+    if (!confirmed) return;
+    await draftMutations.deleteDraft.mutateAsync(uuid);
+    router.push(routes.tenant.purchases.reorderDrafts(slug));
+  }, [confirm, draftMutations.deleteDraft, router, slug, t, uuid]);
 
   const handleVoid = useCallback(async () => {
     const confirmed = await confirm({
@@ -97,7 +117,24 @@ export function PurchaseDetailPage({
         { label: title },
       ]}
       actions={
-        purchase && canWrite && purchase.status === "posted" ? (
+        purchase && canWrite && purchase.status === "draft" ? (
+          <EntityActions>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={draftMutations.deleteDraft.isPending}
+              onClick={() => void handleDeleteDraft()}
+            >
+              <Trash2 className="size-4" />
+              {t("stock_reorder.actions.delete_draft")}
+            </Button>
+            <Button type="button" size="sm" onClick={() => setPosting(true)}>
+              <CheckCircle2 className="size-4" />
+              {t("stock_reorder.actions.post")}
+            </Button>
+          </EntityActions>
+        ) : purchase && canWrite && purchase.status === "posted" ? (
           <EntityActions>
             <Button
               type="button"
@@ -266,6 +303,12 @@ export function PurchaseDetailPage({
           </EntitySectionCard>
         </div>
       ) : null}
+      <PostDraftDialog
+        draft={posting && purchase ? purchase : null}
+        onOpenChange={(open) => {
+          if (!open) setPosting(false);
+        }}
+      />
     </EntityPage>
   );
 }

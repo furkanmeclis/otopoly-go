@@ -83,6 +83,14 @@ type Deps struct {
 	SalesWrite     SalesWriter
 	Todos          TodosService
 	Calendar       CalendarService
+	// Reviews adds list_reviews / get_review_summary and the confirmable
+	// mark_review_followed_up.
+	Reviews ReviewsService
+	// Reorder adds list_reorder_suggestions and create_purchase_drafts.
+	Reorder ReorderService
+	// Loyalty adds get_customer_loyalty / list_loyalty_programs, and with
+	// Finance / JobsWrite the sell_package / redeem_reward write tools.
+	Loyalty LoyaltyService
 }
 
 // DefaultRegistry builds the tool set (read tools, charts, plan checklist and
@@ -119,6 +127,14 @@ func DefaultRegistry(d Deps) *Registry {
 	if d.Calendar != nil {
 		r.Register(ListCalendar{calendar: d.Calendar})
 	}
+	if d.Reviews != nil {
+		r.Register(ListReviews{reviews: d.Reviews})
+		r.Register(ReviewSummary{reviews: d.Reviews})
+	}
+	if d.Reorder != nil {
+		r.Register(ListReorderSuggestions{reorder: d.Reorder})
+	}
+	registerLoyaltyTools(r, d)
 	registerWriteTools(r, d)
 	return r
 }
@@ -171,6 +187,12 @@ func registerWriteTools(r *Registry, d Deps) {
 	}
 	if d.Calendar != nil {
 		r.Register(CreateCalendarEvent{calendar: d.Calendar})
+	}
+	if d.Reviews != nil {
+		r.Register(MarkReviewFollowedUp{reviews: d.Reviews})
+	}
+	if d.Reorder != nil {
+		r.Register(CreatePurchaseDrafts{reorder: d.Reorder})
 	}
 }
 

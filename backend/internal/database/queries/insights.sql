@@ -110,6 +110,7 @@ JOIN purchases p ON p.id = l.purchase_id AND p.organization_id = l.organization_
 JOIN suppliers sp ON sp.id = p.supplier_id AND sp.organization_id = p.organization_id
 WHERE l.organization_id = sqlc.arg(organization_id)::bigint
   AND l.product_id = sqlc.arg(product_id)::bigint
+  AND p.status <> 'draft'
 ORDER BY p.purchased_at DESC, l.id DESC
 LIMIT sqlc.arg(limit_count);
 
@@ -389,5 +390,6 @@ SELECT p.uuid, p.status, p.method, p.total_amount, p.currency, p.purchased_at,
 FROM purchases p
 WHERE p.organization_id = sqlc.arg(organization_id)::bigint
   AND p.supplier_id = sqlc.arg(supplier_id)::bigint
+  AND p.status <> 'draft'
 ORDER BY p.purchased_at DESC
 LIMIT sqlc.arg(limit_count);

@@ -83,6 +83,8 @@ import (
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
+	loyaltymodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/loyalty"
+	loyaltyusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/loyalty/usecase"
 	messagingmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging"
 	messagingcatalog "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/catalog"
 	messagingcloud "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/cloud"
@@ -106,6 +108,8 @@ import (
 	quotesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/quotes/usecase"
 	reportsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports"
 	reportsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reports/usecase"
+	reviewsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reviews"
+	reviewsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/reviews/usecase"
 	salesmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales"
 	salesusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/sales/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/salesflow"
@@ -117,6 +121,8 @@ import (
 	settingsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/settings/usecase"
 	staffmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff"
 	staffusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/staff/usecase"
+	stockreordermodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/stockreorder"
+	stockreorderusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/stockreorder/usecase"
 	storagemodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage"
 	storagehandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/handler"
 	storageusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/storage/usecase"
@@ -573,10 +579,23 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	// Leads & quotes ↔ notification center / todos integration.
 	sales := salesflow.New(centerSvc, centerMessenger, deps.Queries, log)
 	sales.Register(centerSvc)
+	// Review collection: requests after delivery, public answer page, low
+	// score notices through the notification center (modules/reviews).
+	reviewsSvc := reviewsusecase.New(deps.Queries, reviewsmodule.NewMessagingAdapter(messagingSvc), cfg.Auth.FrontendURL, log)
+	reviewsSvc.SetEntitlements(entitlementsSvc)
+	reviewsSvc.SetRecorder(activityRec)
+	reviewsSvc.SetTeamNotifier(reviewsmodule.NewCenterNotifier(centerSvc))
+	reviewsmodule.RegisterRoutes(mux, reviewsSvc, ratelimit.New(deps.Redis, cfg.App.Env), tokens, loader, deps.Queries, entitlementsSvc)
+	reviewsmodule.RegisterEventHandlers(eventBus, reviewsSvc, log)
 	messagingSvc.SetOutboundObserver(func(ctx context.Context, o messagingusecase.OutboundOutcome) {
-		if !o.Sent {
-			sales.OutboundFailed(ctx, o.OrgID, o.EventType, o.SubjectUUID, o.Error)
+		if o.Sent {
+			return
 		}
+		if o.SubjectType == reviewsusecase.SubjectType && o.SubjectUUID != nil {
+			reviewsSvc.OutboundFailed(ctx, o.OrgID, *o.SubjectUUID, o.Error)
+			return
+		}
+		sales.OutboundFailed(ctx, o.OrgID, o.EventType, o.SubjectUUID, o.Error)
 	})
 	todosSvc := todosusecase.New(deps.Queries, activityRec)
 	todosSvc.SetLogger(log)
@@ -633,9 +652,17 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	}{
 		customersSvc, jobsSvc, salesSvc, quotesSvc, leadsSvc, purchasesSvc, suppliersSvc,
 		catalogSvc, financeSvc, cariSvc, todosSvc, contractsSvc, staffSvc, importSvc, bulkSvc,
+		reviewsSvc,
 	} {
 		svc.SetResourceEvents(livePub)
 	}
+
+	// Stock reorder suggestions: drafts go through the purchases use case;
+	// the daily notification runs in the worker (and the in-process sweep).
+	stockReorderSvc := stockreorderusecase.New(deps.Queries, purchasesSvc, entitlementsSvc, activityRec, log)
+	stockReorderSvc.SetResourceEvents(livePub)
+	stockReorderSvc.SetNotifier(stockreordermodule.NewInAppNotifier(notifSvc))
+	stockreordermodule.RegisterRoutes(mux, stockReorderSvc, tokens, loader, deps.Queries)
 
 	// Calendar: own events plus a live feed of the modules above; drag and
 	// drop of todos / lead follow-ups goes through their use cases.
@@ -643,6 +670,15 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	calendarSvc.SetSchedulers(todosSvc, leadsSvc)
 	calendarSvc.SetResourceEvents(liveEvents)
 	calendarmodule.RegisterRoutes(mux, calendarSvc, tokens, loader, deps.Queries)
+	// Loyalty and packages: stamp campaigns, prepaid packages, subscriptions;
+	// jobs earn stamps / release credits through the hook, renewals are
+	// reminded through the notification center.
+	loyaltySvc := loyaltyusecase.New(deps.DB, deps.Queries, activityRec, financeSvc, cariSvc, entitlementsSvc)
+	loyaltySvc.SetLogger(log)
+	loyaltySvc.SetResourceEvents(livePub)
+	loyaltySvc.SetReminders(loyaltymodule.NewReminders(centerSvc, deps.Queries, loyaltySvc, log))
+	jobsSvc.SetLoyalty(loyaltySvc)
+	loyaltymodule.RegisterRoutes(mux, loyaltySvc, tokens, loader, deps.Queries, entitlementsSvc)
 	aiTools := aitools.DefaultRegistry(aitools.Deps{
 		Customers:       customersSvc,
 		CustomersSearch: deps.Queries,
@@ -663,6 +699,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		SalesWrite:      salesSvc,
 		Todos:           todosSvc,
 		Calendar:        calendarSvc,
+		Reviews:         reviewsSvc,
+		Reorder:         stockReorderSvc,
+		Loyalty:         loyaltySvc,
 	})
 	aiSvc := aiusecase.New(deps.Queries, secretBox, aiTools, log)
 	aiSvc.SetEntitlements(entitlementsSvc)
@@ -692,6 +731,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithQuoteExpire(quotesSvc.ExpireDue).
 			WithDailySummary(dailySummarySvc.SendDue).
 			WithVehicleAlerts(vehicleAlertsSvc.Flush).
+			WithReviews(reviewsSvc.ProcessDue).
+			WithStockReorder(stockReorderSvc.SendDue).
 			WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
 			WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts).
 			WithLivePush(livePushSvc.ProcessJob, livePushSvc.ProcessWidgets, livePushSvc.PurgeExpired)
@@ -706,6 +747,12 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			}
 			if err := queue.RegisterVehicleAlertsSchedule(sched); err != nil {
 				log.Error("vehicle_alerts_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterReviewsSchedule(sched); err != nil {
+				log.Error("reviews_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterStockReorderSchedule(sched); err != nil {
+				log.Error("stock_reorder_scheduler_failed", "error", err)
 			}
 			if err := queue.RegisterBillingOrdersExpireSchedule(sched); err != nil {
 				log.Error("billing_orders_expire_scheduler_failed", "error", err)

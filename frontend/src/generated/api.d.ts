@@ -5394,7 +5394,8 @@ export interface paths {
         get: operations["getTenantPurchase"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Discard a draft purchase (posted purchases are voided instead) */
+        delete: operations["deleteTenantPurchaseDraft"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5411,6 +5412,172 @@ export interface paths {
         put?: never;
         /** Void a purchase and reverse stock/finance */
         post: operations["voidTenantPurchase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a draft purchase (no stock or finance effect until posted) */
+        post: operations["createTenantPurchaseDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/{uuid}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the supplier, notes and lines of a draft purchase */
+        put: operations["updateTenantPurchaseDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/{uuid}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a draft purchase (stock in, expense on the finance account)
+         * @description Runs the regular purchase flow on the draft: tracked products' stock
+         *     goes up and the expense is booked on `finance_account_uuid`. `lines`
+         *     (optional) replace the draft lines; `notes` (optional) replace the
+         *     notes. A purchase that is not a draft answers `409`.
+         */
+        post: operations["postTenantPurchaseDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stock reorder suggestions
+         * @description One row per active stock-tracked product that needs attention (or
+         *     every product with `all=true`), most urgent first. Formula:
+         *     `max(0, ceil(velocity × (lead_days + target_days) + min_stock − stock − on_order))`,
+         *     rounded up to whole packs; velocity = (job consumptions not reverted +
+         *     posted sales) of the last `velocity_days` / `velocity_days`; on_order
+         *     = quantity on draft purchases. `inputs` explains every value.
+         *     `403 FEATURE_DISABLED` when the plan excludes `stock_reorder.enabled`.
+         */
+        get: operations["getTenantStockReorderSuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reorder counts (nav badge, dashboard) */
+        get: operations["getTenantStockReorderSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reorder settings (defaults when never saved) */
+        get: operations["getTenantStockReorderSettings"];
+        /**
+         * Save reorder settings (owner)
+         * @description `supplier_lead_days`, when sent, replaces every supplier lead time.
+         */
+        put: operations["updateTenantStockReorderSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/products/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /** A product's reorder override (null when none) */
+        get: operations["getTenantStockReorderProduct"];
+        /** Set a product's reorder override (owner); all fields null removes it */
+        put: operations["updateTenantStockReorderProduct"];
+        post?: never;
+        /** Remove a product's reorder override (owner) */
+        delete: operations["deleteTenantStockReorderProduct"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create draft purchases from selected suggestions (owner)
+         * @description Groups the items by supplier (item `supplier_uuid`, else the
+         *     suggestion's preferred supplier) and creates one draft purchase per
+         *     supplier. Unit cost defaults to the last purchase cost, else the
+         *     product cost price. Drafts change neither stock nor finance until
+         *     posted (`POST /v1/tenant/purchases/{uuid}/post`).
+         */
+        post: operations["createTenantStockReorderDrafts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6358,6 +6525,447 @@ export interface paths {
          * @description Requires `tenant.calendar.write`.
          */
         delete: operations["deleteTenantCalendarEvent"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Loyalty counters and upcoming renewals
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). Renewals: active subscriptions renewing within `days` (default 7, max 60), overdue first, at most 10.
+         */
+        get: operations["getTenantLoyaltyOverview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/campaigns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List stamp campaigns
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyCampaigns"];
+        put?: never;
+        /**
+         * Create a stamp campaign
+         * @description Requires `tenant.loyalty.write`. Eligible services / categories must belong to the organization.
+         */
+        post: operations["createTenantLoyaltyCampaign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/campaigns/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a stamp campaign
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyCampaign"];
+        /**
+         * Replace a stamp campaign
+         * @description Requires `tenant.loyalty.write`. Full replace.
+         */
+        put: operations["updateTenantLoyaltyCampaign"];
+        post?: never;
+        /**
+         * Archive a stamp campaign
+         * @description Requires `tenant.loyalty.write`. Soft delete; history is kept.
+         */
+        delete: operations["deleteTenantLoyaltyCampaign"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List package definitions
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyPackages"];
+        put?: never;
+        /**
+         * Create a package definition
+         * @description Requires `tenant.loyalty.write`.
+         */
+        post: operations["createTenantLoyaltyPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/packages/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a package definition
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyPackage"];
+        /**
+         * Replace a package definition
+         * @description Requires `tenant.loyalty.write`. Full replace.
+         */
+        put: operations["updateTenantLoyaltyPackage"];
+        post?: never;
+        /**
+         * Archive a package definition
+         * @description Requires `tenant.loyalty.write`. Soft delete; history is kept.
+         */
+        delete: operations["deleteTenantLoyaltyPackage"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List subscription plans
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyPlans"];
+        put?: never;
+        /**
+         * Create a subscription plan
+         * @description Requires `tenant.loyalty.write`.
+         */
+        post: operations["createTenantLoyaltyPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/plans/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a subscription plan
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyPlan"];
+        /**
+         * Replace a subscription plan
+         * @description Requires `tenant.loyalty.write`. Full replace.
+         */
+        put: operations["updateTenantLoyaltyPlan"];
+        post?: never;
+        /**
+         * Archive a subscription plan
+         * @description Requires `tenant.loyalty.write`. Soft delete; history is kept.
+         */
+        delete: operations["deleteTenantLoyaltyPlan"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/customer-packages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List packages sold
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["listTenantLoyaltyCustomerPackages"];
+        put?: never;
+        /**
+         * Sell a package to a customer
+         * @description Requires `tenant.loyalty.apply`. Creates the credits and takes the price: cash / card into `finance_account_uuid` (income category "Paket Satışı") or a charge on the customer's cari account.
+         */
+        post: operations["sellTenantLoyaltyPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/customer-packages/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a package sold (with usage)
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltyCustomerPackage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/customer-packages/{uuid}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a package sold
+         * @description Requires `tenant.loyalty.write`. With no credit used the payment is voided (`refunded: true`); otherwise the remaining credits lapse. 409 while a credit is applied on an open job.
+         */
+        post: operations["cancelTenantLoyaltyCustomerPackage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List subscriptions
+         * @description Requires `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). `due_within_days` lists active subscriptions renewing within n days (overdue included), soonest first.
+         */
+        get: operations["listTenantLoyaltySubscriptions"];
+        put?: never;
+        /**
+         * Start a subscription
+         * @description Requires `tenant.loyalty.apply`. With `payment` the first period is collected at once; otherwise the subscription is `past_due` until paid.
+         */
+        post: operations["startTenantLoyaltySubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Get a subscription (payments, usage, next period)
+         * @description Requires `tenant.loyalty.read`.
+         */
+        get: operations["getTenantLoyaltySubscription"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions/{uuid}/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Collect the next period
+         * @description Requires `tenant.loyalty.apply`. Pays `next_period` (cash / card into a finance account, income category "Abonelik Geliri", or cari) and moves the renewal date.
+         */
+        post: operations["payTenantLoyaltySubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/loyalty/subscriptions/{uuid}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a subscription
+         * @description Requires `tenant.loyalty.write`. Paid periods are not refunded; pending renewal reminders are cancelled.
+         */
+        post: operations["cancelTenantLoyaltySubscription"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/customers/{uuid}/loyalty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Customer loyalty (stamps, packages, subscriptions)
+         * @description Requires `tenant.customers.read` and `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off).
+         */
+        get: operations["getTenantCustomerLoyalty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/loyalty": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Job loyalty section
+         * @description Requires `tenant.jobs.read` and `tenant.loyalty.read`. Plan feature `loyalty.enabled` (403 `FEATURE_DISABLED` when off). What is applied, what can be applied now (`options`, biggest saving first; only while the job is open and unpaid) and the customer's stamp cards.
+         */
+        get: operations["getTenantJobLoyalty"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/loyalty/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a reward / package credit / subscription use to a job line
+         * @description Requires `tenant.jobs.write` and `tenant.loyalty.apply`. Send one of the `options` of the job loyalty section. The line keeps its price; the covered amount becomes its `discount_amount` and the job total drops. 409 `NOT_APPLICABLE` when the option no longer applies, `CONFLICT` when the job is paid / closed or the line is already covered.
+         */
+        post: operations["applyTenantJobLoyalty"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/jobs/{uuid}/loyalty/{applicationUuid}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                applicationUuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revert loyalty on a job line
+         * @description Requires `tenant.jobs.write` and `tenant.loyalty.apply`. The line is charged again and the credits / use / stamps go back. Cancelling or voiding the job does this for every application.
+         */
+        post: operations["revertTenantJobLoyalty"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -8097,6 +8705,216 @@ export interface paths {
          *     blocked client again succeeds.
          */
         delete: operations["revokePlatformMCPClient"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review list metadata
+         * @description Requires `tenant.reviews.read` and the `reviews.enabled` plan toggle.
+         */
+        get: operations["getTenantReviewsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review KPIs and trend
+         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Requests created in the last `days` (default 30, test sends excluded): sent / opened / answered counts, response rate (answered / sent), average score, the 1-5 distribution, NPS-like score (promoters = 5, passives = 4, detractors = 1-3), Google redirects, open follow-ups and a weekly (monthly above 120 days) trend in Europe/Istanbul.
+         */
+        get: operations["getTenantReviewsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review collection settings
+         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Defaults when never saved: disabled, channel `auto`, 120 min delay, quiet hours 21:00-09:00, threshold 4, 30 days between requests. Includes channel availability, the effective review.request template with a preview (edited in Ayarlar → Mesajlar) and the `reviews.monthly` usage (`limit` -1 = unlimited).
+         */
+        get: operations["getTenantReviewSettings"];
+        /**
+         * Save review collection settings (owner)
+         * @description Requires `tenant.reviews.write` and the owner role. Omitted (or null) fields keep their value. `google_review_url` must be an https link (or "" to clear).
+         */
+        put: operations["updateTenantReviewSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/settings/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test review request to your own phone (owner)
+         * @description Requires `tenant.reviews.write` and the owner role. Sends now (no quiet hours, frequency cap or `reviews.monthly` count) to `phone` or the member's notification phone. Test requests are hidden from the list unless `include_tests=true`; their detail includes `public_url`. `409 CHANNEL_UNAVAILABLE` when neither WhatsApp nor SMS can send, `409 CONFLICT` when the message could not be sent.
+         */
+        post: operations["sendTenantReviewTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List review requests
+         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Test sends are excluded by default.
+         */
+        get: operations["getTenantReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/{uuid}": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Review request detail
+         * @description Requires `tenant.reviews.read`. Another organization's request is 404.
+         */
+        get: operations["getTenantReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/{uuid}/follow-up": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an answered review handled ("ele alındı", owner)
+         * @description Requires `tenant.reviews.write` and the owner role. Sets `follow_up_status` to `done` with an optional note. `409` when the request is not answered.
+         */
+        post: operations["followUpTenantReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/reviews/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Customer review page
+         * @description No auth. Rate-limited per IP (60/min). Requests that were never sent are 404. The first open marks the request opened. `state` is `open`, `answered` (with `result` and, for high scores, `google_review_url`) or `expired` (links are valid for 30 days).
+         */
+        get: operations["getPublicReview"];
+        put?: never;
+        /**
+         * Customer answers with 1-5 stars
+         * @description No auth. Rate-limited per IP (10 / 15 min). Answers once: `409 ALREADY_ANSWERED` afterwards, `410 REVIEW_EXPIRED` after the link expired. A score below the business's threshold needs a follow-up and notifies the team (in-app + push).
+         */
+        post: operations["answerPublicReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/reviews/{token}/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} */
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count a redirect to the Google review page
+         * @description No auth. Rate-limited per IP. Only for answered high scores when the business configured a Google review URL; returns the URL to open.
+         */
+        post: operations["redirectPublicReviewGoogle"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -11565,7 +12383,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event" | "review" | "purchase" | "customer_package";
             /** Format: uuid */
             uuid: string;
         };
@@ -11960,6 +12778,551 @@ export interface components {
             success: true;
             data: {
                 deleted: boolean;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        LoyaltyRef: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+        };
+        /**
+         * @description free_service (reward_service for free), percent (reward_value % off an eligible line), fixed (reward_value off)
+         * @enum {string}
+         */
+        LoyaltyRewardType: "free_service" | "percent" | "fixed";
+        LoyaltyCampaign: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            description: string;
+            /** @description Eligible services */
+            services: components["schemas"]["LoyaltyRef"][];
+            /** @description Eligible service categories */
+            categories: components["schemas"]["LoyaltyRef"][];
+            stamps_required: number;
+            reward_type: components["schemas"]["LoyaltyRewardType"];
+            reward_service?: components["schemas"]["LoyaltyRef"];
+            /** @description Percent or amount (0.00 for free_service) */
+            reward_value: string;
+            /** Format: date */
+            valid_from?: string;
+            /** Format: date */
+            valid_until?: string;
+            is_active: boolean;
+            /** @description Max rewards per customer (omitted = unlimited) */
+            per_customer_limit?: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description At least one of service_uuids / category_uuids. */
+        LoyaltyCampaignInput: {
+            name: string;
+            description?: string;
+            service_uuids?: string[];
+            category_uuids?: string[];
+            stamps_required: number;
+            reward_type: components["schemas"]["LoyaltyRewardType"];
+            /**
+             * Format: uuid
+             * @description Required for free_service
+             */
+            reward_service_uuid?: string | null;
+            /** @description Required for percent (1-100) and fixed (> 0) */
+            reward_value?: string;
+            /** Format: date */
+            valid_from?: string | null;
+            /** Format: date */
+            valid_until?: string | null;
+            /** @description Default true */
+            is_active?: boolean | null;
+            per_customer_limit?: number | null;
+        };
+        LoyaltyPackageItem: {
+            /** Format: uuid */
+            service_uuid: string;
+            service_name: string;
+            quantity: number;
+            /** @description The service's current list price */
+            unit_price: string;
+        };
+        LoyaltyPackage: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            description: string;
+            price: string;
+            currency: string;
+            /** @description Omitted = never expires */
+            validity_days?: number;
+            is_active: boolean;
+            items: components["schemas"]["LoyaltyPackageItem"][];
+            /** @description Items at the services' current prices */
+            list_value: string;
+            /** Format: int64 */
+            sold_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        LoyaltyPackageInput: {
+            name: string;
+            description?: string;
+            /** @description > 0 */
+            price: string;
+            /** @description Default TRY */
+            currency?: string;
+            validity_days?: number | null;
+            is_active?: boolean | null;
+            items: {
+                /** Format: uuid */
+                service_uuid: string;
+                quantity: number;
+            }[];
+        };
+        LoyaltyPlan: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            description: string;
+            /** @description Price per period */
+            price: string;
+            currency: string;
+            period_months: number;
+            /** @description Omitted = unlimited */
+            uses_per_period?: number;
+            services: components["schemas"]["LoyaltyRef"][];
+            categories: components["schemas"]["LoyaltyRef"][];
+            is_active: boolean;
+            /**
+             * Format: int64
+             * @description Active subscriptions
+             */
+            active_count: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description At least one of service_uuids / category_uuids. */
+        LoyaltyPlanInput: {
+            name: string;
+            description?: string;
+            price: string;
+            currency?: string;
+            /** @description Default 1 */
+            period_months?: number;
+            /** @description null = unlimited */
+            uses_per_period?: number | null;
+            service_uuids?: string[];
+            category_uuids?: string[];
+            is_active?: boolean | null;
+        };
+        LoyaltyCredit: {
+            /** Format: uuid */
+            service_uuid: string;
+            service_name: string;
+            total: number;
+            used: number;
+            remaining: number;
+        };
+        /** @enum {string} */
+        LoyaltyPaymentMethod: "cash" | "card" | "cari";
+        LoyaltyCustomerPackage: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            package_uuid?: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            name: string;
+            price: string;
+            currency: string;
+            /** @enum {string} */
+            state: "active" | "expired" | "used_up" | "cancelled";
+            /** Format: date-time */
+            purchased_at: string;
+            /** Format: date-time */
+            expires_at?: string;
+            payment_method: components["schemas"]["LoyaltyPaymentMethod"];
+            /** Format: int64 */
+            credits_total: number;
+            /** Format: int64 */
+            credits_used: number;
+            credits: components["schemas"]["LoyaltyCredit"][];
+            notes: string;
+            /** Format: date-time */
+            cancelled_at?: string;
+        };
+        LoyaltyUsage: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            job_uuid: string;
+            plate: string;
+            line_name: string;
+            units: number;
+            discount_amount: string;
+            /** @enum {string} */
+            status: "applied" | "reverted";
+            /** Format: date */
+            period_start?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltyCustomerPackageDetail: components["schemas"]["LoyaltyCustomerPackage"] & {
+            usage: components["schemas"]["LoyaltyUsage"][];
+        };
+        LoyaltyCancelResult: components["schemas"]["LoyaltyCustomerPackageDetail"] & {
+            /** @description The sale was voided (no credit had been used) */
+            refunded: boolean;
+        };
+        LoyaltySellPackageInput: {
+            /** Format: uuid */
+            package_uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            method: components["schemas"]["LoyaltyPaymentMethod"];
+            /**
+             * Format: uuid
+             * @description Required for cash / card
+             */
+            finance_account_uuid?: string | null;
+            notes?: string;
+        };
+        LoyaltyPaymentInput: {
+            method: components["schemas"]["LoyaltyPaymentMethod"];
+            /**
+             * Format: uuid
+             * @description Required for cash / card
+             */
+            finance_account_uuid?: string | null;
+        };
+        LoyaltyPeriod: {
+            /** Format: date */
+            start: string;
+            /**
+             * Format: date
+             * @description Exclusive
+             */
+            end: string;
+            /** Format: int64 */
+            used: number;
+            /** @description Omitted = unlimited */
+            limit?: number;
+            /** Format: int64 */
+            remaining?: number;
+        };
+        LoyaltySubscription: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            plan_uuid?: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            customer_name: string;
+            customer_phone: string;
+            /**
+             * Format: uuid
+             * @description Set when the subscription is for one vehicle
+             */
+            vehicle_uuid?: string;
+            plate?: string;
+            name: string;
+            price: string;
+            currency: string;
+            period_months: number;
+            /** @description Omitted = unlimited */
+            uses_per_period?: number;
+            /** Format: date */
+            start_date: string;
+            /**
+             * Format: date
+             * @description Start of the next period to pay (paid through)
+             */
+            renewal_date: string;
+            /** @description Negative when overdue */
+            days_until_renewal: number;
+            /** @enum {string} */
+            state: "active" | "past_due" | "cancelled";
+            current_period?: components["schemas"]["LoyaltyPeriod"];
+            notes: string;
+            /** Format: date-time */
+            cancelled_at?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltySubscriptionPayment: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: date */
+            period_start: string;
+            /** Format: date */
+            period_end: string;
+            amount: string;
+            currency: string;
+            method: components["schemas"]["LoyaltyPaymentMethod"];
+            finance_account_name?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltySubscriptionDetail: components["schemas"]["LoyaltySubscription"] & {
+            next_period: components["schemas"]["LoyaltyPeriod"];
+            payments: components["schemas"]["LoyaltySubscriptionPayment"][];
+            usage: components["schemas"]["LoyaltyUsage"][];
+        };
+        LoyaltyStartSubscriptionInput: {
+            /** Format: uuid */
+            plan_uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            /** Format: uuid */
+            vehicle_uuid?: string | null;
+            /**
+             * Format: date
+             * @description Default today (within ±62 days)
+             */
+            start_date?: string | null;
+            notes?: string;
+            payment?: components["schemas"]["LoyaltyPaymentInput"] | null;
+        };
+        LoyaltyStampCard: {
+            /** Format: uuid */
+            campaign_uuid: string;
+            campaign_name: string;
+            stamps_required: number;
+            /**
+             * Format: int64
+             * @description Progress towards the next reward (0..required-1)
+             */
+            stamps: number;
+            /**
+             * Format: int64
+             * @description Every unredeemed stamp
+             */
+            balance: number;
+            /** Format: int64 */
+            rewards_available: number;
+            /** Format: int64 */
+            rewards_redeemed: number;
+            reward_type: components["schemas"]["LoyaltyRewardType"];
+            reward_value: string;
+            reward_service?: components["schemas"]["LoyaltyRef"];
+            /** @description The campaign runs today */
+            active: boolean;
+            limit_reached: boolean;
+        };
+        CustomerLoyalty: {
+            /** Format: uuid */
+            customer_uuid: string;
+            stamps: components["schemas"]["LoyaltyStampCard"][];
+            /** @description Usable packages */
+            packages: components["schemas"]["LoyaltyCustomerPackage"][];
+            /** @description Active and past due */
+            subscriptions: components["schemas"]["LoyaltySubscription"][];
+            /** Format: int64 */
+            rewards_available: number;
+        };
+        /** @enum {string} */
+        LoyaltyKind: "reward" | "package" | "subscription";
+        LoyaltyApplication: {
+            /** Format: uuid */
+            uuid: string;
+            kind: components["schemas"]["LoyaltyKind"];
+            /**
+             * Format: uuid
+             * @description Campaign / customer package / subscription
+             */
+            source_uuid?: string;
+            source_name: string;
+            /** Format: uuid */
+            line_uuid: string;
+            line_name: string;
+            /** @description Credits / uses consumed (stamps for a reward) */
+            units: number;
+            discount_amount: string;
+            /** @enum {string} */
+            status: "applied" | "reverted";
+            /** Format: date-time */
+            created_at: string;
+        };
+        LoyaltyOption: {
+            kind: components["schemas"]["LoyaltyKind"];
+            /** Format: uuid */
+            source_uuid: string;
+            source_name: string;
+            /** Format: uuid */
+            line_uuid: string;
+            line_name: string;
+            units: number;
+            discount_amount: string;
+            /**
+             * Format: int64
+             * @description Left after this use (omitted for rewards and unlimited subscriptions)
+             */
+            remaining?: number;
+        };
+        JobLoyalty: {
+            /** Format: uuid */
+            job_uuid: string;
+            /** Format: uuid */
+            customer_uuid: string;
+            /** @description Open and unpaid (apply / revert allowed) */
+            editable: boolean;
+            applied: components["schemas"]["LoyaltyApplication"][];
+            options: components["schemas"]["LoyaltyOption"][];
+            stamps: components["schemas"]["LoyaltyStampCard"][];
+            /** @description Campaigns this job earned a stamp in */
+            stamps_earned: components["schemas"]["LoyaltyRef"][];
+        };
+        LoyaltyApplyInput: {
+            kind: components["schemas"]["LoyaltyKind"];
+            /** Format: uuid */
+            source_uuid: string;
+            /** Format: uuid */
+            line_uuid: string;
+        };
+        LoyaltyOverview: {
+            /** Format: int64 */
+            active_campaigns: number;
+            /** Format: int64 */
+            active_packages: number;
+            /** Format: int64 */
+            active_plans: number;
+            /** Format: int64 */
+            customer_packages_active: number;
+            /** Format: int64 */
+            subscriptions_active: number;
+            /** Format: int64 */
+            subscriptions_past_due: number;
+            /** Format: int64 */
+            renewals_upcoming: number;
+            horizon_days: number;
+            renewals: components["schemas"]["LoyaltySubscription"][];
+        };
+        EnvelopeLoyaltyCampaign: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyCampaign"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPackage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyPackage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPlan: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyPlan"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCustomerPackageDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyCustomerPackageDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCancelResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyCancelResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltySubscriptionDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltySubscriptionDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeCustomerLoyalty: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["CustomerLoyalty"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeJobLoyalty: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["JobLoyalty"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LoyaltyOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyDeleted: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                deleted: boolean;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCampaignPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyCampaign"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPackagePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyPackage"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyPlanPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyPlan"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltyCustomerPackagePage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltyCustomerPackage"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeLoyaltySubscriptionPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["LoyaltySubscription"][];
+                /** Format: int64 */
+                total: number;
+                limit: number;
+                offset: number;
             };
             meta: components["schemas"]["ResponseMeta"];
         };
@@ -13460,9 +14823,17 @@ export interface components {
             unit_price: string;
             qty: string;
             vat_rate: string;
+            /** @description Net of discount_amount */
             line_total: string;
             currency: string;
             sort_order: number;
+            /** @description What loyalty (reward / package / subscription) covered on the line */
+            discount_amount?: string;
+            /**
+             * @description Omitted when nothing covers the line
+             * @enum {string}
+             */
+            discount_source?: "reward" | "package" | "subscription";
         };
         JobPayment: {
             /** Format: uuid */
@@ -13730,11 +15101,17 @@ export interface components {
             /** Format: uuid */
             supplier_uuid: string;
             supplier_name: string;
-            /** @enum {string} */
-            status: "posted" | "voided";
+            /**
+             * @description draft: no stock / finance effect until posted
+             * @enum {string}
+             */
+            status: "draft" | "posted" | "voided";
             currency: string;
             total_amount: string;
-            /** @enum {string} */
+            /**
+             * @description Drafts carry cash until posting chooses the method.
+             * @enum {string}
+             */
             method: "cash" | "card";
             /** Format: uuid */
             finance_account_uuid?: string;
@@ -13769,6 +15146,132 @@ export interface components {
             success: true;
             data: components["schemas"]["PurchaseDetail"];
             meta: components["schemas"]["ResponseMeta"];
+        };
+        PurchaseLineInput: {
+            /** Format: uuid */
+            product_uuid: string;
+            unit_cost?: string;
+            qty?: string;
+        };
+        PurchaseDraftInput: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            notes?: string;
+            currency?: string;
+            lines: components["schemas"]["PurchaseLineInput"][];
+        };
+        StockReorderSupplierLead: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            supplier_name?: string;
+            lead_days: number;
+        };
+        StockReorderSettings: {
+            /** @description Usage window in days (default 30). */
+            velocity_days: number;
+            /** @description Default lead time (default 3). */
+            lead_days: number;
+            /** @description Target cover after delivery (default 14). */
+            target_days: number;
+            /** @description Daily notification at notify_time Europe/Istanbul. */
+            notify_enabled: boolean;
+            /** @example 09:00 */
+            notify_time: string;
+            supplier_lead_days: components["schemas"]["StockReorderSupplierLead"][];
+            velocity_day_options: number[];
+        };
+        EnvelopeStockReorderSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["StockReorderSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StockReorderProductOverride: {
+            /** Format: uuid */
+            supplier_uuid: string | null;
+            supplier_name?: string | null;
+            lead_days: number | null;
+            target_days: number | null;
+            pack_size: string | null;
+        };
+        EnvelopeStockReorderProductOverride: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                /** Format: uuid */
+                product_uuid: string;
+                override: components["schemas"]["StockReorderProductOverride"] | null;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StockReorderSummary: {
+            out_of_stock: number;
+            below_min: number;
+            low_cover: number;
+            /** @description out_of_stock + below_min */
+            urgent: number;
+            /** @description Products with a quantity to order. */
+            suggested: number;
+            /** @description Open draft purchases. */
+            drafts: number;
+        };
+        StockReorderInputs: {
+            velocity_days: number;
+            consumed_qty: string;
+            sold_qty: string;
+            lead_days: number;
+            /** @enum {string} */
+            lead_days_source: "product" | "supplier" | "organization";
+            target_days: number;
+            /** @enum {string} */
+            target_days_source: "product" | "organization";
+            /** @description velocity × (lead + target) */
+            demand_qty: string;
+            /** @description demand + min − stock − on_order before rounding */
+            raw_need: string;
+            formula: string;
+        };
+        StockReorderSuggestion: {
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            sku: string;
+            unit: string;
+            currency: string;
+            /** @enum {string} */
+            urgency: "out_of_stock" | "below_min" | "low_cover" | "none";
+            stock: string;
+            min_stock: string;
+            on_order: string;
+            velocity_per_day: string;
+            /** @description null = no usage */
+            days_of_cover: string | null;
+            suggested_qty: string;
+            pack_size: string | null;
+            packs: number | null;
+            supplier: {
+                /** Format: uuid */
+                uuid: string;
+                name: string;
+                /** @enum {string} */
+                source: "product" | "last_purchase";
+            } | null;
+            unit_cost: string;
+            /** @enum {string} */
+            unit_cost_source: "last_purchase" | "cost_price";
+            estimated_total: string;
+            /** Format: date-time */
+            last_purchased_at: string | null;
+            inputs: components["schemas"]["StockReorderInputs"];
+            override: components["schemas"]["StockReorderProductOverride"] | null;
+        };
+        StockReorderList: {
+            items: components["schemas"]["StockReorderSuggestion"][];
+            total: number;
+            summary: components["schemas"]["StockReorderSummary"];
+            settings: components["schemas"]["StockReorderSettings"];
+            /** Format: date-time */
+            generated_at: string;
         };
         StaffMember: {
             /** Format: uuid */
@@ -15008,6 +16511,261 @@ export interface components {
                 limit: number;
                 offset: number;
             };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @enum {string} */
+        ReviewStatus: "scheduled" | "sent" | "opened" | "answered" | "expired" | "cancelled" | "skipped" | "failed";
+        /** @enum {string} */
+        ReviewFollowUpStatus: "none" | "required" | "done";
+        /** @enum {string} */
+        ReviewChannelPreference: "auto" | "sms" | "whatsapp";
+        Review: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            kind: "job" | "test";
+            status: components["schemas"]["ReviewStatus"];
+            /** @description Why a request was skipped / cancelled / failed: disabled, job_cancelled, plan_disabled, excluded, no_phone, frequency_cap, monthly_limit, channel_unavailable, template_inactive, channel_plan, channel_quota, send_failed ("" otherwise) */
+            skip_reason: string;
+            error: string;
+            /** @enum {string} */
+            channel: "" | "sms" | "whatsapp";
+            /** @enum {string} */
+            locale: "tr" | "en";
+            /** Format: uuid */
+            customer_uuid: string | null;
+            customer_name: string;
+            customer_phone: string;
+            /** Format: uuid */
+            job_uuid: string | null;
+            plate: string;
+            score: number | null;
+            comment: string;
+            /** @enum {string} */
+            rating: "" | "high" | "low";
+            google_redirects: number;
+            follow_up_status: components["schemas"]["ReviewFollowUpStatus"];
+            follow_up_note: string;
+            /** Format: date-time */
+            followed_up_at: string | null;
+            followed_up_by_name: string;
+            /**
+             * Format: date-time
+             * @description Planned (or actual) send time
+             */
+            send_at: string;
+            /** @description The send was moved out of quiet hours */
+            deferred: boolean;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            opened_at: string | null;
+            /** Format: date-time */
+            answered_at: string | null;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ReviewDetail: components["schemas"]["Review"] & {
+            consent: boolean;
+            view_count: number;
+            /** Format: date-time */
+            google_redirected_at: string | null;
+            /** Format: date-time */
+            cancelled_at: string | null;
+            /** @description Customer link (test requests only) */
+            public_url?: string;
+        };
+        ReviewScoreCount: {
+            score: number;
+            count: number;
+        };
+        ReviewTrendPoint: {
+            /** Format: date */
+            period_start: string;
+            sent: number;
+            answered: number;
+            average_score: number;
+        };
+        ReviewSummary: {
+            days: number;
+            /** @enum {string} */
+            bucket: "week" | "month";
+            sent_count: number;
+            opened_count: number;
+            answered_count: number;
+            scheduled_count: number;
+            /** @description answered / sent (0..1) */
+            response_rate: number;
+            average_score: number;
+            /** @description Always five rows, scores 1..5 */
+            distribution: components["schemas"]["ReviewScoreCount"][];
+            promoters: number;
+            passives: number;
+            detractors: number;
+            /** @description promoters% - detractors% (-100..100) */
+            nps: number;
+            google_redirects: number;
+            follow_up_required: number;
+            trend: components["schemas"]["ReviewTrendPoint"][];
+        };
+        ReviewCustomerRef: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            phone: string;
+        };
+        ReviewTemplateInfo: {
+            /** @enum {string} */
+            channel: "sms" | "whatsapp";
+            /** @enum {string} */
+            locale: "tr" | "en";
+            /** @description Template with {{musteri_adi}}, {{isletme_adi}}, {{link}} (short {musteri_adi} also works) */
+            body: string;
+            is_custom: boolean;
+            active: boolean;
+            preview: string;
+        };
+        ReviewSettings: {
+            enabled: boolean;
+            channel: components["schemas"]["ReviewChannelPreference"];
+            delay_minutes: number;
+            quiet_hours_enabled: boolean;
+            quiet_start_hour: number;
+            quiet_end_hour: number;
+            google_review_url: string;
+            high_score_threshold: number;
+            min_days_between: number;
+            consent_text: string;
+            /** @enum {string} */
+            default_locale: "tr" | "en";
+            excluded_customers: components["schemas"]["ReviewCustomerRef"][];
+            whatsapp_available: boolean;
+            sms_available: boolean;
+            /**
+             * @description Channel a request would use now
+             * @enum {string}
+             */
+            effective_channel: "" | "sms" | "whatsapp";
+            template: components["schemas"]["ReviewTemplateInfo"];
+            usage: {
+                used: number;
+                /** @description -1 = unlimited */
+                limit: number;
+            };
+        };
+        UpdateReviewSettingsRequest: {
+            enabled?: boolean | null;
+            channel?: components["schemas"]["ReviewChannelPreference"] | null;
+            delay_minutes?: number | null;
+            quiet_hours_enabled?: boolean | null;
+            quiet_start_hour?: number | null;
+            quiet_end_hour?: number | null;
+            google_review_url?: string | null;
+            high_score_threshold?: number | null;
+            min_days_between?: number | null;
+            consent_text?: string | null;
+            /** @enum {string|null} */
+            default_locale?: "tr" | "en" | null;
+            excluded_customer_uuids?: string[] | null;
+        };
+        ReviewTestRequest: {
+            /** @description Defaults to the member's notification phone */
+            phone?: string;
+        };
+        ReviewTestResult: {
+            review: components["schemas"]["ReviewDetail"];
+            /** @enum {string} */
+            channel: "sms" | "whatsapp";
+            phone: string;
+            public_url: string;
+        };
+        ReviewFollowUpRequest: {
+            note?: string;
+        };
+        PublicReview: {
+            /** @enum {string} */
+            state: "open" | "answered" | "expired";
+            organization_name: string;
+            /** @description API-owned logo stream path */
+            organization_logo_url: string | null;
+            organization_phone: string;
+            primary_color: string;
+            customer_first_name: string;
+            /**
+             * @description Business default language of the request
+             * @enum {string}
+             */
+            locale: "tr" | "en";
+            /** @description Optional consent checkbox text ("" = none) */
+            consent_text: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            score: number | null;
+            comment: string;
+            /** Format: date-time */
+            answered_at: string | null;
+            /** @enum {string} */
+            result?: "high" | "low";
+            /** @description Set for answered high scores when configured */
+            google_review_url?: string;
+        };
+        PublicReviewAnswerRequest: {
+            score: number;
+            comment?: string;
+            consent?: boolean;
+        };
+        ReviewGoogleRedirect: {
+            url: string;
+        };
+        EnvelopeReviewList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Review"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePublicReview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PublicReview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewGoogleRedirect: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewGoogleRedirect"];
             meta: components["schemas"]["ResponseMeta"];
         };
     };
@@ -22796,7 +24554,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    method: "cash" | "card" | "cari";
+                    method?: "cash" | "card" | "cari";
                     /** Format: uuid */
                     finance_account_uuid?: string;
                 };
@@ -24608,7 +26366,8 @@ export interface operations {
                  *     is `400`.
                  */
                 supplier_uuid?: string;
-                status?: "posted" | "voided";
+                /** @description Omitted lists posted and voided purchases; `draft` lists drafts. */
+                status?: "draft" | "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
             };
@@ -24729,6 +26488,40 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    deleteTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Draft deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            deleted: boolean;
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     voidTenantPurchase: {
         parameters: {
             query?: never;
@@ -24754,6 +26547,368 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    createTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft created (`status` = `draft`) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    postTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    method: "cash" | "card";
+                    /** Format: uuid */
+                    finance_account_uuid: string;
+                    /** Format: date-time */
+                    purchased_at?: string;
+                    notes?: string;
+                    /** Format: uuid */
+                    supplier_uuid?: string;
+                    lines?: components["schemas"]["PurchaseLineInput"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Purchase posted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantStockReorderSuggestions: {
+        parameters: {
+            query?: {
+                urgency?: "out_of_stock" | "below_min" | "low_cover";
+                /** @description Preferred supplier filter; `none` = products without a supplier. */
+                supplier_uuid?: string;
+                q?: components["parameters"]["Q"];
+                /** @description Include products that need nothing. */
+                all?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suggestions with summary and settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: components["schemas"]["StockReorderList"];
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStockReorderSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: components["schemas"]["StockReorderSummary"];
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStockReorderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateTenantStockReorderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {integer} */
+                    velocity_days: 7 | 14 | 30 | 60 | 90;
+                    lead_days: number;
+                    target_days: number;
+                    notify_enabled: boolean;
+                    supplier_lead_days?: {
+                        /** Format: uuid */
+                        supplier_uuid: string;
+                        lead_days: number;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Override */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderProductOverride"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    supplier_uuid?: string | null;
+                    lead_days?: number | null;
+                    target_days?: number | null;
+                    pack_size?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved override */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderProductOverride"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Override removed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            deleted: boolean;
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTenantStockReorderDrafts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    notes?: string;
+                    items: {
+                        /** Format: uuid */
+                        product_uuid: string;
+                        qty: string;
+                        /** Format: uuid */
+                        supplier_uuid?: string | null;
+                        unit_cost?: string | null;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Drafts created (one per supplier) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            drafts: components["schemas"]["PurchaseDetail"][];
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantReportsMeta: {
@@ -26646,6 +28801,809 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantLoyaltyOverview: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyOverview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listTenantLoyaltyCampaigns: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaignPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyCampaignInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaign"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaign"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyCampaignInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCampaign"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantLoyaltyCampaign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTenantLoyaltyPackages: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackagePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPackageInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPackageInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPackage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTenantLoyaltyPlans: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                is_active?: "true" | "false";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlanPage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPlanInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlan"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPlanInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyPlan"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantLoyaltyPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyDeleted"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listTenantLoyaltyCustomerPackages: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                customer_uuid?: string;
+                state?: "active" | "expired" | "used_up" | "cancelled";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCustomerPackagePage"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sellTenantLoyaltyPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltySellPackageInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCustomerPackageDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantLoyaltyCustomerPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCustomerPackageDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    cancelTenantLoyaltyCustomerPackage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltyCancelResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listTenantLoyaltySubscriptions: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                customer_uuid?: string;
+                state?: "active" | "past_due" | "cancelled";
+                due_within_days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionPage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    startTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyStartSubscriptionInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    payTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyPaymentInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    cancelTenantLoyaltySubscription: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLoyaltySubscriptionDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantCustomerLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeCustomerLoyalty"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantJobLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobLoyalty"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    applyTenantJobLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoyaltyApplyInput"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobLoyalty"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    revertTenantJobLoyalty: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+                applicationUuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeJobLoyalty"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     getTenantTodosMeta: {
@@ -29572,6 +32530,362 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantReviewsMeta: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantReviewsSummary: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantReviewSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateTenantReviewSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReviewSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    sendTenantReviewTest: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewTestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantReviews: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: components["schemas"]["ReviewStatus"];
+                follow_up?: components["schemas"]["ReviewFollowUpStatus"];
+                /** @description high = score at or above the threshold, low = below it */
+                rating?: "high" | "low";
+                score?: number;
+                channel?: "sms" | "whatsapp";
+                customer_uuid?: string;
+                /** @description Only requests created in the last N days */
+                days?: number;
+                include_tests?: boolean;
+                sort?: "-created_at" | "created_at" | "score" | "-score" | "answered_at" | "-answered_at";
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantReview: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    followUpTenantReview: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewFollowUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPublicReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicReview"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    answerPublicReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicReviewAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicReview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description The review link has expired (REVIEW_EXPIRED) */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    redirectPublicReviewGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewGoogleRedirect"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
 }

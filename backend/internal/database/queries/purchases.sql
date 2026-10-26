@@ -70,7 +70,10 @@ SELECT p.*,
 FROM purchases p
 JOIN suppliers s ON s.id = p.supplier_id
 WHERE p.organization_id = sqlc.arg(organization_id)
-  AND (sqlc.narg(status)::text IS NULL OR p.status = sqlc.narg(status))
+  AND (
+    (sqlc.narg(status)::text IS NULL AND p.status <> 'draft')
+    OR p.status = sqlc.narg(status)
+  )
   AND (sqlc.narg(date_from)::timestamptz IS NULL OR p.purchased_at >= sqlc.narg(date_from))
   AND (sqlc.narg(date_to)::timestamptz IS NULL OR p.purchased_at < sqlc.narg(date_to))
   AND (
@@ -97,7 +100,10 @@ LIMIT sqlc.arg(limit_count) OFFSET sqlc.arg(offset_count);
 SELECT COUNT(*)::bigint
 FROM purchases p
 WHERE p.organization_id = sqlc.arg(organization_id)
-  AND (sqlc.narg(status)::text IS NULL OR p.status = sqlc.narg(status))
+  AND (
+    (sqlc.narg(status)::text IS NULL AND p.status <> 'draft')
+    OR p.status = sqlc.narg(status)
+  )
   AND (sqlc.narg(date_from)::timestamptz IS NULL OR p.purchased_at >= sqlc.narg(date_from))
   AND (sqlc.narg(date_to)::timestamptz IS NULL OR p.purchased_at < sqlc.narg(date_to))
   AND (
@@ -117,7 +123,10 @@ WHERE p.organization_id = sqlc.arg(organization_id)
 SELECT p.*
 FROM purchases p
 WHERE p.organization_id = sqlc.arg(organization_id)
-  AND (sqlc.narg(status)::text IS NULL OR p.status = sqlc.narg(status))
+  AND (
+    (sqlc.narg(status)::text IS NULL AND p.status <> 'draft')
+    OR p.status = sqlc.narg(status)
+  )
   AND (
     sqlc.narg(q)::text IS NULL
     OR p.supplier_name ILIKE '%' || sqlc.narg(q) || '%'
@@ -139,3 +148,48 @@ SELECT p.uuid, p.supplier_name, p.status, p.currency, p.total_amount, p.purchase
 FROM purchases p
 JOIN organizations o ON o.id = p.organization_id
 WHERE p.uuid = $1 AND o.uuid = $2;
+
+-- name: GetDraftPurchaseForUpdate :one
+SELECT * FROM purchases
+WHERE uuid = $1 AND organization_id = $2 AND status = 'draft'
+FOR UPDATE;
+
+-- name: UpdateDraftPurchase :one
+UPDATE purchases
+SET supplier_id = sqlc.arg(supplier_id),
+    supplier_name = sqlc.arg(supplier_name),
+    currency = sqlc.arg(currency),
+    total_amount = sqlc.arg(total_amount),
+    notes = sqlc.arg(notes),
+    updated_at = NOW()
+WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id) AND status = 'draft'
+RETURNING *;
+
+-- name: PostDraftPurchase :one
+-- Turns a draft into a posted purchase; stock and finance are applied by the
+-- caller in the same transaction.
+UPDATE purchases
+SET status = 'posted',
+    supplier_id = sqlc.arg(supplier_id),
+    supplier_name = sqlc.arg(supplier_name),
+    currency = sqlc.arg(currency),
+    total_amount = sqlc.arg(total_amount),
+    method = sqlc.arg(method),
+    finance_account_id = sqlc.arg(finance_account_id),
+    notes = sqlc.arg(notes),
+    purchased_at = sqlc.arg(purchased_at),
+    updated_at = NOW()
+WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id) AND status = 'draft'
+RETURNING *;
+
+-- name: DeletePurchaseLines :exec
+DELETE FROM purchase_lines
+WHERE purchase_id = $1 AND organization_id = $2;
+
+-- name: DeleteDraftPurchase :execrows
+DELETE FROM purchases
+WHERE uuid = $1 AND organization_id = $2 AND status = 'draft';
+
+-- name: CountDraftPurchases :one
+SELECT COUNT(*)::bigint FROM purchases
+WHERE organization_id = $1 AND status = 'draft';

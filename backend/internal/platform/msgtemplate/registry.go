@@ -137,6 +137,26 @@ func init() {
 		UserPreference: true,
 	})
 
+	// Review collection (modules/reviews): the customer request and the team
+	// notice of a low score.
+	Register(TypeSpec{Type: "review.request", Group: "reviews", Audience: AudienceCustomer, Channels: customerChannels,
+		Placeholders: []Placeholder{
+			{Key: "musteri_adi", SampleTR: "Ahmet Yılmaz", SampleEN: "John Smith"},
+			{Key: "isletme_adi", SampleTR: "Tech Oto", SampleEN: "Tech Oto"},
+			{Key: "link", SampleTR: "https://otopoly.app/r/AbCdEfGhIjKlMnOpQrStUv", SampleEN: "https://otopoly.app/r/AbCdEfGhIjKlMnOpQrStUv"},
+		}})
+	Register(TypeSpec{Type: "review.low_score", Group: "reviews", Audience: AudienceStaff,
+		Channels: []string{ChannelInapp, ChannelEmail},
+		Placeholders: []Placeholder{
+			phCustomer,
+			{Key: "score", SampleTR: "2", SampleEN: "2"},
+			{Key: "comment", SampleTR: "Araç geç teslim edildi.", SampleEN: "The car was late."},
+			phPlate, phCompany,
+			{Key: "app_link", SampleTR: "https://otopoly.app/t/tech-oto/reviews/abc", SampleEN: "https://otopoly.app/t/tech-oto/reviews/abc"},
+		},
+		UserPreference: true,
+	})
+
 	// Owner-only plan alerts (billing module). In-app text is neutral; the
 	// e-mail carries the web billing link.
 	billingPh := []Placeholder{

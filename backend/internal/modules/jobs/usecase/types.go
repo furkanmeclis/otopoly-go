@@ -17,6 +17,11 @@ type Line struct {
 	LineTotal   string     `json:"line_total"`
 	Currency    string     `json:"currency"`
 	SortOrder   int32      `json:"sort_order"`
+	// DiscountAmount is what loyalty (a stamp reward, package credits or a
+	// subscription) covered on the line; LineTotal is already net of it.
+	// DiscountSource is reward | package | subscription, or omitted.
+	DiscountAmount string `json:"discount_amount"`
+	DiscountSource string `json:"discount_source,omitempty"`
 }
 
 type Payment struct {
@@ -125,6 +130,8 @@ type PatchInput struct {
 }
 
 type CloseInput struct {
-	Method             string     `json:"method"` // cash | card | cari
+	// Method is cash | card | cari; ignored when loyalty covered the whole
+	// job (total 0): the job is then closed without a payment.
+	Method             string     `json:"method"`
 	FinanceAccountUUID *uuid.UUID `json:"finance_account_uuid"`
 }

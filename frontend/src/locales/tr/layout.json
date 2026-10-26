@@ -66,6 +66,7 @@
   "nav_todos": "Görevler",
   "nav_leads": "Fırsatlar",
   "nav_quotes": "Teklifler",
+  "nav_reviews": "Değerlendirmeler",
   "nav_billing": "Abonelik",
   "section_billing": "Abonelik",
   "nav_billing_plans": "Planlar",
@@ -78,5 +79,7 @@
   "breadcrumb_label": "Sayfa yolu",
   "nav_calendar": "Takvim",
   "nav_mcp": "MCP sunucusu",
-  "nav_mcp_tenant": "AI bağlantıları (MCP)"
+  "nav_mcp_tenant": "AI bağlantıları (MCP)",
+  "nav_stock_reorder": "Sipariş önerileri",
+  "nav_loyalty": "Sadakat ve Paketler"
 }

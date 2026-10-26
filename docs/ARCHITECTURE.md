@@ -217,6 +217,25 @@ Leads (fırsat) and quotes (teklif) under `/v1/tenant/leads/*` and `/v1/tenant/q
 
 **Quick convert:** service lines → job lines via `jobsusecase.Service.Create` (unit price = paid amount after discounts, VAT incl.); product / free-text lines are listed in the job notes, not transferred. A missing vehicle is created on the customer from the quote's plate + catalog model (only missing fields are asked). The quote stores `job_id`; a linked lead becomes `won`.
 
+## Stock reorder suggestions (`/t/{slug}/purchases/reorder`)
+
+Module `internal/modules/stockreorder`, routes `/v1/tenant/stock-reorder/*` (read: `tenant.purchases.read` + `tenant.catalog.read`; settings, product overrides and drafts: `tenant.purchases.write` and the owner role, like purchases). Plan toggle `stock_reorder.enabled` (undefined = on) → `403 FEATURE_DISABLED`.
+
+For every active stock-tracked product (one SQL query, `ListStockReorderCandidates`):
+
+- **velocity** = (job consumptions not reverted + posted sales of the last `velocity_days`, default 30) / `velocity_days`
+- **on_order** = quantity on `draft` purchases
+- **lead_days**: product override → supplier lead time → organization (default 3); **target_days**: product override → organization (default 14)
+- **suggested** = `max(0, ceil(velocity × (lead + target) + min_stock − stock − on_order))`, rounded up to whole packs when the product has a pack size
+- **urgency**: `out_of_stock` (stock ≤ 0 with usage or a minimum; negative stock always), `below_min` (stock ≤ min), `low_cover` (stock lasts less than lead + target), else `none`
+- **supplier**: product override, else the latest posted purchase's supplier; unit cost = last purchase cost, else the product cost price
+
+Every suggestion returns its `inputs` (usage, sources of lead / target, demand, raw need, formula text). `POST …/drafts` groups the selection by supplier and creates **draft purchases** (`purchases.status = 'draft'`, migration 000094): no stock or finance effect, hidden from the purchase list unless `status=draft`, counted as on order. `POST /v1/tenant/purchases/{uuid}/post` posts a draft through the normal purchase flow (stock in, expense on the chosen finance account); `DELETE /v1/tenant/purchases/{uuid}` discards a draft.
+
+**Daily notification:** the `app:stock_reorder:sweep` task (every 5 minutes, unique) sends once per day after 09:00 Europe/Istanbul, per organization with `notify_enabled` (default on) and at least one out-of-stock / below-minimum product, an in-app notification (`kind = stock.reorder_due`, action URL `/t/{slug}/purchases/reorder`; web and Expo push follow) to active members holding `tenant.purchases.write`.
+
+**AI / MCP:** `list_reorder_suggestions` (read) and `create_purchase_drafts` (confirmable write, owner).
+
 ## Tenant calendar (`/t/{slug}/calendar`)
 
 Organization calendar under `/v1/tenant/calendar/*` (module `internal/modules/calendar`). The organization's own events live in `calendar_events`; everything else is read live from the owning modules, never copied.
@@ -233,6 +252,17 @@ Organization calendar under `/v1/tenant/calendar/*` (module `internal/modules/ca
 **Live:** event create / update / delete / move publish `resource.changed` on `tenant.calendar` (read permission `tenant.calendar.read`); feed items of other modules are announced on their own resources (see Live lists).
 
 **AI:** `list_calendar` (read) and `create_calendar_event` (confirmable write).
+
+## Tenant reviews (`/t/{slug}/reviews`, public `/r/{token}`)
+
+Review collection (`internal/modules/reviews`, migrations 000095–000096).
+
+- **Flow:** `jobs.delivered` schedules one `review_requests` row per job (unique per job, so repeated events are no-ops) at `delivered_at + delay` (30 min–48 h, default 2 h), moved out of the quiet window (default 21:00–09:00 Europe/Istanbul) to the next morning. `jobs.cancelled` / `jobs.voided` cancel an unsent request. The minute sweep (`app:reviews:sweep`, API + worker) claims due rows (`scheduled → sending`, `FOR UPDATE SKIP LOCKED`), re-checks settings, job status, quiet hours, `reviews.enabled`, the exclude list, the phone, the frequency cap (`min_days_between`, default 30) and `reviews.monthly`, resolves the channel (`auto` = WhatsApp when it can send now, else the organization's SMS provider) and queues the message through `messaging` (`QueueSend`, event `review.request`, subject `review_request` → logged in `outbound_messages`, WhatsApp/SMS plan gates apply). Async send failures come back through the messaging outbound observer. Links expire after 30 days.
+- **Template:** message type `review.request` in Ayarlar → Mesajlar (`{{musteri_adi}}`, `{{isletme_adi}}`, `{{link}}`; the short `{musteri_adi}` form also works). The platform WhatsApp number sends the catalog entry `otopoly_review_request`.
+- **Public page:** Next.js `/r/{token}` (22-char random token) → `GET/POST /v1/public/reviews/{token}` and `POST …/google` (rate-limited, no auth). Answer once; score ≥ `high_score_threshold` (default 4) shows the Google review button (redirects counted), lower scores set `follow_up_status = required` and notify members with `tenant.reviews.read` through the notification center (`review.low_score`, in-app + web/mobile push, e-mail per preference).
+- **Panel:** list + KPI tiles + trend, detail with "ele alındı" (follow-up note), settings with test send, customer 360 section. Live resource `tenant.reviews`; activity `tenant.review.*`.
+- **RBAC / plan:** `tenant.reviews.read` (owner + staff), `tenant.reviews.write` (owner, and the HTTP layer requires the owner role); plan features `reviews.enabled` (toggle) and `reviews.monthly` (limit; undefined = on / unlimited).
+- **AI / MCP:** `list_reviews`, `get_review_summary`, confirmable `mark_review_followed_up`.
 
 ## Tenant cari (`/t/{slug}/cari`)
 
@@ -333,7 +363,7 @@ Open lists and detail pages follow data changes over Centrifugo. Events are **hi
 | `tenant.sales` | `tenant.sales.read` | sale create / void |
 | `tenant.quotes` | `tenant.quotes.read` | create / update / status / send / convert / public decision, worker expiry (`bulk`) |
 | `tenant.leads` | `tenant.leads.read` | create / update / status / note / todo / delete |
-| `tenant.purchases` | `tenant.purchases.read` | purchase create / void |
+| `tenant.purchases` | `tenant.purchases.read` | purchase create / void; draft create / update / post / delete |
 | `tenant.suppliers` | `tenant.suppliers.read` | create / update / delete |
 | `tenant.catalog.products` · `.services` · `.categories` | `tenant.catalog.read` | catalog CRUD, stock moves (`bulk`), bulk actions, imports |
 | `tenant.finance.accounts` · `.categories` · `.transactions` | `tenant.finance.read` | finance CRUD, transfers, voids; payments from jobs / sales / purchases / cari (`bulk`) |
@@ -342,6 +372,7 @@ Open lists and detail pages follow data changes over Centrifugo. Events are **hi
 | `tenant.contracts` (templates) · `tenant.contracts.instances` | `tenant.contracts.read` | template CRUD / clone; instance create / sign / OTP verify / media / void |
 | `tenant.staff` | `tenant.staff.read` | staff create / status change |
 | `tenant.calendar` | `tenant.calendar.read` | own calendar event create / update / delete / move; todo and lead moves from the calendar (`updated`, todo / lead uuid) |
+| `tenant.stock_reorder` | `tenant.purchases.read` | reorder settings, product overrides, drafts created from suggestions (`bulk`); stock and draft changes also arrive on `tenant.catalog.products` / `tenant.purchases` |
 
 **Payload** (`resourceevents.Event`, the Centrifugo publication `data`):
 

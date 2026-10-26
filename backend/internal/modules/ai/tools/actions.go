@@ -52,7 +52,7 @@ type Option struct {
 
 // Link points the UI at the record a confirmed action created or changed.
 type Link struct {
-	Kind string `json:"kind"` // customer | cari | job | sale | finance_account | todo
+	Kind string `json:"kind"` // customer | cari | job | sale | finance_account | todo | calendar_event | review
 	UUID string `json:"uuid"`
 }
 

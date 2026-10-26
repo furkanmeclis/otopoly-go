@@ -12,7 +12,7 @@ import (
 
 // SafeVars are the only template variables a push text may contain. They are
 // copied into the in-app notification payload under "push_vars".
-var SafeVars = []string{"quote_number", "due_in", "feature_label", "days_left"}
+var SafeVars = []string{"quote_number", "due_in", "feature_label", "days_left", "score", "item_count"}
 
 // Text is one localized push.
 type Text struct {
@@ -43,6 +43,10 @@ var catalog = map[string]pair{
 		tr: Text{"Görev hatırlatması", "Bir görevinizin zamanı yaklaşıyor ({{due_in}})."},
 		en: Text{"Task reminder", "One of your tasks is due {{due_in}}."},
 	},
+	"review.low_score": {
+		tr: Text{"Düşük puanlı değerlendirme", "Bir müşteri {{score}} puan verdi, takip gerekli."},
+		en: Text{"Low score review", "A customer gave {{score}} stars, follow-up needed."},
+	},
 	"billing.usage_warning": {
 		tr: Text{"Kullanım uyarısı", "{{feature_label}} kullanımı plan limitine yaklaştı."},
 		en: Text{"Usage notice", "{{feature_label}} usage is close to the plan limit."},
@@ -54,6 +58,10 @@ var catalog = map[string]pair{
 	"billing.limit_reached": {
 		tr: Text{"Plan limiti doldu", "{{feature_label}} limiti nedeniyle bir işlem yapılamadı."},
 		en: Text{"Plan limit reached", "An action was blocked by the {{feature_label}} limit."},
+	},
+	"stock.reorder_due": {
+		tr: Text{"Stok siparişi önerisi", "{{item_count}} ürün stokta yok ya da minimum stokun altında."},
+		en: Text{"Stock reorder suggestion", "{{item_count}} products are out of stock or below the minimum."},
 	},
 	"billing.subscription_ending": {
 		tr: Text{"Abonelik süresi doluyor", "Aboneliğinizin süresi {{days_left}} gün içinde doluyor."},

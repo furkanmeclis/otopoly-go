@@ -24,6 +24,12 @@ const TOOL_LABEL_KEYS: Record<string, string> = {
   complete_todo: "ai.tools.complete_todo",
   list_calendar: "ai.tools.list_calendar",
   create_calendar_event: "ai.tools.create_calendar_event",
+  list_reorder_suggestions: "ai.tools.list_reorder_suggestions",
+  create_purchase_drafts: "ai.tools.create_purchase_drafts",
+  get_customer_loyalty: "ai.tools.get_customer_loyalty",
+  list_loyalty_programs: "ai.tools.list_loyalty_programs",
+  sell_package: "ai.tools.sell_package",
+  redeem_reward: "ai.tools.redeem_reward",
   update_plan: "ai.tools.update_plan",
   list_services: "ai.tools.list_services",
   list_finance_categories: "ai.tools.list_finance_categories",
@@ -32,6 +38,9 @@ const TOOL_LABEL_KEYS: Record<string, string> = {
   quick_job: "ai.tools.quick_job",
   void_finance_entry: "ai.tools.void_finance_entry",
   update_finance_entry: "ai.tools.update_finance_entry",
+  list_reviews: "ai.tools.list_reviews",
+  get_review_summary: "ai.tools.get_review_summary",
+  mark_review_followed_up: "ai.tools.mark_review_followed_up",
 };
 
 const TOOL_RUNNING_KEYS: Record<string, string> = {
@@ -58,6 +67,12 @@ const TOOL_RUNNING_KEYS: Record<string, string> = {
   complete_todo: "ai.tools_running.complete_todo",
   list_calendar: "ai.tools_running.list_calendar",
   create_calendar_event: "ai.tools_running.create_calendar_event",
+  list_reorder_suggestions: "ai.tools_running.list_reorder_suggestions",
+  create_purchase_drafts: "ai.tools_running.create_purchase_drafts",
+  get_customer_loyalty: "ai.tools_running.get_customer_loyalty",
+  list_loyalty_programs: "ai.tools_running.list_loyalty_programs",
+  sell_package: "ai.tools_running.sell_package",
+  redeem_reward: "ai.tools_running.redeem_reward",
   update_plan: "ai.tools_running.update_plan",
   list_services: "ai.tools_running.list_services",
   list_finance_categories: "ai.tools_running.list_finance_categories",
@@ -66,6 +81,9 @@ const TOOL_RUNNING_KEYS: Record<string, string> = {
   quick_job: "ai.tools_running.quick_job",
   void_finance_entry: "ai.tools_running.void_finance_entry",
   update_finance_entry: "ai.tools_running.update_finance_entry",
+  list_reviews: "ai.tools_running.list_reviews",
+  get_review_summary: "ai.tools_running.get_review_summary",
+  mark_review_followed_up: "ai.tools_running.mark_review_followed_up",
 };
 
 const UNAVAILABLE_KEYS: Record<string, string> = {
@@ -131,6 +149,7 @@ const CONFIRM_FIELD_KEYS: Record<string, string> = {
   phone: "ai.confirm.fields.phone",
   email: "ai.confirm.fields.email",
   notes: "ai.confirm.fields.notes",
+  supplier: "ai.confirm.fields.supplier",
   plate: "ai.confirm.fields.plate",
   vehicle: "ai.confirm.fields.vehicle",
   services: "ai.confirm.fields.services",
@@ -154,6 +173,18 @@ const CONFIRM_FIELD_KEYS: Record<string, string> = {
   stock_returned: "ai.confirm.fields.stock_returned",
   customer_action: "ai.confirm.fields.customer_action",
   vehicle_action: "ai.confirm.fields.vehicle_action",
+  score: "ai.confirm.fields.score",
+  comment: "ai.confirm.fields.comment",
+  note: "ai.confirm.fields.note",
+  package: "ai.confirm.fields.package",
+  credits: "ai.confirm.fields.credits",
+  validity_days: "ai.confirm.fields.validity_days",
+  job: "ai.confirm.fields.job",
+  loyalty_kind: "ai.confirm.fields.loyalty_kind",
+  source: "ai.confirm.fields.source",
+  line: "ai.confirm.fields.line",
+  units: "ai.confirm.fields.units",
+  remaining_after: "ai.confirm.fields.remaining_after",
 };
 
 const CONFIRM_WARNING_KEYS: Record<string, string> = {

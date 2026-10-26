@@ -39,6 +39,9 @@ type (
 	nopLookup         struct{ aitools.CatalogLookup }
 	nopSalesW         struct{ aitools.SalesWriter }
 	nopTodos          struct{ aitools.TodosService }
+	nopReviews        struct{ aitools.ReviewsService }
+	nopReorder        struct{ aitools.ReorderService }
+	nopLoyalty        struct{ aitools.LoyaltyService }
 	nopLeads          struct{ orgtools.Leads }
 	nopQuotes         struct{ orgtools.Quotes }
 	nopOrgs           struct{ platformtools.Organizations }
@@ -57,6 +60,9 @@ func orgTools() []aitools.Tool {
 		Finance: nopFinance{}, Sales: nopSales{}, Catalog: nopCatalog{}, UnpaidJobs: nopUnpaid{}, CariWrite: nopCariW{}, FinanceWrite: nopFinanceW{},
 		CustomersWrite: nopCustomersW{}, VehicleCatalog: nopVehicleCatalog{}, VehicleOptions: nopVehicleOptions{},
 		JobsWrite: nopJobsW{}, CatalogLookup: nopLookup{}, SalesWrite: nopSalesW{}, Todos: nopTodos{},
+		Reviews: nopReviews{},
+		Reorder: nopReorder{},
+		Loyalty: nopLoyalty{},
 	})
 	for _, t := range orgtools.Tools(orgtools.Deps{Leads: nopLeads{}, Quotes: nopQuotes{}}) {
 		reg.Register(t)

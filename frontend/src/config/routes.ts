@@ -9,6 +9,8 @@ export const routes = {
     privacyEn: "/en/privacy",
     health: "/health",
     quote: (token: string) => `/q/${token}`,
+    /** Customer review page (short link sent after delivery). */
+    review: (token: string) => `/r/${token}`,
     share: {
       slug: (slug: string) => `/share/${slug}`,
       signed: (token: string) => `/share/s/${token}`,
@@ -80,6 +82,9 @@ export const routes = {
     purchases: {
       root: (slug: string) => `/t/${slug}/purchases`,
       detail: (slug: string, uuid: string) => `/t/${slug}/purchases/${uuid}`,
+      reorder: (slug: string) => `/t/${slug}/purchases/reorder`,
+      reorderDrafts: (slug: string) =>
+        `/t/${slug}/purchases/reorder?tab=drafts`,
     },
     reports: {
       root: (slug: string) => `/t/${slug}/reports`,
@@ -96,9 +101,22 @@ export const routes = {
       event: (slug: string, uuid: string) =>
         `/t/${slug}/calendar?event=${encodeURIComponent(uuid)}`,
     },
+    loyalty: {
+      root: (slug: string) => `/t/${slug}/loyalty`,
+      tab: (slug: string, tab: string) => `/t/${slug}/loyalty?tab=${tab}`,
+      customerPackage: (slug: string, uuid: string) =>
+        `/t/${slug}/loyalty/customer-packages/${uuid}`,
+      subscription: (slug: string, uuid: string) =>
+        `/t/${slug}/loyalty/subscriptions/${uuid}`,
+    },
     leads: {
       root: (slug: string) => `/t/${slug}/leads`,
       detail: (slug: string, uuid: string) => `/t/${slug}/leads/${uuid}`,
+    },
+    reviews: {
+      root: (slug: string) => `/t/${slug}/reviews`,
+      detail: (slug: string, uuid: string) => `/t/${slug}/reviews/${uuid}`,
+      settings: (slug: string) => `/t/${slug}/reviews/settings`,
     },
     quotes: {
       root: (slug: string) => `/t/${slug}/quotes`,
