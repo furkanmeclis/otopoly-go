@@ -2,6 +2,9 @@ package mcp_test
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -13,6 +16,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/mcp"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/mcp/orgtools"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/mcp/platformtools"
+	oauthmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/oauth/model"
 )
 
 // Interface-embedding stubs: the parity test only reads Specs.
@@ -168,6 +172,52 @@ func TestAnnotationsAndPermissions(t *testing.T) {
 		}
 		if err := aitools.Validate(spec.InputSchema, []byte(`{}`)); err != nil && !strings.Contains(err.Error(), "required") {
 			t.Errorf("%s: schema rejects {}: %v", spec.Name, err)
+		}
+	}
+}
+
+type allowTokens struct{}
+
+func (allowTokens) ValidateAccessToken(_ context.Context, _, resource string) (oauthmodel.AccessToken, error) {
+	return oauthmodel.AccessToken{UserID: 1, OrganizationID: 2, Resource: resource,
+		Scopes: []string{oauthmodel.ScopeRead, oauthmodel.ScopeWrite}}, nil
+}
+
+func (allowTokens) ResourceMetadataURL(string) string { return "" }
+
+type allowResolver struct{}
+
+func (allowResolver) Resolve(_ context.Context, tok oauthmodel.AccessToken) (mcp.Principal, error) {
+	return mcp.Principal{Scopes: tok.Scopes}, nil
+}
+
+type fixedSet []aitools.Tool
+
+func (f fixedSet) Tools(context.Context, mcp.Principal) ([]aitools.Tool, error) { return f, nil }
+
+// Every real tool registers on the SDK server (input schemas are objects)
+// and is listed with its annotations.
+func TestRealToolsList(t *testing.T) {
+	org, platform := orgTools(), platformTools()
+	s := mcp.New(mcp.Config{Tokens: allowTokens{}, Principals: allowResolver{}, Sets: map[string]mcp.ToolSet{
+		oauthmodel.ResourceOrg: fixedSet(org), oauthmodel.ResourcePlatform: fixedSet(platform),
+	}})
+	for path, want := range map[string]int{oauthmodel.ResourceOrg: len(org), oauthmodel.ResourcePlatform: len(platform)} {
+		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		req.Header.Set("Authorization", "Bearer x")
+		rec := httptest.NewRecorder()
+		s.ServeHTTP(rec, req)
+		var out struct {
+			Result struct {
+				Tools []struct {
+					Name string `json:"name"`
+				} `json:"tools"`
+			} `json:"result"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil || len(out.Result.Tools) != want {
+			t.Fatalf("%s: %d tools listed, want %d (%v) %s", path, len(out.Result.Tools), want, err, rec.Body)
 		}
 	}
 }
