@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Download, FileText, Phone, XCircle } from "lucide-react";
 import { useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -128,7 +129,16 @@ export function PublicQuotePage({ token }: { token: string }) {
               {q.vehicle_plate ? (
                 <PlateBadge plate={q.vehicle_plate} size="sm" />
               ) : null}
-              <span className="text-muted-foreground">{q.vehicle_label}</span>
+              <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                {q.vehicle_brand_name ? (
+                  <BrandMark
+                    name={q.vehicle_brand_name}
+                    logoUrl={q.vehicle_brand_logo_url}
+                    className="size-5"
+                  />
+                ) : null}
+                {q.vehicle_label}
+              </span>
             </div>
           </div>
         </div>

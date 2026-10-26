@@ -1,3 +1,6 @@
+import { createElement } from "react";
+
+import { BrandMark } from "@/components/common/brand-mark";
 import type { ServerListParams } from "@/components/entity";
 import { platformRequest } from "@/lib/api/platform-request";
 import type { ResourceMeta } from "@/features/io/types";
@@ -44,11 +47,27 @@ export type VehicleCatalogOption = {
   year: number;
 };
 
+/** Brand logo (or initial) shown next to vehicle options in pickers. */
+export function brandIcon(name?: string | null, logoUrl?: string | null) {
+  return createElement(BrandMark, { name, logoUrl, size: "sm" });
+}
+
 export function catalogPickerOptions(items: VehicleCatalogOption[]) {
   return items.map((item) => ({
     value: `${item.model_uuid}:${item.year}`,
     label: `${item.brand_name} ${item.model_name} · ${item.year}`,
     description: item.brand_name,
+    icon: brandIcon(item.brand_name, item.logo_url),
+  }));
+}
+
+/** Picker options for a customer's vehicles: "34 ABC 12 · Brand Model". */
+export function customerVehicleOptions(vehicles: CustomerVehicle[]) {
+  return vehicles.map((vehicle) => ({
+    value: vehicle.uuid,
+    label: `${vehicle.plate} · ${vehicle.brand_name} ${vehicle.model_name}`,
+    description: String(vehicle.year),
+    icon: brandIcon(vehicle.brand_name, vehicle.logo_url),
   }));
 }
 

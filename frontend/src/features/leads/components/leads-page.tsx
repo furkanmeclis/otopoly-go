@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusChip } from "@/components/common/status-chip";
 import { Button } from "@/components/ui/button";
@@ -322,6 +323,13 @@ function LeadRow({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <span className="truncate font-medium">{lead.customer_name}</span>
+          {lead.vehicle_brand_name ? (
+            <BrandMark
+              name={lead.vehicle_brand_name}
+              logoUrl={lead.vehicle_brand_logo_url}
+              className="size-5"
+            />
+          ) : null}
           {lead.vehicle_plate ? (
             <PlateBadge plate={lead.vehicle_plate} size="sm" />
           ) : null}

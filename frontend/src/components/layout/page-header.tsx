@@ -24,8 +24,8 @@ export function PageHeader({
     <div className="mb-2 space-y-3">
       {breadcrumbs?.length ? <Breadcrumb items={breadcrumbs} /> : null}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="font-display flex items-center gap-2.5 text-2xl font-semibold tracking-tight">
+        <div className="min-w-0 space-y-1">
+          <h1 className="font-display flex items-center gap-2.5 text-2xl font-semibold tracking-tight break-words">
             {icon ? (
               <span className="text-muted-foreground inline-flex shrink-0">
                 {icon}
@@ -38,7 +38,9 @@ export function PageHeader({
           ) : null}
         </div>
         {actions ? (
-          <div className="flex items-center gap-2">{actions}</div>
+          <div className="flex max-w-full flex-wrap items-center gap-2">
+            {actions}
+          </div>
         ) : null}
       </div>
     </div>

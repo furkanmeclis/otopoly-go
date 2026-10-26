@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { EmptyState } from "@/components/common/empty-state";
 import { StatusChip } from "@/components/common/status-chip";
 import { Button } from "@/components/ui/button";
@@ -223,7 +224,16 @@ export function QuoteDetailPage({
                 <PlateBadge plate={q.vehicle_plate} size="sm" />
               ) : null}
               {q.vehicle_label ? (
-                <span className="text-muted-foreground">{q.vehicle_label}</span>
+                <span className="text-muted-foreground inline-flex items-center gap-1.5">
+                  {q.vehicle_brand_name ? (
+                    <BrandMark
+                      name={q.vehicle_brand_name}
+                      logoUrl={q.vehicle_brand_logo_url}
+                      className="size-5"
+                    />
+                  ) : null}
+                  {q.vehicle_label}
+                </span>
               ) : null}
               {q.lead_uuid ? (
                 <Link
