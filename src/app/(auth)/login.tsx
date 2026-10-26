@@ -1,5 +1,6 @@
 import { Link, router, useLocalSearchParams } from 'expo-router';
-import { Bug, Eye, EyeOff, KeyRound, Lock, Mail, UserCog, UserRound } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
+import { Bug, Eye, EyeOff, KeyRound, Lock, Mail, UserCog, UserPlus, UserRound } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, View, type TextInputInstance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,6 +20,7 @@ import { authErrorMessage, PROVIDER_NAME } from '@/features/auth/lib/auth-errors
 import { signInWithAppleNative, signInWithGoogleNative } from '@/features/auth/native/social';
 import { passwordlessService, type OAuthProvider } from '@/features/auth/services/passwordless.service';
 import { useSignInFlow } from '@/features/auth/use-sign-in-flow';
+import { onboardingService, registrationOpen } from '@/features/onboarding/services/onboarding.service';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useTheme } from '@/theme/provider';
@@ -145,6 +147,8 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {!flow.mfa ? <RegisterLink /> : null}
+
           {isMock && !flow.mfa ? <DemoCard onPick={(who) => login(DEMO[who], DEMO.password).catch((err) => setError(authErrorMessage(tr, err)))} disabled={busy} /> : null}
 
           <LegalLinks notice={tr('mobile.account.legal.login_notice')} />
@@ -265,6 +269,25 @@ function TotpStep({ flow }: { flow: ReturnType<typeof useSignInFlow> }) {
         </Txt>
       ) : null}
     </View>
+  );
+}
+
+/** "Hesabınız yok mu? Kayıt olun": hidden only when the server says self-registration is closed. */
+function RegisterLink() {
+  const t = useTheme();
+  const { t: tr } = useLocale();
+  const config = useQuery({ queryKey: ['app', 'config'], queryFn: () => onboardingService.appConfig(), staleTime: 5 * 60 * 1000, retry: 1 });
+  if (!registrationOpen(config.data)) return null;
+  return (
+    <Card style={{ gap: t.spacing.sm, alignItems: 'center' }}>
+      <Txt variant="bodyStrong" style={{ textAlign: 'center' }}>
+        {tr('mobile.auth.register.cta_title')}
+      </Txt>
+      <Txt variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+        {tr('mobile.auth.register.cta_body')}
+      </Txt>
+      <Button label={tr('mobile.auth.register.cta')} variant="secondary" icon={<UserPlus size={18} color={t.colors.primary} />} onPress={() => router.push('/register')} fullWidth />
+    </Card>
   );
 }
 

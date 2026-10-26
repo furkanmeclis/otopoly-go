@@ -47,9 +47,9 @@ export function WelcomeFilm() {
   const [index, setIndex] = useState(0);
   const last = index === SLIDES.length - 1;
 
-  const finish = () => {
+  const finish = (to: '/login' | '/register' = '/login') => {
     markIntroSeen();
-    router.replace('/login');
+    router.replace(to);
   };
 
   const goTo = (i: number) => {
@@ -75,7 +75,7 @@ export function WelcomeFilm() {
         <BrandMark height={28} />
         {!last ? (
           <Pressable
-            onPress={finish}
+            onPress={() => finish()}
             accessibilityRole="button"
             accessibilityLabel={tr('mobile.onboarding.intro.skip')}
             hitSlop={8}
@@ -136,9 +136,11 @@ export function WelcomeFilm() {
             label={last ? tr('mobile.onboarding.intro.sign_in') : tr('mobile.onboarding.intro.next')}
             accessibilityHint={tr('mobile.onboarding.intro.page', { current: index + 1, total: SLIDES.length })}
             size="lg"
-            onPress={last ? finish : () => goTo(index + 1)}
+            onPress={last ? () => finish() : () => goTo(index + 1)}
           />
         </AnimatedButtonShell>
+        {/* First-time visitors without an account go straight to sign-up from the last page. */}
+        {last ? <Button label={tr('mobile.auth.register.cta')} variant="ghost" onPress={() => finish('/register')} /> : null}
       </View>
     </SafeAreaView>
   );
