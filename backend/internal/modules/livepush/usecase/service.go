@@ -83,9 +83,10 @@ type Store interface {
 	SumServiceJobsDaily(ctx context.Context, arg db.SumServiceJobsDailyParams) (db.SumServiceJobsDailyRow, error)
 }
 
-// APNs sends ActivityKit pushes (*apns.Client satisfies it).
+// APNs sends ActivityKit pushes (*apns.Resolver satisfies it: credentials
+// are resolved at send time, DB first, env fallback).
 type APNs interface {
-	Configured() bool
+	Configured(ctx context.Context) bool
 	SendLiveActivity(ctx context.Context, p apns.LiveActivity) (apns.Result, error)
 }
 
@@ -99,8 +100,7 @@ type Service struct {
 	now   func() time.Time
 	loc   *time.Location
 
-	apnsOffOnce sync.Once
-	inline      sync.WaitGroup
+	inline sync.WaitGroup
 }
 
 // New builds the service. apnsClient may be nil or unconfigured (iOS Live
@@ -126,7 +126,9 @@ func (s *Service) SetLocation(loc *time.Location) { s.loc = loc }
 func (s *Service) Wait() { s.inline.Wait() }
 
 // APNsConfigured reports whether iOS Live Activities get remote updates.
-func (s *Service) APNsConfigured() bool { return s.apns != nil && s.apns.Configured() }
+func (s *Service) APNsConfigured(ctx context.Context) bool {
+	return s.apns != nil && s.apns.Configured(ctx)
+}
 
 func (s *Service) scope(ctx context.Context) (int64, error) {
 	sc, ok := orgctx.ScopeFrom(ctx)
@@ -244,7 +246,7 @@ func (s *Service) RegisterActivity(ctx context.Context, userID int64, jobUUID uu
 	return Activity{
 		UUID: row.Uuid, JobUUID: job.Uuid, Platform: row.Platform, ActivityID: row.ActivityID,
 		ExpiresAt:     row.ExpiresAt.Time,
-		RemoteUpdates: platform == "android" || s.APNsConfigured(),
+		RemoteUpdates: platform == "android" || s.APNsConfigured(ctx),
 	}, nil
 }
 
@@ -329,7 +331,7 @@ func (s *Service) RegisterDevice(ctx context.Context, userID int64, in DeviceInp
 	if err != nil {
 		return Device{}, err
 	}
-	return Device{WidgetsEnabled: row.WidgetsEnabled, PushToStart: row.PushToStartToken != "", LiveActivityPush: s.APNsConfigured()}, nil
+	return Device{WidgetsEnabled: row.WidgetsEnabled, PushToStart: row.PushToStartToken != "", LiveActivityPush: s.APNsConfigured(ctx)}, nil
 }
 
 // UnregisterDevice stops widget pushes of the current organization to the

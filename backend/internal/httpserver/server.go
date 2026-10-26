@@ -58,6 +58,9 @@ import (
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
 	insightsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/insights"
 	insightsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/insights/usecase"
+	apnskeymodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/apnskey"
+	apnskeyhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/apnskey/handler"
+	apnskeyusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/apnskey/usecase"
 	githubmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github"
 	githubhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github/handler"
 	githubusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/github/usecase"
@@ -614,7 +617,13 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	if deps.Queue != nil {
 		liveQueue = deps.Queue
 	}
-	livePushSvc := livepushmodule.NewService(cfg, deps.Queries, liveQueue, log)
+	// APNs key: uploaded in Platform → Entegrasyonlar → Apple (DB) first,
+	// APNS_* env fallback; resolved at send time.
+	apnsKeySvc := apnskeyusecase.New(deps.Queries, secretBox)
+	apnsKeys := livepushmodule.NewAPNs(cfg, apnsKeySvc, log)
+	apnsKeySvc.SetKeys(apnsKeys)
+	apnskeymodule.RegisterRoutes(mux, apnskeyhandler.New(apnsKeySvc, activityRec), tokens, loader)
+	livePushSvc := livepushmodule.NewService(deps.Queries, apnsKeys, liveQueue, cfg.Expo.AccessToken, log)
 	livePushHandler := livepushhandler.New(livePushSvc)
 	livePushHandler.SetRateLimiter(ratelimit.New(deps.Redis, cfg.App.Env))
 	livepushmodule.RegisterRoutes(mux, livePushHandler, tokens, loader, deps.Queries)

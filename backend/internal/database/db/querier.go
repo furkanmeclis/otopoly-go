@@ -81,6 +81,7 @@ type Querier interface {
 	ClearFinanceAccountDefault(ctx context.Context, organizationID int64) error
 	ClearOrganizationAccessEnd(ctx context.Context, id int64) error
 	ClearOrganizationLogo(ctx context.Context, argUuid uuid.UUID) (Organization, error)
+	ClearPlatformAPNsSettings(ctx context.Context, updatedBy pgtype.Int8) (PlatformApnsSetting, error)
 	CloseSubscription(ctx context.Context, arg CloseSubscriptionParams) error
 	ConfirmUserTOTP(ctx context.Context, arg ConfirmUserTOTPParams) (UserTotp, error)
 	ConsumeOTP(ctx context.Context, id int64) (int64, error)
@@ -511,6 +512,8 @@ type Querier interface {
 	GetOrganizationPlatformStats(ctx context.Context, organizationID int64) (GetOrganizationPlatformStatsRow, error)
 	GetOutboundMessageByProviderReference(ctx context.Context, providerReference string) (OutboundMessage, error)
 	GetPermissionBySlug(ctx context.Context, slug string) (Permission, error)
+	// Platform APNs key (singleton, Live Activity pushes). Not organization-owned.
+	GetPlatformAPNsSettings(ctx context.Context) (PlatformApnsSetting, error)
 	GetPlatformWhatsAppSettings(ctx context.Context) (PlatformWhatsappSetting, error)
 	GetProductByBarcode(ctx context.Context, arg GetProductByBarcodeParams) (Product, error)
 	GetProductByID(ctx context.Context, arg GetProductByIDParams) (Product, error)
@@ -984,6 +987,7 @@ type Querier interface {
 	QuoteSummary(ctx context.Context, arg QuoteSummaryParams) (QuoteSummaryRow, error)
 	ReassignCatalogModelRules(ctx context.Context, arg ReassignCatalogModelRulesParams) (int64, error)
 	ReassignCatalogTypesModel(ctx context.Context, arg ReassignCatalogTypesModelParams) (int64, error)
+	RecordPlatformAPNsTest(ctx context.Context, arg RecordPlatformAPNsTestParams) (PlatformApnsSetting, error)
 	ReferenceCodeExists(ctx context.Context, referenceCode string) (bool, error)
 	// Denormalizes the synced variants and brand color of linked display brands.
 	RefreshCatalogDisplayBrandsSyncedLogos(ctx context.Context) (int64, error)
@@ -1040,6 +1044,9 @@ type Querier interface {
 	SMSReportOrgMessages(ctx context.Context, arg SMSReportOrgMessagesParams) ([]SMSReportOrgMessagesRow, error)
 	// Organizations with an SMS provider account or SMS traffic in the period.
 	SMSReportOrganizations(ctx context.Context, arg SMSReportOrganizationsParams) ([]SMSReportOrganizationsRow, error)
+	// A NULL private_key_enc keeps the stored key; a new key stamps uploaded_at.
+	// Any change clears the last test result (it no longer describes this key).
+	SavePlatformAPNsSettings(ctx context.Context, arg SavePlatformAPNsSettingsParams) (PlatformApnsSetting, error)
 	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	// One row per active model whose "brand model" text contains every word,

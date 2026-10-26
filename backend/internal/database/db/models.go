@@ -1348,6 +1348,26 @@ type PgExtension struct {
 	Extname string `json:"extname"`
 }
 
+type PlatformApnsSetting struct {
+	ID                  int16              `json:"id"`
+	KeyID               string             `json:"key_id"`
+	TeamID              string             `json:"team_id"`
+	BundleID            string             `json:"bundle_id"`
+	Environment         string             `json:"environment"`
+	PrivateKeyEnc       pgtype.Text        `json:"private_key_enc"`
+	UploadedAt          pgtype.Timestamptz `json:"uploaded_at"`
+	LastTestAt          pgtype.Timestamptz `json:"last_test_at"`
+	LastTestOk          pgtype.Bool        `json:"last_test_ok"`
+	LastTestStatus      pgtype.Int4        `json:"last_test_status"`
+	LastTestReason      string             `json:"last_test_reason"`
+	LastTestVerdict     string             `json:"last_test_verdict"`
+	LastTestSource      string             `json:"last_test_source"`
+	LastTestEnvironment string             `json:"last_test_environment"`
+	CreatedAt           pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt           pgtype.Timestamptz `json:"updated_at"`
+	UpdatedBy           pgtype.Int8        `json:"updated_by"`
+}
+
 type PlatformWhatsappSetting struct {
 	ID                    int16              `json:"id"`
 	Provider              string             `json:"provider"`

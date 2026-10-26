@@ -19,6 +19,7 @@ import (
 	dsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/dailysummary/usecase"
 	exportusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/exports/usecase"
 	importusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/imports/usecase"
+	apnskeyusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/integrations/apnskey/usecase"
 	livepushmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/livepush"
 	livepushusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/livepush/usecase"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
@@ -39,6 +40,7 @@ import (
 	vehiclecatalogusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/vehiclecatalog/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/observability"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/apns"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine"
 	bulkadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bulkengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/crypto"
@@ -252,7 +254,15 @@ func main() {
 	liveEvents.AddResolver(resourceevents.OrgChannelResolver(resourceevents.QueriesLookup(queries)))
 	// Job changes made here (imports, bulk, quote → job) also reach the
 	// mobile Live Activities and widgets (modules/livepush).
-	livePushSvc := livepushmodule.NewService(cfg, queries, queueClient, log)
+	// APNs key: DB (platform admin upload) first, APNS_* env fallback; the
+	// resolver re-reads it every minute, so a new upload needs no restart.
+	var apnsKeySrc apns.KeySource
+	if box, err := crypto.NewSecretBox(cfg.Encryption.Key); err == nil {
+		apnsKeySrc = apnskeyusecase.New(queries, box)
+	} else {
+		log.Warn("livepush_apns_db_key_unavailable", "error", err)
+	}
+	livePushSvc := livepushmodule.NewService(queries, livepushmodule.NewAPNs(cfg, apnsKeySrc, log), queueClient, cfg.Expo.AccessToken, log)
 	livePub := livepushusecase.Publisher{Next: liveEvents, Svc: livePushSvc}
 	importSvc.SetResourceEvents(livePub)
 	bulkSvc.SetResourceEvents(livePub)
