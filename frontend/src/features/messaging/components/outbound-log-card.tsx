@@ -205,7 +205,9 @@ export function OutboundLogCard({ source, description }: OutboundLogCardProps) {
           if (!code) return <span className="text-muted-foreground">—</span>;
           return (
             <div className="flex max-w-xs flex-col gap-0.5">
-              <span className="text-sm">{sendErrorLabel(t, code)}</span>
+              <span className="text-sm">
+                {sendErrorLabel(t, code, row.original.channel)}
+              </span>
               <span className="text-muted-foreground font-mono text-[11px]">
                 {code}
               </span>

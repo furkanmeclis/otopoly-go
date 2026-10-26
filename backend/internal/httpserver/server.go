@@ -456,8 +456,10 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	smsChannelSvc := smschannel.New(deps.Queries, secretBox, activityRec,
 		netgsm.New(netgsm.Config{}), twilio.New(twilio.Config{}))
 	smsChannelSvc.SetTestLogger(messagingSvc)
+	smsChannelSvc.SetEntitlements(entitlementsSvc)
 	messagingSvc.SetSMSChannel(smsChannelSvc)
 	messagingmodule.RegisterSMSRoutes(mux, smsChannelSvc, tokens, loader, deps.Queries)
+	messagingmodule.RegisterSMSReportRoutes(mux, smschannel.NewReport(deps.Queries, entitlementsSvc), tokens, loader)
 	orgSvc.SetOverviewSources(billingSvc, messagingSvc)
 	dailySummarySvc := dsusecase.New(deps.Queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	dailysummary.RegisterRoutes(mux, dailySummarySvc, tokens, loader, deps.Queries)

@@ -126,6 +126,7 @@ type Querier interface {
 	CountPurchases(ctx context.Context, arg CountPurchasesParams) (int64, error)
 	CountQuotes(ctx context.Context, arg CountQuotesParams) (int64, error)
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
+	CountSMSReportOrgMessages(ctx context.Context, organizationID int64) (int64, error)
 	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
 	CountServiceJobsByCustomer(ctx context.Context, arg CountServiceJobsByCustomerParams) (int64, error)
 	CountServiceProductsByService(ctx context.Context, organizationID int64) ([]CountServiceProductsByServiceRow, error)
@@ -910,6 +911,12 @@ type Querier interface {
 	// Sessions bound to an organization the user was removed from.
 	RevokeRefreshTokensForUserOrganization(ctx context.Context, arg RevokeRefreshTokensForUserOrganizationParams) error
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
+	// Platform SMS report (cross-organization, platform.messaging.sms.read).
+	SMSReportByProvider(ctx context.Context, arg SMSReportByProviderParams) ([]SMSReportByProviderRow, error)
+	SMSReportDaily(ctx context.Context, arg SMSReportDailyParams) ([]SMSReportDailyRow, error)
+	SMSReportOrgMessages(ctx context.Context, arg SMSReportOrgMessagesParams) ([]SMSReportOrgMessagesRow, error)
+	// Organizations with an SMS provider account or SMS traffic in the period.
+	SMSReportOrganizations(ctx context.Context, arg SMSReportOrganizationsParams) ([]SMSReportOrganizationsRow, error)
 	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
@@ -933,7 +940,7 @@ type Querier interface {
 	SetOrganizationAccessEndPlatform(ctx context.Context, arg SetOrganizationAccessEndPlatformParams) (Organization, error)
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
 	SetOrganizationStatusPlatform(ctx context.Context, arg SetOrganizationStatusPlatformParams) (Organization, error)
-	// Provider status of an SMS right after the send (accepted, queued…).
+	// Provider status and billed parts of an SMS right after the send.
 	SetOutboundMessageDeliveryStatus(ctx context.Context, arg SetOutboundMessageDeliveryStatusParams) error
 	SetOutboundMessageErrorCode(ctx context.Context, arg SetOutboundMessageErrorCodeParams) error
 	// Sender route of the latest attempt (error_code NULL on success).

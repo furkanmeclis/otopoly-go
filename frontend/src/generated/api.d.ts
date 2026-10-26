@@ -4553,10 +4553,56 @@ export interface paths {
          * Send a test SMS through a connected provider
          * @description Works for a connected provider whether or not it is active. The number is normalized to E.164
          *     (Turkish national numbers accepted); the message is logged in the outbound log
-         *     (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`.
+         *     (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`. Test SMS are real
+         *     messages: they need plan feature `sms.enabled` and are counted on `sms.monthly` (parts); a plan
+         *     refusal is 200 with `status: failed` and `error_code` `feature_not_entitled` / `quota_exceeded`.
          *     Requires `tenant.messaging.write` (owner).
          */
         post: operations["sendTenantMessagingTestSms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/messaging/sms/report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform SMS report
+         * @description Totals (sent / failed messages, billed parts of sent messages), the split by provider, a daily
+         *     series (Europe/Istanbul days) and the organizations that have an SMS provider account or SMS
+         *     traffic in the range (up to 1000), with provider, account status, counts, last send (all time) and
+         *     the current calendar month's `sms.monthly` usage (`quota_limit` -1 = unlimited).
+         *     Requires `platform.messaging.sms.read`.
+         */
+        get: operations["getPlatformSmsReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/messaging/sms/organizations/{uuid}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An organization's recent SMS (numbers masked)
+         * @description Newest first. Requires `platform.messaging.sms.read`.
+         */
+        get: operations["listPlatformSmsOrganizationMessages"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8399,6 +8445,102 @@ export interface components {
             error_message?: string;
             segments: components["schemas"]["SmsSegments"];
         };
+        SmsReportCounts: {
+            /** Format: int64 */
+            sent: number;
+            /** Format: int64 */
+            failed: number;
+            /**
+             * Format: int64
+             * @description Billed parts of sent messages.
+             */
+            segments: number;
+        };
+        SmsReport: {
+            /** Format: date */
+            from: string;
+            /** Format: date */
+            to: string;
+            totals: components["schemas"]["SmsReportCounts"];
+            by_provider: (components["schemas"]["SmsReportCounts"] & {
+                /** @enum {string} */
+                provider: "netgsm" | "twilio" | "unknown";
+            })[];
+            daily: (components["schemas"]["SmsReportCounts"] & {
+                /** Format: date */
+                date: string;
+            })[];
+            organizations: components["schemas"]["SmsReportOrganization"][];
+        };
+        SmsReportOrganization: components["schemas"]["SmsReportCounts"] & {
+            /** Format: uuid */
+            organization_uuid: string;
+            organization_name: string;
+            organization_slug: string;
+            /**
+             * @description Active (else latest) SMS account.
+             * @enum {string}
+             */
+            provider: "" | "netgsm" | "twilio";
+            is_active: boolean;
+            /** @enum {string} */
+            account_status: "" | "unchecked" | "connected" | "error";
+            /** Format: date-time */
+            last_sent_at: string | null;
+            /**
+             * Format: int64
+             * @description sms.monthly parts used this calendar month.
+             */
+            quota_used: number;
+            /**
+             * Format: int64
+             * @description sms.monthly limit (-1 = unlimited).
+             */
+            quota_limit: number;
+        };
+        SmsReportMessage: {
+            /** Format: uuid */
+            uuid: string;
+            event_type: string;
+            /** @description Masked number. */
+            recipient: string;
+            /** @enum {string} */
+            status: "queued" | "sending" | "sent" | "failed";
+            provider: string;
+            provider_reference?: string;
+            delivery_status?: string;
+            error_code?: string;
+            segments: number | null;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+        };
+        SmsReportMessagesPage: {
+            organization: {
+                /** Format: uuid */
+                uuid: string;
+                name: string;
+                slug: string;
+            };
+            items: components["schemas"]["SmsReportMessage"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        EnvelopeSmsReport: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsReport"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsReportMessagesPage: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsReportMessagesPage"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeSmsChannelOverview: {
             /** @enum {boolean} */
             success: true;
@@ -8463,8 +8605,10 @@ export interface components {
             delivery_status?: string;
             /** Format: date-time */
             delivery_status_at?: string;
-            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured, sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient. */
+            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured, sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient, feature_not_entitled (plan excludes sms.enabled), quota_exceeded (sms.monthly reached). */
             error_code?: string;
+            /** @description Billed SMS parts of a sent SMS (counted on the sms.monthly plan quota). */
+            segments?: number;
         };
         OutboundMessagePage: {
             items: components["schemas"]["OutboundMessage"][];
@@ -21453,6 +21597,63 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EnvelopeSmsTestSmsResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getPlatformSmsReport: {
+        parameters: {
+            query?: {
+                /** @description First day (YYYY-MM-DD, inclusive). Default first day of the current month. */
+                from?: string;
+                /** @description Last day (YYYY-MM-DD, inclusive). Default today. At most 366 days after `from`. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Report */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsReport"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listPlatformSmsOrganizationMessages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsReportMessagesPage"];
                 };
             };
             400: components["responses"]["BadRequest"];

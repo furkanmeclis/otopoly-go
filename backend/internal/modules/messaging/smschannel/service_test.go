@@ -15,6 +15,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/crypto"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/netgsm"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/twilio"
@@ -464,5 +465,61 @@ func TestTestAndSendTest(t *testing.T) {
 	}
 	if strings.Contains(joined, "tw-token") || strings.Contains(joined, "+14155550100") {
 		t.Fatal("activity payload leaks secrets or phone")
+	}
+}
+
+// planEnt is a scripted plan: toggle, limit and the consumed parts.
+type planEnt struct {
+	enabled  bool
+	limit    int64
+	used     int64
+	consumed []int64
+}
+
+func (p *planEnt) Enabled(context.Context, int64, string) (bool, error) { return p.enabled, nil }
+
+func (p *planEnt) Check(_ context.Context, _ int64, key string, delta int64) (entitlements.Decision, error) {
+	d := entitlements.Decide(entitlements.Feature{Key: key, Kind: entitlements.KindLimit, Limit: p.limit, Enforcement: "hard"}, p.used, delta)
+	if !d.Allowed {
+		return d, &entitlements.LimitError{Decision: d}
+	}
+	return d, nil
+}
+
+func (p *planEnt) Consume(_ context.Context, _ int64, key string, delta int64) error {
+	if key != FeatureSMSMonthly {
+		return errors.New("unexpected key " + key)
+	}
+	p.used += delta
+	p.consumed = append(p.consumed, delta)
+	return nil
+}
+
+func TestPlanGate(t *testing.T) {
+	r := newRig(t)
+	r.connectNetgsm(t)
+	plan := &planEnt{enabled: true, limit: 3}
+	r.svc.SetEntitlements(plan)
+
+	long := strings.Repeat("a", 156) // two Netgsm parts (Turkish size 155 / 150)
+	d, err := r.svc.Deliver(context.Background(), org, "05321234567", long, sms.ClassTransactional)
+	if err != nil || d.Segments != 2 || plan.used != 2 {
+		t.Fatalf("deliver %+v %v used=%d", d, err, plan.used)
+	}
+	// 2 more parts would exceed the 3-part quota: refused, nothing sent.
+	sends := len(r.fakes.netgsmSends)
+	_, err = r.svc.Deliver(context.Background(), org, "05321234567", long, sms.ClassTransactional)
+	if model.ErrorCodeOf(err) != model.ErrCodeQuotaExceeded || model.IsRetryable(err) || len(r.fakes.netgsmSends) != sends {
+		t.Fatalf("quota: %v", err)
+	}
+	// Test SMS goes through the same gate and is counted.
+	out, err := r.svc.SendTest(context.Background(), org, nil, sms.ProviderNetgsm, TestSMSInput{Phone: "05321234567", Body: "Ping"})
+	if err != nil || out.Status != model.OutboundStatusSent || plan.used != 3 {
+		t.Fatalf("test sms counted: %+v %v used=%d", out, err, plan.used)
+	}
+	plan.enabled = false
+	out, err = r.svc.SendTest(context.Background(), org, nil, sms.ProviderNetgsm, TestSMSInput{Phone: "05321234567"})
+	if err != nil || out.Status != model.OutboundStatusFailed || out.ErrorCode != model.ErrCodeFeatureNotEntitled {
+		t.Fatalf("feature off: %+v %v", out, err)
 	}
 }

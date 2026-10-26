@@ -7903,7 +7903,9 @@ paths:
       description: |
         Works for a connected provider whether or not it is active. The number is normalized to E.164
         (Turkish national numbers accepted); the message is logged in the outbound log
-        (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`.
+        (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`. Test SMS are real
+        messages: they need plan feature `sms.enabled` and are counted on `sms.monthly` (parts); a plan
+        refusal is 200 with `status: failed` and `error_code` `feature_not_entitled` / `quota_exceeded`.
         Requires `tenant.messaging.write` (owner).
       security: [{ bearerAuth: [] }]
       requestBody:
@@ -7917,6 +7919,63 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/EnvelopeSmsTestSmsResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/messaging/sms/report:
+    get:
+      tags: [Platform]
+      operationId: getPlatformSmsReport
+      summary: Platform SMS report
+      description: |
+        Totals (sent / failed messages, billed parts of sent messages), the split by provider, a daily
+        series (Europe/Istanbul days) and the organizations that have an SMS provider account or SMS
+        traffic in the range (up to 1000), with provider, account status, counts, last send (all time) and
+        the current calendar month's `sms.monthly` usage (`quota_limit` -1 = unlimited).
+        Requires `platform.messaging.sms.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          description: First day (YYYY-MM-DD, inclusive). Default first day of the current month.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Last day (YYYY-MM-DD, inclusive). Default today. At most 366 days after `from`.
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/messaging/sms/organizations/{uuid}/messages:
+    get:
+      tags: [Platform]
+      operationId: listPlatformSmsOrganizationMessages
+      summary: An organization's recent SMS (numbers masked)
+      description: Newest first. Requires `platform.messaging.sms.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsReportMessagesPage" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
@@ -14103,6 +14162,109 @@ components:
         error_message: { type: string }
         segments: { $ref: "#/components/schemas/SmsSegments" }
 
+    SmsReportCounts:
+      type: object
+      required: [sent, failed, segments]
+      properties:
+        sent: { type: integer, format: int64 }
+        failed: { type: integer, format: int64 }
+        segments: { type: integer, format: int64, description: Billed parts of sent messages. }
+
+    SmsReport:
+      type: object
+      required: [from, to, totals, by_provider, daily, organizations]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        totals: { $ref: "#/components/schemas/SmsReportCounts" }
+        by_provider:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/SmsReportCounts"
+              - type: object
+                required: [provider]
+                properties:
+                  provider: { type: string, enum: [netgsm, twilio, unknown] }
+        daily:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/SmsReportCounts"
+              - type: object
+                required: [date]
+                properties:
+                  date: { type: string, format: date }
+        organizations:
+          type: array
+          items: { $ref: "#/components/schemas/SmsReportOrganization" }
+
+    SmsReportOrganization:
+      allOf:
+        - $ref: "#/components/schemas/SmsReportCounts"
+        - type: object
+          required: [organization_uuid, organization_name, organization_slug, provider, is_active, account_status, last_sent_at, quota_used, quota_limit]
+          properties:
+            organization_uuid: { type: string, format: uuid }
+            organization_name: { type: string }
+            organization_slug: { type: string }
+            provider: { type: string, enum: ["", netgsm, twilio], description: Active (else latest) SMS account. }
+            is_active: { type: boolean }
+            account_status: { type: string, enum: ["", unchecked, connected, error] }
+            last_sent_at: { type: [string, "null"], format: date-time }
+            quota_used: { type: integer, format: int64, description: sms.monthly parts used this calendar month. }
+            quota_limit: { type: integer, format: int64, description: sms.monthly limit (-1 = unlimited). }
+
+    SmsReportMessage:
+      type: object
+      required: [uuid, event_type, recipient, status, provider, segments, sent_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        event_type: { type: string }
+        recipient: { type: string, description: Masked number. }
+        status: { type: string, enum: [queued, sending, sent, failed] }
+        provider: { type: string }
+        provider_reference: { type: string }
+        delivery_status: { type: string }
+        error_code: { type: string }
+        segments: { type: [integer, "null"] }
+        sent_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    SmsReportMessagesPage:
+      type: object
+      required: [organization, items, total, limit, offset]
+      properties:
+        organization:
+          type: object
+          required: [uuid, name, slug]
+          properties:
+            uuid: { type: string, format: uuid }
+            name: { type: string }
+            slug: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SmsReportMessage" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeSmsReport:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsReport" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsReportMessagesPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsReportMessagesPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
     EnvelopeSmsChannelOverview:
       type: object
       required: [success, data, meta]
@@ -14186,7 +14348,9 @@ components:
             Classified failure, e.g. own_session_disconnected, platform_sender_not_configured,
             platform_sender_unavailable, template_not_approved, cloud_auth_failed,
             marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured,
-            sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient.
+            sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient,
+            feature_not_entitled (plan excludes sms.enabled), quota_exceeded (sms.monthly reached).
+        segments: { type: integer, description: Billed SMS parts of a sent SMS (counted on the sms.monthly plan quota). }
 
     OutboundMessagePage:
       type: object

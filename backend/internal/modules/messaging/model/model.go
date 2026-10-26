@@ -209,6 +209,8 @@ type OutboundMessage struct {
 	DeliveryStatus   string     `json:"delivery_status,omitempty"`
 	DeliveryStatusAt *time.Time `json:"delivery_status_at,omitempty"`
 	ErrorCode        string     `json:"error_code,omitempty"`
+	// Segments is the billed SMS parts of a sent SMS.
+	Segments *int32 `json:"segments,omitempty"`
 }
 
 // QRCodeResponse is returned when connecting a WhatsApp session.

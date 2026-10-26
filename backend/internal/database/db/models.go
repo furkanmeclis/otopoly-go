@@ -1199,6 +1199,7 @@ type OutboundMessage struct {
 	PricingCategory         pgtype.Text        `json:"pricing_category"`
 	Billable                pgtype.Bool        `json:"billable"`
 	ErrorCode               pgtype.Text        `json:"error_code"`
+	Segments                pgtype.Int4        `json:"segments"`
 }
 
 type OutboxEvent struct {

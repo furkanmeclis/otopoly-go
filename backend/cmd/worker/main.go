@@ -204,8 +204,9 @@ func main() {
 	if box, err := crypto.NewSecretBox(cfg.Encryption.Key); err == nil {
 		smsBox = box
 	}
-	messagingSvc.SetSMSChannel(smschannel.New(queries, smsBox, activityRec,
-		netgsm.New(netgsm.Config{}), twilio.New(twilio.Config{})))
+	workerSMS := smschannel.New(queries, smsBox, activityRec,
+		netgsm.New(netgsm.Config{}), twilio.New(twilio.Config{}))
+	messagingSvc.SetSMSChannel(workerSMS)
 	centerMessenger := messagingmodule.NewCenterMessenger(messagingSvc, queries)
 	dailySummarySvc := dsusecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	vehicleAlertsSvc := vausecase.New(queries, dailysummary.NewMessagingSender(messagingSvc), vehiclealerts.NewInAppNotifier(notifSvc), log)
@@ -213,6 +214,7 @@ func main() {
 	billingSvc := billingusecase.New(pool, queries, activityRec, entitlementsSvc)
 	billingSvc.SetNotifier(&workerBillingNotifier{pool: pool, notifications: notifSvc, log: log})
 	messagingSvc.SetEntitlements(entitlementsSvc)
+	workerSMS.SetEntitlements(entitlementsSvc)
 	entitlementsRecomputer := entitlements.NewRecomputer(queries, entitlementsSvc)
 	centerSvc := centerusecase.New(queries, notifSvc, centerMessenger, log).
 		SetStorage(store).

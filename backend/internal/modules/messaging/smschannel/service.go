@@ -14,6 +14,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/entitlements"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -74,6 +75,21 @@ type ActivityRecorder interface {
 	Record(ctx context.Context, actorID *int64, action, resource string, resourceUUID *uuid.UUID, payload map[string]any, r *http.Request)
 }
 
+// Plan features of the SMS channel (billing_features).
+const (
+	// FeatureSMSEnabled is the plan toggle for SMS sending.
+	FeatureSMSEnabled = "sms.enabled"
+	// FeatureSMSMonthly is the monthly quota in SMS parts (segments).
+	FeatureSMSMonthly = "sms.monthly"
+)
+
+// Entitlements gates sends on the organization's plan (platform/entitlements).
+type Entitlements interface {
+	Enabled(ctx context.Context, orgID int64, key string) (bool, error)
+	Check(ctx context.Context, orgID int64, key string, delta int64) (entitlements.Decision, error)
+	Consume(ctx context.Context, orgID int64, key string, delta int64) error
+}
+
 // TestSender records a test SMS in the outbound log (messaging service).
 type TestSender interface {
 	LogSMSTest(ctx context.Context, orgID int64, phone string, res model.SMSDelivery, sendErr error)
@@ -87,7 +103,12 @@ type Service struct {
 	providers map[string]sms.Provider
 	order     []string
 	log       TestSender
+	ent       Entitlements
 }
+
+// SetEntitlements installs the plan gate (sms.enabled, sms.monthly). Without
+// it every send is allowed and nothing is counted.
+func (s *Service) SetEntitlements(e Entitlements) { s.ent = e }
 
 // New builds the service with the registered providers (display order).
 func New(q Querier, box Sealer, act ActivityRecorder, providers ...sms.Provider) *Service {
@@ -519,7 +540,13 @@ func (s *Service) Deliver(ctx context.Context, orgID int64, phone, body, class s
 }
 
 func (s *Service) send(ctx context.Context, p sms.Provider, row db.SmsProviderAccount, to, body, class string) (model.SMSDelivery, error) {
-	out := model.SMSDelivery{Provider: row.Provider, To: to}
+	out := model.SMSDelivery{Provider: row.Provider, To: to, Segments: sms.Estimate(body, row.Provider).Segments}
+	if out.Segments < 1 {
+		out.Segments = 1
+	}
+	if err := s.gate(ctx, row.OrganizationID, int64(out.Segments)); err != nil {
+		return out, err
+	}
 	creds, err := s.open(row)
 	if err != nil {
 		return out, model.NewSendError(model.ErrCodeSMSNotConfigured, false, err)
@@ -531,7 +558,32 @@ func (s *Service) send(ctx context.Context, p sms.Provider, row db.SmsProviderAc
 	if err != nil {
 		return out, Classify(err)
 	}
+	if s.ent != nil {
+		_ = s.ent.Consume(ctx, row.OrganizationID, FeatureSMSMonthly, int64(out.Segments))
+	}
 	return out, nil
+}
+
+// gate refuses a send the plan does not allow: sms.enabled off, or
+// sms.monthly without room for the message's parts.
+func (s *Service) gate(ctx context.Context, orgID, segments int64) error {
+	if s.ent == nil {
+		return nil
+	}
+	on, err := s.ent.Enabled(ctx, orgID, FeatureSMSEnabled)
+	if err != nil {
+		return fmt.Errorf("sms entitlement: %w", err)
+	}
+	if !on {
+		return model.NewSendError(model.ErrCodeFeatureNotEntitled, false, entitlements.ErrFeatureDisabled)
+	}
+	if _, err := s.ent.Check(ctx, orgID, FeatureSMSMonthly, segments); err != nil {
+		if errors.Is(err, entitlements.ErrLimitReached) {
+			return model.NewSendError(model.ErrCodeQuotaExceeded, false, err)
+		}
+		return fmt.Errorf("sms quota: %w", err)
+	}
+	return nil
 }
 
 // Classify maps a provider error to a messaging send error.
@@ -580,6 +632,10 @@ func publicMessage(err error) string {
 		return "provider did not confirm the request"
 	case model.ErrCodeSMSNotConfigured:
 		return "sms provider is not configured"
+	case model.ErrCodeFeatureNotEntitled:
+		return "sms is not included in the plan"
+	case model.ErrCodeQuotaExceeded:
+		return "monthly sms quota reached"
 	}
 	return "send failed"
 }

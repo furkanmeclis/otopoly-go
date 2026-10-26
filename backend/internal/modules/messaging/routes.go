@@ -95,3 +95,20 @@ func RegisterSMSRoutes(
 	mux.Handle("POST /v1/tenant/messaging/sms/{provider}/test", tWrite(h.Test))
 	mux.Handle("POST /v1/tenant/messaging/sms/{provider}/test-sms", tWrite(h.SendTest))
 }
+
+// RegisterSMSReportRoutes mounts the platform SMS report
+// (platform.messaging.sms.read).
+func RegisterSMSReportRoutes(
+	mux *http.ServeMux,
+	report *smschannel.Report,
+	tokens *jwt.Manager,
+	loader middleware.IdentityLoader,
+) {
+	h := smschannel.NewReportHandler(report)
+	authn := middleware.Authenticate(tokens, loader)
+	read := func(handler http.HandlerFunc) http.Handler {
+		return middleware.Chain(http.HandlerFunc(handler), authn, middleware.RequirePermission(rbac.PermPlatformMessagingSMSRead))
+	}
+	mux.Handle("GET /v1/platform/messaging/sms/report", read(h.Report))
+	mux.Handle("GET /v1/platform/messaging/sms/organizations/{uuid}/messages", read(h.OrgMessages))
+}

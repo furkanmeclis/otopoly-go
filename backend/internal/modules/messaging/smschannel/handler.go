@@ -9,7 +9,9 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/apiquery"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
+	"github.com/google/uuid"
 )
 
 // Handler serves /v1/tenant/messaging/sms*.
@@ -153,4 +155,44 @@ func (h *Handler) Estimate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, r, http.StatusOK, map[string]any{"provider": provider, "segments": sms.Estimate(in.Body, provider)})
+}
+
+// ReportHandler serves /v1/platform/messaging/sms/*.
+type ReportHandler struct {
+	report *Report
+}
+
+// NewReportHandler wraps the report service.
+func NewReportHandler(r *Report) *ReportHandler { return &ReportHandler{report: r} }
+
+// Report returns totals, provider split, daily series and organizations.
+func (h *ReportHandler) Report(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	out, err := h.report.Build(r.Context(), q.Get("from"), q.Get("to"))
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
+}
+
+// OrgMessages returns an organization's recent SMS (numbers masked).
+func (h *ReportHandler) OrgMessages(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(r.PathValue("uuid"))
+	if err != nil {
+		response.BadRequest(w, r, response.CodeValidationError, "invalid uuid")
+		return
+	}
+	if bad := apiquery.ForbiddenParams(r.URL.Query()); len(bad) > 0 {
+		response.BadRequest(w, r, response.CodeValidationError, "unsupported query parameter: "+bad[0])
+		return
+	}
+	lq := apiquery.Parse(r.URL.Query())
+	limit, offset := apiquery.Clamp(lq.Limit, lq.Offset, 20, 100)
+	out, err := h.report.Messages(r.Context(), id, limit, offset)
+	if err != nil {
+		writeError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, out)
 }

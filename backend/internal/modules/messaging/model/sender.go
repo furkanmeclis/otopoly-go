@@ -56,6 +56,8 @@ type SMSDelivery struct {
 	Status string
 	// To is the normalized E.164 recipient.
 	To string
+	// Segments is the number of billed SMS parts (counted on sms.monthly).
+	Segments int
 }
 
 // SendError is a classified WhatsApp send failure. Retryable errors are

@@ -57,8 +57,9 @@ DELETE FROM sms_provider_accounts
 WHERE organization_id = sqlc.arg(organization_id) AND provider = sqlc.arg(provider);
 
 -- name: SetOutboundMessageDeliveryStatus :exec
--- Provider status of an SMS right after the send (accepted, queued…).
+-- Provider status and billed parts of an SMS right after the send.
 UPDATE outbound_messages
 SET delivery_status = sqlc.arg(delivery_status),
-    delivery_status_at = NOW()
+    delivery_status_at = NOW(),
+    segments = sqlc.narg(segments)
 WHERE id = sqlc.arg(id) AND organization_id = sqlc.arg(organization_id);

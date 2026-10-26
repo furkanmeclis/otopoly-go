@@ -154,19 +154,26 @@ func (q *Queries) ListSMSProviderAccounts(ctx context.Context, organizationID in
 const setOutboundMessageDeliveryStatus = `-- name: SetOutboundMessageDeliveryStatus :exec
 UPDATE outbound_messages
 SET delivery_status = $1,
-    delivery_status_at = NOW()
-WHERE id = $2 AND organization_id = $3
+    delivery_status_at = NOW(),
+    segments = $2
+WHERE id = $3 AND organization_id = $4
 `
 
 type SetOutboundMessageDeliveryStatusParams struct {
 	DeliveryStatus pgtype.Text `json:"delivery_status"`
+	Segments       pgtype.Int4 `json:"segments"`
 	ID             int64       `json:"id"`
 	OrganizationID int64       `json:"organization_id"`
 }
 
-// Provider status of an SMS right after the send (accepted, queued…).
+// Provider status and billed parts of an SMS right after the send.
 func (q *Queries) SetOutboundMessageDeliveryStatus(ctx context.Context, arg SetOutboundMessageDeliveryStatusParams) error {
-	_, err := q.db.Exec(ctx, setOutboundMessageDeliveryStatus, arg.DeliveryStatus, arg.ID, arg.OrganizationID)
+	_, err := q.db.Exec(ctx, setOutboundMessageDeliveryStatus,
+		arg.DeliveryStatus,
+		arg.Segments,
+		arg.ID,
+		arg.OrganizationID,
+	)
 	return err
 }
 

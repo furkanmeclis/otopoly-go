@@ -36,6 +36,7 @@ import {
   TicketPercent,
   Landmark,
   Scale,
+  MessageSquareText,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -144,6 +145,13 @@ export const platformNav = defineNav({
           href: routes.platform.ai.root,
           icon: Sparkles,
           permission: permissions.ai.read,
+        },
+        {
+          id: "sms-report",
+          titleKey: "layout.nav_sms_report",
+          href: routes.platform.smsReport.root,
+          icon: MessageSquareText,
+          permission: permissions.platformSms.read,
         },
         {
           id: "legal-privacy",

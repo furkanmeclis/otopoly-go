@@ -126,7 +126,7 @@ func (q *Queries) EnsureWhatsAppCloudTemplate(ctx context.Context, arg EnsureWha
 }
 
 const getOutboundMessageByProviderReference = `-- name: GetOutboundMessageByProviderReference :one
-SELECT id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code FROM outbound_messages
+SELECT id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code, segments FROM outbound_messages
 WHERE provider_reference = $1 AND provider_reference <> ''
 ORDER BY id DESC
 LIMIT 1
@@ -162,6 +162,7 @@ func (q *Queries) GetOutboundMessageByProviderReference(ctx context.Context, pro
 		&i.PricingCategory,
 		&i.Billable,
 		&i.ErrorCode,
+		&i.Segments,
 	)
 	return i, err
 }
@@ -228,7 +229,7 @@ func (q *Queries) GetWhatsAppCloudTemplate(ctx context.Context, arg GetWhatsAppC
 }
 
 const listOutboundMessagesByOrg = `-- name: ListOutboundMessagesByOrg :many
-SELECT id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code FROM outbound_messages
+SELECT id, uuid, organization_id, event_type, channel, recipient_phone, status, provider_reference, error_message, payload, subject_type, subject_uuid, sent_at, created_at, updated_at, body, attachment, attempts, scheduled_notification_id, sender_kind, template_name, delivery_status, delivery_status_at, pricing_category, billable, error_code, segments FROM outbound_messages
 WHERE organization_id = $1
 ORDER BY created_at DESC, id DESC
 LIMIT $3 OFFSET $2
@@ -276,6 +277,7 @@ func (q *Queries) ListOutboundMessagesByOrg(ctx context.Context, arg ListOutboun
 			&i.PricingCategory,
 			&i.Billable,
 			&i.ErrorCode,
+			&i.Segments,
 		); err != nil {
 			return nil, err
 		}

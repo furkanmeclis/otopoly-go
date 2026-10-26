@@ -213,6 +213,10 @@ export const routes = {
       apple: "/platform/integrations/apple",
       whatsapp: "/platform/integrations/whatsapp",
     },
+    smsReport: {
+      root: "/platform/sms-report",
+      organization: (uuid: string) => `/platform/sms-report/${uuid}`,
+    },
     organizations: {
       root: "/platform/organizations",
       create: "/platform/organizations/create",

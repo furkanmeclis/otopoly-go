@@ -123,6 +123,19 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 			return uuid.Nil, err
 		}
 	}
+	if channel == model.ChannelSMS {
+		// Early plan gate; the exact parts are checked and counted at send time.
+		on, err := s.ent.Enabled(ctx, req.OrgID, FeatureSMSEnabled)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if !on {
+			return uuid.Nil, entitlements.ErrFeatureDisabled
+		}
+		if _, err := s.ent.Check(ctx, req.OrgID, FeatureSMSMonthly, 1); err != nil {
+			return uuid.Nil, err
+		}
+	}
 	att := req.Attachment
 	if att != nil {
 		cp := *att
@@ -325,6 +338,10 @@ func mapOutbound(r db.OutboundMessage) model.OutboundMessage {
 	if r.SentAt.Valid {
 		t := r.SentAt.Time
 		m.SentAt = &t
+	}
+	if r.Segments.Valid {
+		v := r.Segments.Int32
+		m.Segments = &v
 	}
 	if r.DeliveryStatusAt.Valid {
 		t := r.DeliveryStatusAt.Time

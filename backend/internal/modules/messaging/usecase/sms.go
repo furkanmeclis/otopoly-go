@@ -7,6 +7,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // SMS send classes (platform/sms).
@@ -54,7 +55,7 @@ func (s *Service) deliverSMS(ctx context.Context, orgID int64, phone, body, clas
 		ctx = orgctx.WithScope(ctx, orgctx.Scope{InternalID: orgID})
 	}
 	d, err := s.smsCh.Deliver(ctx, orgID, phone, body, class)
-	res := deliveryResult{Ref: d.MessageID, DeliveryStatus: d.Status}
+	res := deliveryResult{Ref: d.MessageID, DeliveryStatus: d.Status, Segments: d.Segments}
 	if d.Provider != "" {
 		res.SenderKind = model.SMSSenderKind(d.Provider)
 	}
@@ -68,13 +69,21 @@ func (s *Service) recordDeliveryStatus(ctx context.Context, orgID, id int64, res
 	}
 	_ = s.q.SetOutboundMessageDeliveryStatus(ctx, db.SetOutboundMessageDeliveryStatusParams{
 		ID: id, OrganizationID: orgID, DeliveryStatus: optText(res.DeliveryStatus),
+		Segments: optInt4(res.Segments),
 	})
+}
+
+func optInt4(v int) pgtype.Int4 {
+	if v <= 0 {
+		return pgtype.Int4{}
+	}
+	return pgtype.Int4{Int32: int32(v), Valid: true}
 }
 
 // LogSMSTest records a channel-settings test SMS in the outbound log
 // (smschannel.TestSender). The body is not stored.
 func (s *Service) LogSMSTest(ctx context.Context, orgID int64, phone string, d model.SMSDelivery, sendErr error) {
-	res := deliveryResult{Ref: d.MessageID, DeliveryStatus: d.Status}
+	res := deliveryResult{Ref: d.MessageID, DeliveryStatus: d.Status, Segments: d.Segments}
 	if d.Provider != "" {
 		res.SenderKind = model.SMSSenderKind(d.Provider)
 	}
