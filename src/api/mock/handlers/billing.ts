@@ -11,6 +11,7 @@ import type { BillingOverview, BillingPlan, BillingUsageMeter } from '@/features
 import { fail, istanbulDay, requirePerm, route, type MockCtx } from '../core';
 import { getDb } from '../db';
 import { getPlanScenario, type PlanScenario } from '../scenario';
+import { reviewsSentThisMonth } from './reviews';
 
 const DAY = 86400000;
 const iso = (offsetDays: number) => new Date(Date.now() + offsetDays * DAY).toISOString();
@@ -40,11 +41,17 @@ const FEATURES: FeatureDef[] = [
   { key: 'module.contracts', kind: 'toggle', period: 'none', unit: '', label_tr: 'Sözleşme modülü', label_en: 'Contracts module', value: true },
   { key: 'module.quotes', kind: 'toggle', period: 'none', unit: '', label_tr: 'Teklif ve fırsat modülü', label_en: 'Quotes & leads module', value: true },
   { key: 'module.reports', kind: 'toggle', period: 'none', unit: '', label_tr: 'Raporlar ve dışa aktarım', label_en: 'Reports & exports', value: true },
+  // Review collection (migration 000096).
+  { key: 'reviews.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Değerlendirme toplama', label_en: 'Review collection', value: true },
+  { key: 'reviews.monthly', kind: 'limit', period: 'month', unit: 'istek', label_tr: 'Aylık değerlendirme isteği', label_en: 'Monthly review requests', value: 300 },
+  { key: 'stock_reorder.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Stok sipariş önerileri', label_en: 'Stock reorder suggestions', value: true },
+  // Migration 000093.
+  { key: 'loyalty.enabled', kind: 'toggle', period: 'none', unit: '', label_tr: 'Sadakat ve paketler', label_en: 'Loyalty & packages', value: true },
 ];
 
 /** Modules each scenario turns off (each has the shared lock state in the app). */
 const DISABLED_IN_SCENARIO: Partial<Record<PlanScenario, Set<string>>> = {
-  feature_disabled: new Set(['module.contracts', 'module.reports', 'ai.enabled']),
+  feature_disabled: new Set(['module.contracts', 'module.reports', 'ai.enabled', 'reviews.enabled', 'stock_reorder.enabled', 'loyalty.enabled']),
   quotes_disabled: new Set(['module.quotes']),
 };
 
@@ -107,6 +114,7 @@ function usage(ctx: MockCtx, scenario: PlanScenario = getPlanScenario()): Record
     'storage.gb': 2,
     'whatsapp.monthly': 312,
     'ai.monthly': 118,
+    'reviews.monthly': reviewsSentThisMonth(ctx.orgUuid ?? ''),
   };
   const limitOf = (key: string) => FEATURES.find((f) => f.key === key)?.value as number;
   // near: ≥ 80 % of the limit; at: exactly the limit.
@@ -162,6 +170,10 @@ const GATED_PREFIXES: { prefix: string; feature: string }[] = [
   // Quotes and leads share `module.quotes` (backend quotes/leads routes.go).
   { prefix: '/v1/tenant/quotes', feature: 'module.quotes' },
   { prefix: '/v1/tenant/leads', feature: 'module.quotes' },
+  { prefix: '/v1/tenant/reviews', feature: 'reviews.enabled' },
+  { prefix: '/v1/tenant/stock-reorder', feature: 'stock_reorder.enabled' },
+  // Loyalty; the customer / job loyalty sections check the feature in their handlers.
+  { prefix: '/v1/tenant/loyalty/', feature: 'loyalty.enabled' },
 ];
 
 /** Writes still allowed in read-only mode (backend `readOnlyAllowed`). */

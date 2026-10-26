@@ -62,6 +62,7 @@ const USER_TYPES: { type: string; channels: Channel[] }[] = [
   { type: 'quote.team_expiring', channels: ['inapp', 'email'] },
   { type: 'quote.team_accepted', channels: ['inapp', 'email'] },
   { type: 'quote.team_rejected', channels: ['inapp', 'email'] },
+  { type: 'review.low_score', channels: ['inapp', 'email'] },
   { type: 'todo.reminder', channels: ['inapp', 'email', 'whatsapp', 'sms'] },
 ];
 const PHONE_RE = /^\+?[0-9 ()-]{7,20}$/;

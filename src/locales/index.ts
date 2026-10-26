@@ -30,6 +30,7 @@ import trLayout from './tr/layout.json';
 import trLeads from './tr/leads.json';
 import trLegal from './tr/legal.json';
 import trLogs from './tr/logs.json';
+import trLoyalty from './tr/loyalty.json';
 import trMessaging from './tr/messaging.json';
 import trNotifications from './tr/notifications.json';
 import trOrganizations from './tr/organizations.json';
@@ -39,12 +40,14 @@ import trQuotes from './tr/quotes.json';
 import trRealtime from './tr/realtime.json';
 import trRegister from './tr/register.json';
 import trReports from './tr/reports.json';
+import trReviews from './tr/reviews.json';
 import trRoles from './tr/roles.json';
 import trSales from './tr/sales.json';
 import trSearch from './tr/search.json';
 import trSettings from './tr/settings.json';
 import trStaff from './tr/staff.json';
 import trStepup from './tr/stepup.json';
+import trStockReorder from './tr/stock_reorder.json';
 import trStorage from './tr/storage.json';
 import trSuppliers from './tr/suppliers.json';
 import trTable from './tr/table.json';
@@ -60,11 +63,14 @@ import trMobileCommerce from './mobile/areas/commerce.tr.json';
 import trMobileCrm from './mobile/areas/crm.tr.json';
 import trMobileDocuments from './mobile/areas/documents.tr.json';
 import trMobileFinance from './mobile/areas/finance.tr.json';
+import trMobileLoyalty from './mobile/areas/loyalty.tr.json';
 import trMobileMessaging from './mobile/areas/messaging.tr.json';
 import trMobileNotifications from './mobile/areas/notifications.tr.json';
 import trMobileOnboarding from './mobile/areas/onboarding.tr.json';
 import trMobilePlan from './mobile/areas/plan.tr.json';
 import trMobileQr from './mobile/areas/qr.tr.json';
+import trMobileReviews from './mobile/areas/reviews.tr.json';
+import trMobileReorder from './mobile/areas/reorder.tr.json';
 import trMobileSettings from './mobile/areas/settings.tr.json';
 import trMobileSiri from './mobile/areas/siri.tr.json';
 import trMobileUx from './mobile/areas/ux.tr.json';
@@ -97,6 +103,7 @@ import enLayout from './en/layout.json';
 import enLeads from './en/leads.json';
 import enLegal from './en/legal.json';
 import enLogs from './en/logs.json';
+import enLoyalty from './en/loyalty.json';
 import enMessaging from './en/messaging.json';
 import enNotifications from './en/notifications.json';
 import enOrganizations from './en/organizations.json';
@@ -106,12 +113,14 @@ import enQuotes from './en/quotes.json';
 import enRealtime from './en/realtime.json';
 import enRegister from './en/register.json';
 import enReports from './en/reports.json';
+import enReviews from './en/reviews.json';
 import enRoles from './en/roles.json';
 import enSales from './en/sales.json';
 import enSearch from './en/search.json';
 import enSettings from './en/settings.json';
 import enStaff from './en/staff.json';
 import enStepup from './en/stepup.json';
+import enStockReorder from './en/stock_reorder.json';
 import enStorage from './en/storage.json';
 import enSuppliers from './en/suppliers.json';
 import enTable from './en/table.json';
@@ -127,11 +136,14 @@ import enMobileCommerce from './mobile/areas/commerce.en.json';
 import enMobileCrm from './mobile/areas/crm.en.json';
 import enMobileDocuments from './mobile/areas/documents.en.json';
 import enMobileFinance from './mobile/areas/finance.en.json';
+import enMobileLoyalty from './mobile/areas/loyalty.en.json';
 import enMobileMessaging from './mobile/areas/messaging.en.json';
 import enMobileNotifications from './mobile/areas/notifications.en.json';
 import enMobileOnboarding from './mobile/areas/onboarding.en.json';
 import enMobilePlan from './mobile/areas/plan.en.json';
 import enMobileQr from './mobile/areas/qr.en.json';
+import enMobileReviews from './mobile/areas/reviews.en.json';
+import enMobileReorder from './mobile/areas/reorder.en.json';
 import enMobileSettings from './mobile/areas/settings.en.json';
 import enMobileSiri from './mobile/areas/siri.en.json';
 import enMobileUx from './mobile/areas/ux.en.json';
@@ -167,6 +179,7 @@ export const catalogs = {
     leads: trLeads,
     legal: trLegal,
     logs: trLogs,
+    loyalty: trLoyalty,
     messaging: trMessaging,
     notifications: trNotifications,
     organizations: trOrganizations,
@@ -176,19 +189,21 @@ export const catalogs = {
     realtime: trRealtime,
     register: trRegister,
     reports: trReports,
+    reviews: trReviews,
     roles: trRoles,
     sales: trSales,
     search: trSearch,
     settings: trSettings,
     staff: trStaff,
     stepup: trStepup,
+    stock_reorder: trStockReorder,
     storage: trStorage,
     suppliers: trSuppliers,
     table: trTable,
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCalendar, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileMessaging, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileSettings, ...trMobileSiri, ...trMobileUx },
+    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCalendar, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileLoyalty, ...trMobileMessaging, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileReviews, ...trMobileReorder, ...trMobileSettings, ...trMobileSiri, ...trMobileUx },
   },
   en: {
     access: enAccess,
@@ -220,6 +235,7 @@ export const catalogs = {
     leads: enLeads,
     legal: enLegal,
     logs: enLogs,
+    loyalty: enLoyalty,
     messaging: enMessaging,
     notifications: enNotifications,
     organizations: enOrganizations,
@@ -229,19 +245,21 @@ export const catalogs = {
     realtime: enRealtime,
     register: enRegister,
     reports: enReports,
+    reviews: enReviews,
     roles: enRoles,
     sales: enSales,
     search: enSearch,
     settings: enSettings,
     staff: enStaff,
     stepup: enStepup,
+    stock_reorder: enStockReorder,
     storage: enStorage,
     suppliers: enSuppliers,
     table: enTable,
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCalendar, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileMessaging, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileSettings, ...enMobileSiri, ...enMobileUx },
+    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCalendar, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileLoyalty, ...enMobileMessaging, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileReviews, ...enMobileReorder, ...enMobileSettings, ...enMobileSiri, ...enMobileUx },
   },
 } as const;
 

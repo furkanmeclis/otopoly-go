@@ -5,6 +5,7 @@ import {
   Bug,
   Building2,
   CalendarDays,
+  Gift,
   ChartColumn,
   Gauge,
   Download,
@@ -18,6 +19,7 @@ import {
   MessageCircle,
   Moon,
   Package,
+  PackageSearch,
   Receipt,
   Repeat,
   ScanQrCode,
@@ -26,6 +28,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Sparkles,
+  Star,
   Upload,
   UserCog,
   UserRound,
@@ -44,6 +47,8 @@ import { ownerOnly, P, type Gate, type Permission } from '@/features/auth/permis
 import { useUnreadCount } from '@/features/notifications/queries';
 import { reopenSetup } from '@/features/onboarding/setup';
 import { useLeadsSummary, useQuotesSummary, useTodosSummary } from '@/features/queries';
+import { useReviewSummary } from '@/features/reviews/queries';
+import { useReorderSummary } from '@/features/stock-reorder/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { useLocale } from '@/lib/i18n/provider';
 import type { AppLocale } from '@/lib/i18n/translate';
@@ -64,7 +69,10 @@ export default function MenuScreen() {
   const todos = useTodosSummary(can(P.todosRead));
   const leads = useLeadsSummary(can(P.leadsRead));
   const quotes = useQuotesSummary(can(P.quotesRead));
+  const reviews = useReviewSummary(30, can(P.reviewsRead));
   const unread = useUnreadCount(can(P.notificationsRead));
+  const reorder = useReorderSummary(can(P.purchasesRead) && can(P.catalogRead));
+  const reorderUrgent = reorder.data?.urgent ?? 0;
   const ic = (Icon: typeof Wrench) => <Icon size={20} color={t.colors.primary} />;
 
   const todoDue = (todos.data?.overdue ?? 0) + (todos.data?.today ?? 0);
@@ -80,6 +88,7 @@ export default function MenuScreen() {
         { key: 'staff', title: tr('layout.nav_staff'), icon: ic(UserCog), href: '/staff', gate: P.staffRead },
         { key: 'contracts', title: tr('layout.nav_contracts'), icon: ic(FileText), href: '/contracts', gate: P.contractsRead },
         { key: 'sales', title: tr('layout.nav_sales'), icon: ic(ShoppingBag), href: '/sales', gate: P.salesRead },
+        { key: 'loyalty', title: tr('layout.nav_loyalty'), icon: ic(Gift), href: '/loyalty', gate: P.loyaltyRead },
         { key: 'reports', title: tr('layout.nav_reports'), icon: ic(ChartColumn), href: '/reports', gate: P.reportsRead },
         { key: 'todos', title: tr('layout.nav_todos'), icon: ic(ListTodo), href: '/todos', gate: P.todosRead, badge: todoDue ? { value: todoDue, tone: (todos.data?.overdue ?? 0) > 0 ? 'danger' : 'neutral' } : undefined },
         { key: 'assistant', title: tr('layout.nav_assistant'), icon: ic(Sparkles), href: '/assistant', gate: P.aiUse },
@@ -101,6 +110,7 @@ export default function MenuScreen() {
       items: [
         { key: 'leads', title: tr('layout.nav_leads'), icon: ic(Megaphone), href: '/leads', gate: P.leadsRead, badge: leadDue ? { value: leadDue, tone: (leads.data?.overdue ?? 0) > 0 ? 'danger' : 'neutral' } : undefined },
         { key: 'quotes', title: tr('layout.nav_quotes'), icon: ic(FileSignature), href: '/quotes', gate: P.quotesRead, badge: quotes.data?.expiring_soon ? { value: quotes.data.expiring_soon, tone: 'warning' } : undefined },
+        { key: 'reviews', title: tr('layout.nav_reviews'), icon: ic(Star), href: '/reviews', gate: P.reviewsRead, badge: reviews.data?.follow_up_required ? { value: reviews.data.follow_up_required, tone: 'danger' } : undefined },
         { key: 'suppliers', title: tr('layout.nav_suppliers'), icon: ic(Building2), href: '/suppliers', gate: P.suppliersRead },
       ],
     },
@@ -112,6 +122,14 @@ export default function MenuScreen() {
         { key: 'services', title: tr('layout.nav_catalog_services'), icon: ic(Wrench), href: '/catalog/services', gate: P.catalogRead },
         { key: 'catalog-categories', title: tr('layout.nav_catalog_categories'), icon: ic(Layers), href: '/catalog/categories', gate: P.catalogRead },
         { key: 'purchases', title: tr('layout.nav_purchases'), icon: ic(ShoppingCart), href: '/purchases', gate: P.purchasesRead },
+        {
+          key: 'stock-reorder',
+          title: tr('layout.nav_stock_reorder'),
+          icon: ic(PackageSearch),
+          href: '/purchases/reorder',
+          gate: P.purchasesRead,
+          badge: reorderUrgent ? { value: reorderUrgent, tone: (reorder.data?.out_of_stock ?? 0) > 0 ? 'danger' : 'warning' } : undefined,
+        },
       ],
     },
     {

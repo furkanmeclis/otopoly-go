@@ -5,7 +5,7 @@
  *   normal            — comfortable usage, every module on
  *   near_limit        — several meters at ≥ 80 % (warning tone), writes still succeed
  *   at_limit          — jobs / customers / staff / WhatsApp full; creates answer 409 LIMIT_REACHED
- *   feature_disabled  — contracts, reports and the assistant are off; 403 FEATURE_DISABLED
+ *   feature_disabled  — contracts, reports, the assistant and reorder suggestions are off; 403 FEATURE_DISABLED
  *   quotes_disabled   — the quotes & leads module (`module.quotes`) is off; 403 FEATURE_DISABLED
  *   read_only         — the plan period ended: every tenant write answers 403 SUBSCRIPTION_READ_ONLY
  *

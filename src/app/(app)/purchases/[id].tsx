@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Ban } from 'lucide-react-native';
+import { Ban, CheckCircle2, Trash2 } from 'lucide-react-native';
+import { useState } from 'react';
 import { Pressable } from 'react-native';
 
 import { Button, Card, ErrorState, Group, Header, InfoRow, LinkValue, ListRow, ListSkeleton, Screen, Section, Txt, useConfirm } from '@/components/ui';
@@ -9,6 +10,8 @@ import { P } from '@/features/auth/permissions';
 import { purchasesService } from '@/features/purchases/services/purchases.service';
 import { MONEY_KEYS, usePurchase } from '@/features/queries';
 import { DocStatusBadge } from '@/features/sales/components/commerce-parts';
+import { PostDraftSheet } from '@/features/stock-reorder/components/sheets';
+import { useReorderMutations } from '@/features/stock-reorder/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
@@ -36,6 +39,8 @@ function PurchaseDetail() {
   const query = usePurchase(id);
   const purchase = query.data;
   const canWrite = can({ perm: P.purchasesWrite, owner: true });
+  const { deleteDraft } = useReorderMutations();
+  const [posting, setPosting] = useState(false);
 
   const voidPurchase = useApiMutation({
     key: 'purchases.void',
@@ -123,6 +128,22 @@ function PurchaseDetail() {
         </Group>
       </Section>
 
+      {canWrite && purchase.status === 'draft' ? (
+        <>
+          <Button label={tr('stock_reorder.actions.post')} icon={<CheckCircle2 size={18} color={t.colors.onPrimary} />} onPress={() => setPosting(true)} />
+          <Button
+            variant="outline"
+            label={tr('stock_reorder.actions.delete_draft')}
+            icon={<Trash2 size={18} color={t.colors.danger} />}
+            loading={deleteDraft.isPending}
+            onPress={async () => {
+              if (await confirm({ title: tr('stock_reorder.delete_draft.title'), message: tr('stock_reorder.delete_draft.description'), confirmLabel: tr('common.delete'), destructive: true }))
+                deleteDraft.mutate(id, { onSuccess: () => router.back() });
+            }}
+          />
+          <PostDraftSheet draft={posting ? purchase : null} onClose={() => setPosting(false)} />
+        </>
+      ) : null}
       {canWrite && purchase.status === 'posted' ? (
         <Button
           variant="outline"

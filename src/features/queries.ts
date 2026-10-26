@@ -44,10 +44,13 @@ export const qk = {
   account: ['account'] as const,
   settings: ['settings'] as const,
   calendar: ['calendar'] as const,
+  reviews: ['reviews'] as const,
+  stockReorder: ['stock-reorder'] as const,
+  loyalty: ['loyalty'] as const,
 };
 
 /** Everything money-related a document write can change. */
-export const MONEY_KEYS = [qk.jobs, qk.finance, qk.cari, qk.reports, qk.sales, qk.purchases, qk.customers, qk.catalog];
+export const MONEY_KEYS = [qk.jobs, qk.finance, qk.cari, qk.reports, qk.sales, qk.purchases, qk.customers, qk.catalog, qk.stockReorder];
 
 type Params = Record<string, string | number | undefined>;
 const PAGE = 20;

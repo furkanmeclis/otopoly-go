@@ -24,8 +24,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [ ] 2FA prompt when login returns TOTP required
 
 ### RBAC (exact sets from backend migrations)
-- [ ] `organization_owner`: 59 permissions (all tenant.* incl. writes, bulk, settings, imports, billing.write, messaging.write, calendar read/write)
-- [ ] `organization_user` (staff): 36 permissions — read + export everywhere, write only jobs/customers/sales/contracts/leads/quotes/todos/calendar
+- [ ] `organization_owner`: 61 permissions (all tenant.* incl. writes, bulk, settings, imports, billing.write, messaging.write, calendar read/write, reviews read/write)
+- [ ] `organization_user` (staff): 37 permissions — read + export everywhere (incl. reviews), write only jobs/customers/sales/contracts/leads/quotes/todos/calendar
 - [ ] Owner-membership gate (`role === "owner"`) for voids, catalog/finance/cari/purchases/suppliers writes, staff write
 - [ ] `usePermission()`, `<Can>` component, route-level `RequirePermission` screen with forbidden state
 - [ ] Hidden nav items for missing permissions (same as web nav)
@@ -163,6 +163,22 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Home dashboard "Bugün ve yaklaşanlar" card (events, todos, quote expiries, lead follow-ups for 7 days)
 - [x] Live resource `tenant.calendar` (`tenant.calendar.read`): calendar screen and the Bugün card refresh on calendar event changes / moves
 - [x] Mock calendar API with seeded events and every module layer (`scripts/smoke/calendar.smoke.ts`)
+
+## 13c. Reviews — `tenant.reviews.*` (plan `reviews.enabled`, `reviews.monthly`)
+- [x] `/reviews` (Menu → Müşteriler → Değerlendirmeler, `tenant.reviews.read`; badge = follow-ups needed): period chips, KPI tiles (average, response rate, satisfaction score, Google redirects, follow-up tile that filters the list), score distribution, search, filter chips (all / follow-up / low / high / awaiting / answered), infinite list with stars, comment, plate, channel and follow-up state
+- [x] "Ele alındı" **O** (`tenant.reviews.write` + owner) from the list card or the detail footer, with an optional note (sheet)
+- [x] `/reviews/[id]`: score, comment, rating / status / follow-up badges, follow-up note and who handled it, delivery timeline (planned send incl. quiet-hours deferral, sent / opened / expiry, channel, skip reason, error), customer and job links, test link share
+- [x] `/reviews/settings` (read for staff, edits **O**): enable, channel (auto / WhatsApp / SMS with availability badges and a link to messaging), delay presets, quiet hours, Google review URL (https check + how-to), threshold, frequency cap, default language, consent text, excluded customers (read-only, edited on the web), template preview, monthly usage, test send to own phone
+- [x] Customer 360: "Değerlendirmeler" section; push `review.low_score` → `/t/{slug}/reviews/{uuid}` deep link (`deep-links.ts`)
+- [x] Plan lock via `ReviewsModuleGate` (`FEATURE_DISABLED`), live resource `tenant.reviews`, mock API (seeded per organization, job delivery schedules a request, cancel / void cancels it) and `scripts/smoke/reviews.smoke.ts`
+
+## 13d. Stock reorder suggestions — `tenant.purchases.*` + `tenant.catalog.read` (plan `stock_reorder.enabled`)
+- [x] `/purchases/reorder` (Menu → Katalog → Sipariş önerileri, badge = out of stock + below minimum): suggestions grouped by preferred supplier (section totals, select / clear a group), urgency chips (stokta yok / minimumun altında / yakında bitecek), search, stock vs minimum bar, usage per day and days of cover, quantity on drafts, "Nasıl hesaplandı?" with every formula input
+- [x] Quantity steppers (one unit or one pack), select rows → "Taslak oluştur" **O** (one draft purchase per supplier; rows without a supplier are flagged)
+- [x] Settings sheet: usage window, lead time, target cover, daily 09:00 notification, per-supplier lead time **O**; product sheet (supplier, lead, target, pack size, reset) **O**
+- [x] `/purchases/reorder/drafts` and the purchase detail of a draft: "Onayla ve alışa çevir" sheet (method, account, received qty / cost) and delete **O**; purchases list has a Taslak tab
+- [x] Push / in-app `stock.reorder_due` → `/t/{slug}/purchases/reorder` deep link; plan lock via `ModuleGate`; live `tenant.stock_reorder` (+ stock, sales, jobs, purchases refresh the suggestions)
+- [x] Mock API with the same formula, seeded pack size / supplier lead time / open draft (`scripts/smoke/reorder.smoke.ts`)
 
 ## 14. Staff — `tenant.staff.*`
 - [ ] List (status, role)

@@ -175,7 +175,6 @@
   "rules.soon": "Yakında",
   "rules.whatsapp": "WhatsApp",
   "rules.edit_message": "Mesajı düzenle",
-
   "tabs.outbound": "Gönderim kaydı",
   "wa.description_platform": "Bildirimler platformun WhatsApp numarasından gönderilir. Kendi numaranızdan göndermek için planınızda \"Kendi WhatsApp numarası\" özelliği olmalıdır.",
   "wa.locked_title": "Kendi numaranız bu planda yok",
@@ -226,5 +225,12 @@
   "errors.media_upload_failed": "Ek dosya yüklenemedi",
   "errors.send_failed": "Gönderim başarısız",
   "errors.graph": "Meta hatası (kod {{code}})",
-  "errors.unknown": "Bilinmeyen hata ({{code}})"
+  "errors.unknown": "Bilinmeyen hata ({{code}})",
+  "group.reviews": "Değerlendirmeler",
+  "types.review_request": "Değerlendirme isteği",
+  "types.review_low_score": "Düşük puanlı değerlendirme (ekip)",
+  "platform_report.back": "SMS raporu",
+  "group.loyalty": "Sadakat ve paketler",
+  "types.loyalty_renewal_reminder": "Abonelik yenileme hatırlatması",
+  "types.loyalty_team_renewal_due": "Abonelik yenilemesi yaklaşıyor (ekip)"
 }

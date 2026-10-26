@@ -122,5 +122,6 @@
   "activity.subject.lead": "Fırsat",
   "activity.subject.cari_entry": "Cari hareket",
   "activity.subject.contract": "Sözleşme",
-  "activity.subject.other": "Kayıt"
+  "activity.subject.other": "Kayıt",
+  "insights.tabs.reviews": "Değerlendirmeler"
 }

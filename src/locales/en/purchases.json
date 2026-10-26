@@ -52,5 +52,8 @@
   "empty_hint": "Record products bought from suppliers; stock goes up and the expense is posted.",
   "summary.count": "Purchases",
   "summary.total": "Total purchased",
-  "status_label": "Status"
+  "status_label": "Status",
+  "filter.draft": "Drafts",
+  "status.draft": "Draft",
+  "actions.reorder": "Reorder suggestions"
 }

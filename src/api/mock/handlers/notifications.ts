@@ -12,6 +12,7 @@ import type { PushDevice } from '@/features/notifications/services/push-devices.
 
 import { fail, type MockCtx, type MockUser, now, paginate, resourceMeta, route, search, sortBy, str, uuid, validation } from '../core';
 import { getDb, type MockDb } from '../db';
+import { followUpReviewUuid } from './reviews';
 
 type MockNotification = AppNotification & { _user: string };
 type MockPushDevice = PushDevice & { _user: string; _disabled?: boolean };
@@ -34,6 +35,8 @@ export const NOTIFICATION_KINDS = [
   'billing.limit_full',
   'billing.limit_reached',
   'billing.subscription_ending',
+  'review.low_score',
+  'stock.reorder_due',
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -49,7 +52,7 @@ function userOf(ctx: MockCtx): MockUser {
 // ─── Copy (lock-screen safe: no amounts, phone numbers or customer names) ──
 
 type Copy = { title: string; body: string };
-type Vars = { number?: string; todo?: string; feature?: string; used?: number; limit?: number; days?: number };
+type Vars = { number?: string; todo?: string; feature?: string; used?: number; limit?: number; days?: number; score?: number; count?: number };
 
 const FEATURE: Record<string, { tr: string; en: string }> = {
   jobs: { tr: 'iş emri', en: 'work order' },
@@ -83,8 +86,14 @@ function copyFor(kind: string, locale: string, v: Vars): Copy {
       return en
         ? { title: 'Monthly limit reached', body: `A new ${f.en} could not be added: the monthly limit is reached. Details were sent to your e-mail.` }
         : { title: 'Aylık limite ulaşıldı', body: `Aylık ${f.tr} limitine ulaşıldığı için yeni kayıt eklenemedi. Ayrıntıları e-posta adresinize gönderdik.` };
+    case 'review.low_score':
+      return en ? { title: 'Low score review', body: `A customer gave ${v.score ?? 2} stars, follow-up needed.` } : { title: 'Düşük puanlı değerlendirme', body: `Bir müşteri ${v.score ?? 2} puan verdi, takip gerekli.` };
     case 'billing.subscription_ending':
       return en ? { title: 'Plan period ending', body: `Your plan period ends in ${v.days} days.` } : { title: 'Plan dönemi bitiyor', body: `Plan döneminiz ${v.days} gün içinde sona eriyor.` };
+    case 'stock.reorder_due':
+      return en
+        ? { title: 'Stock reorder suggestion', body: `${v.count ?? 1} products are out of stock or below the minimum. Review the reorder suggestions.` }
+        : { title: 'Stok sipariş önerisi', body: `${v.count ?? 1} ürün stokta yok ya da minimum stokun altında. Sipariş önerilerini inceleyin.` };
     default:
       return en ? { title: 'Welcome to Otopoly', body: 'Notifications about your business will appear here.' } : { title: "Otopoly'ye hoş geldiniz", body: 'İşletmenizle ilgili bildirimler burada görünecek.' };
   }
@@ -103,6 +112,8 @@ function actionUrlFor(kind: string, slug: string | null, ref?: string) {
   if (kind.startsWith('quote.') && ref) return `/t/${slug}/quotes/${ref}`;
   if (kind === 'todo.reminder' && ref) return `/t/${slug}/todos?todo=${ref}`;
   if (kind.startsWith('billing.')) return `/t/${slug}/settings/billing`;
+  if (kind === 'review.low_score' && ref) return `/t/${slug}/reviews/${ref}`;
+  if (kind === 'stock.reorder_due') return `/t/${slug}/purchases/reorder`;
   return undefined;
 }
 
@@ -153,9 +164,13 @@ function seedFor(user: MockUser): MockNotification[] {
   // Fresh, unread: one of every kind the user can get.
   add('quote.team_accepted', 6, false, q(0)?.uuid, quoteVars(0));
   add('todo.reminder', 25, false, t(0)?.uuid, { todo: t(0)?.title });
+  const org = db.memberships.find((m) => m.userUuid === user.uuid)?.orgUuid;
+  const low = org ? followUpReviewUuid(org) : undefined;
+  if (low) add('review.low_score', 40, false, low, { score: 2 });
   if (isOwner(user)) {
     add('billing.limit_reached', 50, false, undefined, { feature: 'customers', used: 2500, limit: 2500 });
     add('billing.usage_warning', 3 * 60, false, undefined, { feature: 'jobs', used: 240, limit: 300 });
+    add('stock.reorder_due', 9 * 60, true, undefined, { count: 2 });
   }
   add('quote.team_created', 5 * 60, false, q(1)?.uuid, quoteVars(1));
   add('quote.team_expiring', 9 * 60, true, q(2)?.uuid, quoteVars(2));

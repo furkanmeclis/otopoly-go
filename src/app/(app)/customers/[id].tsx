@@ -45,9 +45,12 @@ import { AddVehicleSheet } from '@/features/customers/components/pickers';
 import { customersService } from '@/features/customers/services/customers.service';
 import { JobStatusBadge, PaymentBadge } from '@/features/jobs/components/job-parts';
 import { leadStatusTone } from '@/features/leads/lib/lead-ui';
+import { CustomerLoyaltySection } from '@/features/loyalty/components/customer-loyalty-section';
 import { qk, useCariEntriesInfinite, useCustomer, useCustomerJobs, useCustomerSales, useLeads, useQuotes, useTodos } from '@/features/queries';
 import { DocStatusBadge } from '@/features/sales/components/commerce-parts';
 import { quoteStatusTone } from '@/features/quotes/lib/quote-ui';
+import { followUpTone, starsText } from '@/features/reviews/lib/review-ui';
+import { useCustomerReviews } from '@/features/reviews/queries';
 import { TodoRow } from '@/features/todos/components/todo-row';
 import { contact } from '@/lib/contact';
 import { toNumber } from '@/lib/i18n/format';
@@ -57,7 +60,7 @@ import { useTheme } from '@/theme/provider';
 import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function CustomerDetailScreen() {
-  useLiveResource(['tenant.customers', 'tenant.vehicles', 'tenant.jobs', 'tenant.cari', 'tenant.cari.entries', 'tenant.sales', 'tenant.quotes', 'tenant.leads', 'tenant.contracts.instances']);
+  useLiveResource(['tenant.customers', 'tenant.vehicles', 'tenant.jobs', 'tenant.cari', 'tenant.cari.entries', 'tenant.sales', 'tenant.quotes', 'tenant.leads', 'tenant.contracts.instances', 'tenant.reviews', 'tenant.loyalty.customers', 'tenant.loyalty.packages', 'tenant.loyalty.subscriptions']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.customersRead} title={tr('customers.detail.info')}>
@@ -80,13 +83,14 @@ function CustomerDetail() {
   const cari = useCariEntriesInfinite(can(P.cariRead) && c?.cari_account_uuid ? c.cari_account_uuid : '', { limit: 5 });
   const quotes = useQuotes({ customer_uuid: id, limit: 20 }, can(P.quotesRead));
   const leads = useLeads({ customer_uuid: id, limit: 20 }, can(P.leadsRead));
+  const reviews = useCustomerReviews(id, can(P.reviewsRead));
   const todos = useTodos({ customer: id, limit: 10 }, can(P.todosRead));
   const sales = useCustomerSales(id, can(P.salesRead));
   const contractsAccess = useContractsAccess();
   const contracts = useCustomerContracts(id, contractsAccess.canRead && can(P.jobsRead));
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const canWrite = can(P.customersWrite);
-  const pull = usePullRefresh(customer, can(P.jobsRead) && jobs, can(P.quotesRead) && quotes, can(P.leadsRead) && leads, can(P.todosRead) && todos, can(P.salesRead) && sales, contracts);
+  const pull = usePullRefresh(customer, can(P.jobsRead) && jobs, can(P.quotesRead) && quotes, can(P.leadsRead) && leads, can(P.todosRead) && todos, can(P.salesRead) && sales, contracts, can(P.reviewsRead) && reviews);
 
   const remove = useApiMutation({
     key: 'customers.delete',
@@ -126,6 +130,7 @@ function CustomerDetail() {
   // Modules off on the plan: leave the section out instead of showing a lock in the middle of the page.
   const showQuotes = can(P.quotesRead) && !isFeatureDisabled(quotes.error);
   const showLeads = can(P.leadsRead) && !isFeatureDisabled(leads.error);
+  const showReviews = can(P.reviewsRead) && !isFeatureDisabled(reviews.error);
   // Contracts are bound to jobs: the API needs jobs.read too to list them per customer.
   const showContracts = contractsAccess.canRead && can(P.jobsRead) && !isFeatureDisabled(contracts.error);
   const showSales = can(P.salesRead) && !isFeatureDisabled(sales.error);
@@ -288,6 +293,8 @@ function CustomerDetail() {
         />
       ) : null}
 
+      <CustomerLoyaltySection customer={c} />
+
       {showSales ? (
         <RelatedSection
           title={tr('sales.title')}
@@ -384,6 +391,28 @@ function CustomerDetail() {
               subtitle={[l.vehicle_plate || l.vehicle_text, tr(`leads.source.${l.source}`), fmt.date(l.created_at)].filter(Boolean).join(' · ')}
               right={<Badge size="sm" tone={leadStatusTone(l.status)} label={tr(`leads.status.${l.status}`)} />}
               onPress={() => router.push(`/leads/${l.uuid}`)}
+              last={last}
+            />
+          )}
+        />
+      ) : null}
+
+      {showReviews ? (
+        <RelatedSection
+          title={tr('customers.insights.tabs.reviews')}
+          items={reviews.data?.items}
+          count={reviews.data?.total}
+          loading={reviews.isLoading}
+          error={reviews.error}
+          onRetry={() => void reviews.refetch()}
+          empty={tr('reviews.customer.empty')}
+          renderItem={(r, i, last) => (
+            <ListRow
+              key={r.uuid}
+              title={r.score ? `${starsText(r.score)}${r.comment ? ` · ${r.comment}` : ''}` : tr(`reviews.status.${r.status}`)}
+              subtitle={[r.plate, fmt.date(r.answered_at ?? r.created_at)].filter(Boolean).join(' · ')}
+              right={r.follow_up_status !== 'none' ? <Badge size="sm" tone={followUpTone(r.follow_up_status)} label={tr(`reviews.follow_up_status.${r.follow_up_status}`)} /> : undefined}
+              onPress={() => router.push(`/reviews/${r.uuid}`)}
               last={last}
             />
           )}

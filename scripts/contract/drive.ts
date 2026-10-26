@@ -29,6 +29,7 @@ import { TENANT_IMPORTS } from '@/features/io/lib/import-resources';
 import { IMPORT_PATHS } from '@/features/io/types';
 import { jobsService } from '@/features/jobs/services/jobs.service';
 import { leadsService } from '@/features/leads/services/leads.service';
+import { loyaltyService } from '@/features/loyalty/services/loyalty.service';
 import { dailySummaryService } from '@/features/messaging/services/daily-summary.service';
 import { messagingService } from '@/features/messaging/services/messaging.service';
 import { templatesService } from '@/features/messaging/services/templates.service';
@@ -39,6 +40,7 @@ import { purchasesService } from '@/features/purchases/services/purchases.servic
 import { qrLoginService } from '@/features/qr-login/qr-login.service';
 import { quotesService } from '@/features/quotes/services/quotes.service';
 import { reportsService } from '@/features/reports/services/reports.service';
+import { reviewsService } from '@/features/reviews/services/reviews.service';
 import { salesService } from '@/features/sales/services/sales.service';
 import { staffService } from '@/features/staff/services/staff.service';
 import { suppliersService } from '@/features/suppliers/services/suppliers.service';
@@ -583,6 +585,33 @@ async function billingArea() {
   setPlanScenario('normal');
 }
 
+async function loyaltyArea() {
+  console.log('loyalty');
+  await ok('loyalty overview', () => loyaltyService.overview(7));
+  await ok('loyalty campaigns', () => loyaltyService.listCampaigns({ limit: 20, offset: 0, is_active: 'true' }));
+  const packages = await ok('loyalty packages', () => loyaltyService.listPackages({ limit: 100, offset: 0, is_active: 'true' }));
+  await ok('loyalty plans', () => loyaltyService.listPlans({ limit: 20, offset: 0, q: 'yıkama' }));
+  const sold = await ok('loyalty sold', () => loyaltyService.listCustomerPackages({ limit: 20, offset: 0, state: 'active' }));
+  if (sold.items[0]) await ok('loyalty sold detail', () => loyaltyService.getCustomerPackage(sold.items[0].uuid));
+  const subs = await ok('loyalty renewals', () => loyaltyService.listSubscriptions({ limit: 20, offset: 0, due_within_days: 7 }));
+  if (subs.items[0]) await ok('loyalty subscription detail', () => loyaltyService.getSubscription(subs.items[0].uuid));
+  const customers = await ok('customers', () => customersService.list({ limit: 5, offset: 0 }));
+  const cust = customers.items[0];
+  await ok('customer loyalty', () => loyaltyService.customerLoyalty(cust.uuid));
+  await err('sell without package', 'VALIDATION_ERROR', () => loyaltyService.sellPackage({ package_uuid: '', customer_uuid: cust.uuid, method: 'cari' }));
+  await ok('sell package', () => loyaltyService.sellPackage({ package_uuid: packages.items[0].uuid, customer_uuid: cust.uuid, method: 'cari', notes: 'contract' }));
+  const jobs = await ok('jobs', () => jobsService.list({ limit: 5, offset: 0, status: 'in_progress' }));
+  if (jobs.items[0]) {
+    await ok('job loyalty', () => loyaltyService.jobLoyalty(jobs.items[0].uuid));
+    const job = await ok('job', () => jobsService.get(jobs.items[0].uuid));
+    const line = job.lines.find((l) => !l.discount_source);
+    if (line) await err('apply unknown', 'NOT_APPLICABLE', () => loyaltyService.applyToJob(job.uuid, { kind: 'reward', source_uuid: '00000000-0000-4000-8000-000000000000', line_uuid: line.uuid }));
+  }
+  setPlanScenario('feature_disabled');
+  await err('loyalty plan off', 'FEATURE_DISABLED', () => loyaltyService.overview(7));
+  setPlanScenario('normal');
+}
+
 async function qrArea() {
   console.log('qr');
   const created = await ok('qr create', () => qrLoginService.createDemo());
@@ -594,12 +623,39 @@ async function qrArea() {
   await err('qr unknown', 'QR_SESSION_NOT_FOUND', () => qrLoginService.get('unknown-session'));
 }
 
+async function reviewsArea() {
+  console.log('reviews');
+  await ok('reviews meta', () => request('GET', '/v1/tenant/reviews/meta'));
+  const list = await ok('reviews list', () => reviewsService.list());
+  await ok('reviews filters', () => reviewsService.list({ follow_up: 'required', rating: 'low', channel: 'whatsapp', days: 90, q: 'a', sort: '-score' }));
+  await ok('reviews summary', () => reviewsService.summary(30));
+  await ok('reviews summary year', () => reviewsService.summary(365));
+  const low = (await ok('reviews follow-up list', () => reviewsService.list({ follow_up: 'required' })))?.items[0];
+  const first = list?.items[0];
+  if (first) await ok('review detail', () => reviewsService.get(first.uuid));
+  if (low) await ok('review follow-up', () => reviewsService.followUp(low.uuid, 'Arandı'));
+  const waiting = (await ok('reviews sent', () => reviewsService.list({ status: 'sent' })))?.items[0];
+  if (waiting) await err('follow-up unanswered', 'CONFLICT', () => reviewsService.followUp(waiting.uuid, ''));
+  await err('review unknown', 'NOT_FOUND', () => reviewsService.get('00000000-0000-4000-8000-000000000000'));
+  await err('reviews bad status', 'VALIDATION_ERROR', () => reviewsService.list({ status: 'bogus' as never }));
+  const st = await ok('review settings', () => reviewsService.settings());
+  await ok('review settings save', () => reviewsService.saveSettings({ enabled: true, channel: 'auto', delay_minutes: st?.delay_minutes ?? 120, google_review_url: 'https://g.page/r/demo/review', excluded_customer_uuids: [] }));
+  await err('review settings bad url', 'VALIDATION_ERROR', () => reviewsService.saveSettings({ google_review_url: 'http://x.test' }));
+  await ok('review test send', () => reviewsService.sendTest('+90 555 123 45 67'));
+  await ok('reviews with tests', () => reviewsService.list({ include_tests: true }));
+  setPlanScenario('feature_disabled');
+  await err('reviews plan off', 'FEATURE_DISABLED', () => reviewsService.list());
+  setPlanScenario('normal');
+}
+
 async function staffView() {
   console.log('staff permissions');
   await ok('login staff', () => login('personel@otopoly.com'));
   await err('staff finance write', 'FORBIDDEN', () => financeService.createTransaction({ type: 'expense', account_uuid: 'x', amount: '1', transaction_date: today }));
   await err('staff void', 'FORBIDDEN', () => jobsService.void('00000000-0000-4000-8000-000000000000'));
   await ok('staff jobs', () => jobsService.list({ limit: 5, offset: 0 }));
+  await ok('staff reviews', () => reviewsService.list());
+  await err('staff review settings', 'FORBIDDEN', () => reviewsService.saveSettings({ enabled: false }));
 }
 
 (async () => {
@@ -618,7 +674,9 @@ async function staffView() {
   await aiArea();
   await notificationsArea();
   await billingArea();
+  await loyaltyArea();
   await qrArea();
+  await reviewsArea();
   await staffView();
   await deactivation();
   await ok('logout', () => authService.logout(session.get()!.refreshToken));

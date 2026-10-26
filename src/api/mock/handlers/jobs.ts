@@ -13,6 +13,8 @@ import {
   voidCariEntry,
   voidFinanceBySource,
 } from '../ops';
+import { cancelReviewForJob, scheduleReviewForJob } from './reviews';
+import { loyaltyCovered, loyaltyJobReversed, loyaltyJobSettled } from './loyalty';
 
 type Row = MockDb['jobs'][number];
 
@@ -240,6 +242,9 @@ route('POST', '/v1/tenant/jobs/:uuid/deliver', (ctx) =>
     job.status = 'delivered';
     job.completed_at ??= now();
     job.delivered_at = now();
+    // Backend `jobs.delivered` → reviews module schedules the review request.
+    scheduleReviewForJob(job._org, job);
+    loyaltyJobSettled(job);
   }),
 );
 
@@ -248,6 +253,8 @@ route('POST', '/v1/tenant/jobs/:uuid/cancel', (ctx) =>
     const db = getDb();
     job.status = 'cancelled';
     job.completed_at ??= now();
+    cancelReviewForJob(job._org, job.uuid);
+    loyaltyJobReversed(job);
     for (const c of job.consumptions) {
       if (c.stock_applied && !c.reverted) moveStock(db, c.product_uuid, num(c.qty));
       c.reverted = true;
@@ -261,13 +268,23 @@ route('POST', '/v1/tenant/jobs/:uuid/close', (ctx) => {
   const db = getDb();
   const job = findJob(ctx);
   const method = str(ctx.body.method);
-  if (!['cash', 'card', 'cari'].includes(method)) {
-    fail(400, 'VALIDATION_ERROR', 'method must be cash, card, or cari', [{ field: 'method', message: 'invalid' }]);
-  }
   if (job.payment_status === 'paid') fail(409, 'CONFLICT', 'Job already paid');
   if (!['in_progress', 'ready', 'delivered'].includes(job.status)) fail(409, 'CONFLICT', 'Job cannot be closed');
   const total = num(job.total_amount);
-  if (!(total > 0)) fail(400, 'VALIDATION_ERROR', 'Job total must be positive');
+  if (!(total > 0)) {
+    // Loyalty covered the whole job: it closes paid without a payment (backend closeCovered).
+    if (!loyaltyCovered(job)) fail(400, 'VALIDATION_ERROR', 'Job total must be positive');
+    const at = now();
+    job.payment_status = 'paid';
+    job.paid_at = at;
+    job.completed_at ??= at;
+    job.updated_at = at;
+    loyaltyJobSettled(job);
+    return toDetail(job);
+  }
+  if (!['cash', 'card', 'cari'].includes(method)) {
+    fail(400, 'VALIDATION_ERROR', 'method must be cash, card, or cari', [{ field: 'method', message: 'invalid' }]);
+  }
 
   const at = now();
   const description = `${job.plate} · ${job.lines.map((l) => l.name).join(', ')}`;
@@ -309,6 +326,7 @@ route('POST', '/v1/tenant/jobs/:uuid/close', (ctx) => {
   job.paid_at = at;
   job.completed_at ??= at;
   job.updated_at = at;
+  loyaltyJobSettled(job);
   return toDetail(job);
 });
 
@@ -333,7 +351,9 @@ route('POST', '/v1/tenant/jobs/:uuid/void', (ctx) => {
     c.reverted = true;
   }
   recalcMaterial(job);
+  loyaltyJobReversed(job);
   job.status = 'voided';
+  cancelReviewForJob(job._org, job.uuid);
   job.updated_at = now();
   return toDetail(job);
 });

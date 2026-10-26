@@ -23,6 +23,10 @@ const TOOL_LABEL_KEYS: Record<string, string> = {
   list_todos: 'ai.tools.list_todos',
   complete_todo: 'ai.tools.complete_todo',
   update_plan: 'ai.tools.update_plan',
+  get_customer_loyalty: 'ai.tools.get_customer_loyalty',
+  list_loyalty_programs: 'ai.tools.list_loyalty_programs',
+  sell_package: 'ai.tools.sell_package',
+  redeem_reward: 'ai.tools.redeem_reward',
 };
 
 const UNAVAILABLE_KEYS: Record<string, string> = {
@@ -104,6 +108,15 @@ const CONFIRM_FIELD_KEYS: Record<string, string> = {
   due_date: 'ai.confirm.fields.due_date',
   due_time: 'ai.confirm.fields.due_time',
   amount: 'ai.confirm.fields.amount',
+  package: 'ai.confirm.fields.package',
+  credits: 'ai.confirm.fields.credits',
+  validity_days: 'ai.confirm.fields.validity_days',
+  job: 'ai.confirm.fields.job',
+  loyalty_kind: 'ai.confirm.fields.loyalty_kind',
+  source: 'ai.confirm.fields.source',
+  line: 'ai.confirm.fields.line',
+  units: 'ai.confirm.fields.units',
+  remaining_after: 'ai.confirm.fields.remaining_after',
 };
 
 const CONFIRM_WARNING_KEYS: Record<string, string> = {

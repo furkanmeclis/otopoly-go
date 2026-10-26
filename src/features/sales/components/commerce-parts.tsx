@@ -70,9 +70,9 @@ export function StatStrip({ stats, loading }: { stats: Stat[]; loading?: boolean
 // ─── Status badges ──────────────────────────────────────────────────────────
 
 /** posted → success, voided → danger (web `statusTone` for sales and purchases). */
-export function DocStatusBadge({ status, ns, size = 'sm' }: { status: 'posted' | 'voided'; ns: 'sales' | 'purchases'; size?: 'sm' | 'md' }) {
+export function DocStatusBadge({ status, ns, size = 'sm' }: { status: 'draft' | 'posted' | 'voided'; ns: 'sales' | 'purchases'; size?: 'sm' | 'md' }) {
   const { t: tr } = useLocale();
-  const tone: Tone = status === 'posted' ? 'success' : status === 'voided' ? 'danger' : 'neutral';
+  const tone: Tone = status === 'posted' ? 'success' : status === 'voided' ? 'danger' : status === 'draft' ? 'warning' : 'neutral';
   return <Badge size={size} tone={tone} label={tr(`${ns}.status.${status}`)} />;
 }
 

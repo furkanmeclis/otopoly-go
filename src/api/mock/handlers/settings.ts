@@ -176,6 +176,23 @@ const SPECS: Spec[] = [
     placeholders: [P.todoTitle, P.dueAt, P.dueIn, P.assignee, P.notes, P.customer, P.company, P.todoLink],
     label: ['Görev hatırlatması', 'Task reminder'],
   },
+  // Review collection (backend msgtemplate registry, modules/reviews).
+  {
+    type: 'review.request',
+    group: 'reviews',
+    audience: 'customer',
+    channels: CUSTOMER,
+    placeholders: [ph('musteri_adi', 'Ahmet Yılmaz', 'John Smith'), ph('isletme_adi', 'Tech Oto'), ph('link', 'https://otopoly.app/r/AbCdEfGhIjKlMnOpQrStUv')],
+    label: ['Değerlendirme isteği', 'Review request'],
+  },
+  {
+    type: 'review.low_score',
+    group: 'reviews',
+    audience: 'staff',
+    channels: ['inapp', 'email'],
+    placeholders: [P.customer, ph('score', '2'), ph('comment', 'Araç geç teslim edildi.', 'The car was late.'), P.plate, P.company, ph('app_link', 'https://otopoly.app/t/tech-oto/reviews/abc')],
+    label: ['Düşük puanlı değerlendirme', 'Low score review'],
+  },
 ];
 
 /** Customer-facing WhatsApp defaults from migration 000052; other channels get a short generic text. */
