@@ -81,4 +81,6 @@ export const StorageKeys = {
   onboardingBusinessDraft: 'onboarding.business_draft',
   /** Getting-started checklist per user and organization (`onboarding.setup.<userUuid>:<orgSlug>`). */
   onboardingSetup: 'onboarding.setup',
+  /** Calendar layers the user switched off (per device). */
+  calendarHiddenLayers: 'calendar.hidden_layers',
 } as const;

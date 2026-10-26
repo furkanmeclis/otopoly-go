@@ -4,6 +4,7 @@ import {
   Bell,
   Bug,
   Building2,
+  CalendarDays,
   ChartColumn,
   Gauge,
   Download,
@@ -75,6 +76,7 @@ export default function MenuScreen() {
       key: 'tenant',
       title: tr('layout.section_tenant'),
       items: [
+        { key: 'calendar', title: tr('calendar.title'), icon: ic(CalendarDays), href: '/calendar', gate: P.calendarRead },
         { key: 'staff', title: tr('layout.nav_staff'), icon: ic(UserCog), href: '/staff', gate: P.staffRead },
         { key: 'contracts', title: tr('layout.nav_contracts'), icon: ic(FileText), href: '/contracts', gate: P.contractsRead },
         { key: 'sales', title: tr('layout.nav_sales'), icon: ic(ShoppingBag), href: '/sales', gate: P.salesRead },

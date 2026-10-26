@@ -51,6 +51,8 @@ export function areaOf(path) {
     [/^\/v1\/tenant\/(sales|purchases|suppliers)\b/, 'commerce'],
     [/^\/v1\/(tenant\/(quotes|leads|todos)|public\/quotes)\b/, 'crm'],
     [/^\/v1\/tenant\/ai\b/, 'ai'],
+    [/^\/v1\/tenant\/calendar\b/, 'calendar'],
+    [/^\/v1\/realtime\b/, 'realtime'],
     [/^\/v1\/tenant\/catalog\b/, 'catalog'],
     [/^\/v1\/tenant\/(contracts|imports|exports)\b/, 'documents'],
     [/^\/v1\/(tenant\/(settings|staff|messaging|daily-summary|vehicle-alerts)|platform\/contract-presets)\b/, 'settings'],

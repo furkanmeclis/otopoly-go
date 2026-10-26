@@ -98,7 +98,7 @@ function preset(title: string, description: string, category: string, html: stri
 }
 
 /** Lazily seed two templates and three contracts (executed / pending / voided) per organization. */
-function orgStore(ctx: MockCtx) {
+export function orgStore(ctx: MockCtx) {
   const s = store();
   const org = ctx.orgUuid!;
   if (!s.seededOrgs.includes(org)) {

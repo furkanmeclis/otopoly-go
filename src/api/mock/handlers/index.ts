@@ -19,3 +19,4 @@ import './account';
 import './notifications';
 import './qr-login';
 import './realtime';
+import './calendar';

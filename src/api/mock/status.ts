@@ -9,6 +9,7 @@ export const SUCCESS_STATUS: Record<string, number> = {
   'POST /v1/tenant/leads/:uuid/notes': 201,
   'POST /v1/tenant/leads/:uuid/todo': 201,
   'POST /v1/tenant/todos': 201,
+  'POST /v1/tenant/calendar/events': 201,
   'POST /v1/tenant/quotes': 201,
   'POST /v1/tenant/quotes/:uuid/duplicate': 201,
   'POST /v1/tenant/quotes/:uuid/convert': 201,

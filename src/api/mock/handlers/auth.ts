@@ -10,7 +10,7 @@ import { assertPasswordPolicy } from './account';
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
   organization_user: [
     'auth.session', 'notifications.read', 'tenant.ai.use', 'tenant.billing.read',
-    'tenant.cari.export', 'tenant.cari.read', 'tenant.catalog.export', 'tenant.catalog.read',
+    'tenant.calendar.read', 'tenant.calendar.write', 'tenant.cari.export', 'tenant.cari.read', 'tenant.catalog.export', 'tenant.catalog.read',
     'tenant.contracts.read', 'tenant.contracts.write', 'tenant.customers.read', 'tenant.customers.write',
     'tenant.finance.export', 'tenant.finance.read', 'tenant.jobs.export', 'tenant.jobs.read', 'tenant.jobs.write',
     'tenant.leads.read', 'tenant.leads.write', 'tenant.messaging.read', 'tenant.purchases.export',
@@ -20,7 +20,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   ],
   organization_owner: [
     'auth.session', 'notifications.read', 'tenant.ai.use', 'tenant.billing.read', 'tenant.billing.write',
-    'tenant.cari.export', 'tenant.cari.read', 'tenant.cari.write', 'tenant.catalog.export', 'tenant.catalog.import',
+    'tenant.calendar.read', 'tenant.calendar.write', 'tenant.cari.export', 'tenant.cari.read', 'tenant.cari.write', 'tenant.catalog.export', 'tenant.catalog.import',
     'tenant.catalog.products.bulk.activate', 'tenant.catalog.products.bulk.adjust_stock',
     'tenant.catalog.products.bulk.deactivate', 'tenant.catalog.products.bulk.delete',
     'tenant.catalog.products.bulk.raise_cost_price', 'tenant.catalog.products.bulk.raise_sale_price',

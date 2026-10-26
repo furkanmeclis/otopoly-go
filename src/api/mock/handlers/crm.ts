@@ -38,7 +38,7 @@ function followState(date: string | null | undefined): LeadDetail['follow_up_sta
 
 // ═══ Leads ══════════════════════════════════════════════════════════════════
 
-function leadEvent(ctx: MockCtx, lead: LeadDetail, e: Partial<LeadEvent> & { kind: string }) {
+export function leadEvent(ctx: MockCtx, lead: LeadDetail, e: Partial<LeadEvent> & { kind: string }) {
   const at = now();
   lead.events.unshift({
     uuid: uuid(),
@@ -56,7 +56,7 @@ function leadEvent(ctx: MockCtx, lead: LeadDetail, e: Partial<LeadEvent> & { kin
   lead.updated_at = at;
 }
 
-function refreshLead(lead: LeadDetail) {
+export function refreshLead(lead: LeadDetail) {
   lead.follow_up_state = lead.status === 'won' || lead.status === 'lost' ? 'none' : followState(lead.follow_up_date);
   const db = getDb();
   lead.quotes = db.quotes
@@ -256,7 +256,7 @@ route('POST', '/v1/tenant/leads/:uuid/todo', (ctx) => {
 
 // ═══ Todos ══════════════════════════════════════════════════════════════════
 
-function todoView(t: Todo): Todo {
+export function todoView(t: Todo): Todo {
   t.overdue = t.status === 'open' && !!t.due_date && t.due_date < istanbulDay();
   // Date-only todos are due at 09:00 Europe/Istanbul; next_reminder_at = earliest future fire time.
   if (t.status === 'open' && t.due_date && t.reminder_offsets.length) {

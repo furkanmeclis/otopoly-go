@@ -33,6 +33,7 @@ import {
   Txt,
 } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
+import { CalendarTodayCard } from '@/features/calendar/components/today-card';
 import { P } from '@/features/auth/permissions';
 import { JobElapsed, useNow } from '@/features/jobs/components/job-parts';
 import { isStale, localToday, shiftDate } from '@/features/jobs/lib/job-ui';
@@ -113,6 +114,7 @@ export default function DashboardScreen() {
 
       <SetupChecklist key={`setup-${refreshKey}`} />
       {can(P.jobsRead) ? <TodaySection /> : null}
+      <CalendarTodayCard />
       <PipelineSection />
       {can(P.todosRead) ? <TodosWidget /> : null}
       {can(P.reportsRead) ? <InsightsSection /> : null}

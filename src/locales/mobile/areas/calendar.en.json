@@ -1,0 +1,15 @@
+{
+  "calendar.views_three_days": "3 days",
+  "calendar.layers_all": "All",
+  "calendar.long_press_hint": "Press and hold to change its date.",
+  "calendar.items_count": "{{count}} items",
+  "calendar.day_empty": "Nothing on this day.",
+  "calendar.empty_hint": "Add an event with + at the top right.",
+  "calendar.edit": "Edit event",
+  "calendar.reschedule.title": "Change date",
+  "calendar.reschedule.date": "New date",
+  "calendar.reschedule.time": "Time",
+  "calendar.reschedule.save": "Move",
+  "calendar.reschedule.todo_hint": "Leave the time empty to make it an all-day task.",
+  "calendar.reschedule.lead_hint": "Lead follow-ups only carry a date."
+}
