@@ -15,6 +15,7 @@ import { registerPushDevice, unregisterPushDevice } from '@/features/notificatio
 import { loadIntroSeen, markIntroSeen as persistIntroSeen, subscribeIntroReset } from '@/features/onboarding/state';
 
 import { orgBlock as accessBlock } from './lib/access';
+import { completeSignInSteps, entryFor, type SignInOptions } from './lib/complete-sign-in';
 import type { Gate, Permission } from './permissions';
 
 const log = createLogger('auth');
@@ -51,13 +52,7 @@ type AuthContextValue = {
   orgBlock: (org: OrganizationMembership) => OrgBlock;
 };
 
-export type SignInOptions = {
-  /**
-   * Runs with the new session's tokens before the profile is loaded and the user is routed (e.g. the
-   * sign-up screen saves the name a code sign-up could not send). Failures are logged, never block sign-in.
-   */
-  prepare?: () => Promise<void>;
-};
+export type { SignInOptions } from './lib/complete-sign-in';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -116,12 +111,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   /** After a fresh profile load decide: straight into the org, or ask the user to pick. */
   const route = useCallback(
     async (profile: Me, preferredSlug: string | null) => {
-      const orgs = profile.organizations ?? [];
-      const usable = orgs.filter((o) => !orgBlock(o));
-      const preferred = preferredSlug ? usable.find((o) => o.slug === preferredSlug) : null;
-      const target = preferred ?? (orgs.length === 1 && usable.length === 1 ? usable[0] : null);
-      if (target) {
-        await enterOrganization(profile, target.slug);
+      const entry = entryFor(profile, preferredSlug);
+      if (entry.kind === 'enter') {
+        await enterOrganization(profile, entry.slug);
       } else {
         setMe(profile);
         setOrgSlug(null);
@@ -171,30 +163,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient]);
 
   const completeSignIn = useCallback(
-    async (tokens: Tokens, options?: SignInOptions) => {
-      await session.setTokens(tokens, null);
-      if (options?.prepare) {
-        try {
-          await options.prepare();
-        } catch (error) {
-          log.warn('Sign-in preparation failed', isApiError(error) ? error.code : error);
-        }
-      }
-      try {
-        const profile = await authService.getMe();
-        syncLocale(profile);
-        await route(profile, null);
-        // Signed in once (also via a deep link that skipped it): the intro never needs to show again.
-        setIntroSeen(true);
-        void persistIntroSeen();
-        log.info('Login succeeded', { organizations: profile.organizations?.length ?? 0 });
-        // Never prompts and never throws; the in-app explanation sheet handles first-time permission.
-        void registerPushDevice({ force: true });
-      } catch (error) {
-        await reset('post_login_failed');
-        throw error;
-      }
-    },
+    (tokens: Tokens, options?: SignInOptions) =>
+      completeSignInSteps(
+        {
+          storeTokens: (pair) => session.setTokens(pair, null),
+          loadProfile: () => authService.getMe(),
+          syncLocale,
+          route: (profile) => route(profile, null),
+          reset,
+          signedIn: (profile) => {
+            // Signed in once (also via a deep link that skipped it): the intro never needs to show again.
+            setIntroSeen(true);
+            void persistIntroSeen();
+            log.info('Login succeeded', { organizations: profile.organizations?.length ?? 0 });
+            // Never prompts and never throws; the in-app explanation sheet handles first-time permission.
+            void registerPushDevice({ force: true });
+          },
+        },
+        tokens,
+        options,
+      ),
     [reset, route, syncLocale],
   );
 
