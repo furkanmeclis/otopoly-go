@@ -723,6 +723,69 @@ export interface paths {
         patch: operations["patchPlatformAppleIntegrationSettings"];
         trace?: never;
     };
+    "/v1/platform/integrations/apple/apns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the APNs key status (Live Activity pushes)
+         * @description Status of the APNs token key used for iOS Live Activity pushes. The key
+         *     uploaded here (database) wins over the APNS_* env vars (fallback). The
+         *     .p8 itself is never returned; key_fingerprint is a short SHA-256 of
+         *     its public key. Requires platform.integrations.apple.read (super admin).
+         */
+        get: operations["getPlatformAPNsKey"];
+        /**
+         * Upload / edit the APNs key
+         * @description Stores the APNs .p8 (sealed with the integration vault) and its fields.
+         *     private_key may be omitted when a key is already stored (only the
+         *     fields change). The key must be an Apple .p8 (PEM, PKCS#8, EC P-256 /
+         *     ES256). A Sign in with Apple key cannot send pushes; create a key with
+         *     "Apple Push Notifications service (APNs)" enabled. Pushes in the API and
+         *     the worker pick the change up within a minute. Requires
+         *     platform.integrations.apple.write.
+         */
+        put: operations["putPlatformAPNsKey"];
+        post?: never;
+        /**
+         * Remove the uploaded APNs key
+         * @description Removes the stored key and fields; the APNS_* env key, if set, takes over. Requires platform.integrations.apple.write.
+         */
+        delete: operations["deletePlatformAPNsKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/apple/apns/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the active APNs key against Apple
+         * @description Signs a provider token with the active key (database, else env) and
+         *     sends one Live Activity push to a device token that cannot exist, on
+         *     the configured environment host. Nothing is delivered. 400
+         *     BadDeviceToken means key, team and topic were accepted (ok: true); 403
+         *     InvalidProviderToken / ExpiredProviderToken means the key or team id
+         *     was rejected. The outcome is stored as last_test. Requires
+         *     platform.integrations.apple.write.
+         */
+        post: operations["testPlatformAPNsKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/identities": {
         parameters: {
             query?: never;
@@ -9406,6 +9469,121 @@ export interface components {
             data: components["schemas"]["OAuthProviderSettings"];
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** @description Credentials pushes use right now (never the key itself). */
+        PlatformAPNsActiveKey: {
+            /** @example GS6Q2FZ3PT */
+            key_id: string;
+            /** @example ABCDE12345 */
+            team_id: string;
+            /** @example com.otopoly.app */
+            bundle_id: string;
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            /** @example https://api.push.apple.com */
+            host: string;
+            /**
+             * @description Short SHA-256 hex of the public key
+             * @example 3f9a0c1d2e4b5a69
+             */
+            key_fingerprint: string;
+        };
+        PlatformAPNsTestResult: {
+            /** @description true when APNs accepted key, team and topic (400 BadDeviceToken) */
+            ok: boolean;
+            /** @enum {string} */
+            verdict: "accepted" | "key_rejected" | "topic_rejected" | "rate_limited" | "rejected" | "unreachable" | "not_configured";
+            /**
+             * @description APNs HTTP status (absent when APNs was not reached)
+             * @example 400
+             */
+            status?: number;
+            /**
+             * @description APNs reason
+             * @example BadDeviceToken
+             */
+            reason: string;
+            /** @enum {string} */
+            source: "database" | "env" | "none";
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            host?: string;
+            /** @description Transport error when unreachable */
+            error?: string;
+            /** Format: date-time */
+            tested_at: string;
+        };
+        PlatformAPNsStatus: {
+            /**
+             * @description Where pushes take the key from (database first, env fallback).
+             * @enum {string}
+             */
+            source: "database" | "env" | "none";
+            /** @description A key was uploaded from the panel */
+            stored: boolean;
+            /** @description Stored key id ("" when none) */
+            key_id: string;
+            /** @description Stored team id ("" = fallback) */
+            team_id: string;
+            /** @enum {string} */
+            team_id_source: "database" | "apple_integration" | "env" | "none";
+            effective_team_id: string;
+            /** @example com.otopoly.app */
+            bundle_id: string;
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            /** @description Stored key's public-key fingerprint ("" when none) */
+            key_fingerprint: string;
+            /** Format: date-time */
+            uploaded_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+            /** @description APNS_* env key present */
+            env_configured: boolean;
+            active: components["schemas"]["PlatformAPNsActiveKey"] | null;
+            last_test: components["schemas"]["PlatformAPNsTestResult"] | null;
+        };
+        SavePlatformAPNsKeyRequest: {
+            /**
+             * @description 10-character key id
+             * @example GS6Q2FZ3PT
+             */
+            key_id: string;
+            /** @description Optional; empty = Apple integration team id, then APNS_TEAM_ID */
+            team_id?: string;
+            /** @description Default com.otopoly.app */
+            bundle_id?: string;
+            /**
+             * @description Default production
+             * @enum {string}
+             */
+            environment?: "production" | "sandbox";
+            /** @description .p8 PEM text; optional when a key is already stored */
+            private_key?: string;
+        };
+        SavePlatformAPNsKeyMultipart: {
+            key_id: string;
+            team_id?: string;
+            bundle_id?: string;
+            /** @enum {string} */
+            environment?: "production" | "sandbox";
+            /**
+             * Format: binary
+             * @description The AuthKey_XXXXXXXXXX.p8 file (max 16 KB)
+             */
+            private_key?: string;
+        };
+        EnvelopePlatformAPNsStatus: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformAPNsStatus"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePlatformAPNsTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformAPNsTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         LinkedIdentity: {
             /** @example github */
             provider: string;
@@ -16123,6 +16301,104 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description APNs key status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    putPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePlatformAPNsKeyRequest"];
+                "multipart/form-data": components["schemas"]["SavePlatformAPNsKeyMultipart"];
+            };
+        };
+        responses: {
+            /** @description Saved APNs key status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deletePlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description APNs key status after removal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    testPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test outcome (also for a rejected key; see verdict) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsTestResult"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalError"];

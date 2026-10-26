@@ -220,5 +220,9 @@
   "actions.jobs.consumption.update": "Job material updated",
   "actions.jobs.consumption.delete": "Job material removed",
   "actions.tenant.contract_instance.otp_send": "Contract verification code sent",
-  "actions.tenant.contract_instance.otp_verify": "Contract verification code confirmed"
+  "actions.tenant.contract_instance.otp_verify": "Contract verification code confirmed",
+  "actions.integrations.apns.updated": "APNs key updated",
+  "actions.integrations.apns.removed": "APNs key removed",
+  "actions.integrations.apns.tested": "APNs connection tested",
+  "resources.platform.integrations.apple.apns": "Apple Push (APNs)"
 }
