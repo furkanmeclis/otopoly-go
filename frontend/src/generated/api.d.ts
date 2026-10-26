@@ -4098,6 +4098,120 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/live-activities/device": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Link this device's widgets to the organization
+         * @description Makes the caller's push device (already registered with
+         *     `POST /v1/push-devices`) show this organization's Home / Lock Screen
+         *     widgets, and stores the iOS ActivityKit push-to-start token (iOS 17.2+).
+         *     Call on app start and whenever the active organization or the
+         *     push-to-start token changes; one organization per device (the call
+         *     moves it). Signing out (`DELETE /v1/push-devices/{token}`) removes it.
+         *
+         *     While linked, job changes of the organization send a background push
+         *     (at most one per minute per organization, coalesced):
+         *     `{ "data": { "kind": "widgets.refresh", "org": "<org uuid>", "snapshot": { "v": 1, "date": "YYYY-MM-DD", "at": <epoch ms>, "counts": { "in_progress": n, "ready": n, "delivered": n }, "paid_total": "decimal", "queue": [{ "id", "plate", "name", "vehicle", "status": "in_progress" | "ready", "started_at": "RFC 3339" }], "more": n } } }`
+         *     (today in Europe/Istanbul; queue = open jobs, ready first, at most 12)
+         *     — iOS `contentAvailable` (APNs priority 5, best effort, budgeted by
+         *     iOS), Android data-only high priority. No title/body: nothing is shown.
+         *     Requires `tenant.jobs.read`.
+         */
+        put: operations["putTenantLiveActivityDevice"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/live-activities/device/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Stop widget pushes of the organization to this device
+         * @description Idempotent. The Expo push token must be URL-encoded.
+         */
+        delete: operations["deleteTenantLiveActivityDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/live-activities/jobs/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Register a running job Live Activity / Live Update
+         * @description Stores (or refreshes) the caller's running activity for a job so the
+         *     server can update it while the app is closed. Call when the activity
+         *     starts, whenever ActivityKit rotates its push token, and on app start
+         *     for activities still running (refreshes `expires_at`, 12 hours).
+         *
+         *     - iOS: `push_token` is the per-activity ActivityKit token (hex). Job
+         *       changes are sent over APNs (`apns-push-type: liveactivity`) as
+         *       `content-state: { "name": "JobActivity", "props": "<JobActivityProps JSON>" }`;
+         *       status changes use priority 10 (ready / delivered also light up the
+         *       screen), content-only edits priority 5. Delivered / cancelled end the
+         *       activity (dismissed after 15 minutes), voided ends it immediately.
+         *       `remote_updates` is false while the server has no APNs key.
+         *     - Android: `device_token` is the device's Expo push token (must be the
+         *       caller's registered device); `activity_id` is the job uuid. Changes
+         *       arrive as a data-only Expo message
+         *       `{ "kind": "live.job", "org": "<org uuid>", "job": "<job uuid>", "end": "" | "default" | "immediate", "props": JobActivityProps, "sent_at": <epoch ms> }`.
+         *
+         *     Only the caller's own devices are ever targeted, texts are in the
+         *     caller's language (`users.locale`, then `locale`). Another
+         *     organization's job answers 404. Requires `tenant.jobs.read`.
+         */
+        put: operations["putTenantJobLiveActivity"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/live-activities/jobs/{uuid}/unregister": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forget the caller's activity for a job
+         * @description Call when the activity ends or is turned off. Without `activity_id` /
+         *     `device_token` every activity of the caller for this job is removed.
+         *     Idempotent. Requires `tenant.jobs.read`.
+         */
+        post: operations["unregisterTenantJobLiveActivity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/jobs/meta": {
         parameters: {
             query?: never;
@@ -8015,6 +8129,67 @@ export interface components {
                 /** @enum {string} */
                 status: "ok";
             };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        LiveActivityDeviceInput: {
+            /**
+             * @description The device's Expo push token (registered with POST /v1/push-devices)
+             * @example ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+             */
+            device_token: string;
+            /** @description iOS 17.2+ ActivityKit push-to-start token (hex); empty clears it */
+            push_to_start_token?: string;
+            /**
+             * @description false keeps the link (push-to-start token) without widget pushes
+             * @default true
+             */
+            widgets: boolean;
+        };
+        LiveActivityDevice: {
+            widgets_enabled: boolean;
+            /** @description A push-to-start token is stored */
+            push_to_start: boolean;
+            /** @description The server can update iOS Live Activities (APNs configured) */
+            live_activity_push: boolean;
+        };
+        EnvelopeLiveActivityDevice: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LiveActivityDevice"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        LiveActivityInput: {
+            /** @enum {string} */
+            platform: "ios" | "android";
+            /** @description ActivityKit activity id (iOS) or the job uuid (Android) */
+            activity_id: string;
+            /** @description iOS per-activity ActivityKit push token (hex); required on iOS */
+            push_token?: string;
+            /** @description Expo push token of this device; required on Android */
+            device_token?: string;
+            /**
+             * @description Device language (tr / en); the user's language wins
+             * @example tr
+             */
+            locale?: string;
+        };
+        LiveActivity: {
+            /** Format: uuid */
+            uuid: string;
+            /** Format: uuid */
+            job_uuid: string;
+            /** @enum {string} */
+            platform: "ios" | "android";
+            activity_id: string;
+            /** Format: date-time */
+            expires_at: string;
+            /** @description false when the server cannot update this activity (iOS without APNs key); the app keeps updating it in the foreground */
+            remote_updates: boolean;
+        };
+        EnvelopeLiveActivity: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["LiveActivity"];
             meta: components["schemas"]["ResponseMeta"];
         };
         ErrorDetail: {
@@ -21880,6 +22055,151 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    putTenantLiveActivityDevice: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LiveActivityDeviceInput"];
+            };
+        };
+        responses: {
+            /** @description Device linked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLiveActivityDevice"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    deleteTenantLiveActivityDevice: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                /** @description Expo push token, URL-encoded */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unlinked (or nothing to unlink) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatusOK"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    putTenantJobLiveActivity: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LiveActivityInput"];
+            };
+        };
+        responses: {
+            /** @description Activity registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeLiveActivity"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    unregisterTenantJobLiveActivity: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    activity_id?: string;
+                    device_token?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Removed (or nothing to remove) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatusOK"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     getTenantJobsMeta: {

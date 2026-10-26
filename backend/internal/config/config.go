@@ -29,6 +29,7 @@ type Config struct {
 	Log        LogConfig
 	VAPID      VAPIDConfig
 	Expo       ExpoConfig
+	APNs       APNsConfig
 	Search     SearchConfig
 	Gotenberg  GotenbergConfig
 	Speaches   SpeachesConfig
@@ -98,6 +99,17 @@ type VAPIDConfig struct {
 // token is optional: only needed with Expo "enhanced push security".
 type ExpoConfig struct {
 	AccessToken string
+}
+
+// APNsConfig holds the token-based APNs key used for iOS Live Activity
+// pushes (Expo Push Service has no liveactivity push type). Empty = iOS
+// activities only update while the app runs.
+type APNsConfig struct {
+	KeyID       string
+	TeamID      string
+	PrivateKey  string
+	BundleID    string
+	Environment string
 }
 
 // JWTConfig holds access JWT and opaque refresh token settings.
@@ -316,6 +328,13 @@ func Load() (Config, error) {
 			PublicKey:  getEnv("VAPID_PUBLIC_KEY", ""),
 			PrivateKey: getEnv("VAPID_PRIVATE_KEY", ""),
 			Subject:    getEnv("VAPID_SUBJECT", "mailto:noreply@example.com"),
+		},
+		APNs: APNsConfig{
+			KeyID:       getEnv("APNS_KEY_ID", ""),
+			TeamID:      getEnv("APNS_TEAM_ID", getEnv("AUTH_APPLE_TEAM_ID", "")),
+			PrivateKey:  getEnv("APNS_PRIVATE_KEY", ""),
+			BundleID:    getEnv("APNS_BUNDLE_ID", "com.otopoly.app"),
+			Environment: getEnv("APNS_ENVIRONMENT", "production"),
 		},
 		Expo: ExpoConfig{
 			AccessToken: getEnv("EXPO_ACCESS_TOKEN", ""),

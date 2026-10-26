@@ -74,6 +74,9 @@ import (
 	legalmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/legal"
 	legalhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/legal/handler"
 	legalusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/legal/usecase"
+	livepushmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/livepush"
+	livepushhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/livepush/handler"
+	livepushusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/livepush/usecase"
 	logsmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs"
 	logshandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/handler"
 	logsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/logs/usecase"
@@ -605,13 +608,24 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	liveEvents.AddResolver(resourceevents.OrgChannelResolver(resourceevents.QueriesLookup(deps.Queries)))
 	uc.AddChannelRules(resourceevents.OrgChannelRule(liveResources,
 		middleware.OrganizationAccess(middleware.OrganizationResolverFromQueries(deps.Queries))))
+	// Job changes also push to Live Activities / Live Updates and widgets of
+	// the mobile app while it is closed (modules/livepush).
+	var liveQueue queue.LiveEnqueuer
+	if deps.Queue != nil {
+		liveQueue = deps.Queue
+	}
+	livePushSvc := livepushmodule.NewService(cfg, deps.Queries, liveQueue, log)
+	livePushHandler := livepushhandler.New(livePushSvc)
+	livePushHandler.SetRateLimiter(ratelimit.New(deps.Redis, cfg.App.Env))
+	livepushmodule.RegisterRoutes(mux, livePushHandler, tokens, loader, deps.Queries)
+	livePub := livepushusecase.Publisher{Next: liveEvents, Svc: livePushSvc}
 	for _, svc := range []interface {
 		SetResourceEvents(resourceevents.Publisher)
 	}{
 		customersSvc, jobsSvc, salesSvc, quotesSvc, leadsSvc, purchasesSvc, suppliersSvc,
 		catalogSvc, financeSvc, cariSvc, todosSvc, contractsSvc, staffSvc, importSvc, bulkSvc,
 	} {
-		svc.SetResourceEvents(liveEvents)
+		svc.SetResourceEvents(livePub)
 	}
 
 	// Calendar: own events plus a live feed of the modules above; drag and
@@ -670,7 +684,8 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			WithDailySummary(dailySummarySvc.SendDue).
 			WithVehicleAlerts(vehicleAlertsSvc.Flush).
 			WithBillingOrdersExpire(billingSvc.ExpireDueOrders).
-			WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts)
+			WithMobilePush(notifSvc.SendMobilePush, notifSvc.ProcessPushReceipts).
+			WithLivePush(livePushSvc.ProcessJob, livePushSvc.ProcessWidgets, livePushSvc.PurgeExpired)
 		if sched, err := queue.StartReminderScheduler(cfg, log); err != nil {
 			log.Error("reminder_scheduler_init_failed", "error", err)
 		} else {
@@ -688,6 +703,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 			}
 			if err := queue.RegisterPushReceiptsSchedule(sched); err != nil {
 				log.Error("push_receipts_scheduler_failed", "error", err)
+			}
+			if err := queue.RegisterLiveTokensPurgeSchedule(sched); err != nil {
+				log.Error("live_tokens_purge_scheduler_failed", "error", err)
 			}
 			s.reminderSched = sched
 		}
