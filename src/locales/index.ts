@@ -45,6 +45,7 @@ import trSearch from './tr/search.json';
 import trSettings from './tr/settings.json';
 import trStaff from './tr/staff.json';
 import trStepup from './tr/stepup.json';
+import trStockReorder from './tr/stock_reorder.json';
 import trStorage from './tr/storage.json';
 import trSuppliers from './tr/suppliers.json';
 import trTable from './tr/table.json';
@@ -65,6 +66,7 @@ import trMobileNotifications from './mobile/areas/notifications.tr.json';
 import trMobileOnboarding from './mobile/areas/onboarding.tr.json';
 import trMobilePlan from './mobile/areas/plan.tr.json';
 import trMobileQr from './mobile/areas/qr.tr.json';
+import trMobileReorder from './mobile/areas/reorder.tr.json';
 import trMobileSettings from './mobile/areas/settings.tr.json';
 import trMobileSiri from './mobile/areas/siri.tr.json';
 import trMobileUx from './mobile/areas/ux.tr.json';
@@ -112,6 +114,7 @@ import enSearch from './en/search.json';
 import enSettings from './en/settings.json';
 import enStaff from './en/staff.json';
 import enStepup from './en/stepup.json';
+import enStockReorder from './en/stock_reorder.json';
 import enStorage from './en/storage.json';
 import enSuppliers from './en/suppliers.json';
 import enTable from './en/table.json';
@@ -132,6 +135,7 @@ import enMobileNotifications from './mobile/areas/notifications.en.json';
 import enMobileOnboarding from './mobile/areas/onboarding.en.json';
 import enMobilePlan from './mobile/areas/plan.en.json';
 import enMobileQr from './mobile/areas/qr.en.json';
+import enMobileReorder from './mobile/areas/reorder.en.json';
 import enMobileSettings from './mobile/areas/settings.en.json';
 import enMobileSiri from './mobile/areas/siri.en.json';
 import enMobileUx from './mobile/areas/ux.en.json';
@@ -182,13 +186,14 @@ export const catalogs = {
     settings: trSettings,
     staff: trStaff,
     stepup: trStepup,
+    stock_reorder: trStockReorder,
     storage: trStorage,
     suppliers: trSuppliers,
     table: trTable,
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCalendar, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileMessaging, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileSettings, ...trMobileSiri, ...trMobileUx },
+    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCalendar, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileMessaging, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileReorder, ...trMobileSettings, ...trMobileSiri, ...trMobileUx },
   },
   en: {
     access: enAccess,
@@ -235,13 +240,14 @@ export const catalogs = {
     settings: enSettings,
     staff: enStaff,
     stepup: enStepup,
+    stock_reorder: enStockReorder,
     storage: enStorage,
     suppliers: enSuppliers,
     table: enTable,
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCalendar, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileMessaging, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileSettings, ...enMobileSiri, ...enMobileUx },
+    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCalendar, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileMessaging, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileReorder, ...enMobileSettings, ...enMobileSiri, ...enMobileUx },
   },
 } as const;
 

@@ -1,0 +1,15 @@
+{
+  "reorder.increase": "artır",
+  "reorder.decrease": "azalt",
+  "reorder.stock_line": "Stok {{stock}} {{unit}}",
+  "reorder.on_order": "taslakta {{qty}}",
+  "reorder.suggested_line": "Önerilen {{qty}} {{unit}}",
+  "reorder.days_short": "{{count}} gün",
+  "reorder.drafts_open": "{{count}} açık taslak",
+  "reorder.subtitle": "Kullanım hızına göre ne sipariş edilmeli",
+  "reorder.clear_group": "Seçimi kaldır",
+  "reorder.select_group": "Tümünü seç",
+  "reorder.empty_hint": "Stok takipli ürünlerin hepsi yeterli görünüyor.",
+  "reorder.drafts_subtitle": "Onaylanana kadar stok ve kasa değişmez",
+  "plan.module.stock_reorder_enabled": "Stok sipariş önerileri"
+}

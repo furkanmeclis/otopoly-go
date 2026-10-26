@@ -1,5 +1,5 @@
 # OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND.
-# Source: otopoly-go backend/docs/openapi.yaml @ 801d779 (scripts/contract/refresh-spec.sh).
+# Source: otopoly-go backend/docs/openapi.yaml @ a810a53 (scripts/contract/refresh-spec.sh).
 openapi: 3.1.0
 info:
   title: App API
@@ -1222,6 +1222,119 @@ paths:
                 $ref: "#/components/schemas/EnvelopeOAuthProviderSettings"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/apple/apns:
+    get:
+      tags: [Platform]
+      operationId: getPlatformAPNsKey
+      summary: Read the APNs key status (Live Activity pushes)
+      description: |
+        Status of the APNs token key used for iOS Live Activity pushes. The key
+        uploaded here (database) wins over the APNS_* env vars (fallback). The
+        .p8 itself is never returned; key_fingerprint is a short SHA-256 of
+        its public key. Requires platform.integrations.apple.read (super admin).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: APNs key status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Platform]
+      operationId: putPlatformAPNsKey
+      summary: Upload / edit the APNs key
+      description: |
+        Stores the APNs .p8 (sealed with the integration vault) and its fields.
+        private_key may be omitted when a key is already stored (only the
+        fields change). The key must be an Apple .p8 (PEM, PKCS#8, EC P-256 /
+        ES256). A Sign in with Apple key cannot send pushes; create a key with
+        "Apple Push Notifications service (APNs)" enabled. Pushes in the API and
+        the worker pick the change up within a minute. Requires
+        platform.integrations.apple.write.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavePlatformAPNsKeyRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SavePlatformAPNsKeyMultipart"
+      responses:
+        "200":
+          description: Saved APNs key status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformAPNsKey
+      summary: Remove the uploaded APNs key
+      description: Removes the stored key and fields; the APNS_* env key, if set, takes over. Requires platform.integrations.apple.write.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: APNs key status after removal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/apple/apns/test:
+    post:
+      tags: [Platform]
+      operationId: testPlatformAPNsKey
+      summary: Test the active APNs key against Apple
+      description: |
+        Signs a provider token with the active key (database, else env) and
+        sends one Live Activity push to a device token that cannot exist, on
+        the configured environment host. Nothing is delivered. 400
+        BadDeviceToken means key, team and topic were accepted (ok: true); 403
+        InvalidProviderToken / ExpiredProviderToken means the key or team id
+        was rejected. The outcome is stored as last_test. Requires
+        platform.integrations.apple.write.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Test outcome (also for a rejected key; see verdict)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsTestResult"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -9136,9 +9249,10 @@ paths:
           schema: { type: string, format: uuid }
         - name: status
           in: query
+          description: Omitted lists posted and voided purchases; `draft` lists drafts.
           schema:
             type: string
-            enum: [posted, voided]
+            enum: [draft, posted, voided]
         - name: date_from
           in: query
           schema: { type: string, format: date }
@@ -9220,6 +9334,37 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
 
   /v1/tenant/purchases/{uuid}:
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantPurchaseDraft
+      summary: Discard a draft purchase (posted purchases are voided instead)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Draft deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [deleted]
+                    properties:
+                      deleted: { type: boolean }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
     get:
       tags: [Tenant]
       operationId: getTenantPurchase
@@ -9265,6 +9410,345 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/purchases/drafts:
+    post:
+      tags: [Tenant]
+      operationId: createTenantPurchaseDraft
+      summary: Create a draft purchase (no stock or finance effect until posted)
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PurchaseDraftInput" }
+      responses:
+        "201":
+          description: Draft created (`status` = `draft`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/purchases/{uuid}/draft:
+    put:
+      tags: [Tenant]
+      operationId: updateTenantPurchaseDraft
+      summary: Replace the supplier, notes and lines of a draft purchase
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PurchaseDraftInput" }
+      responses:
+        "200":
+          description: Draft updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/purchases/{uuid}/post:
+    post:
+      tags: [Tenant]
+      operationId: postTenantPurchaseDraft
+      summary: Post a draft purchase (stock in, expense on the finance account)
+      description: |
+        Runs the regular purchase flow on the draft: tracked products' stock
+        goes up and the expense is booked on `finance_account_uuid`. `lines`
+        (optional) replace the draft lines; `notes` (optional) replace the
+        notes. A purchase that is not a draft answers `409`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, finance_account_uuid]
+              properties:
+                method: { type: string, enum: [cash, card] }
+                finance_account_uuid: { type: string, format: uuid }
+                purchased_at: { type: string, format: date-time }
+                notes: { type: string }
+                supplier_uuid: { type: string, format: uuid }
+                lines:
+                  type: array
+                  items: { $ref: "#/components/schemas/PurchaseLineInput" }
+      responses:
+        "200":
+          description: Purchase posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePurchaseDetail"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/stock-reorder/suggestions:
+    get:
+      tags: [Tenant]
+      operationId: getTenantStockReorderSuggestions
+      summary: Stock reorder suggestions
+      description: |
+        One row per active stock-tracked product that needs attention (or
+        every product with `all=true`), most urgent first. Formula:
+        `max(0, ceil(velocity × (lead_days + target_days) + min_stock − stock − on_order))`,
+        rounded up to whole packs; velocity = (job consumptions not reverted +
+        posted sales) of the last `velocity_days` / `velocity_days`; on_order
+        = quantity on draft purchases. `inputs` explains every value.
+        `403 FEATURE_DISABLED` when the plan excludes `stock_reorder.enabled`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: urgency
+          in: query
+          schema: { type: string, enum: [out_of_stock, below_min, low_cover] }
+        - name: supplier_uuid
+          in: query
+          description: Preferred supplier filter; `none` = products without a supplier.
+          schema: { type: string }
+        - $ref: "#/components/parameters/Q"
+        - name: all
+          in: query
+          description: Include products that need nothing.
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Suggestions with summary and settings
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: "#/components/schemas/StockReorderList" }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/stock-reorder/summary:
+    get:
+      tags: [Tenant]
+      operationId: getTenantStockReorderSummary
+      summary: Reorder counts (nav badge, dashboard)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Counts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data: { $ref: "#/components/schemas/StockReorderSummary" }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/stock-reorder/settings:
+    get:
+      tags: [Tenant]
+      operationId: getTenantStockReorderSettings
+      summary: Reorder settings (defaults when never saved)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStockReorderSettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantStockReorderSettings
+      summary: Save reorder settings (owner)
+      description: "`supplier_lead_days`, when sent, replaces every supplier lead time."
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [velocity_days, lead_days, target_days, notify_enabled]
+              properties:
+                velocity_days: { type: integer, enum: [7, 14, 30, 60, 90] }
+                lead_days: { type: integer, minimum: 0, maximum: 180 }
+                target_days: { type: integer, minimum: 1, maximum: 365 }
+                notify_enabled: { type: boolean }
+                supplier_lead_days:
+                  type: array
+                  items:
+                    type: object
+                    required: [supplier_uuid, lead_days]
+                    properties:
+                      supplier_uuid: { type: string, format: uuid }
+                      lead_days: { type: integer, minimum: 0, maximum: 180 }
+      responses:
+        "200":
+          description: Saved settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStockReorderSettings" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/stock-reorder/products/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [Tenant]
+      operationId: getTenantStockReorderProduct
+      summary: A product's reorder override (null when none)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Override
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStockReorderProductOverride" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [Tenant]
+      operationId: updateTenantStockReorderProduct
+      summary: Set a product's reorder override (owner); all fields null removes it
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                supplier_uuid: { type: [string, "null"], format: uuid }
+                lead_days: { type: [integer, "null"], minimum: 0, maximum: 180 }
+                target_days: { type: [integer, "null"], minimum: 1, maximum: 365 }
+                pack_size: { type: [string, "null"] }
+      responses:
+        "200":
+          description: Saved override
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStockReorderProductOverride" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantStockReorderProduct
+      summary: Remove a product's reorder override (owner)
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Override removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [deleted]
+                    properties:
+                      deleted: { type: boolean }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/stock-reorder/drafts:
+    post:
+      tags: [Tenant]
+      operationId: createTenantStockReorderDrafts
+      summary: Create draft purchases from selected suggestions (owner)
+      description: |
+        Groups the items by supplier (item `supplier_uuid`, else the
+        suggestion's preferred supplier) and creates one draft purchase per
+        supplier. Unit cost defaults to the last purchase cost, else the
+        product cost price. Drafts change neither stock nor finance until
+        posted (`POST /v1/tenant/purchases/{uuid}/post`).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                notes: { type: string }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  items:
+                    type: object
+                    required: [product_uuid, qty]
+                    properties:
+                      product_uuid: { type: string, format: uuid }
+                      qty: { type: string }
+                      supplier_uuid: { type: [string, "null"], format: uuid }
+                      unit_cost: { type: [string, "null"] }
+      responses:
+        "201":
+          description: Drafts created (one per supplier)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success: { type: boolean, enum: [true] }
+                  data:
+                    type: object
+                    required: [drafts]
+                    properties:
+                      drafts:
+                        type: array
+                        items: { $ref: "#/components/schemas/PurchaseDetail" }
+                  meta: { $ref: "#/components/schemas/ResponseMeta" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/reports/meta:
     get:
@@ -15405,6 +15889,100 @@ components:
         data: { $ref: "#/components/schemas/OAuthProviderSettings" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
+    PlatformAPNsActiveKey:
+      type: object
+      description: Credentials pushes use right now (never the key itself).
+      required: [key_id, team_id, bundle_id, environment, host, key_fingerprint]
+      properties:
+        key_id: { type: string, example: GS6Q2FZ3PT }
+        team_id: { type: string, example: ABCDE12345 }
+        bundle_id: { type: string, example: com.otopoly.app }
+        environment: { type: string, enum: [production, sandbox] }
+        host: { type: string, example: "https://api.push.apple.com" }
+        key_fingerprint: { type: string, description: Short SHA-256 hex of the public key, example: 3f9a0c1d2e4b5a69 }
+
+    PlatformAPNsTestResult:
+      type: object
+      required: [ok, verdict, reason, source, environment, tested_at]
+      properties:
+        ok: { type: boolean, description: "true when APNs accepted key, team and topic (400 BadDeviceToken)" }
+        verdict:
+          type: string
+          enum: [accepted, key_rejected, topic_rejected, rate_limited, rejected, unreachable, not_configured]
+        status: { type: integer, description: APNs HTTP status (absent when APNs was not reached), example: 400 }
+        reason: { type: string, description: APNs reason, example: BadDeviceToken }
+        source: { type: string, enum: [database, env, none] }
+        environment: { type: string, enum: [production, sandbox] }
+        host: { type: string }
+        error: { type: string, description: Transport error when unreachable }
+        tested_at: { type: string, format: date-time }
+
+    PlatformAPNsStatus:
+      type: object
+      required:
+        [source, stored, key_id, team_id, team_id_source, effective_team_id, bundle_id, environment,
+         key_fingerprint, uploaded_at, updated_at, env_configured, active, last_test]
+      properties:
+        source:
+          type: string
+          enum: [database, env, none]
+          description: Where pushes take the key from (database first, env fallback).
+        stored: { type: boolean, description: A key was uploaded from the panel }
+        key_id: { type: string, description: Stored key id ("" when none) }
+        team_id: { type: string, description: Stored team id ("" = fallback) }
+        team_id_source: { type: string, enum: [database, apple_integration, env, none] }
+        effective_team_id: { type: string }
+        bundle_id: { type: string, example: com.otopoly.app }
+        environment: { type: string, enum: [production, sandbox] }
+        key_fingerprint: { type: string, description: Stored key's public-key fingerprint ("" when none) }
+        uploaded_at: { type: [string, "null"], format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        env_configured: { type: boolean, description: APNS_* env key present }
+        active:
+          oneOf:
+            - $ref: "#/components/schemas/PlatformAPNsActiveKey"
+            - type: "null"
+        last_test:
+          oneOf:
+            - $ref: "#/components/schemas/PlatformAPNsTestResult"
+            - type: "null"
+
+    SavePlatformAPNsKeyRequest:
+      type: object
+      required: [key_id]
+      properties:
+        key_id: { type: string, description: 10-character key id, example: GS6Q2FZ3PT }
+        team_id: { type: string, description: "Optional; empty = Apple integration team id, then APNS_TEAM_ID" }
+        bundle_id: { type: string, description: "Default com.otopoly.app" }
+        environment: { type: string, enum: [production, sandbox], description: Default production }
+        private_key: { type: string, description: ".p8 PEM text; optional when a key is already stored" }
+
+    SavePlatformAPNsKeyMultipart:
+      type: object
+      required: [key_id]
+      properties:
+        key_id: { type: string }
+        team_id: { type: string }
+        bundle_id: { type: string }
+        environment: { type: string, enum: [production, sandbox] }
+        private_key: { type: string, format: binary, description: The AuthKey_XXXXXXXXXX.p8 file (max 16 KB) }
+
+    EnvelopePlatformAPNsStatus:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PlatformAPNsStatus" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopePlatformAPNsTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PlatformAPNsTestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
     LinkedIdentity:
       type: object
       required: [provider, linked_at]
@@ -17751,7 +18329,7 @@ components:
       type: object
       required: [kind, uuid]
       properties:
-        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event] }
+        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event, purchase] }
         uuid: { type: string, format: uuid }
 
     AIActionResult:
@@ -20226,10 +20804,10 @@ components:
         uuid: { type: string, format: uuid }
         supplier_uuid: { type: string, format: uuid }
         supplier_name: { type: string }
-        status: { type: string, enum: [posted, voided] }
+        status: { type: string, enum: [draft, posted, voided], description: "draft: no stock / finance effect until posted" }
         currency: { type: string }
         total_amount: { type: string }
-        method: { type: string, enum: [cash, card] }
+        method: { type: string, enum: [cash, card], description: "Drafts carry cash until posting chooses the method." }
         finance_account_uuid: { type: string, format: uuid }
         finance_account_name: { type: string }
         finance_transaction_uuid: { type: string, format: uuid }
@@ -20273,6 +20851,162 @@ components:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/PurchaseDetail" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PurchaseLineInput:
+      type: object
+      required: [product_uuid]
+      properties:
+        product_uuid: { type: string, format: uuid }
+        unit_cost: { type: string }
+        qty: { type: string }
+
+    PurchaseDraftInput:
+      type: object
+      required: [supplier_uuid, lines]
+      properties:
+        supplier_uuid: { type: string, format: uuid }
+        notes: { type: string }
+        currency: { type: string }
+        lines:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/PurchaseLineInput" }
+
+    # ---------------------------------------------------------------------
+    # Stock reorder (internal/modules/stockreorder/usecase/service.go)
+    # ---------------------------------------------------------------------
+    StockReorderSupplierLead:
+      type: object
+      required: [supplier_uuid, lead_days]
+      properties:
+        supplier_uuid: { type: string, format: uuid }
+        supplier_name: { type: string }
+        lead_days: { type: integer }
+
+    StockReorderSettings:
+      type: object
+      required: [velocity_days, lead_days, target_days, notify_enabled, notify_time, supplier_lead_days, velocity_day_options]
+      properties:
+        velocity_days: { type: integer, description: Usage window in days (default 30). }
+        lead_days: { type: integer, description: Default lead time (default 3). }
+        target_days: { type: integer, description: Target cover after delivery (default 14). }
+        notify_enabled: { type: boolean, description: Daily notification at notify_time Europe/Istanbul. }
+        notify_time: { type: string, example: "09:00" }
+        supplier_lead_days:
+          type: array
+          items: { $ref: "#/components/schemas/StockReorderSupplierLead" }
+        velocity_day_options:
+          type: array
+          items: { type: integer }
+
+    EnvelopeStockReorderSettings:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/StockReorderSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    StockReorderProductOverride:
+      type: object
+      required: [supplier_uuid, lead_days, target_days, pack_size]
+      properties:
+        supplier_uuid: { type: [string, "null"], format: uuid }
+        supplier_name: { type: [string, "null"] }
+        lead_days: { type: [integer, "null"] }
+        target_days: { type: [integer, "null"] }
+        pack_size: { type: [string, "null"] }
+
+    EnvelopeStockReorderProductOverride:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data:
+          type: object
+          required: [product_uuid, override]
+          properties:
+            product_uuid: { type: string, format: uuid }
+            override:
+              oneOf:
+                - $ref: "#/components/schemas/StockReorderProductOverride"
+                - type: "null"
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    StockReorderSummary:
+      type: object
+      required: [out_of_stock, below_min, low_cover, urgent, suggested, drafts]
+      properties:
+        out_of_stock: { type: integer }
+        below_min: { type: integer }
+        low_cover: { type: integer }
+        urgent: { type: integer, description: out_of_stock + below_min }
+        suggested: { type: integer, description: Products with a quantity to order. }
+        drafts: { type: integer, description: Open draft purchases. }
+
+    StockReorderInputs:
+      type: object
+      required: [velocity_days, consumed_qty, sold_qty, lead_days, lead_days_source, target_days, target_days_source, demand_qty, raw_need, formula]
+      properties:
+        velocity_days: { type: integer }
+        consumed_qty: { type: string }
+        sold_qty: { type: string }
+        lead_days: { type: integer }
+        lead_days_source: { type: string, enum: [product, supplier, organization] }
+        target_days: { type: integer }
+        target_days_source: { type: string, enum: [product, organization] }
+        demand_qty: { type: string, description: velocity × (lead + target) }
+        raw_need: { type: string, description: demand + min − stock − on_order before rounding }
+        formula: { type: string }
+
+    StockReorderSuggestion:
+      type: object
+      required:
+        [product_uuid, name, sku, unit, currency, urgency, stock, min_stock, on_order, velocity_per_day, days_of_cover,
+         suggested_qty, pack_size, packs, supplier, unit_cost, unit_cost_source, estimated_total, last_purchased_at, inputs, override]
+      properties:
+        product_uuid: { type: string, format: uuid }
+        name: { type: string }
+        sku: { type: string }
+        unit: { type: string }
+        currency: { type: string }
+        urgency: { type: string, enum: [out_of_stock, below_min, low_cover, none] }
+        stock: { type: string }
+        min_stock: { type: string }
+        on_order: { type: string }
+        velocity_per_day: { type: string }
+        days_of_cover: { type: [string, "null"], description: null = no usage }
+        suggested_qty: { type: string }
+        pack_size: { type: [string, "null"] }
+        packs: { type: [integer, "null"] }
+        supplier:
+          type: [object, "null"]
+          required: [uuid, name, source]
+          properties:
+            uuid: { type: string, format: uuid }
+            name: { type: string }
+            source: { type: string, enum: [product, last_purchase] }
+        unit_cost: { type: string }
+        unit_cost_source: { type: string, enum: [last_purchase, cost_price] }
+        estimated_total: { type: string }
+        last_purchased_at: { type: [string, "null"], format: date-time }
+        inputs: { $ref: "#/components/schemas/StockReorderInputs" }
+        override:
+          oneOf:
+            - $ref: "#/components/schemas/StockReorderProductOverride"
+            - type: "null"
+
+    StockReorderList:
+      type: object
+      required: [items, total, summary, settings, generated_at]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/StockReorderSuggestion" }
+        total: { type: integer }
+        summary: { $ref: "#/components/schemas/StockReorderSummary" }
+        settings: { $ref: "#/components/schemas/StockReorderSettings" }
+        generated_at: { type: string, format: date-time }
 
     # ---------------------------------------------------------------------
     # Staff (internal/modules/staff/usecase/service.go)

@@ -164,6 +164,14 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Live resource `tenant.calendar` (`tenant.calendar.read`): calendar screen and the Bugün card refresh on calendar event changes / moves
 - [x] Mock calendar API with seeded events and every module layer (`scripts/smoke/calendar.smoke.ts`)
 
+## 13c. Stock reorder suggestions — `tenant.purchases.*` + `tenant.catalog.read` (plan `stock_reorder.enabled`)
+- [x] `/purchases/reorder` (Menu → Katalog → Sipariş önerileri, badge = out of stock + below minimum): suggestions grouped by preferred supplier (section totals, select / clear a group), urgency chips (stokta yok / minimumun altında / yakında bitecek), search, stock vs minimum bar, usage per day and days of cover, quantity on drafts, "Nasıl hesaplandı?" with every formula input
+- [x] Quantity steppers (one unit or one pack), select rows → "Taslak oluştur" **O** (one draft purchase per supplier; rows without a supplier are flagged)
+- [x] Settings sheet: usage window, lead time, target cover, daily 09:00 notification, per-supplier lead time **O**; product sheet (supplier, lead, target, pack size, reset) **O**
+- [x] `/purchases/reorder/drafts` and the purchase detail of a draft: "Onayla ve alışa çevir" sheet (method, account, received qty / cost) and delete **O**; purchases list has a Taslak tab
+- [x] Push / in-app `stock.reorder_due` → `/t/{slug}/purchases/reorder` deep link; plan lock via `ModuleGate`; live `tenant.stock_reorder` (+ stock, sales, jobs, purchases refresh the suggestions)
+- [x] Mock API with the same formula, seeded pack size / supplier lead time / open draft (`scripts/smoke/reorder.smoke.ts`)
+
 ## 14. Staff — `tenant.staff.*`
 - [ ] List (status, role)
 - [ ] Create **O** (name, surname, email, password), activate/deactivate **O**, reset password **O**

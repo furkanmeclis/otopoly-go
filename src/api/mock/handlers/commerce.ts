@@ -394,7 +394,8 @@ route('GET', '/v1/tenant/purchases', (ctx) => {
   requirePerm(ctx, 'tenant.purchases.read');
   const q = ctx.query;
   let items = getDb().purchases;
-  if (q.status) items = items.filter((p) => p.status === q.status);
+  // Drafts only with status=draft (backend ListPurchases).
+  items = q.status ? items.filter((p) => p.status === q.status) : items.filter((p) => p.status !== 'draft');
   const supplierUuid = uuidQuery(ctx, 'supplier_uuid');
   if (supplierUuid) items = items.filter((p) => p.supplier_uuid === supplierUuid);
   if (q.date_from || q.date_to) items = items.filter((p) => inDayRange(p.purchased_at, q.date_from, q.date_to));
@@ -474,7 +475,7 @@ route('POST', '/v1/tenant/purchases/:uuid/void', (ctx) => {
   requireOwner(ctx, 'tenant.purchases.write');
   const db = getDb();
   const p = findPurchase(ctx);
-  if (p.status === 'voided') fail(409, 'CONFLICT', 'Purchase already voided');
+  if (p.status !== 'posted') fail(409, 'CONFLICT', 'only posted purchases can be voided');
   voidFinanceBySource(db, 'purchase', p.uuid);
   for (const l of p.lines) moveStock(db, l.product_uuid, -num(l.qty));
   p.status = 'voided';

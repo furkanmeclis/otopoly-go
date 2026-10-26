@@ -74,5 +74,6 @@
   "nav_billing_settings": "Payment settings",
   "nav_billing_invoices": "Invoices",
   "nav_billing_dashboard": "Dashboard",
-  "breadcrumb_label": "Breadcrumb"
+  "breadcrumb_label": "Breadcrumb",
+  "nav_stock_reorder": "Reorder suggestions"
 }

@@ -18,6 +18,7 @@ import {
   MessageCircle,
   Moon,
   Package,
+  PackageSearch,
   Receipt,
   Repeat,
   ScanQrCode,
@@ -44,6 +45,7 @@ import { ownerOnly, P, type Gate, type Permission } from '@/features/auth/permis
 import { useUnreadCount } from '@/features/notifications/queries';
 import { reopenSetup } from '@/features/onboarding/setup';
 import { useLeadsSummary, useQuotesSummary, useTodosSummary } from '@/features/queries';
+import { useReorderSummary } from '@/features/stock-reorder/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { useLocale } from '@/lib/i18n/provider';
 import type { AppLocale } from '@/lib/i18n/translate';
@@ -65,6 +67,8 @@ export default function MenuScreen() {
   const leads = useLeadsSummary(can(P.leadsRead));
   const quotes = useQuotesSummary(can(P.quotesRead));
   const unread = useUnreadCount(can(P.notificationsRead));
+  const reorder = useReorderSummary(can(P.purchasesRead) && can(P.catalogRead));
+  const reorderUrgent = reorder.data?.urgent ?? 0;
   const ic = (Icon: typeof Wrench) => <Icon size={20} color={t.colors.primary} />;
 
   const todoDue = (todos.data?.overdue ?? 0) + (todos.data?.today ?? 0);
@@ -112,6 +116,14 @@ export default function MenuScreen() {
         { key: 'services', title: tr('layout.nav_catalog_services'), icon: ic(Wrench), href: '/catalog/services', gate: P.catalogRead },
         { key: 'catalog-categories', title: tr('layout.nav_catalog_categories'), icon: ic(Layers), href: '/catalog/categories', gate: P.catalogRead },
         { key: 'purchases', title: tr('layout.nav_purchases'), icon: ic(ShoppingCart), href: '/purchases', gate: P.purchasesRead },
+        {
+          key: 'stock-reorder',
+          title: tr('layout.nav_stock_reorder'),
+          icon: ic(PackageSearch),
+          href: '/purchases/reorder',
+          gate: P.purchasesRead,
+          badge: reorderUrgent ? { value: reorderUrgent, tone: (reorder.data?.out_of_stock ?? 0) > 0 ? 'danger' : 'warning' } : undefined,
+        },
       ],
     },
     {

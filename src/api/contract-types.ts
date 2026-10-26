@@ -12,6 +12,7 @@ import type { Job, JobConsumption, JobDetail, JobLine, JobPayment, JobsSummary }
 import type { Purchase, PurchaseDetail, PurchaseLine } from '@/features/purchases/services/purchases.service';
 import type { Sale, SaleDetail, SaleLine, SalesSummary } from '@/features/sales/services/sales.service';
 import type { StaffMember } from '@/features/staff/services/staff.service';
+import type { ReorderList, ReorderProductOverride, ReorderSettings, ReorderSuggestion, ReorderSummary } from '@/features/stock-reorder/types';
 import type { Supplier } from '@/features/suppliers/services/suppliers.service';
 
 type S = components['schemas'];
@@ -42,4 +43,9 @@ export type ResponseContract = [
   Check<Accepts<CariAccountDetail, S['CariAccountDetail']>>,
   Check<Accepts<CariEntry, S['CariEntry']>>,
   Check<Accepts<CariSummary, S['CariSummary']>>,
+  Check<Accepts<ReorderSuggestion, S['StockReorderSuggestion']>>,
+  Check<Accepts<ReorderSummary, S['StockReorderSummary']>>,
+  Check<Accepts<ReorderSettings, S['StockReorderSettings']>>,
+  Check<Accepts<ReorderProductOverride, S['StockReorderProductOverride']>>,
+  Check<Accepts<ReorderList, S['StockReorderList']>>,
 ];
