@@ -126,6 +126,8 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `get_finance_balances` | read | `tenant.finance.read` |
 | `get_sales_summary` | read | `tenant.sales.read` |
 | `search_products` | read | `tenant.catalog.read` |
+| `list_services` | read | `tenant.catalog.read` |
+| `list_finance_categories` | read | `tenant.finance.read` |
 | `search_vehicle_models` | read | `tenant.customers.read` |
 | `list_todos` | read | `tenant.todos.read` |
 | `list_leads` | read | `tenant.leads.read` (plan `module.quotes`) |
@@ -133,12 +135,17 @@ the provider settings and the AI request quota do not (the model runs in the cli
 | `create_customer` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `add_customer_vehicle` | write | `tenant.customers.write`, `tenant.customers.read` |
 | `create_job` | write | `tenant.jobs.write`, `tenant.customers.read`, `tenant.catalog.read` |
-| `update_job_status` | write | `tenant.jobs.write`, `tenant.jobs.read` |
+| `update_job_status` | write | `tenant.jobs.write`, `tenant.jobs.read` (+ `tenant.finance.read` with `payment_method`) |
+| `record_job_payment` | write | `tenant.jobs.write`, `tenant.jobs.read`, `tenant.finance.read` |
+| `cancel_job` | write | `tenant.jobs.write`, `tenant.jobs.read` (paid jobs: owner) |
+| `quick_job` | write | `tenant.customers.write`, `tenant.customers.read`, `tenant.jobs.write`, `tenant.catalog.read` (+ `tenant.finance.read` with `payment_method`) |
 | `create_quick_sale` | write | `tenant.sales.write`, `tenant.catalog.read`, `tenant.finance.read` |
 | `record_cari_payment` | write | `tenant.cari.write`, `tenant.cari.read`, `tenant.finance.read` |
 | `record_cari_charge` | write | `tenant.cari.write`, `tenant.cari.read` |
 | `record_finance_entry` | write | `tenant.finance.write`, `tenant.finance.read` |
 | `create_finance_transfer` | write | `tenant.finance.write`, `tenant.finance.read` |
+| `update_finance_entry` | write | `tenant.finance.write`, `tenant.finance.read` (owner) |
+| `void_finance_entry` | write | `tenant.finance.write`, `tenant.finance.read` (owner; cari entries also `tenant.cari.write`) |
 | `create_todo` | write | `tenant.todos.write` |
 | `complete_todo` | write | `tenant.todos.write` |
 <!-- mcp-org-tools:end -->

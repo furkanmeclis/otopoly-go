@@ -629,6 +629,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		Finance:         financeSvc,
 		Sales:           salesSvc,
 		Catalog:         catalogSvc,
+		UnpaidJobs:      jobsSvc,
 		CariWrite:       cariSvc,
 		FinanceWrite:    financeSvc,
 		CustomersWrite:  customersSvc,

@@ -29,6 +29,7 @@ type (
 	nopFinance        struct{ aitools.FinanceReader }
 	nopSales          struct{ aitools.SalesReader }
 	nopCatalog        struct{ aitools.CatalogReader }
+	nopUnpaid         struct{ aitools.UnpaidJobsReader }
 	nopCariW          struct{ aitools.CariWriter }
 	nopFinanceW       struct{ aitools.FinanceWriter }
 	nopCustomersW     struct{ aitools.CustomersWriter }
@@ -53,7 +54,7 @@ type (
 func orgTools() []aitools.Tool {
 	reg := aitools.DefaultRegistry(aitools.Deps{
 		Customers: nopCustomers{}, CustomersSearch: nopSearch{}, Cari: nopCari{}, Jobs: nopJobs{}, Reports: nopReports{},
-		Finance: nopFinance{}, Sales: nopSales{}, Catalog: nopCatalog{}, CariWrite: nopCariW{}, FinanceWrite: nopFinanceW{},
+		Finance: nopFinance{}, Sales: nopSales{}, Catalog: nopCatalog{}, UnpaidJobs: nopUnpaid{}, CariWrite: nopCariW{}, FinanceWrite: nopFinanceW{},
 		CustomersWrite: nopCustomersW{}, VehicleCatalog: nopVehicleCatalog{}, VehicleOptions: nopVehicleOptions{},
 		JobsWrite: nopJobsW{}, CatalogLookup: nopLookup{}, SalesWrite: nopSalesW{}, Todos: nopTodos{},
 	})

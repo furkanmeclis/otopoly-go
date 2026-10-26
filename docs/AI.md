@@ -141,6 +141,8 @@ confirmed.
 | `get_finance_balances` | read | chat | `tenant.finance.read` |
 | `get_sales_summary` | read | chat | `tenant.sales.read` |
 | `search_products` | read | chat | `tenant.catalog.read` |
+| `list_services` | read | chat | `tenant.catalog.read` |
+| `list_finance_categories` | read | chat | `tenant.finance.read` |
 | `search_vehicle_models` | read | actions | `tenant.customers.read` |
 | `list_todos` | read | todos | `tenant.todos.read` |
 | `list_calendar` | read | chat | `tenant.calendar.read` (+ each layer's module read permission) |
@@ -150,10 +152,15 @@ confirmed.
 | `record_cari_charge` | write | actions | `tenant.cari.write`, `tenant.cari.read` (owner) |
 | `record_finance_entry` | write | actions | `tenant.finance.write`, `tenant.finance.read` (owner) |
 | `create_finance_transfer` | write | actions | `tenant.finance.write`, `tenant.finance.read` (owner) |
+| `update_finance_entry` | write | actions | `tenant.finance.write`, `tenant.finance.read` (owner) |
+| `void_finance_entry` | write | actions | `tenant.finance.write`, `tenant.finance.read` (owner; cari entries also `tenant.cari.write`) |
 | `create_customer` | write | actions | `tenant.customers.write`, `tenant.customers.read` |
 | `add_customer_vehicle` | write | actions | `tenant.customers.write`, `tenant.customers.read` |
 | `create_job` | write | actions | `tenant.jobs.write`, `tenant.customers.read`, `tenant.catalog.read` |
-| `update_job_status` | write | actions | `tenant.jobs.write`, `tenant.jobs.read` |
+| `update_job_status` | write | actions | `tenant.jobs.write`, `tenant.jobs.read` (+ `tenant.finance.read` with `payment_method`) |
+| `record_job_payment` | write | actions | `tenant.jobs.write`, `tenant.jobs.read`, `tenant.finance.read` |
+| `cancel_job` | write | actions | `tenant.jobs.write`, `tenant.jobs.read` (paid jobs: owner) |
+| `quick_job` | write | actions | `tenant.customers.write`, `tenant.customers.read`, `tenant.jobs.write`, `tenant.catalog.read` (+ `tenant.finance.read` with `payment_method`) |
 | `create_quick_sale` | write | actions | `tenant.sales.write`, `tenant.catalog.read`, `tenant.finance.read` |
 | `create_todo` | write | todos | `tenant.todos.write` |
 | `complete_todo` | write | todos | `tenant.todos.write` |
@@ -163,6 +170,37 @@ confirmed.
 the organization's most recent customers and returns `total`, the organization's
 customer count. Non-empty queries still require at least 2 characters and match
 name, phone, email or vehicle plate.
+
+**Money owed by a customer.** `get_customer_account` (by `cari_account_uuid` or
+`customer_uuid`) returns the cari ledger `balance` and, separately, `open_jobs`
+with `unpaid_jobs_total` and `total_due` (= balance + unpaid jobs). Unpaid jobs
+(payment status unpaid, not cancelled/voided) are not in the cari ledger until
+they are closed on cari; the rule is the same as the customer page's
+`unpaid_amount`. `search_customers` adds `unpaid_job_count` / `unpaid_jobs_total`
+per row. Both need `tenant.jobs.read` for the job part.
+
+**Taking payment and undoing.** A job is collected only with `record_job_payment`
+(or `update_job_status` `status=delivered` + `payment_method`, or `quick_job`
++ `payment_method`): it calls the jobs module's close use case, so the job
+becomes paid and a "Hizmet Geliri" income (cash/card; `transfer` is booked like
+card into a bank account) or a cari charge (`cari`) is written in one database
+transaction. `void_finance_entry` reverses manual finance entries and cari
+entries (a cari collection's finance row is voided through the cari entry);
+entries owned by a job, sale or purchase are refused with the tool to use
+instead. `update_finance_entry` corrects category / account / amount / date /
+description of a manual income or expense and moves the balances.
+`cancel_job` cancels an unpaid open job, or voids a paid one (owner only; the
+payment is reversed). Products used on the job go back to stock either way.
+
+**Catalog names.** Job lines must be catalog services: an unknown name is
+refused with the closest names (`list_services` lists them). `record_finance_entry`
+requires a category; an unknown one is refused with the available names
+(`list_finance_categories`, system categories come from the finance module's
+seed list). `quick_job` finds the customer by plate (exact, ignoring spaces and
+case) or phone (last 10 digits) and returns candidates when it is ambiguous.
+`quick_job` steps (customer + vehicle, job, payment) are each atomic in their
+module and run in that order; a failure reports what was already saved and
+never leaves a half-booked payment.
 
 Day-based tools use Europe/Istanbul days (`list_jobs` and `get_sales_summary`
 pass explicit Istanbul day ranges, so a UTC server answers "bugün" correctly).
