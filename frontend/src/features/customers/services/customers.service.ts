@@ -2,6 +2,7 @@ import { createElement } from "react";
 
 import { BrandMark } from "@/components/common/brand-mark";
 import type { ServerListParams } from "@/components/entity";
+import type { components } from "@/generated/api";
 import { platformRequest } from "@/lib/api/platform-request";
 import type { ResourceMeta } from "@/features/io/types";
 
@@ -71,6 +72,9 @@ export function customerVehicleOptions(vehicles: CustomerVehicle[]) {
   }));
 }
 
+/** 360° summary of a customer (`GET /v1/tenant/customers/{uuid}/summary`). */
+export type CustomerSummary = components["schemas"]["CustomerSummary"];
+
 export type ListPage<T> = {
   items: T[];
   total: number;
@@ -97,6 +101,12 @@ export const customersService = {
     return platformRequest<CustomerDetail>(
       "GET",
       `/v1/tenant/customers/${uuid}`,
+    );
+  },
+  summary(uuid: string) {
+    return platformRequest<CustomerSummary>(
+      "GET",
+      `/v1/tenant/customers/${uuid}/summary`,
     );
   },
   create(body: {
