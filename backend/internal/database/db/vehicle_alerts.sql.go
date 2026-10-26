@@ -111,7 +111,7 @@ func (q *Queries) GetVehicleAlertJob(ctx context.Context, argUuid uuid.UUID) (Ge
 }
 
 const getVehicleAlertSettings = `-- name: GetVehicleAlertSettings :one
-SELECT organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes, last_flushed_at, created_at, updated_at FROM vehicle_alert_settings
+SELECT organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes, last_flushed_at, created_at, updated_at, channel FROM vehicle_alert_settings
 WHERE organization_id = $1
 `
 
@@ -128,6 +128,7 @@ func (q *Queries) GetVehicleAlertSettings(ctx context.Context, organizationID in
 		&i.LastFlushedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Channel,
 	)
 	return i, err
 }
@@ -157,7 +158,7 @@ func (q *Queries) InsertVehicleAlertEvent(ctx context.Context, arg InsertVehicle
 }
 
 const listOrgsWithPendingVehicleAlerts = `-- name: ListOrgsWithPendingVehicleAlerts :many
-SELECT s.organization_id, s.enabled, s.events, s.service_ids, s.recipient_user_ids, s.batch_minutes, s.last_flushed_at, s.created_at, s.updated_at
+SELECT s.organization_id, s.enabled, s.events, s.service_ids, s.recipient_user_ids, s.batch_minutes, s.last_flushed_at, s.created_at, s.updated_at, s.channel
 FROM vehicle_alert_settings s
 WHERE s.enabled
   AND EXISTS (
@@ -185,6 +186,7 @@ func (q *Queries) ListOrgsWithPendingVehicleAlerts(ctx context.Context) ([]Vehic
 			&i.LastFlushedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Channel,
 		); err != nil {
 			return nil, err
 		}
@@ -356,18 +358,20 @@ func (q *Queries) MarkVehicleAlertEventsSent(ctx context.Context, arg MarkVehicl
 }
 
 const upsertVehicleAlertSettings = `-- name: UpsertVehicleAlertSettings :one
-INSERT INTO vehicle_alert_settings (organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes)
+INSERT INTO vehicle_alert_settings (organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes, channel)
 VALUES (
     $1, $2, $3::text[],
-    $4::bigint[], $5::bigint[], $6
+    $4::bigint[], $5::bigint[], $6,
+    $7
 )
 ON CONFLICT (organization_id) DO UPDATE
 SET enabled = EXCLUDED.enabled,
     events = EXCLUDED.events,
     service_ids = EXCLUDED.service_ids,
     recipient_user_ids = EXCLUDED.recipient_user_ids,
-    batch_minutes = EXCLUDED.batch_minutes
-RETURNING organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes, last_flushed_at, created_at, updated_at
+    batch_minutes = EXCLUDED.batch_minutes,
+    channel = EXCLUDED.channel
+RETURNING organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes, last_flushed_at, created_at, updated_at, channel
 `
 
 type UpsertVehicleAlertSettingsParams struct {
@@ -377,6 +381,7 @@ type UpsertVehicleAlertSettingsParams struct {
 	ServiceIds       []int64  `json:"service_ids"`
 	RecipientUserIds []int64  `json:"recipient_user_ids"`
 	BatchMinutes     int32    `json:"batch_minutes"`
+	Channel          string   `json:"channel"`
 }
 
 func (q *Queries) UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error) {
@@ -387,6 +392,7 @@ func (q *Queries) UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehi
 		arg.ServiceIds,
 		arg.RecipientUserIds,
 		arg.BatchMinutes,
+		arg.Channel,
 	)
 	var i VehicleAlertSetting
 	err := row.Scan(
@@ -399,6 +405,7 @@ func (q *Queries) UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehi
 		&i.LastFlushedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Channel,
 	)
 	return i, err
 }

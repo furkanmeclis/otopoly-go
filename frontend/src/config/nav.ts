@@ -38,6 +38,7 @@ import {
   Landmark,
   Scale,
   PlugZap,
+  MessageSquareText,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -157,6 +158,13 @@ export const platformNav = defineNav({
             permissions.mcp.platformConnect,
             permissions.mcp.manage,
           ],
+        },
+        {
+          id: "sms-report",
+          titleKey: "layout.nav_sms_report",
+          href: routes.platform.smsReport.root,
+          icon: MessageSquareText,
+          permission: permissions.platformSms.read,
         },
         {
           id: "legal-privacy",

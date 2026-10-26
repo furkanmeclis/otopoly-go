@@ -120,6 +120,7 @@
   "groups.other": "Other",
   "labels.tenant.staff.read": "Read tenant staff",
   "labels.tenant.staff.write": "Manage tenant staff",
+  "labels.platform.messaging.sms.read": "Read the platform SMS report",
   "labels.platform.ai.read": "View AI assistant settings",
   "labels.platform.ai.write": "Manage AI assistant settings",
   "labels.tenant.ai.use": "Use AI assistant",

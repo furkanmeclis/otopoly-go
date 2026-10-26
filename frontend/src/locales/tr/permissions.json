@@ -120,6 +120,7 @@
   "groups.other": "Diğer",
   "labels.tenant.staff.read": "Personel görüntüle",
   "labels.tenant.staff.write": "Personel yönet",
+  "labels.platform.messaging.sms.read": "Platform SMS raporunu görüntüle",
   "labels.platform.ai.read": "AI asistan ayarlarını görüntüle",
   "labels.platform.ai.write": "AI asistan ayarlarını yönet",
   "labels.tenant.ai.use": "AI asistanı kullan",

@@ -123,6 +123,19 @@ func (s *Service) QueueSend(ctx context.Context, req OutboundRequest) (uuid.UUID
 			return uuid.Nil, err
 		}
 	}
+	if channel == model.ChannelSMS {
+		// Early plan gate; the exact parts are checked and counted at send time.
+		on, err := s.ent.Enabled(ctx, req.OrgID, FeatureSMSEnabled)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if !on {
+			return uuid.Nil, entitlements.ErrFeatureDisabled
+		}
+		if _, err := s.ent.Check(ctx, req.OrgID, FeatureSMSMonthly, 1); err != nil {
+			return uuid.Nil, err
+		}
+	}
 	att := req.Attachment
 	if att != nil {
 		cp := *att
@@ -237,6 +250,7 @@ func (s *Service) processOutboundObserved(ctx context.Context, id int64, final b
 		return fmt.Errorf("finish outbound: %w", err)
 	}
 	s.recordSender(ctx, row.ID, res, sendErr)
+	s.recordDeliveryStatus(ctx, row.OrganizationID, row.ID, res, sendErr)
 	if observe != nil && (sendErr == nil || final) {
 		o := OutboundOutcome{
 			OrgID: row.OrganizationID, EventType: row.EventType, Channel: row.Channel,
@@ -252,8 +266,11 @@ func (s *Service) processOutboundObserved(ctx context.Context, id int64, final b
 }
 
 func (s *Service) sendOutbound(ctx context.Context, row db.OutboundMessage, inlineData []byte) (deliveryResult, error) {
+	if row.Channel == model.ChannelSMS && s.smsCh != nil {
+		// SMS carries the text only (attachments are not sent).
+		return s.deliverSMS(ctx, row.OrganizationID, row.RecipientPhone, row.Body, smsClassTransactional)
+	}
 	if row.Channel != model.ChannelWhatsApp {
-		// SMS carries the text only.
 		sender, ok := s.channels[row.Channel]
 		if !ok {
 			return deliveryResult{}, fmt.Errorf("%w: %s", ErrChannelUnavailable, row.Channel)
@@ -321,6 +338,10 @@ func mapOutbound(r db.OutboundMessage) model.OutboundMessage {
 	if r.SentAt.Valid {
 		t := r.SentAt.Time
 		m.SentAt = &t
+	}
+	if r.Segments.Valid {
+		v := r.Segments.Int32
+		m.Segments = &v
 	}
 	if r.DeliveryStatusAt.Valid {
 		t := r.DeliveryStatusAt.Time

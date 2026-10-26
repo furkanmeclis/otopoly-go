@@ -35,6 +35,7 @@ const DELIVERY_TONES: Record<string, Tone> = {
   queued: "default",
   sending: "warning",
   sent: "default",
+  accepted: "default",
   delivered: "success",
   read: "success",
   failed: "danger",
@@ -44,6 +45,7 @@ const DELIVERY_KEYS: Record<string, string> = {
   queued: "messaging.outbound.status.queued",
   sending: "messaging.outbound.status.sending",
   sent: "messaging.outbound.status.sent",
+  accepted: "messaging.outbound.status.accepted",
   delivered: "messaging.outbound.status.delivered",
   read: "messaging.outbound.status.read",
   failed: "messaging.outbound.status.failed",
@@ -53,11 +55,23 @@ const SENDER_KEYS: Record<string, string> = {
   org_own: "messaging.outbound.sender.org_own",
   platform_whatsmeow: "messaging.outbound.sender.platform",
   platform_cloud: "messaging.outbound.sender.platform",
+  sms_netgsm: "messaging.outbound.sender.sms_netgsm",
+  sms_twilio: "messaging.outbound.sender.sms_twilio",
 };
+
+/** SMS provider statuses at send time (Netgsm / Twilio) read as "accepted". */
+const SMS_ACCEPTED = new Set(["accepted", "queued", "sending", "sent"]);
 
 /** Webhook delivery status wins over the local send status, except on failure. */
 function effectiveStatus(row: OutboundMessage): string {
   if (row.status === "failed") return "failed";
+  if (
+    row.channel === "sms" &&
+    row.status === "sent" &&
+    SMS_ACCEPTED.has(row.delivery_status ?? "")
+  ) {
+    return "accepted";
+  }
   return row.delivery_status || row.status;
 }
 
@@ -140,7 +154,11 @@ export function OutboundLogCard({ source, description }: OutboundLogCardProps) {
           if (!kind) return <span className="text-muted-foreground">—</span>;
           return (
             <Badge
-              variant={kind === "org_own" ? "secondary" : "outline"}
+              variant={
+                kind === "org_own" || kind.startsWith("sms_")
+                  ? "secondary"
+                  : "outline"
+              }
               className="whitespace-nowrap"
             >
               {t(SENDER_KEYS[kind] ?? "messaging.outbound.sender.platform")}
@@ -187,7 +205,9 @@ export function OutboundLogCard({ source, description }: OutboundLogCardProps) {
           if (!code) return <span className="text-muted-foreground">—</span>;
           return (
             <div className="flex max-w-xs flex-col gap-0.5">
-              <span className="text-sm">{sendErrorLabel(t, code)}</span>
+              <span className="text-sm">
+                {sendErrorLabel(t, code, row.original.channel)}
+              </span>
               <span className="text-muted-foreground font-mono text-[11px]">
                 {code}
               </span>

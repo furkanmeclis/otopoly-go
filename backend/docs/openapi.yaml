@@ -7659,8 +7659,9 @@ paths:
       summary: End-of-day WhatsApp summary settings (owner)
       description: >-
         Enabled flag, local send time (Europe/Istanbul, HH:MM), selected
-        recipients, WhatsApp connection state and the members that can be
-        selected (with whether they have a notification phone).
+        recipients, `channel` (`whatsapp` | `sms`), `whatsapp_connected`,
+        `sms_available` (an active SMS provider exists) and the members that can
+        be selected (with whether they have a notification phone).
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Daily summary settings }
@@ -7685,6 +7686,10 @@ paths:
                   type: array
                   maxItems: 20
                   items: { type: string, format: uuid }
+                channel:
+                  type: string
+                  enum: [whatsapp, sms]
+                  description: Delivery channel; omitted keeps the saved one (default whatsapp).
       responses:
         "200": { description: Saved settings }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -7705,6 +7710,9 @@ paths:
       tags: [Tenant]
       operationId: sendTestTenantDailySummary
       summary: Send today's summary so far to the saved recipients now (owner)
+      description: >-
+        Uses the saved channel. 409 `WHATSAPP_NOT_CONNECTED` / `SMS_NOT_CONFIGURED`
+        when that channel cannot send, `NO_RECIPIENT_PHONE` when no recipient has a phone.
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: "{ sent, skipped[] }" }
@@ -7719,9 +7727,11 @@ paths:
       summary: Team vehicle alert settings (owner)
       description: >-
         Events (created/ready/delivered/cancelled), service filter (empty = all),
-        recipients, WhatsApp batch window (0 = instant, 30, 60 min), plus
-        selectable members (has_phone, has_push) and services. In-app/push is
-        instant; WhatsApp goes only to recipients web push cannot reach.
+        recipients, phone message batch window (0 = instant, 30, 60 min), `channel`
+        of the phone messages (`whatsapp` | `sms`), `whatsapp_connected`,
+        `sms_available`, plus selectable members (has_phone, has_push) and
+        services. In-app/push is instant; WhatsApp / SMS goes only to recipients
+        web push cannot reach.
       security: [{ bearerAuth: [] }]
       responses:
         "200": { description: Vehicle alert settings }
@@ -7752,6 +7762,10 @@ paths:
                   maxItems: 20
                   items: { type: string, format: uuid }
                 batch_minutes: { type: integer, enum: [0, 30, 60] }
+                channel:
+                  type: string
+                  enum: [whatsapp, sms]
+                  description: Phone message channel; omitted keeps the saved one (default whatsapp).
       responses:
         "200": { description: Saved settings }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -7764,10 +7778,234 @@ paths:
       summary: Send a sample vehicle alert to the saved recipients (owner)
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: "{ in_app, whatsapp, skipped[] }" }
+        "200": { description: "{ in_app, whatsapp, sms, skipped[] }" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/tenant/messaging/sms:
+    get:
+      tags: [Tenant]
+      operationId: getTenantMessagingSms
+      summary: SMS channel providers and the organization's accounts
+      description: |
+        Lists the supported SMS providers (`netgsm`, `twilio`) with their credential fields and the
+        organization's connected account (masked hints only, never secrets). `active_provider` is the
+        provider that sends the organization's SMS ("" = SMS off). Requires `tenant.messaging.read`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Providers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsChannelOverview" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/tenant/messaging/sms/estimate:
+    post:
+      tags: [Tenant]
+      operationId: estimateTenantMessagingSms
+      summary: Character and part estimate of an SMS text
+      description: |
+        GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150; Netgsm messages are always sent
+        with dil="TR" so they are counted at this size) or UCS-2 (70 / 67). `provider`
+        defaults to the active provider (else netgsm). Requires `tenant.messaging.read`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SmsEstimateRequest" }
+      responses:
+        "200":
+          description: Estimate
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsEstimate" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/messaging/sms/{provider}:
+    parameters:
+      - $ref: "#/components/parameters/SmsProviderPath"
+    put:
+      tags: [Tenant]
+      operationId: saveTenantMessagingSmsProvider
+      summary: Connect or update an SMS provider account
+      description: |
+        Credentials are sealed per organization; empty or omitted credential values keep the stored
+        ones. Netgsm: `usercode`, `password`, sender = approved message header (msgheader).
+        Twilio: `account_sid`, `auth_token`, sender = From number (E.164), alphanumeric sender id or
+        Messaging Service SID (`MG…`). `activate` makes it the SMS channel (default: true when no SMS
+        provider is active yet); only one provider is active per organization. Changing credentials
+        resets `status` to `unchecked`. Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaveSmsProviderRequest" }
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsProviderAccount" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      tags: [Tenant]
+      operationId: setTenantMessagingSmsProviderActive
+      summary: Enable or disable an SMS provider as the channel
+      description: Enabling one provider disables the other. Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [is_active]
+              properties:
+                is_active: { type: boolean }
+      responses:
+        "200":
+          description: Account
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsProviderAccount" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantMessagingSmsProvider
+      summary: Disconnect an SMS provider (deletes its credentials)
+      description: Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: "{ success: true }" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/messaging/sms/{provider}/test:
+    parameters:
+      - $ref: "#/components/parameters/SmsProviderPath"
+    post:
+      tags: [Tenant]
+      operationId: testTenantMessagingSmsProvider
+      summary: Test the SMS provider connection (sends nothing)
+      description: |
+        Netgsm: `POST /balance` (stip 2 TL credit, authoritative; stip 1 packages, best effort) →
+        `balance` ("1.234,56 TL") and `sms_credit` (sum of SMS packages). The message header is verified
+        by the test SMS (Netgsm answers 40 for an unknown header). Twilio: reads the account (and its
+        balance when visible). Stores `status` (`connected` | `error`) and
+        `last_error`. A failed check is still 200 with `ok: false`. Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsTestResult" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/tenant/messaging/sms/{provider}/test-sms:
+    parameters:
+      - $ref: "#/components/parameters/SmsProviderPath"
+    post:
+      tags: [Tenant]
+      operationId: sendTenantMessagingTestSms
+      summary: Send a test SMS through a connected provider
+      description: |
+        Works for a connected provider whether or not it is active. The number is normalized to E.164
+        (Turkish national numbers accepted); the message is logged in the outbound log
+        (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`. Test SMS are real
+        messages: they need plan feature `sms.enabled` and are counted on `sms.monthly` (parts); a plan
+        refusal is 200 with `status: failed` and `error_code` `feature_not_entitled` / `quota_exceeded`.
+        Requires `tenant.messaging.write` (owner).
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SmsTestSmsRequest" }
+      responses:
+        "200":
+          description: Send result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsTestSmsResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/platform/messaging/sms/report:
+    get:
+      tags: [Platform]
+      operationId: getPlatformSmsReport
+      summary: Platform SMS report
+      description: |
+        Totals (sent / failed messages, billed parts of sent messages), the split by provider, a daily
+        series (Europe/Istanbul days) and the organizations that have an SMS provider account or SMS
+        traffic in the range (up to 1000), with provider, account status, counts, last send (all time) and
+        the current calendar month's `sms.monthly` usage (`quota_limit` -1 = unlimited).
+        Requires `platform.messaging.sms.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: from
+          in: query
+          description: First day (YYYY-MM-DD, inclusive). Default first day of the current month.
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          description: Last day (YYYY-MM-DD, inclusive). Default today. At most 366 days after `from`.
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsReport" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+
+  /v1/platform/messaging/sms/organizations/{uuid}/messages:
+    get:
+      tags: [Platform]
+      operationId: listPlatformSmsOrganizationMessages
+      summary: An organization's recent SMS (numbers masked)
+      description: Newest first. Requires `platform.messaging.sms.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: uuid, in: path, required: true, schema: { type: string, format: uuid } }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        "200":
+          description: Page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeSmsReportMessagesPage" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
   /v1/tenant/messaging/session:
     get:
       tags: [Tenant]
@@ -8137,7 +8375,7 @@ paths:
     post:
       tags: [Tenant]
       operationId: postTenantMessagingSimulate
-      summary: Send a test WhatsApp notification (single event or full job lifecycle)
+      summary: Send a test WhatsApp / SMS notification (single event or full job lifecycle)
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -8154,8 +8392,9 @@ paths:
                 event_type: { type: string }
                 channel:
                   type: string
-                  enum: [whatsapp]
+                  enum: [whatsapp, sms]
                   default: whatsapp
+                  description: "`sms` sends the organization's SMS template through its active SMS provider."
                 phone: { type: string }
                 vars:
                   type: object
@@ -9323,9 +9562,10 @@ paths:
     post:
       tags: [Tenant]
       operationId: sendTenantContractSignerOtp
-      summary: Send a WhatsApp OTP (contract heading + KVKK notice) to a customer signer
+      summary: Send a WhatsApp or SMS OTP (contract heading + KVKK notice) to a customer signer
       description: |
-        Sends a 6-digit code over the organization's connected WhatsApp session. The message carries the
+        Sends a 6-digit code over the organization's WhatsApp line (default) or, with `channel: sms`,
+        through the organization's active SMS provider (short SMS text). The message carries the
         contract title/number, plate and the KVKK (6698) disclosure. Codes expire after 5 minutes, allow
         5 attempts, can be resent after 60 seconds, and at most 5 codes per signer per hour.
       security: [{ bearerAuth: [] }]
@@ -9346,6 +9586,10 @@ paths:
               type: object
               properties:
                 phone: { type: string, description: Override recipient; defaults to the signer phone. }
+                channel:
+                  type: string
+                  enum: [whatsapp, sms]
+                  default: whatsapp
       responses:
         "200":
           description: OTP sent
@@ -12838,6 +13082,12 @@ components:
       bearerFormat: JWT
 
   parameters:
+    SmsProviderPath:
+      name: provider
+      in: path
+      required: true
+      description: SMS provider code
+      schema: { type: string, enum: [netgsm, twilio] }
     LegalPageSlug:
       name: slug
       in: path
@@ -14312,6 +14562,269 @@ components:
           type: boolean
           description: The platform number can send right now.
 
+    SmsProviderField:
+      type: object
+      required: [key, secret, required]
+      properties:
+        key: { type: string, description: "netgsm: usercode, password; twilio: account_sid, auth_token" }
+        secret: { type: boolean }
+        required: { type: boolean }
+
+    SmsProviderAccount:
+      type: object
+      required: [uuid, provider, sender, is_active, status, credential_hints, created_at, updated_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        provider: { type: string, enum: [netgsm, twilio] }
+        sender: { type: string, description: Netgsm message header or Twilio From number / Messaging Service SID. }
+        is_active: { type: boolean, description: This provider sends the organization's SMS. }
+        status: { type: string, enum: [unchecked, connected, error], description: Last connection test. }
+        last_checked_at: { type: string, format: date-time }
+        last_error: { type: string }
+        credential_hints:
+          type: object
+          additionalProperties: { type: string }
+          description: Masked values per credential key (e.g. "••••••ab"); secrets are never returned.
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    SmsProviderEntry:
+      type: object
+      required: [provider, fields, sender_kind, account]
+      properties:
+        provider: { type: string, enum: [netgsm, twilio] }
+        fields:
+          type: array
+          items: { $ref: "#/components/schemas/SmsProviderField" }
+        sender_kind: { type: string, enum: [msgheader, from] }
+        account:
+          description: null when not connected.
+          oneOf:
+            - $ref: "#/components/schemas/SmsProviderAccount"
+            - type: "null"
+
+    SmsChannelOverview:
+      type: object
+      required: [active_provider, providers]
+      properties:
+        active_provider: { type: string, enum: ["", netgsm, twilio] }
+        providers:
+          type: array
+          items: { $ref: "#/components/schemas/SmsProviderEntry" }
+
+    SaveSmsProviderRequest:
+      type: object
+      properties:
+        credentials:
+          type: object
+          additionalProperties: { type: string, maxLength: 256 }
+          description: Field values by key; empty values keep the stored ones.
+        sender: { type: string, maxLength: 64 }
+        activate: { type: boolean }
+
+    SmsSegments:
+      type: object
+      required: [encoding, characters, segments, per_segment, remaining]
+      properties:
+        encoding: { type: string, enum: [gsm7, turkish, ucs2] }
+        characters: { type: integer }
+        segments: { type: integer }
+        per_segment: { type: integer }
+        remaining: { type: integer, description: Characters left before the next part starts. }
+
+    SmsEstimateRequest:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string }
+        provider: { type: string, enum: [netgsm, twilio] }
+
+    SmsEstimate:
+      type: object
+      required: [provider, segments]
+      properties:
+        provider: { type: string, enum: [netgsm, twilio] }
+        segments: { $ref: "#/components/schemas/SmsSegments" }
+
+    SmsTestResult:
+      type: object
+      required: [ok, account]
+      properties:
+        ok: { type: boolean }
+        error_code: { type: string, description: "sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, …" }
+        message: { type: string }
+        detail: { type: string, description: Account name / matched header. }
+        balance: { type: string, description: "Account credit when the provider reports it (Netgsm TL credit \"1.234,56 TL\", Twilio \"12.50 USD\")." }
+        sms_credit: { type: integer, format: int64, description: Netgsm SMS package credit (sum of packages named SMS). }
+        senders:
+          type: array
+          items: { type: string }
+          description: Sender names / numbers of the account when the provider lists them.
+        account: { $ref: "#/components/schemas/SmsProviderAccount" }
+
+    SmsTestSmsRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { type: string, example: "0532 123 45 67" }
+        body: { type: string, maxLength: 1000, description: Defaults to a short Turkish test text. }
+
+    SmsTestSmsResult:
+      type: object
+      required: [status, provider, recipient, segments]
+      properties:
+        status: { type: string, enum: [sent, failed] }
+        provider: { type: string, enum: [netgsm, twilio] }
+        recipient: { type: string, description: Masked E.164 number. }
+        provider_message_id: { type: string }
+        provider_status: { type: string }
+        error_code: { type: string }
+        error_message: { type: string }
+        segments: { $ref: "#/components/schemas/SmsSegments" }
+
+    SmsReportCounts:
+      type: object
+      required: [sent, failed, segments]
+      properties:
+        sent: { type: integer, format: int64 }
+        failed: { type: integer, format: int64 }
+        segments: { type: integer, format: int64, description: Billed parts of sent messages. }
+
+    SmsReport:
+      type: object
+      required: [from, to, totals, by_provider, daily, organizations]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        totals: { $ref: "#/components/schemas/SmsReportCounts" }
+        by_provider:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/SmsReportCounts"
+              - type: object
+                required: [provider]
+                properties:
+                  provider: { type: string, enum: [netgsm, twilio, unknown] }
+        daily:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/SmsReportCounts"
+              - type: object
+                required: [date]
+                properties:
+                  date: { type: string, format: date }
+        organizations:
+          type: array
+          items: { $ref: "#/components/schemas/SmsReportOrganization" }
+
+    SmsReportOrganization:
+      allOf:
+        - $ref: "#/components/schemas/SmsReportCounts"
+        - type: object
+          required: [organization_uuid, organization_name, organization_slug, provider, is_active, account_status, last_sent_at, quota_used, quota_limit]
+          properties:
+            organization_uuid: { type: string, format: uuid }
+            organization_name: { type: string }
+            organization_slug: { type: string }
+            provider: { type: string, enum: ["", netgsm, twilio], description: Active (else latest) SMS account. }
+            is_active: { type: boolean }
+            account_status: { type: string, enum: ["", unchecked, connected, error] }
+            last_sent_at: { type: [string, "null"], format: date-time }
+            quota_used: { type: integer, format: int64, description: sms.monthly parts used this calendar month. }
+            quota_limit: { type: integer, format: int64, description: sms.monthly limit (-1 = unlimited). }
+
+    SmsReportMessage:
+      type: object
+      required: [uuid, event_type, recipient, status, provider, segments, sent_at, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        event_type: { type: string }
+        recipient: { type: string, description: Masked number. }
+        status: { type: string, enum: [queued, sending, sent, failed] }
+        provider: { type: string }
+        provider_reference: { type: string }
+        delivery_status: { type: string }
+        error_code: { type: string }
+        segments: { type: [integer, "null"] }
+        sent_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+
+    SmsReportMessagesPage:
+      type: object
+      required: [organization, items, total, limit, offset]
+      properties:
+        organization:
+          type: object
+          required: [uuid, name, slug]
+          properties:
+            uuid: { type: string, format: uuid }
+            name: { type: string }
+            slug: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/SmsReportMessage" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeSmsReport:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsReport" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsReportMessagesPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsReportMessagesPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsChannelOverview:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsChannelOverview" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsProviderAccount:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsProviderAccount" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsEstimate:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsEstimate" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsTestResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeSmsTestSmsResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/SmsTestSmsResult" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
     EnvelopeWhatsAppSession:
       type: object
       required: [success, data, meta]
@@ -14341,16 +14854,23 @@ components:
         subject_uuid: { type: string, format: uuid }
         sent_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
-        sender_kind: { type: string, enum: [org_own, platform_whatsmeow, platform_cloud] }
+        sender_kind: { type: string, enum: [org_own, platform_whatsmeow, platform_cloud, sms_netgsm, sms_twilio] }
         template_name: { type: string }
-        delivery_status: { type: string, description: "Cloud delivery status from the webhook (sent, delivered, read, failed)." }
+        delivery_status:
+          type: string
+          description: >-
+            Cloud delivery status from the webhook (sent, delivered, read, failed), or the SMS
+            provider's status at send time (Netgsm `accepted`; Twilio `queued`, `accepted`, `sent`…).
         delivery_status_at: { type: string, format: date-time }
         error_code:
           type: string
           description: >-
             Classified failure, e.g. own_session_disconnected, platform_sender_not_configured,
             platform_sender_unavailable, template_not_approved, cloud_auth_failed,
-            marketing_limit, undeliverable, template_missing, graph_<code>.
+            marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured,
+            sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient,
+            feature_not_entitled (plan excludes sms.enabled), quota_exceeded (sms.monthly reached).
+        segments: { type: integer, description: Billed SMS parts of a sent SMS (counted on the sms.monthly plan quota). }
 
     OutboundMessagePage:
       type: object

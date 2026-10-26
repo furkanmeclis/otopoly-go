@@ -145,6 +145,7 @@ type Querier interface {
 	CountPurchases(ctx context.Context, arg CountPurchasesParams) (int64, error)
 	CountQuotes(ctx context.Context, arg CountQuotesParams) (int64, error)
 	CountRoles(ctx context.Context, q_ pgtype.Text) (int64, error)
+	CountSMSReportOrgMessages(ctx context.Context, organizationID int64) (int64, error)
 	CountServiceJobs(ctx context.Context, arg CountServiceJobsParams) (int64, error)
 	CountServiceJobsByCustomer(ctx context.Context, arg CountServiceJobsByCustomerParams) (int64, error)
 	CountServiceProductsByService(ctx context.Context, organizationID int64) ([]CountServiceProductsByServiceRow, error)
@@ -262,6 +263,8 @@ type Querier interface {
 	// Vehicles per service for the day ("12 × Yıkama, 1 × PPF").
 	DailySummaryServiceBreakdown(ctx context.Context, arg DailySummaryServiceBreakdownParams) ([]DailySummaryServiceBreakdownRow, error)
 	DeactivateDiscountCode(ctx context.Context, argUuid uuid.UUID) error
+	// Clears the active flag of every other account (one active per organization).
+	DeactivateSMSProviderAccounts(ctx context.Context, arg DeactivateSMSProviderAccountsParams) error
 	// Self-service account deletion: keep every row, mark the user disabled.
 	DeactivateUser(ctx context.Context, id int64) (User, error)
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
@@ -288,6 +291,7 @@ type Querier interface {
 	DeletePushTickets(ctx context.Context, ids []int64) error
 	DeleteQuoteLines(ctx context.Context, arg DeleteQuoteLinesParams) error
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
+	DeleteSMSProviderAccount(ctx context.Context, arg DeleteSMSProviderAccountParams) (int64, error)
 	DeleteServiceProducts(ctx context.Context, arg DeleteServiceProductsParams) error
 	DeleteStorageShare(ctx context.Context, argUuid uuid.UUID) error
 	DeleteStorageStar(ctx context.Context, arg DeleteStorageStarParams) error
@@ -346,6 +350,7 @@ type Querier interface {
 	// A live token of a live grant and client, with the user's status.
 	GetActiveMCPOAuthToken(ctx context.Context, arg GetActiveMCPOAuthTokenParams) (GetActiveMCPOAuthTokenRow, error)
 	GetActiveOTPByEmailType(ctx context.Context, arg GetActiveOTPByEmailTypeParams) (OtpCode, error)
+	GetActiveSMSProviderAccount(ctx context.Context, organizationID int64) (SmsProviderAccount, error)
 	GetAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (AppLog, error)
 	GetAppSettings(ctx context.Context) (AppSetting, error)
 	GetAuthSettings(ctx context.Context) (GetAuthSettingsRow, error)
@@ -532,6 +537,7 @@ type Querier interface {
 	GetRoleByID(ctx context.Context, id int64) (Role, error)
 	GetRoleBySlug(ctx context.Context, slug string) (Role, error)
 	GetRoleByUUID(ctx context.Context, argUuid uuid.UUID) (Role, error)
+	GetSMSProviderAccount(ctx context.Context, arg GetSMSProviderAccountParams) (SmsProviderAccount, error)
 	GetSaleOrgAndPhoneByUUID(ctx context.Context, argUuid uuid.UUID) (GetSaleOrgAndPhoneByUUIDRow, error)
 	GetScheduledNotificationByKey(ctx context.Context, arg GetScheduledNotificationByKeyParams) (ScheduledNotification, error)
 	GetSellerSettings(ctx context.Context) (GetSellerSettingsRow, error)
@@ -800,6 +806,7 @@ type Querier interface {
 	ListRolesFiltered(ctx context.Context, arg ListRolesFilteredParams) ([]Role, error)
 	ListRolesForExport(ctx context.Context, q_ pgtype.Text) ([]Role, error)
 	ListRolesForUserIDs(ctx context.Context, userIds []int64) ([]ListRolesForUserIDsRow, error)
+	ListSMSProviderAccounts(ctx context.Context, organizationID int64) ([]SmsProviderAccount, error)
 	ListScheduledNotificationsBySubject(ctx context.Context, arg ListScheduledNotificationsBySubjectParams) ([]ScheduledNotification, error)
 	ListServiceJobLines(ctx context.Context, arg ListServiceJobLinesParams) ([]ListServiceJobLinesRow, error)
 	ListServiceJobPayments(ctx context.Context, arg ListServiceJobPaymentsParams) ([]ListServiceJobPaymentsRow, error)
@@ -995,6 +1002,12 @@ type Querier interface {
 	RevokeStorageLink(ctx context.Context, argUuid uuid.UUID) (StorageLink, error)
 	// Disconnects one of the user's apps; no row when missing, foreign or revoked.
 	RevokeUserMCPOAuthGrant(ctx context.Context, arg RevokeUserMCPOAuthGrantParams) (RevokeUserMCPOAuthGrantRow, error)
+	// Platform SMS report (cross-organization, platform.messaging.sms.read).
+	SMSReportByProvider(ctx context.Context, arg SMSReportByProviderParams) ([]SMSReportByProviderRow, error)
+	SMSReportDaily(ctx context.Context, arg SMSReportDailyParams) ([]SMSReportDailyRow, error)
+	SMSReportOrgMessages(ctx context.Context, arg SMSReportOrgMessagesParams) ([]SMSReportOrgMessagesRow, error)
+	// Organizations with an SMS provider account or SMS traffic in the period.
+	SMSReportOrganizations(ctx context.Context, arg SMSReportOrganizationsParams) ([]SMSReportOrganizationsRow, error)
 	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	SetAppSettingsLogo(ctx context.Context, logoObjectKey pgtype.Text) (AppSetting, error)
@@ -1018,6 +1031,8 @@ type Querier interface {
 	SetOrganizationAccessEndPlatform(ctx context.Context, arg SetOrganizationAccessEndPlatformParams) (Organization, error)
 	SetOrganizationLogo(ctx context.Context, arg SetOrganizationLogoParams) (Organization, error)
 	SetOrganizationStatusPlatform(ctx context.Context, arg SetOrganizationStatusPlatformParams) (Organization, error)
+	// Provider status and billed parts of an SMS right after the send.
+	SetOutboundMessageDeliveryStatus(ctx context.Context, arg SetOutboundMessageDeliveryStatusParams) error
 	SetOutboundMessageErrorCode(ctx context.Context, arg SetOutboundMessageErrorCodeParams) error
 	// Sender route of the latest attempt (error_code NULL on success).
 	SetOutboundMessageSender(ctx context.Context, arg SetOutboundMessageSenderParams) error
@@ -1026,6 +1041,8 @@ type Querier interface {
 	// Guarded transition: only applies when the row is still in from_status.
 	SetQuoteStatus(ctx context.Context, arg SetQuoteStatusParams) (Quote, error)
 	SetRolePermissions(ctx context.Context, roleID int64) error
+	SetSMSProviderAccountActive(ctx context.Context, arg SetSMSProviderAccountActiveParams) (SmsProviderAccount, error)
+	SetSMSProviderAccountCheck(ctx context.Context, arg SetSMSProviderAccountCheckParams) (SmsProviderAccount, error)
 	SetSubscriptionCredit(ctx context.Context, arg SetSubscriptionCreditParams) error
 	SetTodoStatus(ctx context.Context, arg SetTodoStatusParams) (Todo, error)
 	SetUsageCounter(ctx context.Context, arg SetUsageCounterParams) error
@@ -1176,6 +1193,9 @@ type Querier interface {
 	// re-enabled on every registration.
 	UpsertPushDevice(ctx context.Context, arg UpsertPushDeviceParams) (PushDevice, error)
 	UpsertPushSubscription(ctx context.Context, arg UpsertPushSubscriptionParams) (PushSubscription, error)
+	// Connect or update credentials; a changed account is re-checked (status
+	// back to unchecked). is_active is set separately (SetSMSProviderAccountActive).
+	UpsertSMSProviderAccount(ctx context.Context, arg UpsertSMSProviderAccountParams) (SmsProviderAccount, error)
 	UpsertUserTOTPSetup(ctx context.Context, arg UpsertUserTOTPSetupParams) (UserTotp, error)
 	UpsertVehicleAlertSettings(ctx context.Context, arg UpsertVehicleAlertSettingsParams) (VehicleAlertSetting, error)
 	UpsertWhatsAppSession(ctx context.Context, arg UpsertWhatsAppSessionParams) (WhatsappSession, error)

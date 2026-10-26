@@ -24,6 +24,7 @@ var (
 	ErrInvalidRequest        = errors.New("dailysummary: invalid request")
 	ErrWhatsAppNotConnected  = errors.New("dailysummary: whatsapp is not connected")
 	ErrNoRecipientsWithPhone = errors.New("dailysummary: no recipient has a phone number")
+	ErrSMSNotConfigured      = errors.New("dailysummary: no active sms provider")
 	defaultSendMinutes       = 20 * 60
 	sendTimeRE               = regexp.MustCompile(`^([01]\d|2[0-3]):([0-5]\d)$`)
 	maxRecipients            = 20
@@ -32,11 +33,36 @@ var (
 	businessTimeZone         = "Europe/Istanbul"
 )
 
-// Sender delivers WhatsApp text through the organization's line (or the
-// platform number, which sends the catalog text built from vars).
+// Sender delivers the text on a channel: WhatsApp through the organization's
+// line (or the platform number, which sends the catalog text built from
+// vars), SMS through the organization's active SMS provider.
 type Sender interface {
-	WhatsAppConnected(ctx context.Context, orgID int64) (bool, error)
-	QueueWhatsApp(ctx context.Context, orgID int64, phone, body, eventType, subjectType string, vars map[string]string) error
+	ChannelAvailable(ctx context.Context, orgID int64, channel string) (bool, error)
+	Queue(ctx context.Context, orgID int64, channel, phone, body, eventType, subjectType string, vars map[string]string) error
+}
+
+// NormalizeChannel validates a staff message channel ("" keeps fallback).
+func NormalizeChannel(ch, fallback string) (string, error) {
+	switch strings.TrimSpace(ch) {
+	case "":
+		if fallback == "" {
+			return messagingmodel.ChannelWhatsApp, nil
+		}
+		return fallback, nil
+	case messagingmodel.ChannelWhatsApp:
+		return messagingmodel.ChannelWhatsApp, nil
+	case messagingmodel.ChannelSMS:
+		return messagingmodel.ChannelSMS, nil
+	default:
+		return "", fmt.Errorf("%w: channel must be whatsapp or sms", ErrInvalidRequest)
+	}
+}
+
+func notAvailableErr(channel string) error {
+	if channel == messagingmodel.ChannelSMS {
+		return ErrSMSNotConfigured
+	}
+	return ErrWhatsAppNotConnected
 }
 
 type Service struct {
@@ -72,13 +98,18 @@ type Settings struct {
 	RecipientUserUUIDs []uuid.UUID `json:"recipient_user_uuids"`
 	LastSentOn         *string     `json:"last_sent_on,omitempty"`
 	WhatsAppConnected  bool        `json:"whatsapp_connected"`
-	Members            []Member    `json:"members"`
+	// Channel: whatsapp | sms (organization's active SMS provider).
+	Channel      string   `json:"channel"`
+	SMSAvailable bool     `json:"sms_available"`
+	Members      []Member `json:"members"`
 }
 
 type UpdateInput struct {
 	Enabled            bool        `json:"enabled"`
 	SendTime           string      `json:"send_time"`
 	RecipientUserUUIDs []uuid.UUID `json:"recipient_user_uuids"`
+	// Channel: whatsapp | sms; omitted keeps the saved channel.
+	Channel *string `json:"channel"`
 }
 
 type Preview struct {
@@ -104,6 +135,7 @@ func (s *Service) GetSettings(ctx context.Context, orgID int64) (Settings, error
 		Enabled:            row.Enabled,
 		SendTime:           formatSendTime(row.SendTime),
 		RecipientUserUUIDs: []uuid.UUID{},
+		Channel:            row.Channel,
 		Members:            make([]Member, 0, len(members)),
 	}
 	selected := make(map[int64]bool, len(row.RecipientUserIds))
@@ -127,8 +159,11 @@ func (s *Service) GetSettings(ctx context.Context, orgID int64) (Settings, error
 		out.LastSentOn = &d
 	}
 	if s.sender != nil {
-		if ok, err := s.sender.WhatsAppConnected(ctx, orgID); err == nil {
+		if ok, err := s.sender.ChannelAvailable(ctx, orgID, messagingmodel.ChannelWhatsApp); err == nil {
 			out.WhatsAppConnected = ok
+		}
+		if ok, err := s.sender.ChannelAvailable(ctx, orgID, messagingmodel.ChannelSMS); err == nil {
+			out.SMSAvailable = ok
 		}
 	}
 	return out, nil
@@ -165,11 +200,24 @@ func (s *Service) UpdateSettings(ctx context.Context, orgID int64, in UpdateInpu
 	if in.Enabled && len(ids) == 0 {
 		return Settings{}, fmt.Errorf("%w: select at least one recipient", ErrInvalidRequest)
 	}
+	current, err := s.loadSettings(ctx, orgID)
+	if err != nil {
+		return Settings{}, err
+	}
+	requested := ""
+	if in.Channel != nil {
+		requested = *in.Channel
+	}
+	channel, err := NormalizeChannel(requested, current.Channel)
+	if err != nil {
+		return Settings{}, err
+	}
 	if _, err := s.q.UpsertDailySummarySettings(ctx, db.UpsertDailySummarySettingsParams{
 		OrganizationID:   orgID,
 		Enabled:          in.Enabled,
 		SendTime:         pgtype.Time{Microseconds: int64(minutes) * 60_000_000, Valid: true},
 		RecipientUserIds: ids,
+		Channel:          channel,
 	}); err != nil {
 		return Settings{}, err
 	}
@@ -200,7 +248,7 @@ func (s *Service) SendTest(ctx context.Context, orgID int64) (SendResult, error)
 	if err != nil {
 		return SendResult{}, err
 	}
-	return s.deliver(ctx, orgID, row.RecipientUserIds, r, true)
+	return s.deliver(ctx, orgID, row.Channel, row.RecipientUserIds, r, true)
 }
 
 // SendDue is the periodic sweep: every enabled organization whose local send
@@ -223,7 +271,7 @@ func (s *Service) SendDue(ctx context.Context) (int, error) {
 			continue
 		}
 		if s.sender != nil {
-			if ok, err := s.sender.WhatsAppConnected(ctx, row.OrganizationID); err != nil || !ok {
+			if ok, err := s.sender.ChannelAvailable(ctx, row.OrganizationID, row.Channel); err != nil || !ok {
 				// Not claimed: retried every sweep until the line is back today.
 				continue
 			}
@@ -244,7 +292,7 @@ func (s *Service) SendDue(ctx context.Context) (int, error) {
 			s.log.Error("daily_summary_build_failed", "org_id", row.OrganizationID, "error", err)
 			continue
 		}
-		res, err := s.deliver(ctx, row.OrganizationID, row.RecipientUserIds, r, false)
+		res, err := s.deliver(ctx, row.OrganizationID, row.Channel, row.RecipientUserIds, r, false)
 		if err != nil {
 			s.log.Error("daily_summary_send_failed", "org_id", row.OrganizationID, "error", err)
 			continue
@@ -255,18 +303,22 @@ func (s *Service) SendDue(ctx context.Context) (int, error) {
 	return sent, nil
 }
 
-func (s *Service) deliver(ctx context.Context, orgID int64, recipientIDs []int64, r Report, requireConnected bool) (SendResult, error) {
+func (s *Service) deliver(ctx context.Context, orgID int64, channel string, recipientIDs []int64, r Report, requireConnected bool) (SendResult, error) {
+	channel, err := NormalizeChannel(channel, "")
+	if err != nil {
+		return SendResult{}, err
+	}
 	body, vars := r.Message(), r.Vars()
 	if s.sender == nil {
-		return SendResult{}, ErrWhatsAppNotConnected
+		return SendResult{}, notAvailableErr(channel)
 	}
 	if requireConnected {
-		ok, err := s.sender.WhatsAppConnected(ctx, orgID)
+		ok, err := s.sender.ChannelAvailable(ctx, orgID, channel)
 		if err != nil {
 			return SendResult{}, err
 		}
 		if !ok {
-			return SendResult{}, ErrWhatsAppNotConnected
+			return SendResult{}, notAvailableErr(channel)
 		}
 	}
 	members, err := s.q.ListDailySummaryMembers(ctx, orgID)
@@ -288,7 +340,7 @@ func (s *Service) deliver(ctx context.Context, orgID int64, recipientIDs []int64
 			res.Skipped = append(res.Skipped, name)
 			continue
 		}
-		if err := s.sender.QueueWhatsApp(ctx, orgID, phone, body, summaryEventType, summarySubjectType, vars); err != nil {
+		if err := s.sender.Queue(ctx, orgID, channel, phone, body, summaryEventType, summarySubjectType, vars); err != nil {
 			s.log.Warn("daily_summary_queue_failed", "org_id", orgID, "user_id", m.UserID, "error", err)
 			res.Skipped = append(res.Skipped, name)
 			continue
@@ -371,6 +423,7 @@ func (s *Service) loadSettings(ctx context.Context, orgID int64) (db.DailySummar
 		return db.DailySummarySetting{
 			OrganizationID: orgID,
 			SendTime:       pgtype.Time{Microseconds: int64(defaultSendMinutes) * 60_000_000, Valid: true},
+			Channel:        messagingmodel.ChannelWhatsApp,
 		}, nil
 	}
 	return row, err

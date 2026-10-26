@@ -3,17 +3,19 @@ SELECT * FROM vehicle_alert_settings
 WHERE organization_id = $1;
 
 -- name: UpsertVehicleAlertSettings :one
-INSERT INTO vehicle_alert_settings (organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes)
+INSERT INTO vehicle_alert_settings (organization_id, enabled, events, service_ids, recipient_user_ids, batch_minutes, channel)
 VALUES (
     sqlc.arg(organization_id), sqlc.arg(enabled), sqlc.arg(events)::text[],
-    sqlc.arg(service_ids)::bigint[], sqlc.arg(recipient_user_ids)::bigint[], sqlc.arg(batch_minutes)
+    sqlc.arg(service_ids)::bigint[], sqlc.arg(recipient_user_ids)::bigint[], sqlc.arg(batch_minutes),
+    sqlc.arg(channel)
 )
 ON CONFLICT (organization_id) DO UPDATE
 SET enabled = EXCLUDED.enabled,
     events = EXCLUDED.events,
     service_ids = EXCLUDED.service_ids,
     recipient_user_ids = EXCLUDED.recipient_user_ids,
-    batch_minutes = EXCLUDED.batch_minutes
+    batch_minutes = EXCLUDED.batch_minutes,
+    channel = EXCLUDED.channel
 RETURNING *;
 
 -- name: ListVehicleAlertMembers :many

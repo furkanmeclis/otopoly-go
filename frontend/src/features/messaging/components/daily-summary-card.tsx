@@ -33,6 +33,10 @@ import {
   useSaveDailySummary,
   useSendTestDailySummary,
 } from "@/features/messaging/hooks/use-daily-summary";
+import {
+  MessageChannelPicker,
+  type MessageChannel,
+} from "@/features/messaging/components/message-channel-picker";
 import type { DailySummarySettings } from "@/features/messaging/services/daily-summary.service";
 import { isApiError } from "@/lib/api";
 import { date as formatDate } from "@/lib/utils/format";
@@ -79,6 +83,7 @@ export function DailySummaryCard() {
   const savedKey = [
     data.enabled,
     data.send_time,
+    data.channel,
     [...data.recipient_user_uuids].sort().join(","),
   ].join("|");
   return <DailySummaryForm key={savedKey} data={data} />;
@@ -97,9 +102,15 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
   const [recipients, setRecipients] = useState<string[]>(
     data.recipient_user_uuids,
   );
+  const [channel, setChannel] = useState<MessageChannel>(
+    data.channel ?? "whatsapp",
+  );
   const [previewText, setPreviewText] = useState<string | null>(null);
+  const channelReady =
+    channel === "sms" ? data.sms_available : data.whatsapp_connected;
 
   const dirty =
+    data.channel !== channel ||
     data.enabled !== enabled ||
     data.send_time !== sendTime ||
     [...data.recipient_user_uuids].sort().join() !==
@@ -126,6 +137,7 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
         enabled,
         send_time: sendTime,
         recipient_user_uuids: recipients,
+        channel,
       });
       toast.success(t("messaging.daily_summary.saved"));
     } catch (err) {
@@ -173,12 +185,21 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
       </CardHeader>
       <CardContent className="space-y-5">
         <>
-          {!data.whatsapp_connected ? (
+          {!channelReady ? (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-300">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-              {t("messaging.daily_summary.not_connected")}
+              {channel === "sms"
+                ? t("messaging.channel_picker.sms_not_ready")
+                : t("messaging.daily_summary.not_connected")}
             </div>
           ) : null}
+
+          <MessageChannelPicker
+            id="daily-summary-channel"
+            value={channel}
+            onChange={setChannel}
+            smsAvailable={data.sms_available}
+          />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex items-center justify-between gap-3 rounded-lg border p-3">

@@ -189,6 +189,7 @@
   "fields.otp_required": "WhatsApp one-time code (OTP) for customer signature",
   "fields.otp_required_hint": "Before the customer signs, a one-time code is sent from your business WhatsApp line together with the contract heading and the KVKK privacy notice.",
   "otp.title": "Customer approval via WhatsApp",
+  "otp.channel_hint": "SMS goes through the business's active SMS provider as a short text (code, contract and KVKK notice).",
   "otp.description": "A one-time approval code is sent to the customer from your business WhatsApp line. The message includes the details below.",
   "otp.summary_contract": "Contract",
   "otp.summary_plate": "Plate",

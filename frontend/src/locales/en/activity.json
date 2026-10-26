@@ -207,5 +207,13 @@
   "resources.mcp_tool": "MCP tool",
   "resources.mcp_oauth_grants": "MCP connection",
   "resources.mcp_oauth_auth_requests": "MCP connection request",
-  "resources.mcp_oauth_clients": "MCP client"
+  "resources.mcp_oauth_clients": "MCP client",
+  "actions.messaging.sms.connected": "SMS provider connected",
+  "actions.messaging.sms.updated": "SMS provider settings updated",
+  "actions.messaging.sms.enabled": "SMS channel enabled",
+  "actions.messaging.sms.disabled": "SMS channel turned off",
+  "actions.messaging.sms.disconnected": "SMS provider disconnected",
+  "actions.messaging.sms.tested": "SMS provider connection tested",
+  "actions.messaging.sms.test_sent": "Test SMS sent",
+  "resources.tenant.messaging.sms": "SMS channel"
 }

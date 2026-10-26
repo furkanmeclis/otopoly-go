@@ -207,5 +207,13 @@
   "resources.mcp_tool": "MCP aracı",
   "resources.mcp_oauth_grants": "MCP bağlantısı",
   "resources.mcp_oauth_auth_requests": "MCP bağlantı isteği",
-  "resources.mcp_oauth_clients": "MCP istemcisi"
+  "resources.mcp_oauth_clients": "MCP istemcisi",
+  "actions.messaging.sms.connected": "SMS sağlayıcısı bağlandı",
+  "actions.messaging.sms.updated": "SMS sağlayıcı ayarları güncellendi",
+  "actions.messaging.sms.enabled": "SMS kanalı etkinleştirildi",
+  "actions.messaging.sms.disabled": "SMS kanalı kapatıldı",
+  "actions.messaging.sms.disconnected": "SMS sağlayıcısının bağlantısı kaldırıldı",
+  "actions.messaging.sms.tested": "SMS sağlayıcı bağlantısı test edildi",
+  "actions.messaging.sms.test_sent": "Test SMS'i gönderildi",
+  "resources.tenant.messaging.sms": "SMS kanalı"
 }

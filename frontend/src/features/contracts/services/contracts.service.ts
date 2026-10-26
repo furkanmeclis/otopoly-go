@@ -80,7 +80,8 @@ export type ContractMedia = {
   created_at: string;
 };
 
-export type ContractInstanceStatus = "draft" | "pending" | "executed" | "voided";
+export type ContractInstanceStatus =
+  "draft" | "pending" | "executed" | "voided";
 
 export type ContractInstance = {
   uuid: string;
@@ -240,7 +241,7 @@ export const contractsService = {
   sendSignerOtp(
     instanceUuid: string,
     signerUuid: string,
-    body: { phone?: string } = {},
+    body: { phone?: string; channel?: "whatsapp" | "sms" } = {},
   ) {
     return platformRequest<ContractOtpChallenge>(
       "POST",

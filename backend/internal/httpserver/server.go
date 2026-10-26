@@ -82,6 +82,7 @@ import (
 	messagingcloud "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/cloud"
 	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	messagingproviders "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/providers"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/smschannel"
 	messagingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/usecase"
 	notifmodule "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications"
 	notifhandler "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/notifications/handler"
@@ -145,6 +146,8 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/netgsm"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/sms/twilio"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/stepup"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
@@ -456,6 +459,14 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	messagingSvc.RestoreConnectedSessions(context.Background())
 	messagingSvc.RestorePlatformSession(context.Background())
 	messagingmodule.RegisterRoutes(mux, messagingSvc, tokens, loader, deps.Queries)
+	// Organization SMS channel: own Netgsm / Twilio account (sealed credentials).
+	smsChannelSvc := smschannel.New(deps.Queries, secretBox, activityRec,
+		netgsm.New(netgsm.Config{}), twilio.New(twilio.Config{}))
+	smsChannelSvc.SetTestLogger(messagingSvc)
+	smsChannelSvc.SetEntitlements(entitlementsSvc)
+	messagingSvc.SetSMSChannel(smsChannelSvc)
+	messagingmodule.RegisterSMSRoutes(mux, smsChannelSvc, tokens, loader, deps.Queries)
+	messagingmodule.RegisterSMSReportRoutes(mux, smschannel.NewReport(deps.Queries, entitlementsSvc), tokens, loader)
 	orgSvc.SetOverviewSources(billingSvc, messagingSvc)
 	dailySummarySvc := dsusecase.New(deps.Queries, dailysummary.NewMessagingSender(messagingSvc), log)
 	dailysummary.RegisterRoutes(mux, dailySummarySvc, tokens, loader, deps.Queries)

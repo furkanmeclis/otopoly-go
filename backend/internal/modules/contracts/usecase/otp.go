@@ -22,6 +22,7 @@ import (
 
 const (
 	otpChannelWhatsApp = "whatsapp"
+	otpChannelSMS      = "sms"
 	otpCodeLength      = 6
 	otpTTL             = 5 * time.Minute
 	otpResendCooldown  = 60 * time.Second
@@ -77,7 +78,9 @@ func (s *Service) SetOTPSender(sender OTPSender) {
 
 // SendOTPInput requests a new OTP for a signer.
 type SendOTPInput struct {
-	Phone     string `json:"phone"`
+	Phone string `json:"phone"`
+	// Channel: whatsapp (default) | sms (organization's active SMS provider).
+	Channel   string `json:"channel"`
 	IPAddress string `json:"-"`
 	UserAgent string `json:"-"`
 }
@@ -103,7 +106,7 @@ func signerOTPFresh(signer db.ContractSigner, now time.Time) bool {
 	return signer.OtpVerifiedAt.Valid && now.Sub(signer.OtpVerifiedAt.Time) <= otpVerificationTTL
 }
 
-// SendSignerOTP sends a WhatsApp OTP with the contract summary + KVKK notice to the signer.
+// SendSignerOTP sends a WhatsApp (or SMS) OTP with the contract summary + KVKK notice to the signer.
 func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uuid.UUID, in SendOTPInput) (OTPChallenge, error) {
 	scope, err := s.requireOrgScope(ctx)
 	if err != nil {
@@ -121,6 +124,14 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 		return OTPChallenge{}, err
 	}
 
+	channel := strings.TrimSpace(in.Channel)
+	switch channel {
+	case "":
+		channel = otpChannelWhatsApp
+	case otpChannelWhatsApp, otpChannelSMS:
+	default:
+		return OTPChallenge{}, fmt.Errorf("%w: channel must be whatsapp or sms", ErrInvalidRequest)
+	}
 	phone := strings.TrimSpace(in.Phone)
 	if phone == "" {
 		phone = signer.Phone
@@ -169,10 +180,13 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 	}
 	locale := i18n.Normalize(inst.Locale)
 	body := buildOTPMessage(locale, msgVars)
+	if channel == otpChannelSMS {
+		body = buildOTPSMS(locale, msgVars)
+	}
 
 	ref, err := s.otp.SendContractOTP(ctx, OTPMessage{
 		OrgID:         scope.InternalID,
-		Channel:       otpChannelWhatsApp,
+		Channel:       channel,
 		Phone:         phone,
 		Body:          body,
 		InstanceUUID:  inst.Uuid,
@@ -194,7 +208,7 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 		OrganizationID:    scope.InternalID,
 		InstanceID:        inst.ID,
 		SignerID:          signer.ID,
-		Channel:           otpChannelWhatsApp,
+		Channel:           channel,
 		Phone:             phone,
 		CodeHash:          hashOTPCode(signer.Uuid, code),
 		MessageSha256:     hex.EncodeToString(msgSum[:]),
@@ -216,10 +230,10 @@ func (s *Service) SendSignerOTP(ctx context.Context, instanceUUID, signerUUID uu
 	}
 
 	s.recordActivity(ctx, "tenant.contract_instance.otp_send", "contract_instance", &inst.Uuid, map[string]any{
-		"signer_uuid": signer.Uuid.String(), "channel": otpChannelWhatsApp, "phone": maskPhone(phone),
+		"signer_uuid": signer.Uuid.String(), "channel": channel, "phone": maskPhone(phone),
 	})
 	return OTPChallenge{
-		Channel:     otpChannelWhatsApp,
+		Channel:     channel,
 		PhoneMasked: maskPhone(phone),
 		ExpiresAt:   expiresAt,
 		ResendAt:    now.Add(otpResendCooldown),
@@ -373,6 +387,17 @@ func buildOTPMessage(locale i18n.Locale, v otpMessageVars) string {
 		"veri sorumlusu %s tarafından sözleşmenin kurulması ve ifası ile hukuki yükümlülüklerin yerine getirilmesi amacıyla işlenir "+
 		"ve yasal süre boyunca saklanır. KVKK m.11 kapsamındaki haklarınız için işletmeye başvurabilirsiniz._", v.BusinessName)
 	return b.String()
+}
+
+// buildOTPSMS is the short SMS form of the OTP message (code, contract,
+// validity and a one-line KVKK notice; no WhatsApp formatting).
+func buildOTPSMS(locale i18n.Locale, v otpMessageVars) string {
+	if locale == i18n.LocaleEN {
+		return fmt.Sprintf("%s: your approval code for contract %s (%s) is %s. Valid for %d min. Share it only if you accept the contract. "+
+			"Your data is processed by %s under KVKK No. 6698.", v.BusinessName, v.ContractNo, v.ContractTitle, v.Code, v.Minutes, v.BusinessName)
+	}
+	return fmt.Sprintf("%s: %s (%s) sözleşmesi onay kodunuz %s. Kod %d dk geçerlidir. Sözleşmeyi kabul ediyorsanız paylaşınız. "+
+		"Verileriniz KVKK (6698) kapsamında %s tarafından işlenir.", v.BusinessName, v.ContractNo, v.ContractTitle, v.Code, v.Minutes, v.BusinessName)
 }
 
 func generateOTPCode() (string, error) {
