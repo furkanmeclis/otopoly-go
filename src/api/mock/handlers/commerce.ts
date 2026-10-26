@@ -4,7 +4,7 @@ import type { PurchaseDetail } from '@/features/purchases/services/purchases.ser
 import type { SaleDetail, SalesSummary } from '@/features/sales/services/sales.service';
 import type { Supplier } from '@/features/suppliers/services/suppliers.service';
 
-import { bool, fail, inDayRange, istanbulDay, type MockCtx, money, notFound, now, num, paginate, requireFields, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid } from '../core';
+import { bool, fail, inDayRange, istanbulDay, type MockCtx, money, notFound, now, num, paginate, requireFields, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid, uuidQuery } from '../core';
 import { getDb } from '../db';
 import {
   categoryByName,
@@ -196,6 +196,8 @@ route('GET', '/v1/tenant/sales', (ctx) => {
   requirePerm(ctx, 'tenant.sales.read');
   const q = ctx.query;
   let items = getDb().sales;
+  const customerUuid = uuidQuery(ctx, 'customer_uuid');
+  if (customerUuid) items = items.filter((s) => s.customer_uuid === customerUuid);
   if (q.status) items = items.filter((s) => s.status === q.status);
   if (q.date_from || q.date_to) items = items.filter((s) => inDayRange(s.sold_at, q.date_from, q.date_to));
   items = search(items, q.q, ['customer_name', 'customer_phone', (s) => s.lines.map((l) => l.name).join(' ')]);
@@ -393,7 +395,8 @@ route('GET', '/v1/tenant/purchases', (ctx) => {
   const q = ctx.query;
   let items = getDb().purchases;
   if (q.status) items = items.filter((p) => p.status === q.status);
-  if (q.supplier_uuid) items = items.filter((p) => p.supplier_uuid === q.supplier_uuid);
+  const supplierUuid = uuidQuery(ctx, 'supplier_uuid');
+  if (supplierUuid) items = items.filter((p) => p.supplier_uuid === supplierUuid);
   if (q.date_from || q.date_to) items = items.filter((p) => inDayRange(p.purchased_at, q.date_from, q.date_to));
   items = search(items, q.q, ['supplier_name', (p) => p.lines.map((l) => l.name).join(' ')]);
   return paginate(sortBy(items, q.sort, '-purchased_at'), q);

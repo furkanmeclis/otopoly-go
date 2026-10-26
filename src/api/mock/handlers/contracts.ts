@@ -8,7 +8,7 @@
 import type { ContractPreset, SignerSlot } from '@/features/contract-presets/services/contract-presets.service';
 import type { ContractInstance, ContractMedia, ContractSigner, ContractTemplate } from '@/features/contracts/services/contracts.service';
 
-import { bool, fail, type MockCtx, notFound, now, paginate, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid, validation } from '../core';
+import { bool, fail, type MockCtx, notFound, now, paginate, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid, uuidQuery, validation } from '../core';
 import { getDb, type MockDb } from '../db';
 import { activeSmsProvider } from './sms';
 
@@ -392,6 +392,12 @@ route('GET', '/v1/tenant/contracts/instances', (ctx) => {
   if (ctx.query.status) items = items.filter((x) => x.status === ctx.query.status);
   if (ctx.query.subject_type) items = items.filter((x) => x.subject_type === ctx.query.subject_type);
   if (ctx.query.subject_uuid) items = items.filter((x) => x.subject_uuid === ctx.query.subject_uuid);
+  // Contracts are bound to service jobs: the job's customer decides.
+  const customerUuid = uuidQuery(ctx, 'customer_uuid');
+  if (customerUuid) {
+    const jobs = new Set(getDb().jobs.filter((j) => j._org === org && j.customer_uuid === customerUuid).map((j) => j.uuid));
+    items = items.filter((x) => x.subject_type === 'service_job' && jobs.has(x.subject_uuid));
+  }
   items = search(items, ctx.query.q, ['title', 'number_label', (x) => x.variables_resolved.customer_name ?? '', (x) => x.variables_resolved.plate ?? '']);
   return paginate(sortBy(items, ctx.query.sort, '-created_at').map(toInstance), ctx.query);
 });

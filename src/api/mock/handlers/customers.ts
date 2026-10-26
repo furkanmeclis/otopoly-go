@@ -1,7 +1,8 @@
-import type { Customer, CustomerDetail } from '@/features/customers/services/customers.service';
+import type { Customer, CustomerActivityEntry, CustomerDetail } from '@/features/customers/services/customers.service';
 
-import { bool, fail, type MockCtx, notFound, now, num, paginate, requireFields, requirePerm, resourceMeta, route, search, sortBy, str, uuid } from '../core';
+import { bool, fail, type MockCtx, notFound, now, num, paginate, requireFields, requirePerm, resourceMeta, route, search, sortBy, stableUuid, str, uuid } from '../core';
 import { getDb, type MockVehicle } from '../db';
+import { orgStore } from './contracts';
 
 function normalizePlate(raw: string) {
   return raw.toLocaleUpperCase('tr-TR').replace(/\s+/g, ' ').trim();
@@ -129,6 +130,80 @@ route('PATCH', '/v1/tenant/customers/:uuid', (ctx) => {
   const db = getDb();
   for (const a of db.cariAccounts) if (a.customer_uuid === c.uuid) Object.assign(a, { customer_name: c.name, customer_phone: c.phone });
   return detail(c);
+});
+
+// ─── Activity feed ─────────────────────────────────────────────────────────
+
+/**
+ * GET /v1/tenant/customers/{uuid}/activity. The mock keeps no audit log: entries are derived from the demo
+ * records (creation, close / send / void times) with the backend's action and resource names, newest first.
+ * Kinds the caller cannot read are left out (also from `total`), like `activityScopeFrom` in Go.
+ */
+function customerActivity(ctx: MockCtx, c: Customer): CustomerActivityEntry[] {
+  const db = getDb();
+  const has = (perm: string) => ctx.permissions.has(perm);
+  const ownerUuid = db.memberships.find((m) => m.orgUuid === ctx.orgUuid && m.role === 'owner')?.userUuid;
+  const owner = db.users.find((u) => u.uuid === ownerUuid);
+  const actor = owner ? { uuid: owner.uuid, name: owner.name, surname: owner.surname } : null;
+  const out: CustomerActivityEntry[] = [];
+  const add = (action: string, resource: string, subject: CustomerActivityEntry['subject'], resourceUuid: string | null, at: string | null | undefined, payload: Record<string, unknown>, by = actor) => {
+    if (!at) return;
+    out.push({ uuid: stableUuid(`${action}|${resourceUuid}|${at}`), action, resource, subject, resource_uuid: resourceUuid, payload, actor: by, created_at: at });
+  };
+
+  add('tenant.customer.create', 'customer', 'customer', c.uuid, c.created_at, { name: c.name });
+  if (c.updated_at && c.updated_at > c.created_at) add('tenant.customer.update', 'customer', 'customer', c.uuid, c.updated_at, { name: c.name });
+  for (const v of db.vehicles.filter((x) => x.customer_uuid === c.uuid)) add('tenant.customer.vehicle_add', 'customer_vehicle', 'vehicle', v.uuid, v.created_at, { plate: v.plate });
+
+  const jobs = db.jobs.filter((j) => j._org === ctx.orgUuid && j.customer_uuid === c.uuid);
+  if (has('tenant.jobs.read')) {
+    for (const j of jobs) {
+      add('jobs.create', 'jobs.job', 'job', j.uuid, j.created_at, { plate: j.plate });
+      if (j.paid_at) add('jobs.close', 'jobs.job', 'job', j.uuid, j.paid_at, { plate: j.plate });
+      if (j.status === 'cancelled') add('jobs.cancel', 'jobs.job', 'job', j.uuid, j.updated_at, { plate: j.plate });
+      if (j.status === 'voided') add('jobs.void', 'jobs.job', 'job', j.uuid, j.updated_at, { plate: j.plate });
+    }
+  }
+  if (has('tenant.jobs.read') && has('tenant.contracts.read')) {
+    const jobUuids = new Set(jobs.map((j) => j.uuid));
+    const { s, org } = orgStore(ctx);
+    for (const k of s.instances.filter((x) => x._org === org && jobUuids.has(x.subject_uuid))) {
+      add('tenant.contract_instance.create', 'contract_instance', 'contract', k.uuid, k.created_at, { title: k.title, number: k.number_label });
+      if (k.status === 'executed') add('tenant.contract_instance.sign', 'contract_instance', 'contract', k.uuid, k.executed_at, { title: k.title, number: k.number_label });
+      if (k.status === 'voided') add('tenant.contract_instance.void', 'contract_instance', 'contract', k.uuid, k.updated_at, { title: k.title, number: k.number_label });
+    }
+  }
+  if (has('tenant.sales.read')) {
+    for (const sale of db.sales.filter((x) => x.customer_uuid === c.uuid)) {
+      add('tenant.sales.create', 'sale', 'sale', sale.uuid, sale.created_at, { total: sale.total_amount });
+      if (sale.voided_at) add('tenant.sales.void', 'sale', 'sale', sale.uuid, sale.voided_at, { total: sale.total_amount });
+    }
+  }
+  if (has('tenant.quotes.read')) {
+    for (const q of db.quotes.filter((x) => x.customer_uuid === c.uuid)) {
+      add('tenant.quote.create', 'quote', 'quote', q.uuid, q.created_at, { number: q.number });
+      if (q.sent_at) add('tenant.quote.send', 'quote', 'quote', q.uuid, q.sent_at, { number: q.number });
+      if (q.status === 'accepted' || q.status === 'rejected') add('tenant.quote.status', 'quote', 'quote', q.uuid, q.updated_at, { number: q.number, to: q.status });
+    }
+  }
+  if (has('tenant.leads.read')) {
+    for (const l of db.leads.filter((x) => x.customer_uuid === c.uuid)) {
+      add('tenant.lead.create', 'lead', 'lead', l.uuid, l.created_at, { name: l.interest });
+      if (l.status !== 'new' && l.updated_at > l.created_at) add('tenant.lead.status', 'lead', 'lead', l.uuid, l.updated_at, { name: l.interest, to: l.status });
+    }
+  }
+  if (has('tenant.cari.read') && c.cari_account_uuid) {
+    for (const e of db.cariEntries.filter((x) => x.account_uuid === c.cari_account_uuid && x.type !== 'opening')) {
+      add(`cari.${e.type}`, 'cari.entry', 'cari_entry', e.uuid, e.created_at, { amount: e.amount, name: e.description });
+      if (e.voided_at) add('cari.entry_void', 'cari.entry', 'cari_entry', e.uuid, e.voided_at, { amount: e.amount, name: e.description });
+    }
+  }
+  return out.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+route('GET', '/v1/tenant/customers/:uuid/activity', (ctx) => {
+  requirePerm(ctx, 'tenant.customers.read');
+  return paginate(customerActivity(ctx, find(ctx)), ctx.query);
 });
 
 route('DELETE', '/v1/tenant/customers/:uuid', (ctx) => {

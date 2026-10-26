@@ -57,8 +57,10 @@ function SupplierDetail() {
   const supplier = query.data;
   const canWrite = can({ perm: P.suppliersWrite, owner: true });
   const canPurchase = can({ perm: P.purchasesWrite, owner: true });
-  const purchases = useSupplierPurchases(supplier, can(P.purchasesRead));
-  const pull = usePullRefresh(query, can(P.purchasesRead) && purchases);
+  const purchases = useSupplierPurchases(id, can(P.purchasesRead));
+  // Totals over the posted purchases (voided ones do not count).
+  const posted = useSupplierPurchases(id, can(P.purchasesRead), { status: 'posted', limit: 100 });
+  const pull = usePullRefresh(query, can(P.purchasesRead) && purchases, can(P.purchasesRead) && posted);
 
   const remove = useApiMutation({
     key: 'suppliers.delete',
@@ -88,9 +90,9 @@ function SupplierDetail() {
   }
 
   const phone = supplier.phone?.trim();
-  const posted = (purchases.data ?? []).filter((x) => x.status === 'posted');
-  const purchasedTotal = posted.reduce((sum, x) => sum + toNumber(x.total_amount), 0);
-  const lastPurchase = posted[0];
+  const postedItems = posted.data?.items ?? [];
+  const purchasedTotal = postedItems.reduce((sum, x) => sum + toNumber(x.total_amount), 0);
+  const lastPurchase = postedItems[0];
 
   return (
     <Screen
@@ -134,14 +136,15 @@ function SupplierDetail() {
         <>
           <StatGrid
             items={[
-              { label: tr('purchases.summary.count'), value: String(posted.length), loading: purchases.isLoading },
-              { label: tr('purchases.summary.total'), value: fmt.money(purchasedTotal), loading: purchases.isLoading },
-              { label: tr('purchases.purchased_at'), value: lastPurchase ? fmt.date(lastPurchase.purchased_at) : tr('mobile.detail.never'), loading: purchases.isLoading },
+              { label: tr('purchases.summary.count'), value: String(posted.data?.total ?? 0), loading: posted.isLoading },
+              { label: tr('purchases.summary.total'), value: fmt.money(purchasedTotal), loading: posted.isLoading },
+              { label: tr('purchases.purchased_at'), value: lastPurchase ? fmt.date(lastPurchase.purchased_at) : tr('mobile.detail.never'), loading: posted.isLoading },
             ]}
           />
           <RelatedSection
             title={tr('purchases.title')}
-            items={purchases.data}
+            items={purchases.data?.items}
+            count={purchases.data?.total}
             loading={purchases.isLoading}
             error={purchases.error}
             onRetry={() => void purchases.refetch()}

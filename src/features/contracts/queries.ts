@@ -17,6 +17,14 @@ type Params = Record<string, string | number | undefined>;
 export const useContractInstancesInfinite = (params: Params, enabled = true) =>
   useInfiniteList(contractKeys.instances, (p) => contractsService.listInstances(p as never), params, enabled);
 
+/** Contracts on a customer's service jobs (`customer_uuid` filter), newest first. */
+export const useCustomerContracts = (customerUuid: string, enabled = true) =>
+  useQuery({
+    queryKey: [...contractKeys.instances, 'customer', customerUuid],
+    queryFn: () => contractsService.listInstances({ customer_uuid: customerUuid, limit: 20, offset: 0 }),
+    enabled: enabled && Boolean(customerUuid),
+  });
+
 export const useContractInstance = (uuid: string) =>
   useQuery({
     queryKey: [...contractKeys.instances, 'detail', uuid],

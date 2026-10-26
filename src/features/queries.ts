@@ -77,6 +77,9 @@ export const useJobsSummary = (date?: string, enabled = true) =>
 export const useJob = (uuid: string) => useQuery({ queryKey: [...qk.jobs, 'detail', uuid], queryFn: () => jobsService.get(uuid), enabled: Boolean(uuid) });
 export const useCustomerJobs = (uuid: string) =>
   useQuery({ queryKey: [...qk.jobs, 'by-customer', uuid], queryFn: () => jobsService.listByCustomer(uuid, { limit: 10, offset: 0 }), enabled: Boolean(uuid) });
+/** Customer activity feed (customer, vehicles, jobs, sales, quotes, leads, cari, contracts), paged with "load more". */
+export const useCustomerActivity = (uuid: string, enabled = true) =>
+  useInfiniteList([...qk.customers, 'activity', uuid], (p) => customersService.activity(uuid, p as never), {}, enabled && Boolean(uuid));
 export const useStaffOptions = (enabled = true) => useQuery({ queryKey: [...qk.staff, 'options'], queryFn: () => staffService.options(), enabled, staleTime: 5 * 60_000 });
 
 // ─── Customers ─────────────────────────────────────────────────────────────
@@ -149,28 +152,19 @@ export const useSuppliers = () =>
 export const useSupplier = (uuid: string) => useQuery({ queryKey: [...qk.suppliers, 'detail', uuid], queryFn: () => suppliersService.get(uuid), enabled: Boolean(uuid) });
 export const usePurchasesInfinite = (params: Params) => useInfiniteList(qk.purchases, (p) => purchasesService.list(p as never), params);
 export const usePurchase = (uuid: string) => useQuery({ queryKey: [...qk.purchases, 'detail', uuid], queryFn: () => purchasesService.get(uuid), enabled: Boolean(uuid) });
-/**
- * Recent sales of one customer. The sales list has no customer filter: search by the customer's name and keep
- * the rows of that customer (recent ones; the backend sorts by date).
- */
-export const useCustomerSales = (customer: { uuid: string; name: string } | null | undefined, enabled = true) =>
+/** Recent sales of one customer (`customer_uuid` filter, newest first). */
+export const useCustomerSales = (customerUuid: string | null | undefined, enabled = true) =>
   useQuery({
-    queryKey: [...qk.sales, 'by-customer', customer?.uuid],
-    queryFn: async () => {
-      const page = await salesService.list({ q: customer!.name, limit: 50, offset: 0 } as never);
-      return page.items.filter((s) => s.customer_uuid === customer!.uuid);
-    },
-    enabled: enabled && Boolean(customer?.uuid && customer.name),
+    queryKey: [...qk.sales, 'by-customer', customerUuid],
+    queryFn: () => salesService.list({ customer_uuid: customerUuid!, limit: 10, offset: 0 }),
+    enabled: enabled && Boolean(customerUuid),
   });
-/** Recent purchases from one supplier (same approach: search by name, keep that supplier's rows). */
-export const useSupplierPurchases = (supplier: { uuid: string; name: string } | null | undefined, enabled = true) =>
+/** Recent purchases from one supplier (`supplier_uuid` filter, newest first); `status` narrows it (e.g. posted for totals). */
+export const useSupplierPurchases = (supplierUuid: string | null | undefined, enabled = true, opts: { status?: 'posted' | 'voided'; limit?: number } = {}) =>
   useQuery({
-    queryKey: [...qk.purchases, 'by-supplier', supplier?.uuid],
-    queryFn: async () => {
-      const page = await purchasesService.list({ q: supplier!.name, limit: 50, offset: 0 } as never);
-      return page.items.filter((p) => p.supplier_uuid === supplier!.uuid);
-    },
-    enabled: enabled && Boolean(supplier?.uuid && supplier.name),
+    queryKey: [...qk.purchases, 'by-supplier', supplierUuid, opts],
+    queryFn: () => purchasesService.list({ supplier_uuid: supplierUuid!, status: opts.status, limit: opts.limit ?? 10, offset: 0 }),
+    enabled: enabled && Boolean(supplierUuid),
   });
 
 // ─── Staff / reports ───────────────────────────────────────────────────────

@@ -1,10 +1,11 @@
 /**
  * Customer 360 — web `/t/[slug]/customers/[uuid]` plus the records linked to the customer: vehicles,
  * jobs, quotes, leads, cari (balance + entries) and todos, with call / WhatsApp / SMS / email and
- * "new job / quote / lead" shortcuts. Every linked record opens its own screen.
+ * "new job / quote / lead" shortcuts, sales (`customer_uuid` filter), contracts on its jobs and the
+ * activity timeline. Every linked record opens its own screen.
  */
 import { router, useLocalSearchParams } from 'expo-router';
-import { Briefcase, FileText, Mail, MessageCircle, MessageSquare, Pencil, Phone, Plus, Target, Trash2, Wallet, Car } from 'lucide-react-native';
+import { Briefcase, FileText, Mail, MessageCircle, MessageSquare, Pencil, Phone, Plus, Target, Trash2, Wallet, Car, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -36,6 +37,9 @@ import {
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { instanceStatusLabel, instanceStatusTone, useContractsAccess } from '@/features/contracts/lib/access';
+import { useCustomerContracts } from '@/features/contracts/queries';
+import { CustomerActivitySection } from '@/features/customers/components/activity-section';
 import { AddVehicleSheet } from '@/features/customers/components/pickers';
 import { customersService } from '@/features/customers/services/customers.service';
 import { JobStatusBadge, PaymentBadge } from '@/features/jobs/components/job-parts';
@@ -52,7 +56,7 @@ import { useTheme } from '@/theme/provider';
 import { useLiveResource } from '@/features/live/use-live-resource';
 
 export default function CustomerDetailScreen() {
-  useLiveResource(['tenant.customers', 'tenant.vehicles', 'tenant.jobs', 'tenant.cari']);
+  useLiveResource(['tenant.customers', 'tenant.vehicles', 'tenant.jobs', 'tenant.cari', 'tenant.cari.entries', 'tenant.sales', 'tenant.quotes', 'tenant.leads', 'tenant.contracts.instances']);
   const { t: tr } = useLocale();
   return (
     <RequirePermission gate={P.customersRead} title={tr('customers.detail.info')}>
@@ -74,10 +78,12 @@ function CustomerDetail() {
   const quotes = useQuotes({ customer_uuid: id, limit: 20 }, can(P.quotesRead));
   const leads = useLeads({ customer_uuid: id, limit: 20 }, can(P.leadsRead));
   const todos = useTodos({ customer: id, limit: 10 }, can(P.todosRead));
-  const sales = useCustomerSales(c, can(P.salesRead));
+  const sales = useCustomerSales(id, can(P.salesRead));
+  const contractsAccess = useContractsAccess();
+  const contracts = useCustomerContracts(id, contractsAccess.canRead && can(P.jobsRead));
   const [vehicleOpen, setVehicleOpen] = useState(false);
   const canWrite = can(P.customersWrite);
-  const pull = usePullRefresh(customer, can(P.jobsRead) && jobs, can(P.quotesRead) && quotes, can(P.leadsRead) && leads, can(P.todosRead) && todos, can(P.salesRead) && sales);
+  const pull = usePullRefresh(customer, can(P.jobsRead) && jobs, can(P.quotesRead) && quotes, can(P.leadsRead) && leads, can(P.todosRead) && todos, can(P.salesRead) && sales, contracts);
 
   const remove = useApiMutation({
     key: 'customers.delete',
@@ -117,6 +123,9 @@ function CustomerDetail() {
   // Modules off on the plan: leave the section out instead of showing a lock in the middle of the page.
   const showQuotes = can(P.quotesRead) && !isFeatureDisabled(quotes.error);
   const showLeads = can(P.leadsRead) && !isFeatureDisabled(leads.error);
+  // Contracts are bound to jobs: the API needs jobs.read too to list them per customer.
+  const showContracts = contractsAccess.canRead && can(P.jobsRead) && !isFeatureDisabled(contracts.error);
+  const showSales = can(P.salesRead) && !isFeatureDisabled(sales.error);
   const phone = c.phone?.trim();
 
   const stats: StatItem[] = [];
@@ -276,12 +285,13 @@ function CustomerDetail() {
         />
       ) : null}
 
-      {can(P.salesRead) ? (
+      {showSales ? (
         <RelatedSection
           title={tr('sales.title')}
-          items={sales.data}
+          items={sales.data?.items}
+          count={sales.data?.total}
           loading={sales.isLoading}
-          error={isFeatureDisabled(sales.error) ? undefined : sales.error}
+          error={sales.error}
           onRetry={() => void sales.refetch()}
           empty={tr('sales.empty_title')}
           renderItem={(sale, i, last) => (
@@ -294,6 +304,42 @@ function CustomerDetail() {
               last={last}
             />
           )}
+        />
+      ) : null}
+
+      {showContracts ? (
+        <RelatedSection
+          title={tr('contracts.instances.title')}
+          items={contracts.data?.items}
+          count={contracts.data?.total}
+          loading={contracts.isLoading}
+          error={contracts.error}
+          onRetry={() => void contracts.refetch()}
+          empty={tr('contracts.instances.empty_title')}
+          renderItem={(k, i, last) => {
+            const signers = k.signers ?? [];
+            const signed = signers.filter((s) => s.status === 'signed').length;
+            return (
+              <ListRow
+                key={k.uuid}
+                title={`${k.number_label ? `${k.number_label} · ` : ''}${k.title}`}
+                subtitle={[fmt.dateTime(k.created_at), k.variables_resolved?.plate].filter(Boolean).join(' · ')}
+                right={
+                  <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                    <Badge size="sm" tone={instanceStatusTone(k.status)} label={instanceStatusLabel(tr, k.status)} />
+                    {signers.length ? (
+                      <Row gap={3}>
+                        <Users size={12} color={t.colors.textMuted} />
+                        <Txt variant="caption" tone="secondary">{`${signed}/${signers.length}`}</Txt>
+                      </Row>
+                    ) : null}
+                  </View>
+                }
+                onPress={() => router.push(`/contracts/instances/${k.uuid}`)}
+                last={last}
+              />
+            );
+          }}
         />
       ) : null}
 
@@ -378,6 +424,8 @@ function CustomerDetail() {
           renderItem={(todo, i, last) => <TodoRow key={todo.uuid} todo={todo} canWrite={can(P.todosWrite)} last={last} />}
         />
       ) : null}
+
+      <CustomerActivitySection customerUuid={c.uuid} cariAccountUuid={can(P.cariRead) ? c.cari_account_uuid : null} />
 
       <Card padded={false} style={{ paddingHorizontal: t.spacing.lg }}>
         <InfoRow label={tr('customers.fields.phone')} value={c.phone} />
