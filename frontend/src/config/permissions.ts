@@ -96,6 +96,8 @@ export const Permission = {
   TenantQuotesWrite: "tenant.quotes.write",
   TenantBillingRead: "tenant.billing.read",
   TenantBillingWrite: "tenant.billing.write",
+  TenantCalendarRead: "tenant.calendar.read",
+  TenantCalendarWrite: "tenant.calendar.write",
   PlatformBillingRead: "platform.billing.read",
   PlatformBillingWrite: "platform.billing.write",
   PlatformBillingSettings: "platform.billing.settings",
@@ -327,6 +329,10 @@ export const permissions = {
   todos: {
     read: Permission.TenantTodosRead,
     write: Permission.TenantTodosWrite,
+  },
+  calendar: {
+    read: Permission.TenantCalendarRead,
+    write: Permission.TenantCalendarWrite,
   },
   messaging: {
     read: Permission.TenantMessagingRead,

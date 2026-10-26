@@ -83,6 +83,15 @@ export const routes = {
     todos: {
       root: (slug: string) => `/t/${slug}/todos`,
     },
+    calendar: {
+      root: (slug: string) => `/t/${slug}/calendar`,
+      /** Opens the calendar on a day (YYYY-MM-DD), optionally in a view. */
+      day: (slug: string, date: string, view?: "day" | "week" | "agenda") =>
+        `/t/${slug}/calendar?date=${encodeURIComponent(date)}${view ? `&view=${view}` : ""}`,
+      /** Opens the calendar on an event's day with its dialog open. */
+      event: (slug: string, uuid: string) =>
+        `/t/${slug}/calendar?event=${encodeURIComponent(uuid)}`,
+    },
     leads: {
       root: (slug: string) => `/t/${slug}/leads`,
       detail: (slug: string, uuid: string) => `/t/${slug}/leads/${uuid}`,

@@ -16481,7 +16481,7 @@ components:
       type: object
       required: [kind, uuid]
       properties:
-        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo] }
+        kind: { type: string, enum: [customer, cari, job, sale, finance_account, todo, calendar_event] }
         uuid: { type: string, format: uuid }
 
     AIActionResult:

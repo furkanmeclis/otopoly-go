@@ -65,6 +65,8 @@ function linkHref(slug: string, link: AIActionLink): string {
       return routes.tenant.sales.detail(slug, link.uuid);
     case "finance_account":
       return routes.tenant.finance.accounts.detail(slug, link.uuid);
+    case "calendar_event":
+      return routes.tenant.calendar.event(slug, link.uuid);
     default:
       return routes.tenant.todos.root(slug);
   }

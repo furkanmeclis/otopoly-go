@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   Activity,
   ListTodo,
   Bell,
@@ -47,6 +48,7 @@ import { routes } from "@/config/routes";
 import { defineNav } from "@/features/nav-engine";
 import { usersNavItem } from "@/features/users/nav";
 import { TodosNavAdornment } from "@/features/todos/nav";
+import { CalendarNavAdornment } from "@/features/calendar/nav";
 import { LeadsNavAdornment } from "@/features/leads/nav";
 import { QuotesNavAdornment } from "@/features/quotes/nav";
 import { PaymentsNavAdornment } from "@/features/platform-billing/nav";
@@ -330,6 +332,15 @@ export function tenantNav(slug: string) {
             titleKey: "layout.home",
             href: routes.tenant.home(slug),
             icon: LayoutDashboard,
+          },
+          {
+            id: "calendar",
+            titleKey: "layout.nav_calendar",
+            href: routes.tenant.calendar.root(slug),
+            icon: CalendarDays,
+            searchIcon: "calendar",
+            permission: permissions.calendar.read,
+            Adornment: CalendarNavAdornment,
           },
           {
             id: "operations",

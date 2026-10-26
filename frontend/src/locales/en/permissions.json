@@ -135,5 +135,7 @@
   "labels.tenant.billing.write": "Manage subscription",
   "labels.platform.billing.read": "View platform subscriptions",
   "labels.platform.billing.write": "Manage platform subscriptions and plans",
-  "labels.platform.billing.settings": "Manage billing settings"
+  "labels.platform.billing.settings": "Manage billing settings",
+  "labels.tenant.calendar.read": "View calendar",
+  "labels.tenant.calendar.write": "Manage calendar events"
 }

@@ -217,6 +217,21 @@ Leads (fırsat) and quotes (teklif) under `/v1/tenant/leads/*` and `/v1/tenant/q
 
 **Quick convert:** service lines → job lines via `jobsusecase.Service.Create` (unit price = paid amount after discounts, VAT incl.); product / free-text lines are listed in the job notes, not transferred. A missing vehicle is created on the customer from the quote's plate + catalog model (only missing fields are asked). The quote stores `job_id`; a linked lead becomes `won`.
 
+## Tenant calendar (`/t/{slug}/calendar`)
+
+Organization calendar under `/v1/tenant/calendar/*` (module `internal/modules/calendar`). The organization's own events live in `calendar_events`; everything else is read live from the owning modules, never copied.
+
+| Permission | Who | Notes |
+|------------|-----|-------|
+| `tenant.calendar.read` | owners + staff | Meta, feed, event detail |
+| `tenant.calendar.write` | owners + staff | Event create / update / delete, moving events |
+
+**Layers** (`GET …/feed?from&to&layers`, dates Europe/Istanbul, `to` exclusive, max 62 days): `events`, `jobs` (opened), `deliveries`, `todos` (due date/time), `quotes` (valid-until of draft/sent/viewed), `leads` (follow-up of open leads), `finance` (posted income/expense per day), `sales`, `purchases`, `contracts` (executed). Each layer also needs its module's read permission (`tenant.jobs.read`, `tenant.finance.read`, …) and plan feature (`module.quotes` for quotes/leads, `module.contracts`), so the calendar never widens what a member sees. `GET …/meta` lists the layers the caller gets.
+
+**Drag and drop:** `POST …/items/move` reschedules events (`tenant.calendar.write`), todo due date/time (`tenant.todos.write`, through the todos use case so reminders follow) and lead follow-ups (`tenant.leads.write`, through the leads use case so the timeline records it). Feed items carry `movable`.
+
+**AI:** `list_calendar` (read) and `create_calendar_event` (confirmable write).
+
 ## Tenant cari (`/t/{slug}/cari`)
 
 Organization-scoped accounts receivable under `/v1/tenant/cari/*`. One `cari_accounts` row per customer (auto-created). Positive `balance` means the customer owes the business.

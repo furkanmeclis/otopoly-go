@@ -10352,7 +10352,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
             /** Format: uuid */
             uuid: string;
         };

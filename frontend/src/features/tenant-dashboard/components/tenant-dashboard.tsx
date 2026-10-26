@@ -45,6 +45,7 @@ import { useTenantReportsAccess } from "@/features/reports/hooks/use-tenant-repo
 import { useTenantSalesAccess } from "@/features/sales/hooks/use-tenant-sales-access";
 import { SalesPipelineWidget } from "@/features/quotes";
 import { TodosWidget } from "@/features/todos";
+import { CalendarUpcomingWidget } from "@/features/calendar";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
@@ -134,7 +135,10 @@ export function TenantDashboard({ slug }: { slug: string }) {
 
       <SalesPipelineWidget slug={slug} />
 
-      <TodosWidget slug={slug} />
+      <div className="grid gap-4 lg:grid-cols-2 lg:[&>*:only-child]:col-span-2">
+        <CalendarUpcomingWidget slug={slug} />
+        <TodosWidget slug={slug} />
+      </div>
 
       {reportsAccess.canRead ? <InsightsSection slug={slug} /> : null}
     </div>
