@@ -135,5 +135,8 @@
   "labels.tenant.billing.write": "Manage subscription",
   "labels.platform.billing.read": "View platform subscriptions",
   "labels.platform.billing.write": "Manage platform subscriptions and plans",
-  "labels.platform.billing.settings": "Manage billing settings"
+  "labels.platform.billing.settings": "Manage billing settings",
+  "labels.tenant.mcp.connect": "Connect AI apps (MCP) to the business",
+  "labels.platform.mcp.connect": "Connect AI apps (MCP) to the platform",
+  "labels.platform.mcp.manage": "Manage MCP clients"
 }

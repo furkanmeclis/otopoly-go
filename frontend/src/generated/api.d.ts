@@ -7264,6 +7264,166 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/mcp/info": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * MCP server URLs for the connect guides
+         * @description Public URLs of the two MCP endpoints (docs/MCP.md) and whether the
+         *     caller may connect them (`tenant.mcp.connect` / `platform.mcp.connect`).
+         */
+        get: operations["getMCPInfo"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/oauth/requests/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Consent screen data of a pending MCP authorization request
+         * @description The client, its redirect host, the endpoint (`/mcp/org` or
+         *     `/mcp/platform`), the requested scopes and, for `/mcp/org`, the
+         *     organizations the user may bind the connection to (active membership,
+         *     `tenant.mcp.connect`, plan toggle `mcp.enabled`) with the tool count
+         *     there. `allowed` is false when the user cannot approve.
+         */
+        get: operations["getMCPOAuthRequest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/oauth/requests/{uuid}/decide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve or deny a pending MCP authorization request
+         * @description Approve binds the connection to `organization_uuid` (required for
+         *     `/mcp/org`) with the chosen `scopes` (a subset of the requested ones;
+         *     omitted = all). The request is consumed either way; the response is
+         *     where to send the browser (the client's redirect URI with `code` or
+         *     `error=access_denied`, plus `state` and `iss`).
+         */
+        post: operations["decideMCPOAuthRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/grants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The current user's connected MCP apps */
+        get: operations["listMCPGrants"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mcp/grants/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Disconnect one of the user's MCP apps
+         * @description Revokes the grant and every token issued under it at once.
+         */
+        delete: operations["revokeMCPGrant"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/mcp/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Registered MCP (OAuth) clients
+         * @description Requires `platform.mcp.manage`.
+         */
+        get: operations["listPlatformMCPClients"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/mcp/clients/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Block an MCP client
+         * @description Requires `platform.mcp.manage`. Revokes the client, every grant and
+         *     token issued to it, pending requests and unused codes. Blocking a
+         *     blocked client again succeeds.
+         */
+        delete: operations["revokePlatformMCPClient"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -13035,6 +13195,129 @@ export interface components {
             brand_uuid: string;
             /** @description Name of the new display brand */
             name?: string;
+        };
+        MCPInfo: {
+            /** @example https://app.otopoly.com/mcp/org */
+            org_url: string;
+            /** @example https://app.otopoly.com/mcp/platform */
+            platform_url: string;
+            issuer: string;
+            scopes: ("mcp:read" | "mcp:write")[];
+            can_connect_org: boolean;
+            can_connect_platform: boolean;
+        };
+        EnvelopeMCPInfo: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MCPInfo"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPConsentOrganization: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+            /** @description Member role: owner or staff */
+            role: string;
+            /** @description Tools the user gets there with the requested scopes */
+            tool_count: number | null;
+        };
+        MCPConsent: {
+            /** Format: uuid */
+            request_uuid: string;
+            client_id: string;
+            client_name: string;
+            redirect_host: string;
+            /** @enum {string} */
+            resource: "/mcp/org" | "/mcp/platform";
+            resource_url: string;
+            /** @enum {string} */
+            realm: "org" | "platform";
+            scopes: ("mcp:read" | "mcp:write")[];
+            organizations: components["schemas"]["MCPConsentOrganization"][];
+            platform_tool_count: number | null;
+            allowed: boolean;
+            /** Format: date-time */
+            expires_at: string;
+        };
+        EnvelopeMCPConsent: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["MCPConsent"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPDecideRequest: {
+            /** @enum {string} */
+            decision: "approve" | "deny";
+            /** Format: uuid */
+            organization_uuid?: string | null;
+            scopes?: ("mcp:read" | "mcp:write")[];
+        };
+        EnvelopeMCPDecision: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                redirect_url: string;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPGrant: {
+            /** Format: uuid */
+            uuid: string;
+            client_id: string;
+            client_name: string;
+            /** @enum {string} */
+            resource: "/mcp/org" | "/mcp/platform";
+            /** @enum {string} */
+            realm: "org" | "platform";
+            scopes: string[];
+            /** Format: uuid */
+            organization_uuid: string | null;
+            organization_slug: string | null;
+            organization_name: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_used_at: string | null;
+        };
+        EnvelopeMCPGrantList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["MCPGrant"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        MCPClient: {
+            /** Format: uuid */
+            uuid: string;
+            client_id: string;
+            client_name: string;
+            redirect_uris: string[];
+            created_ip: string | null;
+            /** @enum {string} */
+            status: "active" | "revoked";
+            active_grants: number;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            last_used_at: string | null;
+            /** Format: date-time */
+            revoked_at: string | null;
+        };
+        EnvelopeMCPClientList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["MCPClient"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
         };
     };
     responses: {
@@ -26465,6 +26748,186 @@ export interface operations {
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
             429: components["responses"]["TooManyRequests"];
+        };
+    };
+    getMCPInfo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description MCP info */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPInfo"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    getMCPOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Consent data */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPConsent"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    decideMCPOAuthRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MCPDecideRequest"];
+            };
+        };
+        responses: {
+            /** @description Redirect target */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPDecision"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMCPGrants: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                realm?: "org" | "platform";
+                organization_uuid?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connected apps */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPGrantList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+        };
+    };
+    revokeMCPGrant: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Disconnected */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listPlatformMCPClients: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: "active" | "revoked";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Clients */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeMCPClientList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    revokePlatformMCPClient: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Resource UUID */
+                uuid: components["parameters"]["ResourceUUID"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Blocked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

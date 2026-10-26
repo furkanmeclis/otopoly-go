@@ -194,5 +194,14 @@
   "actions.catalog.display_brand_logo_linked": "Display brand linked to a logo source",
   "actions.catalog.model_rules_saved": "Catalog model rules saved",
   "actions.catalog.brand_logos_settings_updated": "Logo sync settings updated",
-  "actions.catalog.brand_logos_sync_requested": "Logo sync started"
+  "actions.catalog.brand_logos_sync_requested": "Logo sync started",
+  "actions.mcp.tool_called": "MCP tool called",
+  "actions.mcp.consent_approved": "MCP connection allowed",
+  "actions.mcp.consent_denied": "MCP connection denied",
+  "actions.mcp.grant_revoked": "MCP connection removed",
+  "actions.mcp.client_revoked": "MCP client blocked",
+  "resources.mcp_tool": "MCP tool",
+  "resources.mcp_oauth_grants": "MCP connection",
+  "resources.mcp_oauth_auth_requests": "MCP connection request",
+  "resources.mcp_oauth_clients": "MCP client"
 }

@@ -8,5 +8,6 @@ export const config = {
     "/t/:path*",
     "/profile/:path*",
     "/platform/:path*",
+    "/oauth/consent",
   ],
 };

@@ -55,6 +55,7 @@ function isGuestAuthPath(pathname: string) {
 
 function isProtectedPath(pathname: string) {
   if (pathname === routes.public.root) return false;
+  if (pathname === routes.oauth.consent) return true;
   if (pathname === routes.public.register) return false;
   if (isOnboardingPath(pathname)) return true;
   if (isTenantPath(pathname)) return true;
@@ -85,8 +86,7 @@ const PROVIDERS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 // Generated client secrets (Apple signing key, valid 24h) must never outlive
 // the cache: rebuild at least this long before the earliest expiry.
 const SECRET_EXPIRY_MARGIN = 10 * 60 * 1000; // 10 minutes
-let _providersCache: { providers: Provider[]; expiresAt: number } | null =
-  null;
+let _providersCache: { providers: Provider[]; expiresAt: number } | null = null;
 // Earliest client_secret_expires_at seen while building providers.
 let _buildSecretExpiry: number | null = null;
 let _providersBuildPromise: Promise<Provider[]> | null = null;
@@ -104,7 +104,9 @@ async function loadOAuthConfig(
             return null; // already (nearly) expired: never hand it to NextAuth
           }
           _buildSecretExpiry =
-            _buildSecretExpiry === null ? exp : Math.min(_buildSecretExpiry, exp);
+            _buildSecretExpiry === null
+              ? exp
+              : Math.min(_buildSecretExpiry, exp);
         }
       }
       return config;
@@ -379,7 +381,10 @@ const crossSiteCheckCookie = (name: string, maxAge?: number) => ({
 });
 const oauthCheckCookies = secureOrigin
   ? {
-      pkceCodeVerifier: crossSiteCheckCookie("authjs.pkce.code_verifier", 60 * 15),
+      pkceCodeVerifier: crossSiteCheckCookie(
+        "authjs.pkce.code_verifier",
+        60 * 15,
+      ),
       state: crossSiteCheckCookie("authjs.state", 60 * 15),
       nonce: crossSiteCheckCookie("authjs.nonce"),
     }
@@ -407,12 +412,17 @@ const authHandlers = NextAuth(async () => ({
       }
 
       const url = request.nextUrl.clone();
-      // Business pages (tenant panel, onboarding) use the business login page.
+      const consent = pathname === routes.oauth.consent;
+      // Business pages (tenant panel, onboarding) and the MCP consent screen
+      // use the business login page.
       url.pathname =
-        isOnboardingPath(pathname) || isTenantPath(pathname)
+        consent || isOnboardingPath(pathname) || isTenantPath(pathname)
           ? routes.public.login
           : routes.guest.login;
-      url.searchParams.set("next", pathname);
+      // The MCP consent screen keeps its ?request= across the sign-in.
+      const next = consent ? `${pathname}${request.nextUrl.search}` : pathname;
+      if (consent) url.search = "";
+      url.searchParams.set("next", next);
       return NextResponse.redirect(url);
     },
     async signIn({ account, profile }) {

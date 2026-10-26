@@ -135,5 +135,8 @@
   "labels.tenant.billing.write": "Aboneliği yönet",
   "labels.platform.billing.read": "Platform aboneliklerini görüntüle",
   "labels.platform.billing.write": "Platform aboneliklerini ve planları yönet",
-  "labels.platform.billing.settings": "Abonelik ayarlarını yönet"
+  "labels.platform.billing.settings": "Abonelik ayarlarını yönet",
+  "labels.tenant.mcp.connect": "AI uygulamalarını (MCP) işletmeye bağla",
+  "labels.platform.mcp.connect": "AI uygulamalarını (MCP) platforma bağla",
+  "labels.platform.mcp.manage": "MCP istemcilerini yönet"
 }

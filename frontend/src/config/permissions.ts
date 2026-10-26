@@ -94,6 +94,9 @@ export const Permission = {
   TenantLeadsWrite: "tenant.leads.write",
   TenantQuotesRead: "tenant.quotes.read",
   TenantQuotesWrite: "tenant.quotes.write",
+  TenantMCPConnect: "tenant.mcp.connect",
+  PlatformMCPConnect: "platform.mcp.connect",
+  PlatformMCPManage: "platform.mcp.manage",
   TenantBillingRead: "tenant.billing.read",
   TenantBillingWrite: "tenant.billing.write",
   PlatformBillingRead: "platform.billing.read",
@@ -334,5 +337,10 @@ export const permissions = {
   },
   auth: {
     session: Permission.AuthSession,
+  },
+  mcp: {
+    connect: Permission.TenantMCPConnect,
+    platformConnect: Permission.PlatformMCPConnect,
+    manage: Permission.PlatformMCPManage,
   },
 } as const;
