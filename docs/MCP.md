@@ -32,8 +32,8 @@ chosen.
   `/.well-known/*` unchanged to the Go API (`frontend/src/lib/server/mcp-passthrough.ts`): no session,
   no cookies, Bearer and OAuth headers only, streamed bodies. The Nginx sidecar proxies every path to
   Next.js, so nothing extra is needed there.
-- The issuer and resource URLs use `FRONTEND_URL` (the public origin; already required in production).
-  No new environment key.
+- The issuer and resource URLs use `PUBLIC_FRONTEND_URL` (the public origin; already required in
+  production). No new environment key.
 
 ## 3. OAuth 2.1 (MCP authorization spec)
 

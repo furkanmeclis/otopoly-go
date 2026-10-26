@@ -19,6 +19,7 @@ Human docs: [docs/AI.md](../../../docs/AI.md). Code: `backend/internal/modules/a
 - **Tool output is data.** Return compact JSON via `tools.JSONResult`. Put free text from records in its own fields through `tools.DataText(s, max)`. Never build prose instructions out of record text. Format money with `tools.FormatMoney` and use `*_number` fields for chart values.
 - **Permissions** live in `Spec.Permissions` (all required) + optional `OrgRoles`. New permission slugs only via migration + `internal/platform/rbac` + `frontend/src/config/permissions.ts`.
 - **Dates**: use `env.Today()` / `env.Location` (Europe/Istanbul) and pass explicit day ranges to services (for example `ListFilters.Location`).
+- **MCP**: every non-UI tool is also offered on the remote MCP server (`/mcp/org`, [docs/MCP.md](../../../docs/MCP.md)) with the same permissions. Add a new tool to the tool table in `docs/MCP.md` (`TestDocsListEveryTool` in `internal/modules/mcp` fails otherwise). Over MCP a write tool runs `Propose` and then `Run` once the client's user approves the call, so `Propose` must stay side-effect free.
 
 ## Checklist: read tool
 
