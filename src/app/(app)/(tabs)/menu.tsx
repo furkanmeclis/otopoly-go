@@ -30,6 +30,7 @@ import {
   UserRound,
   Wallet,
   Wrench,
+  Rocket,
 } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { View } from 'react-native';
@@ -40,6 +41,7 @@ import { devToolsEnabled, isMock } from '@/config/env';
 import { useAuth } from '@/features/auth/auth-provider';
 import { ownerOnly, P, type Gate, type Permission } from '@/features/auth/permissions';
 import { useUnreadCount } from '@/features/notifications/queries';
+import { reopenSetup } from '@/features/onboarding/setup';
 import { useLeadsSummary, useQuotesSummary, useTodosSummary } from '@/features/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { useLocale } from '@/lib/i18n/provider';
@@ -203,6 +205,17 @@ export default function MenuScreen() {
               left={<Bell size={20} color={t.colors.textSecondary} />}
               right={unread.data ? <Badge size="sm" tone="danger" label={String(unread.data)} /> : undefined}
               onPress={() => router.push('/notifications')}
+            />
+          ) : null}
+          {me && organization ? (
+            <ListRow
+              title={tr('mobile.onboarding.setup.menu_title')}
+              subtitle={tr('mobile.onboarding.setup.menu_subtitle')}
+              left={<Rocket size={20} color={t.colors.textSecondary} />}
+              onPress={async () => {
+                await reopenSetup(me.user.uuid, organization.slug);
+                router.navigate('/');
+              }}
             />
           ) : null}
           <ListRow title={tr('layout.nav_profile')} left={<UserRound size={20} color={t.colors.textSecondary} />} onPress={() => router.push('/profile')} />
