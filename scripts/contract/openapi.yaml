@@ -1,5 +1,5 @@
 # OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND.
-# Source: otopoly-go backend/docs/openapi.yaml @ 85126ed (scripts/contract/refresh-spec.sh).
+# Source: otopoly-go backend/docs/openapi.yaml @ a90c464 (scripts/contract/refresh-spec.sh).
 openapi: 3.1.0
 info:
   title: App API
@@ -179,9 +179,14 @@ paths:
         with the returned `slug` (or `/v1/auth/refresh`) to get an
         organization-scoped session.
 
+        Optional `sector` (business type: `car_wash`, `detailing`,
+        `ppf_tint`, `auto_service`, `tyres`, `other`) is stored on the
+        organization and returned here, on `/v1/auth/me` organizations and on
+        `/v1/tenant/settings`.
+
         Errors: `400 VALIDATION_ERROR` (field details: `organization_name`
         2-120 characters; `phone` <= 32, `city` / `district` <= 100,
-        `address` <= 500), `401`, `403 FORBIDDEN` when self-registration is
+        `address` <= 500, `sector` one of the values above), `401`, `403 FORBIDDEN` when self-registration is
         disabled (`auth_settings.registration_enabled`), `409 CONFLICT` when
         the caller already owns a business (staff membership elsewhere does not
         count), `429 RATE_LIMITED` (5 per hour per user).
@@ -2902,7 +2907,8 @@ paths:
           `tenant.catalog.products`, `tenant.catalog.services`, `tenant.catalog.categories`,
           `tenant.finance.accounts`, `tenant.finance.categories`, `tenant.finance.transactions`,
           `tenant.cari`, `tenant.cari.entries`, `tenant.todos`, `tenant.contracts` (templates),
-          `tenant.contracts.instances`, `tenant.staff`.
+          `tenant.contracts.instances`, `tenant.staff`, `tenant.calendar` (own calendar
+          events and calendar moves; needs `tenant.calendar.read`).
 
         Live list publications carry
         `{ "type": "resource.changed", "resource": "tenant.jobs", "action": "created|updated|deleted|bulk",
@@ -5726,6 +5732,10 @@ paths:
       tags: [Tenant]
       operationId: patchTenantSettings
       summary: Update organization export letterhead
+      description: |
+        Owner only (`tenant.settings.write`). Partial update of the letterhead
+        fields and the business `sector` (`""` clears it). Invalid values are
+        `400 VALIDATION_ERROR`.
       security:
         - bearerAuth: []
       requestBody:
@@ -6067,17 +6077,34 @@ paths:
       tags: [Public]
       operationId: getPublicVehicleBrandLogo
       summary: Stream a vehicle brand logo
+      description: |
+        Public, cacheable (`Cache-Control: public, max-age=604800`). This is the
+        `logo_url` / `brand_logo_url` returned on vehicles, jobs, quotes, …;
+        append `?variant=badge` for the square emblem (app icons, lists).
       parameters:
         - name: uuid
           in: path
           required: true
           schema: { type: string, format: uuid }
+        - name: variant
+          in: query
+          required: false
+          description: |
+            Which logo file to serve. Omitted / empty or `full`: uploaded logo →
+            full → badge → wordmark. `badge`: emblem → uploaded → full.
+            `wordmark`: the wordmark only (`404` when there is none). Any other
+            value is `400`.
+          schema:
+            type: string
+            enum: [full, badge, wordmark]
       responses:
         "200":
           description: Logo bytes
           content:
             image/*:
               schema: { type: string, format: binary }
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "404":
           $ref: "#/components/responses/NotFound"
 
@@ -8605,6 +8632,12 @@ paths:
         - name: sort
           in: query
           schema: { type: string }
+        - name: customer_uuid
+          in: query
+          description: |
+            Only sales of this customer (`total` is filtered too). A customer of
+            another organization matches nothing; a malformed uuid is `400`.
+          schema: { type: string, format: uuid }
         - name: status
           in: query
           schema:
@@ -8941,6 +8974,13 @@ paths:
         - name: sort
           in: query
           schema: { type: string }
+        - name: supplier_uuid
+          in: query
+          description: |
+            Only purchases from this supplier (`total` is filtered too). A
+            supplier of another organization matches nothing; a malformed uuid
+            is `400`.
+          schema: { type: string, format: uuid }
         - name: status
           in: query
           schema:
@@ -9424,6 +9464,13 @@ paths:
           schema: { type: string, enum: [service_job] }
         - name: subject_uuid
           in: query
+          schema: { type: string, format: uuid }
+        - name: customer_uuid
+          in: query
+          description: |
+            Only contracts on this customer's service jobs (contracts are bound to
+            a job; the job's customer decides). A customer of another
+            organization matches nothing; a malformed uuid is `400`.
           schema: { type: string, format: uuid }
       responses:
         "200":
@@ -10176,6 +10223,47 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+
+  /v1/tenant/customers/{uuid}/activity:
+    get:
+      tags: [Tenant]
+      operationId: listTenantCustomerActivity
+      summary: Customer activity feed
+      description: |
+        Requires `tenant.customers.read`. Audit events of the customer and its
+        records in this organization, newest first: the customer itself and
+        its vehicles always; jobs with `tenant.jobs.read`; contracts on its
+        jobs with `tenant.jobs.read` + `tenant.contracts.read`; sales with
+        `tenant.sales.read`; quotes with `tenant.quotes.read`; leads with
+        `tenant.leads.read`; cari entries with `tenant.cari.read`. Kinds the
+        caller cannot read are left out (also from `total`).
+
+        `subject` is the record kind (`customer`, `vehicle`, `job`, `sale`,
+        `quote`, `lead`, `cari_entry`, `contract`) and `resource_uuid` the
+        record, so clients can link each entry. `action` is the audit action
+        (e.g. `jobs.create`, `tenant.quote.status`, `cari.payment`); `payload`
+        carries action-specific details (e.g. `name`, `plate`, `number`,
+        `status`, `from` / `to`). `actor` is null for system / public-link
+        actions. Another organization's customer is `404`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
+      responses:
+        "200":
+          description: Activity page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeCustomerActivityPage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
   /v1/tenant/customers/{uuid}/vehicles:
     post:
@@ -13553,9 +13641,17 @@ components:
         user:
           $ref: "#/components/schemas/PublicUser"
 
+    OrganizationSector:
+      type: [string, "null"]
+      enum: [car_wash, detailing, ppf_tint, auto_service, tyres, other, null]
+      description: |
+        Business type: `car_wash` (oto yıkama), `detailing`, `ppf_tint` (PPF /
+        cam filmi), `auto_service` (oto servis), `tyres` (lastik), `other`;
+        null when not set.
+
     OrganizationMembership:
       type: object
-      required: [uuid, slug, name, role, status]
+      required: [uuid, slug, name, role, status, sector]
       properties:
         uuid:
           type: string
@@ -13574,6 +13670,8 @@ components:
         access_ends_at:
           type: [string, "null"]
           format: date-time
+        sector:
+          $ref: "#/components/schemas/OrganizationSector"
 
     PublicOrganization:
       type: object
@@ -13595,7 +13693,7 @@ components:
 
     Organization:
       type: object
-      required: [uuid, slug, name, city, district, phone, address, status, access_starts_at, created_at, updated_at]
+      required: [uuid, slug, name, city, district, phone, address, status, access_starts_at, sector, created_at, updated_at]
       properties:
         uuid:
           type: string
@@ -13624,6 +13722,8 @@ components:
           format: date-time
         logo_url:
           type: [string, "null"]
+        sector:
+          $ref: "#/components/schemas/OrganizationSector"
         created_at:
           type: string
           format: date-time
@@ -13677,6 +13777,10 @@ components:
         address:
           type: string
           maxLength: 500
+        sector:
+          type: string
+          enum: [car_wash, detailing, ppf_tint, auto_service, tyres, other]
+          description: Optional business type; empty / omitted = not set (400 `VALIDATION_ERROR` field `sector` for other values)
 
     OwnedOrganizationCreated:
       type: object
@@ -13684,7 +13788,7 @@ components:
       properties:
         organization:
           type: object
-          required: [uuid, slug, name]
+          required: [uuid, slug, name, sector]
           properties:
             uuid:
               type: string
@@ -13693,6 +13797,8 @@ components:
               type: string
             name:
               type: string
+            sector:
+              $ref: "#/components/schemas/OrganizationSector"
 
     EnvelopeOwnedOrganizationCreated:
       type: object
@@ -15345,6 +15451,52 @@ components:
         data: { $ref: "#/components/schemas/OrganizationActivityPage" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
+    CustomerActivityActor:
+      type: object
+      required: [uuid, name, surname]
+      properties:
+        uuid: { type: string, format: uuid }
+        name: { type: string }
+        surname: { type: string }
+
+    CustomerActivityEntry:
+      type: object
+      required: [uuid, action, resource, subject, resource_uuid, payload, actor, created_at]
+      properties:
+        uuid: { type: string, format: uuid }
+        action:
+          type: string
+          description: Audit action, e.g. `tenant.customer.update`, `jobs.close`, `tenant.sales.create`
+        resource:
+          type: string
+          description: Audit resource name (`customer`, `customer_vehicle`, `jobs.job`, `sale`, `quote`, `lead`, `cari.entry`, `contract_instance`)
+        subject:
+          type: string
+          enum: [customer, vehicle, job, sale, quote, lead, cari_entry, contract, other]
+        resource_uuid: { type: [string, "null"], format: uuid }
+        payload: { type: object, additionalProperties: true }
+        actor: { anyOf: [{ $ref: "#/components/schemas/CustomerActivityActor" }, { type: "null" }] }
+        created_at: { type: string, format: date-time }
+
+    CustomerActivityPage:
+      type: object
+      required: [items, total, limit, offset]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CustomerActivityEntry" }
+        total: { type: integer, format: int64 }
+        limit: { type: integer }
+        offset: { type: integer }
+
+    EnvelopeCustomerActivityPage:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/CustomerActivityPage" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
     SetOrganizationStatusRequest:
       type: object
       additionalProperties: false
@@ -16488,7 +16640,7 @@ components:
 
     TenantSettings:
       type: object
-      required: [company_name, tagline, primary_color, address, city, district, phone, email, website, footer_text, paper_size]
+      required: [company_name, tagline, primary_color, address, city, district, phone, email, website, footer_text, paper_size, sector]
       properties:
         company_name: { type: string }
         tagline: { type: string }
@@ -16502,6 +16654,7 @@ components:
         footer_text: { type: string }
         paper_size: { type: string, enum: [A4, A3, Letter, Legal] }
         logo_url: { type: [string, "null"] }
+        sector: { $ref: "#/components/schemas/OrganizationSector" }
 
     PatchTenantSettingsRequest:
       type: object
@@ -16517,6 +16670,10 @@ components:
         website: { type: string }
         footer_text: { type: string }
         paper_size: { type: string, enum: [A4, A3, Letter, Legal] }
+        sector:
+          type: [string, "null"]
+          enum: [car_wash, detailing, ppf_tint, auto_service, tyres, other, "", null]
+          description: Business type; `""` clears it, null / omitted keeps the current value
 
     EnvelopeTenantSettings:
       type: object
@@ -16863,7 +17020,7 @@ components:
     ContractOtpChallenge:
       type: object
       properties:
-        channel: { type: string, enum: [whatsapp] }
+        channel: { type: string, enum: [whatsapp, sms], description: "Channel the code was sent over (`sms` when requested and the organization has an active SMS provider)" }
         phone_masked: { type: string }
         expires_at: { type: string, format: date-time }
         resend_at: { type: string, format: date-time }
@@ -17243,12 +17400,23 @@ components:
 
     AIConversation:
       type: object
-      required: [uuid, title, message_count, created_at, updated_at]
+      required: [uuid, title, message_count, last_message_preview, last_message_at, created_at, updated_at]
       properties:
         uuid: { type: string, format: uuid }
         title: { type: string }
         message_count: { type: integer }
-        last_message_at: { type: string, format: date-time }
+        last_message_preview:
+          type: string
+          maxLength: 121
+          description: |
+            Plain-text excerpt (markdown stripped, single line, up to 120
+            characters plus `…`) of the last user or assistant text message;
+            `""` when the conversation has no text yet. A turn without text
+            (only tool activity or an error) keeps the previous preview.
+        last_message_at:
+          type: [string, "null"]
+          format: date-time
+          description: Time of the last stored message; null for an empty conversation
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
