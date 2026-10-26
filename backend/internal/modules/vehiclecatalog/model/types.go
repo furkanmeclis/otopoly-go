@@ -54,6 +54,9 @@ type BrandRef struct {
 type DisplayBrandRef struct {
 	UUID uuid.UUID `json:"uuid"`
 	Name string    `json:"name"`
+	// LogoURL is the API-owned logo stream (add `variant=badge` for the
+	// emblem); null when the display brand has no logo yet.
+	LogoURL *string `json:"logo_url"`
 }
 
 // DisplayBrand is the brand users see; one or more TSB brands map to it.

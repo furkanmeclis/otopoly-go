@@ -2,6 +2,8 @@
 
 -- name: ListCatalogBrands :many
 SELECT b.*, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models m WHERE m.brand_id = b.id)::bigint AS models_count,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active AND t.model_id IS NULL)::bigint AS unresolved_count
@@ -47,6 +49,8 @@ WHERE (sqlc.narg(category)::text IS NULL OR b.category = sqlc.narg(category))
 
 -- name: GetCatalogBrandByUUID :one
 SELECT b.*, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models m WHERE m.brand_id = b.id)::bigint AS models_count,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.brand_id = b.id AND t.is_active AND t.model_id IS NULL)::bigint AS unresolved_count
@@ -182,6 +186,8 @@ SELECT * FROM catalog_brands ORDER BY id;
 -- name: ListCatalogModels :many
 SELECT m.*, b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     b.tsb_name AS brand_tsb_name, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.model_id = m.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models g JOIN catalog_brands gb ON gb.id = g.brand_id
         WHERE g.group_key = m.group_key AND gb.display_brand_id = b.display_brand_id)::bigint AS group_size
@@ -218,6 +224,8 @@ WHERE (sqlc.narg(brand_id)::bigint IS NULL OR m.brand_id = sqlc.narg(brand_id))
 -- name: GetCatalogModelByUUID :one
 SELECT m.*, b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     b.tsb_name AS brand_tsb_name, d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     (SELECT COUNT(*) FROM catalog_types t WHERE t.model_id = m.id AND t.is_active)::bigint AS types_count,
     (SELECT COUNT(*) FROM catalog_models g JOIN catalog_brands gb ON gb.id = g.brand_id
         WHERE g.group_key = m.group_key AND gb.display_brand_id = b.display_brand_id)::bigint AS group_size
@@ -289,6 +297,8 @@ SELECT t.id, t.uuid, t.tsb_type_code, t.raw_name, t.years, t.suggested_transmiss
     t.suggested_fuel, t.first_seen_period, t.last_seen_period, t.is_active, t.created_at, t.updated_at,
     b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     m.uuid AS model_uuid, m.name AS model_name, m.source AS model_source
 FROM catalog_types t
 JOIN catalog_brands b ON b.id = t.brand_id
@@ -349,6 +359,8 @@ SELECT t.id, t.uuid, t.brand_id, t.model_id, t.tsb_type_code, t.raw_name, t.year
     b.uuid AS brand_uuid, b.display_name AS brand_display_name, b.tsb_code AS brand_tsb_code,
     b.tsb_name AS brand_tsb_name, b.display_brand_id,
     d.uuid AS display_brand_uuid, d.name AS display_brand_name,
+    d.logo_object_key AS display_brand_logo_key, d.synced_logo_variants AS display_brand_logo_variants,
+    d.updated_at AS display_brand_updated_at,
     m.uuid AS model_uuid, m.name AS model_name, m.source AS model_source
 FROM catalog_types t
 JOIN catalog_brands b ON b.id = t.brand_id

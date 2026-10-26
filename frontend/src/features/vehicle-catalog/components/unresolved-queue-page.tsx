@@ -5,6 +5,7 @@ import { Eye, Keyboard, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { BrandMark } from "@/components/common/brand-mark";
 import { ErrorState } from "@/components/common/error-state";
 import { PermissionGuard } from "@/components/common/permission-guard";
 import {
@@ -185,7 +186,11 @@ export function CatalogUnresolvedQueuePage() {
           filterOptions: brandOptions,
           gridSecondary: true,
           cell: ({ row }) => (
-            <span>
+            <span className="flex items-center gap-2">
+              <BrandMark
+                name={row.original.display_brand.name}
+                logoUrl={row.original.display_brand.logo_url}
+              />
               {row.original.display_brand.name}
               {row.original.brand.tsb_code ? (
                 <span className="text-muted-foreground ms-1 font-mono text-xs">

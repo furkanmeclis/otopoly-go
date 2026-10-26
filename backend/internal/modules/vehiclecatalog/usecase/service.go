@@ -137,12 +137,17 @@ func validTransmission(t string) bool {
 
 // ---------- brands ----------
 
+// displayBrandRef is the short display brand with its logo URL.
+func displayBrandRef(id uuid.UUID, name string, key pgtype.Text, variants []string, updated pgtype.Timestamptz) model.DisplayBrandRef {
+	return model.DisplayBrandRef{UUID: id, Name: name, LogoURL: DisplayBrandLogoURLs(id, key, variants, updated).LogoURL}
+}
+
 func mapBrand(b db.ListCatalogBrandsRow) model.Brand {
 	return model.Brand{
 		UUID: b.Uuid, TSBCode: b.TsbCode, TSBName: b.TsbName, DisplayName: b.DisplayName,
 		Category: b.Category, IsActive: b.IsActive, TypesCount: b.TypesCount,
 		ModelsCount: b.ModelsCount, UnresolvedCount: b.UnresolvedCount,
-		DisplayBrand: model.DisplayBrandRef{UUID: b.DisplayBrandUuid, Name: b.DisplayBrandName},
+		DisplayBrand: displayBrandRef(b.DisplayBrandUuid, b.DisplayBrandName, b.DisplayBrandLogoKey, b.DisplayBrandLogoVariants, b.DisplayBrandUpdatedAt),
 		CreatedAt:    b.CreatedAt.Time, UpdatedAt: b.UpdatedAt.Time,
 	}
 }
@@ -268,7 +273,7 @@ func mapModel(m db.ListCatalogModelsRow) model.Model {
 		Brand: model.BrandRef{
 			UUID: m.BrandUuid, DisplayName: m.BrandDisplayName, TSBCode: m.BrandTsbCode, TSBName: m.BrandTsbName,
 		},
-		DisplayBrand: model.DisplayBrandRef{UUID: m.DisplayBrandUuid, Name: m.DisplayBrandName},
+		DisplayBrand: displayBrandRef(m.DisplayBrandUuid, m.DisplayBrandName, m.DisplayBrandLogoKey, m.DisplayBrandLogoVariants, m.DisplayBrandUpdatedAt),
 		TypesCount:   m.TypesCount, GroupSize: m.GroupSize,
 		CreatedAt: m.CreatedAt.Time, UpdatedAt: m.UpdatedAt.Time,
 	}
@@ -430,7 +435,7 @@ func mapTypeRow(t db.ListCatalogTypesRow) model.Type {
 		SuggestedTransmission: optString(t.SuggestedTransmission), SuggestedFuel: optString(t.SuggestedFuel),
 		FirstSeenPeriod: t.FirstSeenPeriod, LastSeenPeriod: t.LastSeenPeriod, IsActive: t.IsActive,
 		Brand:        model.BrandRef{UUID: t.BrandUuid, DisplayName: t.BrandDisplayName, TSBCode: t.BrandTsbCode},
-		DisplayBrand: model.DisplayBrandRef{UUID: t.DisplayBrandUuid, Name: t.DisplayBrandName},
+		DisplayBrand: displayBrandRef(t.DisplayBrandUuid, t.DisplayBrandName, t.DisplayBrandLogoKey, t.DisplayBrandLogoVariants, t.DisplayBrandUpdatedAt),
 		CreatedAt:    t.CreatedAt.Time, UpdatedAt: t.UpdatedAt.Time,
 	}
 	if out.Years == nil {

@@ -19106,6 +19106,9 @@ components:
       properties:
         uuid: { type: string, format: uuid }
         name: { type: string, example: Fiat }
+        logo_url:
+          type: [string, "null"]
+          description: "API-owned display brand logo stream (append `variant=badge` for the emblem); null without a logo"
 
     VehicleCatalogFuel:
       type: string

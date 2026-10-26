@@ -12640,6 +12640,8 @@ export interface components {
             uuid: string;
             /** @example Fiat */
             name: string;
+            /** @description API-owned display brand logo stream (append `variant=badge` for the emblem); null without a logo */
+            logo_url?: string | null;
         };
         /** @enum {string} */
         VehicleCatalogFuel: "petrol" | "diesel" | "hybrid" | "electric" | "lpg";
