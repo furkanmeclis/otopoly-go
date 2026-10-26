@@ -150,7 +150,8 @@
         "expo-notifications",
         {
           "color": "#EA6E43",
-          "defaultChannel": "default"
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
         }
       ],
       [
@@ -199,6 +200,7 @@
         "expo-widgets",
         {
           "enableAndroid": true,
+          "enablePushNotifications": true,
           "bundleIdentifier": "com.otopoly.app.widgets",
           "groupIdentifier": "group.com.otopoly.app",
           "widgets": [

@@ -18,6 +18,7 @@ import './billing';
 import './ai';
 import './account';
 import './notifications';
+import './live-activities';
 import './qr-login';
 import './realtime';
 import './calendar';

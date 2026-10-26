@@ -10,7 +10,8 @@ const log = createLogger('widgets.live.android');
 
 const STAGE: Record<JobActivityProps['status'], JobLiveUpdate['stage']> = { in_progress: 0, ready: 1, delivered: 2, cancelled: 2 };
 
-function toUpdate(props: JobActivityProps, ongoing: boolean): JobLiveUpdate {
+/** Live Update content for a job (also used by the background push handler). */
+export function toLiveUpdate(props: JobActivityProps, ongoing: boolean): JobLiveUpdate {
   const vehicle = props.services || props.vehicle;
   return {
     title: [props.plate, props.customer].filter(Boolean).join(' · '),
@@ -31,11 +32,11 @@ function handle(jobId: string): JobActivityHandle {
   return {
     getId: () => jobId,
     async update(props) {
-      if (!native.post(jobId, toUpdate(props, true))) throw new Error('Notifications are disabled');
+      if (!native.post(jobId, toLiveUpdate(props, true))) throw new Error('Notifications are disabled');
     },
     async end(dismissal = 'default', props) {
       // 'default' keeps the final state visible (dismissible, auto-removed), like ActivityKit's default policy.
-      if (dismissal === 'default' && props) native.post(jobId, toUpdate(props, false));
+      if (dismissal === 'default' && props) native.post(jobId, toLiveUpdate(props, false));
       else native.end(jobId);
     },
   };
@@ -48,7 +49,7 @@ export function androidJobActivityFactory(): JobActivityFactory | null {
   return {
     getInstances: () => native.activeJobIds().map(handle),
     start(props) {
-      if (!native.post(props.jobId, toUpdate(props, true))) throw new Error('Notifications are disabled');
+      if (!native.post(props.jobId, toLiveUpdate(props, true))) throw new Error('Notifications are disabled');
       return handle(props.jobId);
     },
   };

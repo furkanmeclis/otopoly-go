@@ -499,6 +499,10 @@
   "PUT /v1/tenant/quotes/{uuid}",
   "PUT /v1/tenant/quotes/{uuid}/reminders",
   "PUT /v1/tenant/settings/logo",
-  "PUT /v1/tenant/vehicle-alerts"
+  "PUT /v1/tenant/vehicle-alerts",
+  "PUT /v1/tenant/live-activities/device",
+  "DELETE /v1/tenant/live-activities/device/{token}",
+  "PUT /v1/tenant/live-activities/jobs/{uuid}",
+  "POST /v1/tenant/live-activities/jobs/{uuid}/unregister"
  ]
 }

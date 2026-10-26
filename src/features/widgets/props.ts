@@ -2,7 +2,9 @@ import type { Job, JobsSummary } from '@/features/jobs/services/jobs.service';
 import { isStale, shiftDate } from '@/features/jobs/lib/job-ui';
 import type { Formatters } from '@/lib/i18n/format';
 import type { TranslateParams } from '@/lib/i18n/translate';
-import type { JobActivityProps, TodayWidgetProps, WidgetState } from '@/widgets/types';
+import type { JobActivityProps, TodayWidgetProps, WidgetQueueItem, WidgetState } from '@/widgets/types';
+
+import type { WidgetSnapshot } from './push-payload';
 
 type Translate = (key: string, params?: TranslateParams) => string;
 
@@ -64,6 +66,53 @@ export function buildTodayProps(input: {
       delivered: delivered.length,
       stale: queue.filter((q) => q.stale).length,
       collected: input.summary ? fmt.money(input.summary.paid_total) : '',
+    },
+    queue: queue.slice(0, 12),
+    labels: todayLabels(input.tr),
+  };
+}
+
+/**
+ * Widget props from a `widgets.refresh` background push (the app is not running, so there is no
+ * React Query data). Same tiles and queue as buildTodayProps; the server already picked today's jobs.
+ */
+export function buildTodayPropsFromSnapshot(input: {
+  org: string;
+  logo: string;
+  snapshot: WidgetSnapshot;
+  tr: Translate;
+  fmt: Formatters;
+  now?: number;
+}): TodayWidgetProps {
+  const { snapshot, fmt } = input;
+  const now = input.now ?? Date.now();
+  const queue: WidgetQueueItem[] = snapshot.queue.map((q) => {
+    const job = { status: q.status, started_at: q.started_at } as Job;
+    return {
+      id: q.id,
+      plate: q.plate,
+      name: q.name,
+      vehicle: q.vehicle,
+      status: q.status,
+      startedAt: ms(q.started_at),
+      since: q.started_at ? fmt.time(q.started_at) : '',
+      stale: Boolean(q.started_at) && isStale(job, now),
+    };
+  });
+  return {
+    v: 1,
+    state: 'ok',
+    org: input.org,
+    logo: input.logo,
+    updatedAt: now,
+    updatedTime: fmt.time(new Date(now)),
+    showMoney: true,
+    stats: {
+      inProgress: snapshot.counts.in_progress,
+      ready: snapshot.counts.ready,
+      delivered: snapshot.counts.delivered,
+      stale: queue.filter((q) => q.stale).length,
+      collected: fmt.money(snapshot.paid_total),
     },
     queue: queue.slice(0, 12),
     labels: todayLabels(input.tr),

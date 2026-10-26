@@ -15,6 +15,7 @@ import { useToast } from '@/components/feedback/toast';
 import { Button, Row, Sheet, Txt } from '@/components/ui';
 import { accountKeys } from '@/features/account/queries';
 import { useAuth } from '@/features/auth/auth-provider';
+import { isSilentPush } from '@/features/widgets/push-payload';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { prefs, StorageKeys } from '@/lib/storage';
@@ -85,7 +86,8 @@ export function NotificationsHost() {
     if (N) {
       if (pushAvailable()) subs.push(N.addPushTokenListener((t) => onDevicePushTokenChanged(t.data)));
       subs.push(
-        N.addNotificationReceivedListener(() => {
+        N.addNotificationReceivedListener((notification) => {
+          if (isSilentPush(notification)) return;
           void qc.invalidateQueries({ queryKey: notificationKeys.all });
         }),
       );

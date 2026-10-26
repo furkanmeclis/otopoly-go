@@ -1,5 +1,5 @@
 # OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND.
-# Source: otopoly-go backend/docs/openapi.yaml @ a90c464 (scripts/contract/refresh-spec.sh).
+# Source: otopoly-go backend/docs/openapi.yaml @ 801d779 (scripts/contract/refresh-spec.sh).
 openapi: 3.1.0
 info:
   title: App API
@@ -7182,6 +7182,159 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/tenant/live-activities/device:
+    put:
+      tags: [Tenant]
+      operationId: putTenantLiveActivityDevice
+      summary: Link this device's widgets to the organization
+      description: |
+        Makes the caller's push device (already registered with
+        `POST /v1/push-devices`) show this organization's Home / Lock Screen
+        widgets, and stores the iOS ActivityKit push-to-start token (iOS 17.2+).
+        Call on app start and whenever the active organization or the
+        push-to-start token changes; one organization per device (the call
+        moves it). Signing out (`DELETE /v1/push-devices/{token}`) removes it.
+
+        While linked, job changes of the organization send a background push
+        (at most one per minute per organization, coalesced):
+        `{ "data": { "kind": "widgets.refresh", "org": "<org uuid>", "snapshot": { "v": 1, "date": "YYYY-MM-DD", "at": <epoch ms>, "counts": { "in_progress": n, "ready": n, "delivered": n }, "paid_total": "decimal", "queue": [{ "id", "plate", "name", "vehicle", "status": "in_progress" | "ready", "started_at": "RFC 3339" }], "more": n } } }`
+        (today in Europe/Istanbul; queue = open jobs, ready first, at most 12)
+        — iOS `contentAvailable` (APNs priority 5, best effort, budgeted by
+        iOS), Android data-only high priority. No title/body: nothing is shown.
+        Requires `tenant.jobs.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LiveActivityDeviceInput" }
+      responses:
+        "200":
+          description: Device linked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeLiveActivityDevice" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /v1/tenant/live-activities/device/{token}:
+    delete:
+      tags: [Tenant]
+      operationId: deleteTenantLiveActivityDevice
+      summary: Stop widget pushes of the organization to this device
+      description: Idempotent. The Expo push token must be URL-encoded.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: token
+          in: path
+          required: true
+          description: Expo push token, URL-encoded
+          schema: { type: string, example: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]" }
+      responses:
+        "200":
+          description: Unlinked (or nothing to unlink)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStatusOK" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /v1/tenant/live-activities/jobs/{uuid}:
+    put:
+      tags: [Tenant]
+      operationId: putTenantJobLiveActivity
+      summary: Register a running job Live Activity / Live Update
+      description: |
+        Stores (or refreshes) the caller's running activity for a job so the
+        server can update it while the app is closed. Call when the activity
+        starts, whenever ActivityKit rotates its push token, and on app start
+        for activities still running (refreshes `expires_at`, 12 hours).
+
+        - iOS: `push_token` is the per-activity ActivityKit token (hex). Job
+          changes are sent over APNs (`apns-push-type: liveactivity`) as
+          `content-state: { "name": "JobActivity", "props": "<JobActivityProps JSON>" }`;
+          status changes use priority 10 (ready / delivered also light up the
+          screen), content-only edits priority 5. Delivered / cancelled end the
+          activity (dismissed after 15 minutes), voided ends it immediately.
+          `remote_updates` is false while the server has no APNs key.
+        - Android: `device_token` is the device's Expo push token (must be the
+          caller's registered device); `activity_id` is the job uuid. Changes
+          arrive as a data-only Expo message
+          `{ "kind": "live.job", "org": "<org uuid>", "job": "<job uuid>", "end": "" | "default" | "immediate", "props": JobActivityProps, "sent_at": <epoch ms> }`.
+
+        Only the caller's own devices are ever targeted, texts are in the
+        caller's language (`users.locale`, then `locale`). Another
+        organization's job answers 404. Requires `tenant.jobs.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LiveActivityInput" }
+      responses:
+        "200":
+          description: Activity registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeLiveActivity" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
+  /v1/tenant/live-activities/jobs/{uuid}/unregister:
+    post:
+      tags: [Tenant]
+      operationId: unregisterTenantJobLiveActivity
+      summary: Forget the caller's activity for a job
+      description: |
+        Call when the activity ends or is turned off. Without `activity_id` /
+        `device_token` every activity of the caller for this job is removed.
+        Idempotent. Requires `tenant.jobs.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                activity_id: { type: string, maxLength: 128 }
+                device_token: { type: string, maxLength: 255 }
+      responses:
+        "200":
+          description: Removed (or nothing to remove)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeStatusOK" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
   /v1/tenant/jobs/meta:
     get:
       tags: [Tenant]
@@ -13463,6 +13616,82 @@ components:
           required: [status]
           properties:
             status: { type: string, enum: [ok] }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    LiveActivityDeviceInput:
+      type: object
+      additionalProperties: false
+      required: [device_token]
+      properties:
+        device_token:
+          type: string
+          description: The device's Expo push token (registered with POST /v1/push-devices)
+          example: "ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]"
+        push_to_start_token:
+          type: string
+          description: iOS 17.2+ ActivityKit push-to-start token (hex); empty clears it
+        widgets:
+          type: boolean
+          default: true
+          description: false keeps the link (push-to-start token) without widget pushes
+
+    LiveActivityDevice:
+      type: object
+      required: [widgets_enabled, push_to_start, live_activity_push]
+      properties:
+        widgets_enabled: { type: boolean }
+        push_to_start: { type: boolean, description: A push-to-start token is stored }
+        live_activity_push: { type: boolean, description: The server can update iOS Live Activities (APNs configured) }
+
+    EnvelopeLiveActivityDevice:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LiveActivityDevice" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    LiveActivityInput:
+      type: object
+      additionalProperties: false
+      required: [platform, activity_id]
+      properties:
+        platform: { type: string, enum: [ios, android] }
+        activity_id:
+          type: string
+          maxLength: 128
+          pattern: "^[A-Za-z0-9._:\\-]{1,128}$"
+          description: ActivityKit activity id (iOS) or the job uuid (Android)
+        push_token:
+          type: string
+          description: iOS per-activity ActivityKit push token (hex); required on iOS
+        device_token:
+          type: string
+          description: Expo push token of this device; required on Android
+        locale:
+          type: string
+          description: Device language (tr / en); the user's language wins
+          example: tr
+
+    LiveActivity:
+      type: object
+      required: [uuid, job_uuid, platform, activity_id, expires_at, remote_updates]
+      properties:
+        uuid: { type: string, format: uuid }
+        job_uuid: { type: string, format: uuid }
+        platform: { type: string, enum: [ios, android] }
+        activity_id: { type: string }
+        expires_at: { type: string, format: date-time }
+        remote_updates:
+          type: boolean
+          description: false when the server cannot update this activity (iOS without APNs key); the app keeps updating it in the foreground
+
+    EnvelopeLiveActivity:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/LiveActivity" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     ErrorDetail:
