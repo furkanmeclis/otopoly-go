@@ -357,7 +357,7 @@ function InsightsSection() {
   const data = overview.data;
   const kpis = data?.kpis;
   const chart = useMemo(
-    () => (data?.timeseries ?? []).map((p) => ({ label: fmt.date(`${p.date}T12:00:00`, 'short'), value: toNumber(p.income) })),
+    () => (data?.timeseries ?? []).map((p) => ({ label: fmt.date(`${p.date}T12:00:00`, 'short'), title: fmt.date(`${p.date}T12:00:00`, 'long'), value: toNumber(p.income) })),
     [data?.timeseries, fmt],
   );
   const services = (data?.services ?? []).slice(0, 5);
@@ -389,7 +389,7 @@ function InsightsSection() {
               </View>
             ))}
           </View>
-          {overview.isLoading ? <Skeleton height={140} /> : <BarChart data={chart} formatValue={(n) => fmt.money(n)} />}
+          {overview.isLoading ? <Skeleton height={140} /> : <BarChart data={chart} formatValue={(n) => fmt.money(n)} seriesLabels={{ primary: tr('dashboard.tenant.kpi_income') }} />}
         </Card>
       </Section>
 

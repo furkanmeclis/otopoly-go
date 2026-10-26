@@ -63,6 +63,7 @@ import trMobileOnboarding from './mobile/areas/onboarding.tr.json';
 import trMobilePlan from './mobile/areas/plan.tr.json';
 import trMobileQr from './mobile/areas/qr.tr.json';
 import trMobileSettings from './mobile/areas/settings.tr.json';
+import trMobileUx from './mobile/areas/ux.tr.json';
 import enAccess from './en/access.json';
 import enActivity from './en/activity.json';
 import enAi from './en/ai.json';
@@ -125,6 +126,7 @@ import enMobileOnboarding from './mobile/areas/onboarding.en.json';
 import enMobilePlan from './mobile/areas/plan.en.json';
 import enMobileQr from './mobile/areas/qr.en.json';
 import enMobileSettings from './mobile/areas/settings.en.json';
+import enMobileUx from './mobile/areas/ux.en.json';
 
 export const catalogs = {
   tr: {
@@ -177,7 +179,7 @@ export const catalogs = {
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileSettings },
+    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileSettings, ...trMobileUx },
   },
   en: {
     access: enAccess,
@@ -229,7 +231,7 @@ export const catalogs = {
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileSettings },
+    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileSettings, ...enMobileUx },
   },
 } as const;
 

@@ -70,7 +70,13 @@ function Reports() {
 
   const series = useMemo(() => overview?.timeseries ?? [], [overview?.timeseries]);
   const cashflow = useMemo(
-    () => series.map((p) => ({ label: fmt.date(`${p.date}T12:00:00`, 'short'), value: toNumber(p.income), secondary: toNumber(p.expense) })),
+    () =>
+      series.map((p) => ({
+        label: fmt.date(`${p.date}T12:00:00`, 'short'),
+        title: fmt.date(`${p.date}T12:00:00`, 'long'),
+        value: toNumber(p.income),
+        secondary: toNumber(p.expense),
+      })),
     [series, fmt],
   );
   const net = series.map((p) => toNumber(p.net));
@@ -151,9 +157,23 @@ function Reports() {
           <Section title={tr('mobile.finance.reports_charts')}>
             <ReportCard title={tr('reports.charts.cashflow')} description={tr('reports.charts.cashflow_desc')} empty={!cashflow.some((c) => c.value || c.secondary)}>
               <Legend items={[{ color: t.colors.success, label: tr('reports.kpis.income') }, { color: t.colors.danger, label: tr('reports.kpis.expense') }]} />
-              <BarChart data={cashflow} color={t.colors.success} secondary={t.colors.danger} height={160} formatValue={(n) => fmt.money(n, currency)} />
+              <BarChart
+                data={cashflow}
+                color={t.colors.success}
+                secondary={t.colors.danger}
+                height={160}
+                formatValue={(n) => fmt.money(n, currency)}
+                seriesLabels={{ primary: tr('reports.kpis.income'), secondary: tr('reports.kpis.expense') }}
+              />
               <Legend items={[{ color: t.colors.info, label: tr('reports.kpis.net') }]} />
-              <Sparkline values={net} height={40} color={t.colors.info} />
+              <Sparkline
+                values={net}
+                height={40}
+                color={t.colors.info}
+                labels={cashflow.map((c) => c.title)}
+                formatValue={(n) => fmt.money(n, currency)}
+                seriesLabel={tr('reports.kpis.net')}
+              />
             </ReportCard>
             <ReportCard title={tr('reports.charts.payments')} description={tr('reports.charts.payments_desc')} empty={!overview.payments_by_method.length}>
               <RankChart money={money} items={overview.payments_by_method.map((p) => ({ label: methodLabel(p.name), value: p.total }))} />
