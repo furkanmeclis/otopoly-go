@@ -194,5 +194,13 @@
   "actions.catalog.display_brand_logo_linked": "Görünen marka logo kaynağına bağlandı",
   "actions.catalog.model_rules_saved": "Katalog model kuralları kaydedildi",
   "actions.catalog.brand_logos_settings_updated": "Logo senkron ayarları güncellendi",
-  "actions.catalog.brand_logos_sync_requested": "Logo senkronu başlatıldı"
+  "actions.catalog.brand_logos_sync_requested": "Logo senkronu başlatıldı",
+  "actions.messaging.sms.connected": "SMS sağlayıcısı bağlandı",
+  "actions.messaging.sms.updated": "SMS sağlayıcı ayarları güncellendi",
+  "actions.messaging.sms.enabled": "SMS kanalı etkinleştirildi",
+  "actions.messaging.sms.disabled": "SMS kanalı kapatıldı",
+  "actions.messaging.sms.disconnected": "SMS sağlayıcısının bağlantısı kaldırıldı",
+  "actions.messaging.sms.tested": "SMS sağlayıcı bağlantısı test edildi",
+  "actions.messaging.sms.test_sent": "Test SMS'i gönderildi",
+  "resources.tenant.messaging.sms": "SMS kanalı"
 }

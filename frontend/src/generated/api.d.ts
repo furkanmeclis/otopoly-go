@@ -4343,7 +4343,7 @@ export interface paths {
         };
         /**
          * End-of-day WhatsApp summary settings (owner)
-         * @description Enabled flag, local send time (Europe/Istanbul, HH:MM), selected recipients, WhatsApp connection state and the members that can be selected (with whether they have a notification phone).
+         * @description Enabled flag, local send time (Europe/Istanbul, HH:MM), selected recipients, `channel` (`whatsapp` | `sms`), `whatsapp_connected`, `sms_available` (an active SMS provider exists) and the members that can be selected (with whether they have a notification phone).
          */
         get: operations["getTenantDailySummarySettings"];
         /** Save end-of-day WhatsApp summary settings (owner) */
@@ -4381,7 +4381,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send today's summary so far to the saved recipients now (owner) */
+        /**
+         * Send today's summary so far to the saved recipients now (owner)
+         * @description Uses the saved channel. 409 `WHATSAPP_NOT_CONNECTED` / `SMS_NOT_CONFIGURED` when that channel cannot send, `NO_RECIPIENT_PHONE` when no recipient has a phone.
+         */
         post: operations["sendTestTenantDailySummary"];
         delete?: never;
         options?: never;
@@ -4398,7 +4401,7 @@ export interface paths {
         };
         /**
          * Team vehicle alert settings (owner)
-         * @description Events (created/ready/delivered/cancelled), service filter (empty = all), recipients, WhatsApp batch window (0 = instant, 30, 60 min), plus selectable members (has_phone, has_push) and services. In-app/push is instant; WhatsApp goes only to recipients web push cannot reach.
+         * @description Events (created/ready/delivered/cancelled), service filter (empty = all), recipients, phone message batch window (0 = instant, 30, 60 min), `channel` of the phone messages (`whatsapp` | `sms`), `whatsapp_connected`, `sms_available`, plus selectable members (has_phone, has_push) and services. In-app/push is instant; WhatsApp / SMS goes only to recipients web push cannot reach.
          */
         get: operations["getTenantVehicleAlertSettings"];
         /** Save team vehicle alert settings (owner) */
@@ -4421,6 +4424,136 @@ export interface paths {
         put?: never;
         /** Send a sample vehicle alert to the saved recipients (owner) */
         post: operations["sendTestTenantVehicleAlert"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SMS channel providers and the organization's accounts
+         * @description Lists the supported SMS providers (`netgsm`, `twilio`) with their credential fields and the
+         *     organization's connected account (masked hints only, never secrets). `active_provider` is the
+         *     provider that sends the organization's SMS ("" = SMS off). Requires `tenant.messaging.read`.
+         */
+        get: operations["getTenantMessagingSms"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/estimate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Character and part estimate of an SMS text
+         * @description GSM-7 (160 / 153 per part), Netgsm Turkish encoding (155 / 150) or UCS-2 (70 / 67). `provider`
+         *     defaults to the active provider (else netgsm). Requires `tenant.messaging.read`.
+         */
+        post: operations["estimateTenantMessagingSms"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Connect or update an SMS provider account
+         * @description Credentials are sealed per organization; empty or omitted credential values keep the stored
+         *     ones. Netgsm: `usercode`, `password`, sender = approved message header (msgheader).
+         *     Twilio: `account_sid`, `auth_token`, sender = From number (E.164), alphanumeric sender id or
+         *     Messaging Service SID (`MG…`). `activate` makes it the SMS channel (default: true when no SMS
+         *     provider is active yet); only one provider is active per organization. Changing credentials
+         *     resets `status` to `unchecked`. Requires `tenant.messaging.write` (owner).
+         */
+        put: operations["saveTenantMessagingSmsProvider"];
+        post?: never;
+        /**
+         * Disconnect an SMS provider (deletes its credentials)
+         * @description Requires `tenant.messaging.write` (owner).
+         */
+        delete: operations["deleteTenantMessagingSmsProvider"];
+        options?: never;
+        head?: never;
+        /**
+         * Enable or disable an SMS provider as the channel
+         * @description Enabling one provider disables the other. Requires `tenant.messaging.write` (owner).
+         */
+        patch: operations["setTenantMessagingSmsProviderActive"];
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the SMS provider connection (sends nothing)
+         * @description Netgsm: lists the account's message headers and checks the configured one. Twilio: reads the
+         *     account (and its balance when visible). Stores `status` (`connected` | `error`) and
+         *     `last_error`. A failed check is still 200 with `ok: false`. Requires `tenant.messaging.write` (owner).
+         */
+        post: operations["testTenantMessagingSmsProvider"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/messaging/sms/{provider}/test-sms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test SMS through a connected provider
+         * @description Works for a connected provider whether or not it is active. The number is normalized to E.164
+         *     (Turkish national numbers accepted); the message is logged in the outbound log
+         *     (`event_type: sms.test`). A provider refusal is still 200 with `status: failed`.
+         *     Requires `tenant.messaging.write` (owner).
+         */
+        post: operations["sendTenantMessagingTestSms"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4666,7 +4799,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send a test WhatsApp notification (single event or full job lifecycle) */
+        /** Send a test WhatsApp / SMS notification (single event or full job lifecycle) */
         post: operations["postTenantMessagingSimulate"];
         delete?: never;
         options?: never;
@@ -5302,8 +5435,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Send a WhatsApp OTP (contract heading + KVKK notice) to a customer signer
-         * @description Sends a 6-digit code over the organization's connected WhatsApp session. The message carries the
+         * Send a WhatsApp or SMS OTP (contract heading + KVKK notice) to a customer signer
+         * @description Sends a 6-digit code over the organization's WhatsApp line (default) or, with `channel: sms`,
+         *     through the organization's active SMS provider (short SMS text). The message carries the
          *     contract title/number, plate and the KVKK (6698) disclosure. Codes expire after 5 minutes, allow
          *     5 attempts, can be resent after 60 seconds, and at most 5 codes per signer per hour.
          */
@@ -8152,6 +8286,141 @@ export interface components {
             /** @description The platform number can send right now. */
             platform_sender_available: boolean;
         };
+        SmsProviderField: {
+            /** @description netgsm: usercode, password; twilio: account_sid, auth_token */
+            key: string;
+            secret: boolean;
+            required: boolean;
+        };
+        SmsProviderAccount: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            /** @description Netgsm message header or Twilio From number / Messaging Service SID. */
+            sender: string;
+            /** @description This provider sends the organization's SMS. */
+            is_active: boolean;
+            /**
+             * @description Last connection test.
+             * @enum {string}
+             */
+            status: "unchecked" | "connected" | "error";
+            /** Format: date-time */
+            last_checked_at?: string;
+            last_error?: string;
+            /** @description Masked values per credential key (e.g. "••••••ab"); secrets are never returned. */
+            credential_hints: {
+                [key: string]: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        SmsProviderEntry: {
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            fields: components["schemas"]["SmsProviderField"][];
+            /** @enum {string} */
+            sender_kind: "msgheader" | "from";
+            /** @description null when not connected. */
+            account: components["schemas"]["SmsProviderAccount"] | null;
+        };
+        SmsChannelOverview: {
+            /** @enum {string} */
+            active_provider: "" | "netgsm" | "twilio";
+            providers: components["schemas"]["SmsProviderEntry"][];
+        };
+        SaveSmsProviderRequest: {
+            /** @description Field values by key; empty values keep the stored ones. */
+            credentials?: {
+                [key: string]: string;
+            };
+            sender?: string;
+            activate?: boolean;
+        };
+        SmsSegments: {
+            /** @enum {string} */
+            encoding: "gsm7" | "turkish" | "ucs2";
+            characters: number;
+            segments: number;
+            per_segment: number;
+            /** @description Characters left before the next part starts. */
+            remaining: number;
+        };
+        SmsEstimateRequest: {
+            body: string;
+            /** @enum {string} */
+            provider?: "netgsm" | "twilio";
+        };
+        SmsEstimate: {
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            segments: components["schemas"]["SmsSegments"];
+        };
+        SmsTestResult: {
+            ok: boolean;
+            /** @description sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, … */
+            error_code?: string;
+            message?: string;
+            /** @description Account name / matched header. */
+            detail?: string;
+            /** @description Account credit when the provider reports it (Twilio). */
+            balance?: string;
+            /** @description Message headers of the account (Netgsm). */
+            senders?: string[];
+            account: components["schemas"]["SmsProviderAccount"];
+        };
+        SmsTestSmsRequest: {
+            /** @example 0532 123 45 67 */
+            phone: string;
+            /** @description Defaults to a short Turkish test text. */
+            body?: string;
+        };
+        SmsTestSmsResult: {
+            /** @enum {string} */
+            status: "sent" | "failed";
+            /** @enum {string} */
+            provider: "netgsm" | "twilio";
+            /** @description Masked E.164 number. */
+            recipient: string;
+            provider_message_id?: string;
+            provider_status?: string;
+            error_code?: string;
+            error_message?: string;
+            segments: components["schemas"]["SmsSegments"];
+        };
+        EnvelopeSmsChannelOverview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsChannelOverview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsProviderAccount: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsProviderAccount"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsEstimate: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsEstimate"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeSmsTestSmsResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["SmsTestSmsResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
         EnvelopeWhatsAppSession: {
             /** @enum {boolean} */
             success: true;
@@ -8180,13 +8449,13 @@ export interface components {
             /** Format: date-time */
             created_at: string;
             /** @enum {string} */
-            sender_kind?: "org_own" | "platform_whatsmeow" | "platform_cloud";
+            sender_kind?: "org_own" | "platform_whatsmeow" | "platform_cloud" | "sms_netgsm" | "sms_twilio";
             template_name?: string;
-            /** @description Cloud delivery status from the webhook (sent, delivered, read, failed). */
+            /** @description Cloud delivery status from the webhook (sent, delivered, read, failed), or the SMS provider's status at send time (Netgsm `accepted`; Twilio `queued`, `accepted`, `sent`…). */
             delivery_status?: string;
             /** Format: date-time */
             delivery_status_at?: string;
-            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>. */
+            /** @description Classified failure, e.g. own_session_disconnected, platform_sender_not_configured, platform_sender_unavailable, template_not_approved, cloud_auth_failed, marketing_limit, undeliverable, template_missing, graph_<code>; SMS: sms_not_configured, sms_auth_failed, sms_rejected, sms_unavailable, sms_outcome_unknown, invalid_recipient. */
             error_code?: string;
         };
         OutboundMessagePage: {
@@ -13178,6 +13447,8 @@ export interface components {
         };
     };
     parameters: {
+        /** @description SMS provider code */
+        SmsProviderPath: "netgsm" | "twilio";
         /** @description Legal page slug (e.g. `privacy`) */
         LegalPageSlug: string;
         /** @description QR sign-in session id (from the QR URL) */
@@ -20846,6 +21117,11 @@ export interface operations {
                     /** @example 20:00 */
                     send_time: string;
                     recipient_user_uuids: string[];
+                    /**
+                     * @description Delivery channel; omitted keeps the saved one (default whatsapp).
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -20940,6 +21216,11 @@ export interface operations {
                     recipient_user_uuids: string[];
                     /** @enum {integer} */
                     batch_minutes: 0 | 30 | 60;
+                    /**
+                     * @description Phone message channel; omitted keeps the saved one (default whatsapp).
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };
@@ -20965,7 +21246,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description { in_app, whatsapp, skipped[] } */
+            /** @description { in_app, whatsapp, sms, skipped[] } */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20975,6 +21256,201 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantMessagingSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Providers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsChannelOverview"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    estimateTenantMessagingSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsEstimateRequest"];
+            };
+        };
+        responses: {
+            /** @description Estimate */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsEstimate"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    saveTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveSmsProviderRequest"];
+            };
+        };
+        responses: {
+            /** @description Account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsProviderAccount"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description { success: true } */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setTenantMessagingSmsProviderActive: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    is_active: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Account */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsProviderAccount"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    testTenantMessagingSmsProvider: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsTestResult"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    sendTenantMessagingTestSms: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description SMS provider code */
+                provider: components["parameters"]["SmsProviderPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SmsTestSmsRequest"];
+            };
+        };
+        responses: {
+            /** @description Send result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeSmsTestSmsResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantMessagingSession: {
@@ -21470,10 +21946,11 @@ export interface operations {
                     mode?: "event" | "job_lifecycle";
                     event_type?: string;
                     /**
+                     * @description `sms` sends the organization's SMS template through its active SMS provider.
                      * @default whatsapp
                      * @enum {string}
                      */
-                    channel?: "whatsapp";
+                    channel?: "whatsapp" | "sms";
                     phone: string;
                     vars?: {
                         [key: string]: string;
@@ -22874,6 +23351,11 @@ export interface operations {
                 "application/json": {
                     /** @description Override recipient; defaults to the signer phone. */
                     phone?: string;
+                    /**
+                     * @default whatsapp
+                     * @enum {string}
+                     */
+                    channel?: "whatsapp" | "sms";
                 };
             };
         };

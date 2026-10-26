@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { PageHeader } from "@/components/layout/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { permissions } from "@/config/permissions";
+import { ChannelsPanel } from "@/features/messaging/components/channels-panel";
 import { DailySummaryCard } from "@/features/messaging/components/daily-summary-card";
 import { MessageTemplatesPanel } from "@/features/messaging/components/message-templates-panel";
 import { NotificationRulesCard } from "@/features/messaging/components/notification-rules-card";
@@ -47,6 +48,9 @@ export function MessagingPage() {
           <TabsTrigger value="connection">
             {t("messaging.tabs.connection")}
           </TabsTrigger>
+          <TabsTrigger value="channels">
+            {t("messaging.tabs.channels")}
+          </TabsTrigger>
           <TabsTrigger value="templates">
             {t("messaging.tabs.templates")}
           </TabsTrigger>
@@ -68,6 +72,12 @@ export function MessagingPage() {
             </div>
             <NotificationRulesCard />
           </div>
+        </TabsContent>
+        <TabsContent value="channels" className="mt-4">
+          <ChannelsPanel
+            canWrite={canWrite}
+            onManageWhatsApp={() => setTab("connection")}
+          />
         </TabsContent>
         <TabsContent value="templates" className="mt-4">
           <MessageTemplatesPanel

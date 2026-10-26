@@ -72,7 +72,7 @@ export interface PatchTemplateInput {
 export interface SimulateInput {
   mode?: "event" | "job_lifecycle";
   event_type?: string;
-  channel?: "whatsapp";
+  channel?: "whatsapp" | "sms";
   phone: string;
   vars?: Record<string, string>;
 }
@@ -101,3 +101,14 @@ export const SAMPLE_VARS: Record<string, string> = {
   currency: "TRY",
   contract_title: "Hizmet Sözleşmesi",
 };
+
+export type SmsChannelOverview = components["schemas"]["SmsChannelOverview"];
+export type SmsProviderEntry = components["schemas"]["SmsProviderEntry"];
+export type SmsProviderAccount = components["schemas"]["SmsProviderAccount"];
+export type SmsProviderCode = SmsProviderEntry["provider"];
+export type SaveSmsProviderInput =
+  components["schemas"]["SaveSmsProviderRequest"];
+export type SmsTestResult = components["schemas"]["SmsTestResult"];
+export type SmsTestSmsInput = components["schemas"]["SmsTestSmsRequest"];
+export type SmsTestSmsResult = components["schemas"]["SmsTestSmsResult"];
+export type SmsEstimate = components["schemas"]["SmsEstimate"];

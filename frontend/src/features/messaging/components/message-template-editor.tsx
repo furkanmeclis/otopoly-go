@@ -19,7 +19,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { SmsSegmentCounter } from "@/features/messaging/components/sms-segment-counter";
 import { useSimulateMessaging } from "@/features/messaging/hooks/use-messaging";
+import { useSmsChannel } from "@/features/messaging/hooks/use-sms-channel";
 import { useTemplateMutations } from "@/features/messaging/hooks/use-message-templates";
 import {
   renderTemplate,
@@ -75,6 +77,7 @@ function EditorBody({
   const { t, locale: uiLocale } = useLocale();
   const { save, reset } = useTemplateMutations();
   const simulate = useSimulateMessaging();
+  const smsQuery = useSmsChannel();
   const [channel, setChannel] = useState<TemplateChannel>(
     initialChannel && type.channels.includes(initialChannel)
       ? initialChannel
@@ -115,6 +118,7 @@ function EditorBody({
   const previewTitle = renderTemplate(draft.subject, samples);
   const previewBody = renderTemplate(draft.body, samples);
   const phoneChannel = channel === "whatsapp" || channel === "sms";
+  const smsProvider = smsQuery.data?.active_provider ?? "";
   const dirty =
     !entry ||
     draft.subject !== entry.subject ||
@@ -258,6 +262,12 @@ function EditorBody({
               onChange={(e) => setDraft({ body: e.target.value })}
               className="resize-y font-mono text-sm"
             />
+            {channel === "sms" ? (
+              <SmsSegmentCounter
+                body={previewBody}
+                provider={smsProvider || "netgsm"}
+              />
+            ) : null}
           </div>
 
           <div className="space-y-1.5">
@@ -325,7 +335,9 @@ function EditorBody({
             </div>
           </div>
 
-          {canWrite && channel === "whatsapp" && locale === "tr" ? (
+          {canWrite &&
+          (channel === "whatsapp" || (channel === "sms" && smsProvider)) &&
+          locale === "tr" ? (
             <div className="space-y-1.5">
               <Label htmlFor="tpl-test-phone">
                 {t("messaging.editor.test_phone")}
@@ -346,7 +358,7 @@ function EditorBody({
                     simulate.mutate({
                       mode: "event",
                       event_type: type.type,
-                      channel: "whatsapp",
+                      channel: channel === "sms" ? "sms" : "whatsapp",
                       phone: testPhone.trim(),
                       vars: samples,
                     })

@@ -25,6 +25,11 @@ const SEND_ERROR_KEYS: Record<string, string> = {
   invalid_recipient: "messaging.errors.invalid_recipient",
   media_upload_failed: "messaging.errors.media_upload_failed",
   send_failed: "messaging.errors.send_failed",
+  sms_not_configured: "messaging.errors.sms_not_configured",
+  sms_auth_failed: "messaging.errors.sms_auth_failed",
+  sms_rejected: "messaging.errors.sms_rejected",
+  sms_unavailable: "messaging.errors.sms_unavailable",
+  sms_outcome_unknown: "messaging.errors.sms_outcome_unknown",
 };
 
 /** True for classified send codes (incl. `graph_<n>`), case-insensitive. */
