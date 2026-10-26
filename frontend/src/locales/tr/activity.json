@@ -198,5 +198,14 @@
   "actions.calendar.event.create": "Takvim etkinliği oluşturuldu",
   "actions.calendar.event.update": "Takvim etkinliği güncellendi",
   "actions.calendar.event.delete": "Takvim etkinliği silindi",
-  "resources.calendar.event": "Takvim etkinliği"
+  "resources.calendar.event": "Takvim etkinliği",
+  "actions.mcp.tool_called": "MCP aracı çağrıldı",
+  "actions.mcp.consent_approved": "MCP bağlantısına izin verildi",
+  "actions.mcp.consent_denied": "MCP bağlantısı reddedildi",
+  "actions.mcp.grant_revoked": "MCP bağlantısı kaldırıldı",
+  "actions.mcp.client_revoked": "MCP istemcisi engellendi",
+  "resources.mcp_tool": "MCP aracı",
+  "resources.mcp_oauth_grants": "MCP bağlantısı",
+  "resources.mcp_oauth_auth_requests": "MCP bağlantı isteği",
+  "resources.mcp_oauth_clients": "MCP istemcisi"
 }

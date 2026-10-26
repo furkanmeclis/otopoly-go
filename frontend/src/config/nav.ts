@@ -37,6 +37,7 @@ import {
   TicketPercent,
   Landmark,
   Scale,
+  PlugZap,
 } from "lucide-react";
 
 import { appleNavIcon } from "@/components/icons/apple-icon";
@@ -146,6 +147,16 @@ export const platformNav = defineNav({
           href: routes.platform.ai.root,
           icon: Sparkles,
           permission: permissions.ai.read,
+        },
+        {
+          id: "mcp",
+          titleKey: "layout.nav_mcp",
+          href: routes.platform.mcp.root,
+          icon: PlugZap,
+          anyPermission: [
+            permissions.mcp.platformConnect,
+            permissions.mcp.manage,
+          ],
         },
         {
           id: "legal-privacy",
@@ -572,6 +583,13 @@ export function tenantNav(slug: string) {
             href: routes.tenant.settings.billing(slug),
             icon: CreditCard,
             permission: permissions.billing.read,
+          },
+          {
+            id: "mcp",
+            titleKey: "layout.nav_mcp_tenant",
+            href: routes.tenant.settings.mcp(slug),
+            icon: PlugZap,
+            permission: permissions.mcp.connect,
           },
         ],
       },

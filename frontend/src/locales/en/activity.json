@@ -198,5 +198,14 @@
   "actions.calendar.event.create": "Calendar event created",
   "actions.calendar.event.update": "Calendar event updated",
   "actions.calendar.event.delete": "Calendar event deleted",
-  "resources.calendar.event": "Calendar event"
+  "resources.calendar.event": "Calendar event",
+  "actions.mcp.tool_called": "MCP tool called",
+  "actions.mcp.consent_approved": "MCP connection allowed",
+  "actions.mcp.consent_denied": "MCP connection denied",
+  "actions.mcp.grant_revoked": "MCP connection removed",
+  "actions.mcp.client_revoked": "MCP client blocked",
+  "resources.mcp_tool": "MCP tool",
+  "resources.mcp_oauth_grants": "MCP connection",
+  "resources.mcp_oauth_auth_requests": "MCP connection request",
+  "resources.mcp_oauth_clients": "MCP client"
 }

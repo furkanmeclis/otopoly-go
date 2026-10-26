@@ -75,5 +75,7 @@
   "nav_billing_invoices": "Faturalar",
   "nav_billing_dashboard": "Gösterge paneli",
   "breadcrumb_label": "Sayfa yolu",
-  "nav_calendar": "Takvim"
+  "nav_calendar": "Takvim",
+  "nav_mcp": "MCP sunucusu",
+  "nav_mcp_tenant": "AI bağlantıları (MCP)"
 }

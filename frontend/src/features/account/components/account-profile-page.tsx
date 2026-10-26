@@ -8,6 +8,7 @@ import {
   KeyRound,
   Lock,
   Monitor,
+  PlugZap,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -35,6 +36,7 @@ import { SessionManager } from "@/features/account/components/session-manager";
 import { TotpManager } from "@/features/account/components/totp-manager";
 import { ProfileEditForm } from "@/features/account/components/profile-edit-form";
 import { ProfilePermissionsList } from "@/features/account/components/profile-permissions-list";
+import { ConnectedAppsTable } from "@/features/mcp";
 import { isApiError } from "@/lib/api";
 import { useAuth } from "@/providers/auth-provider";
 import { useLocale } from "@/providers/locale-provider";
@@ -56,6 +58,11 @@ const tabs = [
     id: "permissions",
     labelKey: "auth.profile.tabs.permissions",
     icon: KeyRound,
+  },
+  {
+    id: "connected-apps",
+    labelKey: "auth.profile.tabs.connected_apps",
+    icon: PlugZap,
   },
 ] as const;
 
@@ -358,6 +365,18 @@ export function AccountProfilePage({
               </CardContent>
             </Card>
           ) : null}
+        </TabsContent>
+
+        <TabsContent value="connected-apps" className="mt-4">
+          <Card className="shadow-none">
+            <CardHeader>
+              <CardTitle>{t("mcp.grants.title")}</CardTitle>
+              <CardHint>{t("mcp.grants.description")}</CardHint>
+            </CardHeader>
+            <CardContent>
+              {tab === "connected-apps" ? <ConnectedAppsTable /> : null}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="permissions" className="mt-4">

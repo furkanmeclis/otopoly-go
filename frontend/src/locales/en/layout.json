@@ -75,5 +75,7 @@
   "nav_billing_invoices": "Invoices",
   "nav_billing_dashboard": "Dashboard",
   "breadcrumb_label": "Breadcrumb",
-  "nav_calendar": "Calendar"
+  "nav_calendar": "Calendar",
+  "nav_mcp": "MCP server",
+  "nav_mcp_tenant": "AI connections (MCP)"
 }

@@ -6,6 +6,7 @@ import enTodos from "@/locales/en/todos.json";
 import enCalendar from "@/locales/en/calendar.json";
 import enMessaging from "@/locales/en/messaging.json";
 import enLeads from "@/locales/en/leads.json";
+import enMcp from "@/locales/en/mcp.json";
 import enQuotes from "@/locales/en/quotes.json";
 import enBilling from "@/locales/en/billing.json";
 import enActivity from "@/locales/en/activity.json";
@@ -56,6 +57,7 @@ import trTodos from "@/locales/tr/todos.json";
 import trCalendar from "@/locales/tr/calendar.json";
 import trMessaging from "@/locales/tr/messaging.json";
 import trLeads from "@/locales/tr/leads.json";
+import trMcp from "@/locales/tr/mcp.json";
 import trQuotes from "@/locales/tr/quotes.json";
 import trBilling from "@/locales/tr/billing.json";
 import trActivity from "@/locales/tr/activity.json";
@@ -152,6 +154,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     calendar: trCalendar,
     messaging: trMessaging,
     leads: trLeads,
+    mcp: trMcp,
     quotes: trQuotes,
     billing: trBilling,
     legal: trLegal,
@@ -204,6 +207,7 @@ const catalogs: Record<AppLocale, Record<string, MessageDictionary>> = {
     calendar: enCalendar,
     messaging: enMessaging,
     leads: enLeads,
+    mcp: enMcp,
     quotes: enQuotes,
     billing: enBilling,
     legal: enLegal,

@@ -14,6 +14,10 @@ export const routes = {
       signed: (token: string) => `/share/s/${token}`,
     },
   },
+  /** OAuth consent of MCP clients (outside the shells, needs a session). */
+  oauth: {
+    consent: "/oauth/consent",
+  },
   onboarding: {
     /** Signed-in user without a business creates one (account step skipped). */
     business: "/onboarding/business",
@@ -145,6 +149,8 @@ export const routes = {
       root: (slug: string) => `/t/${slug}/settings`,
       messaging: (slug: string) => `/t/${slug}/settings/messaging`,
       billing: (slug: string) => `/t/${slug}/settings/billing`,
+      /** AI connections (MCP): connect guide + this business's connections. */
+      mcp: (slug: string) => `/t/${slug}/settings/mcp`,
     },
   },
   guest: {
@@ -255,6 +261,10 @@ export const routes = {
     },
     ai: {
       root: "/platform/ai",
+    },
+    /** MCP: connect guide, own connections, registered clients. */
+    mcp: {
+      root: "/platform/mcp",
     },
     logs: {
       root: "/platform/logs",
