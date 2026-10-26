@@ -259,6 +259,8 @@
           ]
         }
       ],
+      "expo-app-intents",
+      "./plugins/with-app-intents-locales",
       "expo-apple-authentication",
       [
         "react-native-nitro-google-signin",
@@ -267,6 +269,11 @@
         }
       ]
     ],
+    "experiments": {
+      "inlineModules": {
+        "watchedDirectories": ["app-intents"]
+      }
+    },
     "extra": {
       "router": {},
       "eas": {
