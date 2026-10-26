@@ -282,3 +282,83 @@ func (c *Client) resetToken() {
 	c.token = ""
 	c.mu.Unlock()
 }
+
+// Host is the APNs base URL this client talks to.
+func (c *Client) Host() string { return c.baseURL }
+
+// Environment is "sandbox" or "production" (the configured value, normalized).
+func (c *Client) Environment() string { return NormalizeEnvironment(c.cfg.Environment) }
+
+// NormalizeEnvironment maps an environment setting to production / sandbox
+// (anything but "sandbox" is production).
+func NormalizeEnvironment(env string) string {
+	if strings.EqualFold(strings.TrimSpace(env), "sandbox") {
+		return "sandbox"
+	}
+	return "production"
+}
+
+// probeToken is a well-formed device token no device owns: APNs answers
+// 400 BadDeviceToken once it accepted the provider token and the topic.
+var probeToken = strings.Repeat("0", 64)
+
+// Probe verdicts.
+const (
+	VerdictAccepted      = "accepted"       // key, team and topic accepted (400 BadDeviceToken)
+	VerdictKeyRejected   = "key_rejected"   // 403 InvalidProviderToken / ExpiredProviderToken …
+	VerdictTopicRejected = "topic_rejected" // bundle id / topic not allowed for this key or team
+	VerdictRateLimited   = "rate_limited"   // 429 (e.g. TooManyProviderTokenUpdates)
+	VerdictRejected      = "rejected"       // any other APNs answer
+	VerdictUnreachable   = "unreachable"    // no APNs answer (network, TLS)
+	VerdictNotConfigured = "not_configured" // no key
+)
+
+// ProbeResult is the outcome of a connection test.
+type ProbeResult struct {
+	Verdict string
+	OK      bool
+	Status  int
+	Reason  string
+	// Error is set for VerdictUnreachable (no APNs answer).
+	Error string
+}
+
+// ClassifyProbe turns the APNs answer to a probe push into a verdict.
+func ClassifyProbe(res Result) ProbeResult {
+	out := ProbeResult{Status: res.Status, Reason: res.Reason}
+	switch {
+	case res.Status == http.StatusBadRequest && (res.Reason == "BadDeviceToken" || res.Reason == "DeviceTokenNotForTopic"):
+		out.Verdict, out.OK = VerdictAccepted, true
+	case res.Status == http.StatusOK:
+		// A zero token can never be delivered; treat a 200 as accepted.
+		out.Verdict, out.OK = VerdictAccepted, true
+	case res.Status == http.StatusForbidden && strings.HasSuffix(res.Reason, "ProviderToken"):
+		out.Verdict = VerdictKeyRejected
+	case res.Reason == "TopicDisallowed" || res.Reason == "BadTopic" || res.Reason == "MissingTopic" ||
+		res.Reason == "BadCertificateEnvironment" || res.Reason == "BadCertificate":
+		out.Verdict = VerdictTopicRejected
+	case res.Status == http.StatusTooManyRequests:
+		out.Verdict = VerdictRateLimited
+	default:
+		out.Verdict = VerdictRejected
+	}
+	return out
+}
+
+// Probe signs a provider token and sends one Live Activity push to a device
+// token that cannot exist, so nothing is delivered. See ClassifyProbe.
+func (c *Client) Probe(ctx context.Context) ProbeResult {
+	if !c.Configured() {
+		return ProbeResult{Verdict: VerdictNotConfigured}
+	}
+	res, err := c.SendLiveActivity(ctx, LiveActivity{
+		Token:        probeToken,
+		Event:        EventUpdate,
+		ContentState: map[string]any{},
+		Expiration:   time.Minute,
+	})
+	if err != nil {
+		return ProbeResult{Verdict: VerdictUnreachable, Error: err.Error()}
+	}
+	return ClassifyProbe(res)
+}

@@ -17,7 +17,7 @@ type fakeAPNs struct {
 	sent   []apns.LiveActivity
 }
 
-func (f *fakeAPNs) Configured() bool { return !f.off }
+func (f *fakeAPNs) Configured(context.Context) bool { return !f.off }
 
 func (f *fakeAPNs) SendLiveActivity(_ context.Context, p apns.LiveActivity) (apns.Result, error) {
 	f.mu.Lock()

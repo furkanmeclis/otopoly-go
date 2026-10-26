@@ -10,28 +10,26 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 )
 
-// NewService builds the livepush use case from config. A malformed APNs key
-// is logged and turns iOS Live Activity pushes off instead of failing start-up.
-// enq may be nil (work runs inline).
-func NewService(cfg config.Config, q *db.Queries, enq queue.LiveEnqueuer, log *slog.Logger) *usecase.Service {
-	if log == nil {
-		log = slog.Default()
-	}
-	var push usecase.APNs
-	client, err := apns.New(apns.Config{
+// NewAPNs builds the runtime APNs credentials resolver: the key uploaded in
+// the platform admin (src, the DB) first, the APNS_* env vars as fallback.
+// Credentials are re-read at most every apns.DefaultResolverTTL, so the
+// worker picks up a new key without a restart. src may be nil (env only).
+// A malformed key is logged and leaves iOS Live Activity pushes off.
+func NewAPNs(cfg config.Config, src apns.KeySource, log *slog.Logger) *apns.Resolver {
+	return apns.NewResolver(src, apns.Config{
 		KeyID:       cfg.APNs.KeyID,
 		TeamID:      cfg.APNs.TeamID,
 		PrivateKey:  cfg.APNs.PrivateKey,
 		BundleID:    cfg.APNs.BundleID,
 		Environment: cfg.APNs.Environment,
-	})
-	switch {
-	case err != nil:
-		log.Error("livepush_apns_key_invalid", "error", err)
-	case client.Configured():
-		push = client
-	default:
-		log.Info("livepush_apns_disabled", "hint", "APNS_KEY_ID / APNS_TEAM_ID / APNS_PRIVATE_KEY not set; iOS Live Activities update only while the app runs")
+	}, nil, log)
+}
+
+// NewService builds the livepush use case. push may be nil (iOS Live
+// Activity pushes off); enq may be nil (work runs inline).
+func NewService(q *db.Queries, push usecase.APNs, enq queue.LiveEnqueuer, expoAccessToken string, log *slog.Logger) *usecase.Service {
+	if log == nil {
+		log = slog.Default()
 	}
-	return usecase.New(q, push, usecase.NewExpoHTTP(cfg.Expo.AccessToken), enq, log)
+	return usecase.New(q, push, usecase.NewExpoHTTP(expoAccessToken), enq, log)
 }

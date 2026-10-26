@@ -114,10 +114,8 @@ func ts(t pgtype.Timestamptz) time.Time {
 
 // sendIOS sends one ActivityKit push; false asks for a retry.
 func (s *Service) sendIOS(ctx context.Context, t db.ListLiveActivityTargetsForJobRow, props JobActivityProps, outcome Outcome, locale, hash string, now time.Time) bool {
-	if !s.APNsConfigured() {
-		s.apnsOffOnce.Do(func() {
-			s.log.Warn("livepush_apns_not_configured", "hint", "set APNS_KEY_ID, APNS_TEAM_ID, APNS_PRIVATE_KEY to update iOS Live Activities remotely")
-		})
+	if !s.APNsConfigured(ctx) {
+		// The resolver logs livepush_apns_disabled once per process.
 		return true
 	}
 	raw, err := json.Marshal(props)

@@ -368,6 +368,16 @@ Open lists and detail pages follow data changes over Centrifugo. Events are **hi
 
 **Web.** `useServerListState({ realtime: useTenantLiveList(resource) })` + `realtime={listState.realtimeFor(refetch)}` on the DataTable (`useTenantLiveTable` for client-side tables): silent refetch when visible rows change or on page 1 at the top, fade-out of deleted rows, a "N yeni kayıt – Yenile" banner otherwise, one refetch after reconnect. Boards, card lists and detail pages use `useTenantLiveRefetch(resource, refetch, { uuid })` (`features/organizations/hooks/use-tenant-live.ts`). The calendar page refetches its feed on `tenant.calendar`, `tenant.jobs`, `tenant.todos`, `tenant.leads` and `tenant.quotes` (the other feed layers follow on the next navigation / reconnect).
 
+## Live Activity / widget push (mobile, `modules/livepush`)
+
+Job changes also reach the mobile app while it is closed: iOS Live Activities through **APNs** directly (ActivityKit `liveactivity` pushes, token-based `.p8` auth over HTTP/2, `internal/platform/apns`), Android Live Updates and the Home / Lock Screen widgets through Expo data messages. Everything is fail-soft: without an APNs key iOS activities update only while the app runs (`remote_updates: false` / `live_activity_push: false` in the registration answers).
+
+**APNs key.** Uploaded by a super admin in **Platform → Entegrasyonlar → Apple → Apple Push (APNs)** (`GET/PUT/DELETE /v1/platform/integrations/apple/apns`, `POST …/apns/test`, Apple integration permissions). Stored in the `platform_apns_settings` singleton: key id, optional team id (empty → the Apple integration team id, then `APNS_TEAM_ID`), bundle id (default `com.otopoly.app`), environment (`production` | `sandbox`) and the `.p8` sealed with the integration SecretBox; the API only returns ids and a public-key fingerprint. It must be a key with "Apple Push Notifications service (APNs)" enabled; the Sign in with Apple key cannot send pushes.
+
+**Resolution.** `apns.Resolver` picks the credentials at send time: database first, the `APNS_*` env vars as **fallback**. The parsed key and its provider token are reused while the credentials are unchanged; the source is re-read at most every 60 s, so the API (which invalidates at once on save) and the separate worker pick up a new key without a restart. Logs: `livepush_apns_source` (source, key id, environment) whenever the active key changes, `livepush_apns_disabled` once per process when neither source has a key, `livepush_apns_key_invalid` for a key that does not parse.
+
+**Test.** `POST /v1/platform/integrations/apple/apns/test` signs a provider token and sends one push to a device token that cannot exist on the configured environment host: `400 BadDeviceToken` ⇒ key, team and topic accepted; `403 InvalidProviderToken` / `ExpiredProviderToken` ⇒ key or team rejected. The outcome is kept as `last_test`.
+
 ## RBAC
 
 Users are global. Permissions are the union of assigned roles.

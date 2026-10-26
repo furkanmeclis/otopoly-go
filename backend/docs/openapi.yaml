@@ -1227,6 +1227,119 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/platform/integrations/apple/apns:
+    get:
+      tags: [Platform]
+      operationId: getPlatformAPNsKey
+      summary: Read the APNs key status (Live Activity pushes)
+      description: |
+        Status of the APNs token key used for iOS Live Activity pushes. The key
+        uploaded here (database) wins over the APNS_* env vars (fallback). The
+        .p8 itself is never returned; key_fingerprint is a short SHA-256 of
+        its public key. Requires platform.integrations.apple.read (super admin).
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: APNs key status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    put:
+      tags: [Platform]
+      operationId: putPlatformAPNsKey
+      summary: Upload / edit the APNs key
+      description: |
+        Stores the APNs .p8 (sealed with the integration vault) and its fields.
+        private_key may be omitted when a key is already stored (only the
+        fields change). The key must be an Apple .p8 (PEM, PKCS#8, EC P-256 /
+        ES256). A Sign in with Apple key cannot send pushes; create a key with
+        "Apple Push Notifications service (APNs)" enabled. Pushes in the API and
+        the worker pick the change up within a minute. Requires
+        platform.integrations.apple.write.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SavePlatformAPNsKeyRequest"
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SavePlatformAPNsKeyMultipart"
+      responses:
+        "200":
+          description: Saved APNs key status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    delete:
+      tags: [Platform]
+      operationId: deletePlatformAPNsKey
+      summary: Remove the uploaded APNs key
+      description: Removes the stored key and fields; the APNS_* env key, if set, takes over. Requires platform.integrations.apple.write.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: APNs key status after removal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsStatus"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/platform/integrations/apple/apns/test:
+    post:
+      tags: [Platform]
+      operationId: testPlatformAPNsKey
+      summary: Test the active APNs key against Apple
+      description: |
+        Signs a provider token with the active key (database, else env) and
+        sends one Live Activity push to a device token that cannot exist, on
+        the configured environment host. Nothing is delivered. 400
+        BadDeviceToken means key, team and topic were accepted (ok: true); 403
+        InvalidProviderToken / ExpiredProviderToken means the key or team id
+        was rejected. The outcome is stored as last_test. Requires
+        platform.integrations.apple.write.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Test outcome (also for a rejected key; see verdict)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopePlatformAPNsTestResult"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /v1/auth/identities:
     get:
       tags: [Auth]
@@ -15401,6 +15514,100 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/OAuthProviderSettings" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    PlatformAPNsActiveKey:
+      type: object
+      description: Credentials pushes use right now (never the key itself).
+      required: [key_id, team_id, bundle_id, environment, host, key_fingerprint]
+      properties:
+        key_id: { type: string, example: GS6Q2FZ3PT }
+        team_id: { type: string, example: ABCDE12345 }
+        bundle_id: { type: string, example: com.otopoly.app }
+        environment: { type: string, enum: [production, sandbox] }
+        host: { type: string, example: "https://api.push.apple.com" }
+        key_fingerprint: { type: string, description: Short SHA-256 hex of the public key, example: 3f9a0c1d2e4b5a69 }
+
+    PlatformAPNsTestResult:
+      type: object
+      required: [ok, verdict, reason, source, environment, tested_at]
+      properties:
+        ok: { type: boolean, description: "true when APNs accepted key, team and topic (400 BadDeviceToken)" }
+        verdict:
+          type: string
+          enum: [accepted, key_rejected, topic_rejected, rate_limited, rejected, unreachable, not_configured]
+        status: { type: integer, description: APNs HTTP status (absent when APNs was not reached), example: 400 }
+        reason: { type: string, description: APNs reason, example: BadDeviceToken }
+        source: { type: string, enum: [database, env, none] }
+        environment: { type: string, enum: [production, sandbox] }
+        host: { type: string }
+        error: { type: string, description: Transport error when unreachable }
+        tested_at: { type: string, format: date-time }
+
+    PlatformAPNsStatus:
+      type: object
+      required:
+        [source, stored, key_id, team_id, team_id_source, effective_team_id, bundle_id, environment,
+         key_fingerprint, uploaded_at, updated_at, env_configured, active, last_test]
+      properties:
+        source:
+          type: string
+          enum: [database, env, none]
+          description: Where pushes take the key from (database first, env fallback).
+        stored: { type: boolean, description: A key was uploaded from the panel }
+        key_id: { type: string, description: Stored key id ("" when none) }
+        team_id: { type: string, description: Stored team id ("" = fallback) }
+        team_id_source: { type: string, enum: [database, apple_integration, env, none] }
+        effective_team_id: { type: string }
+        bundle_id: { type: string, example: com.otopoly.app }
+        environment: { type: string, enum: [production, sandbox] }
+        key_fingerprint: { type: string, description: Stored key's public-key fingerprint ("" when none) }
+        uploaded_at: { type: [string, "null"], format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        env_configured: { type: boolean, description: APNS_* env key present }
+        active:
+          oneOf:
+            - $ref: "#/components/schemas/PlatformAPNsActiveKey"
+            - type: "null"
+        last_test:
+          oneOf:
+            - $ref: "#/components/schemas/PlatformAPNsTestResult"
+            - type: "null"
+
+    SavePlatformAPNsKeyRequest:
+      type: object
+      required: [key_id]
+      properties:
+        key_id: { type: string, description: 10-character key id, example: GS6Q2FZ3PT }
+        team_id: { type: string, description: "Optional; empty = Apple integration team id, then APNS_TEAM_ID" }
+        bundle_id: { type: string, description: "Default com.otopoly.app" }
+        environment: { type: string, enum: [production, sandbox], description: Default production }
+        private_key: { type: string, description: ".p8 PEM text; optional when a key is already stored" }
+
+    SavePlatformAPNsKeyMultipart:
+      type: object
+      required: [key_id]
+      properties:
+        key_id: { type: string }
+        team_id: { type: string }
+        bundle_id: { type: string }
+        environment: { type: string, enum: [production, sandbox] }
+        private_key: { type: string, format: binary, description: The AuthKey_XXXXXXXXXX.p8 file (max 16 KB) }
+
+    EnvelopePlatformAPNsStatus:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PlatformAPNsStatus" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopePlatformAPNsTestResult:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/PlatformAPNsTestResult" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     LinkedIdentity:

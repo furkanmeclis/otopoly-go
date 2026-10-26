@@ -101,9 +101,10 @@ type ExpoConfig struct {
 	AccessToken string
 }
 
-// APNsConfig holds the token-based APNs key used for iOS Live Activity
-// pushes (Expo Push Service has no liveactivity push type). Empty = iOS
-// activities only update while the app runs.
+// APNsConfig holds the env fallback for the token-based APNs key used for
+// iOS Live Activity pushes (Expo Push Service has no liveactivity push type).
+// A key uploaded in the platform admin (platform_apns_settings) wins; with
+// neither, iOS activities only update while the app runs.
 type APNsConfig struct {
 	KeyID       string
 	TeamID      string
