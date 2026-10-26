@@ -5,6 +5,7 @@ import { Header, Screen, Segmented } from '@/components/ui';
 import { useAuth } from '@/features/auth/auth-provider';
 import { RequirePermission } from '@/features/auth/guard';
 import { P } from '@/features/auth/permissions';
+import { ChannelsSection } from '@/features/messaging/components/channels-section';
 import { DailySummaryCard } from '@/features/messaging/components/daily-summary-card';
 import { NotificationRulesCard } from '@/features/messaging/components/rules-card';
 import { TemplatesPanel } from '@/features/messaging/components/templates-panel';
@@ -14,9 +15,9 @@ import { useWhatsAppSession } from '@/features/messaging/queries';
 import { qk } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 
-type Tab = 'connection' | 'templates';
+type Tab = 'connection' | 'channels' | 'templates';
 
-/** Web `settings/messaging` (MessagingPage): connection & rules tab, templates tab. */
+/** Web `settings/messaging` (MessagingPage): connection & rules, channels (WhatsApp / SMS / e-mail), templates. */
 export default function MessagingScreen() {
   const { t: tr } = useLocale();
   return (
@@ -51,6 +52,7 @@ function Messaging() {
         onChange={setTab}
         options={[
           { value: 'connection', label: tr('messaging.tabs.connection') },
+          { value: 'channels', label: tr('mobile.messaging.channels.section') },
           { value: 'templates', label: tr('messaging.tabs.templates') },
         ]}
       />
@@ -62,6 +64,8 @@ function Messaging() {
           {canWrite ? <VehicleAlertsCard /> : null}
           {canWrite ? <DailySummaryCard /> : null}
         </>
+      ) : tab === 'channels' ? (
+        <ChannelsSection canWrite={canWrite} />
       ) : (
         <TemplatesPanel canWrite={canWrite} ownNumberEntitled={ownNumberEntitled} />
       )}

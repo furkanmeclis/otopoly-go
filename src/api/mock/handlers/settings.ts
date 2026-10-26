@@ -11,6 +11,7 @@ import type { NotificationRule, RuleList, SimulateResultItem, WhatsAppSession } 
 
 import { bool, fail, istanbulDay, money, now, num, requireOwner, requirePerm, route, str, uuid, validation, type MockCtx } from '../core';
 import { getDb } from '../db';
+import { activeSmsProvider } from './sms';
 
 // ─── WhatsApp session ────────────────────────────────────────────────────────
 
@@ -337,7 +338,7 @@ route('PATCH', '/v1/tenant/messaging/rules/:event_type/:channel', (ctx) => {
   requireOwner(ctx, 'tenant.messaging.write');
   const { event_type: type, channel } = ctx.params;
   if (!RULE_TYPES.includes(type)) fail(404, 'NOT_FOUND', 'Event type not found');
-  if (channel !== 'whatsapp') validation([{ field: 'channel', message: 'channel not available yet', code: 'unsupported' }]);
+  if (channel !== 'whatsapp' && channel !== 'sms') validation([{ field: 'channel', message: 'unsupported channel', code: 'unsupported' }]);
   if (typeof ctx.body.enabled !== 'boolean') validation([{ field: 'enabled', message: 'required', code: 'required' }]);
   const r = rule(ctx, type, channel);
   r.enabled = ctx.body.enabled as boolean;
@@ -356,6 +357,20 @@ route('POST', '/v1/tenant/messaging/simulate', (ctx) => {
   const mode = str(ctx.body.mode, 'event');
   const types = mode === 'job_lifecycle' ? LIFECYCLE : [str(ctx.body.event_type)];
   const vars = (ctx.body.vars ?? {}) as Record<string, string>;
+  const channel = str(ctx.body.channel, 'whatsapp');
+  if (channel !== 'whatsapp' && channel !== 'sms') validation([{ field: 'channel', message: 'channel must be whatsapp or sms', code: 'invalid' }]);
+  if (channel === 'sms') {
+    const sms = activeSmsProvider(ctx);
+    return {
+      items: types.map<SimulateResultItem>((type) => {
+        const entry = entryOf(ctx, type, 'sms', 'tr');
+        if (!entry) return { event_type: type, channel, status: 'failed', error_message: 'unknown event type' };
+        const body = render(entry.body, vars);
+        if (!sms) return { event_type: type, channel, status: 'failed', body, error_message: 'No active SMS provider' };
+        return { event_type: type, channel, status: 'sent', body, provider_reference: `${sms}:${uuid().slice(0, 12)}` };
+      }),
+    };
+  }
   const connected = sessionFor(ctx).status === 'connected';
   const items = types.map<SimulateResultItem>((type) => {
     const entry = entryOf(ctx, type, 'whatsapp', 'tr');
@@ -390,7 +405,8 @@ function orgMembers(ctx: MockCtx) {
 
 // ─── Daily summary (owner-only) ─────────────────────────────────────────────
 
-type DailyState = { enabled: boolean; send_time: string; recipient_user_uuids: string[]; last_sent_on: string | null };
+type Channel = 'whatsapp' | 'sms';
+type DailyState = { enabled: boolean; send_time: string; recipient_user_uuids: string[]; last_sent_on: string | null; channel: Channel };
 const daily = new Map<string, DailyState>();
 
 function dailyFor(ctx: MockCtx) {
@@ -398,7 +414,7 @@ function dailyFor(ctx: MockCtx) {
   if (!s) {
     const owner = orgMembers(ctx).find((m) => m.role === 'owner');
     const yesterday = istanbulDay(new Date(Date.now() - 86400000));
-    s = { enabled: true, send_time: '20:00', recipient_user_uuids: owner ? [owner.uuid] : [], last_sent_on: yesterday };
+    s = { enabled: true, send_time: '20:00', recipient_user_uuids: owner ? [owner.uuid] : [], last_sent_on: yesterday, channel: 'whatsapp' };
     daily.set(ctx.orgUuid!, s);
   }
   return s;
@@ -409,8 +425,17 @@ function dailyView(ctx: MockCtx): DailySummarySettings {
   return {
     ...s,
     whatsapp_connected: sessionFor(ctx).status === 'connected',
+    sms_available: Boolean(activeSmsProvider(ctx)),
     members: orgMembers(ctx).map<DailySummaryMember>(({ has_push: _h, ...m }) => m),
   };
+}
+
+/** `channel` of the daily summary / vehicle alerts body: omitted keeps the saved one. */
+function parseChannel(raw: unknown, current: Channel, errs: { field: string; message: string; code?: string }[]): Channel {
+  if (raw === undefined || raw === null || raw === '') return current;
+  if (raw === 'whatsapp' || raw === 'sms') return raw;
+  errs.push({ field: 'channel', message: 'channel must be whatsapp or sms', code: 'invalid' });
+  return current;
 }
 
 function validateRecipients(ctx: MockCtx, ids: unknown, errs: { field: string; message: string; code?: string }[]) {
@@ -463,15 +488,17 @@ route('PUT', '/v1/tenant/daily-summary', (ctx) => {
   const recipients = validateRecipients(ctx, ctx.body.recipient_user_uuids, errs);
   const enabled = bool(ctx.body.enabled);
   if (enabled && recipients.length === 0) errs.push({ field: 'recipient_user_uuids', message: 'at least one recipient', code: 'required' });
+  const channel = parseChannel(ctx.body.channel, dailyFor(ctx).channel, errs);
   if (errs.length) validation(errs);
-  Object.assign(dailyFor(ctx), { enabled, send_time: time, recipient_user_uuids: recipients });
+  Object.assign(dailyFor(ctx), { enabled, send_time: time, recipient_user_uuids: recipients, channel });
   return dailyView(ctx);
 });
 
 route('POST', '/v1/tenant/daily-summary/test', (ctx) => {
   requireOwner(ctx, 'tenant.messaging.write');
-  if (sessionFor(ctx).status !== 'connected') fail(409, 'WHATSAPP_NOT_CONNECTED', 'WhatsApp session is not connected');
   const s = dailyFor(ctx);
+  if (s.channel === 'sms' && !activeSmsProvider(ctx)) fail(409, 'SMS_NOT_CONFIGURED', 'No active SMS provider');
+  if (s.channel === 'whatsapp' && sessionFor(ctx).status !== 'connected') fail(409, 'WHATSAPP_NOT_CONNECTED', 'WhatsApp session is not connected');
   const members = orgMembers(ctx).filter((m) => s.recipient_user_uuids.includes(m.uuid));
   if (!members.some((m) => m.has_phone)) fail(409, 'NO_RECIPIENT_PHONE', 'No selected recipient has a notification phone');
   return { sent: members.filter((m) => m.has_phone).length, skipped: members.filter((m) => !m.has_phone).map((m) => m.name || m.email) };
@@ -480,13 +507,13 @@ route('POST', '/v1/tenant/daily-summary/test', (ctx) => {
 // ─── Vehicle alerts (owner-only) ────────────────────────────────────────────
 
 const ALERT_EVENTS: VehicleAlertEvent[] = ['created', 'ready', 'delivered', 'cancelled'];
-type AlertState = { enabled: boolean; events: VehicleAlertEvent[]; service_uuids: string[]; recipient_user_uuids: string[]; batch_minutes: number };
+type AlertState = { enabled: boolean; events: VehicleAlertEvent[]; service_uuids: string[]; recipient_user_uuids: string[]; batch_minutes: number; channel: Channel };
 const alerts = new Map<string, AlertState>();
 
 function alertsFor(ctx: MockCtx) {
   let s = alerts.get(ctx.orgUuid!);
   if (!s) {
-    s = { enabled: false, events: ['created', 'ready'], service_uuids: [], recipient_user_uuids: orgMembers(ctx).map((m) => m.uuid), batch_minutes: 0 };
+    s = { enabled: false, events: ['created', 'ready'], service_uuids: [], recipient_user_uuids: orgMembers(ctx).map((m) => m.uuid), batch_minutes: 0, channel: 'whatsapp' };
     alerts.set(ctx.orgUuid!, s);
   }
   return s;
@@ -496,6 +523,7 @@ function alertsView(ctx: MockCtx): VehicleAlertSettings {
   return {
     ...alertsFor(ctx),
     whatsapp_connected: sessionFor(ctx).status === 'connected',
+    sms_available: Boolean(activeSmsProvider(ctx)),
     members: orgMembers(ctx) as VehicleAlertMember[],
     services: getDb()
       .services.filter((s) => s.is_active)
@@ -522,8 +550,9 @@ route('PUT', '/v1/tenant/vehicle-alerts', (ctx) => {
   if (services.some((id) => !serviceIds.has(id))) errs.push({ field: 'service_uuids', message: 'unknown service', code: 'invalid' });
   const recipients = validateRecipients(ctx, ctx.body.recipient_user_uuids, errs);
   if (enabled && recipients.length === 0) errs.push({ field: 'recipient_user_uuids', message: 'at least one recipient', code: 'required' });
+  const channel = parseChannel(ctx.body.channel, alertsFor(ctx).channel, errs);
   if (errs.length) validation(errs);
-  Object.assign(alertsFor(ctx), { enabled, events: events as VehicleAlertEvent[], service_uuids: services, recipient_user_uuids: recipients, batch_minutes: batch });
+  Object.assign(alertsFor(ctx), { enabled, events: events as VehicleAlertEvent[], service_uuids: services, recipient_user_uuids: recipients, batch_minutes: batch, channel });
   return alertsView(ctx);
 });
 
@@ -532,11 +561,14 @@ route('POST', '/v1/tenant/vehicle-alerts/test', (ctx) => {
   const s = alertsFor(ctx);
   const members = orgMembers(ctx).filter((m) => s.recipient_user_uuids.includes(m.uuid));
   if (!members.length) fail(400, 'VALIDATION_ERROR', 'select and save at least one recipient');
-  const connected = sessionFor(ctx).status === 'connected';
-  const viaWhatsApp = members.filter((m) => !m.has_push && m.has_phone);
+  // Members without the app get the alert by phone, over the chosen channel.
+  const sms = s.channel === 'sms';
+  const connected = sms ? Boolean(activeSmsProvider(ctx)) : sessionFor(ctx).status === 'connected';
+  const viaPhone = members.filter((m) => !m.has_push && m.has_phone).length;
   return {
     in_app: members.length,
-    whatsapp: connected ? viaWhatsApp.length : 0,
+    whatsapp: !sms && connected ? viaPhone : 0,
+    sms: sms && connected ? viaPhone : 0,
     skipped: members.filter((m) => !m.has_push && (!m.has_phone || !connected)).map((m) => m.name || m.email),
   };
 });

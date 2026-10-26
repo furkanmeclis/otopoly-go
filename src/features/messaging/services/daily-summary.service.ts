@@ -1,5 +1,8 @@
 import { platformRequest } from "@/api/client";
 
+/** Delivery channel of the summary / vehicle alerts (`sms` uses the organization's active SMS provider). */
+export type MessageChannel = "whatsapp" | "sms";
+
 export type DailySummaryMember = {
   uuid: string;
   name: string;
@@ -15,6 +18,9 @@ export type DailySummarySettings = {
   recipient_user_uuids: string[];
   last_sent_on?: string | null;
   whatsapp_connected: boolean;
+  channel: MessageChannel;
+  /** An active SMS provider exists (Kanallar). */
+  sms_available: boolean;
   members: DailySummaryMember[];
 };
 
@@ -22,6 +28,8 @@ export type DailySummaryInput = {
   enabled: boolean;
   send_time: string;
   recipient_user_uuids: string[];
+  /** Omitted keeps the saved channel. */
+  channel?: MessageChannel;
 };
 
 export const dailySummaryService = {

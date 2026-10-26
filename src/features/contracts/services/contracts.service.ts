@@ -240,7 +240,7 @@ export const contractsService = {
   sendSignerOtp(
     instanceUuid: string,
     signerUuid: string,
-    body: { phone?: string } = {},
+    body: { phone?: string; channel?: 'whatsapp' | 'sms' } = {},
   ) {
     return platformRequest<ContractOtpChallenge>(
       "POST",

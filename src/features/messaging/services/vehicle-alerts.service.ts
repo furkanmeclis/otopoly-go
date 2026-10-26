@@ -1,5 +1,7 @@
 import { platformRequest } from "@/api/client";
 
+import type { MessageChannel } from "./daily-summary.service";
+
 export type VehicleAlertEvent = "created" | "ready" | "delivered" | "cancelled";
 
 export const VEHICLE_ALERT_EVENTS: VehicleAlertEvent[] = [
@@ -29,6 +31,8 @@ export type VehicleAlertSettings = {
   /** 0 = instant; otherwise one WhatsApp digest per window (minutes). */
   batch_minutes: number;
   whatsapp_connected: boolean;
+  channel: MessageChannel;
+  sms_available: boolean;
   members: VehicleAlertMember[];
   services: { uuid: string; name: string }[];
 };
@@ -39,6 +43,7 @@ export type VehicleAlertInput = {
   service_uuids: string[];
   recipient_user_uuids: string[];
   batch_minutes: number;
+  channel?: MessageChannel;
 };
 
 export const vehicleAlertsService = {
@@ -59,6 +64,7 @@ export const vehicleAlertsService = {
     return platformRequest<{
       in_app: number;
       whatsapp: number;
+      sms: number;
       skipped: string[];
     }>("POST", "/v1/tenant/vehicle-alerts/test");
   },

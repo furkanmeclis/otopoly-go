@@ -10,6 +10,14 @@
         "to": "x-spec-bug-schema"
       },
       "reason": "Spec bug: GET /v1/app/config is documented as EnvelopeStatus (data.status required), but the Go handler (httpserver.handleAppConfig) answers {mode, name, registration_enabled, auth_methods, letterhead, ...} without `status`. The response schema is skipped until the spec documents the real payload."
+    },
+    {
+      "path": "components.schemas.ContractOtpChallenge.properties.channel",
+      "rename": {
+        "from": "enum",
+        "to": "x-spec-bug-enum"
+      },
+      "reason": "Spec gap in otopoly-go wt/sms: POST /v1/tenant/contracts/instances/{uuid}/signers/{signerUuid}/otp accepts channel sms and the use case answers {channel: \"sms\"}, but ContractOtpChallenge.channel still lists only \"whatsapp\". Drop this fix once the enum includes sms."
     }
   ]
 }

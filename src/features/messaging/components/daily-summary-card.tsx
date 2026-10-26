@@ -6,9 +6,10 @@ import { View } from 'react-native';
 import { isApiError } from '@/api/errors';
 import { useToast } from '@/components/feedback/toast';
 import { Button, Card, DateField, Row, Sheet, SwitchRow, Txt } from '@/components/ui';
+import { MessageChannelPicker } from '@/features/messaging/components/message-channel-picker';
 import { CheckRow, ProfileHint, RoleBadge, WarningNote } from '@/features/messaging/components/parts';
 import { messagingKeys, useDailySummary } from '@/features/messaging/queries';
-import { dailySummaryService, type DailySummaryInput, type DailySummarySettings } from '@/features/messaging/services/daily-summary.service';
+import { dailySummaryService, type DailySummaryInput, type DailySummarySettings, type MessageChannel } from '@/features/messaging/services/daily-summary.service';
 import { hasTranslation } from '@/lib/i18n/translate';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
@@ -44,7 +45,7 @@ export function DailySummaryCard() {
       </Card>
     );
   // Re-mount the form whenever the saved settings change so its local state starts from the server values.
-  const savedKey = [data.enabled, data.send_time, [...data.recipient_user_uuids].sort().join(',')].join('|');
+  const savedKey = [data.enabled, data.send_time, data.channel, [...data.recipient_user_uuids].sort().join(',')].join('|');
   return <DailySummaryForm key={savedKey} data={data} />;
 }
 
@@ -71,6 +72,8 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
   const [sendTime, setSendTime] = useState(data.send_time);
   const [recipients, setRecipients] = useState<string[]>(data.recipient_user_uuids);
   const [previewText, setPreviewText] = useState<string | null>(null);
+  const [channel, setChannel] = useState<MessageChannel>(data.channel ?? 'whatsapp');
+  const channelReady = channel === 'sms' ? data.sms_available : data.whatsapp_connected;
 
   const onError = (err: unknown) => {
     log.warn('Daily summary action failed', err);
@@ -94,7 +97,7 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
     onError,
   });
 
-  const dirty = data.enabled !== enabled || data.send_time !== sendTime || [...data.recipient_user_uuids].sort().join() !== [...recipients].sort().join();
+  const dirty = data.enabled !== enabled || data.send_time !== sendTime || (data.channel ?? 'whatsapp') !== channel || [...data.recipient_user_uuids].sort().join() !== [...recipients].sort().join();
   const selectedWithoutPhone = data.members.filter((m) => recipients.includes(m.uuid) && !m.has_phone);
 
   return (
@@ -103,7 +106,10 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
       <Txt variant="caption" tone="secondary">
         {tr('messaging.daily_summary.description')}
       </Txt>
-      {!data.whatsapp_connected ? <WarningNote>{tr('messaging.daily_summary.not_connected')}</WarningNote> : null}
+      {!channelReady ? (
+        <WarningNote>{channel === 'sms' ? tr('mobile.messaging.channel_picker.sms_not_ready') : tr('messaging.daily_summary.not_connected')}</WarningNote>
+      ) : null}
+      <MessageChannelPicker value={channel} onChange={setChannel} smsAvailable={data.sms_available} />
 
       <SwitchRow
         label={tr('messaging.daily_summary.enabled')}
@@ -147,7 +153,7 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
       ) : null}
 
       <View style={{ gap: t.spacing.sm }}>
-        <Button label={tr('common.save')} loading={save.isPending} disabled={!dirty} onPress={() => save.mutate({ enabled, send_time: sendTime, recipient_user_uuids: recipients })} />
+        <Button label={tr('common.save')} loading={save.isPending} disabled={!dirty} onPress={() => save.mutate({ enabled, send_time: sendTime, recipient_user_uuids: recipients, channel })} />
         <Row gap={t.spacing.sm}>
           <View style={{ flex: 1 }}>
             <Button variant="outline" size="sm" label={tr('messaging.daily_summary.preview')} icon={<Eye size={16} color={t.colors.text} />} loading={preview.isPending} onPress={() => preview.mutate()} />

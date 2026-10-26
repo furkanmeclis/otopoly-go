@@ -53,7 +53,7 @@ export interface PatchTemplateInput {
 export interface SimulateInput {
   mode?: "event" | "job_lifecycle";
   event_type?: string;
-  channel?: "whatsapp";
+  channel?: "whatsapp" | "sms";
   phone: string;
   vars?: Record<string, string>;
 }

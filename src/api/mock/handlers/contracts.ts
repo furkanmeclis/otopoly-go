@@ -10,6 +10,7 @@ import type { ContractInstance, ContractMedia, ContractSigner, ContractTemplate 
 
 import { bool, fail, type MockCtx, notFound, now, paginate, requireOwner, requirePerm, resourceMeta, route, search, sortBy, str, uuid, validation } from '../core';
 import { getDb, type MockDb } from '../db';
+import { activeSmsProvider } from './sms';
 
 const READ = 'tenant.contracts.read';
 const WRITE = 'tenant.contracts.write';
@@ -450,12 +451,15 @@ route('POST', '/v1/tenant/contracts/instances/:uuid/signers/:signerUuid/otp', (c
   if (signer._otp && t - signer._otp.sentAt < OTP_RESEND_MS) {
     fail(429, 'RATE_LIMITED', `retry after ${Math.ceil((signer._otp.sentAt + OTP_RESEND_MS - t) / 1000)}s`);
   }
+  const channel = str(ctx.body.channel).trim() || 'whatsapp';
+  if (channel !== 'whatsapp' && channel !== 'sms') validation([{ field: 'channel', message: 'channel must be whatsapp or sms' }]);
+  if (channel === 'sms' && !activeSmsProvider(ctx)) fail(409, 'OTP_CHANNEL_UNAVAILABLE', 'no active SMS provider');
   signer._otp = { code: DEMO_OTP_CODE, expires: t + OTP_TTL_MS, sentAt: t };
   signer.phone = phone;
-  signer.otp_channel = 'whatsapp';
+  signer.otp_channel = channel as 'whatsapp' | 'sms';
   signer.otp_phone_masked = maskPhone(phone);
   return {
-    channel: 'whatsapp',
+    channel,
     phone_masked: signer.otp_phone_masked,
     expires_at: new Date(t + OTP_TTL_MS).toISOString(),
     resend_at: new Date(t + OTP_RESEND_MS).toISOString(),

@@ -14,6 +14,11 @@ import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { useApiMutation } from '@/lib/mutation';
 import { useTheme } from '@/theme/provider';
+import { useAuth } from '@/features/auth/auth-provider';
+import { P } from '@/features/auth/permissions';
+import { MessageChannelPicker } from '@/features/messaging/components/message-channel-picker';
+import { useSmsChannel } from '@/features/messaging/queries';
+import type { MessageChannel } from '@/features/messaging/services/daily-summary.service';
 
 import { contractKeys } from '../queries';
 import { contractsService, type ContractInstance, type ContractOtpChallenge, type ContractSigner } from '../services/contracts.service';
@@ -75,6 +80,11 @@ export function SignerForm({
   const [challenge, setChallenge] = useState<ContractOtpChallenge | null>(null);
   const [code, setCode] = useState('');
   const [verified, setVerified] = useState(signer.otp_verified);
+  // OTP channel: WhatsApp (default) or the organization's active SMS provider (Kanallar).
+  const canSeeChannels = useAuth().can(P.messagingRead);
+  const smsChannel = useSmsChannel(canSeeChannels && Boolean(signer.otp_required));
+  const smsAvailable = Boolean(smsChannel.data?.active_provider);
+  const [otpChannel, setOtpChannel] = useState<MessageChannel>(signer.otp_channel === 'sms' ? 'sms' : 'whatsapp');
   const pad = useSignaturePad(setSignature);
   const resendIn = useSecondsUntil(challenge?.resend_at ?? null);
 
@@ -83,7 +93,7 @@ export function SignerForm({
 
   const sendOtp = useApiMutation({
     key: 'contracts.otp.send',
-    fn: () => contractsService.sendSignerOtp(instance.uuid, signer.uuid, { phone: phone.trim() || undefined }),
+    fn: () => contractsService.sendSignerOtp(instance.uuid, signer.uuid, { phone: phone.trim() || undefined, ...(otpChannel === 'sms' ? { channel: 'sms' as const } : {}) }),
     success: (data) => tr('contracts.otp.toast.sent', { phone: data.phone_masked }),
     toastValidation: true,
     onSuccess: (data) => {
@@ -156,6 +166,9 @@ export function SignerForm({
           autoComplete="tel"
           placeholder="05XX XXX XX XX"
         />
+        {canSeeChannels && (smsAvailable || otpChannel === 'sms') ? (
+          <MessageChannelPicker label={tr('mobile.messaging.otp.channel_label')} value={otpChannel} onChange={setOtpChannel} smsAvailable={smsAvailable} disabled={sendOtp.isPending} />
+        ) : null}
         <Button
           variant={challenge ? 'outline' : 'primary'}
           loading={sendOtp.isPending}

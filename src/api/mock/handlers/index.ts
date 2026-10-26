@@ -10,6 +10,7 @@ import './finance';
 import './commerce';
 import './reports';
 import './crm';
+import './sms';
 import './settings';
 import './contracts';
 import './io';

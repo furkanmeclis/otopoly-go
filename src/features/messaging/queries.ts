@@ -1,6 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
 
-import { useToast } from '@/components/feedback/toast';
+import { useApiErrorMessage, useToast } from '@/components/feedback/toast';
+import { smsErrorLabel } from '@/features/messaging/lib/send-errors';
+import { smsService, type SaveSmsProviderInput, type SmsProviderCode } from '@/features/messaging/services/sms.service';
 import { dailySummaryService } from '@/features/messaging/services/daily-summary.service';
 import { messagingService } from '@/features/messaging/services/messaging.service';
 import { templatesService, type SaveMessageTemplateInput, type TemplateKey } from '@/features/messaging/services/templates.service';
@@ -17,6 +20,7 @@ export const messagingKeys = {
   catalog: [...qk.messaging, 'catalog'] as const,
   dailySummary: [...qk.messaging, 'daily-summary'] as const,
   vehicleAlerts: [...qk.messaging, 'vehicle-alerts'] as const,
+  sms: [...qk.messaging, 'sms'] as const,
 };
 
 /** Polls every 1.5 s while a QR is waiting to be scanned (web `pollWhilePairing`). */
@@ -105,4 +109,81 @@ export function useTemplateMutations() {
     success: t('messaging.editor.reset_done'),
   });
   return { save, reset };
+}
+
+// ─── SMS channels (Kanallar) ─────────────────────────────────────────────────
+
+export const useSmsChannel = (enabled = true) => useQuery({ queryKey: messagingKeys.sms, queryFn: () => smsService.overview(), enabled });
+
+/** Channel availability feeds the daily summary / vehicle alerts cards too. */
+const SMS_INVALIDATE = [messagingKeys.sms, messagingKeys.dailySummary, messagingKeys.vehicleAlerts];
+
+export function useSmsMutations() {
+  const { t } = useLocale();
+  const toast = useToast();
+  const toMessage = useApiErrorMessage();
+  const qc = useQueryClient();
+  const reason = (code?: string, message?: string) => smsErrorLabel(t, code) || message || '';
+  return {
+    save: useApiMutation({
+      key: 'messaging.sms.save',
+      fn: ({ provider, body }: { provider: SmsProviderCode; body: SaveSmsProviderInput }) => smsService.save(provider, body),
+      invalidate: SMS_INVALIDATE,
+      success: t('mobile.messaging.sms.toast.saved'),
+      toastValidation: true,
+    }),
+    setActive: useApiMutation({
+      key: 'messaging.sms.active',
+      fn: ({ provider, isActive }: { provider: SmsProviderCode; isActive: boolean }) => smsService.setActive(provider, isActive),
+      invalidate: SMS_INVALIDATE,
+      success: (account) => (account.is_active ? t('mobile.messaging.sms.toast.enabled') : t('mobile.messaging.sms.toast.disabled')),
+      toastValidation: true,
+    }),
+    disconnect: useApiMutation({
+      key: 'messaging.sms.disconnect',
+      fn: (provider: SmsProviderCode) => smsService.disconnect(provider),
+      invalidate: SMS_INVALIDATE,
+      success: t('mobile.messaging.sms.toast.disconnected'),
+      toastValidation: true,
+    }),
+    /** Connection check; the result (balance, approved headers or the reason) is shown by the caller. */
+    test: useMutation({
+      mutationKey: ['messaging.sms.test'],
+      mutationFn: (provider: SmsProviderCode) => smsService.test(provider),
+      onSuccess: () => void Promise.all(SMS_INVALIDATE.map((k) => qc.invalidateQueries({ queryKey: k }))),
+      onError: (error) => toast.error(t('mobile.messaging.sms.toast.test_error'), toMessage(error)),
+    }),
+    sendTest: useApiMutation({
+      key: 'messaging.sms.test_sms',
+      fn: ({ provider, phone, body }: { provider: SmsProviderCode; phone: string; body: string }) => smsService.sendTest(provider, { phone, body }),
+      onSuccess: (res) => {
+        if (res.status === 'sent') toast.success(t('mobile.messaging.sms.toast.test_sms_sent', { recipient: res.recipient }));
+        else toast.error(t('mobile.messaging.sms.toast.test_sms_failed', { reason: reason(res.error_code, res.error_message) }));
+      },
+    }),
+    reason,
+  };
+}
+
+/** Value that settles `delayMs` after the last change (live counters). */
+export function useDebounced<T>(value: T, delayMs = 400) {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setSettled(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return settled;
+}
+
+/** Live segment estimate from the API (`POST …/sms/estimate`), debounced while typing. */
+export function useSmsEstimate(body: string, provider?: SmsProviderCode) {
+  const settled = useDebounced(body, 400);
+  const query = useQuery({
+    queryKey: [...messagingKeys.sms, 'estimate', provider ?? '', settled],
+    queryFn: () => smsService.estimate(settled, provider),
+    placeholderData: keepPreviousData,
+    staleTime: Infinity,
+    retry: false,
+  });
+  return { ...query, pending: settled !== body || query.isFetching };
 }

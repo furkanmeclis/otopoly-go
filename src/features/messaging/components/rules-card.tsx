@@ -5,7 +5,7 @@ import { Switch, View } from 'react-native';
 import { Badge, Button, Card, Row, Skeleton, TextField, Txt } from '@/components/ui';
 import { TemplateEditorSheet } from '@/features/messaging/components/template-editor';
 import { renderTemplate, typeKey } from '@/features/messaging/lib/render';
-import { useNotificationRules, useSimulateMessaging, useTemplateCatalog, useToggleRule } from '@/features/messaging/queries';
+import { useNotificationRules, useSimulateMessaging, useSmsChannel, useTemplateCatalog, useToggleRule } from '@/features/messaging/queries';
 import { SAMPLE_VARS } from '@/features/messaging/types';
 import { hasTranslation } from '@/lib/i18n/translate';
 import { useLocale } from '@/lib/i18n/provider';
@@ -19,6 +19,8 @@ export function NotificationRulesCard({ canWrite }: { canWrite: boolean }) {
   const catalog = useTemplateCatalog();
   const toggle = useToggleRule();
   const simulate = useSimulateMessaging();
+  const sms = useSmsChannel();
+  const smsAvailable = Boolean(sms.data?.active_provider);
   const [editorType, setEditorType] = useState<string | null>(null);
   const [simPhone, setSimPhone] = useState('');
   const types = catalog.data ?? [];
@@ -89,6 +91,11 @@ export function NotificationRulesCard({ canWrite }: { canWrite: boolean }) {
         </Txt>
       ) : null}
 
+      {sms.isSuccess && !smsAvailable && lists.length > 0 ? (
+        <Txt variant="caption" tone="muted">
+          {tr('mobile.messaging.rules.sms_needs_provider')}
+        </Txt>
+      ) : null}
       {lists.map((rl, i) => {
         const preview = previewFor(rl.event_type);
         return (
@@ -97,9 +104,17 @@ export function NotificationRulesCard({ canWrite }: { canWrite: boolean }) {
             <Row gap={t.spacing.md} wrap style={{ alignItems: 'center' }}>
               {rl.rules.map((rule) =>
                 rule.channel === 'sms' ? (
-                  <Row key="sms" gap={6} style={{ opacity: 0.5 }}>
-                    <Switch value={false} disabled accessibilityLabel={`SMS · ${tr('messaging.rules.soon')}`} />
-                    <Badge size="sm" tone="neutral" label={`SMS · ${tr('messaging.rules.soon')}`} />
+                  // SMS goes through the organization's active SMS provider (Kanallar); without one it stays locked.
+                  <Row key="sms" gap={6} style={{ opacity: !smsAvailable && !rule.enabled ? 0.5 : 1 }}>
+                    <Switch
+                      value={rule.enabled}
+                      disabled={!canWrite || toggle.isPending || (!smsAvailable && !rule.enabled)}
+                      onValueChange={() => toggle.mutate({ eventType: rl.event_type, channel: rule.channel, enabled: !rule.enabled })}
+                      trackColor={{ true: t.colors.primary, false: t.colors.borderStrong }}
+                      accessibilityLabel={`${label(rl.event_type, rl.event_label)} · SMS`}
+                      accessibilityHint={!smsAvailable ? tr('mobile.messaging.rules.sms_needs_provider') : undefined}
+                    />
+                    <Badge size="sm" tone={rule.enabled ? 'success' : 'neutral'} label="SMS" />
                   </Row>
                 ) : rule.channel === 'whatsapp' ? (
                   <Row key="wa" gap={6}>
