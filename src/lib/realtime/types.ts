@@ -23,6 +23,7 @@ export const LIVE_RESOURCES = [
   'tenant.contracts.instances',
   'tenant.staff',
   'tenant.calendar',
+  'tenant.reviews',
 ] as const;
 
 export type LiveResource = (typeof LIVE_RESOURCES)[number];

@@ -122,5 +122,6 @@
   "activity.subject.lead": "Lead",
   "activity.subject.cari_entry": "Cari entry",
   "activity.subject.contract": "Contract",
-  "activity.subject.other": "Record"
+  "activity.subject.other": "Record",
+  "insights.tabs.reviews": "Reviews"
 }

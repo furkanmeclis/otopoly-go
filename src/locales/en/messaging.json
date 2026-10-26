@@ -175,7 +175,6 @@
   "rules.soon": "Coming soon",
   "rules.whatsapp": "WhatsApp",
   "rules.edit_message": "Edit message",
-
   "tabs.outbound": "Delivery log",
   "wa.description_platform": "Notifications are sent from the platform's WhatsApp number. Sending from your own number requires the \"Own WhatsApp number\" feature in your plan.",
   "wa.locked_title": "Own number is not included in your plan",
@@ -226,5 +225,8 @@
   "errors.media_upload_failed": "Attachment upload failed",
   "errors.send_failed": "Sending failed",
   "errors.graph": "Meta error (code {{code}})",
-  "errors.unknown": "Unknown error ({{code}})"
+  "errors.unknown": "Unknown error ({{code}})",
+  "group.reviews": "Reviews",
+  "types.review_request": "Review request",
+  "types.review_low_score": "Low score review (team)"
 }

@@ -134,5 +134,7 @@
   "labels.tenant.billing.write": "Aboneliği yönet",
   "labels.platform.billing.read": "Platform aboneliklerini görüntüle",
   "labels.platform.billing.write": "Platform aboneliklerini ve planları yönet",
-  "labels.platform.billing.settings": "Abonelik ayarlarını yönet"
+  "labels.platform.billing.settings": "Abonelik ayarlarını yönet",
+  "labels.tenant.reviews.read": "Değerlendirmeleri görüntüle",
+  "labels.tenant.reviews.write": "Değerlendirme ayarlarını ve takibi yönet"
 }

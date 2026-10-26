@@ -723,6 +723,69 @@ export interface paths {
         patch: operations["patchPlatformAppleIntegrationSettings"];
         trace?: never;
     };
+    "/v1/platform/integrations/apple/apns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the APNs key status (Live Activity pushes)
+         * @description Status of the APNs token key used for iOS Live Activity pushes. The key
+         *     uploaded here (database) wins over the APNS_* env vars (fallback). The
+         *     .p8 itself is never returned; key_fingerprint is a short SHA-256 of
+         *     its public key. Requires platform.integrations.apple.read (super admin).
+         */
+        get: operations["getPlatformAPNsKey"];
+        /**
+         * Upload / edit the APNs key
+         * @description Stores the APNs .p8 (sealed with the integration vault) and its fields.
+         *     private_key may be omitted when a key is already stored (only the
+         *     fields change). The key must be an Apple .p8 (PEM, PKCS#8, EC P-256 /
+         *     ES256). A Sign in with Apple key cannot send pushes; create a key with
+         *     "Apple Push Notifications service (APNs)" enabled. Pushes in the API and
+         *     the worker pick the change up within a minute. Requires
+         *     platform.integrations.apple.write.
+         */
+        put: operations["putPlatformAPNsKey"];
+        post?: never;
+        /**
+         * Remove the uploaded APNs key
+         * @description Removes the stored key and fields; the APNS_* env key, if set, takes over. Requires platform.integrations.apple.write.
+         */
+        delete: operations["deletePlatformAPNsKey"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/platform/integrations/apple/apns/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test the active APNs key against Apple
+         * @description Signs a provider token with the active key (database, else env) and
+         *     sends one Live Activity push to a device token that cannot exist, on
+         *     the configured environment host. Nothing is delivered. 400
+         *     BadDeviceToken means key, team and topic were accepted (ok: true); 403
+         *     InvalidProviderToken / ExpiredProviderToken means the key or team id
+         *     was rejected. The outcome is stored as last_test. Requires
+         *     platform.integrations.apple.write.
+         */
+        post: operations["testPlatformAPNsKey"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/identities": {
         parameters: {
             query?: never;
@@ -8033,6 +8096,216 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/reviews/meta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review list metadata
+         * @description Requires `tenant.reviews.read` and the `reviews.enabled` plan toggle.
+         */
+        get: operations["getTenantReviewsMeta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review KPIs and trend
+         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Requests created in the last `days` (default 30, test sends excluded): sent / opened / answered counts, response rate (answered / sent), average score, the 1-5 distribution, NPS-like score (promoters = 5, passives = 4, detractors = 1-3), Google redirects, open follow-ups and a weekly (monthly above 120 days) trend in Europe/Istanbul.
+         */
+        get: operations["getTenantReviewsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Review collection settings
+         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Defaults when never saved: disabled, channel `auto`, 120 min delay, quiet hours 21:00-09:00, threshold 4, 30 days between requests. Includes channel availability, the effective review.request template with a preview (edited in Ayarlar → Mesajlar) and the `reviews.monthly` usage (`limit` -1 = unlimited).
+         */
+        get: operations["getTenantReviewSettings"];
+        /**
+         * Save review collection settings (owner)
+         * @description Requires `tenant.reviews.write` and the owner role. Omitted (or null) fields keep their value. `google_review_url` must be an https link (or "" to clear).
+         */
+        put: operations["updateTenantReviewSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/settings/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a test review request to your own phone (owner)
+         * @description Requires `tenant.reviews.write` and the owner role. Sends now (no quiet hours, frequency cap or `reviews.monthly` count) to `phone` or the member's notification phone. Test requests are hidden from the list unless `include_tests=true`; their detail includes `public_url`. `409 CHANNEL_UNAVAILABLE` when neither WhatsApp nor SMS can send, `409 CONFLICT` when the message could not be sent.
+         */
+        post: operations["sendTenantReviewTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List review requests
+         * @description Requires `tenant.reviews.read` (plan `reviews.enabled`). Test sends are excluded by default.
+         */
+        get: operations["getTenantReviews"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/{uuid}": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Review request detail
+         * @description Requires `tenant.reviews.read`. Another organization's request is 404.
+         */
+        get: operations["getTenantReview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/reviews/{uuid}/follow-up": {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark an answered review handled ("ele alındı", owner)
+         * @description Requires `tenant.reviews.write` and the owner role. Sets `follow_up_status` to `done` with an optional note. `409` when the request is not answered.
+         */
+        post: operations["followUpTenantReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/reviews/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Customer review page
+         * @description No auth. Rate-limited per IP (60/min). Requests that were never sent are 404. The first open marks the request opened. `state` is `open`, `answered` (with `result` and, for high scores, `google_review_url`) or `expired` (links are valid for 30 days).
+         */
+        get: operations["getPublicReview"];
+        put?: never;
+        /**
+         * Customer answers with 1-5 stars
+         * @description No auth. Rate-limited per IP (10 / 15 min). Answers once: `409 ALREADY_ANSWERED` afterwards, `410 REVIEW_EXPIRED` after the link expired. A score below the business's threshold needs a follow-up and notifies the team (in-app + push).
+         */
+        post: operations["answerPublicReview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/public/reviews/{token}/google": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} */
+                token: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count a redirect to the Google review page
+         * @description No auth. Rate-limited per IP. Only for answered high scores when the business configured a Google review URL; returns the URL to open.
+         */
+        post: operations["redirectPublicReviewGoogle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -9404,6 +9677,121 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["OAuthProviderSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Credentials pushes use right now (never the key itself). */
+        PlatformAPNsActiveKey: {
+            /** @example GS6Q2FZ3PT */
+            key_id: string;
+            /** @example ABCDE12345 */
+            team_id: string;
+            /** @example com.otopoly.app */
+            bundle_id: string;
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            /** @example https://api.push.apple.com */
+            host: string;
+            /**
+             * @description Short SHA-256 hex of the public key
+             * @example 3f9a0c1d2e4b5a69
+             */
+            key_fingerprint: string;
+        };
+        PlatformAPNsTestResult: {
+            /** @description true when APNs accepted key, team and topic (400 BadDeviceToken) */
+            ok: boolean;
+            /** @enum {string} */
+            verdict: "accepted" | "key_rejected" | "topic_rejected" | "rate_limited" | "rejected" | "unreachable" | "not_configured";
+            /**
+             * @description APNs HTTP status (absent when APNs was not reached)
+             * @example 400
+             */
+            status?: number;
+            /**
+             * @description APNs reason
+             * @example BadDeviceToken
+             */
+            reason: string;
+            /** @enum {string} */
+            source: "database" | "env" | "none";
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            host?: string;
+            /** @description Transport error when unreachable */
+            error?: string;
+            /** Format: date-time */
+            tested_at: string;
+        };
+        PlatformAPNsStatus: {
+            /**
+             * @description Where pushes take the key from (database first, env fallback).
+             * @enum {string}
+             */
+            source: "database" | "env" | "none";
+            /** @description A key was uploaded from the panel */
+            stored: boolean;
+            /** @description Stored key id ("" when none) */
+            key_id: string;
+            /** @description Stored team id ("" = fallback) */
+            team_id: string;
+            /** @enum {string} */
+            team_id_source: "database" | "apple_integration" | "env" | "none";
+            effective_team_id: string;
+            /** @example com.otopoly.app */
+            bundle_id: string;
+            /** @enum {string} */
+            environment: "production" | "sandbox";
+            /** @description Stored key's public-key fingerprint ("" when none) */
+            key_fingerprint: string;
+            /** Format: date-time */
+            uploaded_at: string | null;
+            /** Format: date-time */
+            updated_at: string | null;
+            /** @description APNS_* env key present */
+            env_configured: boolean;
+            active: components["schemas"]["PlatformAPNsActiveKey"] | null;
+            last_test: components["schemas"]["PlatformAPNsTestResult"] | null;
+        };
+        SavePlatformAPNsKeyRequest: {
+            /**
+             * @description 10-character key id
+             * @example GS6Q2FZ3PT
+             */
+            key_id: string;
+            /** @description Optional; empty = Apple integration team id, then APNS_TEAM_ID */
+            team_id?: string;
+            /** @description Default com.otopoly.app */
+            bundle_id?: string;
+            /**
+             * @description Default production
+             * @enum {string}
+             */
+            environment?: "production" | "sandbox";
+            /** @description .p8 PEM text; optional when a key is already stored */
+            private_key?: string;
+        };
+        SavePlatformAPNsKeyMultipart: {
+            key_id: string;
+            team_id?: string;
+            bundle_id?: string;
+            /** @enum {string} */
+            environment?: "production" | "sandbox";
+            /**
+             * Format: binary
+             * @description The AuthKey_XXXXXXXXXX.p8 file (max 16 KB)
+             */
+            private_key?: string;
+        };
+        EnvelopePlatformAPNsStatus: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformAPNsStatus"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePlatformAPNsTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PlatformAPNsTestResult"];
             meta: components["schemas"]["ResponseMeta"];
         };
         LinkedIdentity: {
@@ -11381,7 +11769,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event" | "review";
             /** Format: uuid */
             uuid: string;
         };
@@ -14826,6 +15214,261 @@ export interface components {
             };
             meta: components["schemas"]["ResponseMeta"];
         };
+        /** @enum {string} */
+        ReviewStatus: "scheduled" | "sent" | "opened" | "answered" | "expired" | "cancelled" | "skipped" | "failed";
+        /** @enum {string} */
+        ReviewFollowUpStatus: "none" | "required" | "done";
+        /** @enum {string} */
+        ReviewChannelPreference: "auto" | "sms" | "whatsapp";
+        Review: {
+            /** Format: uuid */
+            uuid: string;
+            /** @enum {string} */
+            kind: "job" | "test";
+            status: components["schemas"]["ReviewStatus"];
+            /** @description Why a request was skipped / cancelled / failed: disabled, job_cancelled, plan_disabled, excluded, no_phone, frequency_cap, monthly_limit, channel_unavailable, template_inactive, channel_plan, channel_quota, send_failed ("" otherwise) */
+            skip_reason: string;
+            error: string;
+            /** @enum {string} */
+            channel: "" | "sms" | "whatsapp";
+            /** @enum {string} */
+            locale: "tr" | "en";
+            /** Format: uuid */
+            customer_uuid: string | null;
+            customer_name: string;
+            customer_phone: string;
+            /** Format: uuid */
+            job_uuid: string | null;
+            plate: string;
+            score: number | null;
+            comment: string;
+            /** @enum {string} */
+            rating: "" | "high" | "low";
+            google_redirects: number;
+            follow_up_status: components["schemas"]["ReviewFollowUpStatus"];
+            follow_up_note: string;
+            /** Format: date-time */
+            followed_up_at: string | null;
+            followed_up_by_name: string;
+            /**
+             * Format: date-time
+             * @description Planned (or actual) send time
+             */
+            send_at: string;
+            /** @description The send was moved out of quiet hours */
+            deferred: boolean;
+            /** Format: date-time */
+            sent_at: string | null;
+            /** Format: date-time */
+            opened_at: string | null;
+            /** Format: date-time */
+            answered_at: string | null;
+            /** Format: date-time */
+            expires_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        ReviewDetail: components["schemas"]["Review"] & {
+            consent: boolean;
+            view_count: number;
+            /** Format: date-time */
+            google_redirected_at: string | null;
+            /** Format: date-time */
+            cancelled_at: string | null;
+            /** @description Customer link (test requests only) */
+            public_url?: string;
+        };
+        ReviewScoreCount: {
+            score: number;
+            count: number;
+        };
+        ReviewTrendPoint: {
+            /** Format: date */
+            period_start: string;
+            sent: number;
+            answered: number;
+            average_score: number;
+        };
+        ReviewSummary: {
+            days: number;
+            /** @enum {string} */
+            bucket: "week" | "month";
+            sent_count: number;
+            opened_count: number;
+            answered_count: number;
+            scheduled_count: number;
+            /** @description answered / sent (0..1) */
+            response_rate: number;
+            average_score: number;
+            /** @description Always five rows, scores 1..5 */
+            distribution: components["schemas"]["ReviewScoreCount"][];
+            promoters: number;
+            passives: number;
+            detractors: number;
+            /** @description promoters% - detractors% (-100..100) */
+            nps: number;
+            google_redirects: number;
+            follow_up_required: number;
+            trend: components["schemas"]["ReviewTrendPoint"][];
+        };
+        ReviewCustomerRef: {
+            /** Format: uuid */
+            uuid: string;
+            name: string;
+            phone: string;
+        };
+        ReviewTemplateInfo: {
+            /** @enum {string} */
+            channel: "sms" | "whatsapp";
+            /** @enum {string} */
+            locale: "tr" | "en";
+            /** @description Template with {{musteri_adi}}, {{isletme_adi}}, {{link}} (short {musteri_adi} also works) */
+            body: string;
+            is_custom: boolean;
+            active: boolean;
+            preview: string;
+        };
+        ReviewSettings: {
+            enabled: boolean;
+            channel: components["schemas"]["ReviewChannelPreference"];
+            delay_minutes: number;
+            quiet_hours_enabled: boolean;
+            quiet_start_hour: number;
+            quiet_end_hour: number;
+            google_review_url: string;
+            high_score_threshold: number;
+            min_days_between: number;
+            consent_text: string;
+            /** @enum {string} */
+            default_locale: "tr" | "en";
+            excluded_customers: components["schemas"]["ReviewCustomerRef"][];
+            whatsapp_available: boolean;
+            sms_available: boolean;
+            /**
+             * @description Channel a request would use now
+             * @enum {string}
+             */
+            effective_channel: "" | "sms" | "whatsapp";
+            template: components["schemas"]["ReviewTemplateInfo"];
+            usage: {
+                used: number;
+                /** @description -1 = unlimited */
+                limit: number;
+            };
+        };
+        UpdateReviewSettingsRequest: {
+            enabled?: boolean | null;
+            channel?: components["schemas"]["ReviewChannelPreference"] | null;
+            delay_minutes?: number | null;
+            quiet_hours_enabled?: boolean | null;
+            quiet_start_hour?: number | null;
+            quiet_end_hour?: number | null;
+            google_review_url?: string | null;
+            high_score_threshold?: number | null;
+            min_days_between?: number | null;
+            consent_text?: string | null;
+            /** @enum {string|null} */
+            default_locale?: "tr" | "en" | null;
+            excluded_customer_uuids?: string[] | null;
+        };
+        ReviewTestRequest: {
+            /** @description Defaults to the member's notification phone */
+            phone?: string;
+        };
+        ReviewTestResult: {
+            review: components["schemas"]["ReviewDetail"];
+            /** @enum {string} */
+            channel: "sms" | "whatsapp";
+            phone: string;
+            public_url: string;
+        };
+        ReviewFollowUpRequest: {
+            note?: string;
+        };
+        PublicReview: {
+            /** @enum {string} */
+            state: "open" | "answered" | "expired";
+            organization_name: string;
+            /** @description API-owned logo stream path */
+            organization_logo_url: string | null;
+            organization_phone: string;
+            primary_color: string;
+            customer_first_name: string;
+            /**
+             * @description Business default language of the request
+             * @enum {string}
+             */
+            locale: "tr" | "en";
+            /** @description Optional consent checkbox text ("" = none) */
+            consent_text: string;
+            /** Format: date-time */
+            expires_at: string | null;
+            score: number | null;
+            comment: string;
+            /** Format: date-time */
+            answered_at: string | null;
+            /** @enum {string} */
+            result?: "high" | "low";
+            /** @description Set for answered high scores when configured */
+            google_review_url?: string;
+        };
+        PublicReviewAnswerRequest: {
+            score: number;
+            comment?: string;
+            consent?: boolean;
+        };
+        ReviewGoogleRedirect: {
+            url: string;
+        };
+        EnvelopeReviewList: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                items: components["schemas"]["Review"][];
+                total: number;
+                limit: number;
+                offset: number;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewDetail: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewDetail"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewSummary: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewSummary"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewTestResult: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewTestResult"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopePublicReview: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["PublicReview"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeReviewGoogleRedirect: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["ReviewGoogleRedirect"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
     };
     responses: {
         /** @description Validation or malformed request */
@@ -16123,6 +16766,104 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description APNs key status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    putPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SavePlatformAPNsKeyRequest"];
+                "multipart/form-data": components["schemas"]["SavePlatformAPNsKeyMultipart"];
+            };
+        };
+        responses: {
+            /** @description Saved APNs key status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    deletePlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description APNs key status after removal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsStatus"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    testPlatformAPNsKey: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Test outcome (also for a rejected key; see verdict) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePlatformAPNsTestResult"];
+                };
+            };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             500: components["responses"]["InternalError"];
@@ -29290,6 +30031,362 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantReviewsMeta: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeResourceMeta"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantReviewsSummary: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewSummary"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantReviewSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateTenantReviewSettings: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReviewSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    sendTenantReviewTest: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewTestRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewTestResult"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantReviews: {
+        parameters: {
+            query?: {
+                limit?: components["parameters"]["Limit"];
+                offset?: components["parameters"]["Offset"];
+                q?: components["parameters"]["Q"];
+                status?: components["schemas"]["ReviewStatus"];
+                follow_up?: components["schemas"]["ReviewFollowUpStatus"];
+                /** @description high = score at or above the threshold, low = below it */
+                rating?: "high" | "low";
+                score?: number;
+                channel?: "sms" | "whatsapp";
+                customer_uuid?: string;
+                /** @description Only requests created in the last N days */
+                days?: number;
+                include_tests?: boolean;
+                sort?: "-created_at" | "created_at" | "score" | "-score" | "answered_at" | "-answered_at";
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantReview: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    followUpTenantReview: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReviewFollowUpRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getPublicReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicReview"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    answerPublicReview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} (not the uuid) */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicReviewAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePublicReview"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+            /** @description The review link has expired (REVIEW_EXPIRED) */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    redirectPublicReviewGoogle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token from the review link /r/{token} */
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeReviewGoogleRedirect"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
 }

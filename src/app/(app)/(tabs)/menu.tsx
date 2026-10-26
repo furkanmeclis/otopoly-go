@@ -26,6 +26,7 @@ import {
   ShoppingBag,
   ShoppingCart,
   Sparkles,
+  Star,
   Upload,
   UserCog,
   UserRound,
@@ -44,6 +45,7 @@ import { ownerOnly, P, type Gate, type Permission } from '@/features/auth/permis
 import { useUnreadCount } from '@/features/notifications/queries';
 import { reopenSetup } from '@/features/onboarding/setup';
 import { useLeadsSummary, useQuotesSummary, useTodosSummary } from '@/features/queries';
+import { useReviewSummary } from '@/features/reviews/queries';
 import { authService } from '@/features/account/services/auth.service';
 import { useLocale } from '@/lib/i18n/provider';
 import type { AppLocale } from '@/lib/i18n/translate';
@@ -64,6 +66,7 @@ export default function MenuScreen() {
   const todos = useTodosSummary(can(P.todosRead));
   const leads = useLeadsSummary(can(P.leadsRead));
   const quotes = useQuotesSummary(can(P.quotesRead));
+  const reviews = useReviewSummary(30, can(P.reviewsRead));
   const unread = useUnreadCount(can(P.notificationsRead));
   const ic = (Icon: typeof Wrench) => <Icon size={20} color={t.colors.primary} />;
 
@@ -101,6 +104,7 @@ export default function MenuScreen() {
       items: [
         { key: 'leads', title: tr('layout.nav_leads'), icon: ic(Megaphone), href: '/leads', gate: P.leadsRead, badge: leadDue ? { value: leadDue, tone: (leads.data?.overdue ?? 0) > 0 ? 'danger' : 'neutral' } : undefined },
         { key: 'quotes', title: tr('layout.nav_quotes'), icon: ic(FileSignature), href: '/quotes', gate: P.quotesRead, badge: quotes.data?.expiring_soon ? { value: quotes.data.expiring_soon, tone: 'warning' } : undefined },
+        { key: 'reviews', title: tr('layout.nav_reviews'), icon: ic(Star), href: '/reviews', gate: P.reviewsRead, badge: reviews.data?.follow_up_required ? { value: reviews.data.follow_up_required, tone: 'danger' } : undefined },
         { key: 'suppliers', title: tr('layout.nav_suppliers'), icon: ic(Building2), href: '/suppliers', gate: P.suppliersRead },
       ],
     },

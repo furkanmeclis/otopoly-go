@@ -39,6 +39,7 @@ import trQuotes from './tr/quotes.json';
 import trRealtime from './tr/realtime.json';
 import trRegister from './tr/register.json';
 import trReports from './tr/reports.json';
+import trReviews from './tr/reviews.json';
 import trRoles from './tr/roles.json';
 import trSales from './tr/sales.json';
 import trSearch from './tr/search.json';
@@ -65,6 +66,7 @@ import trMobileNotifications from './mobile/areas/notifications.tr.json';
 import trMobileOnboarding from './mobile/areas/onboarding.tr.json';
 import trMobilePlan from './mobile/areas/plan.tr.json';
 import trMobileQr from './mobile/areas/qr.tr.json';
+import trMobileReviews from './mobile/areas/reviews.tr.json';
 import trMobileSettings from './mobile/areas/settings.tr.json';
 import trMobileSiri from './mobile/areas/siri.tr.json';
 import trMobileUx from './mobile/areas/ux.tr.json';
@@ -106,6 +108,7 @@ import enQuotes from './en/quotes.json';
 import enRealtime from './en/realtime.json';
 import enRegister from './en/register.json';
 import enReports from './en/reports.json';
+import enReviews from './en/reviews.json';
 import enRoles from './en/roles.json';
 import enSales from './en/sales.json';
 import enSearch from './en/search.json';
@@ -132,6 +135,7 @@ import enMobileNotifications from './mobile/areas/notifications.en.json';
 import enMobileOnboarding from './mobile/areas/onboarding.en.json';
 import enMobilePlan from './mobile/areas/plan.en.json';
 import enMobileQr from './mobile/areas/qr.en.json';
+import enMobileReviews from './mobile/areas/reviews.en.json';
 import enMobileSettings from './mobile/areas/settings.en.json';
 import enMobileSiri from './mobile/areas/siri.en.json';
 import enMobileUx from './mobile/areas/ux.en.json';
@@ -176,6 +180,7 @@ export const catalogs = {
     realtime: trRealtime,
     register: trRegister,
     reports: trReports,
+    reviews: trReviews,
     roles: trRoles,
     sales: trSales,
     search: trSearch,
@@ -188,7 +193,7 @@ export const catalogs = {
     todos: trTodos,
     users: trUsers,
     vehicle_brands: trVehicleBrands,
-    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCalendar, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileMessaging, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileSettings, ...trMobileSiri, ...trMobileUx },
+    mobile: { ...trMobile, ...trMobileAccount, ...trMobileAuth, ...trMobileCalendar, ...trMobileCatalog, ...trMobileCommerce, ...trMobileCrm, ...trMobileDocuments, ...trMobileFinance, ...trMobileMessaging, ...trMobileNotifications, ...trMobileOnboarding, ...trMobilePlan, ...trMobileQr, ...trMobileReviews, ...trMobileSettings, ...trMobileSiri, ...trMobileUx },
   },
   en: {
     access: enAccess,
@@ -229,6 +234,7 @@ export const catalogs = {
     realtime: enRealtime,
     register: enRegister,
     reports: enReports,
+    reviews: enReviews,
     roles: enRoles,
     sales: enSales,
     search: enSearch,
@@ -241,7 +247,7 @@ export const catalogs = {
     todos: enTodos,
     users: enUsers,
     vehicle_brands: enVehicleBrands,
-    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCalendar, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileMessaging, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileSettings, ...enMobileSiri, ...enMobileUx },
+    mobile: { ...enMobile, ...enMobileAccount, ...enMobileAuth, ...enMobileCalendar, ...enMobileCatalog, ...enMobileCommerce, ...enMobileCrm, ...enMobileDocuments, ...enMobileFinance, ...enMobileMessaging, ...enMobileNotifications, ...enMobileOnboarding, ...enMobilePlan, ...enMobileQr, ...enMobileReviews, ...enMobileSettings, ...enMobileSiri, ...enMobileUx },
   },
 } as const;
 

@@ -1,5 +1,5 @@
 {
-  "source": "otopoly-go backend/pkg/response/response.go Code* constants + module-level error codes (backend/internal/**, backend/pkg/**) at feat/identity-native-link 872e194 and feat/expo-push-limits 569bc63; plus SMS_NOT_CONFIGURED from otopoly-go wt/sms (dailysummary handler)",
+  "source": "otopoly-go backend/pkg/response/response.go Code* constants + module-level error codes (backend/internal/**, backend/pkg/**) at feat/identity-native-link 872e194 and feat/expo-push-limits 569bc63; plus SMS_NOT_CONFIGURED from otopoly-go wt/sms (dailysummary handler); plus ALREADY_ANSWERED, REVIEW_EXPIRED, CHANNEL_UNAVAILABLE from otopoly-go wt/reviews (reviews handler)",
   "codes": [
     "ACCOUNT_DEACTIVATED",
     "AI_ACTION_EXPIRED",
@@ -14,9 +14,11 @@
     "AI_VOICE_DISABLED",
     "AI_VOICE_MODEL_UNKNOWN",
     "AI_VOICE_UNAVAILABLE",
+    "ALREADY_ANSWERED",
     "AUDIO_TOO_LARGE",
     "AUDIO_TOO_LONG",
     "AUDIO_UNSUPPORTED",
+    "CHANNEL_UNAVAILABLE",
     "CONFLICT",
     "CURRENCY_MISMATCH",
     "CUSTOM_FEATURES_INVALID",
@@ -61,6 +63,7 @@
     "QR_SESSION_RESOLVED",
     "RATE_LIMITED",
     "REALTIME_DISABLED",
+    "REVIEW_EXPIRED",
     "SMS_NOT_CONFIGURED",
     "STEP_UP_REQUIRED",
     "SUBSCRIPTION_READ_ONLY",

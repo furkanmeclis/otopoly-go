@@ -13,6 +13,7 @@ import {
   voidCariEntry,
   voidFinanceBySource,
 } from '../ops';
+import { cancelReviewForJob, scheduleReviewForJob } from './reviews';
 
 type Row = MockDb['jobs'][number];
 
@@ -240,6 +241,8 @@ route('POST', '/v1/tenant/jobs/:uuid/deliver', (ctx) =>
     job.status = 'delivered';
     job.completed_at ??= now();
     job.delivered_at = now();
+    // Backend `jobs.delivered` → reviews module schedules the review request.
+    scheduleReviewForJob(job._org, job);
   }),
 );
 
@@ -248,6 +251,7 @@ route('POST', '/v1/tenant/jobs/:uuid/cancel', (ctx) =>
     const db = getDb();
     job.status = 'cancelled';
     job.completed_at ??= now();
+    cancelReviewForJob(job._org, job.uuid);
     for (const c of job.consumptions) {
       if (c.stock_applied && !c.reverted) moveStock(db, c.product_uuid, num(c.qty));
       c.reverted = true;
@@ -334,6 +338,7 @@ route('POST', '/v1/tenant/jobs/:uuid/void', (ctx) => {
   }
   recalcMaterial(job);
   job.status = 'voided';
+  cancelReviewForJob(job._org, job.uuid);
   job.updated_at = now();
   return toDetail(job);
 });

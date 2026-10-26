@@ -58,6 +58,8 @@ export const LIVE_TARGETS: Record<LiveResource, Target> = {
   'tenant.staff': { perm: 'tenant.staff.read', own: [['staff']] },
   // Own calendar events and moves (todo / lead dates, event times): the feeds and the event sheet.
   'tenant.calendar': { perm: 'tenant.calendar.read', own: [['calendar', 'feed'], ['calendar', 'event']] },
+  // Review requests (scheduled, sent, answered, handled): list, summary, settings usage, details.
+  'tenant.reviews': { perm: 'tenant.reviews.read', own: [['reviews']] },
 };
 
 /** Key segments followed by a record uuid. */

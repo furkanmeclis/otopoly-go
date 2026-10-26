@@ -44,6 +44,7 @@ export const qk = {
   account: ['account'] as const,
   settings: ['settings'] as const,
   calendar: ['calendar'] as const,
+  reviews: ['reviews'] as const,
 };
 
 /** Everything money-related a document write can change. */

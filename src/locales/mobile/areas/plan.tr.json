@@ -54,5 +54,7 @@
   "plan.read_only_dialog.owner": "Plan dönemi sona erdiği için şu an yeni kayıt açılamıyor; mevcut kayıtlarınızı görüntüleyebilirsiniz. Ayrıntıları e-posta adresinize gönderdik.",
   "plan.read_only_dialog.staff": "İşletmenizin plan dönemi sona erdiği için şu an yeni kayıt açılamıyor; mevcut kayıtları görüntüleyebilirsiniz. Sorularınız için işletme yöneticinize başvurabilirsiniz.",
   "plan.scenario.quotes_disabled": "Teklif modülü kapalı",
-  "plan.scenario.read_only": "Salt okunur"
+  "plan.scenario.read_only": "Salt okunur",
+  "plan.module.reviews_enabled": "Değerlendirme toplama",
+  "plan.feature.reviews_monthly": "değerlendirme isteği"
 }
