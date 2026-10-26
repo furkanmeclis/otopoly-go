@@ -5388,7 +5388,8 @@ export interface paths {
         get: operations["getTenantPurchase"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Discard a draft purchase (posted purchases are voided instead) */
+        delete: operations["deleteTenantPurchaseDraft"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5405,6 +5406,172 @@ export interface paths {
         put?: never;
         /** Void a purchase and reverse stock/finance */
         post: operations["voidTenantPurchase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create a draft purchase (no stock or finance effect until posted) */
+        post: operations["createTenantPurchaseDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/{uuid}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the supplier, notes and lines of a draft purchase */
+        put: operations["updateTenantPurchaseDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/purchases/{uuid}/post": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post a draft purchase (stock in, expense on the finance account)
+         * @description Runs the regular purchase flow on the draft: tracked products' stock
+         *     goes up and the expense is booked on `finance_account_uuid`. `lines`
+         *     (optional) replace the draft lines; `notes` (optional) replace the
+         *     notes. A purchase that is not a draft answers `409`.
+         */
+        post: operations["postTenantPurchaseDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Stock reorder suggestions
+         * @description One row per active stock-tracked product that needs attention (or
+         *     every product with `all=true`), most urgent first. Formula:
+         *     `max(0, ceil(velocity × (lead_days + target_days) + min_stock − stock − on_order))`,
+         *     rounded up to whole packs; velocity = (job consumptions not reverted +
+         *     posted sales) of the last `velocity_days` / `velocity_days`; on_order
+         *     = quantity on draft purchases. `inputs` explains every value.
+         *     `403 FEATURE_DISABLED` when the plan excludes `stock_reorder.enabled`.
+         */
+        get: operations["getTenantStockReorderSuggestions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reorder counts (nav badge, dashboard) */
+        get: operations["getTenantStockReorderSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reorder settings (defaults when never saved) */
+        get: operations["getTenantStockReorderSettings"];
+        /**
+         * Save reorder settings (owner)
+         * @description `supplier_lead_days`, when sent, replaces every supplier lead time.
+         */
+        put: operations["updateTenantStockReorderSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/products/{uuid}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        /** A product's reorder override (null when none) */
+        get: operations["getTenantStockReorderProduct"];
+        /** Set a product's reorder override (owner); all fields null removes it */
+        put: operations["updateTenantStockReorderProduct"];
+        post?: never;
+        /** Remove a product's reorder override (owner) */
+        delete: operations["deleteTenantStockReorderProduct"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tenant/stock-reorder/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create draft purchases from selected suggestions (owner)
+         * @description Groups the items by supplier (item `supplier_uuid`, else the
+         *     suggestion's preferred supplier) and creates one draft purchase per
+         *     supplier. Unit cost defaults to the last purchase cost, else the
+         *     product cost price. Drafts change neither stock nor finance until
+         *     posted (`POST /v1/tenant/purchases/{uuid}/post`).
+         */
+        post: operations["createTenantStockReorderDrafts"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11559,7 +11726,7 @@ export interface components {
         };
         AIActionLink: {
             /** @enum {string} */
-            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event";
+            kind: "customer" | "cari" | "job" | "sale" | "finance_account" | "todo" | "calendar_event" | "purchase";
             /** Format: uuid */
             uuid: string;
         };
@@ -13724,11 +13891,17 @@ export interface components {
             /** Format: uuid */
             supplier_uuid: string;
             supplier_name: string;
-            /** @enum {string} */
-            status: "posted" | "voided";
+            /**
+             * @description draft: no stock / finance effect until posted
+             * @enum {string}
+             */
+            status: "draft" | "posted" | "voided";
             currency: string;
             total_amount: string;
-            /** @enum {string} */
+            /**
+             * @description Drafts carry cash until posting chooses the method.
+             * @enum {string}
+             */
             method: "cash" | "card";
             /** Format: uuid */
             finance_account_uuid?: string;
@@ -13763,6 +13936,132 @@ export interface components {
             success: true;
             data: components["schemas"]["PurchaseDetail"];
             meta: components["schemas"]["ResponseMeta"];
+        };
+        PurchaseLineInput: {
+            /** Format: uuid */
+            product_uuid: string;
+            unit_cost?: string;
+            qty?: string;
+        };
+        PurchaseDraftInput: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            notes?: string;
+            currency?: string;
+            lines: components["schemas"]["PurchaseLineInput"][];
+        };
+        StockReorderSupplierLead: {
+            /** Format: uuid */
+            supplier_uuid: string;
+            supplier_name?: string;
+            lead_days: number;
+        };
+        StockReorderSettings: {
+            /** @description Usage window in days (default 30). */
+            velocity_days: number;
+            /** @description Default lead time (default 3). */
+            lead_days: number;
+            /** @description Target cover after delivery (default 14). */
+            target_days: number;
+            /** @description Daily notification at notify_time Europe/Istanbul. */
+            notify_enabled: boolean;
+            /** @example 09:00 */
+            notify_time: string;
+            supplier_lead_days: components["schemas"]["StockReorderSupplierLead"][];
+            velocity_day_options: number[];
+        };
+        EnvelopeStockReorderSettings: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["StockReorderSettings"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StockReorderProductOverride: {
+            /** Format: uuid */
+            supplier_uuid: string | null;
+            supplier_name?: string | null;
+            lead_days: number | null;
+            target_days: number | null;
+            pack_size: string | null;
+        };
+        EnvelopeStockReorderProductOverride: {
+            /** @enum {boolean} */
+            success: true;
+            data: {
+                /** Format: uuid */
+                product_uuid: string;
+                override: components["schemas"]["StockReorderProductOverride"] | null;
+            };
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        StockReorderSummary: {
+            out_of_stock: number;
+            below_min: number;
+            low_cover: number;
+            /** @description out_of_stock + below_min */
+            urgent: number;
+            /** @description Products with a quantity to order. */
+            suggested: number;
+            /** @description Open draft purchases. */
+            drafts: number;
+        };
+        StockReorderInputs: {
+            velocity_days: number;
+            consumed_qty: string;
+            sold_qty: string;
+            lead_days: number;
+            /** @enum {string} */
+            lead_days_source: "product" | "supplier" | "organization";
+            target_days: number;
+            /** @enum {string} */
+            target_days_source: "product" | "organization";
+            /** @description velocity × (lead + target) */
+            demand_qty: string;
+            /** @description demand + min − stock − on_order before rounding */
+            raw_need: string;
+            formula: string;
+        };
+        StockReorderSuggestion: {
+            /** Format: uuid */
+            product_uuid: string;
+            name: string;
+            sku: string;
+            unit: string;
+            currency: string;
+            /** @enum {string} */
+            urgency: "out_of_stock" | "below_min" | "low_cover" | "none";
+            stock: string;
+            min_stock: string;
+            on_order: string;
+            velocity_per_day: string;
+            /** @description null = no usage */
+            days_of_cover: string | null;
+            suggested_qty: string;
+            pack_size: string | null;
+            packs: number | null;
+            supplier: {
+                /** Format: uuid */
+                uuid: string;
+                name: string;
+                /** @enum {string} */
+                source: "product" | "last_purchase";
+            } | null;
+            unit_cost: string;
+            /** @enum {string} */
+            unit_cost_source: "last_purchase" | "cost_price";
+            estimated_total: string;
+            /** Format: date-time */
+            last_purchased_at: string | null;
+            inputs: components["schemas"]["StockReorderInputs"];
+            override: components["schemas"]["StockReorderProductOverride"] | null;
+        };
+        StockReorderList: {
+            items: components["schemas"]["StockReorderSuggestion"][];
+            total: number;
+            summary: components["schemas"]["StockReorderSummary"];
+            settings: components["schemas"]["StockReorderSettings"];
+            /** Format: date-time */
+            generated_at: string;
         };
         StaffMember: {
             /** Format: uuid */
@@ -24216,7 +24515,8 @@ export interface operations {
                  *     another organization matches nothing; a malformed uuid is `400`.
                  */
                 customer_uuid?: string;
-                status?: "posted" | "voided";
+                /** @description Omitted lists posted and voided purchases; `draft` lists drafts. */
+                status?: "draft" | "posted" | "voided";
                 date_from?: string;
                 date_to?: string;
             };
@@ -24723,6 +25023,31 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    deleteTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Draft deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
     voidTenantPurchase: {
         parameters: {
             query?: never;
@@ -24748,6 +25073,359 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Conflict"];
+        };
+    };
+    createTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft created (`status` = `draft`) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PurchaseDraftInput"];
+            };
+        };
+        responses: {
+            /** @description Draft updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    postTenantPurchaseDraft: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    method: "cash" | "card";
+                    /** Format: uuid */
+                    finance_account_uuid: string;
+                    /** Format: date-time */
+                    purchased_at?: string;
+                    notes?: string;
+                    /** Format: uuid */
+                    supplier_uuid?: string;
+                    lines?: components["schemas"]["PurchaseLineInput"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Purchase posted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopePurchaseDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getTenantStockReorderSuggestions: {
+        parameters: {
+            query?: {
+                urgency?: "out_of_stock" | "below_min" | "low_cover";
+                /** @description Preferred supplier filter; `none` = products without a supplier. */
+                supplier_uuid?: string;
+                q?: components["parameters"]["Q"];
+                /** @description Include products that need nothing. */
+                all?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Suggestions with summary and settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: components["schemas"]["StockReorderList"];
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStockReorderSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: components["schemas"]["StockReorderSummary"];
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantStockReorderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderSettings"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateTenantStockReorderSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {integer} */
+                    velocity_days: 7 | 14 | 30 | 60 | 90;
+                    lead_days: number;
+                    target_days: number;
+                    notify_enabled: boolean;
+                    supplier_lead_days?: {
+                        /** Format: uuid */
+                        supplier_uuid: string;
+                        lead_days: number;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderSettings"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Override */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderProductOverride"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    supplier_uuid?: string | null;
+                    lead_days?: number | null;
+                    target_days?: number | null;
+                    pack_size?: string | null;
+                };
+            };
+        };
+        responses: {
+            /** @description Saved override */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStockReorderProductOverride"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteTenantStockReorderProduct: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                uuid: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createTenantStockReorderDrafts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    notes?: string;
+                    items: {
+                        /** Format: uuid */
+                        product_uuid: string;
+                        qty: string;
+                        /** Format: uuid */
+                        supplier_uuid?: string | null;
+                        unit_cost?: string | null;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Drafts created (one per supplier) */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        success: true;
+                        data: {
+                            drafts: components["schemas"]["PurchaseDetail"][];
+                        };
+                        meta: components["schemas"]["ResponseMeta"];
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     getTenantReportsMeta: {

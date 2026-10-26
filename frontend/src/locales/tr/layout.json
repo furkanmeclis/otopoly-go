@@ -78,5 +78,6 @@
   "breadcrumb_label": "Sayfa yolu",
   "nav_calendar": "Takvim",
   "nav_mcp": "MCP sunucusu",
-  "nav_mcp_tenant": "AI bağlantıları (MCP)"
+  "nav_mcp_tenant": "AI bağlantıları (MCP)",
+  "nav_stock_reorder": "Sipariş önerileri"
 }

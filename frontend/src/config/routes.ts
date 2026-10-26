@@ -80,6 +80,9 @@ export const routes = {
     purchases: {
       root: (slug: string) => `/t/${slug}/purchases`,
       detail: (slug: string, uuid: string) => `/t/${slug}/purchases/${uuid}`,
+      reorder: (slug: string) => `/t/${slug}/purchases/reorder`,
+      reorderDrafts: (slug: string) =>
+        `/t/${slug}/purchases/reorder?tab=drafts`,
     },
     reports: {
       root: (slug: string) => `/t/${slug}/reports`,

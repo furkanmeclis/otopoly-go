@@ -224,5 +224,13 @@
   "actions.integrations.apns.updated": "APNs key updated",
   "actions.integrations.apns.removed": "APNs key removed",
   "actions.integrations.apns.tested": "APNs connection tested",
-  "resources.platform.integrations.apple.apns": "Apple Push (APNs)"
+  "resources.platform.integrations.apple.apns": "Apple Push (APNs)",
+  "actions.tenant.purchases.draft_create": "Purchase draft created",
+  "actions.tenant.purchases.draft_update": "Purchase draft updated",
+  "actions.tenant.purchases.post_draft": "Purchase draft posted",
+  "actions.tenant.purchases.draft_delete": "Purchase draft deleted",
+  "actions.tenant.stock_reorder.settings_update": "Reorder settings updated",
+  "actions.tenant.stock_reorder.product_override": "Product reorder setting updated",
+  "actions.tenant.stock_reorder.drafts_create": "Drafts created from reorder suggestions",
+  "resources.stock_reorder": "Reorder suggestions"
 }

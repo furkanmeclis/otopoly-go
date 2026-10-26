@@ -224,5 +224,13 @@
   "actions.integrations.apns.updated": "APNs anahtarı güncellendi",
   "actions.integrations.apns.removed": "APNs anahtarı kaldırıldı",
   "actions.integrations.apns.tested": "APNs bağlantısı test edildi",
-  "resources.platform.integrations.apple.apns": "Apple Push Bildirimleri (APNs)"
+  "resources.platform.integrations.apple.apns": "Apple Push Bildirimleri (APNs)",
+  "actions.tenant.purchases.draft_create": "Alış taslağı oluşturuldu",
+  "actions.tenant.purchases.draft_update": "Alış taslağı güncellendi",
+  "actions.tenant.purchases.post_draft": "Alış taslağı onaylanıp alışa çevrildi",
+  "actions.tenant.purchases.draft_delete": "Alış taslağı silindi",
+  "actions.tenant.stock_reorder.settings_update": "Sipariş önerisi ayarları güncellendi",
+  "actions.tenant.stock_reorder.product_override": "Ürün sipariş ayarı güncellendi",
+  "actions.tenant.stock_reorder.drafts_create": "Sipariş önerilerinden taslak oluşturuldu",
+  "resources.stock_reorder": "Sipariş önerileri"
 }

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { PackageSearch, Plus, Search, Trash2 } from "lucide-react";
 import { z } from "zod";
 
 import { DaySummaryBar } from "@/components/common/day-summary-bar";
@@ -61,7 +61,7 @@ import {
   useTenantLiveTable,
 } from "@/features/organizations/hooks/use-tenant-live";
 
-const STATUS_TABS = ["all", "posted", "voided"] as const;
+const STATUS_TABS = ["all", "posted", "voided", "draft"] as const;
 const PURCHASE_METHODS = ["cash", "card"] as const;
 
 function statusTone(status: PurchaseStatus) {
@@ -70,6 +70,8 @@ function statusTone(status: PurchaseStatus) {
       return "success" as const;
     case "voided":
       return "danger" as const;
+    case "draft":
+      return "warning" as const;
     default:
       return "default" as const;
   }
@@ -104,8 +106,8 @@ export function PurchasesPage({ slug }: { slug: string }) {
       sort: "-purchased_at",
       q: q.trim() || undefined,
       status: statusTab === "all" ? undefined : statusTab,
-      date_from: date || undefined,
-      date_to: date || undefined,
+      date_from: statusTab === "draft" ? undefined : date || undefined,
+      date_to: statusTab === "draft" ? undefined : date || undefined,
     }),
     [date, q, statusTab],
   );
@@ -151,14 +153,20 @@ export function PurchasesPage({ slug }: { slug: string }) {
         { label: t("purchases.title") },
       ]}
       actions={
-        canWrite ? (
-          <EntityActions>
+        <EntityActions>
+          <Button asChild type="button" size="sm" variant="outline">
+            <Link href={routes.tenant.purchases.reorder(slug)}>
+              <PackageSearch className="size-4" />
+              {t("purchases.actions.reorder")}
+            </Link>
+          </Button>
+          {canWrite ? (
             <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" />
               {t("purchases.actions.create")}
             </Button>
-          </EntityActions>
-        ) : null
+          ) : null}
+        </EntityActions>
       }
     >
       <DaySummaryBar
