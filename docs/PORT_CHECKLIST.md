@@ -102,7 +102,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 ## 4. Customers — `tenant.customers.*`
 - [ ] List: search, kind filter, active filter, vehicle count, cari balance
 - [ ] Create/edit **W**: name, phone, email, kind, tax id/office, notes, active, first vehicle
-- [x] Detail: info, vehicles (add from catalog search / remove), recent jobs, cari balance + recent entries, quotes/leads/todos links — 360: sales, stat tiles, call / WhatsApp / SMS / email / new job / quote / lead (no sales customer filter or activity feed in the API yet)
+- [x] Detail: info, vehicles (add from catalog search / remove), recent jobs, cari balance + recent entries, quotes/leads/todos links — 360: sales (`customer_uuid` filter), contracts on its jobs (`customer_uuid` filter), stat tiles, call / WhatsApp / SMS / email / new job / quote / lead
+  - [x] Aktivite timeline (`GET /v1/tenant/customers/{uuid}/activity`): web `activity` action labels, subject + record + actor + relative time, tap → job / sale / quote / lead / contract / cari statement, "load more", live refresh from every listed module
 - [ ] Delete **W** (blocked when cari balance ≠ 0)
 
 ## 5. Cari — `tenant.cari.*`
@@ -126,6 +127,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ## 8. Suppliers — `tenant.suppliers.*`
 - [ ] List/search/active; detail; create/edit/delete **O** (delete blocked with purchases)
+- [x] Supplier 360: purchases via `supplier_uuid` filter, totals over posted purchases
 
 ## 9. Purchases — `tenant.purchases.*`
 - [ ] List (with lines); filters; detail
@@ -159,6 +161,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Tap → source record (job, todo, quote, lead, sale, purchase, contract, finance list) or the event detail sheet; long press → reschedule movable items (events keep their length, todos date + optional time, leads date only; optimistic)
 - [x] Events **W** (`tenant.calendar.write`): create / edit / delete in a sheet — all-day / timed, date + time pickers, colour picker, location, note
 - [x] Home dashboard "Bugün ve yaklaşanlar" card (events, todos, quote expiries, lead follow-ups for 7 days)
+- [x] Live resource `tenant.calendar` (`tenant.calendar.read`): calendar screen and the Bugün card refresh on calendar event changes / moves
 - [x] Mock calendar API with seeded events and every module layer (`scripts/smoke/calendar.smoke.ts`)
 
 ## 14. Staff — `tenant.staff.*`
@@ -178,6 +181,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 
 ## 17. Settings
 - [ ] Letterhead / export settings **O** (`tenant.settings.*`)
+  - [x] Business sector (`sector` on `/v1/tenant/settings`, "" clears) on the settings screen; the create-business wizard sends the chosen sector to `POST /v1/auth/organizations`
 - [ ] Messaging (WhatsApp session, templates, notification rules, daily summary, vehicle alerts)
   - [x] Kanallar tab: WhatsApp / SMS – Netgsm / SMS – Twilio / e-posta cards with brand icons and status; connect / edit sheet (masked hints, empty keeps stored), activate switch (one active provider), connection test result, test SMS with live segment counter (`/sms/estimate`, debounced), disconnect with confirm; owner-only writes, read-only for others (`scripts/smoke/sms.smoke.ts`)
   - [x] WhatsApp / SMS channel choice on the daily summary and vehicle alerts cards; SMS notification rules unlock when an SMS provider is active
@@ -197,7 +201,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done · **O** = owner only · *
 - [x] Preferences: AI data-sharing consent status + withdraw
 
 ## 20. Assistant — `tenant.ai.use`
-- [x] Conversations list, chat, tool activity — SSE streaming (tokens render as they arrive), same reader for mock and live; list → conversation screens (`/assistant`, `/assistant/[id]`, `/assistant/new`), rename / delete by long press
+- [x] Conversations list (last message preview, sorted and timed by `last_message_at`), chat, tool activity — SSE streaming (tokens render as they arrive), same reader for mock and live; list → conversation screens (`/assistant`, `/assistant/[id]`, `/assistant/new`), rename / delete by long press
 - [x] Confirm cards (edit / confirm / cancel, result + record link) and plan checklists (`actions` / `todos` features) — confirm streams the `action` result and the follow-up over SSE
 - [x] First-use AI data disclosure + explicit consent (App Store 5.1.2(i)): provider named from `/ai/status`, what is / isn't sent, stored per user, sending blocked until accepted, withdraw in Preferences
 

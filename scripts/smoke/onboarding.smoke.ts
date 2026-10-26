@@ -145,8 +145,10 @@ const canFor = (perms: string[], owner: boolean) => (gate: Permission | Gate) =>
   await expectCode(onboardingService.createOrganization({ organization_name: 'X' }), 'VALIDATION_ERROR', 'one-letter name');
   await expectCode(onboardingService.createOrganization({ organization_name: 'x'.repeat(121) }), 'VALIDATION_ERROR', '121-letter name');
   await expectCode(request('POST', '/v1/tenant/catalog/services', { body: { name: 'x' }, silent: true }), 'ORGANIZATION_CONTEXT_REQUIRED', 'no tenant access before a business exists');
-  const created = await onboardingService.createOrganization({ organization_name: 'Selin Oto Kuaför', phone: '0532 000 00 00', city: 'İzmir', district: 'Karşıyaka', address: 'Cemal Gürsel Cad. 1' });
+  await expectCode(onboardingService.createOrganization({ organization_name: 'Sektörsüz', sector: 'bakery' as never }), 'VALIDATION_ERROR', 'unknown sector');
+  const created = await onboardingService.createOrganization({ organization_name: 'Selin Oto Kuaför', phone: '0532 000 00 00', city: 'İzmir', district: 'Karşıyaka', address: 'Cemal Gürsel Cad. 1', sector: 'detailing' });
   ok(/^selin-oto-kuafor/.test(created.organization.slug) && created.organization.name === 'Selin Oto Kuaför', `201 → slug ${created.organization.slug}`);
+  ok(created.organization.sector === 'detailing', 'sector from the wizard is stored and returned');
   const org = getDb().organizations.find((o) => o.uuid === created.organization.uuid)!;
   const trialDays = (new Date(org.access_ends_at!).getTime() - Date.now()) / 86400000;
   ok(org.plan_code === 'trial' && trialDays > 13.9 && trialDays <= 14, 'new business has a 14-day trial');
@@ -154,6 +156,7 @@ const canFor = (perms: string[], owner: boolean) => (gate: Permission | Gate) =>
   const after = await me();
   const membership = after.organizations?.find((o) => o.slug === created.organization.slug);
   ok(membership?.role === 'owner', 'refetched /me lists the business with role owner');
+  ok(membership?.sector === 'detailing', '/me organization carries the sector');
   const ctxTokens = await authService.switchOrganizationContext(created.organization.slug);
   await session.setTokens(ctxTokens, created.organization.slug);
   const scoped = await me();

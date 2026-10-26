@@ -193,8 +193,9 @@ export function validateRecords({ specPath, allowlistPath, errorCodesPath, backe
     // Rejected requests (negative cases, permission checks) are not validated as request bodies.
     const negative = rec.status >= 400;
 
-    // Query parameters.
+    // Query parameters (a 400 answer is a deliberate invalid-input case, e.g. a malformed uuid filter).
     for (const [name, raw] of Object.entries(rec.query ?? {})) {
+      if (rec.status === 400) break;
       if (raw === undefined || raw === null || raw === '') continue;
       const p = o.params.find((x) => x.in === 'query' && x.name === name);
       if (!p) {
