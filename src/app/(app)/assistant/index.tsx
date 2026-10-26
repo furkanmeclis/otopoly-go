@@ -1,16 +1,17 @@
 /**
- * Assistant → conversation list (GET /v1/tenant/ai/conversations, search with `q`). Tap opens the
+ * Assistant → conversation list (GET /v1/tenant/ai/conversations, search with `q`), newest message first
+ * with the last message preview and its relative time. Tap opens the
  * conversation, long press (or the "more" button) renames / deletes it, "New chat" starts one. The empty
  * state offers suggested questions that open a new chat and send right away. Old links with `?c=<uuid>`
  * (web address) go straight to that conversation.
  */
 import { router, useLocalSearchParams } from 'expo-router';
 import { MessageSquareText, MoreHorizontal, Sparkles, SquarePen } from 'lucide-react-native';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, EmptyState, ErrorState, Header, IconButton, ListSkeleton, Screen, SearchBar, Txt } from '@/components/ui';
+import { Button, EmptyState, ErrorState, Header, IconButton, ListSkeleton, Row, Screen, SearchBar, Txt } from '@/components/ui';
 import { AssistantGate, useAssistantAccess } from '@/features/ai/components/assistant-gate';
 import { useConversationActions } from '@/features/ai/components/conversation-actions';
 import { SUGGESTION_KEYS } from '@/features/ai/lib/labels';
@@ -71,7 +72,8 @@ function ConversationList() {
   const list = useConversationList(query);
   const actions = useConversationActions();
   const [refreshing, setRefreshing] = useState(false);
-  const items = list.data?.items ?? [];
+  // Most recent conversation first (`last_message_at`; empty ones by creation time).
+  const items = useMemo(() => [...(list.data?.items ?? [])].sort((a, b) => activityAt(b).localeCompare(activityAt(a))), [list.data]);
   const searching = query.length > 0;
 
   const refresh = useCallback(async () => {
@@ -82,9 +84,16 @@ function ConversationList() {
 
   const renderItem = useCallback(
     ({ item, index }: { item: AIConversation; index: number }) => (
-      <ConversationRow conv={item} first={index === 0} last={index === items.length - 1} onMore={actions.open} subtitle={`${tp('mobile.ai.list.messages', item.message_count)} · ${fmt.relative(item.last_message_at ?? item.updated_at ?? item.created_at)}`} />
+      <ConversationRow
+        conv={item}
+        first={index === 0}
+        last={index === items.length - 1}
+        onMore={actions.open}
+        time={fmt.relative(activityAt(item))}
+        subtitle={item.last_message_preview?.trim() || (item.message_count ? tp('mobile.ai.list.messages', item.message_count) : tr('mobile.ai.list.no_messages'))}
+      />
     ),
-    [actions.open, fmt, items.length, tp],
+    [actions.open, fmt, items.length, tp, tr],
   );
 
   return (
@@ -120,7 +129,10 @@ function ConversationList() {
   );
 }
 
-function ConversationRow({ conv, first, last, subtitle, onMore }: { conv: AIConversation; first: boolean; last: boolean; subtitle: string; onMore: (conv: AIConversation) => void }) {
+/** When the conversation last changed: its newest message, else when it was created. */
+const activityAt = (c: AIConversation) => c.last_message_at ?? c.created_at;
+
+function ConversationRow({ conv, first, last, subtitle, time, onMore }: { conv: AIConversation; first: boolean; last: boolean; subtitle: string; time: string; onMore: (conv: AIConversation) => void }) {
   const t = useTheme();
   const { t: tr } = useLocale();
   const title = conv.title || tr('ai.assistant.untitled');
@@ -130,7 +142,7 @@ function ConversationRow({ conv, first, last, subtitle, onMore }: { conv: AIConv
       onLongPress={() => onMore(conv)}
       delayLongPress={350}
       accessibilityRole="button"
-      accessibilityLabel={`${title}. ${subtitle}`}
+      accessibilityLabel={`${title}. ${subtitle}. ${time}`}
       accessibilityHint={tr('mobile.ai.list.row_hint')}
       accessibilityActions={[
         { name: 'activate', label: tr('mobile.ai.list.open') },
@@ -161,10 +173,15 @@ function ConversationRow({ conv, first, last, subtitle, onMore }: { conv: AIConv
         <MessageSquareText size={18} color={t.colors.primary} />
       </View>
       <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-        <Txt variant="bodyStrong" numberOfLines={1}>
-          {title}
-        </Txt>
-        <Txt variant="caption" tone="secondary" numberOfLines={1}>
+        <Row gap={t.spacing.sm}>
+          <Txt variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
+            {title}
+          </Txt>
+          <Txt variant="caption" tone="muted" numberOfLines={1}>
+            {time}
+          </Txt>
+        </Row>
+        <Txt variant="caption" tone="secondary" numberOfLines={2}>
           {subtitle}
         </Txt>
       </View>

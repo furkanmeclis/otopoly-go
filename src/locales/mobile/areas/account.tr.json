@@ -76,6 +76,7 @@
   "account.password.current_incorrect": "Mevcut şifre hatalı",
   "ai.list.messages_one": "{{count}} mesaj",
   "ai.list.messages_other": "{{count}} mesaj",
+  "ai.list.no_messages": "Henüz mesaj yok",
   "ai.list.load_failed": "Sohbetler yüklenemedi.",
   "ai.list.no_results": "Sonuç yok",
   "ai.list.no_results_body": "“{{q}}” ile eşleşen bir sohbet bulunamadı.",

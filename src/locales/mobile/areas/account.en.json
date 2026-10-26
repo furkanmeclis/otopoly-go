@@ -76,6 +76,7 @@
   "account.password.current_incorrect": "Current password is incorrect",
   "ai.list.messages_one": "{{count}} message",
   "ai.list.messages_other": "{{count}} messages",
+  "ai.list.no_messages": "No messages yet",
   "ai.list.load_failed": "Conversations couldn't be loaded.",
   "ai.list.no_results": "No results",
   "ai.list.no_results_body": "No conversation matches “{{q}}”.",

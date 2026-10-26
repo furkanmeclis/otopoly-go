@@ -30,7 +30,7 @@ function listFor(ctx: MockCtx): Conv[] {
     conversations.set(key, list);
     // One earlier chat so the history is not empty in the demo.
     const created = new Date(Date.now() - 26 * 3600 * 1000).toISOString();
-    const conv: Conv = { uuid: uuid(), title: '', message_count: 0, created_at: created, updated_at: created, messages: [] };
+    const conv: Conv = { uuid: uuid(), title: '', message_count: 0, last_message_preview: '', last_message_at: null, created_at: created, updated_at: created, messages: [] };
     list.push(conv);
     const question = ctx.user?.locale === 'en' ? 'How much money is in the cash accounts?' : 'Kasalarda ne kadar para var?';
     appendExchange(ctx, conv, question, ctx.user?.locale === 'en' ? 'en' : 'tr', created);
@@ -39,6 +39,35 @@ function listFor(ctx: MockCtx): Conv[] {
 }
 
 const summary = ({ messages: _m, ...c }: Conv): AIConversation => c;
+
+/**
+ * Backend `last_message_preview`: plain text (markdown stripped, one line, ≤ 120 characters + `…`) of the
+ * newest message that has text; a turn without text keeps the previous preview.
+ */
+export function messagePreview(blocks: AIMessage['blocks'], previous = ''): string {
+  const raw = blocks
+    .filter((b) => b.type === 'text')
+    .map((b) => String((b as { text?: string }).text ?? ''))
+    .join(' ');
+  const plain = raw
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/^\s{0,3}(#{1,6}|[-*+]|\d+\.|>)\s+/gm, '')
+    .replace(/[*_`~]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!plain) return previous;
+  const chars = Array.from(plain);
+  return chars.length > 120 ? `${chars.slice(0, 120).join('').trimEnd()}…` : plain;
+}
+
+function touch(conv: Conv, message: AIMessage, at: string) {
+  conv.messages.push(message);
+  conv.message_count = conv.messages.length;
+  conv.last_message_preview = messagePreview(message.blocks, conv.last_message_preview);
+  conv.last_message_at = at;
+  conv.updated_at = at;
+}
 
 function findConv(ctx: MockCtx) {
   return listFor(ctx).find((c) => c.uuid === ctx.params.uuid) ?? fail(404, 'NOT_FOUND', 'Conversation not found');
@@ -262,10 +291,8 @@ function appendExchange(ctx: MockCtx, conv: Conv, content: string, loc: Locale, 
   const user: AIMessage = { uuid: uuid(), role: 'user', status: 'complete', blocks: [{ type: 'text', text: content }], created_at: at };
   const assistant: AIMessage = { uuid: uuid(), role: 'assistant', status: 'complete', blocks: answer(ctx, content, loc), created_at: at };
   for (const b of assistant.blocks) if (b.type === 'confirm' && b.id) actionsById.set(b.id, { conv, orgUuid: ctx.orgUuid, userUuid: ctx.user?.uuid ?? '', loc });
-  conv.messages.push(user, assistant);
-  conv.message_count = conv.messages.length;
-  conv.last_message_at = at;
-  conv.updated_at = at;
+  touch(conv, user, at);
+  touch(conv, assistant, at);
   if (!conv.title) conv.title = content.length > 48 ? `${content.slice(0, 47).trimEnd()}…` : content;
   tokensUsed += 350 + content.length * 3;
   return { user, assistant };
@@ -310,7 +337,7 @@ route('GET', '/v1/tenant/ai/conversations', (ctx) => {
 route('POST', '/v1/tenant/ai/conversations', (ctx) => {
   requirePerm(ctx, 'tenant.ai.use');
   const title = str(ctx.body.title).trim().slice(0, 120);
-  const conv: Conv = { uuid: uuid(), title, message_count: 0, created_at: now(), updated_at: now(), messages: [] };
+  const conv: Conv = { uuid: uuid(), title, message_count: 0, last_message_preview: '', last_message_at: null, created_at: now(), updated_at: now(), messages: [] };
   listFor(ctx).push(conv);
   return summary(conv);
 });
@@ -465,10 +492,7 @@ route('POST', '/v1/tenant/ai/actions/:uuid/confirm', (ctx) => {
     blocks: [text(loc === 'en' ? `Done, **${title}** is on your todo list.` : `Tamam, **${title}** görevini listenize ekledim.`)],
     created_at: at,
   };
-  entry.conv.messages.push(follow);
-  entry.conv.message_count = entry.conv.messages.length;
-  entry.conv.last_message_at = at;
-  entry.conv.updated_at = at;
+  touch(entry.conv, follow, at);
   // `RunConfirm`: the action result, then the model's continuation as a resumed message.
   return sse(
     [
