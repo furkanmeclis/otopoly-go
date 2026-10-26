@@ -55,6 +55,10 @@ import { useFinanceAccounts } from "@/features/finance/hooks/use-finance-queries
 import { ResourceIOToolbar } from "@/features/io";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const PAYMENT_METHODS = ["cash", "card", "transfer", "other"] as const;
 
@@ -98,7 +102,10 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [adjustmentOpen, setAdjustmentOpen] = useState(false);
 
+  const liveList = useTenantLiveList(TenantLiveResources.cariEntries);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "-entry_date",
     initialPageSize: 25,
   });
@@ -361,6 +368,9 @@ export function CariDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
             badge={entriesQuery.data?.total}
           >
             <EntityTable
+              realtime={listState.realtimeFor(() =>
+                Promise.all([entriesQuery.refetch(), accountQuery.refetch()]),
+              )}
               columns={columns}
               data={entriesQuery.data?.items ?? []}
               getRowId={(row) => row.uuid}
@@ -483,7 +493,10 @@ function ChargeDialog({
               required
             />
             <AppDatePicker name="entry_date" label={t("cari.entry_date")} />
-            <AppTextarea name="description" label={t("cari.entry_description")} />
+            <AppTextarea
+              name="description"
+              label={t("cari.entry_description")}
+            />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button
@@ -591,7 +604,10 @@ function PaymentDialog({
                 label: t(`cari.payment_method.${method}`),
               }))}
             />
-            <AppTextarea name="description" label={t("cari.entry_description")} />
+            <AppTextarea
+              name="description"
+              label={t("cari.entry_description")}
+            />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button
@@ -682,7 +698,10 @@ function AdjustmentDialog({
               required
             />
             <AppDatePicker name="entry_date" label={t("cari.entry_date")} />
-            <AppTextarea name="description" label={t("cari.entry_description")} />
+            <AppTextarea
+              name="description"
+              label={t("cari.entry_description")}
+            />
           </FieldGroup>
           <DialogFooter className="mt-6">
             <Button

@@ -32,13 +32,20 @@ import {
 } from "@/features/finance/lib/format";
 import { ResourceIOToolbar } from "@/features/io";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveList,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function CariPage({ slug }: { slug: string }) {
   const { t, locale } = useLocale();
   const router = useRouter();
   const { canRead } = useTenantCariAccess(slug);
 
+  const liveList = useTenantLiveList(TenantLiveResources.cari);
+
   const listState = useServerListState({
+    realtime: liveList,
     initialSort: "customer_name",
     initialPageSize: 20,
   });
@@ -190,6 +197,9 @@ export function CariPage({ slug }: { slug: string }) {
       </div>
 
       <EntityTable
+        realtime={listState.realtimeFor(() =>
+          Promise.all([listQuery.refetch(), summaryQuery.refetch()]),
+        )}
         columns={columns}
         data={listQuery.data?.items ?? []}
         getRowId={(row) => row.uuid}

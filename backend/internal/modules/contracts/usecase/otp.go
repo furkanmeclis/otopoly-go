@@ -14,6 +14,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/i18n"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -294,6 +295,7 @@ func (s *Service) VerifySignerOTP(ctx context.Context, instanceUUID, signerUUID 
 	s.recordActivity(ctx, "tenant.contract_instance.otp_verify", "contract_instance", &inst.Uuid, map[string]any{
 		"signer_uuid": signer.Uuid.String(), "channel": latest.Channel, "phone": maskPhone(latest.Phone),
 	})
+	s.live(ctx, resourceevents.TenantContractInstances, resourceevents.ActionUpdated, inst.Uuid.String())
 	return s.GetInstance(ctx, instanceUUID)
 }
 

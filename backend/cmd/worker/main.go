@@ -47,6 +47,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/outbox"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/pdfrender"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine"
 	searchadapters "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/searchengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
@@ -228,6 +229,16 @@ func main() {
 	} else {
 		log.Warn("brand_logo_sync_encryption_unavailable", "error", err)
 	}
+
+	// Live lists: imports, bulk jobs and quote expiry run here, so they
+	// publish resource.changed events too (organization-scoped channels).
+	liveEvents := resourceevents.New(publisher, log)
+	defer liveEvents.Wait()
+	liveEvents.AddResolver(resourceevents.OrgChannelResolver(resourceevents.QueriesLookup(queries)))
+	importSvc.SetResourceEvents(liveEvents)
+	bulkSvc.SetResourceEvents(liveEvents)
+	quotesSvc.SetResourceEvents(liveEvents)
+	contractsSvc.SetResourceEvents(liveEvents)
 
 	worker := queue.NewWorker(cfg, log, notifSvc.Deliver).
 		WithCatalogImport(vehicleCatalogSvc.ProcessImport).

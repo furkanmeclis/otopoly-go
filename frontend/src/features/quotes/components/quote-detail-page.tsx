@@ -68,6 +68,10 @@ import { localToday } from "@/lib/utils/local-date";
 import { deliveryErrorText } from "@/features/quotes/lib/delivery-error";
 import { LinkedTodosCard } from "@/features/todos";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function daysLeft(validUntil: string): number {
   const a = new Date(`${localToday()}T00:00:00`);
@@ -87,6 +91,7 @@ export function QuoteDetailPage({
   const searchParams = useSearchParams();
   const access = useQuotesAccess();
   const query = useQuote(uuid);
+  useTenantLiveRefetch(TenantLiveResources.quotes, query.refetch, { uuid });
   const m = useQuoteMutations();
   const [sendOpen, setSendOpen] = useState(
     () => searchParams.get("send") === "1",

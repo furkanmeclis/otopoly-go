@@ -25,6 +25,10 @@ import { useTenantSuppliersAccess } from "@/features/suppliers/hooks/use-tenant-
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function SupplierDetailPage({
   slug,
@@ -38,6 +42,7 @@ export function SupplierDetailPage({
   const { confirmDelete } = useDialogs();
   const { canRead, canWrite } = useTenantSuppliersAccess(slug);
   const query = useSupplier(uuid);
+  useTenantLiveRefetch(TenantLiveResources.suppliers, query.refetch, { uuid });
   const mutations = useSupplierMutations();
   const [editing, setEditing] = useState(false);
   const supplier = query.data;

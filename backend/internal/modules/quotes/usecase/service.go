@@ -22,6 +22,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/google/uuid"
@@ -67,20 +68,21 @@ type PDFRenderer interface {
 
 // Service is the quotes use case.
 type Service struct {
-	pool      *pgxpool.Pool
-	q         *db.Queries
-	act       *activity.Recorder
-	storage   storage.Driver
-	pdf       PDFRenderer
-	messenger QuoteMessenger
-	scheduler ReminderScheduler
-	notifier  QuoteNotifier
-	jobs      JobCreator
-	vehicles  VehicleCreator
-	shareBase string
-	loc       *time.Location
-	now       func() time.Time
-	log       *slog.Logger
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	storage    storage.Driver
+	pdf        PDFRenderer
+	messenger  QuoteMessenger
+	scheduler  ReminderScheduler
+	notifier   QuoteNotifier
+	jobs       JobCreator
+	vehicles   VehicleCreator
+	shareBase  string
+	loc        *time.Location
+	now        func() time.Time
+	log        *slog.Logger
 }
 
 // New builds the service with no-op messenger / scheduler seams.
@@ -171,6 +173,8 @@ func actorID(ctx context.Context) pgtype.Int8 {
 }
 
 func (s *Service) record(ctx context.Context, action string, id uuid.UUID, payload map[string]any) {
+	// Every mutation records activity after it succeeds: open lists follow.
+	s.live(ctx, resourceevents.TenantQuotes, liveAction(action), id.String())
 	if s.act == nil {
 		return
 	}

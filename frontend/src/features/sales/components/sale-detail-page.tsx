@@ -26,6 +26,10 @@ import type { SaleStatus } from "@/features/sales/services/sales.service";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function statusTone(status: SaleStatus) {
   switch (status) {
@@ -43,6 +47,7 @@ export function SaleDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const { confirm } = useDialogs();
   const { canRead, canVoid } = useTenantSalesAccess(slug);
   const saleQuery = useSale(uuid);
+  useTenantLiveRefetch(TenantLiveResources.sales, saleQuery.refetch, { uuid });
   const mutations = useSalesMutations();
   const sale = saleQuery.data;
 

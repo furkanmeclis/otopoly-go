@@ -14,6 +14,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/password"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -28,10 +29,11 @@ var (
 )
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
-	act  *activity.Recorder
-	ent  *entitlements.Service
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
+	ent        *entitlements.Service
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
@@ -260,6 +262,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (Member, error) {
 		CreatedAt: user.CreatedAt.Time,
 	}
 	s.recordActivity(ctx, "staff.create", "tenant.staff", &user.Uuid, map[string]any{"email": user.Email})
+	s.live(ctx, resourceevents.TenantStaff, resourceevents.ActionCreated, user.Uuid.String())
 	return m, nil
 }
 
@@ -321,6 +324,7 @@ func (s *Service) Patch(ctx context.Context, userUUID uuid.UUID, in PatchInput) 
 		CreatedAt: row.CreatedAt.Time,
 	}
 	s.recordActivity(ctx, "staff.update", "tenant.staff", &userUUID, map[string]any{"status": status})
+	s.live(ctx, resourceevents.TenantStaff, resourceevents.ActionUpdated, userUUID.String())
 	return m, nil
 }
 

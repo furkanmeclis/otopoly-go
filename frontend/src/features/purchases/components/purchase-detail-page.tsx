@@ -28,6 +28,10 @@ import type { PurchaseStatus } from "@/features/purchases/services/purchases.ser
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function statusTone(status: PurchaseStatus) {
   switch (status) {
@@ -51,6 +55,9 @@ export function PurchaseDetailPage({
   const { confirm } = useDialogs();
   const { canRead, canWrite } = useTenantPurchasesAccess(slug);
   const purchaseQuery = usePurchase(uuid);
+  useTenantLiveRefetch(TenantLiveResources.purchases, purchaseQuery.refetch, {
+    uuid,
+  });
   const mutations = usePurchasesMutations();
   const purchase = purchaseQuery.data;
 

@@ -32,11 +32,19 @@ import type { StaffMember } from "@/features/staff/services/staff.service";
 import { datetime } from "@/lib/utils/format";
 import { MeterFor } from "@/features/billing";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveTable,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 export function StaffPage({ slug }: { slug: string }) {
   const { t, locale } = useLocale();
   const { canRead, canWrite } = useTenantStaffAccess(slug);
   const listQuery = useStaff();
+  const liveTable = useTenantLiveTable(
+    TenantLiveResources.staff,
+    listQuery.refetch,
+  );
   const mutations = useStaffMutations();
   const [createOpen, setCreateOpen] = useState(false);
   const [passwordMember, setPasswordMember] = useState<StaffMember | null>(
@@ -178,6 +186,8 @@ export function StaffPage({ slug }: { slug: string }) {
       ) : null}
       {!listQuery.isLoading && !listQuery.isError ? (
         <EntityTable
+          realtime={liveTable}
+          getRowId={(row) => row.uuid}
           columns={columns}
           data={listQuery.data?.items ?? []}
           emptyTitle={t("staff.empty")}

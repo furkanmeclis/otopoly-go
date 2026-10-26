@@ -59,6 +59,10 @@ import { cn } from "@/lib/utils";
 import { date, datetime, relativeDatetime } from "@/lib/utils/format";
 import { localToday, shiftDate } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const STEPS: LeadStatus[] = ["new", "contacted", "quoted", "won"];
 
@@ -67,6 +71,7 @@ export function LeadDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const router = useRouter();
   const access = useLeadsAccess();
   const query = useLead(uuid);
+  useTenantLiveRefetch(TenantLiveResources.leads, query.refetch, { uuid });
   const m = useLeadMutations();
   const [editOpen, setEditOpen] = useState(false);
   const [todoOpen, setTodoOpen] = useState(false);

@@ -29,6 +29,10 @@ import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
 import { sanitizeRichHtml } from "@/lib/utils/sanitize-html";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function statusTone(status: string) {
   switch (status) {
@@ -60,6 +64,9 @@ export function ContractInstanceDetailPage({
   const { confirm } = useDialogs();
   const { canRead, canWrite, canManage } = useTenantContractsAccess(slug);
   const query = useContractInstance(uuid);
+  useTenantLiveRefetch(TenantLiveResources.contractInstances, query.refetch, {
+    uuid,
+  });
   const mutations = useContractMutations();
   const instance = query.data;
   const [signing, setSigning] = useState<string | null>(null);

@@ -34,6 +34,10 @@ import { datetime } from "@/lib/utils/format";
 import { localToday } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
 import { toast } from "sonner";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 const STATUS_TABS = ["all", "posted", "voided"] as const;
 
@@ -75,6 +79,9 @@ export function SalesPage({ slug }: { slug: string }) {
 
   const listQuery = useSales(listParams);
   const summaryQuery = useSalesSummary(date);
+  useTenantLiveRefetch(TenantLiveResources.sales, () =>
+    Promise.all([listQuery.refetch(), summaryQuery.refetch()]),
+  );
   const metaQuery = useSalesMeta();
 
   const applySearch = useCallback(() => {

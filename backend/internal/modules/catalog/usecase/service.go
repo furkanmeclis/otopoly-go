@@ -10,6 +10,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourcemeta"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -24,9 +25,10 @@ var (
 )
 
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
-	act  *activity.Recorder
+	liveEvents resourceevents.Publisher
+	pool       *pgxpool.Pool
+	q          *db.Queries
+	act        *activity.Recorder
 }
 
 func New(pool *pgxpool.Pool, q *db.Queries, act *activity.Recorder) *Service {
@@ -173,6 +175,7 @@ func (s *Service) CreateCategory(ctx context.Context, in CreateCategoryInput) (C
 		"name": row.Name,
 		"kind": row.Kind,
 	})
+	s.live(ctx, resourceevents.TenantCatalogCategories, resourceevents.ActionCreated, row.Uuid.String())
 
 	return mapCategory(row, parentUUID, parentName), nil
 }
@@ -233,6 +236,7 @@ func (s *Service) UpdateCategory(ctx context.Context, id uuid.UUID, in UpdateCat
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.category.update", "catalog_category", &row.Uuid, nil)
+	s.live(ctx, resourceevents.TenantCatalogCategories, resourceevents.ActionUpdated, row.Uuid.String())
 
 	var parentUUID *uuid.UUID
 	var parentName *string
@@ -266,6 +270,7 @@ func (s *Service) DeleteCategory(ctx context.Context, id uuid.UUID) error {
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.category.delete", "catalog_category", &row.Uuid, nil)
+	s.live(ctx, resourceevents.TenantCatalogCategories, resourceevents.ActionDeleted, row.Uuid.String())
 	return nil
 }
 
@@ -464,6 +469,8 @@ func (s *Service) CreateProduct(ctx context.Context, in CreateProductInput) (Pro
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.product.create", "product", &row.Uuid, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionCreated, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogCategories, resourceevents.ActionBulk)
 
 	return s.GetProduct(ctx, row.Uuid)
 }
@@ -572,6 +579,7 @@ func (s *Service) UpdateProduct(ctx context.Context, id uuid.UUID, in UpdateProd
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.product.update", "product", &row.Uuid, nil)
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionUpdated, row.Uuid.String())
 
 	return s.GetProduct(ctx, row.Uuid)
 }
@@ -603,6 +611,7 @@ func (s *Service) AdjustStock(ctx context.Context, id uuid.UUID, in AdjustStockI
 		"reason":      in.Reason,
 		"description": in.Description,
 	})
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionUpdated, row.Uuid.String())
 
 	return s.GetProduct(ctx, row.Uuid)
 }
@@ -624,6 +633,8 @@ func (s *Service) DeleteProduct(ctx context.Context, id uuid.UUID) error {
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.product.delete", "product", &row.Uuid, nil)
+	s.live(ctx, resourceevents.TenantCatalogProducts, resourceevents.ActionDeleted, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogCategories, resourceevents.ActionBulk)
 	return nil
 }
 
@@ -786,6 +797,8 @@ func (s *Service) CreateService(ctx context.Context, in CreateServiceInput) (Ser
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.service.create", "service", &row.Uuid, map[string]any{"name": row.Name})
+	s.live(ctx, resourceevents.TenantCatalogServices, resourceevents.ActionCreated, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogCategories, resourceevents.ActionBulk)
 
 	return s.GetService(ctx, row.Uuid)
 }
@@ -873,6 +886,7 @@ func (s *Service) UpdateService(ctx context.Context, id uuid.UUID, in UpdateServ
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.service.update", "service", &row.Uuid, nil)
+	s.live(ctx, resourceevents.TenantCatalogServices, resourceevents.ActionUpdated, row.Uuid.String())
 
 	return s.GetService(ctx, row.Uuid)
 }
@@ -894,6 +908,8 @@ func (s *Service) DeleteService(ctx context.Context, id uuid.UUID) error {
 	}
 
 	s.recordActivity(ctx, "tenant.catalog.service.delete", "service", &row.Uuid, nil)
+	s.live(ctx, resourceevents.TenantCatalogServices, resourceevents.ActionDeleted, row.Uuid.String())
+	s.live(ctx, resourceevents.TenantCatalogCategories, resourceevents.ActionBulk)
 	return nil
 }
 

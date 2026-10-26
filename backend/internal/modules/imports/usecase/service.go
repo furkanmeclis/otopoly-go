@@ -17,6 +17,7 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/ioengine/adapters"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/resourceevents"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/storage"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/queue"
 	"github.com/google/uuid"
@@ -40,14 +41,15 @@ type Enqueuer interface {
 
 // Service orchestrates import jobs.
 type Service struct {
-	q        *db.Queries
-	storage  storage.Driver
-	registry *ioengine.Registry
-	queue    Enqueuer
-	notifier Notifier
-	activity *activity.Recorder
-	log      *slog.Logger
-	syncMode bool
+	liveEvents resourceevents.Publisher
+	q          *db.Queries
+	storage    storage.Driver
+	registry   *ioengine.Registry
+	queue      Enqueuer
+	notifier   Notifier
+	activity   *activity.Recorder
+	log        *slog.Logger
+	syncMode   bool
 }
 
 func New(
@@ -229,6 +231,7 @@ func (s *Service) ProcessImport(ctx context.Context, jobID int64) error {
 	}
 	created, updated, failed := 0, 0, 0
 	var applyErrs []ioengine.RowError
+	var affected []string
 	for i, row := range rows {
 		res, err := adapter.ApplyRow(ctx, row, defaults)
 		if err != nil {
@@ -246,6 +249,7 @@ func (s *Service) ProcessImport(ctx context.Context, jobID int64) error {
 		} else {
 			updated++
 		}
+		affected = collectLive(affected, res.EntityUUID)
 		prev, _ := json.Marshal(res.Previous)
 		_, _ = s.q.InsertImportChange(ctx, db.InsertImportChangeParams{
 			JobID: jobID, EntityType: res.EntityType,
@@ -290,6 +294,7 @@ func (s *Service) ProcessImport(ctx context.Context, jobID int64) error {
 			"created": created, "updated": updated, "failed": failed,
 		}, nil)
 	}
+	s.liveBulk(ctx, job.Resource, affected)
 	_ = applied
 	_ = mapping
 	return nil
@@ -319,11 +324,13 @@ func (s *Service) Rollback(ctx context.Context, jobUUID uuid.UUID, actorID int64
 	if err != nil {
 		return ImportJobView{}, err
 	}
+	var reverted []string
 	for i := len(changes) - 1; i >= 0; i-- {
 		ch := changes[i]
 		var prev map[string]any
 		_ = json.Unmarshal(ch.PreviousJson, &prev)
 		_ = adapter.RevertRow(ctx, ch.EntityType, ch.EntityUuid.String(), prev)
+		reverted = collectLive(reverted, ch.EntityUuid.String())
 	}
 	row, err := s.q.MarkImportJobRolledBack(ctx, job.ID)
 	if err != nil {
@@ -333,6 +340,7 @@ func (s *Service) Rollback(ctx context.Context, jobUUID uuid.UUID, actorID int64
 		uid := actorID
 		s.activity.Record(ctx, &uid, "import.rolled_back", job.Resource, &job.Uuid, map[string]any{}, nil)
 	}
+	s.liveBulk(ctx, job.Resource, reverted)
 	return mapImportJob(row), nil
 }
 

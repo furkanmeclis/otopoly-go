@@ -50,6 +50,10 @@ import { useStaffOptions } from "@/features/staff/hooks/use-staff";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function statusTone(status: JobStatus) {
   switch (status) {
@@ -76,6 +80,7 @@ export function JobDetailPage({ slug, uuid }: { slug: string; uuid: string }) {
   const { confirm } = useDialogs();
   const { canRead, canWrite, canVoid } = useTenantJobsAccess(slug);
   const jobQuery = useJob(uuid);
+  useTenantLiveRefetch(TenantLiveResources.jobs, jobQuery.refetch, { uuid });
   const mutations = useJobsMutations();
   const job = jobQuery.data;
   const staffOptionsQuery = useStaffOptions(canWrite);

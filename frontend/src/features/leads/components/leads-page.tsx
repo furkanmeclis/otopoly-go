@@ -50,6 +50,10 @@ import { useLocale } from "@/providers/locale-provider";
 
 type StatusTab = "open" | "all" | "won" | "lost";
 type Quick = "hot" | "mine" | "overdue" | "today";
+import {
+  TenantLiveResources,
+  useTenantLiveRefetch,
+} from "@/features/organizations/hooks/use-tenant-live";
 
 function useDebounced<T>(value: T, ms = 300) {
   const [v, setV] = useState(value);
@@ -84,6 +88,11 @@ export function LeadsPage({ slug }: { slug: string }) {
     return p;
   }, [tab, quick, debouncedQ]);
   const list = useLeads(params, access.canRead);
+  useTenantLiveRefetch(
+    TenantLiveResources.leads,
+    () => Promise.all([list.refetch(), summary.refetch()]),
+    { enabled: access.canRead },
+  );
   const { patch } = useLeadMutations();
 
   if (!access.canRead) {
