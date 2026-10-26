@@ -1,9 +1,12 @@
-import { useLayoutEffect, useState, useSyncExternalStore } from 'react';
+import { useCallback, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 
 import { setLinkIntent } from '@/features/account/link-intent';
 import { useAuth } from '@/features/auth/auth-provider';
-import { authErrorMessage } from '@/features/auth/lib/auth-errors';
-import { createSignInFlow, type SignInFlowDeps } from '@/features/auth/lib/sign-in-flow';
+import { signInFailureMessage } from '@/features/auth/lib/auth-errors';
+import { createSignInFlow, type SignInAttempt, type SignInFlowDeps } from '@/features/auth/lib/sign-in-flow';
+import { clearSignInNotice, getSignInNotice, subscribeSignInNotice } from '@/features/auth/lib/sign-in-guard';
+import type { SignInOptions } from '@/features/auth/lib/complete-sign-in';
+import type { OAuthProvider } from '@/features/auth/services/passwordless.service';
 import { useLocale } from '@/lib/i18n/provider';
 
 export type { SignInAttempt } from '@/features/auth/lib/sign-in-flow';
@@ -16,17 +19,29 @@ export type { SignInAttempt } from '@/features/auth/lib/sign-in-flow';
 export function useSignInFlow() {
   const { t: tr } = useLocale();
   const { completeSignIn } = useAuth();
-  const deps: SignInFlowDeps = { completeSignIn, message: (error, provider) => authErrorMessage(tr, error, provider), setLinkIntent };
+  const deps: SignInFlowDeps = { completeSignIn, message: (error, provider, kind) => signInFailureMessage(tr, error, provider, kind), setLinkIntent };
   const [flow] = useState(() => createSignInFlow(deps));
   useLayoutEffect(() => flow.setDeps(deps));
   const state = useSyncExternalStore(flow.subscribe, flow.getState, flow.getState);
+  const signInNotice = useSyncExternalStore(subscribeSignInNotice, getSignInNotice, getSignInNotice);
+  const run = useCallback(
+    (attempt: SignInAttempt, provider?: OAuthProvider, options?: SignInOptions) => {
+      clearSignInNotice();
+      return flow.run(attempt, provider, options);
+    },
+    [flow],
+  );
 
   return {
     ...state,
-    run: flow.run,
+    /** The flow's own notice, else why the last session ended right after signing in. */
+    notice: state.notice ?? (signInNotice === 'session_lost' ? tr('mobile.auth.error.session_lost') : null),
+    run,
     submitTotp: flow.submitTotp,
     cancelMfa: flow.cancelMfa,
     closeLinkChoice: flow.closeLinkChoice,
+    sheetDismissed: flow.sheetDismissed,
+    clearNotice: flow.clearNotice,
     clearNotLinked: flow.clearNotLinked,
     hideNotLinked: flow.hideNotLinked,
   };

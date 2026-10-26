@@ -12,10 +12,11 @@ import { createLogger } from '@/lib/logger';
 import { setMonitoringUser } from '@/lib/monitoring';
 import { activityPush, clearWidgetsForSignOut } from '@/features/widgets/bridge';
 import { registerPushDevice, unregisterPushDevice } from '@/features/notifications/push';
-import { loadIntroSeen, markIntroSeen as persistIntroSeen, subscribeIntroReset } from '@/features/onboarding/state';
+import { loadIntroSeen, markIntroSeen as persistIntroSeen, resetCreateBusinessForward, subscribeIntroReset } from '@/features/onboarding/state';
 
 import { orgBlock as accessBlock } from './lib/access';
 import { completeSignInSteps, entryFor, type SignInOptions } from './lib/complete-sign-in';
+import { markSignedIn, noteSessionLost } from './lib/sign-in-guard';
 import type { Gate, Permission } from './permissions';
 
 const log = createLogger('auth');
@@ -154,6 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setAuthFailureHandler(() => {
       log.warn('Auth failure — signing out');
+      // A brand-new session rejected at once is reported and explained on the login screen.
+      noteSessionLost();
       queryClient.clear();
       setMe(null);
       setOrgSlug(null);
@@ -166,7 +169,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (tokens: Tokens, options?: SignInOptions) =>
       completeSignInSteps(
         {
-          storeTokens: (pair) => session.setTokens(pair, null),
+          storeTokens: (pair) => {
+            // A new session: a picker without a business forwards to the wizard once again (armed
+            // before routing, so it can never re-arm after the forward happened), and an immediate
+            // rejection of these tokens counts as a failed sign-in, not a normal sign-out.
+            resetCreateBusinessForward();
+            markSignedIn();
+            return session.setTokens(pair, null);
+          },
           loadProfile: () => authService.getMe(),
           syncLocale,
           route: (profile) => route(profile, null),

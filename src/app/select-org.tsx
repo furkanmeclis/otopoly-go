@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Building2, Clock, LogOut, Plus } from 'lucide-react-native';
-import { useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { BrandMark } from '@/components/brand';
@@ -34,11 +34,15 @@ export default function SelectOrganizationScreen() {
   const canCreate = registrationOpen(config.data);
   const email = me?.user.email ?? '';
 
-  // New accounts (sign-up, first Apple / Google sign-in) have no business yet: open the setup wizard.
+  // New accounts (sign-up, first Apple / Google sign-in) have no business yet: open the setup wizard,
+  // once per sign-in. On focus, so the push lands after the navigator switch into this screen; coming
+  // back from the wizard focuses this screen again but does not forward a second time (no bounce).
   const forwardReady = none && config.isSuccess && canCreate;
-  useEffect(() => {
-    if (forwardReady && takeCreateBusinessForward()) router.push('/create-business');
-  }, [forwardReady]);
+  useFocusEffect(
+    useCallback(() => {
+      if (forwardReady && takeCreateBusinessForward()) router.push('/create-business');
+    }, [forwardReady]),
+  );
 
   const choose = async (slug: string, name: string) => {
     setBusy(slug);

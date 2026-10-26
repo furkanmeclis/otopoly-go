@@ -19,6 +19,7 @@ import { SocialButtons } from '@/features/auth/components/social-buttons';
 import { authErrorMessage, PROVIDER_NAME } from '@/features/auth/lib/auth-errors';
 import { signInWithAppleNative, signInWithGoogleNative } from '@/features/auth/native/social';
 import { passwordlessService, type OAuthProvider } from '@/features/auth/services/passwordless.service';
+import { SHEET_DISMISS_TIMEOUT_MS } from '@/features/auth/lib/sign-in-flow';
 import { useSignInFlow } from '@/features/auth/use-sign-in-flow';
 import { onboardingService, registrationOpen } from '@/features/onboarding/services/onboarding.service';
 import { useLocale } from '@/lib/i18n/provider';
@@ -73,8 +74,19 @@ export default function LoginScreen() {
     }
   };
 
+  // iOS cannot present the link sheet while the demo picker is still sliding out: wait for it first.
+  const demoSheetGone = useRef<(() => void) | null>(null);
   const demoIdentity = async (identity: DemoIdentity) => {
-    setDemoProvider(null);
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => done(), SHEET_DISMISS_TIMEOUT_MS);
+      const done = () => {
+        clearTimeout(timer);
+        demoSheetGone.current = null;
+        resolve();
+      };
+      demoSheetGone.current = done;
+      setDemoProvider(null);
+    });
     const nonce = Math.random().toString(36).slice(2);
     const input = { id_token: demoIdToken(identity, nonce), nonce, given_name: identity.given_name, family_name: identity.family_name };
     setSocialBusy(identity.provider);
@@ -143,6 +155,7 @@ export default function LoginScreen() {
                 />
               )}
               {mode === 'code' && error ? <Notice message={error} /> : null}
+              {flow.notice && flow.notice !== error ? <Notice message={flow.notice} /> : null}
               <SocialButtons onPress={social} busy={socialBusy} disabled={busy} />
             </View>
           )}
@@ -167,7 +180,7 @@ export default function LoginScreen() {
       </KeyboardAvoidingView>
 
       <LinkAccountSheet choice={flow.linkChoice} flow={flow} />
-      {isMock ? <DemoIdentitySheet provider={demoProvider} onClose={() => setDemoProvider(null)} onPick={demoIdentity} /> : null}
+      {isMock ? <DemoIdentitySheet provider={demoProvider} onClose={() => setDemoProvider(null)} onPick={demoIdentity} onDismissed={() => demoSheetGone.current?.()} /> : null}
     </SafeAreaView>
   );
 }

@@ -193,6 +193,16 @@ function link(provider: string, sub: string, user: MockUser) {
   ext()._oauthIdentities = [...identities(), { provider, sub, userUuid: user.uuid, linkedAt: now() }];
 }
 
+/** Relay account without its identity: status and 2FA as for any sign-in, never over another Apple ID. */
+function relinkRelayOwner(user: MockUser, provider: string, sub: string, ctx: MockCtx) {
+  if (identities().some((i) => i.provider === provider && i.userUuid === user.uuid && i.sub !== sub)) {
+    fail(409, 'CONFLICT', 'The account already has an identity for this provider');
+  }
+  const tokens = signIn(user, ctx);
+  if (!identities().some((i) => i.provider === provider && i.sub === sub)) link(provider, sub, user);
+  return tokens;
+}
+
 route(
   'POST',
   '/v1/auth/oauth/:provider/native',
@@ -216,7 +226,10 @@ route(
       return signIn(user!, ctx);
     }
     const email = identity.email.toLowerCase();
-    if (findUser(email)) fail(409, 'OAUTH_ACCOUNT_NOT_LINKED', 'Sign in the usual way and link this provider from your profile');
+    const owner = findUser(email);
+    // Backend: only that Apple ID can present its relay address, so its account signs in and re-links.
+    if (owner && provider === 'apple' && email.endsWith(RELAY_DOMAIN)) return relinkRelayOwner(owner, provider, identity.sub, ctx);
+    if (owner) fail(409, 'OAUTH_ACCOUNT_NOT_LINKED', 'Sign in the usual way and link this provider from your profile');
     const registerAllowed = ext()._registrationEnabled !== false && identity.registerAllowed !== false;
     if (provider === 'apple' && email.endsWith(RELAY_DOMAIN)) {
       const ticket = `mock-lt.${uuid()}`;
@@ -298,14 +311,16 @@ route(
   '/v1/auth/oauth/link/create',
   (ctx) => {
     const { row } = ticketOf(ctx);
-    if (!row.registerAllowed) fail(403, 'FORBIDDEN', 'Registration is disabled');
     const existing = findUser(row.email);
     if (existing) {
       // Retrying with the same ticket signs into the account the first call created.
       const mine = identities().some((i) => i.provider === row.provider && i.sub === row.sub && i.userUuid === existing.uuid);
-      if (!mine) fail(409, 'CONFLICT', 'This email was registered meanwhile');
-      return signIn(existing, ctx);
+      if (mine) return signIn(existing, ctx);
+      // The relay account lost its identity (or an earlier create stopped before linking): re-link.
+      if (row.provider === 'apple' && row.email.endsWith(RELAY_DOMAIN)) return relinkRelayOwner(existing, row.provider, row.sub, ctx);
+      fail(409, 'CONFLICT', 'This email was registered meanwhile');
     }
+    if (!row.registerAllowed) fail(403, 'FORBIDDEN', 'Registration is disabled');
     const user = createOAuthUser(row.email, row.given_name, row.family_name);
     link(row.provider, row.sub, user);
     return signIn(user, ctx);

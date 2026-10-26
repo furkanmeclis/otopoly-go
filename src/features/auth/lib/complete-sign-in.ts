@@ -18,6 +18,12 @@ export type SignInOptions = {
    * sign-up screen saves the name a code sign-up could not send). Failures are logged, never block sign-in.
    */
   prepare?: () => Promise<void>;
+  /**
+   * Runs once the profile has loaded, right before routing switches the navigator: whatever the
+   * sign-in screen still shows on top (the "Hesabım var mı?" sheet) is closed here, so no native modal
+   * outlives the screen that presented it. Failures are logged and never block sign-in.
+   */
+  beforeRoute?: () => Promise<void>;
 };
 
 /** Where a freshly loaded profile goes: straight into an organization, or to the picker. */
@@ -59,6 +65,13 @@ export async function completeSignInSteps(deps: CompleteSignInDeps, tokens: Toke
   try {
     const profile = await deps.loadProfile();
     deps.syncLocale(profile);
+    if (options?.beforeRoute) {
+      try {
+        await options.beforeRoute();
+      } catch (error) {
+        log.warn('Closing the sign-in screen failed', error);
+      }
+    }
     await deps.route(profile);
     deps.signedIn(profile);
   } catch (error) {

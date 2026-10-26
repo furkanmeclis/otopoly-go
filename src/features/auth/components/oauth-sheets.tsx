@@ -17,11 +17,12 @@ import { EmailCodeForm } from './email-code-form';
  * `409 OAUTH_LINK_CHOICE_REQUIRED` (Apple private relay, no account): "Hesabım var mı?"
  *   Yes → account e-mail → code → `/oauth/link/verify` (links Apple to that account)
  *   No  → `/oauth/link/create` (hidden when `register_allowed` is "false")
- * MFA and success are handled by the shared sign-in flow, which closes this sheet.
+ * MFA and success are handled by the shared sign-in flow, which closes this sheet — on success before
+ * the app routes on, waiting for `onDismissed`, so the native modal never outlives the login screen.
  */
 export function LinkAccountSheet({ choice, flow }: { choice: LinkChoice | null; flow: SignInFlow }) {
   return (
-    <Sheet visible={Boolean(choice)} onClose={flow.closeLinkChoice} title={useLocale().t('mobile.auth.link.title')}>
+    <Sheet visible={Boolean(choice)} onClose={flow.closeLinkChoice} onDismissed={flow.sheetDismissed} title={useLocale().t('mobile.auth.link.title')}>
       {choice ? <LinkAccountBody key={choice.linkTicket} choice={choice} flow={flow} /> : null}
     </Sheet>
   );
@@ -73,6 +74,7 @@ function LinkAccountBody({ choice, flow }: { choice: LinkChoice; flow: SignInFlo
           size="lg"
           fullWidth
           loading={flow.busy}
+          disabled={flow.busy}
           onPress={create}
         />
       ) : (
@@ -104,12 +106,22 @@ export function NotLinkedNotice({ provider, onUseCode, onDismiss }: { provider: 
 }
 
 /** Demo builds: pick a sample Apple / Google identity instead of the real native sheet. */
-export function DemoIdentitySheet({ provider, onClose, onPick }: { provider: OAuthProvider | null; onClose: () => void; onPick: (identity: DemoIdentity) => void }) {
+export function DemoIdentitySheet({
+  provider,
+  onClose,
+  onPick,
+  onDismissed,
+}: {
+  provider: OAuthProvider | null;
+  onClose: () => void;
+  onPick: (identity: DemoIdentity) => void;
+  onDismissed?: () => void;
+}) {
   const t = useTheme();
   const { t: tr } = useLocale();
   const items = DEMO_IDENTITIES.filter((i) => i.provider === provider);
   return (
-    <Sheet visible={Boolean(provider)} onClose={onClose} title={tr('mobile.auth.demo.choose_title')}>
+    <Sheet visible={Boolean(provider)} onClose={onClose} onDismissed={onDismissed} title={tr('mobile.auth.demo.choose_title')}>
       <Txt variant="caption" tone="secondary">
         {tr('mobile.auth.demo.choose_hint', { provider: provider ? PROVIDER_NAME[provider] : '' })}
       </Txt>
