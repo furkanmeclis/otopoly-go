@@ -118,6 +118,9 @@ export const useCatalogCategories = (kind?: 'product' | 'service') =>
 
 // ─── Finance ───────────────────────────────────────────────────────────────
 
+/** The day's collections (finance ledger); disabled for members without finance read. */
+export const useFinanceToday = (date: string, enabled = true) =>
+  useQuery({ queryKey: [...qk.finance, 'today', date], queryFn: () => financeService.today({ date, days: 0 }), enabled, refetchInterval: 60_000 });
 export const useFinanceSummary = (params: { date_from?: string; date_to?: string }) =>
   useQuery({ queryKey: [...qk.finance, 'summary', params], queryFn: () => financeService.summary(params), placeholderData: keepPreviousData });
 export const useFinanceAccounts = (activeOnly = false) =>

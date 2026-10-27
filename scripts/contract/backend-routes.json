@@ -1,5 +1,5 @@
 {
- "source": "otopoly-go mux.Handle(\"METHOD /v1/...\") registrations under backend/internal/** at feat/identity-native-link 872e194 and feat/expo-push-limits 569bc63 (union). Used to tell spec gaps (route exists, not documented) from missing backend endpoints.; plus the review routes of otopoly-go wt/reviews (modules/reviews/routes.go)",
+ "source": "otopoly-go mux.Handle(\"METHOD /v1/...\") registrations under backend/internal/** at feat/identity-native-link 872e194 and feat/expo-push-limits 569bc63 (union). Used to tell spec gaps (route exists, not documented) from missing backend endpoints.; plus the review routes of otopoly-go wt/reviews (modules/reviews/routes.go); plus GET /v1/tenant/finance/today and GET /v1/tenant/live-activities/widget-snapshot of otopoly-go wt/widgets",
  "routes": [
   "DELETE /v1/auth/identities/{provider}",
   "DELETE /v1/auth/passkeys/{uuid}",
@@ -514,6 +514,8 @@
   "POST /v1/tenant/reviews/{uuid}/follow-up",
   "GET /v1/public/reviews/{token}",
   "POST /v1/public/reviews/{token}",
-  "POST /v1/public/reviews/{token}/google"
+  "POST /v1/public/reviews/{token}/google",
+  "GET /v1/tenant/finance/today",
+  "GET /v1/tenant/live-activities/widget-snapshot"
  ]
 }

@@ -1419,3 +1419,10 @@ function seed(s: Store, org: string) {
   if (others[0]) sub(others[0], unlimited, -28);
   if (others[1]) sub(others[1], monthly4, -40);
 }
+
+/** Widget alert: active subscriptions past due or renewing within `horizon` days (backend LoyaltyRenewalCounts). */
+export function subscriptionRenewalsDue(org: string, day: string, horizon: number) {
+  if (!org) return 0;
+  const until = istanbulDay(new Date(new Date(`${day}T12:00:00+03:00`).getTime() + horizon * 86400000));
+  return orgData(org).subscriptions.filter((s) => s.status === 'active' && s.paid_through <= until).length;
+}

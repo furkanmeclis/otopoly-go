@@ -447,3 +447,10 @@ export function followUpReviewUuid(org: string) {
   seed(org);
   return rows.find((r) => r._org === org && r.follow_up_status === 'required')?.uuid;
 }
+
+/** Widget alert: answered reviews waiting for a follow-up (backend WidgetReviewFollowUpCount). */
+export function reviewFollowUpsDue(org: string) {
+  if (!org) return 0;
+  seed(org);
+  return rows.filter((r) => r._org === org && r.kind === 'job' && r.follow_up_status === 'required').length;
+}

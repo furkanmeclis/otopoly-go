@@ -41,6 +41,7 @@ import { P } from '@/features/auth/permissions';
 import { JobElapsed, useNow } from '@/features/jobs/components/job-parts';
 import { isStale, localToday, shiftDate } from '@/features/jobs/lib/job-ui';
 import {
+  useFinanceToday,
   useJobs,
   useJobsSummary,
   useLeadsSummary,
@@ -141,6 +142,11 @@ function TodaySection() {
   const now = useNow();
   const jobsQuery = useJobs({ limit: 100, offset: 0, sort: '-started_at', date_from: today, date_to: today, include_open: 'true' });
   const summary = useJobsSummary(today);
+  // "Bugünkü tahsilat" is every collection of the day (finance ledger); without finance read the tile
+  // shows the jobs revenue instead.
+  const { can } = useAuth();
+  const canFinance = can(P.financeRead);
+  const money = useFinanceToday(today, canFinance);
   const jobs = jobsQuery.data?.items ?? [];
   const inProgress = jobs.filter((j) => j.status === 'in_progress');
   const ready = jobs.filter((j) => j.status === 'ready');
@@ -177,9 +183,11 @@ function TodaySection() {
     {
       icon: <Wallet size={18} color={t.colors.primary} />,
       bg: t.colors.primarySoft,
-      label: tr('dashboard.tenant.collected_today'),
-      value: fmt.money(summary.data?.paid_total),
-      hint: tr('dashboard.tenant.card_cari', { card: fmt.moneyCompact(summary.data?.card_total), cari: fmt.moneyCompact(summary.data?.cari_total) }),
+      label: tr(canFinance ? 'dashboard.tenant.collected_today' : 'dashboard.tenant.jobs_revenue_today'),
+      value: canFinance ? fmt.money(money.data?.collected_total, money.data?.currency) : fmt.money(summary.data?.paid_total),
+      hint: canFinance
+        ? tr('dashboard.tenant.cash_card_jobs', { cash: fmt.moneyCompact(money.data?.by_method.cash), card: fmt.moneyCompact(money.data?.by_method.card), jobs: fmt.moneyCompact(summary.data?.paid_total) })
+        : tr('dashboard.tenant.card_cari', { card: fmt.moneyCompact(summary.data?.card_total), cari: fmt.moneyCompact(summary.data?.cari_total) }),
     },
   ];
 

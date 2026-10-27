@@ -1,3 +1,4 @@
+import type { components } from "@/api/generated/api";
 import type { ServerListParams } from "@/api/types";
 import type { ResourceMeta } from "@/features/io/types";
 import { platformRequest } from "@/api/client";
@@ -117,6 +118,9 @@ export type FinanceSummary = {
   }[];
 };
 
+/** GET /v1/tenant/finance/today: a business day's collections ("tahsilat"), see docs/LIVE_WIDGETS.md. */
+export type FinanceToday = components['schemas']['FinanceToday'];
+
 export type ListPage<T> = {
   items: T[];
   total: number;
@@ -125,6 +129,9 @@ export type ListPage<T> = {
 };
 
 export const financeService = {
+  today(params?: { date?: string; days?: number; currency?: string }) {
+    return platformRequest<FinanceToday>("GET", "/v1/tenant/finance/today", { query: params });
+  },
   summary(params?: {
     date_from?: string;
     date_to?: string;
