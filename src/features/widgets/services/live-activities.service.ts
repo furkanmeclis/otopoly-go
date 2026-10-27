@@ -7,6 +7,7 @@ export type LiveActivityInput = Schemas['LiveActivityInput'];
 export type LiveActivity = Schemas['LiveActivity'];
 export type LiveActivityDeviceInput = Schemas['LiveActivityDeviceInput'];
 export type LiveActivityDevice = Schemas['LiveActivityDevice'];
+export type WidgetSnapshotDto = Schemas['WidgetSnapshot'];
 
 /**
  * Server-side registry of running job Live Activities / Live Updates and of the organization whose
@@ -14,6 +15,10 @@ export type LiveActivityDevice = Schemas['LiveActivityDevice'];
  * Every call is silent: these are background bookkeeping, never worth a toast.
  */
 export const liveActivitiesService = {
+  /** The caller's permission-filtered widget snapshot (same data as a `widgets.refresh` push). */
+  widgetSnapshot() {
+    return request<WidgetSnapshotDto>('GET', '/v1/tenant/live-activities/widget-snapshot', { silent: true });
+  },
   registerDevice(body: LiveActivityDeviceInput) {
     return request<LiveActivityDevice>('PUT', '/v1/tenant/live-activities/device', { body, silent: true });
   },

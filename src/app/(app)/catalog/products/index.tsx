@@ -17,6 +17,7 @@ import { useTheme } from '@/theme/provider';
 import { useLiveResource } from '@/features/live/use-live-resource';
 
 type StockFilter = 'all' | 'in_stock' | 'low_stock' | 'out_of_stock' | 'untracked';
+const STOCK_FILTERS: StockFilter[] = ['all', 'in_stock', 'low_stock', 'out_of_stock', 'untracked'];
 type ActiveFilter = 'all' | 'true' | 'false';
 const SORTS = ['name', '-name', 'sale_price', '-sale_price', 'stock_quantity', '-stock_quantity'] as const;
 type Sort = (typeof SORTS)[number];
@@ -35,9 +36,10 @@ function ProductsList() {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
   const { canWrite } = useCatalogAccess();
-  const params = useLocalSearchParams<{ category?: string }>();
+  const params = useLocalSearchParams<{ category?: string; stock?: string }>();
   const [q, setQ] = useState('');
-  const [stock, setStock] = useState<StockFilter>('all');
+  // `?stock=low_stock` (Uyarılar widget) opens the list on that filter.
+  const [stock, setStock] = useState<StockFilter>(STOCK_FILTERS.includes(params.stock as StockFilter) ? (params.stock as StockFilter) : 'all');
   const [category, setCategory] = useState<string | null>(params.category ?? null);
   const [unit, setUnit] = useState<string | null>(null);
   const [active, setActive] = useState<ActiveFilter>('all');

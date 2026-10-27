@@ -17,7 +17,8 @@ import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 import type { TodayWidgetProps } from './types';
 
 /**
- * "Otopoly · Bugün" home-screen widget (small / medium / large).
+ * "Otopoly · Bugün" home-screen widget (small / medium / large): open jobs by status and, for members
+ * with finance read, the day's collections ("tahsilat", every posted income of the Istanbul day).
  *
  * Runs in the widget runtime: everything (palette, helpers) must live inside the function and
  * only @expo/ui/swift-ui components may be rendered. Keep imports un-aliased — the runtime
@@ -30,8 +31,8 @@ const OtopolyToday = (props: TodayWidgetProps, environment: WidgetEnvironment) =
     ? { bg: '#1C1714', card: '#2A221E', text: '#F7F1ED', sub: '#C4B3AA', muted: '#8E7C73', brand: '#F07D55', warn: '#FBBF24', info: '#60A5FA', ok: '#4ADE80', plate: '#F7F1ED', plateText: '#1A1412' }
     : { bg: '#FFFFFF', card: '#F6EFEA', text: '#1A1412', sub: '#6B5E57', muted: '#9C8880', brand: '#EA6E43', warn: '#B45309', info: '#2563EB', ok: '#15803D', plate: '#FFFFFF', plateText: '#1A1412' };
   const family = environment.widgetFamily;
-  const ready = Boolean(props && props.v === 1);
-  const home = 'otopoly://operations';
+  const ready = Boolean(props && props.v === 2);
+  const home = ready ? props.links.home : 'otopoly://operations';
 
   const root = (content: any, url: string) => (
     <VStack alignment="leading" spacing={0} modifiers={[frame({ maxWidth: 1000, maxHeight: 1000, alignment: 'topLeading' }), containerBackground(c.bg, 'widget'), widgetURL(url)]}>
@@ -52,7 +53,7 @@ const OtopolyToday = (props: TodayWidgetProps, environment: WidgetEnvironment) =
   );
 
   if (!ready || props.state !== 'ok') {
-    const message = !ready ? "Otopoly'yi açın" : props.state === 'noAccess' ? props.labels.noAccess : props.labels.signedOut;
+    const message = !ready ? "Otopoly'yi açın · Open Otopoly" : props.state === 'noAccess' ? props.labels.noAccess : props.labels.signedOut;
     return root(
       <VStack alignment="leading" spacing={8}>
         {brandRow(ready && props.org ? props.org : 'Otopoly')}
@@ -107,6 +108,7 @@ const OtopolyToday = (props: TodayWidgetProps, environment: WidgetEnvironment) =
         {props.showMoney ? (
           <Text modifiers={[padding({ top: 4 }), font({ size: 12, weight: 'semibold' }), foregroundStyle(c.sub), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.7)]}>{s.collected}</Text>
         ) : null}
+        <Text modifiers={[padding({ top: 2 }), font({ size: 9 }), foregroundStyle(c.muted), lineLimit(1)]}>{props.asOf}</Text>
       </VStack>,
       home,
     );
@@ -127,7 +129,17 @@ const OtopolyToday = (props: TodayWidgetProps, environment: WidgetEnvironment) =
           <Spacer />
           {statLine('key.fill', c.info, L.ready, s.ready)}
           {statLine('checkmark.circle.fill', c.ok, L.delivered, s.delivered)}
-          {statLine('exclamationmark.circle.fill', s.stale > 0 ? c.warn : c.muted, L.inProgress, s.inProgress)}
+          {props.showMoney && s.jobsRevenue ? (
+            <HStack spacing={8}>
+              <Image systemName="wrench.and.screwdriver.fill" size={12} color={c.muted} modifiers={[frame({ width: 26, height: 26 }), background(c.card), clipShape('roundedRectangle', 8)]} />
+              <Text modifiers={[font({ size: 13 }), foregroundStyle(c.sub), lineLimit(1)]}>{L.jobsRevenue}</Text>
+              <Spacer />
+              <Text modifiers={[font({ size: 13, weight: 'semibold', design: 'rounded' }), foregroundStyle(c.text), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.6)]}>{s.jobsRevenue}</Text>
+            </HStack>
+          ) : (
+            statLine('exclamationmark.circle.fill', s.stale > 0 ? c.warn : c.muted, L.open, s.open)
+          )}
+          <Text modifiers={[font({ size: 10 }), foregroundStyle(c.muted), lineLimit(1)]}>{props.asOf}</Text>
           <Spacer />
         </VStack>
       </HStack>,
@@ -149,7 +161,7 @@ const OtopolyToday = (props: TodayWidgetProps, environment: WidgetEnvironment) =
     <VStack alignment="leading" spacing={10}>
       <HStack spacing={6}>
         {brandRow(props.org)}
-        <Text modifiers={[font({ size: 11 }), foregroundStyle(c.muted)]} date={new Date(props.updatedAt)} dateStyle="time" />
+        <Text modifiers={[font({ size: 11 }), foregroundStyle(c.muted), lineLimit(1)]}>{props.asOf}</Text>
       </HStack>
       <HStack spacing={8}>
         {tile('wrench.and.screwdriver.fill', c.warn, L.inProgress, String(s.inProgress))}
@@ -170,7 +182,7 @@ const OtopolyToday = (props: TodayWidgetProps, environment: WidgetEnvironment) =
       ) : (
         <VStack alignment="leading" spacing={7}>
           {rows.map((job) => (
-            <Link key={job.id} destination={`otopoly://jobs/${job.id}`}>
+            <Link key={job.id} destination={job.url}>
               <HStack spacing={8}>
                 <Text
                   modifiers={[
@@ -201,8 +213,8 @@ const OtopolyToday = (props: TodayWidgetProps, environment: WidgetEnvironment) =
               </HStack>
             </Link>
           ))}
-          {props.queue.length > rows.length ? (
-            <Text modifiers={[font({ size: 11 }), foregroundStyle(c.muted)]}>{`+${props.queue.length - rows.length} ${L.more}`}</Text>
+          {props.queue.length + props.more > rows.length ? (
+            <Text modifiers={[font({ size: 11 }), foregroundStyle(c.muted)]}>{`+${props.queue.length + props.more - rows.length} ${L.more}`}</Text>
           ) : null}
         </VStack>
       )}

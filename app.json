@@ -218,14 +218,99 @@
               "android": null
             },
             {
+              "name": "OtopolyQueue",
+              "displayName": "Otopoly · Sıradaki araçlar",
+              "description": "Hazır ve işlemdeki araçlar; dokunarak işi açın.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemMedium",
+                  "systemLarge"
+                ]
+              },
+              "android": null
+            },
+            {
+              "name": "OtopolyCash",
+              "displayName": "Otopoly · Kasa durumu",
+              "description": "Günün tahsilatı, giren-çıkan ve kasa/banka bakiyeleri.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              },
+              "android": null
+            },
+            {
+              "name": "OtopolyWeek",
+              "displayName": "Otopoly · Haftalık ciro",
+              "description": "Son 7 günün tahsilatı, gün gün.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              },
+              "android": null
+            },
+            {
+              "name": "OtopolyAlerts",
+              "displayName": "Otopoly · Uyarılar",
+              "description": "Ödenmemiş teslimler, azalan stok, yenilemesi gelen abonelikler ve takip bekleyen yorumlar.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              },
+              "android": null
+            },
+            {
+              "name": "OtopolyAgenda",
+              "displayName": "Otopoly · Bugünkü takvim",
+              "description": "Günün sıradaki randevuları ve yapılacakları.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              },
+              "android": null
+            },
+            {
               "name": "OtopolyGlance",
-              "displayName": "Otopoly · Kilit Ekranı",
-              "description": "Kilit ekranında aktif iş sayısı ve günün tahsilatı.",
+              "displayName": "Otopoly · Açık işler",
+              "description": "Kilit ekranında açık iş sayısı ve günün tahsilatı.",
               "ios": {
                 "supportedFamilies": [
                   "accessoryCircular",
                   "accessoryRectangular",
                   "accessoryInline"
+                ]
+              },
+              "android": null
+            },
+            {
+              "name": "OtopolyCollectedGlance",
+              "displayName": "Otopoly · Tahsilat",
+              "description": "Kilit ekranında günün tahsilatı.",
+              "ios": {
+                "supportedFamilies": [
+                  "accessoryCircular",
+                  "accessoryRectangular",
+                  "accessoryInline"
+                ]
+              },
+              "android": null
+            },
+            {
+              "name": "OtopolyNewJob",
+              "displayName": "Otopoly · Yeni iş",
+              "description": "Kilit ekranından tek dokunuşla yeni iş açın.",
+              "ios": {
+                "supportedFamilies": [
+                  "accessoryCircular",
+                  "accessoryRectangular"
                 ]
               },
               "android": null
@@ -257,12 +342,69 @@
                 "resizeMode": "both",
                 "initialLayout": "./src/widgets/android/queue-widget.tsx"
               }
+            },
+            {
+              "name": "OtopolyCashAndroid",
+              "displayName": "Otopoly · Kasa durumu",
+              "description": "Günün tahsilatı, giren-çıkan ve kasa/banka bakiyeleri.",
+              "ios": null,
+              "android": {
+                "minWidth": 180,
+                "minHeight": 180,
+                "targetCellWidth": 3,
+                "targetCellHeight": 3,
+                "resizeMode": "both",
+                "initialLayout": "./src/widgets/android/cash-widget.tsx"
+              }
+            },
+            {
+              "name": "OtopolyWeekAndroid",
+              "displayName": "Otopoly · Haftalık ciro",
+              "description": "Son 7 günün tahsilatı, gün gün.",
+              "ios": null,
+              "android": {
+                "minWidth": 220,
+                "minHeight": 140,
+                "targetCellWidth": 4,
+                "targetCellHeight": 2,
+                "resizeMode": "both",
+                "initialLayout": "./src/widgets/android/week-widget.tsx"
+              }
+            },
+            {
+              "name": "OtopolyAlertsAndroid",
+              "displayName": "Otopoly · Uyarılar",
+              "description": "Ödenmemiş teslimler, azalan stok, yenilemesi gelen abonelikler ve takip bekleyen yorumlar.",
+              "ios": null,
+              "android": {
+                "minWidth": 180,
+                "minHeight": 140,
+                "targetCellWidth": 3,
+                "targetCellHeight": 2,
+                "resizeMode": "both",
+                "initialLayout": "./src/widgets/android/alerts-widget.tsx"
+              }
+            },
+            {
+              "name": "OtopolyAgendaAndroid",
+              "displayName": "Otopoly · Bugünkü takvim",
+              "description": "Günün sıradaki randevuları ve yapılacakları.",
+              "ios": null,
+              "android": {
+                "minWidth": 180,
+                "minHeight": 140,
+                "targetCellWidth": 3,
+                "targetCellHeight": 2,
+                "resizeMode": "both",
+                "initialLayout": "./src/widgets/android/agenda-widget.tsx"
+              }
             }
           ]
         }
       ],
       "expo-app-intents",
       "./plugins/with-app-intents-locales",
+      "./plugins/with-widget-locales",
       "expo-apple-authentication",
       [
         "react-native-nitro-google-signin",

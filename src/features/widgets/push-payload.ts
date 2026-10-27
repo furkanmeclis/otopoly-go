@@ -12,14 +12,45 @@ export const LIVE_JOB_KIND = 'live.job';
 export const WIDGETS_REFRESH_KIND = 'widgets.refresh';
 export const SILENT_PUSH_KINDS: readonly string[] = [LIVE_JOB_KIND, WIDGETS_REFRESH_KIND];
 
+/** Money of the day (only for members with tenant.finance.read); decimal strings. */
+export type WidgetSnapshotMoney = {
+  cur: string;
+  /** The day's collections ("tahsilat": every posted income of the Istanbul day, no transfers / voids). */
+  collected: string;
+  /** Jobs revenue ("işlerden ciro"): paid jobs, cari closes included — not money in. */
+  jobs: string;
+  cash: string;
+  card: string;
+  transfer: string;
+  other: string;
+  expense: string;
+  net: string;
+  /** Collections per day, 7 days, oldest first, ending on `date`. */
+  week: string[];
+  accounts: { n: string; t: string; b: string }[];
+};
+
+/** A missing count is a module the member may not read. */
+export type WidgetSnapshotAlerts = { stock?: number; reviews?: number; renewals?: number; unpaid?: number };
+
+export type WidgetSnapshotAgendaItem = { k: 'event' | 'todo'; id: string; t: string; at: string };
+
+/**
+ * The `widgets.refresh` snapshot (= GET /v1/tenant/live-activities/widget-snapshot). Built per recipient:
+ * `money` / `alerts.*` / `agenda` are absent when the member may not see them.
+ */
 export type WidgetSnapshot = {
   v: 1;
   date: string;
   at: number;
   counts: { in_progress: number; ready: number; delivered: number };
+  /** Legacy copy of money.collected ('' without finance read). */
   paid_total: string;
   queue: { id: string; plate: string; name: string; vehicle: string; status: 'in_progress' | 'ready'; started_at: string }[];
   more: number;
+  money?: WidgetSnapshotMoney;
+  alerts?: WidgetSnapshotAlerts;
+  agenda?: { items: WidgetSnapshotAgendaItem[] };
 };
 
 export type LiveJobPush = {
@@ -88,7 +119,8 @@ function parseProps(v: unknown): JobActivityProps | null {
   };
 }
 
-function parseSnapshot(v: unknown): WidgetSnapshot | null {
+/** A snapshot from a push or from GET /live-activities/widget-snapshot; null when malformed. */
+export function parseWidgetSnapshot(v: unknown): WidgetSnapshot | null {
   if (!isObj(v) || v.v !== 1 || !isObj(v.counts) || !Array.isArray(v.queue)) return null;
   const c = v.counts;
   if (!isNum(c.in_progress) || !isNum(c.ready) || !isNum(c.delivered)) return null;
@@ -104,16 +136,62 @@ function parseSnapshot(v: unknown): WidgetSnapshot | null {
       started_at: isStr(q.started_at) ? q.started_at : '',
     });
   }
-  return {
+  const out: WidgetSnapshot = {
     v: 1,
     date: isStr(v.date) ? v.date : '',
     at: isNum(v.at) ? v.at : 0,
     counts: { in_progress: c.in_progress, ready: c.ready, delivered: c.delivered },
-    paid_total: isStr(v.paid_total) ? v.paid_total : '0',
+    paid_total: isStr(v.paid_total) ? v.paid_total : '',
     queue,
     more: isNum(v.more) ? v.more : 0,
   };
+  const money = parseMoney(v.money);
+  if (money) out.money = money;
+  if (isObj(v.alerts)) {
+    const a: WidgetSnapshotAlerts = {};
+    for (const key of ['stock', 'reviews', 'renewals', 'unpaid'] as const) {
+      const n = v.alerts[key];
+      if (isNum(n) && n >= 0) a[key] = Math.floor(n);
+    }
+    out.alerts = a;
+  }
+  if (isObj(v.agenda) && Array.isArray(v.agenda.items)) {
+    const items: WidgetSnapshotAgendaItem[] = [];
+    for (const it of v.agenda.items) {
+      if (!isObj(it) || !isStr(it.id) || (it.k !== 'event' && it.k !== 'todo')) continue;
+      items.push({ k: it.k, id: it.id, t: isStr(it.t) ? it.t : '', at: isStr(it.at) ? it.at : '' });
+    }
+    out.agenda = { items };
+  }
+  return out;
 }
+
+const DECIMAL_RE = /^-?\d+(\.\d+)?$/;
+const dec = (x: unknown) => (isStr(x) && DECIMAL_RE.test(x) ? x : '0.00');
+
+function parseMoney(v: unknown): WidgetSnapshotMoney | undefined {
+  if (!isObj(v) || !isStr(v.collected) || !DECIMAL_RE.test(v.collected)) return undefined;
+  const accounts: WidgetSnapshotMoney['accounts'] = [];
+  if (Array.isArray(v.accounts)) {
+    for (const a of v.accounts) if (isObj(a) && isStr(a.n)) accounts.push({ n: a.n, t: isStr(a.t) ? a.t : '', b: dec(a.b) });
+  }
+  return {
+    cur: isStr(v.cur) && /^[A-Z]{3}$/.test(v.cur) ? v.cur : 'TRY',
+    collected: v.collected,
+    jobs: dec(v.jobs),
+    cash: dec(v.cash),
+    card: dec(v.card),
+    transfer: dec(v.transfer),
+    other: dec(v.other),
+    expense: dec(v.expense),
+    net: dec(v.net),
+    week: Array.isArray(v.week) ? v.week.slice(-7).map(dec) : [],
+    accounts: accounts.slice(0, 4),
+  };
+}
+
+/** The data of a widget push must stay under this (APNs / FCM allow 4 KB per message with the envelope). */
+export const WIDGET_PUSH_DATA_BUDGET = 3000;
 
 /** A livepush data message, or null for anything else (regular notifications, malformed data). */
 export function parseLivePush(raw: unknown): LivePush | null {
@@ -126,7 +204,7 @@ export function parseLivePush(raw: unknown): LivePush | null {
     return { kind: LIVE_JOB_KIND, org: d.org, job: d.job, end, props, sentAt: isNum(d.sent_at) ? d.sent_at : 0 };
   }
   if (d.kind === WIDGETS_REFRESH_KIND) {
-    const snapshot = parseSnapshot(d.snapshot);
+    const snapshot = parseWidgetSnapshot(d.snapshot);
     return snapshot ? { kind: WIDGETS_REFRESH_KIND, org: d.org, snapshot } : null;
   }
   return null;

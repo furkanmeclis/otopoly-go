@@ -2,7 +2,29 @@
   "ios": {
     "CFBundleDisplayName": "Otopoly",
     "NSCameraUsageDescription": "Otopoly, web oturumunu onaylamak için QR kodu okutmak ve sözleşmelere araç fotoğrafı eklemek üzere kameranızı kullanır.",
-    "NSPhotoLibraryUsageDescription": "Otopoly, seçtiğiniz araç fotoğraflarını ve belgeleri sözleşmelere eklemek için fotoğraf arşivinize erişir."
+    "NSPhotoLibraryUsageDescription": "Otopoly, seçtiğiniz araç fotoğraflarını ve belgeleri sözleşmelere eklemek için fotoğraf arşivinize erişir.",
+    "Localizable.strings": {
+      "Günün sayıları ve sıradaki araçlar; liste kaydırılabilir.": "Günün sayıları ve sıradaki araçlar; liste kaydırılabilir.",
+      "Günün sıradaki randevuları ve yapılacakları.": "Günün sıradaki randevuları ve yapılacakları.",
+      "Günün tahsilatı, giren-çıkan ve kasa/banka bakiyeleri.": "Günün tahsilatı, giren-çıkan ve kasa/banka bakiyeleri.",
+      "Hazır ve işlemdeki araçlar; dokunarak işi açın.": "Hazır ve işlemdeki araçlar; dokunarak işi açın.",
+      "Kilit ekranında açık iş sayısı ve günün tahsilatı.": "Kilit ekranında açık iş sayısı ve günün tahsilatı.",
+      "Kilit ekranında günün tahsilatı.": "Kilit ekranında günün tahsilatı.",
+      "Kilit ekranından tek dokunuşla yeni iş açın.": "Kilit ekranından tek dokunuşla yeni iş açın.",
+      "Otopoly · Açık işler": "Otopoly · Açık işler",
+      "Otopoly · Bugün": "Otopoly · Bugün",
+      "Otopoly · Bugünkü takvim": "Otopoly · Bugünkü takvim",
+      "Otopoly · Haftalık ciro": "Otopoly · Haftalık ciro",
+      "Otopoly · Kasa durumu": "Otopoly · Kasa durumu",
+      "Otopoly · Sıradaki araçlar": "Otopoly · Sıradaki araçlar",
+      "Otopoly · Tahsilat": "Otopoly · Tahsilat",
+      "Otopoly · Uyarılar": "Otopoly · Uyarılar",
+      "Otopoly · Yeni iş": "Otopoly · Yeni iş",
+      "Otopoly · İş Kuyruğu": "Otopoly · İş Kuyruğu",
+      "Son 7 günün tahsilatı, gün gün.": "Son 7 günün tahsilatı, gün gün.",
+      "Ödenmemiş teslimler, azalan stok, yenilemesi gelen abonelikler ve takip bekleyen yorumlar.": "Ödenmemiş teslimler, azalan stok, yenilemesi gelen abonelikler ve takip bekleyen yorumlar.",
+      "İşlemdeki, hazır ve teslim edilen araçlar ile günün tahsilatı.": "İşlemdeki, hazır ve teslim edilen araçlar ile günün tahsilatı."
+    }
   },
   "android": {
     "app_name": "Otopoly"

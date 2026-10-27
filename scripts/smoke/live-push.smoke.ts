@@ -65,6 +65,7 @@ const snapshot: WidgetSnapshot = {
     { id: 'b', plate: '34 W 2', name: 'Old Car', vehicle: 'Ford Focus', status: 'in_progress', started_at: new Date(WIDGET_NOW - 5 * 3600_000).toISOString() },
   ],
   more: 0,
+  money: { cur: 'TRY', collected: '1250.50', jobs: '900.00', cash: '800.00', card: '450.50', transfer: '0.00', other: '0.00', expense: '0.00', net: '1250.50', week: ['0.00', '0.00', '0.00', '0.00', '0.00', '0.00', '1250.50'], accounts: [] },
 };
 
 (async () => {
@@ -94,7 +95,7 @@ const snapshot: WidgetSnapshot = {
   console.log('widget props from snapshot');
   const fmt = createFormatters('tr');
   const w = buildTodayPropsFromSnapshot({ org: 'Oto Kuaför', logo: '', snapshot, tr: (k, p) => translate('tr', k, p), fmt, now: WIDGET_NOW });
-  ok(w.v === 1 && w.state === 'ok' && w.org === 'Oto Kuaför' && w.showMoney, 'signed-in card with money');
+  ok(w.v === 2 && w.state === 'ok' && w.org === 'Oto Kuaför' && w.showMoney, 'signed-in card with money');
   ok(w.stats.inProgress === 3 && w.stats.ready === 1 && w.stats.delivered === 4, 'counts copied');
   ok(w.stats.collected === fmt.money('1250.50') && w.stats.stale === 1, 'money formatted, stale in-progress car flagged');
   ok(w.queue[0].status === 'ready' && w.queue[0].since !== '' && w.labels.queue === translate('tr', 'mobile.widgets.queue'), 'queue items + translated labels');

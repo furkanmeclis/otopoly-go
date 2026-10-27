@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 
 import { useAuth } from '@/features/auth/auth-provider';
 import { P } from '@/features/auth/permissions';
 import { localToday } from '@/features/jobs/lib/job-ui';
-import { useJobs, useJobsSummary } from '@/features/queries';
+import { qk, useJobs } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 
@@ -21,13 +22,17 @@ import {
   widgetsAvailable,
 } from './bridge';
 import { buildJobActivityProps, buildTodayProps } from './props';
+import { parseWidgetSnapshot } from './push-payload';
+import { liveActivitiesService } from './services/live-activities.service';
 
 const log = createLogger('widgets.sync');
 
 /**
  * Keeps the Home Screen / Lock Screen widgets and running job Live Activities in step with the app.
  * Mounted once inside the signed-in shell; a no-op where widgets are unavailable (Expo Go, web).
- * Uses the same queries as the dashboard, so it adds no extra requests while the dashboard is open.
+ * Counts and queue come from the same jobs query as the dashboard (no extra request while it is open);
+ * money, alerts and agenda from the server snapshot (`GET …/widget-snapshot`, the same permission-
+ * filtered data a background push carries), refetched with the jobs list and at most once a minute.
  */
 export function useWidgetSync() {
   const available = widgetsAvailable();
@@ -36,7 +41,16 @@ export function useWidgetSync() {
   const canJobs = can(P.jobsRead);
   const today = localToday();
   const jobs = useJobs({ limit: 100, offset: 0, sort: '-started_at', date_from: today, date_to: today, include_open: 'true' }, available && canJobs);
-  const summary = useJobsSummary(today, available && canJobs);
+  const canFinance = can(P.financeRead);
+  const snapshotQuery = useQuery({
+    queryKey: [...qk.jobs, 'widget-snapshot', organization?.uuid ?? ''],
+    queryFn: () => liveActivitiesService.widgetSnapshot(),
+    enabled: available && canJobs,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const snapshot = useMemo(() => (snapshotQuery.data ? parseWidgetSnapshot(snapshotQuery.data) : null), [snapshotQuery.data]);
   const [logo, setLogo] = useState('');
   const activitySnapshots = useRef(new Map<string, string>());
   const orgRef = useRef<string | null>(null);
@@ -97,7 +111,7 @@ export function useWidgetSync() {
     }
     const list = jobs.data?.items;
     if (!list) return;
-    pushTodaySnapshot(buildTodayProps({ state: 'ok', org: orgName, logo, today, jobs: list, summary: summary.data, tr, fmt }));
+    pushTodaySnapshot(buildTodayProps({ state: 'ok', org: orgName, logo, today, jobs: list, snapshot, canFinance, tr, fmt }));
 
     let cancelled = false;
     void (async () => {
@@ -123,7 +137,7 @@ export function useWidgetSync() {
     return () => {
       cancelled = true;
     };
-  }, [available, canJobs, jobs.data, summary.data, logo, orgName, today, tr, fmt, locale]);
+  }, [available, canJobs, canFinance, jobs.data, snapshot, logo, orgName, today, tr, fmt, locale]);
 }
 
 /** Render-less mount point for the hook. */

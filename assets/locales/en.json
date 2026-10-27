@@ -2,7 +2,29 @@
   "ios": {
     "CFBundleDisplayName": "Otopoly",
     "NSCameraUsageDescription": "Otopoly uses the camera to scan the QR code that approves a web sign-in and to add vehicle photos to contracts.",
-    "NSPhotoLibraryUsageDescription": "Otopoly accesses your photo library to add the vehicle photos and documents you choose to contracts."
+    "NSPhotoLibraryUsageDescription": "Otopoly accesses your photo library to add the vehicle photos and documents you choose to contracts.",
+    "Localizable.strings": {
+      "Günün sayıları ve sıradaki araçlar; liste kaydırılabilir.": "Today's numbers and the cars up next; the list scrolls.",
+      "Günün sıradaki randevuları ve yapılacakları.": "The day's next appointments and to-dos.",
+      "Günün tahsilatı, giren-çıkan ve kasa/banka bakiyeleri.": "The day's collections, money in and out, and cash / bank balances.",
+      "Hazır ve işlemdeki araçlar; dokunarak işi açın.": "Ready and in-progress cars; tap one to open its job.",
+      "Kilit ekranında açık iş sayısı ve günün tahsilatı.": "Open jobs and the day's collections on the Lock Screen.",
+      "Kilit ekranında günün tahsilatı.": "The day's collections on the Lock Screen.",
+      "Kilit ekranından tek dokunuşla yeni iş açın.": "Start a new job from the Lock Screen in one tap.",
+      "Otopoly · Açık işler": "Otopoly · Open jobs",
+      "Otopoly · Bugün": "Otopoly · Today",
+      "Otopoly · Bugünkü takvim": "Otopoly · Today's calendar",
+      "Otopoly · Haftalık ciro": "Otopoly · Weekly collections",
+      "Otopoly · Kasa durumu": "Otopoly · Cash position",
+      "Otopoly · Sıradaki araçlar": "Otopoly · Up next",
+      "Otopoly · Tahsilat": "Otopoly · Collected today",
+      "Otopoly · Uyarılar": "Otopoly · Alerts",
+      "Otopoly · Yeni iş": "Otopoly · New job",
+      "Otopoly · İş Kuyruğu": "Otopoly · Job queue",
+      "Son 7 günün tahsilatı, gün gün.": "Collections of the last 7 days, day by day.",
+      "Ödenmemiş teslimler, azalan stok, yenilemesi gelen abonelikler ve takip bekleyen yorumlar.": "Unpaid deliveries, low stock, subscriptions due and reviews to follow up.",
+      "İşlemdeki, hazır ve teslim edilen araçlar ile günün tahsilatı.": "Cars in progress, ready and delivered, and the day's collections."
+    }
   },
   "android": {
     "app_name": "Otopoly"
