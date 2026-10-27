@@ -10,7 +10,7 @@
 // language. Nothing to do here when the map is missing an entry: the Turkish text stays.
 const fs = require('fs');
 const path = require('path');
-const { withDangerousMod } = require('expo/config-plugins');
+const { withDangerousMod, withXcodeProject } = require('expo/config-plugins');
 
 // Same naming as expo-widgets plugin/build/android/resourceNames.js.
 const toAndroidResourceName = (name) => {
@@ -48,7 +48,37 @@ function englishMap(projectRoot, config) {
   return json?.ios?.['Localizable.strings'] ?? {};
 }
 
+// iOS: Expo adds Supporting/<lang>.lproj/Localizable.strings to the app target too, but the app already
+// ships app-intents/Localizable.xcstrings (Siri phrases), and Xcode refuses a .strings table next to an
+// .xcstrings table with the same name ("Localizable.xcstrings cannot co-exist..."). Only the widget
+// extension needs these strings, so drop them from the main app target's Resources phase.
+function withoutAppLocalizableStrings(config) {
+  return withXcodeProject(config, (cfg) => {
+    const project = cfg.modResults;
+    const appName = cfg.modRequest.projectName;
+    const objects = project.hash.project.objects;
+    const targets = objects.PBXNativeTarget ?? {};
+    const buildFiles = objects.PBXBuildFile ?? {};
+    for (const [id, target] of Object.entries(targets)) {
+      if (id.endsWith('_comment') || typeof target !== 'object') continue;
+      if (String(target.name).replace(/"/g, '') !== appName) continue;
+      for (const phaseRef of target.buildPhases ?? []) {
+        const phase = objects.PBXResourcesBuildPhase?.[phaseRef.value];
+        if (!phase) continue;
+        phase.files = (phase.files ?? []).filter((f) => {
+          if (!/^Localizable\.strings in Resources$/.test(f.comment ?? '')) return true;
+          delete buildFiles[f.value];
+          delete buildFiles[`${f.value}_comment`];
+          return false;
+        });
+      }
+    }
+    return cfg;
+  });
+}
+
 module.exports = function withWidgetLocales(config) {
+  config = withoutAppLocalizableStrings(config);
   return withDangerousMod(config, [
     'android',
     async (cfg) => {
