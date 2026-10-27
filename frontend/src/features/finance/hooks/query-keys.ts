@@ -1,5 +1,7 @@
 export const financeQueryKeys = {
   all: ["finance"] as const,
+  today: (params?: Record<string, unknown>) =>
+    [...financeQueryKeys.all, "today", params] as const,
   summary: (params?: Record<string, string | undefined>) =>
     [...financeQueryKeys.all, "summary", params] as const,
   accounts: (params?: Record<string, unknown>) =>

@@ -18,6 +18,8 @@
   "tenant.customers": "Müşteriler",
   "tenant.delivered_today": "Bugün teslim",
   "tenant.collected_today": "Bugünkü tahsilat",
+  "tenant.jobs_revenue_today": "Bugün işlerden ciro",
+  "tenant.cash_card_jobs": "Nakit {{cash}} · Kart {{card}} · İşlerden {{jobs}}",
   "tenant.stale": "{{count}} araç 2 saati geçti",
   "tenant.ready_hint": "Müşteriye haber verin",
   "tenant.unpaid": "{{count}} ödeme bekliyor",

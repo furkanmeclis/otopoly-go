@@ -18,6 +18,8 @@
   "tenant.customers": "Customers",
   "tenant.delivered_today": "Delivered today",
   "tenant.collected_today": "Collected today",
+  "tenant.jobs_revenue_today": "Jobs revenue today",
+  "tenant.cash_card_jobs": "Cash {{cash}} · Card {{card}} · Jobs {{jobs}}",
   "tenant.stale": "{{count}} cars over 2 hours",
   "tenant.ready_hint": "Let the customer know",
   "tenant.unpaid": "{{count}} awaiting payment",
