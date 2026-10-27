@@ -4329,6 +4329,51 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /v1/tenant/finance/today:
+    get:
+      tags: [Tenant]
+      operationId: getTenantFinanceToday
+      summary: A business day's collections, expenses and balances
+      description: |
+        The money of one business day (Europe/Istanbul), the figure behind
+        "Bugünkü tahsilat" everywhere (panel, mobile dashboard, widgets,
+        daily summary).
+
+        `collected_total` is every posted income row of the day in the
+        finance ledger: job payments taken in cash or by card, product
+        sales, cari collections, package and subscription sales and manual
+        income entries. Transfers between accounts (virman) and voided rows
+        never count. A job closed on cari is a receivable and posts no
+        income; the later cari collection does, so nothing is counted twice.
+        It equals `total_income` of `GET /v1/tenant/finance/summary` for the
+        same day and currency. Rows in other currencies are left out.
+        Requires `tenant.finance.read`.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+        - name: date
+          in: query
+          description: Business day (YYYY-MM-DD). Defaults to today in Europe/Istanbul.
+          schema: { type: string, format: date }
+        - name: days
+          in: query
+          description: Length of `series`, ending on `date` (0 = no series). Default 7.
+          schema: { type: integer, minimum: 0, maximum: 31, default: 7 }
+        - name: currency
+          in: query
+          description: ISO currency of the figures. Default TRY.
+          schema: { type: string, minLength: 3, maxLength: 3 }
+      responses:
+        "200":
+          description: Day figures
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeFinanceToday" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
   /v1/tenant/finance/accounts/meta:
     get:
       tags: [Tenant]
@@ -7301,6 +7346,34 @@ paths:
         "401": { $ref: "#/components/responses/Unauthenticated" }
         "403": { $ref: "#/components/responses/Forbidden" }
 
+  /v1/tenant/live-activities/widget-snapshot:
+    get:
+      tags: [Tenant]
+      operationId: getTenantLiveActivityWidgetSnapshot
+      summary: The caller's Home / Lock Screen widget snapshot
+      description: |
+        The same snapshot a `widgets.refresh` push carries to the caller
+        (see `PUT /v1/tenant/live-activities/device`), for the in-app sync.
+        Parts follow the caller's permissions: `money` and `paid_total` only
+        with `tenant.finance.read`; `alerts.stock` with
+        `tenant.catalog.read`, `alerts.reviews` with `tenant.reviews.read`,
+        `alerts.renewals` with `tenant.loyalty.read`; `agenda` with
+        `tenant.calendar.read` (events) and / or `tenant.todos.read`
+        (to-dos). A missing part means the caller may not see it.
+        Requires `tenant.jobs.read`. Rate limited to 20 requests per minute.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/XOrganization"
+      responses:
+        "200":
+          description: Snapshot
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EnvelopeWidgetSnapshot" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+
   /v1/tenant/live-activities/device:
     put:
       tags: [Tenant]
@@ -7316,8 +7389,12 @@ paths:
 
         While linked, job changes of the organization send a background push
         (at most one per minute per organization, coalesced):
-        `{ "data": { "kind": "widgets.refresh", "org": "<org uuid>", "snapshot": { "v": 1, "date": "YYYY-MM-DD", "at": <epoch ms>, "counts": { "in_progress": n, "ready": n, "delivered": n }, "paid_total": "decimal", "queue": [{ "id", "plate", "name", "vehicle", "status": "in_progress" | "ready", "started_at": "RFC 3339" }], "more": n } } }`
-        (today in Europe/Istanbul; queue = open jobs, ready first, at most 12)
+        `{ "data": { "kind": "widgets.refresh", "org": "<org uuid>", "snapshot": WidgetSnapshot } }`
+        (today in Europe/Istanbul; queue = open jobs, ready first, at most 12,
+        trimmed so the data stays under 3 KB). The snapshot is built per
+        recipient from their permissions (see
+        `GET /v1/tenant/live-activities/widget-snapshot`); members who lost
+        `tenant.jobs.read` get no push
         — iOS `contentAvailable` (APNs priority 5, best effort, budgeted by
         iOS), Android data-only high priority. No title/body: nothing is shown.
         Requires `tenant.jobs.read`.
@@ -18342,6 +18419,157 @@ components:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/FinanceSummary" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    EnvelopeFinanceToday:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/FinanceToday" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    FinanceToday:
+      type: object
+      description: Decimal amounts as strings with two decimals.
+      required: [date, currency, collected_total, collected_count, by_method, by_source, expense_total, net, series, accounts]
+      properties:
+        date: { type: string, format: date }
+        currency: { type: string }
+        collected_total: { type: string, description: "The day's collections (tahsilat), see GET /v1/tenant/finance/today." }
+        collected_count: { type: integer, format: int64 }
+        by_method:
+          type: object
+          required: [cash, card, transfer, other]
+          properties:
+            cash: { type: string }
+            card: { type: string }
+            transfer: { type: string }
+            other: { type: string }
+        by_source:
+          type: object
+          description: jobs = job payments (cash / card), sales = product sales, cari = cari collections, loyalty = package and subscription sales, manual = manual income entries, other = any other source.
+          required: [jobs, sales, cari, loyalty, manual, other]
+          properties:
+            jobs: { type: string }
+            sales: { type: string }
+            cari: { type: string }
+            loyalty: { type: string }
+            manual: { type: string }
+            other: { type: string }
+        expense_total: { type: string, description: Posted expenses of the day (stock purchases included). }
+        net: { type: string, description: collected_total − expense_total }
+        series:
+          type: array
+          description: One entry per day, oldest first, ending on `date`.
+          items:
+            type: object
+            required: [date, collected_total, expense_total]
+            properties:
+              date: { type: string, format: date }
+              collected_total: { type: string }
+              expense_total: { type: string }
+        accounts:
+          type: array
+          description: Active accounts in `currency` with their current balance.
+          items:
+            type: object
+            required: [uuid, name, type, currency, balance, is_default]
+            properties:
+              uuid: { type: string, format: uuid }
+              name: { type: string }
+              type: { type: string }
+              currency: { type: string }
+              balance: { type: string }
+              is_default: { type: boolean }
+
+    EnvelopeWidgetSnapshot:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/WidgetSnapshot" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    WidgetSnapshot:
+      type: object
+      description: Compact "today" state for the Home / Lock Screen widgets (Europe/Istanbul day). Amounts are decimal strings.
+      required: [v, date, at, counts, queue, more]
+      properties:
+        v: { type: integer, enum: [1] }
+        date: { type: string, format: date }
+        at: { type: integer, format: int64, description: Epoch ms the snapshot was built. }
+        counts:
+          type: object
+          required: [in_progress, ready, delivered]
+          properties:
+            in_progress: { type: integer }
+            ready: { type: integer }
+            delivered: { type: integer }
+        paid_total: { type: string, description: "Legacy copy of money.collected (only with tenant.finance.read)." }
+        queue:
+          type: array
+          items:
+            type: object
+            required: [id, plate, name, vehicle, status, started_at]
+            properties:
+              id: { type: string, format: uuid }
+              plate: { type: string }
+              name: { type: string }
+              vehicle: { type: string }
+              status: { type: string, enum: [in_progress, ready] }
+              started_at: { type: string, description: RFC 3339 or empty. }
+        more: { type: integer, description: Open jobs that did not fit into queue. }
+        money:
+          type: object
+          description: Only with tenant.finance.read.
+          required: [cur, collected, jobs, cash, card, transfer, other, expense, net, week, accounts]
+          properties:
+            cur: { type: string }
+            collected: { type: string, description: "The day's collections (tahsilat), as GET /v1/tenant/finance/today." }
+            jobs: { type: string, description: "Jobs revenue of the day (paid jobs, cari closes included); not money in." }
+            cash: { type: string }
+            card: { type: string }
+            transfer: { type: string }
+            other: { type: string }
+            expense: { type: string }
+            net: { type: string }
+            week:
+              type: array
+              description: Collections per day for 7 days, oldest first, ending on date.
+              items: { type: string }
+            accounts:
+              type: array
+              description: Up to 4 active accounts.
+              items:
+                type: object
+                required: [n, t, b]
+                properties:
+                  n: { type: string, description: Name }
+                  t: { type: string, description: "Type (cash, bank, …)" }
+                  b: { type: string, description: Balance }
+        alerts:
+          type: object
+          description: A missing field is a module the member may not read.
+          properties:
+            stock: { type: integer, format: int64, description: Active stock-tracked products at or below their minimum (tenant.catalog.read). }
+            reviews: { type: integer, format: int64, description: Reviews waiting for a follow-up (tenant.reviews.read). }
+            renewals: { type: integer, format: int64, description: Subscriptions past due or due within 7 days (tenant.loyalty.read). }
+            unpaid: { type: integer, format: int64, description: Jobs delivered today without payment. }
+        agenda:
+          type: object
+          description: Next calendar events (tenant.calendar.read) and open to-dos (tenant.todos.read) of the day, at most 3; timed first.
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [k, id, t, at]
+                properties:
+                  k: { type: string, enum: [event, todo] }
+                  id: { type: string, format: uuid }
+                  t: { type: string, description: Title }
+                  at: { type: string, description: "RFC 3339 start, empty when all-day / untimed." }
 
     ExportRequest:
       type: object

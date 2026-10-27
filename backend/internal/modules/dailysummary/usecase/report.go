@@ -20,6 +20,15 @@ type Report struct {
 	CancelledCount int64
 	Services       []ServiceCount
 
+	// Collected is the day's real collections (finance ledger income, the
+	// same figure as the finance summary and the widgets): job cash / card
+	// payments, sales, cari collections, packages, manual income.
+	Collected         float64
+	CollectedCash     float64
+	CollectedCard     float64
+	CollectedTransfer float64
+	CollectedOther    float64
+
 	PaidTotal float64
 	CashTotal float64
 	CardTotal float64
@@ -90,6 +99,21 @@ func (r Report) Message() string {
 		b.WriteString("\n")
 	}
 	b.WriteString("\n")
+
+	// Money in: every collection of the day, whatever it was for.
+	fmt.Fprintf(&b, "💵 *Günün tahsilatı:* %s\n", money(r.Collected))
+	if r.Collected > 0 {
+		parts := []string{}
+		for _, m := range []struct {
+			label string
+			v     float64
+		}{{"Nakit", r.CollectedCash}, {"Kart", r.CollectedCard}, {"Havale", r.CollectedTransfer}, {"Diğer", r.CollectedOther}} {
+			if m.v > 0 {
+				parts = append(parts, fmt.Sprintf("%s %s", m.label, money(m.v)))
+			}
+		}
+		fmt.Fprintf(&b, "• %s\n", strings.Join(parts, " · "))
+	}
 
 	// Revenue (same basis as the İşlemler day summary: paid jobs)
 	fmt.Fprintf(&b, "💰 *Hizmet cirosu:* %s\n", money(r.PaidTotal))

@@ -390,6 +390,15 @@ type Querier interface {
 	// Resolves actions stuck in 'executing' (the server stopped mid-execution) as
 	// failed: for one conversation, or for all conversations when it is NULL.
 	FailStaleAIPendingActions(ctx context.Context, arg FailStaleAIPendingActionsParams) ([]AiPendingAction, error)
+	// Posted income and expense per business day in [date_from, date_to].
+	FinanceDailyIncomeExpense(ctx context.Context, arg FinanceDailyIncomeExpenseParams) ([]FinanceDailyIncomeExpenseRow, error)
+	// The day's collections ("tahsilat"): posted income rows of one business day
+	// (transaction_date is the Europe/Istanbul day), grouped by where the money
+	// came from and how it was paid. Transfers between accounts are type
+	// 'transfer' and voided rows are status 'void', so neither is counted. A job
+	// closed on cari posts no income row (it is a receivable); the later cari
+	// collection does (source_type 'cari_payment').
+	FinanceDayIncomeBreakdown(ctx context.Context, arg FinanceDayIncomeBreakdownParams) ([]FinanceDayIncomeBreakdownRow, error)
 	FinishAIPendingAction(ctx context.Context, arg FinishAIPendingActionParams) (AiPendingAction, error)
 	FinishBrandLogoSyncRun(ctx context.Context, arg FinishBrandLogoSyncRunParams) (BrandLogoSyncRun, error)
 	FinishOutboundMessage(ctx context.Context, arg FinishOutboundMessageParams) (OutboundMessage, error)
@@ -817,6 +826,8 @@ type Querier interface {
 	ListEnabledLogPurgeRules(ctx context.Context) ([]LogPurgeRule, error)
 	ListExportJobsForActor(ctx context.Context, arg ListExportJobsForActorParams) ([]ExportJob, error)
 	ListExportJobsForOrganization(ctx context.Context, arg ListExportJobsForOrganizationParams) ([]ExportJob, error)
+	// Active cash / bank accounts with their running balance (widgets, today).
+	ListFinanceAccountBalances(ctx context.Context, arg ListFinanceAccountBalancesParams) ([]ListFinanceAccountBalancesRow, error)
 	ListFinanceAccounts(ctx context.Context, arg ListFinanceAccountsParams) ([]FinanceAccount, error)
 	ListFinanceAccountsForExport(ctx context.Context, arg ListFinanceAccountsForExportParams) ([]FinanceAccount, error)
 	ListFinanceAccountsForSearch(ctx context.Context) ([]ListFinanceAccountsForSearchRow, error)
@@ -887,6 +898,10 @@ type Querier interface {
 	ListPendingVehicleAlertEvents(ctx context.Context, arg ListPendingVehicleAlertEventsParams) ([]VehicleAlertEvent, error)
 	ListPermissionSlugsByRoleID(ctx context.Context, roleID int64) ([]string, error)
 	ListPermissionSlugsByRoleSlug(ctx context.Context, slug string) ([]string, error)
+	// Home / Lock Screen widget snapshot (modules/livepush): small org-scoped
+	// counts and the next agenda items. Each is cheap and indexed.
+	// Effective permission slugs of several users (union of their roles).
+	ListPermissionSlugsForUsers(ctx context.Context, userIds []int64) ([]ListPermissionSlugsForUsersRow, error)
 	ListPermissionsFiltered(ctx context.Context, arg ListPermissionsFilteredParams) ([]Permission, error)
 	ListPlanFeatures(ctx context.Context, planID int64) ([]ListPlanFeaturesRow, error)
 	ListPlatformNotifications(ctx context.Context, arg ListPlatformNotificationsParams) ([]Notification, error)
@@ -1437,6 +1452,16 @@ type Querier interface {
 	VoidProductSale(ctx context.Context, arg VoidProductSaleParams) (ProductSale, error)
 	VoidPurchase(ctx context.Context, arg VoidPurchaseParams) (Purchase, error)
 	VoidServiceJobPayment(ctx context.Context, arg VoidServiceJobPaymentParams) (ServiceJobPayment, error)
+	// Calendar events of the day that have not ended yet (all-day ones included).
+	WidgetAgendaEvents(ctx context.Context, arg WidgetAgendaEventsParams) ([]WidgetAgendaEventsRow, error)
+	// Open to-dos due on the day: timed ones not yet past, then untimed ones.
+	WidgetAgendaTodos(ctx context.Context, arg WidgetAgendaTodosParams) ([]WidgetAgendaTodosRow, error)
+	// Active stock-tracked products at or below their minimum.
+	WidgetLowStockCount(ctx context.Context, organizationID int64) (int64, error)
+	// Answered reviews that still wait for a follow-up call.
+	WidgetReviewFollowUpCount(ctx context.Context, organizationID int64) (int64, error)
+	// Jobs delivered in [day_start, day_end) that nobody has been paid for yet.
+	WidgetUnpaidDeliveredCount(ctx context.Context, arg WidgetUnpaidDeliveredCountParams) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

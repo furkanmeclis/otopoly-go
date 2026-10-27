@@ -197,3 +197,31 @@ func (h *Handler) UnregisterDevice(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, r, http.StatusOK, map[string]string{"status": "ok"})
 }
+
+// Snapshot limits: the in-app sync refetches about once a minute.
+const (
+	snapshotLimit  = 20
+	snapshotWindow = time.Minute
+)
+
+// WidgetSnapshot handles GET /v1/tenant/live-activities/widget-snapshot: the
+// same permission-filtered snapshot a widget push would carry to the caller.
+func (h *Handler) WidgetSnapshot(w http.ResponseWriter, r *http.Request) {
+	p := authctx.MustPrincipal(r.Context())
+	if h.limiter != nil && p.UserInternal > 0 {
+		allowed, retry := h.limiter.Allow(r.Context(), "widget_snapshot", strconv.FormatInt(p.UserInternal, 10), snapshotLimit, snapshotWindow)
+		if !allowed {
+			if retry > 0 {
+				w.Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
+			}
+			response.TooManyRequests(w, r, "Too many widget requests. Try again in a moment.")
+			return
+		}
+	}
+	item, err := h.svc.Snapshot(r.Context(), usecase.WidgetAccessFrom(p.HasPermission))
+	if err != nil {
+		writeErr(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}

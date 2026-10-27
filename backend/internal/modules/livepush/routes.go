@@ -22,6 +22,7 @@ func RegisterRoutes(mux *http.ServeMux, h *handler.Handler, tokens *jwt.Manager,
 	read := func(fn http.HandlerFunc) http.Handler {
 		return middleware.Chain(fn, authn, requireOrg, requireRead)
 	}
+	mux.Handle("GET /v1/tenant/live-activities/widget-snapshot", read(h.WidgetSnapshot))
 	mux.Handle("PUT /v1/tenant/live-activities/device", read(h.RegisterDevice))
 	mux.Handle("DELETE /v1/tenant/live-activities/device/{token}", read(h.UnregisterDevice))
 	mux.Handle("PUT /v1/tenant/live-activities/jobs/{uuid}", read(h.RegisterActivity))

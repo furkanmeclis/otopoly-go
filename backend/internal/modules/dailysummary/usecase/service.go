@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	_ "time/tzdata" // Europe/Istanbul without relying on the host zoneinfo.
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	messagingmodel "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/messaging/model"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -392,6 +394,14 @@ func (s *Service) BuildReport(ctx context.Context, orgID int64, day time.Time) (
 	r.CariTotal = num(money.CariTotal)
 	r.CashTotal = num(money.NetTotal) - r.CardTotal
 
+	collected, err := financeusecase.DayMoney(ctx, s.q, orgID, day, financeusecase.DayMoneyOptions{Currency: r.Currency})
+	if err != nil {
+		return Report{}, err
+	}
+	r.Collected = amount(collected.CollectedTotal)
+	r.CollectedCash, r.CollectedCard = amount(collected.ByMethod.Cash), amount(collected.ByMethod.Card)
+	r.CollectedTransfer, r.CollectedOther = amount(collected.ByMethod.Transfer), amount(collected.ByMethod.Other)
+
 	sales, err := s.q.DailySummarySales(ctx, db.DailySummarySalesParams{OrganizationID: orgID, DateFrom: from, DateTo: to})
 	if err != nil {
 		return Report{}, err
@@ -473,6 +483,15 @@ func sendMinutes(t pgtype.Time) int {
 func formatSendTime(t pgtype.Time) string {
 	m := sendMinutes(t)
 	return fmt.Sprintf("%02d:%02d", m/60, m%60)
+}
+
+// amount parses a decimal string ("0.00" when malformed).
+func amount(v string) float64 {
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return 0
+	}
+	return f
 }
 
 func num(n pgtype.Numeric) float64 {

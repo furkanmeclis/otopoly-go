@@ -311,6 +311,116 @@ func (q *Queries) CreateFinanceTransaction(ctx context.Context, arg CreateFinanc
 	return i, err
 }
 
+const financeDailyIncomeExpense = `-- name: FinanceDailyIncomeExpense :many
+SELECT transaction_date, type, COALESCE(SUM(amount), 0)::numeric AS total
+FROM finance_transactions
+WHERE organization_id = $1
+  AND status = 'posted'
+  AND type IN ('income', 'expense')
+  AND currency = $2
+  AND transaction_date >= $3::date
+  AND transaction_date <= $4::date
+GROUP BY transaction_date, type
+ORDER BY transaction_date
+`
+
+type FinanceDailyIncomeExpenseParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	Currency       string      `json:"currency"`
+	DateFrom       pgtype.Date `json:"date_from"`
+	DateTo         pgtype.Date `json:"date_to"`
+}
+
+type FinanceDailyIncomeExpenseRow struct {
+	TransactionDate pgtype.Date    `json:"transaction_date"`
+	Type            string         `json:"type"`
+	Total           pgtype.Numeric `json:"total"`
+}
+
+// Posted income and expense per business day in [date_from, date_to].
+func (q *Queries) FinanceDailyIncomeExpense(ctx context.Context, arg FinanceDailyIncomeExpenseParams) ([]FinanceDailyIncomeExpenseRow, error) {
+	rows, err := q.db.Query(ctx, financeDailyIncomeExpense,
+		arg.OrganizationID,
+		arg.Currency,
+		arg.DateFrom,
+		arg.DateTo,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FinanceDailyIncomeExpenseRow{}
+	for rows.Next() {
+		var i FinanceDailyIncomeExpenseRow
+		if err := rows.Scan(&i.TransactionDate, &i.Type, &i.Total); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const financeDayIncomeBreakdown = `-- name: FinanceDayIncomeBreakdown :many
+SELECT COALESCE(NULLIF(source_type, ''), 'manual')::text AS source_type,
+       payment_method,
+       COUNT(*)::bigint AS count,
+       COALESCE(SUM(amount), 0)::numeric AS total
+FROM finance_transactions
+WHERE organization_id = $1
+  AND type = 'income'
+  AND status = 'posted'
+  AND currency = $2
+  AND transaction_date = $3::date
+GROUP BY 1, payment_method
+`
+
+type FinanceDayIncomeBreakdownParams struct {
+	OrganizationID int64       `json:"organization_id"`
+	Currency       string      `json:"currency"`
+	Day            pgtype.Date `json:"day"`
+}
+
+type FinanceDayIncomeBreakdownRow struct {
+	SourceType    string         `json:"source_type"`
+	PaymentMethod string         `json:"payment_method"`
+	Count         int64          `json:"count"`
+	Total         pgtype.Numeric `json:"total"`
+}
+
+// The day's collections ("tahsilat"): posted income rows of one business day
+// (transaction_date is the Europe/Istanbul day), grouped by where the money
+// came from and how it was paid. Transfers between accounts are type
+// 'transfer' and voided rows are status 'void', so neither is counted. A job
+// closed on cari posts no income row (it is a receivable); the later cari
+// collection does (source_type 'cari_payment').
+func (q *Queries) FinanceDayIncomeBreakdown(ctx context.Context, arg FinanceDayIncomeBreakdownParams) ([]FinanceDayIncomeBreakdownRow, error) {
+	rows, err := q.db.Query(ctx, financeDayIncomeBreakdown, arg.OrganizationID, arg.Currency, arg.Day)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []FinanceDayIncomeBreakdownRow{}
+	for rows.Next() {
+		var i FinanceDayIncomeBreakdownRow
+		if err := rows.Scan(
+			&i.SourceType,
+			&i.PaymentMethod,
+			&i.Count,
+			&i.Total,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getFinanceAccountByID = `-- name: GetFinanceAccountByID :one
 SELECT id, uuid, organization_id, name, type, currency, opening_balance, current_balance, is_default, is_active, bank_name, iban, notes, created_at, updated_at, deleted_at FROM finance_accounts
 WHERE id = $1 AND organization_id = $2 AND deleted_at IS NULL
@@ -808,6 +918,58 @@ func (q *Queries) GetFinanceTransactionForSearch(ctx context.Context, arg GetFin
 		&i.AccountName,
 	)
 	return i, err
+}
+
+const listFinanceAccountBalances = `-- name: ListFinanceAccountBalances :many
+SELECT uuid, name, type, currency, current_balance, is_default
+FROM finance_accounts
+WHERE organization_id = $1
+  AND deleted_at IS NULL
+  AND is_active
+ORDER BY is_default DESC, name ASC, id ASC
+LIMIT $2
+`
+
+type ListFinanceAccountBalancesParams struct {
+	OrganizationID int64 `json:"organization_id"`
+	LimitCount     int32 `json:"limit_count"`
+}
+
+type ListFinanceAccountBalancesRow struct {
+	Uuid           uuid.UUID      `json:"uuid"`
+	Name           string         `json:"name"`
+	Type           string         `json:"type"`
+	Currency       string         `json:"currency"`
+	CurrentBalance pgtype.Numeric `json:"current_balance"`
+	IsDefault      bool           `json:"is_default"`
+}
+
+// Active cash / bank accounts with their running balance (widgets, today).
+func (q *Queries) ListFinanceAccountBalances(ctx context.Context, arg ListFinanceAccountBalancesParams) ([]ListFinanceAccountBalancesRow, error) {
+	rows, err := q.db.Query(ctx, listFinanceAccountBalances, arg.OrganizationID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFinanceAccountBalancesRow{}
+	for rows.Next() {
+		var i ListFinanceAccountBalancesRow
+		if err := rows.Scan(
+			&i.Uuid,
+			&i.Name,
+			&i.Type,
+			&i.Currency,
+			&i.CurrentBalance,
+			&i.IsDefault,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFinanceAccounts = `-- name: ListFinanceAccounts :many

@@ -40,6 +40,7 @@ func setupLive(t *testing.T) *liveFixture {
 	f.user = fx.User()
 	fx.Exec(`UPDATE users SET locale = 'en' WHERE id = $1`, f.user.ID)
 	fx.Exec(`INSERT INTO organization_members (organization_id, user_id, role) VALUES ($1, $2, 'staff')`, f.org.ID, f.user.ID)
+	fx.Exec(`INSERT INTO user_roles (user_id, role_id) SELECT $1, id FROM roles WHERE slug = 'organization_user'`, f.user.ID)
 	customer := fx.Customer(f.org, "Ahmet Yılmaz")
 	vehicle := fx.Vehicle(f.org, customer)
 	f.job = fx.Job(f.org, customer, vehicle, f.user)
