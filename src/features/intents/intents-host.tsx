@@ -17,7 +17,7 @@ import { P } from '@/features/auth/permissions';
 import { customersService } from '@/features/customers/services/customers.service';
 import { localToday, shiftDate } from '@/features/jobs/lib/job-ui';
 import { jobsService } from '@/features/jobs/services/jobs.service';
-import { qk, useJobs, useJobsSummary } from '@/features/queries';
+import { qk, useJobs, useFinanceToday } from '@/features/queries';
 import { useLocale } from '@/lib/i18n/provider';
 import { createLogger } from '@/lib/logger';
 import { prefs } from '@/lib/storage';
@@ -95,7 +95,9 @@ export function IntentsSync() {
 
   // Same query keys as the dashboard and the widget: no extra request while those are on screen.
   const jobs = useJobs({ limit: 100, offset: 0, sort: '-started_at', date_from: today, date_to: today, include_open: 'true' }, available && canJobs);
-  const summary = useJobsSummary(today, available && canJobs);
+  // "Collected" is the day's real collections (finance ledger), only for members with finance read.
+  const canFinance = canJobs && can(P.financeRead);
+  const money = useFinanceToday(today, available && canFinance);
   const recentParams = { limit: 100, offset: 0, sort: '-started_at', date_from: from, date_to: today };
   const recent = useQuery({
     queryKey: [...qk.jobs, 'list', recentParams],
@@ -113,7 +115,7 @@ export function IntentsSync() {
     if (canJobs) {
       const list = jobs.data?.items;
       if (!list) return;
-      figures = todayFigures(list, shiftDate(today, -1), summary.data ? fmt.money(summary.data.paid_total) : '');
+      figures = todayFigures(list, shiftDate(today, -1), money.data ? fmt.money(money.data.collected_total, money.data.currency) : '');
     }
     const key = JSON.stringify([orgName, today, figures]);
     const now = Date.now();
@@ -121,7 +123,7 @@ export function IntentsSync() {
     lastToday.current = { key, at: now };
     void publishCatalog(CATALOG_KINDS.today, [todayRecord({ org: orgName, date: today, updated: fmt.time(new Date(now)), figures })]);
     markHasData();
-  }, [available, canJobs, jobs.data, summary.data, orgName, today, fmt]);
+  }, [available, canJobs, jobs.data, money.data, orgName, today, fmt]);
 
   useEffect(() => {
     if (!available || share === null) return;

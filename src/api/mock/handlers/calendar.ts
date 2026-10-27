@@ -447,3 +447,13 @@ route('DELETE', '/v1/tenant/calendar/events/:uuid', (ctx) => {
   events.splice(events.indexOf(row), 1);
   return { deleted: true };
 });
+
+/** Widget agenda: the organization's events of the day that have not ended yet (backend WidgetAgendaEvents). */
+export function upcomingEventsOf(org: string, from: Date, dayEnd: Date): CalendarEvent[] {
+  if (!org) return [];
+  seedEvents(org);
+  return events
+    .filter((e) => e._org === org && new Date(e.starts_at) < dayEnd && new Date(e.ends_at) > from)
+    .sort((a, b) => Number(a.all_day) - Number(b.all_day) || a.starts_at.localeCompare(b.starts_at))
+    .map(toEvent);
+}

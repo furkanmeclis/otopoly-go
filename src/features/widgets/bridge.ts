@@ -4,12 +4,15 @@ import { File } from 'expo-file-system';
 import type { Widget } from 'expo-widgets';
 import { Platform } from 'react-native';
 
+import { createFormatters } from '@/lib/i18n/format';
 import { getCurrentLocale } from '@/lib/i18n/provider';
+import { translate } from '@/lib/i18n/translate';
 import { createLogger } from '@/lib/logger';
 import { prefs, StorageKeys } from '@/lib/storage';
 import type { JobActivityProps, TodayWidgetProps } from '@/widgets/types';
 
 import { androidJobActivityFactory, ensureAndroidNotificationPermission } from './android-live-updates';
+import { signedOutProps } from './props';
 import { createActivityPushRegistry, createWidgetDeviceLink, type PushTokenEvent } from './live-push';
 import { liveActivitiesService } from './services/live-activities.service';
 
@@ -34,7 +37,7 @@ export type JobActivityFactory = {
 };
 
 type Bridge = {
-  /** Every Home / Lock Screen widget on this platform; all of them render TodayWidgetProps. */
+  /** Every Home / Lock Screen widget on this platform; all of them render the same TodayWidgetProps. */
   widgets: Widget<TodayWidgetProps>[];
   /** Job Live Activities (iOS) / Live Updates (Android); null where neither is available. */
   jobActivity: JobActivityFactory | null;
@@ -59,12 +62,29 @@ export function getWidgetBridge(): Bridge | null {
     bridge =
       Platform.OS === 'ios'
         ? {
-            widgets: [require('@/widgets/today-widget').default, require('@/widgets/glance-widget').default],
+            widgets: [
+              require('@/widgets/today-widget').default,
+              require('@/widgets/queue-widget').default,
+              require('@/widgets/cash-widget').default,
+              require('@/widgets/week-widget').default,
+              require('@/widgets/alerts-widget').default,
+              require('@/widgets/agenda-widget').default,
+              require('@/widgets/glance-widget').default,
+              require('@/widgets/collected-glance').default,
+              require('@/widgets/new-job-glance').default,
+            ],
             jobActivity: require('@/widgets/job-activity').default,
             directory: require('expo-widgets').widgetsDirectory || null,
           }
         : {
-            widgets: [require('@/widgets/android/today-widget').default, require('@/widgets/android/queue-widget').default],
+            widgets: [
+              require('@/widgets/android/today-widget').default,
+              require('@/widgets/android/queue-widget').default,
+              require('@/widgets/android/cash-widget').default,
+              require('@/widgets/android/week-widget').default,
+              require('@/widgets/android/alerts-widget').default,
+              require('@/widgets/android/agenda-widget').default,
+            ],
             jobActivity: androidJobActivityFactory(),
             directory: require('expo-widgets').widgetsDirectory || null,
           };
@@ -135,15 +155,18 @@ export function ensureWidgetLogo(): Promise<string> {
 // ─── Home / Lock Screen widgets ────────────────────────────────────────────
 
 let lastSnapshot = '';
+/** An unchanged snapshot is still re-sent after this long, so the "as of" time stays honest. */
+const SAME_SNAPSHOT_REFRESH_MS = 15 * 60_000;
 let lastProps: TodayWidgetProps | null = null;
 
 /** Pushes new props to every widget; skips identical snapshots so the reload budget (WidgetKit / Glance) is not wasted. */
 export function pushTodaySnapshot(props: TodayWidgetProps) {
   const b = getWidgetBridge();
   if (!b) return;
-  const { updatedAt, updatedTime, ...comparable } = props;
+  const { updatedAt, updatedTime, asOf, ...comparable } = props;
   const key = JSON.stringify(comparable);
-  if (key === lastSnapshot) return;
+  // Identical data is skipped to save the reload budget, but "as of" must not go stale for hours.
+  if (key === lastSnapshot && lastProps && updatedAt - lastProps.updatedAt < SAME_SNAPSHOT_REFRESH_MS) return;
   try {
     for (const widget of b.widgets) widget.updateSnapshot(props);
     lastSnapshot = key;
@@ -161,16 +184,8 @@ export function clearWidgetsForSignOut() {
   // The session is gone already: the server rows go with the push device / expire on their own.
   void endAllJobActivities({ server: false });
   if (!lastProps) return;
-  pushTodaySnapshot({
-    ...lastProps,
-    state: 'signedOut',
-    org: '',
-    showMoney: false,
-    stats: { inProgress: 0, ready: 0, delivered: 0, stale: 0, collected: '' },
-    queue: [],
-    updatedAt: Date.now(),
-    updatedTime: '',
-  });
+  const locale = getCurrentLocale();
+  pushTodaySnapshot(signedOutProps(lastProps, (key, params) => translate(locale, key, params), createFormatters(locale)));
 }
 
 // ─── Job Live Activities ───────────────────────────────────────────────────

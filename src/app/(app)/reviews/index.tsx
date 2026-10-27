@@ -1,5 +1,5 @@
 /** Reviews — web `/t/[slug]/reviews` (`features/reviews/components/reviews-page.tsx`): KPI tiles, distribution and the request list. */
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Settings2, Star } from 'lucide-react-native';
 import { useDeferredValue, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, View } from 'react-native';
@@ -56,7 +56,9 @@ function ReviewsList() {
   const t = useTheme();
   const { t: tr } = useLocale();
   const access = useReviewsAccess();
-  const [filter, setFilter] = useState<Filter>('all');
+  // `?filter=follow_up` (Uyarılar widget) opens the follow-up list.
+  const routeParams = useLocalSearchParams<{ filter?: string }>();
+  const [filter, setFilter] = useState<Filter>(FILTERS.includes(routeParams.filter as Filter) ? (routeParams.filter as Filter) : 'all');
   const [period, setPeriod] = useState<Period>('30');
   const [q, setQ] = useState('');
   const query = useDeferredValue(q.trim());

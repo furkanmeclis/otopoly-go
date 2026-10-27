@@ -5,16 +5,17 @@ import { createWidget, type WidgetEnvironment } from 'expo-widgets';
 import type { TodayWidgetProps } from './types';
 
 /**
- * Lock Screen widget. Lock Screen widgets render in `vibrant` mode (the system tints everything),
- * so this one relies on hierarchy and SF Symbols rather than brand colours.
- * Shares its props with the home-screen widget.
+ * "Otopoly · Açık işler" Lock Screen widget: open jobs (circular), in progress / ready plus the day's
+ * collections for finance readers (rectangular), one line (inline). Lock Screen widgets render in
+ * `vibrant` mode (the system tints everything), so this relies on hierarchy and SF Symbols.
+ * Shares its props with the home-screen widgets.
  */
 const OtopolyGlance = (props: TodayWidgetProps, environment: WidgetEnvironment) => {
   'widget';
   const family = environment.widgetFamily;
-  const ok = Boolean(props && props.v === 1 && props.state === 'ok');
-  const url = 'otopoly://operations';
-  const active = ok ? props.stats.inProgress : 0;
+  const ok = Boolean(props && props.v === 2 && props.state === 'ok');
+  const url = ok ? props.links.home : 'otopoly://operations';
+  const active = ok ? props.stats.open : 0;
   const ready = ok ? props.stats.ready : 0;
 
   if (family === 'accessoryCircular') {
@@ -32,7 +33,7 @@ const OtopolyGlance = (props: TodayWidgetProps, environment: WidgetEnvironment) 
   if (family === 'accessoryInline') {
     return (
       <Text modifiers={[widgetURL(url)]}>
-        {ok ? `${active} ${props.labels.inProgress} · ${ready} ${props.labels.ready}` : 'Otopoly'}
+        {ok ? `${active} ${props.labels.open} · ${ready} ${props.labels.ready}` : 'Otopoly'}
       </Text>
     );
   }
@@ -46,7 +47,7 @@ const OtopolyGlance = (props: TodayWidgetProps, environment: WidgetEnvironment) 
       </HStack>
       {ok ? (
         <VStack alignment="leading" spacing={1}>
-          <Text modifiers={[font({ size: 13 }), monospacedDigit(), lineLimit(1)]}>{`${active} ${props.labels.inProgress} · ${ready} ${props.labels.ready}`}</Text>
+          <Text modifiers={[font({ size: 13 }), monospacedDigit(), lineLimit(1)]}>{`${props.stats.inProgress} ${props.labels.inProgress} · ${ready} ${props.labels.ready}`}</Text>
           {props.showMoney ? (
             <Text modifiers={[font({ size: 13, weight: 'semibold' }), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.7)]}>{props.stats.collected}</Text>
           ) : (
@@ -54,7 +55,7 @@ const OtopolyGlance = (props: TodayWidgetProps, environment: WidgetEnvironment) 
           )}
         </VStack>
       ) : (
-        <Text modifiers={[font({ size: 12 }), lineLimit(2)]}>{props && props.v === 1 ? (props.state === 'noAccess' ? props.labels.noAccess : props.labels.signedOut) : "Otopoly'yi açın"}</Text>
+        <Text modifiers={[font({ size: 12 }), lineLimit(2)]}>{props && props.v === 2 ? (props.state === 'noAccess' ? props.labels.noAccess : props.labels.signedOut) : "Otopoly'yi açın · Open Otopoly"}</Text>
       )}
     </VStack>
   );

@@ -2679,6 +2679,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/finance/today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A business day's collections, expenses and balances
+         * @description The money of one business day (Europe/Istanbul), the figure behind
+         *     "Bugünkü tahsilat" everywhere (panel, mobile dashboard, widgets,
+         *     daily summary).
+         *
+         *     `collected_total` is every posted income row of the day in the
+         *     finance ledger: job payments taken in cash or by card, product
+         *     sales, cari collections, package and subscription sales and manual
+         *     income entries. Transfers between accounts (virman) and voided rows
+         *     never count. A job closed on cari is a receivable and posts no
+         *     income; the later cari collection does, so nothing is counted twice.
+         *     It equals `total_income` of `GET /v1/tenant/finance/summary` for the
+         *     same day and currency. Rows in other currencies are left out.
+         *     Requires `tenant.finance.read`.
+         */
+        get: operations["getTenantFinanceToday"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/finance/accounts/meta": {
         parameters: {
             query?: never;
@@ -4167,6 +4199,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tenant/live-activities/widget-snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The caller's Home / Lock Screen widget snapshot
+         * @description The same snapshot a `widgets.refresh` push carries to the caller
+         *     (see `PUT /v1/tenant/live-activities/device`), for the in-app sync.
+         *     Parts follow the caller's permissions: `money` and `paid_total` only
+         *     with `tenant.finance.read`; `alerts.stock` with
+         *     `tenant.catalog.read`, `alerts.reviews` with `tenant.reviews.read`,
+         *     `alerts.renewals` with `tenant.loyalty.read`; `agenda` with
+         *     `tenant.calendar.read` (events) and / or `tenant.todos.read`
+         *     (to-dos). A missing part means the caller may not see it.
+         *     Requires `tenant.jobs.read`. Rate limited to 20 requests per minute.
+         */
+        get: operations["getTenantLiveActivityWidgetSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tenant/live-activities/device": {
         parameters: {
             query?: never;
@@ -4186,8 +4246,12 @@ export interface paths {
          *
          *     While linked, job changes of the organization send a background push
          *     (at most one per minute per organization, coalesced):
-         *     `{ "data": { "kind": "widgets.refresh", "org": "<org uuid>", "snapshot": { "v": 1, "date": "YYYY-MM-DD", "at": <epoch ms>, "counts": { "in_progress": n, "ready": n, "delivered": n }, "paid_total": "decimal", "queue": [{ "id", "plate", "name", "vehicle", "status": "in_progress" | "ready", "started_at": "RFC 3339" }], "more": n } } }`
-         *     (today in Europe/Istanbul; queue = open jobs, ready first, at most 12)
+         *     `{ "data": { "kind": "widgets.refresh", "org": "<org uuid>", "snapshot": WidgetSnapshot } }`
+         *     (today in Europe/Istanbul; queue = open jobs, ready first, at most 12,
+         *     trimmed so the data stays under 3 KB). The snapshot is built per
+         *     recipient from their permissions (see
+         *     `GET /v1/tenant/live-activities/widget-snapshot`); members who lost
+         *     `tenant.jobs.read` get no push
          *     — iOS `contentAvailable` (APNs priority 5, best effort, budgeted by
          *     iOS), Android data-only high priority. No title/body: nothing is shown.
          *     Requires `tenant.jobs.read`.
@@ -11568,6 +11632,157 @@ export interface components {
             success: true;
             data: components["schemas"]["FinanceSummary"];
             meta: components["schemas"]["ResponseMeta"];
+        };
+        EnvelopeFinanceToday: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["FinanceToday"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Decimal amounts as strings with two decimals. */
+        FinanceToday: {
+            /** Format: date */
+            date: string;
+            currency: string;
+            /** @description The day's collections (tahsilat), see GET /v1/tenant/finance/today. */
+            collected_total: string;
+            /** Format: int64 */
+            collected_count: number;
+            by_method: {
+                cash: string;
+                card: string;
+                transfer: string;
+                other: string;
+            };
+            /** @description jobs = job payments (cash / card), sales = product sales, cari = cari collections, loyalty = package and subscription sales, manual = manual income entries, other = any other source. */
+            by_source: {
+                jobs: string;
+                sales: string;
+                cari: string;
+                loyalty: string;
+                manual: string;
+                other: string;
+            };
+            /** @description Posted expenses of the day (stock purchases included). */
+            expense_total: string;
+            /** @description collected_total − expense_total */
+            net: string;
+            /** @description One entry per day, oldest first, ending on `date`. */
+            series: {
+                /** Format: date */
+                date: string;
+                collected_total: string;
+                expense_total: string;
+            }[];
+            /** @description Active accounts in `currency` with their current balance. */
+            accounts: {
+                /** Format: uuid */
+                uuid: string;
+                name: string;
+                type: string;
+                currency: string;
+                balance: string;
+                is_default: boolean;
+            }[];
+        };
+        EnvelopeWidgetSnapshot: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["WidgetSnapshot"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        /** @description Compact "today" state for the Home / Lock Screen widgets (Europe/Istanbul day). Amounts are decimal strings. */
+        WidgetSnapshot: {
+            /** @enum {integer} */
+            v: 1;
+            /** Format: date */
+            date: string;
+            /**
+             * Format: int64
+             * @description Epoch ms the snapshot was built.
+             */
+            at: number;
+            counts: {
+                in_progress: number;
+                ready: number;
+                delivered: number;
+            };
+            /** @description Legacy copy of money.collected (only with tenant.finance.read). */
+            paid_total?: string;
+            queue: {
+                /** Format: uuid */
+                id: string;
+                plate: string;
+                name: string;
+                vehicle: string;
+                /** @enum {string} */
+                status: "in_progress" | "ready";
+                /** @description RFC 3339 or empty. */
+                started_at: string;
+            }[];
+            /** @description Open jobs that did not fit into queue. */
+            more: number;
+            /** @description Only with tenant.finance.read. */
+            money?: {
+                cur: string;
+                /** @description The day's collections (tahsilat), as GET /v1/tenant/finance/today. */
+                collected: string;
+                /** @description Jobs revenue of the day (paid jobs, cari closes included); not money in. */
+                jobs: string;
+                cash: string;
+                card: string;
+                transfer: string;
+                other: string;
+                expense: string;
+                net: string;
+                /** @description Collections per day for 7 days, oldest first, ending on date. */
+                week: string[];
+                /** @description Up to 4 active accounts. */
+                accounts: {
+                    /** @description Name */
+                    n: string;
+                    /** @description Type (cash, bank, …) */
+                    t: string;
+                    /** @description Balance */
+                    b: string;
+                }[];
+            };
+            /** @description A missing field is a module the member may not read. */
+            alerts?: {
+                /**
+                 * Format: int64
+                 * @description Active stock-tracked products at or below their minimum (tenant.catalog.read).
+                 */
+                stock?: number;
+                /**
+                 * Format: int64
+                 * @description Reviews waiting for a follow-up (tenant.reviews.read).
+                 */
+                reviews?: number;
+                /**
+                 * Format: int64
+                 * @description Subscriptions past due or due within 7 days (tenant.loyalty.read).
+                 */
+                renewals?: number;
+                /**
+                 * Format: int64
+                 * @description Jobs delivered today without payment.
+                 */
+                unpaid?: number;
+            };
+            /** @description Next calendar events (tenant.calendar.read) and open to-dos (tenant.todos.read) of the day, at most 3; timed first. */
+            agenda?: {
+                items: {
+                    /** @enum {string} */
+                    k: "event" | "todo";
+                    /** Format: uuid */
+                    id: string;
+                    /** @description Title */
+                    t: string;
+                    /** @description RFC 3339 start, empty when all-day / untimed. */
+                    at: string;
+                }[];
+            };
         };
         ExportRequest: {
             /** @enum {string} */
@@ -20997,6 +21212,43 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    getTenantFinanceToday: {
+        parameters: {
+            query?: {
+                /** @description Business day (YYYY-MM-DD). Defaults to today in Europe/Istanbul. */
+                date?: string;
+                /** @description Length of `series`, ending on `date` (0 = no series). Default 7. */
+                days?: number;
+                /** @description ISO currency of the figures. Default TRY. */
+                currency?: string;
+            };
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Day figures */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeFinanceToday"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     getTenantFinanceAccountsMeta: {
         parameters: {
             query?: never;
@@ -24097,6 +24349,35 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+        };
+    };
+    getTenantLiveActivityWidgetSnapshot: {
+        parameters: {
+            query?: never;
+            header: {
+                /**
+                 * @description Organization of a `/v1/tenant/*` request: its slug (preferred, readable
+                 *     in logs) or uuid. The BFF forwards it on `/api/v1/tenant/*` only.
+                 */
+                "X-Organization": components["parameters"]["XOrganization"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeWidgetSnapshot"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     putTenantLiveActivityDevice: {

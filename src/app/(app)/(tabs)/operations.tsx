@@ -79,9 +79,10 @@ function OperationsBoard() {
   const [filter, setFilter] = useState<ListFilter>('all');
   // `?filter=ready` (Siri "Hazır araçları göster") opens today's board on that column. The tab stays
   // mounted, so a new `filter` / `n` (request nonce) is applied while rendering.
-  const routeParams = useLocalSearchParams<{ filter?: string; n?: string }>();
-  const routeKey = `${routeParams.filter ?? ''}|${routeParams.n ?? ''}`;
+  const routeParams = useLocalSearchParams<{ filter?: string; unpaid?: string; n?: string }>();
+  const routeKey = `${routeParams.filter ?? ''}|${routeParams.unpaid ?? ''}|${routeParams.n ?? ''}`;
   const [appliedKey, setAppliedKey] = useState('');
+  const [unpaidOnly, setUnpaidOnly] = useState(false);
   if (appliedKey !== routeKey) {
     setAppliedKey(routeKey);
     const wanted = routeParams.filter;
@@ -89,10 +90,11 @@ function OperationsBoard() {
       if (date !== localToday()) setDate(localToday());
       setFilter(wanted);
     }
+    // `?unpaid=1` (Uyarılar widget: unpaid deliveries) narrows the board to unpaid jobs.
+    if (routeParams.unpaid === '1' && !unpaidOnly) setUnpaidOnly(true);
   }
   const [search, setSearch] = useState('');
   const [assignee, setAssignee] = useState(ALL);
-  const [unpaidOnly, setUnpaidOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pendingUuid, setPendingUuid] = useState<string | null>(null);
   const [payJob, setPayJob] = useState<Job | null>(null);
