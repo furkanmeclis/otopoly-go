@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
+	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/apns"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/orgctx"
@@ -82,6 +83,16 @@ type Store interface {
 	ListServiceJobServiceTags(ctx context.Context, arg db.ListServiceJobServiceTagsParams) ([]db.ListServiceJobServiceTagsRow, error)
 	ListServiceJobs(ctx context.Context, arg db.ListServiceJobsParams) ([]db.ListServiceJobsRow, error)
 	SumServiceJobsDaily(ctx context.Context, arg db.SumServiceJobsDailyParams) (db.SumServiceJobsDailyRow, error)
+
+	// Widget snapshot parts (permission-filtered per recipient).
+	financeusecase.DayMoneyStore
+	ListPermissionSlugsForUsers(ctx context.Context, userIds []int64) ([]db.ListPermissionSlugsForUsersRow, error)
+	WidgetLowStockCount(ctx context.Context, organizationID int64) (int64, error)
+	WidgetReviewFollowUpCount(ctx context.Context, organizationID int64) (int64, error)
+	WidgetUnpaidDeliveredCount(ctx context.Context, arg db.WidgetUnpaidDeliveredCountParams) (int64, error)
+	LoyaltyRenewalCounts(ctx context.Context, arg db.LoyaltyRenewalCountsParams) (db.LoyaltyRenewalCountsRow, error)
+	WidgetAgendaEvents(ctx context.Context, arg db.WidgetAgendaEventsParams) ([]db.WidgetAgendaEventsRow, error)
+	WidgetAgendaTodos(ctx context.Context, arg db.WidgetAgendaTodosParams) ([]db.WidgetAgendaTodosRow, error)
 }
 
 // APNs sends ActivityKit pushes (*apns.Resolver satisfies it: credentials

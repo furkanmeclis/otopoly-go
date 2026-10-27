@@ -56,4 +56,5 @@ func RegisterRoutes(
 
 	mux.Handle("POST /v1/tenant/finance/transfers", tenantWrite(h.CreateTransfer))
 	mux.Handle("GET /v1/tenant/finance/summary", tenantRead(h.Summary))
+	mux.Handle("GET /v1/tenant/finance/today", tenantRead(h.Today))
 }

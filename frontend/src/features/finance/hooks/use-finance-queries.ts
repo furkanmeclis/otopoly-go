@@ -13,6 +13,19 @@ import {
 } from "@/features/finance/services/finance.service";
 import type { ServerListParams } from "@/components/entity";
 
+/** The day's collections; `enabled: false` for members without finance read. */
+export function useFinanceToday(
+  params?: { date?: string; days?: number; currency?: string },
+  options?: { enabled?: boolean; refetchInterval?: number },
+) {
+  return useQuery({
+    queryKey: financeQueryKeys.today(params),
+    queryFn: () => financeService.today(params),
+    enabled: options?.enabled ?? true,
+    refetchInterval: options?.refetchInterval,
+  });
+}
+
 export function useFinanceSummary(params?: {
   date_from?: string;
   date_to?: string;

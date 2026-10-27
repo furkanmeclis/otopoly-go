@@ -33,6 +33,8 @@ import {
   formatFinanceAmount,
   parseFinanceAmount,
 } from "@/features/finance/lib/format";
+import { useFinanceToday } from "@/features/finance/hooks/use-finance-queries";
+import { useTenantFinanceAccess } from "@/features/finance/hooks/use-tenant-finance-access";
 import { JobElapsed } from "@/features/jobs/components/job-elapsed";
 import { PlateBadge } from "@/features/jobs/components/plate-badge";
 import { useJobs, useJobsSummary } from "@/features/jobs/hooks/use-jobs";
@@ -159,6 +161,13 @@ function TodaySection({ slug }: { slug: string }) {
     refetchInterval: 30_000,
   });
   const summaryQuery = useJobsSummary(today);
+  // "Bugünkü tahsilat" is every collection of the day (finance ledger), not
+  // only paid jobs; members without finance read see the jobs revenue.
+  const financeAccess = useTenantFinanceAccess(slug);
+  const todayMoney = useFinanceToday(
+    { date: today, days: 0 },
+    { enabled: financeAccess.canRead, refetchInterval: 30_000 },
+  );
   const jobs = useMemo(() => jobsQuery.data?.items ?? [], [jobsQuery.data]);
   const nowMs = jobsQuery.dataUpdatedAt || 0;
   const currency = jobs[0]?.currency ?? "TRY";
@@ -209,28 +218,56 @@ function TodaySection({ slug }: { slug: string }) {
       tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
       warn: unpaidDelivered.length > 0,
     },
-    {
-      icon: Wallet,
-      label: t("dashboard.tenant.collected_today"),
-      value: formatFinanceAmount(
-        summaryQuery.data?.paid_total,
-        currency,
-        locale,
-      ),
-      hint: t("dashboard.tenant.card_cari", {
-        card: formatFinanceAmount(
-          summaryQuery.data?.card_total,
-          currency,
-          locale,
-        ),
-        cari: formatFinanceAmount(
-          summaryQuery.data?.cari_total,
-          currency,
-          locale,
-        ),
-      }),
-      tone: "bg-primary/10 text-primary",
-    },
+    financeAccess.canRead
+      ? {
+          icon: Wallet,
+          label: t("dashboard.tenant.collected_today"),
+          value: formatFinanceAmount(
+            todayMoney.data?.collected_total,
+            todayMoney.data?.currency ?? currency,
+            locale,
+          ),
+          hint: t("dashboard.tenant.cash_card_jobs", {
+            cash: formatFinanceAmount(
+              todayMoney.data?.by_method.cash,
+              currency,
+              locale,
+            ),
+            card: formatFinanceAmount(
+              todayMoney.data?.by_method.card,
+              currency,
+              locale,
+            ),
+            jobs: formatFinanceAmount(
+              summaryQuery.data?.paid_total,
+              currency,
+              locale,
+            ),
+          }),
+          tone: "bg-primary/10 text-primary",
+        }
+      : {
+          icon: Wallet,
+          label: t("dashboard.tenant.jobs_revenue_today"),
+          value: formatFinanceAmount(
+            summaryQuery.data?.paid_total,
+            currency,
+            locale,
+          ),
+          hint: t("dashboard.tenant.card_cari", {
+            card: formatFinanceAmount(
+              summaryQuery.data?.card_total,
+              currency,
+              locale,
+            ),
+            cari: formatFinanceAmount(
+              summaryQuery.data?.cari_total,
+              currency,
+              locale,
+            ),
+          }),
+          tone: "bg-primary/10 text-primary",
+        },
   ];
 
   return (

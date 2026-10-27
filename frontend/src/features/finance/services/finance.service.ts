@@ -116,6 +116,39 @@ export type FinanceSummary = {
   }>;
 };
 
+/** GET /v1/tenant/finance/today: a business day's collections ("tahsilat"). */
+export type FinanceToday = {
+  date: string;
+  currency: string;
+  /** Every posted income of the day (jobs cash/card, sales, cari, packages, manual); no transfers / voids. */
+  collected_total: string;
+  collected_count: number;
+  by_method: { cash: string; card: string; transfer: string; other: string };
+  by_source: {
+    jobs: string;
+    sales: string;
+    cari: string;
+    loyalty: string;
+    manual: string;
+    other: string;
+  };
+  expense_total: string;
+  net: string;
+  series: Array<{
+    date: string;
+    collected_total: string;
+    expense_total: string;
+  }>;
+  accounts: Array<{
+    uuid: string;
+    name: string;
+    type: string;
+    currency: string;
+    balance: string;
+    is_default: boolean;
+  }>;
+};
+
 export type ListPage<T> = {
   items: T[];
   total: number;
@@ -124,6 +157,11 @@ export type ListPage<T> = {
 };
 
 export const financeService = {
+  today(params?: { date?: string; days?: number; currency?: string }) {
+    return platformRequest<FinanceToday>("GET", "/v1/tenant/finance/today", {
+      query: params,
+    });
+  },
   summary(params?: {
     date_from?: string;
     date_to?: string;

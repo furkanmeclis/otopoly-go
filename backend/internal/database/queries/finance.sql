@@ -333,3 +333,45 @@ WHERE t.organization_id = $1
   )
 ORDER BY t.transaction_date DESC, t.created_at DESC
 LIMIT 10000;
+
+-- name: FinanceDayIncomeBreakdown :many
+-- The day's collections ("tahsilat"): posted income rows of one business day
+-- (transaction_date is the Europe/Istanbul day), grouped by where the money
+-- came from and how it was paid. Transfers between accounts are type
+-- 'transfer' and voided rows are status 'void', so neither is counted. A job
+-- closed on cari posts no income row (it is a receivable); the later cari
+-- collection does (source_type 'cari_payment').
+SELECT COALESCE(NULLIF(source_type, ''), 'manual')::text AS source_type,
+       payment_method,
+       COUNT(*)::bigint AS count,
+       COALESCE(SUM(amount), 0)::numeric AS total
+FROM finance_transactions
+WHERE organization_id = sqlc.arg(organization_id)
+  AND type = 'income'
+  AND status = 'posted'
+  AND currency = sqlc.arg(currency)
+  AND transaction_date = sqlc.arg(day)::date
+GROUP BY 1, payment_method;
+
+-- name: FinanceDailyIncomeExpense :many
+-- Posted income and expense per business day in [date_from, date_to].
+SELECT transaction_date, type, COALESCE(SUM(amount), 0)::numeric AS total
+FROM finance_transactions
+WHERE organization_id = sqlc.arg(organization_id)
+  AND status = 'posted'
+  AND type IN ('income', 'expense')
+  AND currency = sqlc.arg(currency)
+  AND transaction_date >= sqlc.arg(date_from)::date
+  AND transaction_date <= sqlc.arg(date_to)::date
+GROUP BY transaction_date, type
+ORDER BY transaction_date;
+
+-- name: ListFinanceAccountBalances :many
+-- Active cash / bank accounts with their running balance (widgets, today).
+SELECT uuid, name, type, currency, current_balance, is_default
+FROM finance_accounts
+WHERE organization_id = sqlc.arg(organization_id)
+  AND deleted_at IS NULL
+  AND is_active
+ORDER BY is_default DESC, name ASC, id ASC
+LIMIT sqlc.arg(limit_count);

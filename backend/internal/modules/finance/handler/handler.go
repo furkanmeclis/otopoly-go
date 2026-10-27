@@ -8,6 +8,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
 	financeusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/finance/usecase"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
@@ -385,6 +386,27 @@ func (h *Handler) Summary(w http.ResponseWriter, r *http.Request) {
 	item, err := h.svc.Summary(r.Context(), q.Get("date_from"), q.Get("date_to"), q.Get("currency"))
 	if err != nil {
 		response.InternalErr(w, r, err, "failed to load summary")
+		return
+	}
+	response.JSON(w, r, http.StatusOK, item)
+}
+
+// Today returns a business day's collections ("tahsilat"), expenses,
+// account balances and an optional daily series (GET /finance/today).
+func (h *Handler) Today(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	days := 7
+	if raw := strings.TrimSpace(q.Get("days")); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil {
+			response.ValidationError(w, r, []response.Detail{{Field: "days", Message: "days must be a number"}})
+			return
+		}
+		days = n
+	}
+	item, err := h.svc.Today(r.Context(), q.Get("date"), q.Get("currency"), days)
+	if err != nil {
+		writeFinanceErr(w, r, err)
 		return
 	}
 	response.JSON(w, r, http.StatusOK, item)
