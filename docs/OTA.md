@@ -6,12 +6,12 @@ Otopoly uses EAS Update through `expo-updates` so JavaScript and asset-only chan
 
 - Update URL: `https://u.expo.dev/a5e4bc16-f23b-4735-bd29-81f3355f02a8`
 - Launch behavior: check on launch and do not block startup (`fallbackToCacheTimeout: 0`). A downloaded update is applied on the next app restart.
-- Runtime version policy: `appVersion`.
+- Runtime version policy: `fingerprint`.
 - Channels:
   - EAS Android builds use `eas.json` profile channels: `development`, `preview`, and `production`.
   - Xcode Cloud iOS builds are non-EAS CNG builds, so `app.config.js` writes `updates.requestHeaders["expo-channel-name"]`.
 
-`appVersion` is intentionally used instead of `fingerprint`. Fingerprint is safer for automatically separating native runtime changes, but it depends on hashing the build/update project state. Because iOS store builds are produced by Xcode Cloud while updates may be published from a developer machine or another CI job, the simplest stable contract is that all builds and updates for the same `expo.version` share the same runtime. When native dependencies, config plugins, native config, SDK version, or generated native behavior changes, bump `expo.version` and ship new native builds before publishing updates for that runtime.
+`fingerprint` is used: the runtime version is a hash of everything that affects the native app (dependencies with native code, config plugins, app config, patches, SDK version). An update only reaches binaries built from the same native state, so a JS bundle that needs a new native module (for example `expo-application`, `expo-task-manager`, `expo-app-intents`, widget changes) can never land on an older binary and crash or hang it. This replaced `appVersion` after a preview APK built before such changes received a newer update and its widgets stopped rendering. The hash is identical before and after `expo prebuild --clean` (ios/ and android/ are gitignored apart from `ios/ci_scripts`), so Xcode Cloud builds and updates published from a developer machine or CI agree as long as they run from the same commit with `npm ci`. Check with `npx expo-updates fingerprint:generate --platform ios|android`.
 
 ## Channel environment variables
 
@@ -71,6 +71,5 @@ Create new Android and iOS builds before OTA when a change modifies native code 
 
 - adding, removing, or upgrading native modules
 - changing Expo SDK, React Native, config plugins, permissions, entitlements, URL schemes, associated domains, app icons/splash native assets, build properties, or Info.plist/AndroidManifest values
-- changing `expo.version`, because the runtime version policy follows it
 
-After the new builds are installed or released, publish OTA updates for the new runtime on the appropriate channel.
+With the `fingerprint` policy these changes produce a new runtime version on their own: installed binaries simply stop receiving updates until a new build with the same fingerprint is installed. `expo.version` no longer has to be bumped for this. After the new builds are installed or released, publish OTA updates for the new runtime on the appropriate channel.
