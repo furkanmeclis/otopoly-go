@@ -1,5 +1,5 @@
 # OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND.
-# Source: otopoly-go backend/docs/openapi.yaml @ c34a3e5 (scripts/contract/refresh-spec.sh).
+# Source: otopoly-go backend/docs/openapi.yaml @ 02dea4f (scripts/contract/refresh-spec.sh).
 openapi: 3.1.0
 info:
   title: App API

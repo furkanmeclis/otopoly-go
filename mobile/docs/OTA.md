@@ -11,7 +11,7 @@ Otopoly uses EAS Update through `expo-updates` so JavaScript and asset-only chan
   - EAS Android builds use `eas.json` profile channels: `development`, `preview`, and `production`.
   - Xcode Cloud iOS builds are non-EAS CNG builds, so `app.config.js` writes `updates.requestHeaders["expo-channel-name"]`.
 
-`fingerprint` is used: the runtime version is a hash of everything that affects the native app (dependencies with native code, config plugins, app config, patches, SDK version). An update only reaches binaries built from the same native state, so a JS bundle that needs a new native module (for example `expo-application`, `expo-task-manager`, `expo-app-intents`, widget changes) can never land on an older binary and crash or hang it. This replaced `appVersion` after a preview APK built before such changes received a newer update and its widgets stopped rendering. The hash is identical before and after `expo prebuild --clean` (ios/ and android/ are gitignored apart from `ios/ci_scripts`), so Xcode Cloud builds and updates published from a developer machine or CI agree as long as they run from the same commit with `npm ci`. Check with `npx expo-updates fingerprint:generate --platform ios|android`.
+`fingerprint` is used: the runtime version is a hash of everything that affects the native app (dependencies with native code, config plugins, app config, patches, SDK version). An update only reaches binaries built from the same native state, so a JS bundle that needs a new native module (for example `expo-application`, `expo-task-manager`, `expo-app-intents`, widget changes) can never land on an older binary and crash or hang it. This replaced `appVersion` after a preview APK built before such changes received a newer update and its widgets stopped rendering. The hash is identical before and after `expo prebuild --clean` (`mobile/ios/` and `mobile/android/` are gitignored apart from `mobile/ios/ci_scripts`), so Xcode Cloud builds and updates published from a developer machine or CI agree as long as they run from the same commit with `npm ci`. Check with `npx expo-updates fingerprint:generate --platform ios|android`.
 
 ## Channel environment variables
 
@@ -34,7 +34,7 @@ Xcode Cloud workflows must define:
 
 Production Xcode Cloud workflows must also keep the existing store-build guard satisfied: `EXPO_PUBLIC_API_MODE=live`, no `EXPO_PUBLIC_QA_TOUR=1`, and any `EXPO_PUBLIC_API_URL` must be HTTPS.
 
-No Xcode Cloud script changes are required. `scripts/xcode-cloud/ci_post_clone.sh` already runs `npm ci` and `npx expo prebuild --platform ios --clean --no-install`; once the workflow environment variables above are present, prebuild will embed the correct Expo.plist update URL, runtime version, and channel header.
+No Xcode Cloud script changes are required. `mobile/scripts/xcode-cloud/ci_post_clone.sh` already runs `npm ci` and `npx expo prebuild --platform ios --clean --no-install`; once the workflow environment variables above are present, prebuild will embed the correct Expo.plist update URL, runtime version, and channel header.
 
 ## Publishing
 

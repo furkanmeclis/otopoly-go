@@ -8,6 +8,9 @@
 # Backend source — not needed for frontend image
 backend/
 
+# Expo app — shipped through EAS and Xcode Cloud, never in an image
+mobile/
+
 # Frontend dev artifacts
 frontend/node_modules/
 frontend/.next/

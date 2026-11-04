@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Refreshes scripts/contract/openapi.yaml (the contract test's spec fixture) from an otopoly-go checkout.
-# Usage: scripts/contract/refresh-spec.sh [path-to-otopoly-go]   (default ../otopoly-go, next to this repo)
+# Refreshes scripts/contract/openapi.yaml (the contract test's spec fixture) from the monorepo backend.
+# Usage: scripts/contract/refresh-spec.sh [path-to-repo-root]   (default: the repo root above mobile/)
 #
 # Normally a plain copy of backend/docs/openapi.yaml. While a backend branch is not merged yet, its spec can be
 # folded in with a structural 3-way merge (merge-spec.mjs):
@@ -8,7 +8,7 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
-GO=${1:-$ROOT/../otopoly-go}
+GO=${1:-$ROOT/..}
 SPEC="$GO/backend/docs/openapi.yaml"
 OUT="$HERE/openapi.yaml"
 [ -f "$SPEC" ] || { echo "no spec at $SPEC" >&2; exit 1; }
