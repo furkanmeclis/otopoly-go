@@ -39,6 +39,9 @@ check_eas_env() {
     echo "::error title=EAS production environment::Missing: $missing"
     exit 1
   fi
+  # app.config.js turns this into an iOS URL scheme, so the fingerprint depends on it.
+  EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID="$(sed -n 's/^EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=//p' <<<"$vars")"
+  export EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
 }
 
 fingerprint() {

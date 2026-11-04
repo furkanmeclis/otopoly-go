@@ -63,6 +63,7 @@ A green push to `main` that changes shipping files under `mobile/` runs `.github
 
 - Backend and OpenAPI changes do not ship the app by themselves. A committed `src/api/generated` change does.
 - The `production` EAS environment must hold the same public values as the Xcode Cloud workflow. `eas update` reads that environment, not `eas.json`, and the release stops if `EXPO_PUBLIC_APP_ENV`, `EXPO_PUBLIC_API_MODE` or `EXPO_PUBLIC_API_URL` is missing.
+- `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` becomes an iOS URL scheme, so it is part of the native fingerprint. The release reads it from the `production` EAS environment, which must match the Xcode Cloud workflow. Keep it plain text in EAS; a `secret` value cannot be read back. Changing it requires a new build on both platforms.
 - An `ios-build-*` tag shows that a build started, not that it succeeded. After a failed Xcode Cloud build, run the workflow by hand with `force_build`, which pushes `ios-build-<hash>-2`.
 - `ci_post_clone.sh` logs the iOS fingerprint. It must equal the hash in the tag, otherwise OTA updates never reach that binary.
 - Run it by hand from the Actions tab. `dry_run` is on by default and only prints the decision.
