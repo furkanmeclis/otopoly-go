@@ -644,7 +644,7 @@ export interface paths {
             query?: never;
             header?: never;
             path: {
-                /** @description Legal page slug (e.g. `privacy`) */
+                /** @description Legal page slug (e.g. `privacy`, `terms`) */
                 slug: components["parameters"]["LegalPageSlug"];
             };
             cookie?: never;
@@ -1052,7 +1052,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Public legal page (e.g. privacy policy)
+         * Public legal page (e.g. privacy policy, terms of use)
          * @description No authentication. Returns the page title and Markdown body in the
          *     requested locale; falls back to `tr` when that locale's body is empty
          *     (`locale` in the response is the one actually served). Responses carry
@@ -17127,7 +17127,7 @@ export interface components {
     parameters: {
         /** @description SMS provider code */
         SmsProviderPath: "netgsm" | "twilio";
-        /** @description Legal page slug (e.g. `privacy`) */
+        /** @description Legal page slug (e.g. `privacy`, `terms`) */
         LegalPageSlug: string;
         /** @description QR sign-in session id (from the QR URL) */
         QRSessionID: string;
@@ -18069,7 +18069,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Legal page slug (e.g. `privacy`) */
+                /** @description Legal page slug (e.g. `privacy`, `terms`) */
                 slug: components["parameters"]["LegalPageSlug"];
             };
             cookie?: never;
@@ -18096,7 +18096,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Legal page slug (e.g. `privacy`) */
+                /** @description Legal page slug (e.g. `privacy`, `terms`) */
                 slug: components["parameters"]["LegalPageSlug"];
             };
             cookie?: never;
@@ -18825,7 +18825,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description Legal page slug (e.g. `privacy`) */
+                /** @description Legal page slug (e.g. `privacy`, `terms`) */
                 slug: components["parameters"]["LegalPageSlug"];
             };
             cookie?: never;
