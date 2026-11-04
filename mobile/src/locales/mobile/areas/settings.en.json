@@ -1,0 +1,7 @@
+{
+  "settings.ai_renamed": "Conversation renamed",
+  "settings.owner_only": "Only the business owner can manage the WhatsApp connection.",
+  "settings.wa_scan_other_device": "Scan this code from another phone that runs WhatsApp Business: WhatsApp → Linked devices → Link a device.",
+  "settings.invalid_color": "Enter a colour as #RRGGBB.",
+  "settings.logo_on_web": "Logos are uploaded in the web dashboard; here you can preview and remove the current logo."
+}

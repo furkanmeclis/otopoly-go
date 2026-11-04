@@ -2,7 +2,7 @@
 
 Read this first, then the matching skill. Human docs live under `docs/`. Do not invent tenants, workspaces, or a `/business` shell.
 
-Canonical env is the **repo-root** `.env`. Compose files are `compose.local.yml` (infra) and `compose.prod.yml` (full stack).
+Canonical env is the **repo-root** `.env`. Compose files are `compose.local.yml` (infra) and `compose.prod.yml` (full stack). The Expo app lives in `mobile/`, has its own rules in [mobile/AGENTS.md](./mobile/AGENTS.md), and does not read the root `.env`.
 
 ## Skills (`.agents/skills/`)
 
@@ -41,5 +41,5 @@ Canonical env is the **repo-root** `.env`. Compose files are `compose.local.yml`
 - Never expose Meilisearch to the browser; search goes through `/v1/search`.
 - New `/v1` routes update `backend/docs/openapi.yaml` in the same change.
 - Permission slugs are added only via migration + `internal/platform/rbac` + `frontend/src/config/permissions.ts`.
-- After OpenAPI changes: `cd frontend && pnpm api:generate`.
+- After OpenAPI changes: `cd frontend && pnpm api:generate` and `cd mobile && npm run api:generate && scripts/contract/refresh-spec.sh`.
 - Business dates are Europe/Istanbul days: Go `internal/platform/bizclock`, web `lib/utils/business-date.ts`; the DB session runs in Europe/Istanbul. Never `time.Now()` / `toISOString().slice(0, 10)` for a day. See [docs/business-timezone.md](./docs/business-timezone.md).

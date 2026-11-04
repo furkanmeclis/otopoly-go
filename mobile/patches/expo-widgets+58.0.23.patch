@@ -1,0 +1,52 @@
+diff --git a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
+index 3df9e4a..7068b79 100644
+--- a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
++++ b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/ExpoWidgetEmittableTree.kt
+@@ -296,7 +296,15 @@ private fun ReadableMap.toPeekButton(converterContext: WidgetConverterContext, s
+   val props = props<WidgetButtonProps>(converterContext)
+   val children = children()
+   val action =
+-    props.target?.let { target -> WidgetInteraction(source, target).toGlanceAction(converterContext.applicationContext) }
++    props.target?.let { target ->
++      // A URL target ("otopoly://jobs/1") opens the app directly through an activity PendingIntent;
++      // anything else is an in-widget interaction handled by the provider broadcast.
++      if (isUrlTarget(target)) {
++        openUrlAction(converterContext.applicationContext, target)
++      } else {
++        WidgetInteraction(source, target).toGlanceAction(converterContext.applicationContext)
++      }
++    }
+   val modifier = props.buttonModifier(converterContext)
+   val contentColor = props.contentColorProvider()
+   val textContent = children.textContent(converterContext) ?: props.label
+diff --git a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
+index b0b6479..9bf9738 100644
+--- a/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
++++ b/node_modules/expo-widgets/android/src/main/java/expo/modules/widgets/WidgetInteractionAction.kt
+@@ -5,6 +5,7 @@ import android.content.Intent
+ import android.net.Uri
+ import androidx.glance.action.Action
+ import androidx.glance.appwidget.action.actionSendBroadcast
++import androidx.glance.appwidget.action.actionStartActivity
+ import expo.modules.widgets.notifications.ExpoWidgetsNotificationReceiver
+ 
+ internal const val WIDGET_INTERACTION_ACTION = "expo.modules.widgets.ACTION_WIDGET_INTERACTION"
+@@ -52,6 +53,18 @@ internal fun WidgetInteraction.toGlanceAction(context: Context): Action {
+   return actionSendBroadcast(intent)
+ }
+ 
++private val URL_TARGET = Regex("^[a-zA-Z][a-zA-Z0-9+.-]*://.+")
++
++internal fun isUrlTarget(target: String): Boolean = URL_TARGET.matches(target)
++
++/** Opens [url] in this app (deep link) straight from the widget, without a broadcast trampoline. */
++internal fun openUrlAction(context: Context, url: String): Action {
++  val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
++    .setPackage(context.packageName)
++    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
++  return actionStartActivity(intent)
++}
++
+ internal object WidgetsInteraction {
+   fun handle(context: Context, source: String, target: String) {
+     val layout = WidgetsLayoutRegistry.layout(context, source) ?: return

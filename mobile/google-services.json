@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "277791580467",
+    "project_id": "otopoly",
+    "storage_bucket": "otopoly.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:277791580467:android:e7b4ae8be03e03da2c1e46",
+        "android_client_info": {
+          "package_name": "com.otopoly.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPKrdzMDxD31Dy-XFGcj4fn8DuvV2GdfE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

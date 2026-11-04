@@ -1,0 +1,204 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "Today's summary in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} günün özeti"
+          }
+        }
+      }
+    },
+    "How many cars today in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} bugün kaç araç var"
+          }
+        }
+      }
+    },
+    "Today's revenue in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} bugünkü ciro"
+          }
+        }
+      }
+    },
+    "New job in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} yeni iş emri"
+          }
+        }
+      }
+    },
+    "Open a new job in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} yeni iş emri aç"
+          }
+        }
+      }
+    },
+    "Search a plate in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} plaka ara"
+          }
+        }
+      }
+    },
+    "Find a plate in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} plaka sorgula"
+          }
+        }
+      }
+    },
+    "Open ${customer} in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} ${customer} aç"
+          }
+        }
+      }
+    },
+    "Show customer ${customer} in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} müşteri ${customer}"
+          }
+        }
+      }
+    },
+    "Find a customer in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} müşteri ara"
+          }
+        }
+      }
+    },
+    "Show ready cars in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} hazır araçları göster"
+          }
+        }
+      }
+    },
+    "Which cars are ready in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} hangi araçlar hazır"
+          }
+        }
+      }
+    },
+    "Ask the assistant in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} asistana sor"
+          }
+        }
+      }
+    },
+    "Ask a question in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} soru sor"
+          }
+        }
+      }
+    },
+    "Sign in with QR in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} QR ile giriş"
+          }
+        }
+      }
+    },
+    "Scan the QR code in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} QR kodu okut"
+          }
+        }
+      }
+    },
+    "Today's calendar in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} bugünkü takvim"
+          }
+        }
+      }
+    },
+    "Show today's appointments in ${applicationName}": {
+      "extractionState": "manual",
+      "localizations": {
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} bugünkü randevular"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

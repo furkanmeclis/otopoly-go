@@ -1,0 +1,15 @@
+{
+  "commerce.stock_available": "Stock: {{qty}} {{unit}}",
+  "commerce.stock_insufficient": "Insufficient stock — available: {{qty}}",
+  "commerce.filters": "Filters",
+  "commerce.reset_filters": "Reset filters",
+  "commerce.sort": "Sort",
+  "commerce.sort_name_asc": "Name (A→Z)",
+  "commerce.sort_name_desc": "Name (Z→A)",
+  "commerce.sort_balance_desc": "Balance (high→low)",
+  "commerce.sort_balance_asc": "Balance (low→high)",
+  "commerce.sort_newest": "Newest",
+  "commerce.sort_oldest": "Oldest",
+  "commerce.date_from": "From",
+  "commerce.date_to": "To"
+}

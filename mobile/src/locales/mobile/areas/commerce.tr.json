@@ -1,0 +1,15 @@
+{
+  "commerce.stock_available": "Stok: {{qty}} {{unit}}",
+  "commerce.stock_insufficient": "Yetersiz stok — mevcut: {{qty}}",
+  "commerce.filters": "Filtreler",
+  "commerce.reset_filters": "Filtreleri temizle",
+  "commerce.sort": "Sıralama",
+  "commerce.sort_name_asc": "Ad (A→Z)",
+  "commerce.sort_name_desc": "Ad (Z→A)",
+  "commerce.sort_balance_desc": "Bakiye (yüksek→düşük)",
+  "commerce.sort_balance_asc": "Bakiye (düşük→yüksek)",
+  "commerce.sort_newest": "En yeni",
+  "commerce.sort_oldest": "En eski",
+  "commerce.date_from": "Başlangıç",
+  "commerce.date_to": "Bitiş"
+}

@@ -1,0 +1,15 @@
+{
+  "calendar.views_three_days": "3 gün",
+  "calendar.layers_all": "Tümü",
+  "calendar.long_press_hint": "Tarihini değiştirmek için basılı tutun.",
+  "calendar.items_count": "{{count}} kayıt",
+  "calendar.day_empty": "Bu güne ait kayıt yok.",
+  "calendar.empty_hint": "Sağ üstteki + ile etkinlik ekleyebilirsiniz.",
+  "calendar.edit": "Etkinliği düzenle",
+  "calendar.reschedule.title": "Tarihi değiştir",
+  "calendar.reschedule.date": "Yeni tarih",
+  "calendar.reschedule.time": "Saat",
+  "calendar.reschedule.save": "Taşı",
+  "calendar.reschedule.todo_hint": "Saati boş bırakırsanız görev tüm güne yayılır.",
+  "calendar.reschedule.lead_hint": "Fırsat takipleri yalnızca tarih taşır."
+}

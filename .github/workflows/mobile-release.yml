@@ -1,0 +1,58 @@
+name: Mobile release
+
+# Called by ci.yml after a green main push that changed mobile/, or started by
+# hand. The decision logic is in scripts/ci/mobile-release.sh; docs in
+# mobile/docs/OTA.md. Only a dry run may start from a branch other than main.
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform
+        type: choice
+        options: [all, ios, android]
+        default: all
+      force_build:
+        description: Build even if the native fingerprint did not change
+        type: boolean
+        default: false
+      dry_run:
+        description: Only print the decision
+        type: boolean
+        default: true
+
+concurrency:
+  group: mobile-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write # pushes the ios-build-* tag
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main' || inputs.dry_run == true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      # Same values as the Xcode Cloud workflow; the iOS fingerprint must match it.
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_UPDATES_CHANNEL: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install
+        working-directory: mobile
+        run: npm ci --no-audit --no-fund
+      - name: Release
+        env:
+          PLATFORM: ${{ inputs.platform || 'all' }}
+          FORCE_BUILD: ${{ inputs.force_build || false }}
+          DRY_RUN: ${{ inputs.dry_run || false }}
+        run: |
+          [ -n "$EXPO_TOKEN" ] || { echo "::error::EXPO_TOKEN secret is not set"; exit 1; }
+          scripts/ci/mobile-release.sh

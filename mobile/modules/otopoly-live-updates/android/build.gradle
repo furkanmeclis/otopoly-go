@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.otopoly.app'
+version = '1.0.0'
+
+android {
+  namespace "expo.modules.otopolyliveupdates"
+  defaultConfig {
+    versionCode 1
+    versionName '1.0.0'
+  }
+}
+
+dependencies {
+  // 1.17 brings NotificationCompat.ProgressStyle and the Android 16 promoted-ongoing (Live Update) APIs.
+  implementation "androidx.core:core-ktx:1.17.0"
+}

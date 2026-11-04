@@ -1,0 +1,35 @@
+# EAS uploads from the git root and skips every .gitignore once this file exists,
+# so it repeats what mobile/.gitignore hides and drops the rest of the monorepo.
+.agents/
+.claude/
+.github/
+backend/
+deploy/
+docs/
+frontend/
+landing-film/
+scripts/
+tmp/
+.env
+.env.*
+compose.*.yml
+
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/web-build/
+mobile/expo-env.d.ts
+mobile/.kotlin/
+mobile/ios/
+mobile/android/
+mobile/.env*.local
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+*.tsbuildinfo
+.metro-health-check*
+.DS_Store

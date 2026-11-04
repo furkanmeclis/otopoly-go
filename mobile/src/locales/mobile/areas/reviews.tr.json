@@ -1,0 +1,13 @@
+{
+  "reviews.subtitle": "Teslim sonrası müşteri memnuniyeti",
+  "reviews.search": "Müşteri, telefon, plaka, yorum",
+  "reviews.filter.all": "Tümü",
+  "reviews.filter.follow_up": "Takip gerekli",
+  "reviews.filter.low": "Düşük puan",
+  "reviews.filter.high": "Yüksek puan",
+  "reviews.filter.waiting": "Cevap bekleyen",
+  "reviews.filter.answered": "Cevaplanan",
+  "reviews.share_link": "Test bağlantısını paylaş",
+  "reviews.open_test": "Test isteğini aç",
+  "reviews.excluded_on_web": "Hariç tutulan müşteri listesi web panelinden düzenlenir."
+}
