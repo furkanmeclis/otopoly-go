@@ -43,5 +43,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.3,
     },
+    {
+      url: `${site.url}${routes.public.terms}`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.3,
+      alternates: {
+        languages: {
+          tr: `${site.url}${routes.public.terms}`,
+          en: `${site.url}${routes.public.termsEn}`,
+        },
+      },
+    },
+    {
+      url: `${site.url}${routes.public.termsEn}`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.3,
+    },
   ];
 }

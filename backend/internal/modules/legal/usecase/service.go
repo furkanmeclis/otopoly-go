@@ -1,4 +1,4 @@
-// Package usecase serves the public legal pages (privacy policy, later terms)
+// Package usecase serves the public legal pages (privacy policy, terms of use)
 // and their platform-admin editing.
 package usecase
 

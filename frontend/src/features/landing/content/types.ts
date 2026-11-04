@@ -150,6 +150,7 @@ export type LandingContent = {
     login: string;
     rights: string;
     privacy: string;
+    terms: string;
   };
 };
 

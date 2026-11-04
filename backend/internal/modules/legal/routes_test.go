@@ -290,7 +290,7 @@ func TestPlatformPatch(t *testing.T) {
 
 	t.Run("unknown slug 404", func(t *testing.T) {
 		e := newEnv(t)
-		if rec := e.do(http.MethodPatch, "/v1/platform/legal/terms", "writer",
+		if rec := e.do(http.MethodPatch, "/v1/platform/legal/missing-page", "writer",
 			map[string]string{"title_tr": "Koşullar"}); rec.Code != http.StatusNotFound {
 			t.Fatalf("status %d", rec.Code)
 		}

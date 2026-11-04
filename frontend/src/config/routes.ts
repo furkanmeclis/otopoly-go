@@ -7,6 +7,8 @@ export const routes = {
     register: "/register",
     privacy: "/privacy",
     privacyEn: "/en/privacy",
+    terms: "/terms",
+    termsEn: "/en/terms",
     health: "/health",
     quote: (token: string) => `/q/${token}`,
     /** Customer review page (short link sent after delivery). */
@@ -238,6 +240,7 @@ export const routes = {
     },
     legal: {
       privacy: "/platform/legal/privacy",
+      terms: "/platform/legal/terms",
     },
     integrations: {
       github: "/platform/integrations/github",

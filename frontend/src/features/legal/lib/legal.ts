@@ -6,6 +6,9 @@ export const LEGAL_MAX_MARKDOWN_BYTES = 100 * 1024;
 
 export const LEGAL_CONTACT_EMAIL = "contact@otopoly.app";
 
+/** Legal pages with a public route and a platform editor. */
+export type LegalSlug = "privacy" | "terms";
+
 const encoder = new TextEncoder();
 
 /** UTF-8 size, as the backend counts it. */
@@ -13,8 +16,11 @@ export function utf8Bytes(text: string): number {
   return encoder.encode(text).length;
 }
 
-/** Public URL of the privacy page in locale. */
-export function privacyPath(locale: AppLocale): string {
+/** Public URL of a legal page in locale. */
+export function legalPath(slug: LegalSlug, locale: AppLocale): string {
+  if (slug === "terms") {
+    return locale === "en" ? routes.public.termsEn : routes.public.terms;
+  }
   return locale === "en" ? routes.public.privacyEn : routes.public.privacy;
 }
 

@@ -8,7 +8,11 @@ import {
   LegalDocument,
   type LegalDocumentData,
 } from "@/features/legal/components/legal-document";
-import { LEGAL_CONTACT_EMAIL, privacyPath } from "@/features/legal/lib/legal";
+import {
+  LEGAL_CONTACT_EMAIL,
+  legalPath,
+  type LegalSlug,
+} from "@/features/legal/lib/legal";
 import { translate } from "@/lib/i18n/messages";
 
 /** Matches the API's Cache-Control max-age; admin edits show within a minute. */
@@ -61,23 +65,35 @@ async function fetchLegalPage(
 const t = (locale: AppLocale, key: string, params?: Record<string, string>) =>
   translate(locale, key, params, locale);
 
-export async function privacyMetadata(locale: AppLocale): Promise<Metadata> {
-  const result = await fetchLegalPage("privacy", locale);
+const PAGE_KEYS: Record<LegalSlug, { link: string; description: string }> = {
+  privacy: {
+    link: "legal.public.privacy_link",
+    description: "legal.public.privacy_description",
+  },
+  terms: {
+    link: "legal.public.terms_link",
+    description: "legal.public.terms_description",
+  },
+};
+
+export async function legalMetadata(
+  slug: LegalSlug,
+  locale: AppLocale,
+): Promise<Metadata> {
+  const result = await fetchLegalPage(slug, locale);
   const title =
-    result.kind === "ok"
-      ? result.page.title
-      : t(locale, "legal.public.privacy_link");
-  const description = t(locale, "legal.public.privacy_description");
-  const path = privacyPath(locale);
+    result.kind === "ok" ? result.page.title : t(locale, PAGE_KEYS[slug].link);
+  const description = t(locale, PAGE_KEYS[slug].description);
+  const path = legalPath(slug, locale);
   return {
     title,
     description,
     alternates: {
       canonical: path,
       languages: {
-        tr: privacyPath("tr"),
-        en: privacyPath("en"),
-        "x-default": privacyPath("tr"),
+        tr: legalPath(slug, "tr"),
+        en: legalPath(slug, "en"),
+        "x-default": legalPath(slug, "tr"),
       },
     },
     openGraph: {
@@ -91,11 +107,18 @@ export async function privacyMetadata(locale: AppLocale): Promise<Metadata> {
   };
 }
 
-export async function PrivacyRoute({ locale }: { locale: AppLocale }) {
-  const result = await fetchLegalPage("privacy", locale);
+export async function LegalRoute({
+  slug,
+  locale,
+}: {
+  slug: LegalSlug;
+  locale: AppLocale;
+}) {
+  const result = await fetchLegalPage(slug, locale);
   if (result.kind === "not_found") notFound();
   return (
     <LegalDocument
+      slug={slug}
       locale={locale}
       page={result.kind === "ok" ? result.page : null}
       unavailable={{
