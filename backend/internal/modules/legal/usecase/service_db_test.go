@@ -63,7 +63,18 @@ func TestPatchDBPersistsAndJoinsEditor(t *testing.T) {
 		t.Fatalf("updated_by column = %d (%v), want %d", stored, err, userID)
 	}
 
-	if _, err := svc.Patch(ctx, "terms", &userID, PatchInput{MarkdownTR: &body}); err != ErrNotFound {
+	if _, err := svc.Patch(ctx, "missing-page", &userID, PatchInput{MarkdownTR: &body}); err != ErrNotFound {
 		t.Fatalf("unknown slug: %v", err)
+	}
+
+	terms, err := svc.Get(ctx, "terms")
+	if err != nil {
+		t.Fatalf("Get terms: %v", err)
+	}
+	if terms.TitleTR == "" || terms.TitleEN == "" || terms.MarkdownTR == "" || terms.MarkdownEN == "" {
+		t.Fatalf("terms seed missing: %+v", terms)
+	}
+	if strings.Contains(terms.MarkdownTR, "[Şirket") || strings.Contains(terms.MarkdownEN, "[Şirket") {
+		t.Fatal("terms seed has an unfilled placeholder")
 	}
 }

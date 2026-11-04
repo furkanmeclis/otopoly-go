@@ -458,5 +458,6 @@ export const tr: LandingContent = {
     login: "Giriş yap",
     rights: "Tüm hakları saklıdır.",
     privacy: "Gizlilik Politikası",
+    terms: "Kullanım Koşulları",
   },
 };

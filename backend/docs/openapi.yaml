@@ -1754,7 +1754,7 @@ paths:
     get:
       tags: [Public]
       operationId: getPublicLegalPage
-      summary: Public legal page (e.g. privacy policy)
+      summary: Public legal page (e.g. privacy policy, terms of use)
       description: |
         No authentication. Returns the page title and Markdown body in the
         requested locale; falls back to `tr` when that locale's body is empty
@@ -14888,7 +14888,7 @@ components:
       name: slug
       in: path
       required: true
-      description: Legal page slug (e.g. `privacy`)
+      description: Legal page slug (e.g. `privacy`, `terms`)
       schema: { type: string, pattern: "^[a-z0-9]+(-[a-z0-9]+)*$", maxLength: 64, example: privacy }
     QRSessionID:
       name: id

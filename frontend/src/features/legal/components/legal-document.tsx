@@ -6,7 +6,11 @@ import { Markdown } from "@/components/markdown/markdown";
 import type { AppLocale } from "@/config/i18n";
 import { routes } from "@/config/routes";
 import { translate } from "@/lib/i18n/messages";
-import { formatLegalDate, privacyPath } from "@/features/legal/lib/legal";
+import {
+  formatLegalDate,
+  legalPath,
+  type LegalSlug,
+} from "@/features/legal/lib/legal";
 
 export type LegalDocumentData = {
   title: string;
@@ -17,6 +21,7 @@ export type LegalDocumentData = {
 };
 
 type LegalDocumentProps = {
+  slug: LegalSlug;
   locale: AppLocale;
   page: LegalDocumentData | null;
   unavailable?: { title: string; body: string };
@@ -24,6 +29,7 @@ type LegalDocumentProps = {
 
 /** Public legal page shell: brand header, title, date, Markdown body. */
 export function LegalDocument({
+  slug,
   locale,
   page,
   unavailable,
@@ -40,7 +46,7 @@ export function LegalDocument({
             <AppWordmark className="h-7" />
           </Link>
           <Link
-            href={privacyPath(other)}
+            href={legalPath(slug, other)}
             hrefLang={other}
             className="text-muted-foreground hover:text-foreground text-sm transition-colors"
           >

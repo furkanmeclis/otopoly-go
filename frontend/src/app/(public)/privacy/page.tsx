@@ -1,9 +1,9 @@
-import { PrivacyRoute, privacyMetadata } from "@/features/legal/server";
+import { LegalRoute, legalMetadata } from "@/features/legal/server";
 
 export function generateMetadata() {
-  return privacyMetadata("tr");
+  return legalMetadata("privacy", "tr");
 }
 
 export default function PrivacyPage() {
-  return <PrivacyRoute locale="tr" />;
+  return <LegalRoute slug="privacy" locale="tr" />;
 }

@@ -20,8 +20,9 @@ import { permissions } from "@/config/permissions";
 import {
   LEGAL_MAX_MARKDOWN_BYTES,
   formatLegalDate,
-  privacyPath,
+  legalPath,
   utf8Bytes,
+  type LegalSlug,
 } from "@/features/legal/lib/legal";
 import {
   legalService,
@@ -43,6 +44,11 @@ type Draft = {
 
 const LOCALES: AppLocale[] = ["tr", "en"];
 
+const PAGE_TITLE_KEYS: Record<LegalSlug, string> = {
+  privacy: "legal.editor.page_privacy",
+  terms: "legal.editor.page_terms",
+};
+
 function toDraft(page: LegalPage): Draft {
   return {
     title_tr: page.title_tr,
@@ -62,7 +68,7 @@ function diff(page: LegalPage, draft: Draft): LegalPagePatch {
 }
 
 /** Platform editor for one legal page (TR/EN Markdown with live preview). */
-export function LegalEditorPage({ slug }: { slug: "privacy" }) {
+export function LegalEditorPage({ slug }: { slug: LegalSlug }) {
   const { t } = useLocale();
   const { can } = usePermission();
   const canWrite = can(permissions.legal.write);
@@ -77,11 +83,11 @@ export function LegalEditorPage({ slug }: { slug: "privacy" }) {
     <div className="space-y-6">
       <PageHeader
         icon={<Scale className="size-7" />}
-        title={`${t("legal.editor.title")} · ${t("legal.editor.page_privacy")}`}
+        title={`${t("legal.editor.title")} · ${t(PAGE_TITLE_KEYS[slug])}`}
         description={t("legal.editor.description")}
         actions={
           <Button variant="outline" asChild>
-            <a href={privacyPath("tr")} target="_blank" rel="noopener">
+            <a href={legalPath(slug, "tr")} target="_blank" rel="noopener">
               <ExternalLink className="size-4" />
               {t("legal.editor.view_page")}
             </a>
@@ -120,7 +126,7 @@ function LegalEditor({
   queryKey,
 }: {
   page: LegalPage;
-  slug: string;
+  slug: LegalSlug;
   canWrite: boolean;
   queryKey: readonly unknown[];
 }) {
@@ -230,7 +236,7 @@ function LegalEditor({
                       <p className="text-muted-foreground text-xs">
                         {t("legal.editor.markdown_hint")}
                         {l === "en"
-                          ? ` ${t("legal.editor.en_fallback_hint")}`
+                          ? ` ${t("legal.editor.en_fallback_hint", { path: legalPath(slug, "en") })}`
                           : null}
                       </p>
                       {over ? (

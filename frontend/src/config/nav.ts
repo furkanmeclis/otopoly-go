@@ -178,6 +178,13 @@ export const platformNav = defineNav({
           icon: Scale,
           permission: permissions.legal.read,
         },
+        {
+          id: "legal-terms",
+          titleKey: "layout.nav_legal_terms",
+          href: routes.platform.legal.terms,
+          icon: Scale,
+          permission: permissions.legal.read,
+        },
       ],
     },
     {

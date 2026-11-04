@@ -473,5 +473,6 @@ export const en: LandingContent = {
     login: "Sign in",
     rights: "All rights reserved.",
     privacy: "Privacy Policy",
+    terms: "Terms of Use",
   },
 };
