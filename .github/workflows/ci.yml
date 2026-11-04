@@ -9,9 +9,47 @@ on:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer merge must not cancel a mobile release that is already publishing.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
+  # Decides what the mobile jobs below do; backend and frontend always run.
+  #   mobile/**, backend/docs/openapi.yaml, release files -> mobile checks
+  #   shipping files under mobile/ on main                -> mobile_release
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      mobile: ${{ steps.filter.outputs.mobile }}
+      mobile_release: ${{ steps.filter.outputs.mobile_release }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - name: Changed areas
+        id: filter
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          mobile=false; mobile_release=false; base=""
+          if [ "$GITHUB_REF_NAME" = "main" ]; then
+            if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then base="$BEFORE"; fi
+          else
+            base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+          fi
+          # Unknown range: run the checks, but never ship on a guess.
+          files=""
+          if [ -n "$base" ]; then files="$(git diff --name-only "$base" HEAD)"; else mobile=true; fi
+          while IFS= read -r f; do
+            case "$f" in
+              backend/docs/openapi.yaml|.easignore|scripts/ci/mobile-release.sh|.github/workflows/*) mobile=true ;;
+              mobile/*.md|mobile/docs/*|mobile/.claude/*|mobile/LICENSE|mobile/scripts/contract/*|mobile/scripts/smoke/*) mobile=true ;;
+              mobile/*) mobile=true; mobile_release=true ;;
+            esac
+          done <<<"$files"
+          if [ "$GITHUB_REF_NAME" != "main" ]; then mobile_release=false; fi
+          { echo "mobile=$mobile"; echo "mobile_release=$mobile_release"; } | tee -a "$GITHUB_OUTPUT"
+
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -68,7 +106,66 @@ jobs:
         working-directory: .
         run: node scripts/check-i18n.mjs
 
-  # Feature branch pushed and both test jobs green → open (or reuse) a PR into
+  # Expo app. No native build here: mobile-release.yml ships it.
+  mobile:
+    needs: [changes]
+    if: needs.changes.outputs.mobile == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Lint
+        run: npm run lint
+      - name: Typecheck
+        run: npm run typecheck
+      - name: i18n keys
+        run: node scripts/check-i18n.mjs
+      - name: Mock API smoke tests
+        run: npm run test:smoke
+      - name: API contract
+        run: npm run test:contract
+      - name: Generated API files are up to date
+        run: |
+          npm run api:generate
+          git diff --exit-code -- src/api/generated
+          tail -n +3 scripts/contract/openapi.yaml | diff -q - ../backend/docs/openapi.yaml \
+            || { echo "::error::Run scripts/contract/refresh-spec.sh in mobile/"; exit 1; }
+      - name: Expo config
+        run: npx expo config --type public > /dev/null
+      - name: Release script syntax
+        working-directory: .
+        run: bash -n scripts/ci/mobile-release.sh
+
+  # Off until the repo variable MOBILE_RELEASE_ENABLED is "true", because an
+  # ios-build-* tag pushed before Xcode Cloud listens would be recorded as built.
+  # A merge only reaches this job when it triggers CI on main: AUTO_PR_TOKEN
+  # below or a manual merge, not GITHUB_TOKEN.
+  mobile-release:
+    needs: [changes, backend, frontend, mobile]
+    if: >-
+      always() &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      vars.MOBILE_RELEASE_ENABLED == 'true' &&
+      needs.changes.outputs.mobile_release == 'true' &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success' &&
+      needs.mobile.result == 'success'
+    permissions:
+      contents: write
+    uses: ./.github/workflows/mobile-release.yml
+    secrets: inherit
+
+  # Feature branch pushed and the test jobs green → open (or reuse) a PR into
   # main and turn on auto-merge. GitHub merges once main's required checks pass.
   # Opt out per push by putting [no-automerge] in the head commit message.
   # Token: repo secret AUTO_PR_TOKEN (fine-grained PAT: contents + pull
@@ -76,12 +173,17 @@ jobs:
   # main. Otherwise GITHUB_TOKEN, which needs Settings → Actions → General →
   # "Allow GitHub Actions to create and approve pull requests".
   auto-pr:
-    needs: [backend, frontend]
+    needs: [changes, backend, frontend, mobile]
     if: >-
+      always() &&
       github.event_name == 'push' &&
       github.ref_name != 'main' &&
       github.ref_name != 'master' &&
-      !contains(github.event.head_commit.message, '[no-automerge]')
+      !contains(github.event.head_commit.message, '[no-automerge]') &&
+      needs.changes.result == 'success' &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success' &&
+      (needs.mobile.result == 'success' || needs.mobile.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -105,7 +207,7 @@ jobs:
           if [ -z "$number" ]; then
             title="$(gh api "repos/$GH_REPO/commits/$GITHUB_SHA" --jq '.commit.message | split("\n")[0]')"
             if ! url="$(gh pr create --base "$BASE" --head "$BRANCH" --title "$title" \
-              --body "Otomatik açıldı: \`$BRANCH\` dalında CI (backend + frontend) başarılı. Zorunlu kontroller geçince auto-merge ile \`$BASE\`'e birleşir." 2>&1)"; then
+              --body "Otomatik açıldı: \`$BRANCH\` dalında CI başarılı. Zorunlu kontroller geçince auto-merge ile \`$BASE\`'e birleşir." 2>&1)"; then
               echo "$url"
               if grep -q "not permitted to create or approve pull requests" <<<"$url"; then
                 echo "::error title=Auto PR disabled::Enable Settings → Actions → General → 'Allow GitHub Actions to create and approve pull requests', or add an AUTO_PR_TOKEN repo secret (fine-grained PAT with Contents + Pull requests: read/write)."
@@ -118,7 +220,7 @@ jobs:
       - name: Merge
         if: steps.pr.outputs.number != ''
         run: |
-          # This job only runs after backend + frontend passed, so merge right away
+          # This job only runs after the test jobs passed, so merge right away
           # (no --auto: that needs branch protection). Only merge the commit this
           # run tested: a later push (or a re-run of an older run) must never
           # merge an untested branch head.

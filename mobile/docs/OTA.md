@@ -52,6 +52,21 @@ eas update --channel production --message "Describe the change" --environment pr
 
 Use the same source commit and environment values that match the intended build channel. In SDK 55 and later, `--environment` is required by the EAS Update flow.
 
+## CI release
+
+A green push to `main` that changes shipping files under `mobile/` runs `.github/workflows/mobile-release.yml` once the repo variable `MOBILE_RELEASE_ENABLED` is `true`. Each platform is decided on its own:
+
+| Native fingerprint | Android | iOS |
+| --- | --- | --- |
+| Unchanged | `eas update` | `eas update` |
+| Changed | EAS build, then Play internal as a draft | Pushes `ios-build-<hash>`, which starts the Xcode Cloud workflow |
+
+- Backend and OpenAPI changes do not ship the app by themselves. A committed `src/api/generated` change does.
+- The `production` EAS environment must hold the same public values as the Xcode Cloud workflow. `eas update` reads that environment, not `eas.json`, and the release stops if `EXPO_PUBLIC_APP_ENV`, `EXPO_PUBLIC_API_MODE` or `EXPO_PUBLIC_API_URL` is missing.
+- An `ios-build-*` tag shows that a build started, not that it succeeded. After a failed Xcode Cloud build, run the workflow by hand with `force_build`, which pushes `ios-build-<hash>-2`.
+- `ci_post_clone.sh` logs the iOS fingerprint. It must equal the hash in the tag, otherwise OTA updates never reach that binary.
+- Run it by hand from the Actions tab. `dry_run` is on by default and only prints the decision.
+
 ## Rollback
 
 Prefer the EAS dashboard when available: open the project, go to Updates, choose the channel/branch, and roll back or republish the last known-good update.
