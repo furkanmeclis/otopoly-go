@@ -1,0 +1,15 @@
+{
+  "_doc": "Known, reasoned exceptions for scripts/contract (npm run test:contract). Every entry needs a reason; remove it once the backend spec is fixed.",
+  "missingInBackend": {},
+  "undocumentedStatus": {},
+  "specFixes": [
+    {
+      "path": "paths./v1/app/config.get.responses.200.content.application/json",
+      "rename": {
+        "from": "schema",
+        "to": "x-spec-bug-schema"
+      },
+      "reason": "Spec bug: GET /v1/app/config is documented as EnvelopeStatus (data.status required), but the Go handler (httpserver.handleAppConfig) answers {mode, name, registration_enabled, auth_methods, letterhead, ...} without `status`. The response schema is skipped until the spec documents the real payload."
+    }
+  ]
+}

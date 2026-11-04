@@ -1,0 +1,15 @@
+{
+  "reorder.increase": "increase",
+  "reorder.decrease": "decrease",
+  "reorder.stock_line": "Stock {{stock}} {{unit}}",
+  "reorder.on_order": "{{qty}} on drafts",
+  "reorder.suggested_line": "Suggested {{qty}} {{unit}}",
+  "reorder.days_short": "{{count}} days",
+  "reorder.drafts_open": "{{count}} open drafts",
+  "reorder.subtitle": "What to order, based on usage",
+  "reorder.clear_group": "Clear selection",
+  "reorder.select_group": "Select all",
+  "reorder.empty_hint": "Every stock-tracked product looks fine.",
+  "reorder.drafts_subtitle": "Stock and cash do not change until approved",
+  "plan.module.stock_reorder_enabled": "Stock reorder suggestions"
+}

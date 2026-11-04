@@ -1,0 +1,183 @@
+import { QueryClientProvider } from '@tanstack/react-query';
+import * as Linking from 'expo-linking';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider, useNavigationContainerRef, usePathname } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+import { BrandMark, MARK_RATIO } from '@/components/brand';
+import { devToolsEnabled } from '@/config/env';
+import { RouteErrorBoundary } from '@/components/feedback/error-boundary';
+import { ToastProvider } from '@/components/feedback/toast';
+import { AuthProvider, useAuth } from '@/features/auth/auth-provider';
+import { hasInitialNativeIntent } from '@/features/intro/initial-link';
+import { IntentsSessionWatcher } from '@/features/intents/intents-host';
+import { LaunchIntro } from '@/features/intro/launch-intro';
+import { NotificationResponseObserver } from '@/features/notifications/components/notification-response-observer';
+import { LocaleProvider } from '@/lib/i18n/provider';
+import { createLogger } from '@/lib/logger';
+import { installGlobalErrorHandlers } from '@/lib/logger/global-handlers';
+import { initObserve, withObserveRoot } from '@/lib/monitoring/observe';
+import { initSentry, navigationIntegration, Sentry, sentryEnabled } from '@/lib/monitoring/sentry';
+import { createQueryClient } from '@/lib/query';
+import { useAppStateQueryFocus } from '@/lib/query-focus';
+import { ThemeProvider, useTheme } from '@/theme/provider';
+
+// No EXPO_PUBLIC_SENTRY_DSN → no-op (see docs/SENTRY.md).
+initSentry();
+// EAS Observe: before any screen mounts (the expo-router integration cannot be enabled later).
+initObserve();
+installGlobalErrorHandlers();
+
+// Keep the native splash (brand mark) up until the stored session has been restored.
+SplashScreen.preventAutoHideAsync().catch(() => {});
+
+export { RouteErrorBoundary as ErrorBoundary };
+
+const navLog = createLogger('nav');
+
+/** Hands the navigation container to Sentry so performance traces carry screen (route) names. */
+function SentryNavigationRegistrar() {
+  const ref = useNavigationContainerRef();
+  useEffect(() => {
+    if (ref) navigationIntegration.registerNavigationContainer(ref);
+  }, [ref]);
+  return null;
+}
+
+function NavigationLogger() {
+  const pathname = usePathname();
+  useEffect(() => {
+    navLog.info('Screen', { pathname });
+  }, [pathname]);
+  return null;
+}
+
+function RootNavigator() {
+  const { status } = useAuth();
+  const theme = useTheme();
+  const [launchIntroDone, setLaunchIntroDone] = useState(false);
+  const [openedFromLink, setOpenedFromLink] = useState(hasInitialNativeIntent);
+  const handleLaunchIntroDone = useCallback(() => setLaunchIntroDone(true), []);
+  const navTheme = useMemo(() => {
+    const base = theme.scheme === 'dark' ? DarkTheme : DefaultTheme;
+    return {
+      ...base,
+      colors: {
+        ...base.colors,
+        primary: theme.colors.primary,
+        background: theme.colors.background,
+        card: theme.colors.surface,
+        text: theme.colors.text,
+        border: theme.colors.border,
+        notification: theme.colors.danger,
+      },
+    };
+  }, [theme]);
+
+  useEffect(() => {
+    let active = true;
+    Linking.getInitialURL()
+      .then((url) => {
+        if (active && url) setOpenedFromLink(true);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (status !== 'booting') {
+      SplashScreen.hide();
+      return;
+    }
+    // Never trap the user behind the splash if restoring hangs; the boot view takes over.
+    const timer = setTimeout(() => SplashScreen.hide(), 4000);
+    return () => clearTimeout(timer);
+  }, [status]);
+
+  if (status === 'booting') {
+    // Same layout as the native splash, so the hand-off is seamless if restoring takes a moment.
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.background }}>
+        <BrandMark height={180 / MARK_RATIO} />
+        <ActivityIndicator color={theme.colors.primary} style={{ position: 'absolute', bottom: '22%' }} />
+      </View>
+    );
+  }
+
+  return (
+    <NavThemeProvider value={navTheme}>
+      <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+        <StatusBar style={theme.scheme === 'dark' ? 'light' : 'dark'} />
+        <NavigationLogger />
+        {sentryEnabled ? <SentryNavigationRegistrar /> : null}
+        <NotificationResponseObserver />
+        <IntentsSessionWatcher />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
+          <Stack.Protected guard={status === 'signedOut'}>
+            <Stack.Screen name="(auth)" />
+          </Stack.Protected>
+          <Stack.Protected guard={status === 'selectOrg'}>
+            <Stack.Screen name="select-org" />
+            {/* Self-service business creation for a signed-in user without one. */}
+            <Stack.Screen name="create-business" />
+          </Stack.Protected>
+          <Stack.Protected guard={status === 'ready'}>
+            <Stack.Screen name="(app)" />
+          </Stack.Protected>
+          {/* Account deletion: from the profile, and from the org picker for users without a business. */}
+          <Stack.Protected guard={status === 'ready' || status === 'selectOrg'}>
+            <Stack.Screen name="delete-account" />
+          </Stack.Protected>
+          {/* Logs and demo scenarios: never reachable in App Store / Play Store builds. */}
+          <Stack.Protected guard={devToolsEnabled}>
+            <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
+          </Stack.Protected>
+        </Stack>
+        {!launchIntroDone ? <LaunchIntro compact={openedFromLink} onDone={handleLaunchIntroDone} /> : null}
+      </View>
+    </NavThemeProvider>
+  );
+}
+
+function RootLayout() {
+  const [queryClient] = useState(createQueryClient);
+  useAppStateQueryFocus();
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* Keyboard tracking for the shared keyboard helpers (components/ui/layout.tsx). Android runs
+          edge-to-edge, so the window is not resized for the keyboard. */}
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent preserveEdgeToEdge>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <LocaleProvider>
+            {/* Catches (and reports) crashes outside a route, e.g. in the query / auth providers. */}
+            <Sentry.ErrorBoundary
+              fallback={({ error, resetError }) => (
+                <RouteErrorBoundary error={error instanceof Error ? error : new Error(String(error))} retry={async () => resetError()} reported />
+              )}>
+              <QueryClientProvider client={queryClient}>
+                <ToastProvider>
+                  <AuthProvider>
+                    <RootNavigator />
+                  </AuthProvider>
+                </ToastProvider>
+              </QueryClientProvider>
+            </Sentry.ErrorBoundary>
+          </LocaleProvider>
+        </ThemeProvider>
+      </SafeAreaProvider>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+// ObserveRoot measures time to first render; Sentry wraps the outermost component.
+const ObservedRootLayout = withObserveRoot(RootLayout);
+export default sentryEnabled ? Sentry.wrap(ObservedRootLayout) : ObservedRootLayout;

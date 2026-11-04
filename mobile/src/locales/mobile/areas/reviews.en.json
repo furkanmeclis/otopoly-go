@@ -1,0 +1,13 @@
+{
+  "reviews.subtitle": "Customer satisfaction after delivery",
+  "reviews.search": "Customer, phone, plate, comment",
+  "reviews.filter.all": "All",
+  "reviews.filter.follow_up": "Follow-up needed",
+  "reviews.filter.low": "Low score",
+  "reviews.filter.high": "High score",
+  "reviews.filter.waiting": "Awaiting answer",
+  "reviews.filter.answered": "Answered",
+  "reviews.share_link": "Share test link",
+  "reviews.open_test": "Open the test request",
+  "reviews.excluded_on_web": "The excluded customers list is edited in the web panel."
+}
