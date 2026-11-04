@@ -124,7 +124,8 @@ export async function signInWithGoogleNative(): Promise<NativeOAuthInput | null>
       nonce: nonce.hashed,
     });
     if (Platform.OS === 'android') await GoogleOneTapSignIn.checkPlayServices();
-    let response = await GoogleOneTapSignIn.signIn();
+    // iOS signIn() returns the cached session's id_token, which carries an earlier attempt's nonce.
+    let response = Platform.OS === 'ios' ? await GoogleOneTapSignIn.presentExplicitSignIn() : await GoogleOneTapSignIn.signIn();
     if (isNoSavedCredentialFoundResponse(response)) response = await GoogleOneTapSignIn.createAccount();
     if (isNoSavedCredentialFoundResponse(response)) response = await GoogleOneTapSignIn.presentExplicitSignIn();
     if (isCancelledResponse(response)) return null;
