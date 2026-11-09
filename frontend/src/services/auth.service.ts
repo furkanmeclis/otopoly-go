@@ -49,6 +49,8 @@ type SessionListResult = {
 };
 
 type StatusPayload = components["schemas"]["StatusPayload"];
+export type AccountDeletionScheduled =
+  components["schemas"]["AccountDeletionScheduled"];
 export type QRLoginCreated = components["schemas"]["QRLoginCreated"];
 export type QRLoginState = components["schemas"]["QRLoginState"];
 type PatchProfileRequest = components["schemas"]["PatchProfileRequest"];
@@ -147,10 +149,47 @@ export const authService = {
   },
 
   async deactivateAccount(code: string) {
-    return unwrap<StatusPayload>(
+    return unwrap<AccountDeletionScheduled>(
       await apiClient.POST("/v1/auth/account/deactivate", {
         body: { code },
       }),
+      { silent: true },
+    );
+  },
+
+  /** Public /account/delete page: always "accepted" (no enumeration). */
+  async requestAccountDeletion(email: string) {
+    return unwrap<StatusPayload>(
+      await apiClient.POST("/v1/auth/account/deletion/request", {
+        body: { email },
+      }),
+      { silent: true },
+    );
+  },
+
+  async confirmAccountDeletion(body: {
+    email: string;
+    code: string;
+    totp_code?: string;
+  }) {
+    return unwrap<AccountDeletionScheduled>(
+      await apiClient.POST("/v1/auth/account/deletion/confirm", { body }),
+      { silent: true },
+    );
+  },
+
+  async requestAccountRecovery(email: string) {
+    return unwrap<StatusPayload>(
+      await apiClient.POST("/v1/auth/account/recovery/request", {
+        body: { email },
+      }),
+      { silent: true },
+    );
+  },
+
+  async confirmAccountRecovery(body: { email: string; code: string }) {
+    return unwrap<StatusPayload>(
+      await apiClient.POST("/v1/auth/account/recovery/confirm", { body }),
       { silent: true },
     );
   },

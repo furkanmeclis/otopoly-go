@@ -10,6 +10,7 @@
  *   EXPO_PUBLIC_APP_ENV=development|preview|production   (production = App Store / Play Store build)
  *   EXPO_PUBLIC_PRIVACY_URL=https://otopoly.app/privacy   (privacy policy; login, profile, AI consent, account deletion)
  *   EXPO_PUBLIC_TERMS_URL=https://otopoly.app/terms       (terms of use)
+ *   EXPO_PUBLIC_ACCOUNT_DELETE_URL=https://otopoly.app/account/delete   (web deletion + 30-day recovery page)
  *   EXPO_PUBLIC_REALTIME=off                (live list updates over Centrifugo; on by default, fail-soft)
  *   EXPO_PUBLIC_SENTRY_DSN=https://<key>@<host>/<project>  (error / performance reporting, see docs/SENTRY.md;
  *                                                         unset → Sentry is not initialised at all)
@@ -58,6 +59,8 @@ export const env = {
   /** Public legal pages (must be reachable without signing in). */
   privacyUrl: urlOr(process.env.EXPO_PUBLIC_PRIVACY_URL, 'https://otopoly.app/privacy'),
   termsUrl: urlOr(process.env.EXPO_PUBLIC_TERMS_URL, 'https://otopoly.app/terms'),
+  /** Public account deletion / recovery page (TR; the EN page is `/en/account/delete`). Unset → otopoly.app. */
+  accountDeleteUrl: urlOr(process.env.EXPO_PUBLIC_ACCOUNT_DELETE_URL, 'https://otopoly.app/account/delete'),
   /** Sentry-protocol DSN (self-hosted tracker). Null → no error reporting. */
   sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || null,
   /** Live list updates (Centrifugo). The app works the same without them. */

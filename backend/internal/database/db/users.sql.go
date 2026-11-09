@@ -12,6 +12,108 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const anonymizeUser = `-- name: AnonymizeUser :one
+UPDATE users
+SET email = $1,
+    password_hash = $2,
+    password_set = FALSE,
+    name = $3,
+    surname = $4,
+    status = 'disabled',
+    email_verified_at = NULL,
+    last_login_at = NULL,
+    deactivated_at = COALESCE(deactivated_at, NOW()),
+    deleted_at = COALESCE(deleted_at, NOW()),
+    deletion_previous_status = NULL,
+    anonymized_at = NOW()
+WHERE id = $5 AND anonymized_at IS NULL
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
+`
+
+type AnonymizeUserParams struct {
+	Email        string `json:"email"`
+	PasswordHash string `json:"password_hash"`
+	Name         string `json:"name"`
+	Surname      string `json:"surname"`
+	ID           int64  `json:"id"`
+}
+
+// Scrubs personal data on the users row and keeps the row for references.
+func (q *Queries) AnonymizeUser(ctx context.Context, arg AnonymizeUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, anonymizeUser,
+		arg.Email,
+		arg.PasswordHash,
+		arg.Name,
+		arg.Surname,
+		arg.ID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+		&i.EmailVerifiedAt,
+		&i.LastLoginAt,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DeactivatedAt,
+		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
+	)
+	return i, err
+}
+
+const cancelUserDeletion = `-- name: CancelUserDeletion :one
+UPDATE users
+SET status = COALESCE(deletion_previous_status, 'active'),
+    deactivated_at = NULL,
+    deletion_requested_at = NULL,
+    deletion_scheduled_on = NULL,
+    deletion_previous_status = NULL
+WHERE id = $1
+  AND deleted_at IS NULL
+  AND anonymized_at IS NULL
+  AND deletion_scheduled_on IS NOT NULL
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
+`
+
+// Recovery inside the grace period: restore the previous status.
+func (q *Queries) CancelUserDeletion(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, cancelUserDeletion, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+		&i.EmailVerifiedAt,
+		&i.LastLoginAt,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DeactivatedAt,
+		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
+	)
+	return i, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(DISTINCT u.id)::bigint
 FROM users u
@@ -67,7 +169,7 @@ func (q *Queries) CountUsersWithRole(ctx context.Context, roleSlug string) (int6
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (email, password_hash, name, surname, status, email_verified_at)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
 `
 
 type CreateUserParams struct {
@@ -105,44 +207,16 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
-	)
-	return i, err
-}
-
-const deactivateUser = `-- name: DeactivateUser :one
-UPDATE users
-SET status = 'disabled',
-    deactivated_at = COALESCE(deactivated_at, NOW())
-WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
-`
-
-// Self-service account deletion: keep every row, mark the user disabled.
-func (q *Queries) DeactivateUser(ctx context.Context, id int64) (User, error) {
-	row := q.db.QueryRow(ctx, deactivateUser, id)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Uuid,
-		&i.Email,
-		&i.PasswordHash,
-		&i.Name,
-		&i.Surname,
-		&i.Status,
-		&i.EmailVerifiedAt,
-		&i.LastLoginAt,
-		&i.Locale,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.DeletedAt,
-		&i.DeactivatedAt,
-		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set FROM users
+SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at FROM users
 WHERE email = $1 AND deleted_at IS NULL
 `
 
@@ -165,12 +239,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set FROM users
+SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
 
@@ -193,12 +271,16 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
 
 const getUserByUUID = `-- name: GetUserByUUID :one
-SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set FROM users
+SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at FROM users
 WHERE uuid = $1 AND deleted_at IS NULL
 `
 
@@ -221,12 +303,16 @@ func (q *Queries) GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, e
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
 
 const getUserByUUIDIncludingDeleted = `-- name: GetUserByUUIDIncludingDeleted :one
-SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set FROM users
+SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at FROM users
 WHERE uuid = $1
 `
 
@@ -250,6 +336,46 @@ func (q *Queries) GetUserByUUIDIncludingDeleted(ctx context.Context, argUuid uui
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
+	)
+	return i, err
+}
+
+const getUserForAnonymization = `-- name: GetUserForAnonymization :one
+SELECT id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at FROM users
+WHERE id = $1
+  AND deletion_scheduled_on IS NOT NULL
+  AND anonymized_at IS NULL
+FOR UPDATE
+`
+
+// Locks a due user for the scrub transaction (also when soft-deleted).
+func (q *Queries) GetUserForAnonymization(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, getUserForAnonymization, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+		&i.EmailVerifiedAt,
+		&i.LastLoginAt,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DeactivatedAt,
+		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
@@ -341,8 +467,44 @@ func (q *Queries) ListUserUUIDsForBulk(ctx context.Context, arg ListUserUUIDsFor
 	return items, nil
 }
 
+const listUsersDueForAnonymization = `-- name: ListUsersDueForAnonymization :many
+SELECT id FROM users
+WHERE deletion_scheduled_on IS NOT NULL
+  AND deletion_scheduled_on <= $1::date
+  AND anonymized_at IS NULL
+ORDER BY deletion_scheduled_on ASC, id ASC
+LIMIT $2
+`
+
+type ListUsersDueForAnonymizationParams struct {
+	Today      pgtype.Date `json:"today"`
+	LimitCount int32       `json:"limit_count"`
+}
+
+// Pending deletions whose day has come. Soft-deleted users are included: a
+// platform delete during the grace period must not skip the scrub.
+func (q *Queries) ListUsersDueForAnonymization(ctx context.Context, arg ListUsersDueForAnonymizationParams) ([]int64, error) {
+	rows, err := q.db.Query(ctx, listUsersDueForAnonymization, arg.Today, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []int64{}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsersFiltered = `-- name: ListUsersFiltered :many
-SELECT DISTINCT u.id, u.uuid, u.email, u.password_hash, u.name, u.surname, u.status, u.email_verified_at, u.last_login_at, u.locale, u.created_at, u.updated_at, u.deleted_at, u.deactivated_at, u.password_set
+SELECT DISTINCT u.id, u.uuid, u.email, u.password_hash, u.name, u.surname, u.status, u.email_verified_at, u.last_login_at, u.locale, u.created_at, u.updated_at, u.deleted_at, u.deactivated_at, u.password_set, u.deletion_requested_at, u.deletion_scheduled_on, u.deletion_previous_status, u.anonymized_at
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
@@ -400,6 +562,10 @@ func (q *Queries) ListUsersFiltered(ctx context.Context, arg ListUsersFilteredPa
 			&i.DeletedAt,
 			&i.DeactivatedAt,
 			&i.PasswordSet,
+			&i.DeletionRequestedAt,
+			&i.DeletionScheduledOn,
+			&i.DeletionPreviousStatus,
+			&i.AnonymizedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -412,7 +578,7 @@ func (q *Queries) ListUsersFiltered(ctx context.Context, arg ListUsersFilteredPa
 }
 
 const listUsersForExport = `-- name: ListUsersForExport :many
-SELECT DISTINCT u.id, u.uuid, u.email, u.password_hash, u.name, u.surname, u.status, u.email_verified_at, u.last_login_at, u.locale, u.created_at, u.updated_at, u.deleted_at, u.deactivated_at, u.password_set
+SELECT DISTINCT u.id, u.uuid, u.email, u.password_hash, u.name, u.surname, u.status, u.email_verified_at, u.last_login_at, u.locale, u.created_at, u.updated_at, u.deleted_at, u.deactivated_at, u.password_set, u.deletion_requested_at, u.deletion_scheduled_on, u.deletion_previous_status, u.anonymized_at
 FROM users u
 LEFT JOIN user_roles ur ON ur.user_id = u.id
 LEFT JOIN roles r ON r.id = ur.role_id
@@ -459,6 +625,10 @@ func (q *Queries) ListUsersForExport(ctx context.Context, arg ListUsersForExport
 			&i.DeletedAt,
 			&i.DeactivatedAt,
 			&i.PasswordSet,
+			&i.DeletionRequestedAt,
+			&i.DeletionScheduledOn,
+			&i.DeletionPreviousStatus,
+			&i.AnonymizedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -485,10 +655,11 @@ func (q *Queries) MarkUserPasswordUnset(ctx context.Context, id int64) error {
 const restoreUser = `-- name: RestoreUser :one
 UPDATE users
 SET deleted_at = NULL
-WHERE id = $1 AND deleted_at IS NOT NULL
-RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
+WHERE id = $1 AND deleted_at IS NOT NULL AND anonymized_at IS NULL
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
 `
 
+// Anonymized accounts are final and cannot be restored.
 func (q *Queries) RestoreUser(ctx context.Context, id int64) (User, error) {
 	row := q.db.QueryRow(ctx, restoreUser, id)
 	var i User
@@ -508,6 +679,60 @@ func (q *Queries) RestoreUser(ctx context.Context, id int64) (User, error) {
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
+	)
+	return i, err
+}
+
+const scheduleUserDeletion = `-- name: ScheduleUserDeletion :one
+UPDATE users
+SET deletion_previous_status = CASE WHEN deactivated_at IS NOT NULL THEN 'active' ELSE status END,
+    status = 'disabled',
+    deactivated_at = COALESCE(deactivated_at, NOW()),
+    deletion_requested_at = NOW(),
+    deletion_scheduled_on = $1::date
+WHERE id = $2
+  AND deleted_at IS NULL
+  AND anonymized_at IS NULL
+  AND deletion_scheduled_on IS NULL
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
+`
+
+type ScheduleUserDeletionParams struct {
+	ScheduledOn pgtype.Date `json:"scheduled_on"`
+	ID          int64       `json:"id"`
+}
+
+// Self-service account deletion: the account is disabled at once and the
+// anonymization job scrubs it on deletion_scheduled_on (Istanbul day).
+// deletion_previous_status remembers what recovery restores; a legacy
+// self-deactivated account (deactivated_at, no schedule) was active before.
+func (q *Queries) ScheduleUserDeletion(ctx context.Context, arg ScheduleUserDeletionParams) (User, error) {
+	row := q.db.QueryRow(ctx, scheduleUserDeletion, arg.ScheduledOn, arg.ID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Uuid,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Name,
+		&i.Surname,
+		&i.Status,
+		&i.EmailVerifiedAt,
+		&i.LastLoginAt,
+		&i.Locale,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.DeactivatedAt,
+		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
@@ -516,7 +741,7 @@ const softDeleteUser = `-- name: SoftDeleteUser :one
 UPDATE users
 SET deleted_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
 `
 
 // Platform admin deletion. The partial unique index on email
@@ -540,6 +765,10 @@ func (q *Queries) SoftDeleteUser(ctx context.Context, id int64) (User, error) {
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
@@ -593,9 +822,12 @@ UPDATE users
 SET name = COALESCE($1, name),
     surname = COALESCE($2, surname),
     status = COALESCE($3, status),
-    deactivated_at = CASE WHEN $3::text = 'active' THEN NULL ELSE deactivated_at END
+    deactivated_at = CASE WHEN $3::text = 'active' THEN NULL ELSE deactivated_at END,
+    deletion_requested_at = CASE WHEN $3::text = 'active' THEN NULL ELSE deletion_requested_at END,
+    deletion_scheduled_on = CASE WHEN $3::text = 'active' THEN NULL ELSE deletion_scheduled_on END,
+    deletion_previous_status = CASE WHEN $3::text = 'active' THEN NULL ELSE deletion_previous_status END
 WHERE uuid = $4 AND deleted_at IS NULL
-RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
 `
 
 type UpdateUserPlatformParams struct {
@@ -605,7 +837,8 @@ type UpdateUserPlatformParams struct {
 	Uuid    uuid.UUID   `json:"uuid"`
 }
 
-// Re-activating a user (status -> active) clears a self-service deactivation.
+// Re-activating a user (status -> active) clears a self-service deactivation
+// and cancels a pending deletion.
 func (q *Queries) UpdateUserPlatform(ctx context.Context, arg UpdateUserPlatformParams) (User, error) {
 	row := q.db.QueryRow(ctx, updateUserPlatform,
 		arg.Name,
@@ -630,6 +863,10 @@ func (q *Queries) UpdateUserPlatform(ctx context.Context, arg UpdateUserPlatform
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }
@@ -666,7 +903,7 @@ SET name = COALESCE($1, name),
     surname = COALESCE($2, surname),
     locale = COALESCE($3, locale)
 WHERE uuid = $4 AND deleted_at IS NULL
-RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set
+RETURNING id, uuid, email, password_hash, name, surname, status, email_verified_at, last_login_at, locale, created_at, updated_at, deleted_at, deactivated_at, password_set, deletion_requested_at, deletion_scheduled_on, deletion_previous_status, anonymized_at
 `
 
 type UpdateUserProfileByUUIDParams struct {
@@ -700,6 +937,10 @@ func (q *Queries) UpdateUserProfileByUUID(ctx context.Context, arg UpdateUserPro
 		&i.DeletedAt,
 		&i.DeactivatedAt,
 		&i.PasswordSet,
+		&i.DeletionRequestedAt,
+		&i.DeletionScheduledOn,
+		&i.DeletionPreviousStatus,
+		&i.AnonymizedAt,
 	)
 	return i, err
 }

@@ -2118,21 +2118,132 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Delete (deactivate) own account
-         * @description Account deletion keeps all data: the user becomes `disabled` with
-         *     `deactivated_at`, every refresh session is revoked, stored Apple
-         *     refresh tokens are revoked via Apple `/auth/revoke` (best effort), and
-         *     every sign-in path returns `403 ACCOUNT_DEACTIVATED` afterwards.
-         *     Organizations the user owns are kept as-is (other members keep access).
+         * Delete own account (30-day recoverable)
+         * @description Signed-in variant of account deletion (web profile, mobile app). Same
+         *     result as `/v1/auth/account/deletion/confirm`: the account is disabled
+         *     at once (`status = disabled`, `deactivated_at`), every refresh session
+         *     is revoked, stored Apple refresh tokens are revoked via Apple
+         *     `/auth/revoke` (best effort) and every sign-in path returns
+         *     `403 ACCOUNT_DEACTIVATED` (with `details.deletion_scheduled_on`).
+         *     The account can be recovered for 30 days
+         *     (`/v1/auth/account/recovery/*`); on `deletion_scheduled_on`
+         *     (Europe/Istanbul day) a background job anonymizes the personal data.
+         *     Organizations the user owns are kept as-is (business records stay,
+         *     other members keep access); they are listed in `owned_organizations`.
          *
          *     Confirm with either a recent step-up grant (`/v1/auth/step-up/*`,
          *     send `{}`) or `code` from `/v1/auth/account/deactivate/request`.
          *     Without either → `403 STEP_UP_REQUIRED`. Wrong code →
          *     `400 INVALID_EMAIL_CODE`. The last super admin gets `409 CONFLICT`.
          *     Refused while impersonating (`403 FORBIDDEN`). A platform admin can
-         *     reactivate the user by setting status `active`.
+         *     reactivate the user by setting status `active` (cancels the deletion).
          */
         post: operations["postAuthAccountDeactivate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/account/deletion/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email an account-deletion code (public deletion page)
+         * @description Used by the public `/account/delete` page (no sign-in). Always answers
+         *     `200 {status: accepted}` so the response never reveals whether the
+         *     email has an account. A 6-digit code (10 minutes, single use, 5
+         *     attempts) is emailed only to an existing account without a pending
+         *     deletion. Rate limits: 10 per IP and 5 per email in 15 minutes.
+         */
+        post: operations["postAuthAccountDeletionRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/account/deletion/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm account deletion with the emailed code
+         * @description Verifies the code from `/v1/auth/account/deletion/request` and
+         *     schedules the deletion like `/v1/auth/account/deactivate`: the account
+         *     is disabled immediately, sessions are revoked and the personal data is
+         *     anonymized on `deletion_scheduled_on` (Europe/Istanbul day, 30 days
+         *     later) unless the user recovers it first.
+         *
+         *     Accounts with authenticator 2FA: a call without `totp_code` returns
+         *     `403 MFA_REQUIRED` and the email code stays valid; retry with the same
+         *     `code` plus `totp_code`. Errors: `400 INVALID_EMAIL_CODE` (wrong /
+         *     expired / used / exhausted, or unknown email), `403 MFA_REQUIRED`,
+         *     `401 INVALID_MFA_CODE`, `409 CONFLICT` (last super admin),
+         *     `429 RATE_LIMITED` (30 per IP, 10 per email in 15 minutes).
+         */
+        post: operations["postAuthAccountDeletionConfirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/account/recovery/request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email an account-recovery code
+         * @description Starts recovery of an account whose deletion is pending (shown on the
+         *     public `/account/delete` page and offered when sign-in returns
+         *     `ACCOUNT_DEACTIVATED` with `details.recoverable = true`). Always
+         *     answers `200 {status: accepted}`; a code (10 minutes, single use) is
+         *     emailed only when the account has a pending deletion. Rate limits: 10
+         *     per IP and 5 per email in 15 minutes.
+         */
+        post: operations["postAuthAccountRecoveryRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/account/recovery/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a pending deletion and re-enable the account
+         * @description Verifies the code from `/v1/auth/account/recovery/request`, cancels
+         *     the pending deletion and restores the account's previous status
+         *     (`data.status = recovered`). Sessions revoked at deletion stay
+         *     revoked; the user signs in again normally. Errors:
+         *     `400 INVALID_EMAIL_CODE` (wrong / expired / used code, or no pending
+         *     deletion), `429 RATE_LIMITED` (30 per IP, 10 per email in 15 minutes).
+         */
+        post: operations["postAuthAccountRecoveryConfirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -11098,6 +11209,47 @@ export interface components {
             /** @enum {boolean} */
             success: true;
             data: components["schemas"]["StatusPayload"];
+            meta: components["schemas"]["ResponseMeta"];
+        };
+        AccountRecoveryConfirmRequest: {
+            /** Format: email */
+            email: string;
+            /** @description 6-digit code from the recovery email */
+            code: string;
+        };
+        AccountDeletionOwnedOrganization: {
+            /** Format: uuid */
+            uuid: string;
+            slug: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description Members (owners + staff) other than the deleting user
+             */
+            other_members: number;
+            /**
+             * Format: int64
+             * @description Other owners; 0 means the business is left without an active owner
+             */
+            other_owners: number;
+        };
+        AccountDeletionScheduled: {
+            /** @enum {string} */
+            status: "scheduled";
+            /**
+             * Format: date
+             * @description Europe/Istanbul day on which the personal data is anonymized
+             */
+            deletion_scheduled_on: string;
+            /** @description Recovery window in days (30) */
+            grace_days: number;
+            /** @description Businesses the user owns. They are kept with all records; only the user's personal data is scrubbed. */
+            owned_organizations: components["schemas"]["AccountDeletionOwnedOrganization"][];
+        };
+        EnvelopeAccountDeletionScheduled: {
+            /** @enum {boolean} */
+            success: true;
+            data: components["schemas"]["AccountDeletionScheduled"];
             meta: components["schemas"]["ResponseMeta"];
         };
         AuthMethodFlags: {
@@ -20512,7 +20664,37 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Deactivated (`data.status = deactivated`) */
+            /** @description Deletion scheduled (`data.status = scheduled`) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAccountDeletionScheduled"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthAccountDeletionRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -20522,9 +20704,90 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthAccountDeletionConfirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeVerifyRequest"];
+            };
+        };
+        responses: {
+            /** @description Deletion scheduled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeAccountDeletionScheduled"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Conflict"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthAccountRecoveryRequest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    postAuthAccountRecoveryConfirm: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AccountRecoveryConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Recovered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnvelopeStatus"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
             429: components["responses"]["TooManyRequests"];
             500: components["responses"]["InternalError"];
         };

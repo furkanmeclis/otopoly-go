@@ -27,6 +27,8 @@ type Querier interface {
 	// Moves paid_through forward after a period payment (only from the
 	// expected value, so concurrent payments cannot pay the same period).
 	AdvanceLoyaltySubscription(ctx context.Context, arg AdvanceLoyaltySubscriptionParams) (LoyaltySubscription, error)
+	// Scrubs personal data on the users row and keeps the row for references.
+	AnonymizeUser(ctx context.Context, arg AnonymizeUserParams) (User, error)
 	AnswerReviewRequest(ctx context.Context, arg AnswerReviewRequestParams) (ReviewRequest, error)
 	// Webhook status of a wamid. sent < delivered < read never regress (a late
 	// "delivered" after "read" keeps "read"); "failed" always applies (with its
@@ -59,6 +61,8 @@ type Querier interface {
 	CancelOpenQuoteReminders(ctx context.Context, quoteID int64) ([]QuoteReminder, error)
 	CancelScheduledNotificationsBySubject(ctx context.Context, arg CancelScheduledNotificationsBySubjectParams) (int64, error)
 	CancelScheduledReviewRequestsForJob(ctx context.Context, arg CancelScheduledReviewRequestsForJobParams) ([]uuid.UUID, error)
+	// Recovery inside the grace period: restore the previous status.
+	CancelUserDeletion(ctx context.Context, id int64) (User, error)
 	CatalogDisplayBrandSlugTaken(ctx context.Context, arg CatalogDisplayBrandSlugTakenParams) (bool, error)
 	// The pending → executing transition is the idempotency lock for confirm.
 	ClaimAIPendingAction(ctx context.Context, arg ClaimAIPendingActionParams) (AiPendingAction, error)
@@ -312,8 +316,8 @@ type Querier interface {
 	DeactivateDiscountCode(ctx context.Context, argUuid uuid.UUID) error
 	// Clears the active flag of every other account (one active per organization).
 	DeactivateSMSProviderAccounts(ctx context.Context, arg DeactivateSMSProviderAccountsParams) error
-	// Self-service account deletion: keep every row, mark the user disabled.
-	DeactivateUser(ctx context.Context, id int64) (User, error)
+	// Assistant chats are personal; messages cascade.
+	DeleteAIConversationsByUser(ctx context.Context, userID int64) error
 	DeleteAppLogByUUID(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteAppLogsByUUIDs(ctx context.Context, uuids []uuid.UUID) (int64, error)
 	DeleteAppLogsMatching(ctx context.Context, arg DeleteAppLogsMatchingParams) (int64, error)
@@ -329,13 +333,22 @@ type Querier interface {
 	DeleteLiveActivityTokensForUser(ctx context.Context, arg DeleteLiveActivityTokensForUserParams) (int64, error)
 	DeleteLogPurgeRule(ctx context.Context, argUuid uuid.UUID) (int64, error)
 	DeleteLoyaltyPackageItems(ctx context.Context, arg DeleteLoyaltyPackageItemsParams) error
+	// Remote MCP connector grants (tokens cascade).
+	DeleteMCPGrantsByUser(ctx context.Context, userID int64) error
 	// Deleting is the claim: a concurrent second decision finds nothing.
 	DeleteMCPOAuthAuthRequest(ctx context.Context, id uuid.UUID) (int64, error)
 	DeleteMessageTemplate(ctx context.Context, arg DeleteMessageTemplateParams) error
 	DeleteMessageTemplateByKey(ctx context.Context, arg DeleteMessageTemplateByKeyParams) (int64, error)
+	// Member phone numbers used by the notification center.
+	DeleteNotificationMemberSettingsByUser(ctx context.Context, userID int64) error
+	DeleteNotificationPreferencesByUser(ctx context.Context, userID int64) error
+	DeleteNotificationTypePreferencesByUser(ctx context.Context, userID int64) error
+	// Delivered notification copies carry the name / email in body and recipient.
+	DeleteNotificationsForUser(ctx context.Context, arg DeleteNotificationsForUserParams) error
 	DeleteOAuthAccountByProviderAccount(ctx context.Context, arg DeleteOAuthAccountByProviderAccountParams) error
 	DeleteOAuthAccountByUserProvider(ctx context.Context, arg DeleteOAuthAccountByUserProviderParams) error
 	DeleteOAuthAccountsByUserID(ctx context.Context, userID int64) error
+	DeleteOTPCodesForUser(ctx context.Context, arg DeleteOTPCodesForUserParams) error
 	DeleteOrganizationMember(ctx context.Context, arg DeleteOrganizationMemberParams) (int64, error)
 	DeletePlanFeatures(ctx context.Context, planID int64) error
 	DeletePurchaseLines(ctx context.Context, arg DeletePurchaseLinesParams) error
@@ -345,8 +358,14 @@ type Querier interface {
 	DeletePushSubscriptionsByUser(ctx context.Context, userID int64) error
 	DeletePushTickets(ctx context.Context, ids []int64) error
 	DeleteQuoteLines(ctx context.Context, arg DeleteQuoteLinesParams) error
+	// Personal data scrubbed when a pending account deletion is anonymized.
+	// Business records (jobs, sales, finance, contracts, audit) are never
+	// deleted; they keep pointing at the scrubbed users row.
+	DeleteRefreshTokensByUser(ctx context.Context, userID int64) error
 	DeleteRole(ctx context.Context, argUuid uuid.UUID) error
 	DeleteSMSProviderAccount(ctx context.Context, arg DeleteSMSProviderAccountParams) (int64, error)
+	// Reminders not yet sent to the user.
+	DeleteScheduledNotificationsForUser(ctx context.Context, recipientUserID pgtype.Int8) error
 	DeleteServiceProducts(ctx context.Context, arg DeleteServiceProductsParams) error
 	DeleteStockReorderProductSetting(ctx context.Context, arg DeleteStockReorderProductSettingParams) error
 	DeleteStockReorderSupplierSetting(ctx context.Context, arg DeleteStockReorderSupplierSettingParams) error
@@ -679,6 +698,8 @@ type Querier interface {
 	GetUserByUUID(ctx context.Context, argUuid uuid.UUID) (User, error)
 	// Platform admin detail / restore: also returns soft-deleted users.
 	GetUserByUUIDIncludingDeleted(ctx context.Context, argUuid uuid.UUID) (User, error)
+	// Locks a due user for the scrub transaction (also when soft-deleted).
+	GetUserForAnonymization(ctx context.Context, id int64) (User, error)
 	// Platform 360° user detail reads. Secrets (token hashes, push tokens, TOTP
 	// secrets) are never selected.
 	GetUserSecuritySummary(ctx context.Context, id int64) (GetUserSecuritySummaryRow, error)
@@ -893,6 +914,8 @@ type Querier interface {
 	ListOrganizationsFiltered(ctx context.Context, arg ListOrganizationsFilteredParams) ([]Organization, error)
 	ListOrgsWithPendingVehicleAlerts(ctx context.Context) ([]VehicleAlertSetting, error)
 	ListOutboundMessagesByOrg(ctx context.Context, arg ListOutboundMessagesByOrgParams) ([]OutboundMessage, error)
+	// Organizations the user owns, with how many other members remain.
+	ListOwnedOrganizationsByUser(ctx context.Context, userID int64) ([]ListOwnedOrganizationsByUserRow, error)
 	// Pending reminder fire times for a page of subjects (no N+1 in lists).
 	ListPendingRemindersForSubjects(ctx context.Context, arg ListPendingRemindersForSubjectsParams) ([]ListPendingRemindersForSubjectsRow, error)
 	ListPendingVehicleAlertEvents(ctx context.Context, arg ListPendingVehicleAlertEventsParams) ([]VehicleAlertEvent, error)
@@ -1029,6 +1052,9 @@ type Querier interface {
 	ListUserRolesByUserID(ctx context.Context, userID int64) ([]Role, error)
 	ListUserRolesByUserUUID(ctx context.Context, argUuid uuid.UUID) ([]Role, error)
 	ListUserUUIDsForBulk(ctx context.Context, arg ListUserUUIDsForBulkParams) ([]uuid.UUID, error)
+	// Pending deletions whose day has come. Soft-deleted users are included: a
+	// platform delete during the grace period must not skip the scrub.
+	ListUsersDueForAnonymization(ctx context.Context, arg ListUsersDueForAnonymizationParams) ([]int64, error)
 	ListUsersFiltered(ctx context.Context, arg ListUsersFilteredParams) ([]User, error)
 	ListUsersForExport(ctx context.Context, arg ListUsersForExportParams) ([]User, error)
 	// Active members with notification phone and whether web push reaches them.
@@ -1185,6 +1211,7 @@ type Querier interface {
 	ResolveTodoQuoteLink(ctx context.Context, arg ResolveTodoQuoteLinkParams) (int64, error)
 	RestoreProduct(ctx context.Context, arg RestoreProductParams) error
 	RestoreService(ctx context.Context, arg RestoreServiceParams) error
+	// Anonymized accounts are final and cannot be restored.
 	RestoreUser(ctx context.Context, id int64) (User, error)
 	ReturnLoyaltyCredit(ctx context.Context, arg ReturnLoyaltyCreditParams) error
 	// Marks the job's usage as given back; returns the rows whose stock must be restored.
@@ -1221,6 +1248,13 @@ type Querier interface {
 	// A NULL private_key_enc keeps the stored key; a new key stamps uploaded_at.
 	// Any change clears the last test result (it no longer describes this key).
 	SavePlatformAPNsSettings(ctx context.Context, arg SavePlatformAPNsSettingsParams) (PlatformApnsSetting, error)
+	// Self-service account deletion: the account is disabled at once and the
+	// anonymization job scrubs it on deletion_scheduled_on (Istanbul day).
+	// deletion_previous_status remembers what recovery restores; a legacy
+	// self-deactivated account (deactivated_at, no schedule) was active before.
+	ScheduleUserDeletion(ctx context.Context, arg ScheduleUserDeletionParams) (User, error)
+	// Audit rows stay; the user's IP address and user agent are removed.
+	ScrubActivityEventNetworkByActor(ctx context.Context, actorUserID pgtype.Int8) error
 	SearchBrandLogoSources(ctx context.Context, arg SearchBrandLogoSourcesParams) ([]SearchBrandLogoSourcesRow, error)
 	SearchVehicleCatalogOptions(ctx context.Context, arg SearchVehicleCatalogOptionsParams) ([]SearchVehicleCatalogOptionsRow, error)
 	// One row per active model whose "brand model" text contains every word,
@@ -1389,7 +1423,8 @@ type Querier interface {
 	UpdateUserLastLogin(ctx context.Context, id int64) error
 	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) error
 	UpdateUserPasswordByID(ctx context.Context, arg UpdateUserPasswordByIDParams) error
-	// Re-activating a user (status -> active) clears a self-service deactivation.
+	// Re-activating a user (status -> active) clears a self-service deactivation
+	// and cancels a pending deletion.
 	UpdateUserPlatform(ctx context.Context, arg UpdateUserPlatformParams) (User, error)
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	UpdateUserProfileBasics(ctx context.Context, arg UpdateUserProfileBasicsParams) error

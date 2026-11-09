@@ -468,18 +468,22 @@ func TestDeactivateAccountBlocksLogins(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	if err := e.uc.DeactivateAccount(ctx, u.UUID, "", false); !errors.Is(err, ErrConfirmationRequired) {
+	if _, err := e.uc.DeactivateAccount(ctx, u.UUID, "", false); !errors.Is(err, ErrConfirmationRequired) {
 		t.Fatalf("expected confirmation required, got %v", err)
 	}
-	if err := e.uc.DeactivateAccount(ctx, u.UUID, "999999", false); !errors.Is(err, ErrInvalidEmailCode) {
+	if _, err := e.uc.DeactivateAccount(ctx, u.UUID, "999999", false); !errors.Is(err, ErrInvalidEmailCode) {
 		t.Fatalf("expected invalid code, got %v", err)
 	}
 	if err := e.uc.RequestAccountDeactivationCode(ctx, u.UUID); err != nil {
 		t.Fatal(err)
 	}
 	code := e.notif.lastCode(t, "auth.account_deactivation_code")
-	if err := e.uc.DeactivateAccount(ctx, u.UUID, code, false); err != nil {
+	res, err := e.uc.DeactivateAccount(ctx, u.UUID, code, false)
+	if err != nil {
 		t.Fatalf("deactivate: %v", err)
+	}
+	if res.ScheduledOn == "" {
+		t.Fatal("deletion day missing")
 	}
 
 	got := e.repo.byUUID[u.UUID]
@@ -492,7 +496,7 @@ func TestDeactivateAccountBlocksLogins(t *testing.T) {
 	if len(e.apple.revoked) != 1 || e.apple.revoked[0] != "stored-apple-rt" || !e.repo.cleared[1] {
 		t.Fatalf("apple token not revoked: %v", e.apple.revoked)
 	}
-	if e.notif.count("auth.account_deactivated") != 1 {
+	if e.notif.count("auth.account_deletion_scheduled") != 1 {
 		t.Fatal("confirmation email missing")
 	}
 
@@ -519,10 +523,10 @@ func TestDeactivateAccountBlocksLogins(t *testing.T) {
 func TestDeactivateWithStepUp(t *testing.T) {
 	e := newFlowEnv(t)
 	u := e.user(t, "ada@example.com")
-	if err := e.uc.DeactivateAccount(context.Background(), u.UUID, "", true); err != nil {
+	if _, err := e.uc.DeactivateAccount(context.Background(), u.UUID, "", true); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.uc.DeactivateAccount(context.Background(), u.UUID, "", true); !errors.Is(err, ErrAccountDeactivated) {
+	if _, err := e.uc.DeactivateAccount(context.Background(), u.UUID, "", true); !errors.Is(err, ErrAccountDeactivated) {
 		t.Fatalf("second call: %v", err)
 	}
 }

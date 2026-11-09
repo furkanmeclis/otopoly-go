@@ -91,17 +91,26 @@ NextAuth keeps handling web OAuth; mobile apps send the SDK id_token to the API.
 - Apple tokens: when `authorization_code` is sent and `AUTH_APPLE_TEAM_ID` / `AUTH_APPLE_KEY_ID` / `AUTH_APPLE_PRIVATE_KEY` (the Sign in with Apple `.p8`, `\n` escapes allowed) are set, the refresh token is stored encrypted (`oauth_accounts.refresh_token_enc`, `client_id`) and revoked on account deletion.
 - Apple signing key resolution (`internal/platform/appleauth.Resolver`): the `.p8` uploaded in Platform → Integrations → Apple (`oauth_provider_settings.apple_team_id` / `apple_key_id` / `apple_private_key_enc`, encrypted with `APP_ENCRYPTION_KEY`) wins; the `AUTH_APPLE_*` env vars are the fallback. The parsed key is cached for 1 minute and dropped immediately when an admin saves the Apple settings. With a key, the web (NextAuth) Apple `client_secret` returned by `GET /v1/internal/auth/oauth/apple` is generated per request (ES256, `iss` = Team ID, `sub` = Services ID, `kid` = Key ID, valid 24h, `client_secret_expires_at` set); a pasted client secret JWT is only used when no key is configured.
 
-## Account deletion (deactivation)
+## Account deletion (30-day recovery, then anonymization)
 
 | Method | Path | Auth |
 |--------|------|------|
 | POST | `/v1/auth/account/deactivate/request` | Bearer — emails `auth.account_deactivation_code` |
 | POST | `/v1/auth/account/deactivate` `{code?}` | Bearer + recent step-up **or** `code` |
+| POST | `/v1/auth/account/deletion/request` `{email}` | — (public `/account/delete` page) |
+| POST | `/v1/auth/account/deletion/confirm` `{email, code, totp_code?}` | — |
+| POST | `/v1/auth/account/recovery/request` `{email}` | — |
+| POST | `/v1/auth/account/recovery/confirm` `{email, code}` | — |
 
-- No data is deleted. `users.status = disabled`, `users.deactivated_at = now()`; all refresh tokens revoked; step-up grant revoked; stored Apple refresh tokens revoked via `https://appleid.apple.com/auth/revoke` (skipped when none stored or no key/secret configured); `auth.account_deactivated` email.
-- Every login path (password, refresh, email code, native OAuth, NextAuth OAuth / passkey session issue, org context) returns `403 ACCOUNT_DEACTIVATED`; existing access tokens stop working on the next request (identity loader rejects disabled users).
-- Organizations owned by the user are left unchanged (data retained, other members keep access). The last super admin cannot deactivate (`409`). Not allowed while impersonating.
-- Reactivation: a platform admin sets the user's status to `active` (clears `deactivated_at`).
+- Both deletion entry points (signed-in and public) do the same: `users.status = disabled`, `deactivated_at = now()`, `deletion_requested_at = now()`, `deletion_scheduled_on` = Europe/Istanbul day (`bizclock`) + 30, `deletion_previous_status` = the status before. All refresh tokens are revoked, the step-up grant is revoked (signed-in variant), stored Apple refresh tokens are revoked via `https://appleid.apple.com/auth/revoke` (best effort), and `auth.account_deletion_scheduled` is emailed (deletion date + recovery link `{PUBLIC_FRONTEND_URL}[/en]/account/delete?mode=recover`). Response: `{status: scheduled, deletion_scheduled_on, grace_days: 30, owned_organizations[]}`.
+- `request` endpoints always answer `200 {status: accepted}` (no enumeration). Codes: 6 digits, 10 min, 5 attempts, single use (`otp_codes.type` `account_deactivation` / `account_recovery`). The public confirm needs `totp_code` when the account has authenticator 2FA (`403 MFA_REQUIRED`, email code stays valid).
+- While pending, every login path (password, refresh, email code, native OAuth, NextAuth OAuth / passkey session issue, org context, QR approve) returns `403 ACCOUNT_DEACTIVATED` with `details` `deletion_scheduled_on` and `recoverable = true` (only after the credential / code was proven). Existing access tokens stop working on the next request (identity loader rejects disabled users). Web login and the mobile app link to the recovery page.
+- **Recovery** (`recovery/request` + `recovery/confirm`, email code to the account address): clears the schedule and `deactivated_at` and restores `deletion_previous_status` (an admin-disabled account stays disabled). Revoked sessions stay revoked. Email `auth.account_recovered`. A platform admin setting the status to `active` also cancels a pending deletion.
+- **Anonymization**: Asynq task `app:account:anonymize` (hourly, queue `maintenance`, worker + embedded API worker) picks accounts with `deletion_scheduled_on <= today` (Istanbul day) and, in one transaction per user, scrubs the `users` row (email → `deleted-<random uuid>@anonymized.invalid`, name `Silinmiş` / `Kullanıcı`, unusable password hash, `email_verified_at` / `last_login_at` cleared, `deleted_at` + `anonymized_at` set) and deletes refresh tokens, push devices, web push subscriptions, OAuth identities, passkeys, TOTP, OTP codes, notification copies (by user or recipient email), notification preferences, member phone numbers (`notification_member_settings`), pending reminders for the user, AI assistant chats and MCP grants; IP / user agent are removed from the user's `activity_events`. The row id / uuid stay, so jobs, sales, finance, contracts and audit records keep their references. Users have no avatar or phone column; uploaded business files stay. Anonymized accounts cannot be restored by a platform admin.
+- Audit (`activity_events`): `auth.account_deletion_scheduled` (method, channel `web`/`app`), `auth.account_deletion_cancelled`, `auth.account_anonymized` (system, no actor); per owned organization `organizations.owner_deletion_scheduled` and `organizations.owner_anonymized` (with `other_members`, `other_owners`, `sole_owner`).
+- **Organizations owned by the user** are never deleted or suspended: business records stay, other members keep access, the membership row stays and points at the scrubbed user. When the user was the only owner the business is left without an active owner; platform admins see it in the organization activity (`sole_owner: true`) and can assign a new owner (`PATCH /v1/platform/organizations/{uuid}/members/{userUuid}`). The deletion page and app tell owners to hand the business over first.
+- The last super admin cannot delete their account (`409`). Not allowed while impersonating.
+- Accounts deactivated before this flow existed (`deactivated_at`, no schedule) are not anonymized automatically; requesting deletion again on the public page schedules them.
 
 ## QR sign-in (web QR approved in the mobile app)
 
@@ -167,6 +176,8 @@ Redis INCR, 15-minute window, fail-open if Redis is down. `429 RATE_LIMITED` + `
 | Native OAuth | IP | 30 |
 | OAuth link create | IP (register bucket) | 5 |
 | Account deletion code request / deactivate | user | 5 / 10 |
+| Public deletion / recovery request | IP 10, email 5 | |
+| Public deletion / recovery confirm | IP 30, email 10 | |
 
 The BFF forwards the browser IP as `X-Forwarded-For`; the Go API must not be reachable directly from clients or the header could be spoofed.
 
@@ -231,7 +242,7 @@ Login error codes for tenant context: `NO_TENANT_MEMBERSHIP`, `ORGANIZATION_ACCE
 
 Last super admin cannot be demoted via role removal or disable.
 
-**Deleting a user** (`DELETE /v1/platform/users/{uuid}`) sets `users.deleted_at`; every lookup ignores deleted users, so their access tokens stop resolving at once. In the same transaction it revokes all refresh sessions, deletes mobile push devices and web push subscriptions, OAuth identities (Apple tokens revoked first, best effort) and passkeys. The email is free again (unique index is `WHERE deleted_at IS NULL`). Roles and organization memberships stay for a restore. Guards: not yourself (`CANNOT_DELETE_SELF`), not the last active super admin (`LAST_SUPER_ADMIN`), not the only owner of an organization (`SOLE_ORGANIZATION_OWNER`, organizations in `error.details`). Self-service deletion (`/v1/auth/account/deactivate`) is different: it only disables the account (`deactivated_at`).
+**Deleting a user** (`DELETE /v1/platform/users/{uuid}`) sets `users.deleted_at`; every lookup ignores deleted users, so their access tokens stop resolving at once. In the same transaction it revokes all refresh sessions, deletes mobile push devices and web push subscriptions, OAuth identities (Apple tokens revoked first, best effort) and passkeys. The email is free again (unique index is `WHERE deleted_at IS NULL`). Roles and organization memberships stay for a restore. Guards: not yourself (`CANNOT_DELETE_SELF`), not the last active super admin (`LAST_SUPER_ADMIN`), not the only owner of an organization (`SOLE_ORGANIZATION_OWNER`, organizations in `error.details`). Self-service deletion (`/v1/auth/account/deactivate`, `/v1/auth/account/deletion/*`) is different: it disables the account and anonymizes it after 30 days (see *Account deletion*).
 
 **Organization members** (platform): `PATCH /v1/platform/organizations/{uuid}/members/{userUuid}` (`{role: owner|staff}`) and `DELETE …/members/{userUuid}` need `platform.organizations.write`. The last owner cannot be demoted or removed (`LAST_ORGANIZATION_OWNER`). Removal revokes refresh sessions bound to that organization; tenant routes re-check membership per request (`RequireOrganization`), so access ends immediately. The global `organization_owner` / `organization_user` roles follow the remaining memberships.
 

@@ -13,6 +13,9 @@ func userStatusError(user model.User) error {
 	if user.Status == "active" {
 		return nil
 	}
+	if user.PendingDeletion() {
+		return &PendingDeletionError{ScheduledOn: user.DeletionScheduledOn}
+	}
 	if user.DeactivatedAt != nil {
 		return ErrAccountDeactivated
 	}

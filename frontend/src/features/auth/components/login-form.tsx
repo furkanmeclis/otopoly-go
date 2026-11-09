@@ -122,6 +122,19 @@ export function LoginForm() {
         ? t("auth.oauth.sign_in_error")
         : null;
   const displayError = formError ?? oauthFormError;
+  const recoverLink =
+    formError && formError === t("auth.login.account_deactivated") ? (
+      <Link
+        href={`${
+          locale === "en"
+            ? routes.public.accountDeleteEn
+            : routes.public.accountDelete
+        }?mode=recover`}
+        className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+      >
+        {t("auth.login.recover_account")}
+      </Link>
+    ) : null;
 
   const finishLogin = async () => {
     await updateSession();
@@ -400,6 +413,7 @@ export function LoginForm() {
             {displayError ? (
               <Field data-invalid={true}>
                 <FieldError>{displayError}</FieldError>
+                {recoverLink}
               </Field>
             ) : null}
 
@@ -443,6 +457,7 @@ export function LoginForm() {
           {displayError ? (
             <Field data-invalid={true}>
               <FieldError>{displayError}</FieldError>
+              {recoverLink}
             </Field>
           ) : null}
           <QRLoginPanel
@@ -469,6 +484,7 @@ export function LoginForm() {
     const errorBlock = displayError ? (
       <Field data-invalid={true}>
         <FieldError>{displayError}</FieldError>
+        {recoverLink}
       </Field>
     ) : null;
     return (
@@ -628,6 +644,7 @@ export function LoginForm() {
                 {displayError ? (
                   <Field data-invalid={true}>
                     <FieldError>{displayError}</FieldError>
+                    {recoverLink}
                   </Field>
                 ) : null}
 
@@ -666,6 +683,7 @@ export function LoginForm() {
         ) : displayError ? (
           <Field data-invalid={true}>
             <FieldError>{displayError}</FieldError>
+            {recoverLink}
           </Field>
         ) : null}
 

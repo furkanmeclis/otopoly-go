@@ -41,12 +41,16 @@ SET name = $2,
 WHERE id = $1 AND deleted_at IS NULL;
 
 -- name: UpdateUserPlatform :one
--- Re-activating a user (status -> active) clears a self-service deactivation.
+-- Re-activating a user (status -> active) clears a self-service deactivation
+-- and cancels a pending deletion.
 UPDATE users
 SET name = COALESCE(sqlc.narg(name), name),
     surname = COALESCE(sqlc.narg(surname), surname),
     status = COALESCE(sqlc.narg(status), status),
-    deactivated_at = CASE WHEN sqlc.narg(status)::text = 'active' THEN NULL ELSE deactivated_at END
+    deactivated_at = CASE WHEN sqlc.narg(status)::text = 'active' THEN NULL ELSE deactivated_at END,
+    deletion_requested_at = CASE WHEN sqlc.narg(status)::text = 'active' THEN NULL ELSE deletion_requested_at END,
+    deletion_scheduled_on = CASE WHEN sqlc.narg(status)::text = 'active' THEN NULL ELSE deletion_scheduled_on END,
+    deletion_previous_status = CASE WHEN sqlc.narg(status)::text = 'active' THEN NULL ELSE deletion_previous_status END
 WHERE uuid = sqlc.arg(uuid) AND deleted_at IS NULL
 RETURNING *;
 
@@ -136,12 +140,71 @@ WHERE u.deleted_at IS NULL
   )
 ORDER BY u.created_at DESC;
 
--- name: DeactivateUser :one
--- Self-service account deletion: keep every row, mark the user disabled.
+-- name: ScheduleUserDeletion :one
+-- Self-service account deletion: the account is disabled at once and the
+-- anonymization job scrubs it on deletion_scheduled_on (Istanbul day).
+-- deletion_previous_status remembers what recovery restores; a legacy
+-- self-deactivated account (deactivated_at, no schedule) was active before.
 UPDATE users
-SET status = 'disabled',
-    deactivated_at = COALESCE(deactivated_at, NOW())
-WHERE id = $1 AND deleted_at IS NULL
+SET deletion_previous_status = CASE WHEN deactivated_at IS NOT NULL THEN 'active' ELSE status END,
+    status = 'disabled',
+    deactivated_at = COALESCE(deactivated_at, NOW()),
+    deletion_requested_at = NOW(),
+    deletion_scheduled_on = sqlc.arg(scheduled_on)::date
+WHERE id = sqlc.arg(id)
+  AND deleted_at IS NULL
+  AND anonymized_at IS NULL
+  AND deletion_scheduled_on IS NULL
+RETURNING *;
+
+-- name: CancelUserDeletion :one
+-- Recovery inside the grace period: restore the previous status.
+UPDATE users
+SET status = COALESCE(deletion_previous_status, 'active'),
+    deactivated_at = NULL,
+    deletion_requested_at = NULL,
+    deletion_scheduled_on = NULL,
+    deletion_previous_status = NULL
+WHERE id = $1
+  AND deleted_at IS NULL
+  AND anonymized_at IS NULL
+  AND deletion_scheduled_on IS NOT NULL
+RETURNING *;
+
+-- name: ListUsersDueForAnonymization :many
+-- Pending deletions whose day has come. Soft-deleted users are included: a
+-- platform delete during the grace period must not skip the scrub.
+SELECT id FROM users
+WHERE deletion_scheduled_on IS NOT NULL
+  AND deletion_scheduled_on <= sqlc.arg(today)::date
+  AND anonymized_at IS NULL
+ORDER BY deletion_scheduled_on ASC, id ASC
+LIMIT sqlc.arg(limit_count);
+
+-- name: GetUserForAnonymization :one
+-- Locks a due user for the scrub transaction (also when soft-deleted).
+SELECT * FROM users
+WHERE id = $1
+  AND deletion_scheduled_on IS NOT NULL
+  AND anonymized_at IS NULL
+FOR UPDATE;
+
+-- name: AnonymizeUser :one
+-- Scrubs personal data on the users row and keeps the row for references.
+UPDATE users
+SET email = sqlc.arg(email),
+    password_hash = sqlc.arg(password_hash),
+    password_set = FALSE,
+    name = sqlc.arg(name),
+    surname = sqlc.arg(surname),
+    status = 'disabled',
+    email_verified_at = NULL,
+    last_login_at = NULL,
+    deactivated_at = COALESCE(deactivated_at, NOW()),
+    deleted_at = COALESCE(deleted_at, NOW()),
+    deletion_previous_status = NULL,
+    anonymized_at = NOW()
+WHERE id = sqlc.arg(id) AND anonymized_at IS NULL
 RETURNING *;
 
 -- name: GetUserByUUIDIncludingDeleted :one
@@ -158,9 +221,10 @@ WHERE id = $1 AND deleted_at IS NULL
 RETURNING *;
 
 -- name: RestoreUser :one
+-- Anonymized accounts are final and cannot be restored.
 UPDATE users
 SET deleted_at = NULL
-WHERE id = $1 AND deleted_at IS NOT NULL
+WHERE id = $1 AND deleted_at IS NOT NULL AND anonymized_at IS NULL
 RETURNING *;
 
 -- name: ListSoleOwnedOrganizationsByUserID :many

@@ -18,6 +18,7 @@ const (
 	otpTypeLoginCode           = "login_code"
 	otpTypeOAuthLink           = "oauth_link"
 	otpTypeAccountDeactivation = "account_deactivation"
+	otpTypeAccountRecovery     = "account_recovery"
 	// emailCodeTTL is the lifetime of login / link / deactivation codes.
 	emailCodeTTL = 10 * time.Minute
 )
@@ -217,7 +218,7 @@ func (u *AuthUseCase) sendEmailCode(
 // checkEmailCode validates code against the newest active code without
 // consuming it; a wrong code burns one of the code's attempts.
 func (u *AuthUseCase) checkEmailCode(ctx context.Context, email, otpType, code string) (int64, error) {
-	if otpType == otpTypeLoginCode || otpType == otpTypeAccountDeactivation {
+	if otpType == otpTypeLoginCode || otpType == otpTypeAccountDeactivation || otpType == otpTypeAccountRecovery {
 		if u.reviewCodeMatches(email, code) {
 			return 0, nil
 		}

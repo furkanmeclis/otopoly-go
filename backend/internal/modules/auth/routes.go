@@ -41,6 +41,11 @@ func RegisterRoutes(
 	mux.HandleFunc("POST /v1/auth/oauth/link/request", h.OAuthLinkRequest)
 	mux.HandleFunc("POST /v1/auth/oauth/link/verify", h.OAuthLinkVerify)
 	mux.HandleFunc("POST /v1/auth/oauth/link/create", h.OAuthLinkCreate)
+	// Public account deletion (/account/delete page) and recovery.
+	mux.HandleFunc("POST /v1/auth/account/deletion/request", h.RequestPublicAccountDeletion)
+	mux.HandleFunc("POST /v1/auth/account/deletion/confirm", h.ConfirmPublicAccountDeletion)
+	mux.HandleFunc("POST /v1/auth/account/recovery/request", h.RequestAccountRecovery)
+	mux.HandleFunc("POST /v1/auth/account/recovery/confirm", h.ConfirmAccountRecovery)
 
 	mux.HandleFunc("GET /v1/internal/auth/users/by-email", h.AdapterGetUserByEmail)
 	mux.HandleFunc("GET /v1/internal/auth/users/{uuid}", h.AdapterGetUserByUUID)

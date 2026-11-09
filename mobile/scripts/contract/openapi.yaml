@@ -1,5 +1,5 @@
 # OpenAPI fixture for the mobile contract test (npm run test:contract). DO NOT EDIT BY HAND.
-# Source: otopoly-go backend/docs/openapi.yaml @ 61248b9 (scripts/contract/refresh-spec.sh).
+# Source: otopoly-go backend/docs/openapi.yaml @ 5466d82 (scripts/contract/refresh-spec.sh).
 openapi: 3.1.0
 info:
   title: App API
@@ -3541,20 +3541,26 @@ paths:
     post:
       tags: [Auth]
       operationId: postAuthAccountDeactivate
-      summary: Delete (deactivate) own account
+      summary: Delete own account (30-day recoverable)
       description: |
-        Account deletion keeps all data: the user becomes `disabled` with
-        `deactivated_at`, every refresh session is revoked, stored Apple
-        refresh tokens are revoked via Apple `/auth/revoke` (best effort), and
-        every sign-in path returns `403 ACCOUNT_DEACTIVATED` afterwards.
-        Organizations the user owns are kept as-is (other members keep access).
+        Signed-in variant of account deletion (web profile, mobile app). Same
+        result as `/v1/auth/account/deletion/confirm`: the account is disabled
+        at once (`status = disabled`, `deactivated_at`), every refresh session
+        is revoked, stored Apple refresh tokens are revoked via Apple
+        `/auth/revoke` (best effort) and every sign-in path returns
+        `403 ACCOUNT_DEACTIVATED` (with `details.deletion_scheduled_on`).
+        The account can be recovered for 30 days
+        (`/v1/auth/account/recovery/*`); on `deletion_scheduled_on`
+        (Europe/Istanbul day) a background job anonymizes the personal data.
+        Organizations the user owns are kept as-is (business records stay,
+        other members keep access); they are listed in `owned_organizations`.
 
         Confirm with either a recent step-up grant (`/v1/auth/step-up/*`,
         send `{}`) or `code` from `/v1/auth/account/deactivate/request`.
         Without either → `403 STEP_UP_REQUIRED`. Wrong code →
         `400 INVALID_EMAIL_CODE`. The last super admin gets `409 CONFLICT`.
         Refused while impersonating (`403 FORBIDDEN`). A platform admin can
-        reactivate the user by setting status `active`.
+        reactivate the user by setting status `active` (cancels the deletion).
       security:
         - bearerAuth: []
       requestBody:
@@ -3565,11 +3571,11 @@ paths:
               $ref: "#/components/schemas/AccountDeactivateRequest"
       responses:
         "200":
-          description: Deactivated (`data.status = deactivated`)
+          description: Deletion scheduled (`data.status = scheduled`)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/EnvelopeStatus"
+                $ref: "#/components/schemas/EnvelopeAccountDeletionScheduled"
         "400":
           $ref: "#/components/responses/BadRequest"
         "401":
@@ -3578,6 +3584,149 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "409":
           $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/account/deletion/request:
+    post:
+      tags: [Auth]
+      operationId: postAuthAccountDeletionRequest
+      summary: Email an account-deletion code (public deletion page)
+      description: |
+        Used by the public `/account/delete` page (no sign-in). Always answers
+        `200 {status: accepted}` so the response never reveals whether the
+        email has an account. A 6-digit code (10 minutes, single use, 5
+        attempts) is emailed only to an existing account without a pending
+        deletion. Rate limits: 10 per IP and 5 per email in 15 minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailCodeRequest"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/account/deletion/confirm:
+    post:
+      tags: [Auth]
+      operationId: postAuthAccountDeletionConfirm
+      summary: Confirm account deletion with the emailed code
+      description: |
+        Verifies the code from `/v1/auth/account/deletion/request` and
+        schedules the deletion like `/v1/auth/account/deactivate`: the account
+        is disabled immediately, sessions are revoked and the personal data is
+        anonymized on `deletion_scheduled_on` (Europe/Istanbul day, 30 days
+        later) unless the user recovers it first.
+
+        Accounts with authenticator 2FA: a call without `totp_code` returns
+        `403 MFA_REQUIRED` and the email code stays valid; retry with the same
+        `code` plus `totp_code`. Errors: `400 INVALID_EMAIL_CODE` (wrong /
+        expired / used / exhausted, or unknown email), `403 MFA_REQUIRED`,
+        `401 INVALID_MFA_CODE`, `409 CONFLICT` (last super admin),
+        `429 RATE_LIMITED` (30 per IP, 10 per email in 15 minutes).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailCodeVerifyRequest"
+      responses:
+        "200":
+          description: Deletion scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeAccountDeletionScheduled"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/account/recovery/request:
+    post:
+      tags: [Auth]
+      operationId: postAuthAccountRecoveryRequest
+      summary: Email an account-recovery code
+      description: |
+        Starts recovery of an account whose deletion is pending (shown on the
+        public `/account/delete` page and offered when sign-in returns
+        `ACCOUNT_DEACTIVATED` with `details.recoverable = true`). Always
+        answers `200 {status: accepted}`; a code (10 minutes, single use) is
+        emailed only when the account has a pending deletion. Rate limits: 10
+        per IP and 5 per email in 15 minutes.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmailCodeRequest"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /v1/auth/account/recovery/confirm:
+    post:
+      tags: [Auth]
+      operationId: postAuthAccountRecoveryConfirm
+      summary: Cancel a pending deletion and re-enable the account
+      description: |
+        Verifies the code from `/v1/auth/account/recovery/request`, cancels
+        the pending deletion and restores the account's previous status
+        (`data.status = recovered`). Sessions revoked at deletion stay
+        revoked; the user signs in again normally. Errors:
+        `400 INVALID_EMAIL_CODE` (wrong / expired / used code, or no pending
+        deletion), `429 RATE_LIMITED` (30 per IP, 10 per email in 15 minutes).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AccountRecoveryConfirmRequest"
+      responses:
+        "200":
+          description: Recovered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvelopeStatus"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "429":
           $ref: "#/components/responses/TooManyRequests"
         "500":
@@ -17775,6 +17924,57 @@ components:
       properties:
         success: { type: boolean, enum: [true] }
         data: { $ref: "#/components/schemas/StatusPayload" }
+        meta: { $ref: "#/components/schemas/ResponseMeta" }
+
+    AccountRecoveryConfirmRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email: { type: string, format: email }
+        code:
+          type: string
+          description: 6-digit code from the recovery email
+          maxLength: 32
+
+    AccountDeletionOwnedOrganization:
+      type: object
+      required: [uuid, slug, name, other_members, other_owners]
+      properties:
+        uuid: { type: string, format: uuid }
+        slug: { type: string }
+        name: { type: string }
+        other_members:
+          type: integer
+          format: int64
+          description: Members (owners + staff) other than the deleting user
+        other_owners:
+          type: integer
+          format: int64
+          description: Other owners; 0 means the business is left without an active owner
+
+    AccountDeletionScheduled:
+      type: object
+      required: [status, deletion_scheduled_on, grace_days, owned_organizations]
+      properties:
+        status: { type: string, enum: [scheduled] }
+        deletion_scheduled_on:
+          type: string
+          format: date
+          description: Europe/Istanbul day on which the personal data is anonymized
+        grace_days:
+          type: integer
+          description: Recovery window in days (30)
+        owned_organizations:
+          type: array
+          description: Businesses the user owns. They are kept with all records; only the user's personal data is scrubbed.
+          items: { $ref: "#/components/schemas/AccountDeletionOwnedOrganization" }
+
+    EnvelopeAccountDeletionScheduled:
+      type: object
+      required: [success, data, meta]
+      properties:
+        success: { type: boolean, enum: [true] }
+        data: { $ref: "#/components/schemas/AccountDeletionScheduled" }
         meta: { $ref: "#/components/schemas/ResponseMeta" }
 
     AuthMethodFlags:

@@ -88,7 +88,9 @@ type Repository interface {
 	UpdatePasskeyName(ctx context.Context, userUUID, passkeyUUID uuid.UUID, name *string) (model.PasskeyRecord, error)
 	DeletePasskeyByCredentialID(ctx context.Context, credentialID string) error
 	DeletePasskeyByUUID(ctx context.Context, userUUID, passkeyUUID uuid.UUID) error
-	DeactivateUser(ctx context.Context, userID int64) (model.User, error)
+	ScheduleUserDeletion(ctx context.Context, userID int64, scheduledOn string) (model.User, error)
+	CancelUserDeletion(ctx context.Context, userID int64) (model.User, error)
+	ListOwnedOrganizations(ctx context.Context, userID int64) ([]model.OwnedOrganization, error)
 	UpdateOAuthAccountRefreshToken(ctx context.Context, accountID int64, refreshTokenEnc, clientID *string) error
 	GetOAuthAccountByProviderAccount(ctx context.Context, provider, providerAccountID string) (model.OAuthAccountRecord, error)
 	GetOAuthAccountByUserProvider(ctx context.Context, userID int64, provider string) (model.OAuthAccountRecord, error)
@@ -131,6 +133,8 @@ type AuthUseCase struct {
 	native         NativeOAuthConfig
 	// channelRules authorize extra Centrifugo channel families (live lists).
 	channelRules []realtime.ChannelRule
+	// appURL is the public web origin used in account emails.
+	appURL string
 }
 
 // AddChannelRules lets other packages authorize their own channel families

@@ -4,8 +4,9 @@
  *   e-mail code      POST /v1/auth/email-code/request · /verify
  *   native OAuth     POST /v1/auth/oauth/{apple|google}/native
  *   relay linking    POST /v1/auth/oauth/link/request · /verify · /create
- *   deletion         POST /v1/auth/account/deactivate/request · /deactivate
+ *   deletion         POST /v1/auth/account/deactivate/request · /deactivate (30-day recovery is web-only)
  */
+import { businessDayOf, shiftDay } from '@/lib/business-date';
 import { createLogger } from '@/lib/logger';
 
 import { fail, MockHttpError, now, route, str, uuid, validation, type MockCtx, type MockUser } from '../core';
@@ -357,8 +358,10 @@ route('POST', '/v1/auth/account/deactivate', (ctx) => {
   user.status = 'inactive';
   // Every refresh session is revoked; organizations the user owns stay as they are.
   db.sessions = db.sessions.filter((s) => s.userUuid !== user.uuid);
-  log.info('Demo account deactivated', { email: user.email });
-  return { status: 'deactivated' };
+  log.info('Demo account deletion scheduled', { email: user.email });
+  // Backend: Europe/Istanbul day + 30 (bizclock).
+  const scheduled = shiftDay(businessDayOf(new Date()), 30);
+  return { status: 'scheduled', deletion_scheduled_on: scheduled, grace_days: 30, owned_organizations: [] };
 });
 
 // ─── Linked accounts (profile) ────────────────────────────────────────────

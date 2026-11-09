@@ -1,4 +1,4 @@
-import { Archive, Ban, Building2, LogOut, Trash2 } from 'lucide-react-native';
+import { Archive, Ban, Building2, History, LogOut, Trash2 } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 
@@ -20,13 +20,14 @@ import { useTheme } from '@/theme/provider';
 const log = createLogger('screen.delete_account');
 
 /**
- * Profile → "Hesabımı sil" (App Store 5.1.1(v)). The backend deactivates the account: it can't be
- * used again, every session ends, Apple access is revoked, and records are kept as the law requires.
- * Confirmation is a 6-digit code e-mailed to the account (works for passwordless accounts too).
+ * Profile → "Hesabımı sil" (App Store 5.1.1(v)). The backend disables the account at once (every
+ * session ends, Apple access is revoked), keeps it recoverable for 30 days on the web page
+ * (otopoly.app/account/delete?mode=recover), then anonymizes the personal data. Business records
+ * stay. Confirmation is a 6-digit code e-mailed to the account (works for passwordless accounts too).
  */
 export default function DeleteAccountScreen() {
   const t = useTheme();
-  const { t: tr } = useLocale();
+  const { t: tr, fmt } = useLocale();
   const toast = useToast();
   const confirm = useConfirm();
   const { me, logout } = useAuth();
@@ -74,9 +75,9 @@ export default function DeleteAccountScreen() {
     // Unregister push while the access token still works: deactivation revokes every session.
     await unregisterPushDevice();
     try {
-      await passwordlessService.deactivate(code);
-      log.info('Account deactivated, signing out locally');
-      toast.success(tr('mobile.auth.delete.done'));
+      const result = await passwordlessService.deactivate(code);
+      log.info('Account deletion scheduled, signing out locally', { on: result.deletion_scheduled_on });
+      toast.success(tr('mobile.auth.delete.done', { date: fmt.date(result.deletion_scheduled_on) }));
       // The server already revoked every session; only clear this device.
       await logout({ serverRevoked: true });
     } catch (err) {
@@ -118,6 +119,7 @@ export default function DeleteAccountScreen() {
       <Section title={tr('mobile.auth.delete.what_title')}>
         <Card style={{ gap: t.spacing.md }}>
           <Point icon={<Ban size={18} color={t.colors.danger} />} text={tr('mobile.auth.delete.point_closed')} />
+          <Point icon={<History size={18} color={t.colors.textSecondary} />} text={tr('mobile.auth.delete.point_recover')} />
           <Point icon={<LogOut size={18} color={t.colors.textSecondary} />} text={tr('mobile.auth.delete.point_sessions')} />
           <Point icon={<Archive size={18} color={t.colors.textSecondary} />} text={tr('mobile.auth.delete.point_data')} />
           <Point icon={<Building2 size={18} color={t.colors.textSecondary} />} text={tr('mobile.auth.delete.point_org')} />

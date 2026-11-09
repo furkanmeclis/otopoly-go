@@ -258,5 +258,10 @@
   "resources.loyalty.package": "Paket",
   "resources.loyalty.plan": "Abonelik planı",
   "resources.loyalty.customer_package": "Satılan paket",
-  "resources.loyalty.subscription": "Abonelik"
+  "resources.loyalty.subscription": "Abonelik",
+  "actions.auth.account_deletion_scheduled": "Hesap silme isteği onaylandı (30 gün kurtarılabilir)",
+  "actions.auth.account_deletion_cancelled": "Hesap silme iptal edildi (hesap kurtarıldı)",
+  "actions.auth.account_anonymized": "Hesap anonimleştirildi",
+  "actions.organizations.owner_deletion_scheduled": "İşletme sahibi hesabını silme isteği verdi",
+  "actions.organizations.owner_anonymized": "İşletme sahibinin hesabı anonimleştirildi"
 }

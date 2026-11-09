@@ -12,6 +12,8 @@ import (
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/config"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/logging"
+	authrepo "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/repository"
+	authusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
 	billingusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/billing/usecase"
 	bulkusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/bulk/usecase"
 	contractsusecase "github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/contracts/usecase"
@@ -281,7 +283,12 @@ func main() {
 	reviewsSvc.SetResourceEvents(livePub)
 	contractsSvc.SetResourceEvents(livePub)
 
+	// Self-service account deletion: scrub accounts whose 30-day grace ended.
+	accountAnonymizer := authusecase.NewAccountAnonymizer(authrepo.NewPostgres(pool, queries), activityRec, log)
+	accountAnonymizer.SetSearchIndexer(searchIndexer)
+
 	worker := queue.NewWorker(cfg, log, notifSvc.Deliver).
+		WithAccountAnonymization(accountAnonymizer.AnonymizeDue).
 		WithCatalogImport(vehicleCatalogSvc.ProcessImport).
 		WithBrandLogoSync(vehicleCatalogSvc.ProcessBrandLogoSync).
 		WithExport(exportSvc.ProcessExport).
@@ -324,6 +331,10 @@ func main() {
 	}
 	if err := queue.RegisterReminderSweep(scheduler, log); err != nil {
 		log.Error("reminder_scheduler_failed", "error", err)
+		exit(1)
+	}
+	if err := queue.RegisterAccountAnonymizeSchedule(scheduler); err != nil {
+		log.Error("account_anonymize_scheduler_failed", "error", err)
 		exit(1)
 	}
 	if err := queue.RegisterQuoteExpirySchedule(scheduler); err != nil {

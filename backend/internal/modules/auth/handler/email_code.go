@@ -5,6 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/model"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/usecase"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/activity"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/authctx"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/pkg/response"
 )
@@ -113,7 +116,26 @@ func (h *Handler) RequestAccountDeactivationCode(w http.ResponseWriter, r *http.
 	response.JSON(w, r, http.StatusOK, map[string]string{"status": "accepted"})
 }
 
-// DeactivateAccount is POST /v1/auth/account/deactivate.
+// accountDeletionResponse is the body of a confirmed (pending) deletion.
+type accountDeletionResponse struct {
+	Status              string                    `json:"status"`
+	DeletionScheduledOn string                    `json:"deletion_scheduled_on"`
+	GraceDays           int                       `json:"grace_days"`
+	OwnedOrganizations  []model.OwnedOrganization `json:"owned_organizations"`
+}
+
+func deletionResponse(res usecase.DeletionResult) accountDeletionResponse {
+	owned := res.OwnedOrganizations
+	if owned == nil {
+		owned = []model.OwnedOrganization{}
+	}
+	return accountDeletionResponse{
+		Status: "scheduled", DeletionScheduledOn: res.ScheduledOn,
+		GraceDays: usecase.AccountDeletionGraceDays, OwnedOrganizations: owned,
+	}
+}
+
+// DeactivateAccount is POST /v1/auth/account/deactivate (signed-in deletion).
 func (h *Handler) DeactivateAccount(w http.ResponseWriter, r *http.Request) {
 	p := authctx.MustPrincipal(r.Context())
 	if p.ImpersonatorUserID != nil {
@@ -138,22 +160,145 @@ func (h *Handler) DeactivateAccount(w http.ResponseWriter, r *http.Request) {
 		}
 		stepUpOK = ok
 	}
-	if err := h.uc.DeactivateAccount(r.Context(), p.UserID, in.Code, stepUpOK); err != nil {
+	res, err := h.uc.DeactivateAccount(r.Context(), p.UserID, in.Code, stepUpOK)
+	if err != nil {
 		writeUsecaseError(w, r, err)
 		return
 	}
 	if h.stepUp != nil {
 		_ = h.stepUp.RevokeGrant(r.Context(), p.UserID)
 	}
+	method := "step_up"
+	if strings.TrimSpace(in.Code) != "" {
+		method = "email_code"
+	}
+	h.recordDeletionScheduled(r, res, method, "app")
+	response.JSON(w, r, http.StatusOK, deletionResponse(res))
+}
+
+// RequestPublicAccountDeletion is POST /v1/auth/account/deletion/request
+// (public /account/delete page). Always 200 accepted (no enumeration).
+func (h *Handler) RequestPublicAccountDeletion(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	if !h.allowRates(
+		w, r,
+		rateCheck{"account_deletion_request_ip", sessionMeta(r).IP, codeRequestIPLimit},
+		rateCheck{"account_deletion_request_email", emailSubject(in.Email), codeRequestEmailLimit},
+	) {
+		return
+	}
+	if err := h.uc.RequestPublicAccountDeletion(r.Context(), in.Email); err != nil {
+		writeUsecaseError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, map[string]string{"status": "accepted"})
+}
+
+// ConfirmPublicAccountDeletion is POST /v1/auth/account/deletion/confirm.
+func (h *Handler) ConfirmPublicAccountDeletion(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Email    string `json:"email"`
+		Code     string `json:"code"`
+		TOTPCode string `json:"totp_code"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	if !h.allowRates(
+		w, r,
+		rateCheck{"account_deletion_confirm_ip", sessionMeta(r).IP, codeVerifyIPLimit},
+		rateCheck{"account_deletion_confirm_email", emailSubject(in.Email), codeVerifyEmailLimit},
+	) {
+		return
+	}
+	res, err := h.uc.ConfirmPublicAccountDeletion(r.Context(), in.Email, in.Code, in.TOTPCode)
+	if err != nil {
+		writeUsecaseError(w, r, err)
+		return
+	}
+	h.recordDeletionScheduled(r, res, "email_code", "web")
+	response.JSON(w, r, http.StatusOK, deletionResponse(res))
+}
+
+// RequestAccountRecovery is POST /v1/auth/account/recovery/request.
+// Always 200 accepted; a code is sent only for a pending deletion.
+func (h *Handler) RequestAccountRecovery(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Email string `json:"email"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	if !h.allowRates(
+		w, r,
+		rateCheck{"account_recovery_request_ip", sessionMeta(r).IP, codeRequestIPLimit},
+		rateCheck{"account_recovery_request_email", emailSubject(in.Email), codeRequestEmailLimit},
+	) {
+		return
+	}
+	if err := h.uc.RequestAccountRecoveryCode(r.Context(), in.Email); err != nil {
+		writeUsecaseError(w, r, err)
+		return
+	}
+	response.JSON(w, r, http.StatusOK, map[string]string{"status": "accepted"})
+}
+
+// ConfirmAccountRecovery is POST /v1/auth/account/recovery/confirm.
+func (h *Handler) ConfirmAccountRecovery(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Email string `json:"email"`
+		Code  string `json:"code"`
+	}
+	if err := decodeJSON(w, r, &in); err != nil {
+		return
+	}
+	if !h.allowRates(
+		w, r,
+		rateCheck{"account_recovery_confirm_ip", sessionMeta(r).IP, codeVerifyIPLimit},
+		rateCheck{"account_recovery_confirm_email", emailSubject(in.Email), codeVerifyEmailLimit},
+	) {
+		return
+	}
+	res, err := h.uc.RecoverAccount(r.Context(), in.Email, in.Code)
+	if err != nil {
+		writeUsecaseError(w, r, err)
+		return
+	}
 	if h.activity != nil {
-		id := p.UserInternal
-		method := "step_up"
-		if strings.TrimSpace(in.Code) != "" {
-			method = "email_code"
-		}
-		h.activity.Record(r.Context(), &id, "auth.account_deactivated", "auth.account", nil, map[string]any{
-			"method": method,
+		id := res.UserID
+		uid := res.UserUUID
+		h.activity.Record(r.Context(), &id, "auth.account_deletion_cancelled", "auth.account", &uid, map[string]any{
+			"method": "email_code",
 		}, r)
 	}
-	response.JSON(w, r, http.StatusOK, map[string]string{"status": "deactivated"})
+	response.JSON(w, r, http.StatusOK, map[string]string{"status": "recovered"})
+}
+
+// recordDeletionScheduled audits the deletion and marks every owned
+// organization's log (the business stays; its owner account goes away).
+func (h *Handler) recordDeletionScheduled(r *http.Request, res usecase.DeletionResult, method, channel string) {
+	if h.activity == nil {
+		return
+	}
+	id := res.UserID
+	uid := res.UserUUID
+	h.activity.Record(r.Context(), &id, "auth.account_deletion_scheduled", "auth.account", &uid, map[string]any{
+		"method": method, "channel": channel,
+		"deletion_scheduled_on": res.ScheduledOn,
+		"owned_organizations":   len(res.OwnedOrganizations),
+	}, r)
+	for _, org := range res.OwnedOrganizations {
+		orgUUID := org.UUID
+		ctx := activity.WithOrganization(r.Context(), org.ID)
+		h.activity.Record(ctx, &id, "organizations.owner_deletion_scheduled", "organizations", &orgUUID, map[string]any{
+			"deletion_scheduled_on": res.ScheduledOn,
+			"other_members":         org.OtherMembers,
+			"other_owners":          org.OtherOwners,
+		}, r)
+	}
 }
