@@ -2217,21 +2217,25 @@ type Todo struct {
 }
 
 type User struct {
-	ID              int64              `json:"id"`
-	Uuid            uuid.UUID          `json:"uuid"`
-	Email           string             `json:"email"`
-	PasswordHash    string             `json:"password_hash"`
-	Name            string             `json:"name"`
-	Surname         string             `json:"surname"`
-	Status          string             `json:"status"`
-	EmailVerifiedAt pgtype.Timestamptz `json:"email_verified_at"`
-	LastLoginAt     pgtype.Timestamptz `json:"last_login_at"`
-	Locale          string             `json:"locale"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
-	DeletedAt       pgtype.Timestamptz `json:"deleted_at"`
-	DeactivatedAt   pgtype.Timestamptz `json:"deactivated_at"`
-	PasswordSet     bool               `json:"password_set"`
+	ID                     int64              `json:"id"`
+	Uuid                   uuid.UUID          `json:"uuid"`
+	Email                  string             `json:"email"`
+	PasswordHash           string             `json:"password_hash"`
+	Name                   string             `json:"name"`
+	Surname                string             `json:"surname"`
+	Status                 string             `json:"status"`
+	EmailVerifiedAt        pgtype.Timestamptz `json:"email_verified_at"`
+	LastLoginAt            pgtype.Timestamptz `json:"last_login_at"`
+	Locale                 string             `json:"locale"`
+	CreatedAt              pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `json:"updated_at"`
+	DeletedAt              pgtype.Timestamptz `json:"deleted_at"`
+	DeactivatedAt          pgtype.Timestamptz `json:"deactivated_at"`
+	PasswordSet            bool               `json:"password_set"`
+	DeletionRequestedAt    pgtype.Timestamptz `json:"deletion_requested_at"`
+	DeletionScheduledOn    pgtype.Date        `json:"deletion_scheduled_on"`
+	DeletionPreviousStatus pgtype.Text        `json:"deletion_previous_status"`
+	AnonymizedAt           pgtype.Timestamptz `json:"anonymized_at"`
 }
 
 type UserRole struct {

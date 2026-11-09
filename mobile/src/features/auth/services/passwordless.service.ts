@@ -1,4 +1,5 @@
 import { request } from '@/api/client';
+import type { components } from '@/api/generated/api';
 import type { Tokens } from '@/api/session';
 
 /**
@@ -7,6 +8,8 @@ import type { Tokens } from '@/api/session';
  * `MFA_REQUIRED` → `totp_code` round-trip. Screens handle errors themselves (`silent`).
  */
 export type OAuthProvider = 'apple' | 'google';
+
+export type AccountDeletionScheduled = components['schemas']['AccountDeletionScheduled'];
 
 /** Body of `POST /v1/auth/oauth/{provider}/native`. */
 export type NativeOAuthInput = {
@@ -48,8 +51,12 @@ export const passwordlessService = {
   requestDeactivationCode() {
     return request<Accepted>('POST', '/v1/auth/account/deactivate/request', { silent: true });
   },
-  /** Bearer: closes the account (data is kept, marked passive). Every later sign-in → ACCOUNT_DEACTIVATED. */
+  /**
+   * Bearer: deletes the account with a 30-day recovery window. It is disabled at once (every later
+   * sign-in → ACCOUNT_DEACTIVATED), recoverable on the web page until `deletion_scheduled_on`
+   * (Europe/Istanbul day), then anonymized. Businesses the user owns are kept.
+   */
   deactivate(code: string) {
-    return request<{ status: string }>('POST', '/v1/auth/account/deactivate', { silent: true, body: { code } });
+    return request<AccountDeletionScheduled>('POST', '/v1/auth/account/deactivate', { silent: true, body: { code } });
   },
 };

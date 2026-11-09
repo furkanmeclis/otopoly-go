@@ -19,6 +19,9 @@ var (
 	ErrNotDeleted = errors.New("user is not deleted")
 	// ErrEmailInUse: the deleted user's email now belongs to another account.
 	ErrEmailInUse = errors.New("email is used by another account")
+	// ErrAccountAnonymized: the account's personal data was scrubbed after a
+	// self-service deletion; it can never be restored.
+	ErrAccountAnonymized = errors.New("account is anonymized")
 )
 
 // SoleOwnerError blocks deleting a user that is the last owner of one or more
@@ -104,6 +107,9 @@ func (u *AuthUseCase) RestorePlatformUser(ctx context.Context, targetUUID uuid.U
 			return model.PublicUser{}, ErrNotFound
 		}
 		return model.PublicUser{}, err
+	}
+	if user.AnonymizedAt != nil {
+		return model.PublicUser{}, ErrAccountAnonymized
 	}
 	if user.DeletedAt == nil {
 		return model.PublicUser{}, ErrNotDeleted

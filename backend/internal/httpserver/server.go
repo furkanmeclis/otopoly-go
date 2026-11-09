@@ -269,6 +269,7 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	uc := authusecase.New(repo, tokens)
 	uc.SetNotifier(notifSvc)
 	uc.SetLogger(log)
+	uc.SetAppURL(cfg.Auth.FrontendURL)
 
 	searchReg := searchengine.NewRegistry(
 		searchadapters.NewUsers(deps.Queries),
@@ -722,6 +723,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 	aimodule.RegisterRoutes(mux, aiHandler, tokens, loader, deps.Queries)
 	logsSvc := logsusecase.New(deps.Queries)
 	if s.worker != nil {
+		accountAnonymizer := authusecase.NewAccountAnonymizer(repo, activityRec, log)
+		accountAnonymizer.SetSearchIndexer(searchIndexer)
+		s.worker.WithAccountAnonymization(accountAnonymizer.AnonymizeDue)
 		s.worker.WithExport(exportSvc.ProcessExport).
 			WithImport(importSvc.ProcessImport).
 			WithBulk(bulkSvc.ProcessBulk).
@@ -739,6 +743,9 @@ func New(cfg config.Config, log *slog.Logger, deps Deps) (*Server, error) {
 		if sched, err := queue.StartReminderScheduler(cfg, log); err != nil {
 			log.Error("reminder_scheduler_init_failed", "error", err)
 		} else {
+			if err := queue.RegisterAccountAnonymizeSchedule(sched); err != nil {
+				log.Error("account_anonymize_scheduler_failed", "error", err)
+			}
 			if err := queue.RegisterQuoteExpirySchedule(sched); err != nil {
 				log.Error("quote_expiry_scheduler_failed", "error", err)
 			}

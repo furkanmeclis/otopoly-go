@@ -26,6 +26,9 @@ type memRepo struct {
 	// deleted holds soft-deleted users (hidden from every other lookup).
 	deleted   map[int64]model.User
 	soleOwned map[int64][]model.OrganizationRef
+	// prevStatus / owned back the account deletion flow.
+	prevStatus map[int64]string
+	owned      map[int64][]model.OwnedOrganization
 }
 
 func newMemRepo() *memRepo {
@@ -402,18 +405,52 @@ func (r *memRepo) UpdatePasskeyName(context.Context, uuid.UUID, uuid.UUID, *stri
 	return model.PasskeyRecord{}, repository.ErrNotFound
 }
 
-func (r *memRepo) DeactivateUser(_ context.Context, userID int64) (model.User, error) {
+func (r *memRepo) ScheduleUserDeletion(_ context.Context, userID int64, scheduledOn string) (model.User, error) {
 	u, ok := r.users[userID]
-	if !ok {
+	if !ok || u.AnonymizedAt != nil || u.DeletionScheduledOn != "" {
 		return model.User{}, repository.ErrNotFound
 	}
+	prev := u.Status
+	if u.DeactivatedAt != nil {
+		prev = "active"
+	}
+	if r.prevStatus == nil {
+		r.prevStatus = map[int64]string{}
+	}
+	r.prevStatus[u.ID] = prev
 	now := time.Now().UTC()
 	u.Status = "disabled"
-	u.DeactivatedAt = &now
+	if u.DeactivatedAt == nil {
+		u.DeactivatedAt = &now
+	}
+	u.DeletionScheduledOn = scheduledOn
+	r.put(u)
+	return u, nil
+}
+
+func (r *memRepo) CancelUserDeletion(_ context.Context, userID int64) (model.User, error) {
+	u, ok := r.users[userID]
+	if !ok || u.AnonymizedAt != nil || u.DeletionScheduledOn == "" {
+		return model.User{}, repository.ErrNotFound
+	}
+	u.Status = r.prevStatus[u.ID]
+	if u.Status == "" {
+		u.Status = "active"
+	}
+	u.DeactivatedAt = nil
+	u.DeletionScheduledOn = ""
+	r.put(u)
+	return u, nil
+}
+
+func (r *memRepo) ListOwnedOrganizations(_ context.Context, userID int64) ([]model.OwnedOrganization, error) {
+	return r.owned[userID], nil
+}
+
+func (r *memRepo) put(u model.User) {
 	r.users[u.ID] = u
 	r.byEmail[u.Email] = u
 	r.byUUID[u.UUID] = u
-	return u, nil
 }
 
 func (r *memRepo) UpdateOAuthAccountRefreshToken(context.Context, int64, *string, *string) error {

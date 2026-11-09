@@ -25,6 +25,35 @@ type User struct {
 	PasswordSet bool
 	// DeletedAt is set when a platform admin deleted the user (soft delete).
 	DeletedAt *time.Time
+	// DeletionScheduledOn is the Europe/Istanbul day (YYYY-MM-DD) on which a
+	// pending self-service deletion is anonymized ("" = no pending deletion).
+	DeletionScheduledOn string
+	// AnonymizedAt is set once the account's personal data was scrubbed.
+	AnonymizedAt *time.Time
+}
+
+// PendingDeletion reports a confirmed deletion still inside its recovery window.
+func (u User) PendingDeletion() bool {
+	return u.DeletionScheduledOn != "" && u.AnonymizedAt == nil
+}
+
+// OwnedOrganization is an organization the user owns, with the members that
+// keep using it after the user's account is deleted.
+type OwnedOrganization struct {
+	ID           int64     `json:"-"`
+	UUID         uuid.UUID `json:"uuid"`
+	Slug         string    `json:"slug"`
+	Name         string    `json:"name"`
+	OtherMembers int64     `json:"other_members"`
+	OtherOwners  int64     `json:"other_owners"`
+}
+
+// AnonymizedIdentity replaces the personal fields of a scrubbed users row.
+type AnonymizedIdentity struct {
+	Email        string
+	PasswordHash string
+	Name         string
+	Surname      string
 }
 
 // UserAuthMethod is a login option linked to a platform user.

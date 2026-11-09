@@ -10,6 +10,7 @@ import (
 
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/database/db"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/modules/auth/model"
+	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/bizclock"
 	"github.com/furkanmeclis/nextjs-go-boilerplate/backend/internal/platform/rbac"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -750,7 +751,9 @@ func mapUser(row db.User) model.User {
 		Name: row.Name, Surname: row.Surname, Status: row.Status, Locale: locale,
 		EmailVerified: row.EmailVerifiedAt.Valid, CreatedAt: row.CreatedAt.Time,
 		DeactivatedAt: timePtr(row.DeactivatedAt), PasswordSet: row.PasswordSet,
-		DeletedAt: timePtr(row.DeletedAt),
+		DeletedAt:           timePtr(row.DeletedAt),
+		DeletionScheduledOn: bizclock.FormatDate(row.DeletionScheduledOn),
+		AnonymizedAt:        timePtr(row.AnonymizedAt),
 	}
 }
 
@@ -777,9 +780,15 @@ func pgText(v *string) pgtype.Text {
 	return pgtype.Text{String: *v, Valid: true}
 }
 
-// DeactivateUser marks the user disabled with deactivated_at (rows are kept).
-func (r *Postgres) DeactivateUser(ctx context.Context, userID int64) (model.User, error) {
-	row, err := r.q.DeactivateUser(ctx, userID)
+// ScheduleUserDeletion disables the user and stores the anonymization day
+// (YYYY-MM-DD, Europe/Istanbul). ErrNotFound when the user is gone, already
+// anonymized or already pending.
+func (r *Postgres) ScheduleUserDeletion(ctx context.Context, userID int64, scheduledOn string) (model.User, error) {
+	day, err := bizclock.ParseDate(scheduledOn)
+	if err != nil {
+		return model.User{}, err
+	}
+	row, err := r.q.ScheduleUserDeletion(ctx, db.ScheduleUserDeletionParams{ID: userID, ScheduledOn: day})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return model.User{}, ErrNotFound
@@ -787,6 +796,103 @@ func (r *Postgres) DeactivateUser(ctx context.Context, userID int64) (model.User
 		return model.User{}, err
 	}
 	return mapUser(row), nil
+}
+
+// CancelUserDeletion re-enables a pending account (previous status restored).
+func (r *Postgres) CancelUserDeletion(ctx context.Context, userID int64) (model.User, error) {
+	row, err := r.q.CancelUserDeletion(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.User{}, ErrNotFound
+		}
+		return model.User{}, err
+	}
+	return mapUser(row), nil
+}
+
+// ListOwnedOrganizations returns the organizations the user owns.
+func (r *Postgres) ListOwnedOrganizations(ctx context.Context, userID int64) ([]model.OwnedOrganization, error) {
+	rows, err := r.q.ListOwnedOrganizationsByUser(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.OwnedOrganization, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, model.OwnedOrganization{
+			ID: row.ID, UUID: row.Uuid, Slug: row.Slug, Name: row.Name,
+			OtherMembers: row.OtherMembers, OtherOwners: row.OtherOwners,
+		})
+	}
+	return out, nil
+}
+
+// ListUsersDueForAnonymization returns ids of pending deletions due on or
+// before today (YYYY-MM-DD, Europe/Istanbul).
+func (r *Postgres) ListUsersDueForAnonymization(ctx context.Context, today string, limit int32) ([]int64, error) {
+	day, err := bizclock.ParseDate(today)
+	if err != nil {
+		return nil, err
+	}
+	return r.q.ListUsersDueForAnonymization(ctx, db.ListUsersDueForAnonymizationParams{Today: day, LimitCount: limit})
+}
+
+// AnonymizeUser scrubs a due account in one transaction: the users row keeps
+// its id / uuid (business records reference it) but loses name, email and
+// password; sessions, devices, push subscriptions, OAuth identities,
+// passkeys, authenticator 2FA, codes, notification copies and preferences,
+// member phone numbers, assistant chats and MCP grants are deleted, and the
+// user's IP / user agent are removed from audit rows. Organization
+// memberships and every business record stay. ErrNotFound when the user is
+// not (or no longer) due.
+func (r *Postgres) AnonymizeUser(ctx context.Context, userID int64, id model.AnonymizedIdentity) (before, after model.User, err error) {
+	err = r.withTx(ctx, func(q *db.Queries) error {
+		row, err := q.GetUserForAnonymization(ctx, userID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			return err
+		}
+		before = mapUser(row)
+		steps := []func() error{
+			func() error { return q.DeleteRefreshTokensByUser(ctx, userID) },
+			func() error { return q.DeletePushDevicesByUser(ctx, userID) },
+			func() error { return q.DeletePushSubscriptionsByUser(ctx, userID) },
+			func() error { return q.DeleteOAuthAccountsByUserID(ctx, userID) },
+			func() error { return q.DeleteWebAuthnCredentialsByUserID(ctx, userID) },
+			func() error { return q.DeleteUserTOTP(ctx, userID) },
+			func() error {
+				return q.DeleteOTPCodesForUser(ctx, db.DeleteOTPCodesForUserParams{UserID: pgtype.Int8{Int64: userID, Valid: true}, Email: row.Email})
+			},
+			func() error {
+				return q.DeleteNotificationsForUser(ctx, db.DeleteNotificationsForUserParams{UserID: pgtype.Int8{Int64: userID, Valid: true}, Email: row.Email})
+			},
+			func() error { return q.DeleteNotificationPreferencesByUser(ctx, userID) },
+			func() error { return q.DeleteNotificationTypePreferencesByUser(ctx, userID) },
+			func() error { return q.DeleteNotificationMemberSettingsByUser(ctx, userID) },
+			func() error { return q.DeleteScheduledNotificationsForUser(ctx, pgtype.Int8{Int64: userID, Valid: true}) },
+			func() error { return q.DeleteAIConversationsByUser(ctx, userID) },
+			func() error { return q.DeleteMCPGrantsByUser(ctx, userID) },
+			func() error { return q.ScrubActivityEventNetworkByActor(ctx, pgtype.Int8{Int64: userID, Valid: true}) },
+		}
+		for _, step := range steps {
+			if err := step(); err != nil {
+				return err
+			}
+		}
+		scrubbed, err := q.AnonymizeUser(ctx, db.AnonymizeUserParams{
+			ID: userID, Email: id.Email, PasswordHash: id.PasswordHash, Name: id.Name, Surname: id.Surname,
+		})
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrNotFound
+			}
+			return err
+		}
+		after = mapUser(scrubbed)
+		return nil
+	})
+	return before, after, err
 }
 
 // UpdateOAuthAccountRefreshToken replaces the stored (encrypted) refresh token.

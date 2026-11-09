@@ -588,6 +588,17 @@ func writeUsecaseError(w http.ResponseWriter, r *http.Request, err error) {
 		response.ValidationError(w, r, details)
 		return
 	}
+	var pending *usecase.PendingDeletionError
+	if errors.As(err, &pending) {
+		// Only reached after the credential / code was proven, so the
+		// deletion day is not leaked to strangers.
+		response.ErrorWithDetails(w, r, http.StatusForbidden, response.CodeAccountDeactivated,
+			"This account is scheduled for deletion. It can be recovered until the deletion date.", []response.Detail{
+				{Field: "deletion_scheduled_on", Message: pending.ScheduledOn},
+				{Field: "recoverable", Message: "true"},
+			})
+		return
+	}
 	var choice *usecase.LinkChoiceRequiredError
 	if errors.As(err, &choice) {
 		response.ErrorWithDetails(w, r, http.StatusConflict, response.CodeOAuthLinkChoiceRequired,

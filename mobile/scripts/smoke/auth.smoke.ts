@@ -137,11 +137,11 @@ const en = (key: string, params?: Record<string, string | number>) => translate(
   ok((await api.requestDeactivationCode()).status === 'accepted', 'deactivation code e-mailed');
   ok(lastCode('personel@otopoly.com') === DEMO_EMAIL_CODE && getIssuedCodes()[0].purpose === 'deactivate', 'code recorded as deactivation');
   await expectCode(api.deactivate('000000'), 'INVALID_EMAIL_CODE', 'wrong deactivation code');
-  ok((await api.deactivate(DEMO_EMAIL_CODE)).status === 'deactivated', 'account deactivated');
+  ok((await api.deactivate(DEMO_EMAIL_CODE)).status === 'scheduled', 'account deletion scheduled');
   await expectCode(me(), 'UNAUTHENTICATED', 'existing access token stops working');
   await expectCode(request('POST', '/v1/auth/refresh', { anonymous: true, silent: true, body: { refresh_token: refresh } }), 'UNAUTHENTICATED', 'refresh sessions revoked');
   const deact = await expectCode(request('POST', '/v1/auth/login', { anonymous: true, silent: true, body: { email: 'personel@otopoly.com', password: 'demo1234' } }), 'ACCOUNT_DEACTIVATED', 'password login');
-  ok(deact && authErrorMessage(tr, deact).includes('silindiği') && authErrorMessage(en, deact).includes('deleted'), 'deactivated copy (tr/en)');
+  ok(deact && authErrorMessage(tr, deact).includes('kurtarabilirsiniz') && authErrorMessage(en, deact).includes('deleted'), 'deactivated copy (tr/en)');
   ok((await api.requestEmailCode('personel@otopoly.com')).status === 'accepted', 'code request still accepted');
   await expectCode(api.verifyEmailCode('personel@otopoly.com', DEMO_EMAIL_CODE), 'ACCOUNT_DEACTIVATED', 'email code login');
   const org = getDb().organizations[0];

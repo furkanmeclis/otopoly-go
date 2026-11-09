@@ -79,7 +79,7 @@ func TestDeactivateRevokesAppleTokensWithDBKey(t *testing.T) {
 		model.OAuthAccountRecord{ID: 2, UserID: u.ID, UserUUID: u.UUID, Provider: "apple", ProviderAccountID: "a2", RefreshTokenEnc: &webRT},
 	)
 
-	if err := e.uc.DeactivateAccount(context.Background(), u.UUID, "", true); err != nil {
+	if _, err := e.uc.DeactivateAccount(context.Background(), u.UUID, "", true); err != nil {
 		t.Fatalf("deactivate: %v", err)
 	}
 	if revoked["native-rt"] != "com.otopoly.app" || revoked["web-rt"] != "com.otopoly.web" {

@@ -258,5 +258,10 @@
   "resources.loyalty.package": "Package",
   "resources.loyalty.plan": "Subscription plan",
   "resources.loyalty.customer_package": "Package sold",
-  "resources.loyalty.subscription": "Subscription"
+  "resources.loyalty.subscription": "Subscription",
+  "actions.auth.account_deletion_scheduled": "Account deletion confirmed (recoverable for 30 days)",
+  "actions.auth.account_deletion_cancelled": "Account deletion cancelled (account recovered)",
+  "actions.auth.account_anonymized": "Account anonymized",
+  "actions.organizations.owner_deletion_scheduled": "Business owner requested account deletion",
+  "actions.organizations.owner_anonymized": "Business owner's account anonymized"
 }

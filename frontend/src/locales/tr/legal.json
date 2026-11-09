@@ -33,5 +33,22 @@
   "editor.toast.saved": "Sayfa kaydedildi",
   "editor.toast.failed": "Sayfa kaydedilemedi",
   "editor.error.title": "Sayfa yüklenemedi",
-  "editor.error.description": "Yasal sayfa içeriği alınamadı. Lütfen tekrar deneyin."
+  "editor.error.description": "Yasal sayfa içeriği alınamadı. Lütfen tekrar deneyin.",
+  "support.title": "Destek",
+  "support.description": "Otopoly destek sayfası: iletişim bilgileri, hesap açma, giriş, hesap silme ve gizlilik ile ilgili sık sorulan sorular.",
+  "support.intro": "Otopoly ile ilgili sorularınız, hata bildirimleriniz ve önerileriniz için bize yazın. İşletmenizin adını ve sorunu yaşadığınız ekranı belirtirseniz daha hızlı yardımcı olabiliriz.",
+  "support.contact_title": "Bize ulaşın",
+  "support.contact_email_label": "E-posta",
+  "support.contact_company_label": "Şirket",
+  "support.contact_hours": "Mesajlara iş günlerinde dönüş yapıyoruz.",
+  "support.faq_title": "Sık sorulan sorular",
+  "support.faq_account_q": "Nasıl hesap açarım?",
+  "support.faq_account_a": "İşletmenizi otopoly.app/register adresinden kaydedebilirsiniz. Personel hesaplarını işletme sahibi uygulama içinden açar.",
+  "support.faq_signin_q": "Giriş yapamıyorum, ne yapmalıyım?",
+  "support.faq_signin_a": "Giriş ekranındaki şifre sıfırlama adımını kullanın. Personelseniz işletme sahibinizden hesabınızın açık olduğunu doğrulamasını isteyin. Sorun sürerse bize e-posta gönderin.",
+  "support.faq_delete_q": "Hesabımı nasıl silerim?",
+  "support.faq_delete_a": "Hesap silme talebinizi hesap silme sayfasından başlatabilirsiniz.",
+  "support.faq_delete_link": "Hesap silme sayfası",
+  "support.faq_privacy_q": "Verilerim nasıl işleniyor?",
+  "support.faq_privacy_a": "Hangi verileri hangi amaçla işlediğimizi gizlilik politikamızda bulabilirsiniz."
 }

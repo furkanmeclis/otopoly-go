@@ -1,8 +1,9 @@
 import { KeyRound, ShieldCheck } from 'lucide-react-native';
 import { forwardRef, useEffect, useState } from 'react';
-import { Platform, Pressable, type TextInputInstance } from 'react-native';
+import { Linking, Platform, Pressable, type TextInputInstance } from 'react-native';
 
 import { Row, TextField, Txt } from '@/components/ui';
+import { accountRecoveryUrl } from '@/features/auth/lib/account-recovery';
 import { useLocale } from '@/lib/i18n/provider';
 import { useTheme } from '@/theme/provider';
 
@@ -120,14 +121,35 @@ export function ResendLink({ remaining, onPress, disabled }: { remaining: number
 /** Inline error / info box used across the sign-in screens. */
 export function Notice({ message, tone = 'danger' }: { message: string; tone?: 'danger' | 'info' }) {
   const t = useTheme();
+  const { t: tr, locale } = useLocale();
+  // ACCOUNT_DEACTIVATED (deletion pending): offer the web recovery page (30-day window).
+  const recoverable = message === tr('mobile.auth.error.account_deactivated');
   return (
     <Row
-      style={{ backgroundColor: tone === 'danger' ? t.colors.dangerBg : t.colors.infoBg, borderRadius: t.radius.md, padding: t.spacing.md }}
-      gap={0}
+      style={{
+        backgroundColor: tone === 'danger' ? t.colors.dangerBg : t.colors.infoBg,
+        borderRadius: t.radius.md,
+        padding: t.spacing.md,
+        flexDirection: recoverable ? 'column' : 'row',
+        alignItems: recoverable ? 'flex-start' : undefined,
+      }}
+      gap={recoverable ? t.spacing.sm : 0}
     >
-      <Txt tone={tone === 'danger' ? 'danger' : 'info'} variant="caption" style={{ fontWeight: '600', flex: 1 }} accessibilityLiveRegion="polite">
+      <Txt
+        tone={tone === 'danger' ? 'danger' : 'info'}
+        variant="caption"
+        style={{ fontWeight: '600', flex: recoverable ? undefined : 1 }}
+        accessibilityLiveRegion="polite"
+      >
         {message}
       </Txt>
+      {recoverable ? (
+        <Pressable onPress={() => void Linking.openURL(accountRecoveryUrl(locale)).catch(() => undefined)} accessibilityRole="link" hitSlop={8}>
+          <Txt variant="caption" tone="primary" style={{ fontWeight: '700' }}>
+            {tr('mobile.auth.error.recover_account')}
+          </Txt>
+        </Pressable>
+      ) : null}
     </Row>
   );
 }

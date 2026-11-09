@@ -149,6 +149,7 @@ export type LandingContent = {
     register: string;
     login: string;
     rights: string;
+    support: string;
     privacy: string;
     terms: string;
   };

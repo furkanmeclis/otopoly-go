@@ -78,6 +78,9 @@ func writeUserDeleteError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, usecase.ErrEmailInUse):
 		response.RecordFailure(w, err)
 		response.Conflict(w, r, response.CodeEmailInUse, "Another account uses this email; the user cannot be restored")
+	case errors.Is(err, usecase.ErrAccountAnonymized):
+		response.RecordFailure(w, err)
+		response.Conflict(w, r, response.CodeConflict, "This account was anonymized and cannot be restored")
 	case errors.Is(err, usecase.ErrNotDeleted):
 		response.RecordFailure(w, err)
 		response.Conflict(w, r, response.CodeConflict, "User is not deleted")

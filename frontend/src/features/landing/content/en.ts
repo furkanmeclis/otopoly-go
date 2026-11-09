@@ -472,6 +472,7 @@ export const en: LandingContent = {
     register: "Create a free account",
     login: "Sign in",
     rights: "All rights reserved.",
+    support: "Support",
     privacy: "Privacy Policy",
     terms: "Terms of Use",
   },

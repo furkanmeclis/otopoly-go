@@ -130,3 +130,8 @@ export async function LegalRoute({
     />
   );
 }
+
+export {
+  SupportPage,
+  supportMetadata,
+} from "@/features/legal/components/support-page";
