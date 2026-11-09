@@ -9,8 +9,8 @@ const MARK = require('../../assets/brand/mark.png');
 const MARK_DARK = require('../../assets/brand/mark-dark.png');
 const APP_ICON = require('../../assets/brand/app-icon.png');
 
-/** Width / height of the cropped mark artwork. */
-export const MARK_RATIO = 779 / 453;
+/** Width / height of the cropped mark artwork (docs/brand/logo-pack, Icon). */
+export const MARK_RATIO = 1212 / 705.91;
 
 export function BrandMark({ height = 32, style }: { height?: number; style?: StyleProp<ImageStyle> }) {
   const t = useTheme();
@@ -38,7 +38,7 @@ export function AppIconTile({ size = 72, style }: { size?: number; style?: Style
           overflow: 'hidden',
           borderWidth: t.scheme === 'dark' ? 0 : 1,
           borderColor: t.colors.border,
-          backgroundColor: '#FFFFFF',
+          backgroundColor: '#FEF9F5',
         },
         style,
       ]}

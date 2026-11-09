@@ -2,8 +2,8 @@
  * Otopoly — oto yıkama ve hizmet yönetim yazılımı.
  * Hex aliases for JS (theme-color, icons). CSS tokens live in theme.css.
  *
- * Source lockup: terracotta #EA6E43 + white (dark artboard). In light mode
- * the white glyph maps to `glyph` / `--brand-glyph`.
+ * Logo pack (docs/brand/logo-pack): terracotta #E26B41, espresso #2B201A,
+ * cream #FEF9F5. UI `primary` stays the theme terracotta.
  */
 export const brand = {
   name: "Otopoly",
@@ -11,11 +11,15 @@ export const brand = {
   subtitle: "Yıkama Yazılımı",
   tagline: "Oto yıkama ve hizmet yönetim platformu",
   colors: {
-    /** Logo terracotta — exact SVG fill */
+    /** UI terracotta (theme primary) */
     primary: "#EA6E43",
+    /** Logo pack terracotta — exact SVG fill */
+    logoAccent: "#E26B41",
     primaryForeground: "#FFF8F5",
-    /** Warm espresso — light-mode stand-in for SVG white */
-    glyph: "#241C18",
+    /** Logo espresso — O tile and OTOPOLY letters in light mode */
+    glyph: "#2B201A",
+    /** Logo cream — icon background and dark-mode ink */
+    cream: "#FEF9F5",
     /** Dark canvas behind the lockup */
     ink: "#1A1412",
     /** Warm cream surface */

@@ -3,12 +3,8 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
-import {
-  wordmarkAccentEvenoddIndex,
-  wordmarkAccentPaths,
-  wordmarkGlyphPaths,
-  wordmarkViewBox,
-} from "@/components/brand/artwork";
+import { brandLogoColors, brandWordmark } from "@/components/brand/artwork";
+import { brandShapes, staticPaint } from "@/components/brand/brand-shapes";
 import { brand } from "@/config/brand";
 import { site } from "@/config/site";
 import { ogSize } from "@/features/landing/og/meta";
@@ -138,23 +134,14 @@ export async function renderOgImage(locale: OgLocale = "tr") {
         }}
       >
         <svg
-          width="230"
-          height={Math.round((230 * 309) / 1435)}
-          viewBox={wordmarkViewBox}
+          width="260"
+          height={Math.round((260 * 532) / 2604.49)}
+          viewBox={brandWordmark.viewBox}
         >
-          {wordmarkGlyphPaths.map((d) => (
-            <path key={d.slice(0, 16)} fill="#fff" d={d} />
-          ))}
-          {wordmarkAccentPaths.map((d, i) => (
-            <path
-              key={d.slice(0, 16)}
-              fill={brand.colors.primary}
-              fillRule={
-                i === wordmarkAccentEvenoddIndex ? "evenodd" : undefined
-              }
-              d={d}
-            />
-          ))}
+          {brandShapes(
+            brandWordmark,
+            staticPaint("dark", brandLogoColors, brandWordmark.stroke),
+          )}
         </svg>
 
         <div style={{ display: "flex", flexDirection: "column" }}>
