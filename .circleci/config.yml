@@ -1,0 +1,183 @@
+# CircleCI trial. Mirrors the check jobs of .github/workflows/ci.yml
+# (backend, frontend, mobile). Deploy-style jobs (mobile-release / EAS OTA,
+# auto-pr) stay on GitHub Actions for now.
+version: 2.1
+
+executors:
+  go:
+    docker:
+      - image: cimg/go:1.26-node
+  node:
+    docker:
+      - image: cimg/node:22.14
+
+commands:
+  install-sqlc:
+    steps:
+      - run:
+          name: Install sqlc 1.31.1
+          command: |
+            curl -fsSL "https://github.com/sqlc-dev/sqlc/releases/download/v1.31.1/sqlc_1.31.1_linux_amd64.tar.gz" \
+              | sudo tar -xz -C /usr/local/bin sqlc
+            sqlc version
+
+jobs:
+  backend:
+    executor: go
+    working_directory: ~/project
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - go-mod-v1-{{ checksum "backend/go.sum" }}
+      - install-sqlc
+      - run:
+          name: sqlc generate
+          working_directory: backend
+          command: sqlc generate
+      - run:
+          name: Install golangci-lint
+          command: |
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+              | sh -s -- -b "$(go env GOPATH)/bin"
+            golangci-lint version
+      - run:
+          name: golangci-lint
+          working_directory: backend
+          command: golangci-lint run --timeout 5m
+      - run:
+          name: Test
+          working_directory: backend
+          command: |
+            mkdir -p ~/test-results/go
+            gotestsum --junitfile ~/test-results/go/junit.xml -- ./...
+      - save_cache:
+          key: go-mod-v1-{{ checksum "backend/go.sum" }}
+          paths:
+            - ~/go/pkg/mod
+            - ~/.cache/go-build
+      - run:
+          name: OpenAPI lint
+          working_directory: backend
+          command: npx --yes @redocly/cli@1 lint docs/openapi.yaml
+      - store_test_results:
+          path: ~/test-results
+
+  frontend:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Install pnpm 11.22.0
+          command: sudo npm install -g pnpm@11.22.0
+      - restore_cache:
+          keys:
+            - pnpm-v1-{{ checksum "frontend/pnpm-lock.yaml" }}
+      - run:
+          name: Install
+          working_directory: frontend
+          command: |
+            pnpm config set store-dir ~/.pnpm-store
+            pnpm install --frozen-lockfile
+      - save_cache:
+          key: pnpm-v1-{{ checksum "frontend/pnpm-lock.yaml" }}
+          paths:
+            - ~/.pnpm-store
+      - run:
+          name: Typecheck
+          working_directory: frontend
+          command: pnpm typecheck
+      - run:
+          name: Lint
+          working_directory: frontend
+          command: pnpm lint
+      - run:
+          name: Business-day helpers
+          working_directory: frontend
+          command: pnpm test:dates
+      - run:
+          name: i18n
+          command: node scripts/check-i18n.mjs
+
+  # Expo app checks. Halts early (green) when nothing mobile-related changed,
+  # same rule as the "changes" job in ci.yml.
+  mobile:
+    executor: node
+    steps:
+      - checkout
+      - run:
+          name: Changed areas
+          command: |
+            git fetch --quiet origin main || true
+            base=""
+            if [ "$CIRCLE_BRANCH" = "main" ]; then
+              base="$(git rev-parse HEAD~1 2>/dev/null || true)"
+            else
+              base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+            fi
+            mobile=false
+            if [ -z "$base" ]; then mobile=true; fi
+            while IFS= read -r f; do
+              case "$f" in
+                backend/docs/openapi.yaml|.easignore|scripts/ci/mobile-release.sh|.github/workflows/*|.circleci/*) mobile=true ;;
+                mobile/*) mobile=true ;;
+              esac
+            done \<<<"$( [ -n "$base" ] && git diff --name-only "$base" HEAD )"
+            echo "mobile=$mobile"
+            if [ "$mobile" != "true" ]; then
+              echo "No mobile changes; skipping."
+              circleci-agent step halt
+            fi
+      - restore_cache:
+          keys:
+            - npm-mobile-v1-{{ checksum "mobile/package-lock.json" }}
+      - run:
+          name: Install
+          working_directory: mobile
+          command: npm ci --no-audit --no-fund
+      - save_cache:
+          key: npm-mobile-v1-{{ checksum "mobile/package-lock.json" }}
+          paths:
+            - ~/.npm
+      - run:
+          name: Lint
+          working_directory: mobile
+          command: npm run lint
+      - run:
+          name: Typecheck
+          working_directory: mobile
+          command: npm run typecheck
+      - run:
+          name: i18n keys
+          working_directory: mobile
+          command: node scripts/check-i18n.mjs
+      - run:
+          name: Mock API smoke tests
+          working_directory: mobile
+          command: npm run test:smoke
+      - run:
+          name: API contract
+          working_directory: mobile
+          command: npm run test:contract
+      - run:
+          name: Generated API files are up to date
+          working_directory: mobile
+          command: |
+            npm run api:generate
+            git diff --exit-code -- src/api/generated
+            tail -n +3 scripts/contract/openapi.yaml | diff -q - ../backend/docs/openapi.yaml \
+              || { echo "Run scripts/contract/refresh-spec.sh in mobile/"; exit 1; }
+      - run:
+          name: Expo config
+          working_directory: mobile
+          command: npx expo config --type public > /dev/null
+      - run:
+          name: Release script syntax
+          command: bash -n scripts/ci/mobile-release.sh
+
+workflows:
+  ci:
+    jobs:
+      - backend
+      - frontend
+      - mobile
