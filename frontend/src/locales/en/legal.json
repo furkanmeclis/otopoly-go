@@ -33,5 +33,22 @@
   "editor.toast.saved": "Page saved",
   "editor.toast.failed": "Could not save the page",
   "editor.error.title": "Could not load the page",
-  "editor.error.description": "The legal page content could not be loaded. Please try again."
+  "editor.error.description": "The legal page content could not be loaded. Please try again.",
+  "support.title": "Support",
+  "support.description": "Otopoly support: contact details and answers to common questions about sign-up, sign-in, account deletion and privacy.",
+  "support.intro": "Write to us with questions, bug reports or suggestions about Otopoly. Mention your business name and the screen where the problem happened so we can help faster.",
+  "support.contact_title": "Contact us",
+  "support.contact_email_label": "Email",
+  "support.contact_company_label": "Company",
+  "support.contact_hours": "We reply to messages on business days.",
+  "support.faq_title": "Frequently asked questions",
+  "support.faq_account_q": "How do I create an account?",
+  "support.faq_account_a": "Register your business at otopoly.app/register. The business owner creates staff accounts from inside the app.",
+  "support.faq_signin_q": "I can't sign in. What should I do?",
+  "support.faq_signin_a": "Use the password reset step on the sign-in screen. If you are a staff member, ask the business owner to confirm your account is active. If the problem continues, email us.",
+  "support.faq_delete_q": "How do I delete my account?",
+  "support.faq_delete_a": "You can request account deletion on the account deletion page.",
+  "support.faq_delete_link": "Account deletion page",
+  "support.faq_privacy_q": "How is my data processed?",
+  "support.faq_privacy_a": "Our privacy policy explains which data we process and why."
 }

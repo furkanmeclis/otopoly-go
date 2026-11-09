@@ -62,6 +62,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.3,
     },
     {
+      url: `${site.url}${routes.public.support}`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.4,
+      alternates: {
+        languages: {
+          tr: `${site.url}${routes.public.support}`,
+          en: `${site.url}${routes.public.supportEn}`,
+        },
+      },
+    },
+    {
+      url: `${site.url}${routes.public.supportEn}`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.4,
+    },
+    {
       url: `${site.url}${routes.public.accountDelete}`,
       lastModified,
       changeFrequency: "yearly",

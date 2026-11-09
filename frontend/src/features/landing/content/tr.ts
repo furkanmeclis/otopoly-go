@@ -457,6 +457,7 @@ export const tr: LandingContent = {
     register: "Ücretsiz hesap oluştur",
     login: "Giriş yap",
     rights: "Tüm hakları saklıdır.",
+    support: "Destek",
     privacy: "Gizlilik Politikası",
     terms: "Kullanım Koşulları",
   },

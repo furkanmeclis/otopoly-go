@@ -61,6 +61,16 @@ export function LandingFooter({ content }: { content: LandingContent }) {
         <Link
           href={
             content.locale === "en"
+              ? routes.public.supportEn
+              : routes.public.support
+          }
+          className="hover:text-foreground underline-offset-4 transition-colors hover:underline"
+        >
+          {footer.support}
+        </Link>
+        <Link
+          href={
+            content.locale === "en"
               ? routes.public.privacyEn
               : routes.public.privacy
           }

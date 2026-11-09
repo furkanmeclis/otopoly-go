@@ -12,6 +12,8 @@ export const routes = {
     /** Public account deletion / recovery (Google Play deletion URL). */
     accountDelete: "/account/delete",
     accountDeleteEn: "/en/account/delete",
+    support: "/support",
+    supportEn: "/en/support",
     health: "/health",
     quote: (token: string) => `/q/${token}`,
     /** Customer review page (short link sent after delivery). */
