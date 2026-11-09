@@ -1,7 +1,34 @@
-# CircleCI trial. Mirrors the check jobs of .github/workflows/ci.yml
-# (backend, frontend, mobile). Deploy-style jobs (mobile-release / EAS OTA,
-# auto-pr) stay on GitHub Actions for now.
+# CircleCI port of .github/workflows/ci.yml and mobile-release.yml.
+#
+# While GitHub Actions is still on, the two jobs with side effects stay off:
+#   mobile-release runs only when CIRCLECI_MOBILE_RELEASE_ENABLED=true
+#   auto-pr        runs only when CIRCLECI_AUTO_PR_ENABLED=true
+# Both are project environment variables (Project Settings -> Environment
+# Variables). Turn them on only after ci.yml is disabled, or each push would
+# be released / merged twice.
+#
+# Other project environment variables:
+#   EXPO_TOKEN  mobile-release (EAS)
+#   GH_TOKEN    fine-grained PAT, Contents + Pull requests read/write:
+#               auto-pr opens and merges PRs, mobile-release pushes ios-build-* tags
 version: 2.1
+
+parameters:
+  # Manual mobile release (GitHub's workflow_dispatch): trigger a pipeline with
+  # mobile_release=true. Only a dry run may start from a branch other than main.
+  mobile_release:
+    type: boolean
+    default: false
+  platform:
+    type: enum
+    enum: [all, ios, android]
+    default: all
+  force_build:
+    type: boolean
+    default: false
+  dry_run:
+    type: boolean
+    default: true
 
 executors:
   go:
@@ -21,10 +48,52 @@ commands:
               | sudo tar -xz -C /usr/local/bin sqlc
             sqlc version
 
+  # Same rules as the "changes" job in ci.yml. Exports MOBILE_CHANGED and
+  # MOBILE_RELEASE through $BASH_ENV for later steps.
+  detect-changes:
+    steps:
+      - run:
+          name: Changed areas
+          command: |
+            git fetch --quiet origin main || true
+            mobile=false; mobile_release=false; base=""
+            if [ "$CIRCLE_BRANCH" = "main" ]; then
+              before="<< pipeline.git.base_revision >>"
+              if [ -n "$before" ] && git cat-file -e "$before^{commit}" 2>/dev/null; then base="$before"; fi
+            else
+              base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
+            fi
+            # Unknown range: run the checks, but never ship on a guess.
+            files=""
+            if [ -n "$base" ]; then files="$(git diff --name-only "$base" HEAD)"; else mobile=true; fi
+            while IFS= read -r f; do
+              case "$f" in
+                backend/docs/openapi.yaml|.easignore|scripts/ci/mobile-release.sh|.github/workflows/*|.circleci/*) mobile=true ;;
+                mobile/*.md|mobile/docs/*|mobile/.claude/*|mobile/LICENSE|mobile/scripts/contract/*|mobile/scripts/smoke/*) mobile=true ;;
+                mobile/*) mobile=true; mobile_release=true ;;
+              esac
+            done \<<<"$files"
+            if [ "$CIRCLE_BRANCH" != "main" ]; then mobile_release=false; fi
+            echo "mobile=$mobile mobile_release=$mobile_release"
+            echo "export MOBILE_CHANGED=$mobile MOBILE_RELEASE=$mobile_release" >> "$BASH_ENV"
+
+  mobile-npm-install:
+    steps:
+      - restore_cache:
+          keys:
+            - npm-mobile-v1-{{ checksum "mobile/package-lock.json" }}
+      - run:
+          name: Install
+          working_directory: mobile
+          command: npm ci --no-audit --no-fund
+      - save_cache:
+          key: npm-mobile-v1-{{ checksum "mobile/package-lock.json" }}
+          paths:
+            - ~/.npm
+
 jobs:
   backend:
     executor: go
-    working_directory: ~/project
     steps:
       - checkout
       - restore_cache:
@@ -99,46 +168,20 @@ jobs:
           name: i18n
           command: node scripts/check-i18n.mjs
 
-  # Expo app checks. Halts early (green) when nothing mobile-related changed,
-  # same rule as the "changes" job in ci.yml.
+  # Expo app checks. Halts green when nothing mobile-related changed.
   mobile:
     executor: node
     steps:
       - checkout
+      - detect-changes
       - run:
-          name: Changed areas
+          name: Skip when mobile is unchanged
           command: |
-            git fetch --quiet origin main || true
-            base=""
-            if [ "$CIRCLE_BRANCH" = "main" ]; then
-              base="$(git rev-parse HEAD~1 2>/dev/null || true)"
-            else
-              base="$(git merge-base origin/main HEAD 2>/dev/null || true)"
-            fi
-            mobile=false
-            if [ -z "$base" ]; then mobile=true; fi
-            while IFS= read -r f; do
-              case "$f" in
-                backend/docs/openapi.yaml|.easignore|scripts/ci/mobile-release.sh|.github/workflows/*|.circleci/*) mobile=true ;;
-                mobile/*) mobile=true ;;
-              esac
-            done \<<<"$( [ -n "$base" ] && git diff --name-only "$base" HEAD )"
-            echo "mobile=$mobile"
-            if [ "$mobile" != "true" ]; then
+            if [ "$MOBILE_CHANGED" != "true" ]; then
               echo "No mobile changes; skipping."
               circleci-agent step halt
             fi
-      - restore_cache:
-          keys:
-            - npm-mobile-v1-{{ checksum "mobile/package-lock.json" }}
-      - run:
-          name: Install
-          working_directory: mobile
-          command: npm ci --no-audit --no-fund
-      - save_cache:
-          key: npm-mobile-v1-{{ checksum "mobile/package-lock.json" }}
-          paths:
-            - ~/.npm
+      - mobile-npm-install
       - run:
           name: Lint
           working_directory: mobile
@@ -175,9 +218,147 @@ jobs:
           name: Release script syntax
           command: bash -n scripts/ci/mobile-release.sh
 
+  # Port of mobile-release.yml. Decision logic is in scripts/ci/mobile-release.sh.
+  mobile-release:
+    executor: node
+    parameters:
+      manual:
+        type: boolean
+        default: false
+      platform:
+        type: enum
+        enum: [all, ios, android]
+        default: all
+      force_build:
+        type: boolean
+        default: false
+      dry_run:
+        type: boolean
+        default: false
+    environment:
+      # Same values as the Xcode Cloud workflow; the iOS fingerprint must match it.
+      EXPO_PUBLIC_APP_ENV: production
+      EXPO_UPDATES_CHANNEL: production
+    steps:
+      - checkout
+      - when:
+          condition: << parameters.manual >>
+          steps:
+            - run:
+                name: Manual release gate
+                command: |
+                  if [ "$CIRCLE_BRANCH" != "main" ] && [ "<< parameters.dry_run >>" != "true" ]; then
+                    echo "Only a dry run may start from a branch other than main."
+                    exit 1
+                  fi
+      - unless:
+          condition: << parameters.manual >>
+          steps:
+            - detect-changes
+            - run:
+                name: Automatic release gate
+                command: |
+                  if [ "${CIRCLECI_MOBILE_RELEASE_ENABLED:-}" != "true" ]; then
+                    echo "CIRCLECI_MOBILE_RELEASE_ENABLED is not true; skipping."
+                    circleci-agent step halt
+                  elif [ "$MOBILE_RELEASE" != "true" ]; then
+                    echo "No shipping change under mobile/; skipping."
+                    circleci-agent step halt
+                  fi
+      - run:
+          name: Check secrets
+          command: |
+            [ -n "${EXPO_TOKEN:-}" ] || { echo "EXPO_TOKEN is not set"; exit 1; }
+            if [ "<< parameters.dry_run >>" != "true" ] && [ -z "${GH_TOKEN:-}" ]; then
+              echo "GH_TOKEN is not set (needed to push ios-build-* tags)"; exit 1
+            fi
+      - mobile-npm-install
+      - run:
+          name: Release
+          environment:
+            PLATFORM: << parameters.platform >>
+            FORCE_BUILD: << parameters.force_build >>
+            DRY_RUN: << parameters.dry_run >>
+          command: |
+            if [ -n "${GH_TOKEN:-}" ]; then
+              git remote set-url --push origin \
+                "https://x-access-token:${GH_TOKEN}@github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}.git"
+            fi
+            scripts/ci/mobile-release.sh
+
+  # Port of the auto-pr job: feature branch green -> open (or reuse) a PR into
+  # main and merge it. Opt out per push with [no-automerge] in the commit message.
+  auto-pr:
+    executor: node
+    environment:
+      BASE: main
+    steps:
+      - checkout
+      - run:
+          name: Gate
+          command: |
+            if [ "${CIRCLECI_AUTO_PR_ENABLED:-}" != "true" ]; then
+              echo "CIRCLECI_AUTO_PR_ENABLED is not true; skipping."
+              circleci-agent step halt; exit 0
+            fi
+            if git log -1 --format=%B "$CIRCLE_SHA1" | grep -qF "[no-automerge]"; then
+              echo "[no-automerge] in the head commit; skipping."
+              circleci-agent step halt; exit 0
+            fi
+            [ -n "${GH_TOKEN:-}" ] || { echo "GH_TOKEN is not set"; exit 1; }
+      - run:
+          name: Install gh
+          command: |
+            curl -fsSL "https://github.com/cli/cli/releases/download/v2.63.0/gh_2.63.0_linux_amd64.tar.gz" \
+              | tar -xz -C /tmp
+            sudo mv /tmp/gh_2.63.0_linux_amd64/bin/gh /usr/local/bin/gh
+            gh --version
+      - run:
+          name: Open or reuse pull request, then merge
+          command: |
+            export GH_REPO="${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}"
+            BRANCH="$CIRCLE_BRANCH"
+            ahead="$(gh api "repos/$GH_REPO/compare/$BASE...$CIRCLE_SHA1" --jq '.ahead_by')"
+            if [ "$ahead" = "0" ]; then
+              echo "Branch has nothing that is not already in $BASE; skipping."
+              exit 0
+            fi
+            number="$(gh pr list --head "$BRANCH" --base "$BASE" --state open --json number --jq '.[0].number // empty')"
+            if [ -z "$number" ]; then
+              title="$(git log -1 --format=%s "$CIRCLE_SHA1")"
+              url="$(gh pr create --base "$BASE" --head "$BRANCH" --title "$title" \
+                --body "Otomatik açıldı: \`$BRANCH\` dalında CI başarılı. Zorunlu kontroller geçince \`$BASE\`'e birleşir.")"
+              number="${url##*/}"
+            fi
+            # Only merge the commit this pipeline tested.
+            gh pr merge "$number" --merge --match-head-commit "$CIRCLE_SHA1"
+
 workflows:
   ci:
+    when:
+      not: << pipeline.parameters.mobile_release >>
     jobs:
       - backend
       - frontend
       - mobile
+      - mobile-release:
+          serial-group: << pipeline.project.slug >>/mobile-release
+          requires: [backend, frontend, mobile]
+          filters:
+            branches:
+              only: main
+      - auto-pr:
+          requires: [backend, frontend, mobile]
+          filters:
+            branches:
+              ignore: [main, master]
+
+  mobile-release-manual:
+    when: << pipeline.parameters.mobile_release >>
+    jobs:
+      - mobile-release:
+          serial-group: << pipeline.project.slug >>/mobile-release
+          manual: true
+          platform: << pipeline.parameters.platform >>
+          force_build: << pipeline.parameters.force_build >>
+          dry_run: << pipeline.parameters.dry_run >>
