@@ -527,16 +527,13 @@ function OnboardingAside({
 }) {
   const { t } = useLocale();
   return (
-    <aside
-      className="relative isolate hidden overflow-hidden bg-[#1A1412] p-10 text-white lg:flex lg:flex-col"
-      style={{ "--brand-glyph": "#fff" } as React.CSSProperties}
-    >
+    <aside className="relative isolate hidden overflow-hidden bg-[#1A1412] p-10 text-white lg:flex lg:flex-col">
       <div
         aria-hidden
         className="absolute inset-0 -z-10 bg-[radial-gradient(120%_70%_at_100%_0%,rgba(234,110,67,0.55),transparent_60%),radial-gradient(90%_60%_at_0%_100%,rgba(242,176,143,0.18),transparent_60%)]"
       />
       <Link href={routes.public.root} aria-label={t("common.app_product")}>
-        <AppWordmark className="h-7" />
+        <AppWordmark className="h-7" tone="dark" />
       </Link>
       <div className="mt-16">
         <h2 className="font-display text-3xl leading-tight font-semibold tracking-tight">

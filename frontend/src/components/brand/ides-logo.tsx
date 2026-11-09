@@ -14,10 +14,11 @@ type AppLogoProps = {
 };
 
 /**
- * App lockup. `mark` / `icon` → OP glyph; `logo` / `wordmark` → full wordmark.
+ * App lockup. `mark` / `icon` → OP mark; `logo` / `wordmark` → horizontal lockup.
  */
 export function AppLogo({
   variant = "logo",
+  tone = "auto",
   className,
   width,
   height,
@@ -31,6 +32,7 @@ export function AppLogo({
         height={height}
         className={cn("size-4 shrink-0", className)}
         title={brand.name}
+        tone={tone}
       />
     );
   }
@@ -41,6 +43,7 @@ export function AppLogo({
       height={height}
       className={className}
       title={brand.productName}
+      tone={tone}
     />
   );
 }

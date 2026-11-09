@@ -3,8 +3,9 @@
 :root {
   --radius: 0.875rem;
 
-  --brand-accent: oklch(0.679 0.164 39.2);
-  --brand-glyph: oklch(0.235 0.015 48);
+  /* Logo pack colours (docs/brand/logo-pack) */
+  --brand-accent: #e26b41;
+  --brand-glyph: #2b201a;
 
   --background: oklch(0.985 0.008 55);
   --foreground: oklch(0.235 0.015 48);
@@ -40,8 +41,8 @@
 }
 
 .dark {
-  --brand-accent: oklch(0.679 0.164 39.2);
-  --brand-glyph: oklch(1 0 0);
+  --brand-accent: #e26b41;
+  --brand-glyph: #fef9f5;
 
   --background: oklch(0.198 0.011 39.3);
   --foreground: oklch(0.975 0.008 55);
@@ -127,4 +128,44 @@
   --font-display:
     var(--font-outfit), var(--font-jakarta), ui-sans-serif, system-ui,
     sans-serif;
+}
+
+/*
+ * Otopoly logo (components/brand). Light: espresso O tile, white O.
+ * Dark: cream outlined O tile, cream O. `data-tone` pins a variant on fixed backgrounds.
+ */
+.brand-logo {
+  --brand-logo-ink: var(--brand-glyph);
+  --brand-logo-tile: var(--brand-logo-ink);
+  --brand-logo-tile-stroke: none;
+  --brand-logo-o: #fff;
+}
+.brand-logo[data-tone="light"] {
+  --brand-logo-ink: #2b201a;
+}
+.dark .brand-logo:not([data-tone]),
+.brand-logo[data-tone="dark"] {
+  --brand-logo-tile: none;
+  --brand-logo-tile-stroke: var(--brand-logo-ink);
+  --brand-logo-o: var(--brand-logo-ink);
+}
+.brand-logo[data-tone="dark"] {
+  --brand-logo-ink: #fef9f5;
+}
+.brand-logo-text {
+  fill: var(--brand-logo-ink);
+}
+.brand-logo-tile {
+  fill: var(--brand-logo-tile);
+  stroke: var(--brand-logo-tile-stroke);
+  stroke-width: 20px;
+}
+.brand-logo-accent {
+  fill: var(--brand-accent);
+}
+.brand-logo-o {
+  fill: var(--brand-logo-o);
+}
+.brand-logo-onAccent {
+  fill: #fff;
 }

@@ -49,11 +49,6 @@ export function LandingNavbar({
     >
       <nav
         aria-label={a11y.mainNav}
-        style={
-          onDark
-            ? ({ "--brand-glyph": "#fff" } as React.CSSProperties)
-            : undefined
-        }
         className={cn(
           "mx-auto flex max-w-6xl items-center justify-between gap-4 rounded-2xl border px-4 py-2.5 transition-all duration-300",
           onDark
@@ -62,7 +57,7 @@ export function LandingNavbar({
         )}
       >
         <Link href={homeHref} aria-label={a11y.home}>
-          <AppWordmark className="h-6 sm:h-7" />
+          <AppWordmark className="h-6 sm:h-7" tone={onDark ? "dark" : "auto"} />
         </Link>
 
         <ul className="hidden items-center gap-1 md:flex">

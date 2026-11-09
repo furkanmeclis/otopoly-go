@@ -41,11 +41,8 @@ export function WhatsAppShowcase() {
         <div className="overflow-hidden rounded-[2rem] bg-[#ECE5DD]">
           <div className="flex items-center gap-2 bg-[#075E54] px-3 pt-6 pb-3 text-white">
             <ChevronLeft className="size-5" />
-            <span
-              className="grid size-8 place-items-center rounded-full bg-white"
-              style={{ "--brand-glyph": "#241C18" } as React.CSSProperties}
-            >
-              <AppMark className="size-6" />
+            <span className="grid size-8 place-items-center rounded-full bg-white">
+              <AppMark className="size-6" tone="light" />
             </span>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold">
