@@ -2,6 +2,7 @@
 # so it repeats what mobile/.gitignore hides and drops the rest of the monorepo.
 .agents/
 .claude/
+.circleci/
 .github/
 backend/
 deploy/
