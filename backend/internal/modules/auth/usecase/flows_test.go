@@ -38,12 +38,14 @@ type flowRepo struct {
 	totp       map[int64]model.UserTOTP
 	revokedAll map[int64]int
 	cleared    map[int64]bool
+	// now is the clock OTP expiry is checked against; newFlowEnv ties it to the use case clock.
+	now func() time.Time
 }
 
 func newFlowRepo() *flowRepo {
 	return &flowRepo{
 		memRepo: newMemRepo(), totp: map[int64]model.UserTOTP{},
-		revokedAll: map[int64]int{}, cleared: map[int64]bool{},
+		revokedAll: map[int64]int{}, cleared: map[int64]bool{}, now: time.Now,
 	}
 }
 
@@ -66,7 +68,7 @@ func (r *flowRepo) InvalidateOTPs(_ context.Context, email, otpType string) erro
 func (r *flowRepo) GetActiveOTP(_ context.Context, email, otpType string) (int64, string, int32, int32, error) {
 	for i := len(r.otps) - 1; i >= 0; i-- {
 		o := r.otps[i]
-		if o.email == email && o.typ == otpType && !o.consumed && time.Now().Before(o.expiresAt) {
+		if o.email == email && o.typ == otpType && !o.consumed && r.now().Before(o.expiresAt) {
 			return o.id, o.hash, o.attempts, o.max, nil
 		}
 	}
@@ -236,6 +238,8 @@ func newFlowEnv(t *testing.T) *flowEnv {
 		t.Fatal(err)
 	}
 	uc := New(repo, tokens)
+	// Tests that pin uc.now must see OTP expiry on the same clock.
+	repo.now = func() time.Time { return uc.now() }
 	notif := &captureNotifier{}
 	uc.SetNotifier(notif)
 	uc.SetSecretBox(testOAuthBox(t), "Test")
