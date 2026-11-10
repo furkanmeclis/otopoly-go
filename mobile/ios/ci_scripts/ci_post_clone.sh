@@ -14,12 +14,26 @@ export HOMEBREW_NO_AUTO_UPDATE=1
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 export HOMEBREW_NO_ENV_HINTS=1
 
+# Retry flaky network steps (repo.reactnative.dev has reset connections mid-download).
+retry() {
+  attempt=1
+  until "$@"; do
+    if [ "$attempt" -ge 3 ]; then
+      echo "==> failed after $attempt attempts: $*"
+      return 1
+    fi
+    echo "==> attempt $attempt failed: $*; retrying in $((attempt * 15))s"
+    sleep $((attempt * 15))
+    attempt=$((attempt + 1))
+  done
+}
+
 # Node 20+ is required by Expo SDK 57.
 brew install node@22 cocoapods || brew install node cocoapods
 brew link --overwrite --force node@22 2>/dev/null || true
 echo "==> node $(node -v) / npm $(npm -v) / pod $(pod --version)"
 
-npm ci --no-audit --no-fund
+retry npm ci --no-audit --no-fund
 
 # Compared with the fingerprint the CI release job computes (mobile-release).
 echo "==> ios fingerprint: $(npx expo-updates fingerprint:generate --platform ios | node -e 'let s="";process.stdin.on("data",(d)=>(s+=d)).on("end",()=>console.log(JSON.parse(s).hash))')"
@@ -30,7 +44,7 @@ npx expo prebuild --platform ios --clean --no-install
 echo "export NODE_BINARY=$(command -v node)" > ios/.xcode.env.local
 
 cd ios
-pod install
+retry pod install
 
 echo "==> ci_post_clone: done"
 ls -d ./*.xcworkspace
