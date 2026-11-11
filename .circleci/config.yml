@@ -94,8 +94,18 @@ commands:
 jobs:
   backend:
     executor: go
+    environment:
+      # cimg/go has no 1.26.11 image yet; pin the toolchain so the build never
+      # runs on a release vulnerable to GO-2026-6859 (CVE-2026-97054).
+      GOTOOLCHAIN: go1.26.11
     steps:
       - checkout
+      - run:
+          name: Go toolchain
+          working_directory: backend
+          command: |
+            go version
+            go version | grep -q 'go1\.26\.11 ' || { echo "expected go1.26.11"; exit 1; }
       - restore_cache:
           keys:
             - go-mod-v1-{{ checksum "backend/go.sum" }}
