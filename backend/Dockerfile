@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
-FROM golang:1.26-alpine AS builder
+# Pinned to a patch release: GO-2026-6859 (CVE-2026-97054) is fixed in 1.26.11.
+FROM golang:1.26.11-alpine AS builder
 
 WORKDIR /src
 
