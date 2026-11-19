@@ -24,8 +24,6 @@ import {
   Card,
   Group,
   ListRow,
-  BrandLogo,
-  PlateBadge,
   RankBars,
   Row,
   Screen,
@@ -38,7 +36,7 @@ import { useAuth } from '@/features/auth/auth-provider';
 import { CalendarTodayCard } from '@/features/calendar/components/today-card';
 import { LoyaltyRenewalsCard } from '@/features/loyalty/components/renewals-card';
 import { P } from '@/features/auth/permissions';
-import { JobElapsed, useNow } from '@/features/jobs/components/job-parts';
+import { JobCard, useNow } from '@/features/jobs/components/job-parts';
 import { isStale, localToday, shiftDate } from '@/features/jobs/lib/job-ui';
 import {
   useFinanceToday,
@@ -217,45 +215,25 @@ function TodaySection() {
       </View>
 
       <Section title={tr('dashboard.tenant.queue')} action={{ label: tr('dashboard.tenant.open_board'), onPress: () => router.push('/operations') }}>
-        <Group>
-          {loading ? (
-            <View style={{ padding: t.spacing.lg, gap: t.spacing.sm }}>
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} height={36} />
-              ))}
-            </View>
-          ) : queue.length === 0 ? (
+        {loading ? (
+          <View style={{ gap: t.spacing.md }}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height={120} />
+            ))}
+          </View>
+        ) : queue.length === 0 ? (
+          <Group>
             <Txt tone="secondary" variant="caption" style={{ padding: t.spacing.xl, textAlign: 'center' }}>
               {tr('dashboard.tenant.queue_empty')}
             </Txt>
-          ) : (
-            queue.map((job, i) => (
-              <ListRow
-                key={job.uuid}
-                title={job.customer_name}
-                subtitle={job.vehicle_label}
-                left={
-                  <Row gap={t.spacing.sm}>
-                    <BrandLogo name={job.brand_name} logoUrl={job.brand_logo_url} size="sm" />
-                    <PlateBadge plate={job.plate} size="sm" />
-                  </Row>
-                }
-                right={
-                  job.status === 'ready' ? (
-                    <Txt variant="caption" tone="info" style={{ fontWeight: '700' }}>
-                      {tr('jobs.status.ready')}
-                    </Txt>
-                  ) : (
-                    <JobElapsed startedAt={job.started_at} now={now} stale={isStale(job, now)} />
-                  )
-                }
-                onPress={() => router.push(`/jobs/${job.uuid}`)}
-                chevron={false}
-                last={i === queue.length - 1}
-              />
-            ))
-          )}
-        </Group>
+          </Group>
+        ) : (
+          <View style={{ gap: t.spacing.md }}>
+            {queue.map((job) => (
+              <JobCard key={job.uuid} job={job} now={now} canWrite={false} compact onPress={() => router.push(`/jobs/${job.uuid}`)} />
+            ))}
+          </View>
+        )}
       </Section>
     </View>
   );
