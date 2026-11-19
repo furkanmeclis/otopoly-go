@@ -1,6 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Linking from 'expo-linking';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider, useNavigationContainerRef, usePathname } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavThemeProvider, useNavigationContainerRef, usePathname, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -58,7 +58,7 @@ function NavigationLogger() {
 }
 
 function RootNavigator() {
-  const { status } = useAuth();
+  const { status, introSeen } = useAuth();
   const theme = useTheme();
   const [launchIntroDone, setLaunchIntroDone] = useState(false);
   const [openedFromLink, setOpenedFromLink] = useState(hasInitialNativeIntent);
@@ -101,6 +101,11 @@ function RootNavigator() {
     return () => clearTimeout(timer);
   }, [status]);
 
+  // Where a guarded route sends the user for the current session state. Explicit on every group: the
+  // router's own fallback picks the first unguarded root route (e.g. `/link`), which can bounce back
+  // into a guarded one and replace forever right after sign-in.
+  const entry: Href = status === 'ready' ? '/' : status === 'selectOrg' ? '/select-org' : introSeen ? '/login' : '/welcome';
+
   if (status === 'booting') {
     // Same layout as the native splash, so the hand-off is seamless if restoring takes a moment.
     return (
@@ -120,23 +125,23 @@ function RootNavigator() {
         <NotificationResponseObserver />
         <IntentsSessionWatcher />
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
-          <Stack.Protected guard={status === 'signedOut'}>
+          <Stack.Protected guard={status === 'signedOut'} redirectTo={entry}>
             <Stack.Screen name="(auth)" />
           </Stack.Protected>
-          <Stack.Protected guard={status === 'selectOrg'}>
+          <Stack.Protected guard={status === 'selectOrg'} redirectTo={entry}>
             <Stack.Screen name="select-org" />
             {/* Self-service business creation for a signed-in user without one. */}
             <Stack.Screen name="create-business" />
           </Stack.Protected>
-          <Stack.Protected guard={status === 'ready'}>
+          <Stack.Protected guard={status === 'ready'} redirectTo={entry}>
             <Stack.Screen name="(app)" />
           </Stack.Protected>
           {/* Account deletion: from the profile, and from the org picker for users without a business. */}
-          <Stack.Protected guard={status === 'ready' || status === 'selectOrg'}>
+          <Stack.Protected guard={status === 'ready' || status === 'selectOrg'} redirectTo={entry}>
             <Stack.Screen name="delete-account" />
           </Stack.Protected>
           {/* Logs and demo scenarios: never reachable in App Store / Play Store builds. */}
-          <Stack.Protected guard={devToolsEnabled}>
+          <Stack.Protected guard={devToolsEnabled} redirectTo={entry}>
             <Stack.Screen name="diagnostics" options={{ presentation: 'modal' }} />
           </Stack.Protected>
         </Stack>
