@@ -38,7 +38,7 @@ import {
 
 // Node built-in, loaded at run time (the app tsconfig has no Node types). Paths are relative to the repo root (cwd).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const nodeFs = require('node:fs') as { readFileSync: (file: string, encoding: 'utf8') => string };
+const nodeFs = require('node:fs') as { readFileSync: (file: string, encoding: 'utf8') => string; existsSync: (file: string) => boolean };
 const readSource = (file: string) => nodeFs.readFileSync(file, 'utf8');
 
 let failures = 0;
@@ -198,10 +198,14 @@ const canFor = (perms: string[], owner: boolean) => (gate: Permission | Gate) =>
   const linkScreen = readSource('src/app/link.tsx');
   ok(/status === 'signedOut'[\s\S]{0,120}go\('\/login'\)/.test(linkScreen), 'link screen still sends signed-out users to /login');
   const authLayout = readSource('src/app/(auth)/_layout.tsx');
-  const authIndex = readSource('src/app/(auth)/index.tsx');
-  ok(authLayout.includes("anchor: 'index'") && authLayout.includes('name="index"'), 'auth group has a concrete index anchor');
-  ok(authIndex.includes("introSeen ? '/login' : '/welcome'"), 'auth index sends new users to welcome and returning signed-out users to login');
-  const guarded = /<Stack\.Protected guard=\{!introSeen\}>([\s\S]*?)<\/Stack\.Protected>/.exec(authLayout)?.[1] ?? '';
+  const rootLayout = readSource('src/app/_layout.tsx');
+  // `/` is Home only: an auth index on the same URL let a guarded redirect bounce between the two forever.
+  ok(!nodeFs.existsSync('src/app/(auth)/index.tsx'), 'auth group has no index route (no second route on /)');
+  ok(authLayout.includes("anchor: 'login'"), 'auth group is anchored on login');
+  ok(rootLayout.includes("introSeen ? '/login' : '/welcome'"), 'signed out: new users go to welcome, returning users to login');
+  const rootGuards = rootLayout.match(/<Stack\.Protected [^>]*>/g) ?? [];
+  ok(rootGuards.length > 0 && rootGuards.every((g) => g.includes('redirectTo={entry}')), 'every root guard redirects to the session entry explicitly');
+  const guarded = /<Stack\.Protected guard=\{!introSeen\} redirectTo="\/login">([\s\S]*?)<\/Stack\.Protected>/.exec(authLayout)?.[1] ?? '';
   ok(guarded.includes('name="welcome"') && !guarded.includes('name="login"') && authLayout.includes('<Stack.Screen name="login" />'), 'only the intro is guarded; /login is always reachable');
 
   console.log(failures ? `${failures} FAILED` : 'onboarding smoke: all passed');
