@@ -110,6 +110,7 @@ export function JobCard({
   pending,
   onPress,
   onAction,
+  compact,
 }: {
   job: Job;
   now: number;
@@ -117,6 +118,8 @@ export function JobCard({
   pending?: boolean;
   onPress: () => void;
   onAction?: (job: Job, action: JobQuickAction) => void;
+  /** Home-screen variant: no service stripe and no footer (elapsed time / quick action). */
+  compact?: boolean;
 }) {
   const t = useTheme();
   const { t: tr, fmt } = useLocale();
@@ -167,9 +170,9 @@ export function JobCard({
     <Card
       onPress={onPress}
       accessibilityLabel={`${job.plate} · ${job.customer_name}`}
-      style={{ gap: 8, overflow: 'hidden', paddingTop: job.services?.length ? 18 : 16, borderColor: stale ? t.colors.warning : t.colors.border }}
+      style={{ gap: 8, overflow: 'hidden', paddingTop: !compact && job.services?.length ? 18 : 16, borderColor: stale ? t.colors.warning : t.colors.border }}
     >
-      <ServiceStripe services={job.services} />
+      {compact ? null : <ServiceStripe services={job.services} />}
       <Row gap={8} style={{ justifyContent: 'space-between' }}>
         <Row gap={8} style={{ flex: 1, minWidth: 0 }}>
           <PlateBadge plate={job.plate} size="sm" />
@@ -192,20 +195,22 @@ export function JobCard({
         ) : null}
       </View>
       <ServiceTags services={job.services} />
-      <Row gap={8} style={{ justifyContent: 'space-between', marginTop: 2 }}>
-        <Row gap={6} style={{ flex: 1 }}>
-          {job.assignee_name ? <Avatar name={job.assignee_name} size={22} /> : null}
-          {job.status === 'delivered' ? (
-            <Txt variant="caption" tone="muted">
-              {fmt.time(job.delivered_at ?? job.completed_at ?? job.started_at)}
-            </Txt>
-          ) : (
-            <JobElapsed startedAt={job.started_at} now={now} stale={stale} />
-          )}
-          {job.status !== 'delivered' && job.status !== 'in_progress' && job.status !== 'ready' ? <JobStatusBadge status={job.status} size="sm" /> : null}
+      {compact ? null : (
+        <Row gap={8} style={{ justifyContent: 'space-between', marginTop: 2 }}>
+          <Row gap={6} style={{ flex: 1 }}>
+            {job.assignee_name ? <Avatar name={job.assignee_name} size={22} /> : null}
+            {job.status === 'delivered' ? (
+              <Txt variant="caption" tone="muted">
+                {fmt.time(job.delivered_at ?? job.completed_at ?? job.started_at)}
+              </Txt>
+            ) : (
+              <JobElapsed startedAt={job.started_at} now={now} stale={stale} />
+            )}
+            {job.status !== 'delivered' && job.status !== 'in_progress' && job.status !== 'ready' ? <JobStatusBadge status={job.status} size="sm" /> : null}
+          </Row>
+          {action ?? (job.status === 'delivered' ? <PaymentBadge status={job.payment_status} size="sm" /> : null)}
         </Row>
-        {action ?? (job.status === 'delivered' ? <PaymentBadge status={job.payment_status} size="sm" /> : null)}
-      </Row>
+      )}
     </Card>
   );
 }
