@@ -7,10 +7,11 @@ Kurallar: fiyat, deneme süresi ya da "web'den abone ol" ifadesi yok (Apple 3.1.
 
 | Alan | Değer |
 |---|---|
-| Destek URL'si | https://otopoly.app |
-| Pazarlama URL'si | https://otopoly.app |
+| Destek URL'si | https://otopoly.app/support (EN: https://otopoly.app/en/support) |
+| Pazarlama URL'si | https://otopoly.app (EN: https://otopoly.app/en) |
 | Gizlilik politikası | https://otopoly.app/privacy (EN: https://otopoly.app/en/privacy) |
 | İletişim e-postası | contact@otopoly.app |
+| Hesap silme URL'si | https://otopoly.app/account/delete (EN: https://otopoly.app/en/account/delete) |
 | Telif (Apple) | 2026 TechnoWide Software |
 | Apple kategori | Birincil: İş (Business), İkincil: Verimlilik (Productivity) |
 | Play kategori | Uygulama / İş |
@@ -144,3 +145,51 @@ Otopoly is a service for businesses; you sign in with your account. The app open
 
 Privacy policy: https://otopoly.app/en/privacy
 ```
+
+---
+
+## Uyumluluk cevapları (konsollara girilen hâli)
+
+Uygulamanın veri işleyişi değişirse (yeni SDK, yeni veri türü, saklama süresi) önce burası, sonra iki konsol güncellenir.
+
+### App Store Connect
+
+| Alan | Cevap |
+|---|---|
+| Fiyat | Ücretsiz, 175 ülke |
+| Yaş derecesi | 4+ (tüm sorular Hayır / Yok) |
+| İçerik hakları | Üçüncü taraf içerik var ve haklarımız var (araç marka logoları; lisans talep edilirse sunulur) |
+| Şifreleme | `usesNonExemptEncryption: false` (`app.json`) |
+
+**Gizlilik etiketi** (yayınlandı). Her tür: App Functionality, kimliğe bağlı, takip yok.
+
+- İletişim: Name, Email Address, Phone Number
+- Kullanıcı içeriği: Photos or Videos, Other User Content
+- Tanımlayıcılar: User ID, Device ID
+- Teşhis: Crash Data, Performance Data, Other Diagnostic Data
+
+Sesli komutun sesi beyan edilmez: yalnızca istek anında metne çevrilip atılıyor. Apple'ın "collect" tanımı, isteği o an karşılamak için gerekenden uzun saklanan veriyi kapsar. Ses saklanmaya başlanırsa Audio Data eklenir.
+
+### Google Play
+
+| Alan | Cevap |
+|---|---|
+| Hedef kitle | 18 yaş ve üstü |
+| Satıcı durumu (uygulama düzeyi) | Satıcı değil (uygulama içi satış yok) |
+| Aktarımda şifreleme | Evet |
+| Hesap oluşturma | Kullanıcı adı + şifre + diğer kimlik doğrulama; OAuth |
+| Hesap silme URL'si | https://otopoly.app/account/delete |
+| Hesabı silmeden veri silme | Hayır |
+| Üçüncü tarafla paylaşım | Yok |
+
+**Veri güvenliği.** Hiçbiri paylaşılmaz. Tümü toplanır; ses yalnızca kısa süreli işlenir.
+
+| Veri türü | Zorunlu | Amaç |
+|---|---|---|
+| Ad, E-posta adresi, Kullanıcı kimlikleri | Evet | Uygulama işlevi, Hesap yönetimi |
+| Telefon numarası | Hayır | Uygulama işlevi, Hesap yönetimi |
+| Fotoğraflar | Hayır | Uygulama işlevi |
+| Konuşma veya ses kayıtları (kısa süreli) | Hayır | Uygulama işlevi |
+| Kullanıcı tarafından oluşturulan diğer içerikler | Evet | Uygulama işlevi |
+| Kilitlenme günlükleri, Teşhisler, Diğer performans verileri | Evet | Uygulama işlevi, Analiz |
+| Cihaz veya diğer kimlikler | Evet | Uygulama işlevi |
