@@ -15,6 +15,7 @@ import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
+import { Hint } from "@/components/ui/hint";
 
 type OrganizationGeneralTabProps = {
   organization: Organization;
@@ -80,21 +81,24 @@ export function OrganizationGeneralTab({
         action={
           canWrite ? (
             <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!organization.access_ends_at}
-                title={
+              <Hint
+                label={
                   organization.access_ends_at
                     ? undefined
                     : t("organizations.extend.unlimited_hint")
                 }
-                onClick={() => setExtendOpen(true)}
               >
-                <CalendarPlus className="size-4" />
-                {t("organizations.actions.extend_access")}
-              </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!organization.access_ends_at}
+                  onClick={() => setExtendOpen(true)}
+                >
+                  <CalendarPlus className="size-4" />
+                  {t("organizations.actions.extend_access")}
+                </Button>
+              </Hint>
               <Button
                 type="button"
                 size="sm"

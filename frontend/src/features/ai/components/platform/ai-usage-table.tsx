@@ -25,6 +25,7 @@ import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import Link from "next/link";
 import { businessToday } from "@/lib/utils/business-date";
+import { Hint } from "@/components/ui/hint";
 
 /** Formats transcribed audio as m:ss (or s below a minute). */
 function formatAudio(seconds: number, nf: Intl.NumberFormat): string {
@@ -130,9 +131,9 @@ export function AIUsageTable() {
                     {t("ai.usage.cost")}
                   </th>
                   <th className="px-3 py-2 text-right font-medium">
-                    <span title={t("ai.usage.voice_hint")}>
-                      {t("ai.usage.voice")}
-                    </span>
+                    <Hint label={t("ai.usage.voice_hint")}>
+                      <span>{t("ai.usage.voice")}</span>
+                    </Hint>
                   </th>
                 </tr>
               </thead>

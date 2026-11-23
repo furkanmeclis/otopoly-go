@@ -23,9 +23,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { TimePicker } from "@/components/ui/time-picker";
 import { routes } from "@/config/routes";
 import {
   useDailySummarySettings,
@@ -41,6 +41,7 @@ import type { DailySummarySettings } from "@/features/messaging/services/daily-s
 import { isApiError } from "@/lib/api";
 import { date as formatDate } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 /**
  * End-of-day WhatsApp summary (vehicles per service, revenue, unpaid, cash
@@ -229,12 +230,10 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
               <Label htmlFor="daily-summary-time">
                 {t("messaging.daily_summary.send_time")}
               </Label>
-              <Input
+              <TimePicker
                 id="daily-summary-time"
-                type="time"
-                step={60}
                 value={sendTime}
-                onChange={(e) => setSendTime(e.target.value.slice(0, 5))}
+                onChange={(value) => setSendTime(value.slice(0, 5))}
                 className="w-32"
               />
               <p className="text-muted-foreground text-xs">
@@ -320,23 +319,26 @@ function DailySummaryForm({ data }: { data: DailySummarySettings }) {
               <Eye className="size-4" />
               {t("messaging.daily_summary.preview")}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={
-                sendTest.isPending ||
-                dirty ||
-                data.recipient_user_uuids.length === 0
-              }
-              title={
+            <Hint
+              label={
                 dirty ? t("messaging.daily_summary.save_first") : undefined
               }
-              onClick={() => void onSendTest()}
             >
-              <Send className="size-4" />
-              {t("messaging.daily_summary.send_test")}
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  sendTest.isPending ||
+                  dirty ||
+                  data.recipient_user_uuids.length === 0
+                }
+                onClick={() => void onSendTest()}
+              >
+                <Send className="size-4" />
+                {t("messaging.daily_summary.send_test")}
+              </Button>
+            </Hint>
             <Button
               type="button"
               size="sm"

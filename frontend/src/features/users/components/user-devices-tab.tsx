@@ -26,6 +26,7 @@ import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
+import { Hint } from "@/components/ui/hint";
 
 type UserDevicesTabProps = {
   user: PlatformUserDetail;
@@ -80,12 +81,14 @@ export function UserDevicesTab({ user }: UserDevicesTabProps) {
         gridSecondary: true,
         cell: ({ row }) =>
           row.original.disabled_at ? (
-            <span title={row.original.disabled_reason || undefined}>
-              <StatusChip
-                label={t("users.devices.state.disabled")}
-                tone="danger"
-              />
-            </span>
+            <Hint label={row.original.disabled_reason || undefined}>
+              <span>
+                <StatusChip
+                  label={t("users.devices.state.disabled")}
+                  tone="danger"
+                />
+              </span>
+            </Hint>
           ) : (
             <StatusChip
               label={t("users.devices.state.active")}

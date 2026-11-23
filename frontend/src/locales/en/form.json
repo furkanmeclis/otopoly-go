@@ -13,5 +13,11 @@
   "combobox_selected": "Selected",
   "command_title": "Command / pick",
   "command_description": "Search and select an item",
-  "command_group_default": "Results"
+  "command_group_default": "Results",
+  "time_hour": "Hour",
+  "time_minute": "Minute",
+  "color_pick": "Pick a colour",
+  "color_swatches": "Colours",
+  "color_hex": "Hex colour code",
+  "no_file_chosen": "No file chosen"
 }

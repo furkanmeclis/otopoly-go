@@ -20,6 +20,7 @@ import { useBrandModelOptions } from "@/features/vehicle-catalog/components/mode
 import { usePatchType } from "@/features/vehicle-catalog/hooks/use-catalog";
 import type { CatalogType } from "@/features/vehicle-catalog/services/catalog.service";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 type TypeModelAssignProps = {
   type: Pick<
@@ -52,13 +53,14 @@ export function TypeModelAssign({ type, compact }: TypeModelAssignProps) {
     options.find((o) => o.value === modelUuid)?.label ?? type.model?.name ?? "";
 
   const label = type.model ? (
-    <Badge
-      variant={type.model.source === "auto" ? "outline" : "secondary"}
-      className="max-w-48 truncate font-normal"
-      title={type.model.name}
-    >
-      {type.model.name}
-    </Badge>
+    <Hint label={type.model.name}>
+      <Badge
+        variant={type.model.source === "auto" ? "outline" : "secondary"}
+        className="max-w-48 truncate font-normal"
+      >
+        {type.model.name}
+      </Badge>
+    </Hint>
   ) : (
     <Badge variant="warning" className="gap-1 font-normal">
       <TriangleAlert className="size-3" />
@@ -84,19 +86,20 @@ export function TypeModelAssign({ type, compact }: TypeModelAssignProps) {
             }
           }}
         >
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size={compact ? "icon" : "sm"}
-              className={compact ? "size-7" : undefined}
-              aria-label={t("vehicle_catalog.types.assign_model")}
-              title={t("vehicle_catalog.types.assign_model")}
-            >
-              <Link2 className="size-4" />
-              {compact ? null : t("vehicle_catalog.types.assign_model")}
-            </Button>
-          </PopoverTrigger>
+          <Hint label={t("vehicle_catalog.types.assign_model")}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size={compact ? "icon" : "sm"}
+                className={compact ? "size-7" : undefined}
+                aria-label={t("vehicle_catalog.types.assign_model")}
+              >
+                <Link2 className="size-4" />
+                {compact ? null : t("vehicle_catalog.types.assign_model")}
+              </Button>
+            </PopoverTrigger>
+          </Hint>
           <PopoverContent className="w-80 space-y-3" align="start">
             <div className="space-y-1">
               <p className="text-sm font-medium">

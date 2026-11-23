@@ -33,6 +33,7 @@ import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
+import { Hint } from "@/components/ui/hint";
 
 type UserSessionsTabProps = {
   user: PlatformUserDetail;
@@ -65,12 +66,11 @@ export function UserSessionsTab({ user }: UserSessionsTabProps) {
         gridPrimary: true,
         cell: ({ row }) => (
           <div className="flex min-w-0 flex-col gap-1">
-            <span
-              className="max-w-[28rem] truncate text-sm"
-              title={row.original.user_agent ?? undefined}
-            >
-              {row.original.user_agent || t("users.sessions.unknown_device")}
-            </span>
+            <Hint label={row.original.user_agent ?? undefined}>
+              <span className="max-w-[28rem] truncate text-sm">
+                {row.original.user_agent || t("users.sessions.unknown_device")}
+              </span>
+            </Hint>
             {row.original.impersonated ? (
               <Badge variant="outline" className="w-fit text-[10px]">
                 {t("users.sessions.impersonated")}

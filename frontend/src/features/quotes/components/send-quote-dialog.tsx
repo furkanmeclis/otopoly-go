@@ -1,6 +1,13 @@
 "use client";
 
-import { AlertTriangle, Check, Copy, Download, Send } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ChevronRight,
+  Copy,
+  Download,
+  Send,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
@@ -9,6 +16,11 @@ import { toast } from "sonner";
 import { WhatsAppIcon } from "@/components/icons/whatsapp-icon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
@@ -38,12 +50,17 @@ import { useLocale } from "@/providers/locale-provider";
 
 const PRESETS: ReminderKind[] = ["before_3d", "before_1d", "last_day"];
 
-export async function copyShareLink(url: string, okMessage: string) {
+export async function copyShareLink(
+  url: string,
+  okMessage: string,
+  manualMessage: string,
+) {
   try {
     await navigator.clipboard.writeText(url);
     toast.success(okMessage);
   } catch {
-    window.prompt("", url);
+    // Clipboard blocked: show the link so it can be copied by hand.
+    toast.info(manualMessage, { description: url, duration: 15000 });
   }
 }
 
@@ -204,6 +221,7 @@ function SendQuoteDialogBody({
                 void copyShareLink(
                   quote.share_url,
                   t("quotes.toast.link_copied"),
+                  t("quotes.toast.copy_manual"),
                 )
               }
             >
@@ -285,17 +303,22 @@ function SendQuoteDialogBody({
             <WhatsAppNotConnected slug={slug} />
           ) : null}
           {preview.data?.message && !waDisconnected && !noPhone ? (
-            <details className="bg-muted/40 rounded-lg p-3 text-xs">
-              <summary className="cursor-pointer font-medium">
+            <Collapsible className="group bg-muted/40 rounded-lg p-3 text-xs">
+              <CollapsibleTrigger className="focus-visible:ring-ring flex cursor-pointer items-center gap-1 rounded-sm font-medium focus-visible:ring-2 focus-visible:outline-none">
+                <ChevronRight className="size-3.5 transition-transform group-data-[state=open]:rotate-90" />
                 {t("quotes.send.preview")}
-              </summary>
-              <p className="mt-2 whitespace-pre-wrap">{preview.data.message}</p>
-              {preview.data.attachment_file_name ? (
-                <p className="text-muted-foreground mt-2">
-                  {preview.data.attachment_file_name}
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <p className="mt-2 whitespace-pre-wrap">
+                  {preview.data.message}
                 </p>
-              ) : null}
-            </details>
+                {preview.data.attachment_file_name ? (
+                  <p className="text-muted-foreground mt-2">
+                    {preview.data.attachment_file_name}
+                  </p>
+                ) : null}
+              </CollapsibleContent>
+            </Collapsible>
           ) : null}
           <div className="space-y-2">
             <p className="text-sm font-medium">{t("quotes.reminders.title")}</p>

@@ -36,6 +36,7 @@ import { useImpersonateUser } from "@/features/users/hooks/use-user-mutations";
 import { userFullName } from "@/features/users/lib/user-display";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
+import { Hint } from "@/components/ui/hint";
 
 type OrganizationDetailPageProps = {
   uuid: string;
@@ -137,23 +138,26 @@ export function OrganizationDetailPage({ uuid }: OrganizationDetailPageProps) {
         organization ? (
           <EntityActions>
             {can(permissions.users.impersonate) ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={!owner || impersonate.isPending}
-                title={
+              <Hint
+                label={
                   owner
                     ? t("organizations.quick.impersonate_hint", {
                         name: userFullName(owner),
                       })
                     : t("organizations.quick.no_owner")
                 }
-                onClick={() => owner && impersonate.mutate(owner)}
               >
-                <UserRoundCog className="size-4" />
-                {t("organizations.quick.impersonate_owner")}
-              </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={!owner || impersonate.isPending}
+                  onClick={() => owner && impersonate.mutate(owner)}
+                >
+                  <UserRoundCog className="size-4" />
+                  {t("organizations.quick.impersonate_owner")}
+                </Button>
+              </Hint>
             ) : null}
             <Button asChild type="button" size="sm" variant="outline">
               <Link

@@ -3,6 +3,7 @@
 import { serviceSwatch } from "@/features/catalog/lib/service-colors";
 import type { JobServiceTag } from "@/features/jobs/services/jobs.service";
 import { cn } from "@/lib/utils";
+import { Hint } from "@/components/ui/hint";
 
 /** Coloured service badges (one per service line). */
 export function JobServiceTags({
@@ -20,16 +21,16 @@ export function JobServiceTags({
   return (
     <div className={cn("flex flex-wrap items-center gap-1", className)}>
       {shown.map((s, i) => (
-        <span
-          key={`${s.uuid ?? s.name}-${i}`}
-          title={s.name}
-          className={cn(
-            "max-w-[10rem] truncate rounded-full px-2 py-0.5 text-[11px] leading-4 font-medium",
-            serviceSwatch(s.color, s.name).badge,
-          )}
-        >
-          {s.name}
-        </span>
+        <Hint key={`${s.uuid ?? s.name}-${i}`} label={s.name}>
+          <span
+            className={cn(
+              "max-w-[10rem] truncate rounded-full px-2 py-0.5 text-[11px] leading-4 font-medium",
+              serviceSwatch(s.color, s.name).badge,
+            )}
+          >
+            {s.name}
+          </span>
+        </Hint>
       ))}
       {rest > 0 ? (
         <span className="text-muted-foreground text-[11px]">+{rest}</span>

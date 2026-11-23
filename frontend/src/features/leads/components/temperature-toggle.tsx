@@ -9,6 +9,7 @@ import {
 } from "@/features/leads/types";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 const ICONS = { cold: Snowflake, warm: Sun, hot: Flame } as const;
 
@@ -59,33 +60,37 @@ export function TemperatureToggle({
         const Icon = ICONS[temp];
         const active = temp === value;
         return (
-          <button
+          <Hint
             key={temp}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            disabled={disabled}
-            title={t(`leads.temperature.${temp}`)}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              if (!active) onChange(temp);
-            }}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full border border-transparent font-medium transition-colors disabled:opacity-50",
-              size === "sm"
-                ? "px-1.5 py-0.5 text-[11px]"
-                : "px-2.5 py-1 text-xs",
-              active
-                ? TEMPERATURE_CLASSES[temp]
-                : "text-muted-foreground hover:text-foreground",
-            )}
+            wrapDisabled={false}
+            label={t(`leads.temperature.${temp}`)}
           >
-            <Icon className={size === "sm" ? "size-3" : "size-3.5"} />
-            <span className={size === "sm" ? "sr-only sm:not-sr-only" : ""}>
-              {t(`leads.temperature.${temp}`)}
-            </span>
-          </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={disabled}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (!active) onChange(temp);
+              }}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full border border-transparent font-medium transition-colors disabled:opacity-50",
+                size === "sm"
+                  ? "px-1.5 py-0.5 text-[11px]"
+                  : "px-2.5 py-1 text-xs",
+                active
+                  ? TEMPERATURE_CLASSES[temp]
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className={size === "sm" ? "size-3" : "size-3.5"} />
+              <span className={size === "sm" ? "sr-only sm:not-sr-only" : ""}>
+                {t(`leads.temperature.${temp}`)}
+              </span>
+            </button>
+          </Hint>
         );
       })}
     </div>

@@ -9,6 +9,7 @@ import { FormFieldShell } from "@/components/forms/form-field";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Command,
   CommandEmpty,
@@ -126,12 +127,11 @@ export function VoiceModelField({
           name={name}
           control={control}
           render={({ field }) => (
-            <input
+            <Input
               {...field}
               value={field.value ?? ""}
               placeholder={placeholder}
               disabled={disabled}
-              className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring h-9 w-full rounded-md border px-3 py-1 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
             />
           )}
         />

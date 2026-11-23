@@ -14,6 +14,7 @@ import {
 import { SidebarMenuAction } from "@/components/ui/sidebar";
 import type { NavBadgeVariant, NavInfo } from "@/features/nav-engine/types";
 import { cn } from "@/lib/utils";
+import { Hint } from "@/components/ui/hint";
 
 const TONE_CLASS: Record<NavBadgeVariant, string> = {
   default: "text-foreground",
@@ -40,15 +41,16 @@ export function NavInfoButton({
 }) {
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <SidebarMenuAction
-          aria-label={label}
-          title={label}
-          className="text-muted-foreground hover:text-sidebar-accent-foreground"
-        >
-          <Info />
-        </SidebarMenuAction>
-      </PopoverTrigger>
+      <Hint label={label}>
+        <PopoverTrigger asChild>
+          <SidebarMenuAction
+            aria-label={label}
+            className="text-muted-foreground hover:text-sidebar-accent-foreground"
+          >
+            <Info />
+          </SidebarMenuAction>
+        </PopoverTrigger>
+      </Hint>
       <PopoverContent side="right" align="start" className="w-64 p-3">
         <NavInfoBody info={info} />
       </PopoverContent>

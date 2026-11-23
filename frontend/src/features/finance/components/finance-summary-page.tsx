@@ -47,6 +47,7 @@ import { useTenantFinanceAccess } from "@/features/finance/hooks/use-tenant-fina
 import { isApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 function accountIcon(type: string) {
   return type === "bank" ? Landmark : Wallet;
@@ -269,16 +270,18 @@ export function FinanceSummaryPage({ slug }: { slug: string }) {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex h-3 overflow-hidden rounded-full">
-                  <div
-                    className="bg-emerald-500 transition-[width]"
-                    style={{ width: `${100 - expenseShare}%` }}
-                    title={t("finance.summary.income")}
-                  />
-                  <div
-                    className="bg-rose-500 transition-[width]"
-                    style={{ width: `${expenseShare}%` }}
-                    title={t("finance.summary.expense")}
-                  />
+                  <Hint label={t("finance.summary.income")}>
+                    <div
+                      className="bg-emerald-500 transition-[width]"
+                      style={{ width: `${100 - expenseShare}%` }}
+                    />
+                  </Hint>
+                  <Hint label={t("finance.summary.expense")}>
+                    <div
+                      className="bg-rose-500 transition-[width]"
+                      style={{ width: `${expenseShare}%` }}
+                    />
+                  </Hint>
                 </div>
                 <div className="text-muted-foreground flex flex-wrap gap-4 text-xs">
                   <span>

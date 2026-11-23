@@ -18,6 +18,7 @@ import { TodoDue } from "@/features/todos/components/todo-due";
 import type { Todo } from "@/features/todos/types";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 type TodoItemProps = {
   todo: Todo;
@@ -109,29 +110,29 @@ export function TodoItem({
             </Link>
           ) : null}
           {todo.next_reminder_at && !done ? (
-            <span
-              className="text-muted-foreground inline-flex items-center gap-1 text-xs"
-              title={t("todos.reminders.next", {
+            <Hint
+              label={t("todos.reminders.next", {
                 time: new Date(todo.next_reminder_at).toLocaleString(locale),
               })}
             >
-              <BellRing className="size-3" />
-              {new Date(todo.next_reminder_at).toLocaleString(locale, {
-                day: "2-digit",
-                month: "2-digit",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </span>
+              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+                <BellRing className="size-3" />
+                {new Date(todo.next_reminder_at).toLocaleString(locale, {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            </Hint>
           ) : null}
           {todo.via_ai ? (
-            <span
-              className="text-primary inline-flex items-center gap-1 text-[11px]"
-              title={t("todos.via_ai")}
-            >
-              <Sparkles className="size-3" />
-              {t("todos.via_ai_short")}
-            </span>
+            <Hint label={t("todos.via_ai")}>
+              <span className="text-primary inline-flex items-center gap-1 text-[11px]">
+                <Sparkles className="size-3" />
+                {t("todos.via_ai_short")}
+              </span>
+            </Hint>
           ) : null}
         </div>
         {!compact && todo.notes ? (

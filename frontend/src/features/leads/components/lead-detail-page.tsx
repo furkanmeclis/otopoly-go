@@ -64,6 +64,7 @@ import {
   TenantLiveResources,
   useTenantLiveRefetch,
 } from "@/features/organizations/hooks/use-tenant-live";
+import { Hint } from "@/components/ui/hint";
 
 const STEPS: LeadStatus[] = ["new", "contacted", "quoted", "won"];
 
@@ -648,12 +649,13 @@ function Timeline({
                     </>
                   ) : null}
                 </p>
-                <time
-                  className="text-muted-foreground text-xs"
-                  title={datetime(e.created_at, "dd.MM.yyyy HH:mm", locale)}
+                <Hint
+                  label={datetime(e.created_at, "dd.MM.yyyy HH:mm", locale)}
                 >
-                  {relativeDatetime(e.created_at, locale)}
-                </time>
+                  <time className="text-muted-foreground text-xs">
+                    {relativeDatetime(e.created_at, locale)}
+                  </time>
+                </Hint>
               </div>
               {isNote ? (
                 <p className="bg-muted/50 mt-1 rounded-lg px-3 py-2 text-sm whitespace-pre-wrap">

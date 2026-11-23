@@ -19,6 +19,7 @@ import {
   usePlatformBillingAccess,
 } from "@/features/platform-billing/hooks/use-platform-billing";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 const STATUS_ORDER = ["active", "trial", "grace", "read_only"] as const;
 const STATUS_TONE = {
@@ -120,22 +121,24 @@ export function BillingDashboardPage() {
               ) : (
                 <ul className="space-y-3">
                   {d.plans.map((p) => (
-                    <li key={p.code} title={`${p.name}: ${p.count}`}>
-                      <div className="mb-1 flex justify-between text-sm">
-                        <span>{p.name}</span>
-                        <span className="tabular-nums">
-                          {formatQuantity(p.count, locale)}
-                        </span>
-                      </div>
-                      <div className="bg-muted h-2 overflow-hidden rounded-full">
-                        <div
-                          className="bg-primary h-full rounded-full"
-                          style={{
-                            width: `${Math.max(2, (p.count / maxPlan) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                    </li>
+                    <Hint key={p.code} label={`${p.name}: ${p.count}`}>
+                      <li>
+                        <div className="mb-1 flex justify-between text-sm">
+                          <span>{p.name}</span>
+                          <span className="tabular-nums">
+                            {formatQuantity(p.count, locale)}
+                          </span>
+                        </div>
+                        <div className="bg-muted h-2 overflow-hidden rounded-full">
+                          <div
+                            className="bg-primary h-full rounded-full"
+                            style={{
+                              width: `${Math.max(2, (p.count / maxPlan) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                      </li>
+                    </Hint>
                   ))}
                 </ul>
               )}

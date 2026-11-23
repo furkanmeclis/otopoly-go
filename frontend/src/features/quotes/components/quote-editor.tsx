@@ -65,6 +65,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { localToday, shiftDate } from "@/lib/utils/local-date";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 type LineType = "service" | "product" | "custom";
 
@@ -1023,12 +1024,11 @@ function LineIcon({ type }: { type: LineType }) {
   const Icon =
     type === "service" ? Wrench : type === "product" ? Package : PenLine;
   return (
-    <span
-      title={t(`quotes.line_type.${type}`)}
-      className="text-muted-foreground shrink-0"
-    >
-      <Icon className="size-4" />
-    </span>
+    <Hint label={t(`quotes.line_type.${type}`)}>
+      <span className="text-muted-foreground shrink-0">
+        <Icon className="size-4" />
+      </span>
+    </Hint>
   );
 }
 
@@ -1073,19 +1073,21 @@ function DiscountInput({
   const symbol = type === "percent" ? "%" : type === "amount" ? "₺" : "—";
   return (
     <div className={cn("flex items-center gap-1", wide ? "w-full" : "w-32")}>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 w-9 shrink-0 px-0 font-mono"
-        title={t(`quotes.discount_type.${type}`)}
-        onClick={() => {
-          const next = cycle[(cycle.indexOf(type) + 1) % cycle.length]!;
-          onChange(next, next === "none" ? "" : value);
-        }}
-      >
-        {symbol}
-      </Button>
+      <Hint label={t(`quotes.discount_type.${type}`)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 w-9 shrink-0 px-0 font-mono"
+          aria-label={t(`quotes.discount_type.${type}`)}
+          onClick={() => {
+            const next = cycle[(cycle.indexOf(type) + 1) % cycle.length]!;
+            onChange(next, next === "none" ? "" : value);
+          }}
+        >
+          {symbol}
+        </Button>
+      </Hint>
       <Input
         value={type === "none" ? "" : value}
         disabled={type === "none"}

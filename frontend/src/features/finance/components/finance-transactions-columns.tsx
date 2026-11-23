@@ -18,6 +18,7 @@ import {
 } from "@/features/finance/lib/labels";
 import type { FinanceTransaction } from "@/features/finance/services/finance.service";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export const TX_TYPE_VALUES = ["income", "expense", "transfer"] as const;
 export const TX_STATUS_VALUES = ["posted", "void"] as const;
@@ -145,12 +146,11 @@ export function useFinanceTransactionsColumns(
             return <span className="text-muted-foreground">—</span>;
           }
           return (
-            <span
-              className="text-muted-foreground line-clamp-2 block max-w-xs text-sm leading-snug"
-              title={text}
-            >
-              {truncateText(text, 80)}
-            </span>
+            <Hint label={text}>
+              <span className="text-muted-foreground line-clamp-2 block max-w-xs text-sm leading-snug">
+                {truncateText(text, 80)}
+              </span>
+            </Hint>
           );
         },
       }),
@@ -165,12 +165,14 @@ export function useFinanceTransactionsColumns(
           label: value,
         })),
         cell: ({ row }) => (
-          <span title={t(transactionStatusHintKey(row.original.status))}>
-            <StatusChip
-              label={t(transactionStatusLabelKey(row.original.status))}
-              tone={statusTone(row.original.status)}
-            />
-          </span>
+          <Hint label={t(transactionStatusHintKey(row.original.status))}>
+            <span>
+              <StatusChip
+                label={t(transactionStatusLabelKey(row.original.status))}
+                tone={statusTone(row.original.status)}
+              />
+            </span>
+          </Hint>
         ),
       }),
       createColumn<FinanceTransaction>({

@@ -21,13 +21,13 @@ import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { TimePicker } from "@/components/ui/time-picker";
 import { cn } from "@/lib/utils/index";
 
 import { $isDateTimeNode, type DateTimeNode } from "../nodes/date-time-node";
@@ -83,9 +83,8 @@ export default function DateTimeComponent({
     });
   };
 
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTimeChange = (time: string) => {
     withDateTimeNode((node) => {
-      const time = e.target.value;
       if (!selected) {
         setTimeValue(time);
         return;
@@ -167,11 +166,11 @@ export default function DateTimeComponent({
               htmlFor={`include-time-${nodeKey}`}
               className="flex items-center gap-2"
             >
-              <Input
-                type="time"
+              <TimePicker
                 value={timeValue}
                 onChange={handleTimeChange}
                 disabled={!includeTime}
+                required
                 className="h-7 w-28 px-1.5 text-xs"
               />
               <span className="text-muted-foreground text-xs">

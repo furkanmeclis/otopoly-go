@@ -13,6 +13,7 @@ import {
   AppInput,
   AppSwitch,
   AppTextarea,
+  AppTimePicker,
 } from "@/components/forms";
 import { FormFieldShell } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export type EventDraft = { start: Date; allDay: boolean };
 
@@ -205,9 +207,8 @@ export function EventDialog({
                     label={t("calendar.event.start_date")}
                   />
                   {allDay ? null : (
-                    <AppInput
+                    <AppTimePicker
                       name="start_time"
-                      type="time"
                       label={t("calendar.event.start_time")}
                     />
                   )}
@@ -216,9 +217,8 @@ export function EventDialog({
                     label={t("calendar.event.end_date")}
                   />
                   {allDay ? null : (
-                    <AppInput
+                    <AppTimePicker
                       name="end_time"
-                      type="time"
                       label={t("calendar.event.end_time")}
                     />
                   )}
@@ -234,22 +234,22 @@ export function EventDialog({
                         className="flex flex-wrap gap-2"
                       >
                         {CALENDAR_COLORS.map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            role="radio"
-                            aria-checked={field.value === color}
-                            aria-label={t(COLOR_LABEL_KEYS[color])}
-                            title={t(COLOR_LABEL_KEYS[color])}
-                            onClick={() => field.onChange(color)}
-                            className={cn(
-                              "ring-offset-background size-7 rounded-full ring-offset-2 transition",
-                              COLOR_CLASSES[color].dot,
-                              field.value === color
-                                ? "ring-foreground ring-2"
-                                : "opacity-80 hover:opacity-100",
-                            )}
-                          />
+                          <Hint key={color} label={t(COLOR_LABEL_KEYS[color])}>
+                            <button
+                              type="button"
+                              role="radio"
+                              aria-checked={field.value === color}
+                              aria-label={t(COLOR_LABEL_KEYS[color])}
+                              onClick={() => field.onChange(color)}
+                              className={cn(
+                                "ring-offset-background size-7 rounded-full ring-offset-2 transition",
+                                COLOR_CLASSES[color].dot,
+                                field.value === color
+                                  ? "ring-foreground ring-2"
+                                  : "opacity-80 hover:opacity-100",
+                              )}
+                            />
+                          </Hint>
                         ))}
                       </div>
                     )}

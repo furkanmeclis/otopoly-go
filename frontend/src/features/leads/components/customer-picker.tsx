@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useCustomerMutations } from "@/features/customers/hooks/use-customers";
 import { customersService } from "@/features/customers/services/customers.service";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export type PickedCustomer = { uuid: string; name: string; phone?: string };
 
@@ -116,17 +117,18 @@ export function CustomerPicker({
           aria-invalid={invalid}
           disabled={disabled}
         />
-        <Button
-          type="button"
-          variant={creating ? "secondary" : "outline"}
-          size="icon"
-          onClick={() => setCreating((v) => !v)}
-          aria-label={t("leads.customer.new")}
-          title={t("leads.customer.new")}
-          disabled={disabled}
-        >
-          <UserPlus className="size-4" />
-        </Button>
+        <Hint label={t("leads.customer.new")}>
+          <Button
+            type="button"
+            variant={creating ? "secondary" : "outline"}
+            size="icon"
+            onClick={() => setCreating((v) => !v)}
+            aria-label={t("leads.customer.new")}
+            disabled={disabled}
+          >
+            <UserPlus className="size-4" />
+          </Button>
+        </Hint>
       </div>
       {creating ? (
         <div className="bg-muted/40 grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_1fr_auto]">

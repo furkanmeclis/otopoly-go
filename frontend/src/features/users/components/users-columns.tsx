@@ -24,6 +24,7 @@ import type {
   UserStatus,
 } from "@/features/users/services/users.service";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 function statusTone(status: string) {
   if (status in USER_STATUS_TONE) {
@@ -109,20 +110,20 @@ export function useUsersColumns({
             return (
               <div className="flex flex-wrap gap-1">
                 {roles.map((role) => (
-                  <Badge
-                    key={role.uuid}
-                    variant="secondary"
-                    className="max-w-40 truncate font-normal"
-                    title={role.slug}
-                  >
-                    <Link
-                      href={routes.platform.roles.detail(role.uuid)}
-                      className="hover:underline"
-                      onClick={(event) => event.stopPropagation()}
+                  <Hint key={role.uuid} label={role.slug}>
+                    <Badge
+                      variant="secondary"
+                      className="max-w-40 truncate font-normal"
                     >
-                      {roleDisplayName(role, t)}
-                    </Link>
-                  </Badge>
+                      <Link
+                        href={routes.platform.roles.detail(role.uuid)}
+                        className="hover:underline"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {roleDisplayName(role, t)}
+                      </Link>
+                    </Badge>
+                  </Hint>
                 ))}
               </div>
             );

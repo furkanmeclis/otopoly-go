@@ -78,5 +78,6 @@
   "picker.date": "Tarih",
   "decrease_font": "Yazı boyutunu küçült",
   "increase_font": "Yazı boyutunu büyüt",
-  "copy": "Kopyala"
+  "copy": "Kopyala",
+  "clipboard_denied": "Panodan yapıştırma izni verilmedi."
 }

@@ -29,6 +29,7 @@ import { isApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
 import { appToast } from "@/providers/toast-provider";
+import { Hint } from "@/components/ui/hint";
 
 /** The UI stops at 60 s; the API rejects clips over 120 s. */
 const MAX_SECONDS = 60;
@@ -164,17 +165,18 @@ export function VoiceInput({ onTranscript, disabled }: VoiceInputProps) {
 
   if (!recorder.supported) {
     return (
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        onClick={() => appToast.error(t("ai.voice.errors.unsupported"))}
-        aria-label={t("ai.voice.errors.unsupported")}
-        title={t("ai.voice.errors.unsupported")}
-        className="text-muted-foreground opacity-60"
-      >
-        <Mic className="size-4" />
-      </Button>
+      <Hint label={t("ai.voice.errors.unsupported")}>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          onClick={() => appToast.error(t("ai.voice.errors.unsupported"))}
+          aria-label={t("ai.voice.errors.unsupported")}
+          className="text-muted-foreground opacity-60"
+        >
+          <Mic className="size-4" />
+        </Button>
+      </Hint>
     );
   }
 
@@ -202,16 +204,17 @@ export function VoiceInput({ onTranscript, disabled }: VoiceInputProps) {
               / {formatElapsed(MAX_SECONDS)}
             </span>
           </span>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={recorder.cancel}
-            aria-label={t("ai.voice.cancel")}
-            title={`${t("ai.voice.cancel")} (Esc)`}
-          >
-            <X className="size-4" />
-          </Button>
+          <Hint label={`${t("ai.voice.cancel")} (Esc)`}>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              onClick={recorder.cancel}
+              aria-label={t("ai.voice.cancel")}
+            >
+              <X className="size-4" />
+            </Button>
+          </Hint>
         </>
       ) : transcribing ? (
         <span className="text-muted-foreground px-1 text-xs" role="status">
@@ -221,18 +224,19 @@ export function VoiceInput({ onTranscript, disabled }: VoiceInputProps) {
 
       {!recording && !transcribing && voice ? (
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="icon-xs"
-              variant="ghost"
-              className="text-muted-foreground"
-              aria-label={t("ai.voice.settings")}
-              title={t("ai.voice.settings")}
-            >
-              <Settings2 className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
+          <Hint label={t("ai.voice.settings")}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon-xs"
+                variant="ghost"
+                className="text-muted-foreground"
+                aria-label={t("ai.voice.settings")}
+              >
+                <Settings2 className="size-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+          </Hint>
           <DropdownMenuContent align="end" side="top" className="w-64">
             <DropdownMenuLabel className="text-xs">
               {t("ai.voice.settings")}
@@ -256,31 +260,36 @@ export function VoiceInput({ onTranscript, disabled }: VoiceInputProps) {
         </DropdownMenu>
       ) : null}
 
-      <Button
-        type="button"
-        size="icon-sm"
-        variant={recording ? "destructive" : "ghost"}
-        disabled={disabled || busy}
-        onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
-        onPointerLeave={() => {
-          if (pressRef.current?.startedHere) onPointerUp();
-        }}
-        onKeyDown={onKeyDown}
-        onContextMenu={(event) => event.preventDefault()}
-        aria-label={label}
-        aria-pressed={recording}
-        title={`${label} — ${t("ai.voice.hint")}`}
-        className={cn("touch-none select-none", recording && "shadow-sm")}
+      <Hint
+        label={`${label} — ${t("ai.voice.hint")}`}
+        // `busy` flips after release; a wrapper would remount the button.
+        wrapDisabled={false}
       >
-        {busy ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : recording ? (
-          <Square className="size-3.5 fill-current" />
-        ) : (
-          <Mic className="size-4" />
-        )}
-      </Button>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant={recording ? "destructive" : "ghost"}
+          disabled={disabled || busy}
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          onPointerLeave={() => {
+            if (pressRef.current?.startedHere) onPointerUp();
+          }}
+          onKeyDown={onKeyDown}
+          onContextMenu={(event) => event.preventDefault()}
+          aria-label={label}
+          aria-pressed={recording}
+          className={cn("touch-none select-none", recording && "shadow-sm")}
+        >
+          {busy ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : recording ? (
+            <Square className="size-3.5 fill-current" />
+          ) : (
+            <Mic className="size-4" />
+          )}
+        </Button>
+      </Hint>
     </div>
   );
 }

@@ -30,6 +30,7 @@ import {
 import { platformBillingService } from "@/features/platform-billing/services/platform-billing.service";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 const STATUSES: InvoiceStatus[] = ["issued", "failed", "voided"];
 const ALL = "__all__";
@@ -138,69 +139,79 @@ export function InvoicesPage() {
                     {formatFinanceAmount(inv.grand_total, "TRY", locale)}
                   </td>
                   <td className="px-3 py-2">
-                    <span
-                      title={
+                    <Hint
+                      label={
                         inv.error
                           ? t("billing.invoices.error", { error: inv.error })
                           : undefined
                       }
                     >
-                      <StatusChip
-                        label={t(`billing.invoices.status.${inv.status}`)}
-                        tone={INVOICE_TONE[inv.status]}
-                      />
-                    </span>
+                      <span>
+                        <StatusChip
+                          label={t(`billing.invoices.status.${inv.status}`)}
+                          tone={INVOICE_TONE[inv.status]}
+                        />
+                      </span>
+                    </Hint>
                   </td>
                   <td className="px-3 py-2 text-right whitespace-nowrap">
                     {inv.has_xml ? (
-                      <Button size="sm" variant="ghost" asChild>
-                        <a
-                          href={platformBillingService.invoiceFileUrl(
-                            inv.uuid,
-                            "xml",
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={t("billing.invoices.xml")}
-                        >
-                          <FileCode className="size-3.5" />
-                        </a>
-                      </Button>
+                      <Hint label={t("billing.invoices.xml")}>
+                        <Button size="sm" variant="ghost" asChild>
+                          <a
+                            href={platformBillingService.invoiceFileUrl(
+                              inv.uuid,
+                              "xml",
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={t("billing.invoices.xml")}
+                          >
+                            <FileCode className="size-3.5" />
+                          </a>
+                        </Button>
+                      </Hint>
                     ) : null}
                     {inv.has_pdf ? (
-                      <Button size="sm" variant="ghost" asChild>
-                        <a
-                          href={platformBillingService.invoiceFileUrl(
-                            inv.uuid,
-                            "pdf",
-                          )}
-                          target="_blank"
-                          rel="noreferrer"
-                          title={t("billing.invoices.pdf")}
-                        >
-                          <FileDown className="size-3.5" />
-                        </a>
-                      </Button>
+                      <Hint label={t("billing.invoices.pdf")}>
+                        <Button size="sm" variant="ghost" asChild>
+                          <a
+                            href={platformBillingService.invoiceFileUrl(
+                              inv.uuid,
+                              "pdf",
+                            )}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={t("billing.invoices.pdf")}
+                          >
+                            <FileDown className="size-3.5" />
+                          </a>
+                        </Button>
+                      </Hint>
                     ) : null}
                     {access.canWrite && inv.status !== "voided" ? (
                       <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title={t("billing.invoices.regenerate")}
-                          disabled={regenerate.isPending}
-                          onClick={() => regenerate.mutate(inv.uuid)}
-                        >
-                          <RefreshCw className="size-3.5" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          title={t("billing.invoices.void")}
-                          onClick={() => setVoiding(inv)}
-                        >
-                          <XCircle className="size-3.5" />
-                        </Button>
+                        <Hint label={t("billing.invoices.regenerate")}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={regenerate.isPending}
+                            onClick={() => regenerate.mutate(inv.uuid)}
+                            aria-label={t("billing.invoices.regenerate")}
+                          >
+                            <RefreshCw className="size-3.5" />
+                          </Button>
+                        </Hint>
+                        <Hint label={t("billing.invoices.void")}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setVoiding(inv)}
+                            aria-label={t("billing.invoices.void")}
+                          >
+                            <XCircle className="size-3.5" />
+                          </Button>
+                        </Hint>
                       </>
                     ) : null}
                   </td>

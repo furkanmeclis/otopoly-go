@@ -20,6 +20,7 @@ import {
 } from "@/components/forms";
 import { FormFieldShell } from "@/components/forms/form-field";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
 import { Input } from "@/components/ui/input";
 import { brand } from "@/config/brand";
 import { apiConfig } from "@/config/api";
@@ -301,12 +302,11 @@ function ColorField({
           error={fieldState.error?.message}
         >
           <div className="flex items-center gap-2">
-            <Input
-              type="color"
+            <ColorPicker
               value={field.value}
               disabled={disabled}
-              className="h-9 w-14 shrink-0 cursor-pointer p-1"
-              onChange={(event) => field.onChange(event.target.value)}
+              aria-label={label}
+              onChange={field.onChange}
             />
             <Input
               value={field.value}

@@ -22,6 +22,7 @@ import type { Job } from "@/features/jobs/services/jobs.service";
 import { cn } from "@/lib/utils";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export type JobQuickAction = "ready" | "deliver" | "pay";
 
@@ -75,23 +76,25 @@ export function JobBoardCard({
           />
           <PlateBadge plate={job.plate} size="sm" />
           {workDay ? (
-            <span
-              className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-400"
-              title={t("jobs.board.carry_over_hint", {
+            <Hint
+              label={t("jobs.board.carry_over_hint", {
                 date: datetime(job.started_at, "dd.MM.yyyy HH:mm", locale),
               })}
             >
-              {t("jobs.board.carry_over_day", { n: workDay })}
-            </span>
+              <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-700 dark:text-sky-400">
+                {t("jobs.board.carry_over_day", { n: workDay })}
+              </span>
+            </Hint>
           ) : spanDays ? (
-            <span
-              className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400"
-              title={t("jobs.board.carry_over_hint", {
+            <Hint
+              label={t("jobs.board.carry_over_hint", {
                 date: datetime(job.started_at, "dd.MM.yyyy HH:mm", locale),
               })}
             >
-              {t("jobs.board.delivered_span", { n: spanDays })}
-            </span>
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                {t("jobs.board.delivered_span", { n: spanDays })}
+              </span>
+            </Hint>
           ) : null}
         </div>
         <span className="text-sm font-semibold tabular-nums">
@@ -110,12 +113,11 @@ export function JobBoardCard({
       <div className="mt-2 flex items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-1.5">
           {job.assignee_name ? (
-            <span
-              title={job.assignee_name}
-              className="bg-primary/10 text-primary grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-semibold"
-            >
-              {initials(job.assignee_name)}
-            </span>
+            <Hint label={job.assignee_name}>
+              <span className="bg-primary/10 text-primary grid size-5 shrink-0 place-items-center rounded-full text-[9px] font-semibold">
+                {initials(job.assignee_name)}
+              </span>
+            </Hint>
           ) : null}
           {job.status === "delivered" ? (
             <span className="text-muted-foreground text-xs tabular-nums">

@@ -204,5 +204,6 @@
   "tabs.open_hint": "Drafts, sent quotes and accepted quotes waiting to be converted",
   "decision_banner.accepted": "Quote accepted",
   "decision_banner.rejected": "Quote rejected",
-  "decision_banner.convert_hint": "Convert it into a job to start the service."
+  "decision_banner.convert_hint": "Convert it into a job to start the service.",
+  "toast.copy_manual": "Copy the link below by hand"
 }

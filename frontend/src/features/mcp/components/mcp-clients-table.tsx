@@ -22,6 +22,7 @@ import type { McpClient } from "@/features/mcp/services/mcp.service";
 import { datetime } from "@/lib/utils/format";
 import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 /**
  * Every registered MCP (OAuth) client, platform wide. Blocking a client
@@ -67,13 +68,9 @@ export function McpClientsTable() {
           cell: ({ row }) => (
             <div className="flex max-w-[22rem] flex-col gap-0.5">
               {row.original.redirect_uris.map((uri) => (
-                <span
-                  key={uri}
-                  className="truncate font-mono text-xs"
-                  title={uri}
-                >
-                  {uri}
-                </span>
+                <Hint key={uri} label={uri}>
+                  <span className="truncate font-mono text-xs">{uri}</span>
+                </Hint>
               ))}
             </div>
           ),

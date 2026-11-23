@@ -35,7 +35,9 @@ import type {
   TemplateLocale,
 } from "@/features/messaging/services/templates.service";
 import { cn } from "@/lib/utils";
+import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 type Draft = { subject: string; body: string; isActive: boolean };
 
@@ -75,6 +77,7 @@ function EditorBody({
   onOpenChange,
 }: Props & { type: MessageTemplateType }) {
   const { t, locale: uiLocale } = useLocale();
+  const { confirm } = useDialogs();
   const { save, reset } = useTemplateMutations();
   const simulate = useSimulateMessaging();
   const smsQuery = useSmsChannel();
@@ -160,7 +163,8 @@ function EditorBody({
   }
 
   async function handleReset() {
-    if (!window.confirm(t("messaging.editor.reset_confirm"))) return;
+    const ok = await confirm({ title: t("messaging.editor.reset_confirm") });
+    if (!ok) return;
     await reset.mutateAsync(key);
     setDrafts((d) => {
       const next = { ...d };
@@ -279,21 +283,24 @@ function EditorBody({
             </p>
             <div className="flex flex-wrap gap-1.5">
               {type.placeholders.map((p) => (
-                <button
+                <Hint
                   key={p.key}
-                  type="button"
-                  disabled={!canWrite}
-                  onClick={() => insert(p.key)}
-                  title={locale === "en" ? p.sample_en : p.sample_tr}
-                  className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
+                  label={locale === "en" ? p.sample_en : p.sample_tr}
                 >
-                  <Badge
-                    variant="outline"
-                    className="hover:bg-accent cursor-pointer font-mono text-[11px]"
+                  <button
+                    type="button"
+                    disabled={!canWrite}
+                    onClick={() => insert(p.key)}
+                    className="focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
                   >
-                    {`{{${p.key}}}`}
-                  </Badge>
-                </button>
+                    <Badge
+                      variant="outline"
+                      className="hover:bg-accent cursor-pointer font-mono text-[11px]"
+                    >
+                      {`{{${p.key}}}`}
+                    </Badge>
+                  </button>
+                </Hint>
               ))}
             </div>
           </div>
