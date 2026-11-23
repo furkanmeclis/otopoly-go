@@ -18,6 +18,7 @@ import { AssistantUnavailable } from "@/features/ai/components/chat/assistant-un
 import { useAIStatus } from "@/features/ai/hooks/use-ai-status";
 import { FeatureLocked } from "@/features/billing";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 /**
  * Floating assistant button (bottom-right, Ctrl/⌘+J) opening a side sheet chat.
@@ -57,16 +58,19 @@ export function AssistantLauncher({ slug }: { slug: string }) {
   return (
     <>
       {visible ? (
-        <Button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
-          title={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
-          className="fixed right-5 bottom-5 z-40 size-12 rounded-full shadow-lg md:right-6 md:bottom-6"
-          data-testid="assistant-launcher"
+        <Hint
+          label={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
         >
-          <Sparkles className="size-5" />
-        </Button>
+          <Button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label={`${t("ai.assistant.open")} (${t("ai.assistant.shortcut")})`}
+            className="fixed right-5 bottom-5 z-40 size-12 rounded-full shadow-lg md:right-6 md:bottom-6"
+            data-testid="assistant-launcher"
+          >
+            <Sparkles className="size-5" />
+          </Button>
+        </Hint>
       ) : null}
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
@@ -86,37 +90,39 @@ export function AssistantLauncher({ slug }: { slug: string }) {
                 {t("ai.assistant.shortcut")}
               </SheetDescription>
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => setConversationUuid(null)}
-              title={t("ai.assistant.new_chat")}
-              aria-label={t("ai.assistant.new_chat")}
-            >
-              <Plus className="size-4" />
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="icon-sm"
-              title={t("ai.assistant.open_full")}
-              aria-label={t("ai.assistant.open_full")}
-            >
-              <Link
-                href={
-                  conversationUuid
-                    ? routes.tenant.assistant.conversation(
-                        slug,
-                        conversationUuid,
-                      )
-                    : routes.tenant.assistant.root(slug)
-                }
-                onClick={() => setOpen(false)}
+            <Hint label={t("ai.assistant.new_chat")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => setConversationUuid(null)}
+                aria-label={t("ai.assistant.new_chat")}
               >
-                <Maximize2 className="size-4" />
-              </Link>
-            </Button>
+                <Plus className="size-4" />
+              </Button>
+            </Hint>
+            <Hint label={t("ai.assistant.open_full")}>
+              <Button
+                asChild
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t("ai.assistant.open_full")}
+              >
+                <Link
+                  href={
+                    conversationUuid
+                      ? routes.tenant.assistant.conversation(
+                          slug,
+                          conversationUuid,
+                        )
+                      : routes.tenant.assistant.root(slug)
+                  }
+                  onClick={() => setOpen(false)}
+                >
+                  <Maximize2 className="size-4" />
+                </Link>
+              </Button>
+            </Hint>
           </div>
           {locked ? (
             <FeatureLocked slug={slug} className="m-4 min-h-[360px]" />

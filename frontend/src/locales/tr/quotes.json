@@ -204,5 +204,6 @@
   "tabs.open_hint": "Taslak, gönderilen ve işe dönüştürülmeyi bekleyen onaylı teklifler",
   "decision_banner.accepted": "Teklif onaylandı",
   "decision_banner.rejected": "Teklif reddedildi",
-  "decision_banner.convert_hint": "İşe dönüştürerek hizmeti başlatabilirsiniz."
+  "decision_banner.convert_hint": "İşe dönüştürerek hizmeti başlatabilirsiniz.",
+  "toast.copy_manual": "Bağlantıyı aşağıdan elle kopyalayın"
 }

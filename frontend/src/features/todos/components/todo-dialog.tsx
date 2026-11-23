@@ -25,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { TimePicker } from "@/components/ui/time-picker";
 import { customersService } from "@/features/customers/services/customers.service";
 import { leadsService } from "@/features/leads/services/leads.service";
 import { quotesService } from "@/features/quotes/services/quotes.service";
@@ -201,12 +202,11 @@ function TodoForm({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="todo-time">{t("todos.fields.due_time")}</Label>
-            <Input
+            <TimePicker
               id="todo-time"
-              type="time"
               value={dueTime}
               disabled={!dueDate}
-              onChange={(e) => setDueTime(e.target.value)}
+              onChange={setDueTime}
             />
           </div>
         </div>

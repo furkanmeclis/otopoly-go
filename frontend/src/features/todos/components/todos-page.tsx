@@ -18,6 +18,7 @@ import {
 } from "@/features/todos/hooks/use-todos";
 import { todosService } from "@/features/todos/services/todos.service";
 import type { Todo, TodoListParams } from "@/features/todos/types";
+import { useDialogs } from "@/providers/dialog-provider";
 import { useLocale } from "@/providers/locale-provider";
 
 type Tab = "due" | "upcoming" | "no_date" | "mine" | "done";
@@ -36,6 +37,7 @@ const TAB_PARAMS: Record<Tab, TodoListParams> = {
 
 export function TodosPage({ slug }: { slug: string }) {
   const { t } = useLocale();
+  const { confirm } = useDialogs();
   const access = useTodosAccess();
   const [tab, setTab] = useState<Tab>("due");
   const [editing, setEditing] = useState<Todo | null>(null);
@@ -139,10 +141,13 @@ export function TodosPage({ slug }: { slug: string }) {
                 setEditing(item);
                 setDialogOpen(true);
               }}
-              onDelete={(item) => {
-                if (window.confirm(t("todos.confirm_delete"))) {
-                  remove.mutate(item.uuid);
-                }
+              onDelete={async (item) => {
+                const ok = await confirm({
+                  title: t("todos.confirm_delete"),
+                  confirmLabel: t("common.delete"),
+                  variant: "destructive",
+                });
+                if (ok) remove.mutate(item.uuid);
               }}
             />
           ))

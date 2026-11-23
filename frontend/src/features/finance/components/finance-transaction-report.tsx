@@ -29,6 +29,7 @@ import type { FinanceTransaction } from "@/features/finance/services/finance.ser
 import { date as formatDate, datetime } from "@/lib/utils/format";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 function TransactionTypeIcon({
   type,
@@ -173,9 +174,11 @@ export function FinanceTransactionReport({
               </div>
               <p className="text-muted-foreground text-sm">
                 {t("finance.detail.report_id")}:{" "}
-                <span className="font-mono text-xs" title={tx.uuid}>
-                  {tx.uuid.slice(0, 8).toUpperCase()}
-                </span>
+                <Hint label={tx.uuid}>
+                  <span className="font-mono text-xs">
+                    {tx.uuid.slice(0, 8).toUpperCase()}
+                  </span>
+                </Hint>
               </p>
             </div>
           </div>

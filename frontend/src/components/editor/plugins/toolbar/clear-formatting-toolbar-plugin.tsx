@@ -16,6 +16,7 @@ import { EraserIcon } from "lucide-react";
 import { useToolbarContext } from "@/components/editor/context/toolbar-context";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export function ClearFormattingToolbarPlugin() {
   const { t } = useLocale();
@@ -78,14 +79,15 @@ export function ClearFormattingToolbarPlugin() {
   }, [activeEditor]);
 
   return (
-    <Button
-      aria-label={t("editor.clear_formatting")}
-      title={t("editor.clear_formatting")}
-      variant={"outline"}
-      size={"icon-sm"}
-      onClick={clearFormatting}
-    >
-      <EraserIcon className="size-4" />
-    </Button>
+    <Hint label={t("editor.clear_formatting")}>
+      <Button
+        aria-label={t("editor.clear_formatting")}
+        variant={"outline"}
+        size={"icon-sm"}
+        onClick={clearFormatting}
+      >
+        <EraserIcon className="size-4" />
+      </Button>
+    </Hint>
   );
 }

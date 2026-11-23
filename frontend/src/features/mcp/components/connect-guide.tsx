@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocale } from "@/providers/locale-provider";
 import { appToast } from "@/providers/toast-provider";
+import { Hint } from "@/components/ui/hint";
 
 type ConnectGuideProps = {
   /** Public MCP endpoint URL (from GET /v1/mcp/info). */
@@ -48,16 +49,17 @@ function CopyField({ value, label }: { value: string; label: string }) {
         aria-label={label}
         onFocus={(e) => e.currentTarget.select()}
       />
-      <Button
-        type="button"
-        variant="outline"
-        size="icon"
-        onClick={() => void copy()}
-        aria-label={t("mcp.guide.copy")}
-        title={t("mcp.guide.copy")}
-      >
-        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-      </Button>
+      <Hint label={t("mcp.guide.copy")}>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => void copy()}
+          aria-label={t("mcp.guide.copy")}
+        >
+          {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+        </Button>
+      </Hint>
     </div>
   );
 }

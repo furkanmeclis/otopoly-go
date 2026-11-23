@@ -21,6 +21,7 @@ import {
   usePlatformPlans,
 } from "@/features/platform-billing/hooks/use-platform-billing";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export function PlansPage() {
   const { t, locale } = useLocale();
@@ -155,19 +156,23 @@ export function PlansPage() {
                         <Pencil className="size-3.5" />
                         {t("billing.admin.plan.edit")}
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={blocked}
-                        title={
+                      <Hint
+                        label={
                           blocked
                             ? t("billing.admin.plan.delete_blocked")
                             : undefined
                         }
-                        onClick={() => setDeleting(plan)}
                       >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={blocked}
+                          onClick={() => setDeleting(plan)}
+                          aria-label={t("billing.admin.plan.delete")}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </Hint>
                     </div>
                   ) : null}
                 </div>

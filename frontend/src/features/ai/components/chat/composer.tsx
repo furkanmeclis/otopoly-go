@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 /** Handle given to composer actions (e.g. the push-to-talk mic). */
 export type ComposerApi = {
@@ -115,27 +116,29 @@ export function Composer({
       />
       {typeof actions === "function" ? actions({ insertText }) : actions}
       {streaming ? (
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="secondary"
-          onClick={onStop}
-          aria-label={t("ai.assistant.stop")}
-          title={t("ai.assistant.stop")}
-        >
-          <Square className="size-3.5 fill-current" />
-        </Button>
+        <Hint label={t("ai.assistant.stop")}>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="secondary"
+            onClick={onStop}
+            aria-label={t("ai.assistant.stop")}
+          >
+            <Square className="size-3.5 fill-current" />
+          </Button>
+        </Hint>
       ) : (
-        <Button
-          type="button"
-          size="icon-sm"
-          onClick={submit}
-          disabled={disabled || !value.trim()}
-          aria-label={t("ai.assistant.send")}
-          title={t("ai.assistant.send")}
-        >
-          <ArrowUp className="size-4" />
-        </Button>
+        <Hint label={t("ai.assistant.send")} wrapDisabled={false}>
+          <Button
+            type="button"
+            size="icon-sm"
+            onClick={submit}
+            disabled={disabled || !value.trim()}
+            aria-label={t("ai.assistant.send")}
+          >
+            <ArrowUp className="size-4" />
+          </Button>
+        </Hint>
       )}
     </div>
   );

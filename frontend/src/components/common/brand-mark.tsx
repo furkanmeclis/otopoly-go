@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { resolveLogoSrc } from "@/lib/branding/logo-url";
 import { cn } from "@/lib/utils";
+import { Hint } from "@/components/ui/hint";
 
 /**
  * Vehicle brand logos (API-owned URLs, never storage links).
@@ -40,28 +41,29 @@ export function BrandMark({
   if (!src && !label) return null;
   const box = size === "lg" ? "size-12" : size === "md" ? "size-8" : "size-6";
   return (
-    <span
-      title={label || undefined}
-      className={cn(
-        "grid shrink-0 place-items-center overflow-hidden rounded-md border bg-white",
-        box,
-        className,
-      )}
-    >
-      {src && !failed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={src}
-          alt={label}
-          className="size-full object-contain p-0.5"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <span className="text-[10px] font-semibold text-neutral-600">
-          {label.charAt(0).toLocaleUpperCase("tr-TR")}
-        </span>
-      )}
-    </span>
+    <Hint label={label || undefined}>
+      <span
+        className={cn(
+          "grid shrink-0 place-items-center overflow-hidden rounded-md border bg-white",
+          box,
+          className,
+        )}
+      >
+        {src && !failed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={src}
+            alt={label}
+            className="size-full object-contain p-0.5"
+            onError={() => setFailed(true)}
+          />
+        ) : (
+          <span className="text-[10px] font-semibold text-neutral-600">
+            {label.charAt(0).toLocaleUpperCase("tr-TR")}
+          </span>
+        )}
+      </span>
+    </Hint>
   );
 }
 
@@ -90,15 +92,16 @@ export function BrandWordmark({
         : withVariant(logoUrl, "wordmark");
   if (src && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={label}
-        title={label || undefined}
-        style={{ height, maxWidth: height * 6 }}
-        className={cn("w-auto object-contain object-left", className)}
-        onError={() => setFailed(true)}
-      />
+      <Hint label={label || undefined}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={label}
+          style={{ height, maxWidth: height * 6 }}
+          className={cn("w-auto object-contain object-left", className)}
+          onError={() => setFailed(true)}
+        />
+      </Hint>
     );
   }
   if (!label) return null;

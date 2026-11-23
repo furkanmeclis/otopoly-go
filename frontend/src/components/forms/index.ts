@@ -7,6 +7,7 @@ export { AppCombobox, type ComboboxOption } from "./app-combobox";
 export { AppCheckbox } from "./app-checkbox";
 export { AppSwitch } from "./app-switch";
 export { AppDatePicker } from "./app-date-picker";
+export { AppTimePicker } from "./app-time-picker";
 export { AppSlider } from "./app-slider";
 export { AppRadioGroup } from "./app-radio-group";
 export { AppToggleGroup } from "./app-toggle-group";

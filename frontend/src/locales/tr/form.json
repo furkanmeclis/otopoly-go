@@ -13,5 +13,11 @@
   "combobox_selected": "Seçili",
   "command_title": "Komut / seçim",
   "command_description": "Ara ve bir öğe seç",
-  "command_group_default": "Sonuçlar"
+  "command_group_default": "Sonuçlar",
+  "time_hour": "Saat",
+  "time_minute": "Dakika",
+  "color_pick": "Renk seç",
+  "color_swatches": "Renkler",
+  "color_hex": "Hex renk kodu",
+  "no_file_chosen": "Dosya seçilmedi"
 }

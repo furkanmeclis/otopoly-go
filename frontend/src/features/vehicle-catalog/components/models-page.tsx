@@ -45,6 +45,7 @@ import type {
 } from "@/features/vehicle-catalog/services/catalog.service";
 import { usePermission } from "@/providers/permission-provider";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 type CatalogModelsPageProps = {
   initialBrand?: string;
@@ -130,17 +131,17 @@ export function CatalogModelsPage({
             <span className="flex items-center gap-2">
               <span className="font-medium">{row.original.name}</span>
               {row.original.group_size > 1 ? (
-                <Badge
-                  variant="secondary"
-                  className="font-normal"
-                  title={t("vehicle_catalog.models.grouped_hint", {
+                <Hint
+                  label={t("vehicle_catalog.models.grouped_hint", {
                     count: row.original.group_size,
                   })}
                 >
-                  {t("vehicle_catalog.models.grouped", {
-                    count: row.original.group_size,
-                  })}
-                </Badge>
+                  <Badge variant="secondary" className="font-normal">
+                    {t("vehicle_catalog.models.grouped", {
+                      count: row.original.group_size,
+                    })}
+                  </Badge>
+                </Hint>
               ) : null}
             </span>
           ),

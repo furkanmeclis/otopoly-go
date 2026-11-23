@@ -7,6 +7,7 @@ import type { OrderStatus } from "@/features/billing/types";
 import { formatFinanceAmount } from "@/features/finance/lib/format";
 import { date } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export const ORDER_TONE: Record<
   OrderStatus,
@@ -68,8 +69,8 @@ export function OrdersHistory() {
                     {formatFinanceAmount(o.total, "TRY", locale)}
                   </td>
                   <td className="py-2">
-                    <span
-                      title={
+                    <Hint
+                      label={
                         o.reject_reason
                           ? t("billing.order.reject_reason", {
                               reason: o.reject_reason,
@@ -77,11 +78,13 @@ export function OrdersHistory() {
                           : undefined
                       }
                     >
-                      <StatusChip
-                        label={t(`billing.order.status.${o.status}`)}
-                        tone={ORDER_TONE[o.status]}
-                      />
-                    </span>
+                      <span>
+                        <StatusChip
+                          label={t(`billing.order.status.${o.status}`)}
+                          tone={ORDER_TONE[o.status]}
+                        />
+                      </span>
+                    </Hint>
                   </td>
                 </tr>
               ))}

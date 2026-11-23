@@ -47,6 +47,7 @@ import type {
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import { usePermission } from "@/providers/permission-provider";
+import { Hint } from "@/components/ui/hint";
 
 const RUN_TONE: Record<
   BrandLogoSyncRun["status"],
@@ -140,26 +141,31 @@ function SettingsCard({ settings }: { settings: BrandLogoSettings }) {
             <PlugZap className="size-4" />
             {t("vehicle_catalog.logos.test")}
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            disabled={
-              !configured ||
-              !settings.enabled ||
-              running ||
-              sync.isPending ||
-              !canWrite
-            }
-            title={
+          <Hint
+            label={
               !configured ? t("vehicle_catalog.logos.sync_blocked") : undefined
             }
-            onClick={() => sync.mutate()}
           >
-            <RefreshCw className={running ? "size-4 animate-spin" : "size-4"} />
-            {running
-              ? t("vehicle_catalog.logos.sync_running")
-              : t("vehicle_catalog.logos.sync_now")}
-          </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={
+                !configured ||
+                !settings.enabled ||
+                running ||
+                sync.isPending ||
+                !canWrite
+              }
+              onClick={() => sync.mutate()}
+            >
+              <RefreshCw
+                className={running ? "size-4 animate-spin" : "size-4"}
+              />
+              {running
+                ? t("vehicle_catalog.logos.sync_running")
+                : t("vehicle_catalog.logos.sync_now")}
+            </Button>
+          </Hint>
         </div>
       }
     >

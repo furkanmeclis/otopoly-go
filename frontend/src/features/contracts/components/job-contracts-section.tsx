@@ -40,6 +40,7 @@ import {
 } from "@/features/contracts/services/contracts.service";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 function statusTone(status: string) {
   switch (status) {
@@ -302,23 +303,28 @@ export function JobContractsSection({
                     tone={statusTone(item.status)}
                   />
                   {hasPdf ? (
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      disabled={downloadingUuid === item.uuid}
-                      onClick={async () => {
-                        setDownloadingUuid(item.uuid);
-                        try {
-                          await contractsService.downloadPdf(item.uuid);
-                        } finally {
-                          setDownloadingUuid(null);
-                        }
-                      }}
-                      title={t("contracts.instances.download_pdf")}
+                    <Hint
+                      label={t("contracts.instances.download_pdf")}
+                      wrapDisabled={false}
                     >
-                      <Download className="size-4" />
-                    </Button>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        disabled={downloadingUuid === item.uuid}
+                        onClick={async () => {
+                          setDownloadingUuid(item.uuid);
+                          try {
+                            await contractsService.downloadPdf(item.uuid);
+                          } finally {
+                            setDownloadingUuid(null);
+                          }
+                        }}
+                        aria-label={t("contracts.instances.download_pdf")}
+                      >
+                        <Download className="size-4" />
+                      </Button>
+                    </Hint>
                   ) : null}
                 </div>
               </li>

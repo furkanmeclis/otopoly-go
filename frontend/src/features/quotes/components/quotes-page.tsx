@@ -40,6 +40,7 @@ import {
   TenantLiveResources,
   useTenantLiveRefetch,
 } from "@/features/organizations/hooks/use-tenant-live";
+import { Hint } from "@/components/ui/hint";
 
 const TABS = [
   "open",
@@ -167,15 +168,16 @@ export function QuotesPage({ slug }: { slug: string }) {
           <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
             <TabsList>
               {TABS.map((k) => (
-                <TabsTrigger
+                <Hint
                   key={k}
-                  value={k}
-                  title={k === "open" ? t("quotes.tabs.open_hint") : undefined}
+                  label={k === "open" ? t("quotes.tabs.open_hint") : undefined}
                 >
-                  {k === "open" || k === "all"
-                    ? t(`quotes.tabs.${k}`)
-                    : t(`quotes.status.${k}`)}
-                </TabsTrigger>
+                  <TabsTrigger value={k}>
+                    {k === "open" || k === "all"
+                      ? t(`quotes.tabs.${k}`)
+                      : t(`quotes.status.${k}`)}
+                  </TabsTrigger>
+                </Hint>
               ))}
             </TabsList>
           </Tabs>

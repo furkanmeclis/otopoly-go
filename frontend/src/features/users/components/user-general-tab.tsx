@@ -19,6 +19,7 @@ import type {
 } from "@/features/users/services/users.service";
 import { datetime, relativeDatetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 type UserGeneralTabProps = {
   overview: PlatformUserOverview;
@@ -51,9 +52,9 @@ export function UserGeneralTab({ overview }: UserGeneralTabProps) {
   const roles = user.roles ?? [];
   const when = (value: string | null | undefined): ReactNode =>
     value ? (
-      <span title={datetime(value, undefined, locale)}>
-        {relativeDatetime(value, locale)}
-      </span>
+      <Hint label={datetime(value, undefined, locale)}>
+        <span>{relativeDatetime(value, locale)}</span>
+      </Hint>
     ) : (
       t("users.general.never")
     );
@@ -137,18 +138,20 @@ export function UserGeneralTab({ overview }: UserGeneralTabProps) {
                     key: "email_verified",
                     label: t("users.fields.email_verified"),
                     value: security.email_verified_at ? (
-                      <span
-                        title={datetime(
+                      <Hint
+                        label={datetime(
                           security.email_verified_at,
                           undefined,
                           locale,
                         )}
                       >
-                        <StatusChip
-                          label={t("users.verified.yes")}
-                          tone="success"
-                        />
-                      </span>
+                        <span>
+                          <StatusChip
+                            label={t("users.verified.yes")}
+                            tone="success"
+                          />
+                        </span>
+                      </Hint>
                     ) : (
                       <StatusChip
                         label={t("users.verified.no")}

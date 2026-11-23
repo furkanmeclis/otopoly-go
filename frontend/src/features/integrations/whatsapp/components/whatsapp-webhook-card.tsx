@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import type { WhatsAppIntegrationSettings } from "@/features/integrations/whatsapp/services/whatsapp-integration.service";
 import { useLocale } from "@/providers/locale-provider";
 import { appToast } from "@/providers/toast-provider";
+import { Hint } from "@/components/ui/hint";
 
 const SUBSCRIBED_FIELDS = ["messages", "message_template_status_update"];
 
@@ -62,20 +63,21 @@ export function WhatsAppWebhookCard({
               aria-label={t("integrations.whatsapp.webhook.url")}
               onFocus={(e) => e.currentTarget.select()}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => void copyUrl()}
-              aria-label={t("integrations.whatsapp.webhook.copy")}
-              title={t("integrations.whatsapp.webhook.copy")}
-            >
-              {copied ? (
-                <Check className="size-4" />
-              ) : (
-                <Copy className="size-4" />
-              )}
-            </Button>
+            <Hint label={t("integrations.whatsapp.webhook.copy")}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => void copyUrl()}
+                aria-label={t("integrations.whatsapp.webhook.copy")}
+              >
+                {copied ? (
+                  <Check className="size-4" />
+                ) : (
+                  <Copy className="size-4" />
+                )}
+              </Button>
+            </Hint>
           </div>
         </div>
 

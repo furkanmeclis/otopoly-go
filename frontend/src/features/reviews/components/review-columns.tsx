@@ -22,6 +22,7 @@ import {
 } from "@/features/reviews/types";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 /** DataTable columns of review requests (list page and customer 360). */
 export function useReviewColumns({
@@ -126,12 +127,11 @@ export function useReviewColumns({
         labelKey: "reviews.fields.comment",
         cell: ({ row }) =>
           row.original.comment ? (
-            <span
-              className="line-clamp-2 max-w-72 text-sm whitespace-pre-wrap"
-              title={row.original.comment}
-            >
-              {row.original.comment}
-            </span>
+            <Hint label={row.original.comment}>
+              <span className="line-clamp-2 max-w-72 text-sm whitespace-pre-wrap">
+                {row.original.comment}
+              </span>
+            </Hint>
           ) : (
             <span className="text-muted-foreground">—</span>
           ),
@@ -173,18 +173,20 @@ export function useReviewColumns({
             }))
           : undefined,
         cell: ({ row }) => (
-          <span
-            title={
+          <Hint
+            label={
               row.original.skip_reason
                 ? t(`reviews.reason.${row.original.skip_reason}`)
                 : undefined
             }
           >
-            <StatusChip
-              label={t(`reviews.status.${row.original.status}`)}
-              tone={reviewStatusTone(row.original.status)}
-            />
-          </span>
+            <span>
+              <StatusChip
+                label={t(`reviews.status.${row.original.status}`)}
+                tone={reviewStatusTone(row.original.status)}
+              />
+            </span>
+          </Hint>
         ),
       }),
       createColumn<Review>({
@@ -220,20 +222,19 @@ export function useReviewColumns({
             return <span className="text-muted-foreground">—</span>;
           }
           return (
-            <span
-              className="flex flex-col gap-0.5"
-              title={r.follow_up_note || undefined}
-            >
-              <StatusChip
-                label={t(`reviews.follow_up_status.${r.follow_up_status}`)}
-                tone={followUpTone(r.follow_up_status)}
-              />
-              {r.follow_up_note ? (
-                <span className="text-muted-foreground line-clamp-1 max-w-48 text-xs">
-                  {r.follow_up_note}
-                </span>
-              ) : null}
-            </span>
+            <Hint label={r.follow_up_note || undefined}>
+              <span className="flex flex-col gap-0.5">
+                <StatusChip
+                  label={t(`reviews.follow_up_status.${r.follow_up_status}`)}
+                  tone={followUpTone(r.follow_up_status)}
+                />
+                {r.follow_up_note ? (
+                  <span className="text-muted-foreground line-clamp-1 max-w-48 text-xs">
+                    {r.follow_up_note}
+                  </span>
+                ) : null}
+              </span>
+            </Hint>
           );
         },
       }),

@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { AppDialog } from "@/components/dialogs/app-dialog";
 import { Button } from "@/components/ui/button";
+import { FileInput } from "@/components/ui/file-input";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { routes } from "@/config/routes";
@@ -62,9 +63,8 @@ export function ImportUploadDialog({
           <Label htmlFor="catalog-import-file">
             {t("vehicle_catalog.imports.file")}
           </Label>
-          <Input
+          <FileInput
             id="catalog-import-file"
-            type="file"
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />

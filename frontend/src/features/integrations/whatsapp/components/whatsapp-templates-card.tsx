@@ -38,6 +38,7 @@ import { isApiError } from "@/lib/api";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
 import { appToast } from "@/providers/toast-provider";
+import { Hint } from "@/components/ui/hint";
 
 type Tone = "default" | "success" | "warning" | "danger";
 
@@ -310,12 +311,11 @@ export function WhatsAppTemplatesCard({
                     <tr key={id} className="align-top">
                       <td className="px-3 py-2">
                         <span className="font-mono text-xs">{tpl.key}</span>
-                        <p
-                          className="text-muted-foreground mt-1 line-clamp-2 max-w-xs text-xs"
-                          title={tpl.body}
-                        >
-                          {tpl.body}
-                        </p>
+                        <Hint label={tpl.body}>
+                          <p className="text-muted-foreground mt-1 line-clamp-2 max-w-xs text-xs">
+                            {tpl.body}
+                          </p>
+                        </Hint>
                       </td>
                       <td className="px-3 py-2 font-mono text-xs">
                         {tpl.meta_name}
@@ -396,22 +396,25 @@ export function WhatsAppTemplatesCard({
                               <span className="text-muted-foreground">—</span>
                             )}
                             {canWrite ? (
-                              <Button
-                                size="icon-xs"
-                                variant="ghost"
-                                onClick={() => {
-                                  setOverrideDraft(tpl.override_name ?? "");
-                                  setEditingRow(id);
-                                }}
-                                aria-label={t(
-                                  "integrations.whatsapp.templates.edit_override",
-                                )}
-                                title={t(
+                              <Hint
+                                label={t(
                                   "integrations.whatsapp.templates.edit_override",
                                 )}
                               >
-                                <Pencil className="size-3" />
-                              </Button>
+                                <Button
+                                  size="icon-xs"
+                                  variant="ghost"
+                                  onClick={() => {
+                                    setOverrideDraft(tpl.override_name ?? "");
+                                    setEditingRow(id);
+                                  }}
+                                  aria-label={t(
+                                    "integrations.whatsapp.templates.edit_override",
+                                  )}
+                                >
+                                  <Pencil className="size-3" />
+                                </Button>
+                              </Hint>
                             ) : null}
                           </div>
                         )}
@@ -420,19 +423,19 @@ export function WhatsAppTemplatesCard({
                         <div className="flex flex-col items-start gap-1">
                           <Badge variant="outline">{tpl.category}</Badge>
                           {categoryMismatch(tpl) ? (
-                            <Badge
-                              variant="danger"
-                              className="gap-1"
-                              title={t(
+                            <Hint
+                              label={t(
                                 "integrations.whatsapp.templates.meta_category_hint",
                               )}
                             >
-                              <AlertTriangle className="size-3" />
-                              {t(
-                                "integrations.whatsapp.templates.meta_category",
-                                { category: tpl.meta_category },
-                              )}
-                            </Badge>
+                              <Badge variant="danger" className="gap-1">
+                                <AlertTriangle className="size-3" />
+                                {t(
+                                  "integrations.whatsapp.templates.meta_category",
+                                  { category: tpl.meta_category },
+                                )}
+                              </Badge>
+                            </Hint>
                           ) : null}
                         </div>
                       </td>
@@ -468,57 +471,68 @@ export function WhatsAppTemplatesCard({
                       {canWrite ? (
                         <td className="px-3 py-2 text-right">
                           {canSubmit(tpl) ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={busy}
-                              title={
+                            <Hint
+                              label={
                                 resubmit
                                   ? t(
                                       "integrations.whatsapp.templates.resubmit_hint",
                                     )
                                   : undefined
                               }
-                              onClick={() => {
-                                setSubmittingRow(id);
-                                submitMutation.mutate({ tpl });
-                              }}
                             >
-                              {submitMutation.isPending &&
-                              submittingRow === id ? (
-                                <Loader2 className="mr-2 size-4 animate-spin" />
-                              ) : resubmit ? (
-                                <RotateCcw className="mr-2 size-4" />
-                              ) : (
-                                <Upload className="mr-2 size-4" />
-                              )}
-                              {resubmit
-                                ? t("integrations.whatsapp.templates.resubmit")
-                                : t("integrations.whatsapp.templates.submit")}
-                            </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                onClick={() => {
+                                  setSubmittingRow(id);
+                                  submitMutation.mutate({ tpl });
+                                }}
+                              >
+                                {submitMutation.isPending &&
+                                submittingRow === id ? (
+                                  <Loader2 className="mr-2 size-4 animate-spin" />
+                                ) : resubmit ? (
+                                  <RotateCcw className="mr-2 size-4" />
+                                ) : (
+                                  <Upload className="mr-2 size-4" />
+                                )}
+                                {resubmit
+                                  ? t(
+                                      "integrations.whatsapp.templates.resubmit",
+                                    )
+                                  : t("integrations.whatsapp.templates.submit")}
+                              </Button>
+                            </Hint>
                           ) : canUpdate(tpl) ? (
-                            <Button
-                              size="sm"
-                              variant={
-                                categoryMismatch(tpl) ? "default" : "ghost"
-                              }
-                              disabled={busy}
-                              title={t(
+                            <Hint
+                              label={t(
                                 "integrations.whatsapp.templates.update_hint",
                               )}
-                              onClick={() => {
-                                setSubmittingRow(id);
-                                submitMutation.mutate({ tpl, resubmit: true });
-                              }}
                             >
-                              {submitMutation.isPending &&
-                              submittingRow === id ? (
-                                <Loader2 className="mr-2 size-4 animate-spin" />
-                              ) : (
-                                <RotateCcw className="mr-2 size-4" />
-                              )}
-                              {t("integrations.whatsapp.templates.update")}
-                            </Button>
+                              <Button
+                                size="sm"
+                                variant={
+                                  categoryMismatch(tpl) ? "default" : "ghost"
+                                }
+                                disabled={busy}
+                                onClick={() => {
+                                  setSubmittingRow(id);
+                                  submitMutation.mutate({
+                                    tpl,
+                                    resubmit: true,
+                                  });
+                                }}
+                              >
+                                {submitMutation.isPending &&
+                                submittingRow === id ? (
+                                  <Loader2 className="mr-2 size-4 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="mr-2 size-4" />
+                                )}
+                                {t("integrations.whatsapp.templates.update")}
+                              </Button>
+                            </Hint>
                           ) : null}
                         </td>
                       ) : null}

@@ -73,6 +73,7 @@ import {
   TenantLiveResources,
   useTenantLiveRefetch,
 } from "@/features/organizations/hooks/use-tenant-live";
+import { Hint } from "@/components/ui/hint";
 
 function daysLeft(validUntil: string): number {
   const a = new Date(`${localToday()}T00:00:00`);
@@ -494,12 +495,11 @@ export function QuoteDetailPage({
                         ) : null}
                       </p>
                       {d.error ? (
-                        <p
-                          className="text-destructive truncate text-xs"
-                          title={d.error}
-                        >
-                          {deliveryErrorText(d.error, t)}
-                        </p>
+                        <Hint label={d.error}>
+                          <p className="text-destructive truncate text-xs">
+                            {deliveryErrorText(d.error, t)}
+                          </p>
+                        </Hint>
                       ) : null}
                       <p className="text-muted-foreground text-xs">
                         {datetime(
@@ -516,19 +516,23 @@ export function QuoteDetailPage({
                     {d.status === "failed" &&
                     access.canWrite &&
                     (q.status === "sent" || q.status === "viewed") ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-7"
-                        disabled={m.retry.isPending}
-                        onClick={() =>
-                          m.retry.mutate({ uuid: q.uuid, deliveryUuid: d.uuid })
-                        }
-                        aria-label={t("quotes.actions.retry")}
-                        title={t("quotes.actions.retry")}
-                      >
-                        <RotateCw className="size-3.5" />
-                      </Button>
+                      <Hint label={t("quotes.actions.retry")}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-7"
+                          disabled={m.retry.isPending}
+                          onClick={() =>
+                            m.retry.mutate({
+                              uuid: q.uuid,
+                              deliveryUuid: d.uuid,
+                            })
+                          }
+                          aria-label={t("quotes.actions.retry")}
+                        >
+                          <RotateCw className="size-3.5" />
+                        </Button>
+                      </Hint>
                     ) : null}
                   </li>
                 ))}
@@ -576,12 +580,11 @@ export function QuoteDetailPage({
                         · {datetime(r.fire_at, "dd.MM HH:mm", locale)}
                       </span>
                     </span>
-                    <span
-                      className="text-muted-foreground text-xs"
-                      title={deliveryErrorText(r.error, t)}
-                    >
-                      {t(`quotes.reminders.status.${r.status}`)}
-                    </span>
+                    <Hint label={deliveryErrorText(r.error, t)}>
+                      <span className="text-muted-foreground text-xs">
+                        {t(`quotes.reminders.status.${r.status}`)}
+                      </span>
+                    </Hint>
                   </li>
                 ))}
               </ul>
@@ -620,18 +623,19 @@ export function QuoteDetailPage({
                     e.kind !== "reminders_set" ? (
                       <p className="text-muted-foreground text-xs">{e.body}</p>
                     ) : null}
-                    <p
-                      className="text-muted-foreground text-xs"
-                      title={datetime(
+                    <Hint
+                      label={datetime(
                         e.created_at,
                         "dd.MM.yyyy HH:mm:ss",
                         locale,
                       )}
                     >
-                      {relativeDatetime(e.created_at, locale)}
-                      {e.actor_name ? ` · ${e.actor_name}` : ""}
-                      {e.ip ? ` · ${e.ip}` : ""}
-                    </p>
+                      <p className="text-muted-foreground text-xs">
+                        {relativeDatetime(e.created_at, locale)}
+                        {e.actor_name ? ` · ${e.actor_name}` : ""}
+                        {e.ip ? ` · ${e.ip}` : ""}
+                      </p>
+                    </Hint>
                   </div>
                 </li>
               ))}
@@ -758,7 +762,11 @@ function SecondaryActions({
               variant="outline"
               size="sm"
               onClick={() =>
-                void copyShareLink(q.share_url, t("quotes.toast.link_copied"))
+                void copyShareLink(
+                  q.share_url,
+                  t("quotes.toast.link_copied"),
+                  t("quotes.toast.copy_manual"),
+                )
               }
             >
               <Copy className="size-4" />
@@ -798,6 +806,7 @@ function SecondaryActions({
                     void copyShareLink(
                       q.share_url,
                       t("quotes.toast.link_copied"),
+                      t("quotes.toast.copy_manual"),
                     )
                   }
                 >

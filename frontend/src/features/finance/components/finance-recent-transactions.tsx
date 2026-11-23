@@ -22,6 +22,7 @@ import { useFinanceTransactions } from "@/features/finance/hooks/use-finance-que
 import { cn } from "@/lib/utils";
 import { date as formatDate } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 function typeIcon(type: string) {
   if (type === "income") return ArrowDownLeft;
@@ -99,13 +100,12 @@ export function FinanceRecentTransactions({
                       <Icon aria-hidden className="size-4" />
                     </span>
                     <div className="min-w-0">
-                      <div
-                        className="truncate text-sm font-medium"
-                        title={tx.description || undefined}
-                      >
-                        {tx.description?.trim() ||
-                          t(transactionTypeLabelKey(tx.type))}
-                      </div>
+                      <Hint label={tx.description || undefined}>
+                        <div className="truncate text-sm font-medium">
+                          {tx.description?.trim() ||
+                            t(transactionTypeLabelKey(tx.type))}
+                        </div>
+                      </Hint>
                       <div className="text-muted-foreground truncate text-xs">
                         {[
                           t(transactionTypeLabelKey(tx.type)),

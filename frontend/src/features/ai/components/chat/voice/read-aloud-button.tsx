@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useVoice } from "@/features/ai/components/chat/voice/voice-provider";
 import type { ChatMessage } from "@/features/ai/types";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 /** Plain text of an assistant message (text blocks only). */
 export function messageSpeechText(message: ChatMessage) {
@@ -27,25 +28,26 @@ export function ReadAloudButton({ message }: { message: ChatMessage }) {
   const active = voice.activeId === message.uuid;
   const label = active ? t("ai.voice.stop_reading") : t("ai.voice.read_aloud");
   return (
-    <Button
-      type="button"
-      size="icon-xs"
-      variant="ghost"
-      className="text-muted-foreground hover:text-foreground"
-      onClick={() =>
-        active ? voice.stopSpeaking() : voice.speak(message.uuid, text)
-      }
-      aria-label={label}
-      aria-pressed={active}
-      title={label}
-    >
-      {active && voice.loading ? (
-        <Loader2 className="size-3.5 animate-spin" />
-      ) : active ? (
-        <Square className="size-3 fill-current" />
-      ) : (
-        <Volume2 className="size-3.5" />
-      )}
-    </Button>
+    <Hint label={label}>
+      <Button
+        type="button"
+        size="icon-xs"
+        variant="ghost"
+        className="text-muted-foreground hover:text-foreground"
+        onClick={() =>
+          active ? voice.stopSpeaking() : voice.speak(message.uuid, text)
+        }
+        aria-label={label}
+        aria-pressed={active}
+      >
+        {active && voice.loading ? (
+          <Loader2 className="size-3.5 animate-spin" />
+        ) : active ? (
+          <Square className="size-3 fill-current" />
+        ) : (
+          <Volume2 className="size-3.5" />
+        )}
+      </Button>
+    </Hint>
   );
 }

@@ -36,6 +36,7 @@ import {
 import { isApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 const sameSet = (a: readonly string[], b: readonly string[]) =>
   [...a].sort().join() === [...b].sort().join();
@@ -358,21 +359,24 @@ function VehicleAlertsForm({ data }: { data: VehicleAlertSettings }) {
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={
-              sendTest.isPending ||
-              dirty ||
-              data.recipient_user_uuids.length === 0
-            }
-            title={dirty ? t("messaging.vehicle_alerts.save_first") : undefined}
-            onClick={() => void onSendTest()}
+          <Hint
+            label={dirty ? t("messaging.vehicle_alerts.save_first") : undefined}
           >
-            <Send className="size-4" />
-            {t("messaging.vehicle_alerts.send_test")}
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={
+                sendTest.isPending ||
+                dirty ||
+                data.recipient_user_uuids.length === 0
+              }
+              onClick={() => void onSendTest()}
+            >
+              <Send className="size-4" />
+              {t("messaging.vehicle_alerts.send_test")}
+            </Button>
+          </Hint>
           <Button
             type="button"
             size="sm"

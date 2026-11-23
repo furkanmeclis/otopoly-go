@@ -5,6 +5,7 @@ import { Clock } from "lucide-react";
 import { minutesSince } from "@/features/jobs/lib/job-ui";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 export function formatElapsed(
   minutes: number,
@@ -39,18 +40,19 @@ export function JobElapsed({
 }) {
   const { t } = useLocale();
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1 text-xs tabular-nums",
-        stale
-          ? "font-medium text-amber-600 dark:text-amber-400"
-          : "text-muted-foreground",
-        className,
-      )}
-      title={stale ? t("jobs.board.stale_hint") : undefined}
-    >
-      <Clock className="size-3" />
-      {formatElapsed(minutesSince(startedAt, now), t)}
-    </span>
+    <Hint label={stale ? t("jobs.board.stale_hint") : undefined}>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1 text-xs tabular-nums",
+          stale
+            ? "font-medium text-amber-600 dark:text-amber-400"
+            : "text-muted-foreground",
+          className,
+        )}
+      >
+        <Clock className="size-3" />
+        {formatElapsed(minutesSince(startedAt, now), t)}
+      </span>
+    </Hint>
   );
 }

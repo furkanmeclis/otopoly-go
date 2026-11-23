@@ -24,6 +24,7 @@ import type {
 } from "@/features/notifications/services/notifications.service";
 import { datetime } from "@/lib/utils/format";
 import { useLocale } from "@/providers/locale-provider";
+import { Hint } from "@/components/ui/hint";
 
 type UserNotificationsTabProps = {
   userUuid: string;
@@ -99,9 +100,14 @@ export function UserNotificationsTab({ userUuid }: UserNotificationsTabProps) {
           return <span className="text-muted-foreground">—</span>;
         }
         return row.original.read_at ? (
-          <span title={datetime(row.original.read_at, undefined, locale)}>
-            <StatusChip label={t("users.notifications.read")} tone="success" />
-          </span>
+          <Hint label={datetime(row.original.read_at, undefined, locale)}>
+            <span>
+              <StatusChip
+                label={t("users.notifications.read")}
+                tone="success"
+              />
+            </span>
+          </Hint>
         ) : (
           <StatusChip label={t("users.notifications.unread")} tone="warning" />
         );

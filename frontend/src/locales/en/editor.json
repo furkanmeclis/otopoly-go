@@ -78,5 +78,6 @@
   "picker.date": "Date",
   "decrease_font": "Decrease font size",
   "increase_font": "Increase font size",
-  "copy": "Copy"
+  "copy": "Copy",
+  "clipboard_denied": "Clipboard access was denied."
 }

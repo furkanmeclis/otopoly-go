@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { FileInput } from "@/components/ui/file-input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useBillingOrderMutations } from "@/features/billing/hooks/use-billing";
@@ -70,10 +70,10 @@ export function ReportPaymentDialog({
             <Label htmlFor="receipt" className="mb-1 block">
               {t("billing.report.file")}
             </Label>
-            <Input
+            <FileInput
               id="receipt"
-              type="file"
               accept={ACCEPT.join(",")}
+              fileName={file?.name ?? null}
               onChange={(e) => pick(e.target.files?.[0] ?? null)}
             />
             <p className="text-muted-foreground mt-1 text-xs">
